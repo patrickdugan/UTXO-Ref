@@ -1,0 +1,374 @@
+{
+  "kind": "m1_cet_skeletons",
+  "createdAt": "2026-02-12T17:51:54.339Z",
+  "chain": {
+    "network": "test",
+    "rpcUrl": "http://127.0.0.1:19332"
+  },
+  "wallet": "tl-wallet",
+  "sourceDraftPath": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\m1_dlc_draft_latest.json",
+  "sourceDraftHash": "07545950d391964de029f382ebac7c8c1466d39bc81e796de37382c2ca5728c1",
+  "fundingOutpoint": {
+    "txid": "2586c501878159da88b3d07deac31972f511c51af2e1c3496d2379199c8a732f",
+    "vout": 0,
+    "valueLtc": "0.007981",
+    "valueSats": "798100"
+  },
+  "cets": {
+    "maturityHeight": 4555966,
+    "refundLocktime": 4556254,
+    "cets": [
+      {
+        "bucketPct": 0,
+        "locktime": 4555966,
+        "input": {
+          "txid": "2586c501878159da88b3d07deac31972f511c51af2e1c3496d2379199c8a732f",
+          "vout": 0
+        },
+        "payouts": {
+          "depositorAddress": "tltc1qvgqet7gvx8rq3hx6ds2qh406f9hl3dhzsdwqaj",
+          "depositorAmountSats": "798100",
+          "poolAddress": "tltc1q5zuzh7v6xa85d0jx0hga7dkaasr3uwwepnqfs2",
+          "poolAmountSats": "0"
+        },
+        "rawTxHex": "02000000012f738a9c1979236d49c3e1f21ac511f57219c3ea7dd0b388da59818701c586250000000000feffffff01942d0c0000000000160014620195f90c31c608dcda6c140bd5fa496ff8b6e2be844500",
+        "txid": "08f93d253086567cd72592e32cef7f36206d8a8496f688e3bf9031f2ba07a9a9"
+      },
+      {
+        "bucketPct": 5,
+        "locktime": 4555966,
+        "input": {
+          "txid": "2586c501878159da88b3d07deac31972f511c51af2e1c3496d2379199c8a732f",
+          "vout": 0
+        },
+        "payouts": {
+          "depositorAddress": "tltc1qvgqet7gvx8rq3hx6ds2qh406f9hl3dhzsdwqaj",
+          "depositorAmountSats": "758195",
+          "poolAddress": "tltc1q5zuzh7v6xa85d0jx0hga7dkaasr3uwwepnqfs2",
+          "poolAmountSats": "39905"
+        },
+        "rawTxHex": "02000000012f738a9c1979236d49c3e1f21ac511f57219c3ea7dd0b388da59818701c586250000000000feffffff02b3910b0000000000160014620195f90c31c608dcda6c140bd5fa496ff8b6e2e19b000000000000160014a0b82bf99a374f46be467dd1df36ddec071e39d9be844500",
+        "txid": "237e2c398f23f9121277fe2d011d85ed3c436332027a9a5a2249c79b4ed73fee"
+      },
+      {
+        "bucketPct": 10,
+        "locktime": 4555966,
+        "input": {
+          "txid": "2586c501878159da88b3d07deac31972f511c51af2e1c3496d2379199c8a732f",
+          "vout": 0
+        },
+        "payouts": {
+          "depositorAddress": "tltc1qvgqet7gvx8rq3hx6ds2qh406f9hl3dhzsdwqaj",
+          "depositorAmountSats": "718290",
+          "poolAddress": "tltc1q5zuzh7v6xa85d0jx0hga7dkaasr3uwwepnqfs2",
+          "poolAmountSats": "79810"
+        },
+        "rawTxHex": "02000000012f738a9c1979236d49c3e1f21ac511f57219c3ea7dd0b388da59818701c586250000000000feffffff02d2f50a0000000000160014620195f90c31c608dcda6c140bd5fa496ff8b6e2c237010000000000160014a0b82bf99a374f46be467dd1df36ddec071e39d9be844500",
+        "txid": "97625a9f878217d9aea211718141a5d4d46a68cd63535df355e6675dac5c6013"
+      },
+      {
+        "bucketPct": 15,
+        "locktime": 4555966,
+        "input": {
+          "txid": "2586c501878159da88b3d07deac31972f511c51af2e1c3496d2379199c8a732f",
+          "vout": 0
+        },
+        "payouts": {
+          "depositorAddress": "tltc1qvgqet7gvx8rq3hx6ds2qh406f9hl3dhzsdwqaj",
+          "depositorAmountSats": "678385",
+          "poolAddress": "tltc1q5zuzh7v6xa85d0jx0hga7dkaasr3uwwepnqfs2",
+          "poolAmountSats": "119715"
+        },
+        "rawTxHex": "02000000012f738a9c1979236d49c3e1f21ac511f57219c3ea7dd0b388da59818701c586250000000000feffffff02f1590a0000000000160014620195f90c31c608dcda6c140bd5fa496ff8b6e2a3d3010000000000160014a0b82bf99a374f46be467dd1df36ddec071e39d9be844500",
+        "txid": "7d0ee930137d9c6ce3bad5f6f04b9522e7c36775f4ddbdaed8b151e7953a5121"
+      },
+      {
+        "bucketPct": 20,
+        "locktime": 4555966,
+        "input": {
+          "txid": "2586c501878159da88b3d07deac31972f511c51af2e1c3496d2379199c8a732f",
+          "vout": 0
+        },
+        "payouts": {
+          "depositorAddress": "tltc1qvgqet7gvx8rq3hx6ds2qh406f9hl3dhzsdwqaj",
+          "depositorAmountSats": "638480",
+          "poolAddress": "tltc1q5zuzh7v6xa85d0jx0hga7dkaasr3uwwepnqfs2",
+          "poolAmountSats": "159620"
+        },
+        "rawTxHex": "02000000012f738a9c1979236d49c3e1f21ac511f57219c3ea7dd0b388da59818701c586250000000000feffffff0210be090000000000160014620195f90c31c608dcda6c140bd5fa496ff8b6e2846f020000000000160014a0b82bf99a374f46be467dd1df36ddec071e39d9be844500",
+        "txid": "471bd924d09e58f427fe0f1de096c03b8f52dc45d419a8d50288006cbb42ea4b"
+      },
+      {
+        "bucketPct": 25,
+        "locktime": 4555966,
+        "input": {
+          "txid": "2586c501878159da88b3d07deac31972f511c51af2e1c3496d2379199c8a732f",
+          "vout": 0
+        },
+        "payouts": {
+          "depositorAddress": "tltc1qvgqet7gvx8rq3hx6ds2qh406f9hl3dhzsdwqaj",
+          "depositorAmountSats": "598575",
+          "poolAddress": "tltc1q5zuzh7v6xa85d0jx0hga7dkaasr3uwwepnqfs2",
+          "poolAmountSats": "199525"
+        },
+        "rawTxHex": "02000000012f738a9c1979236d49c3e1f21ac511f57219c3ea7dd0b388da59818701c586250000000000feffffff022f22090000000000160014620195f90c31c608dcda6c140bd5fa496ff8b6e2650b030000000000160014a0b82bf99a374f46be467dd1df36ddec071e39d9be844500",
+        "txid": "bc6b97a9307962916b88138c3fe9ea0527f7b1016f49320e777959af4187a44e"
+      },
+      {
+        "bucketPct": 30,
+        "locktime": 4555966,
+        "input": {
+          "txid": "2586c501878159da88b3d07deac31972f511c51af2e1c3496d2379199c8a732f",
+          "vout": 0
+        },
+        "payouts": {
+          "depositorAddress": "tltc1qvgqet7gvx8rq3hx6ds2qh406f9hl3dhzsdwqaj",
+          "depositorAmountSats": "558670",
+          "poolAddress": "tltc1q5zuzh7v6xa85d0jx0hga7dkaasr3uwwepnqfs2",
+          "poolAmountSats": "239430"
+        },
+        "rawTxHex": "02000000012f738a9c1979236d49c3e1f21ac511f57219c3ea7dd0b388da59818701c586250000000000feffffff024e86080000000000160014620195f90c31c608dcda6c140bd5fa496ff8b6e246a7030000000000160014a0b82bf99a374f46be467dd1df36ddec071e39d9be844500",
+        "txid": "717133e6ea445ae020846cee9e5e1e9726f6ce36b52b78f6116198771514f558"
+      },
+      {
+        "bucketPct": 35,
+        "locktime": 4555966,
+        "input": {
+          "txid": "2586c501878159da88b3d07deac31972f511c51af2e1c3496d2379199c8a732f",
+          "vout": 0
+        },
+        "payouts": {
+          "depositorAddress": "tltc1qvgqet7gvx8rq3hx6ds2qh406f9hl3dhzsdwqaj",
+          "depositorAmountSats": "518765",
+          "poolAddress": "tltc1q5zuzh7v6xa85d0jx0hga7dkaasr3uwwepnqfs2",
+          "poolAmountSats": "279335"
+        },
+        "rawTxHex": "02000000012f738a9c1979236d49c3e1f21ac511f57219c3ea7dd0b388da59818701c586250000000000feffffff026dea070000000000160014620195f90c31c608dcda6c140bd5fa496ff8b6e22743040000000000160014a0b82bf99a374f46be467dd1df36ddec071e39d9be844500",
+        "txid": "c25a0a0e863ba3d0693e7ceb68f3934bffc28525042cdb6dffcfb6fc384b2700"
+      },
+      {
+        "bucketPct": 40,
+        "locktime": 4555966,
+        "input": {
+          "txid": "2586c501878159da88b3d07deac31972f511c51af2e1c3496d2379199c8a732f",
+          "vout": 0
+        },
+        "payouts": {
+          "depositorAddress": "tltc1qvgqet7gvx8rq3hx6ds2qh406f9hl3dhzsdwqaj",
+          "depositorAmountSats": "478860",
+          "poolAddress": "tltc1q5zuzh7v6xa85d0jx0hga7dkaasr3uwwepnqfs2",
+          "poolAmountSats": "319240"
+        },
+        "rawTxHex": "02000000012f738a9c1979236d49c3e1f21ac511f57219c3ea7dd0b388da59818701c586250000000000feffffff028c4e070000000000160014620195f90c31c608dcda6c140bd5fa496ff8b6e208df040000000000160014a0b82bf99a374f46be467dd1df36ddec071e39d9be844500",
+        "txid": "308428411684985c5a86b61b5148970eba2408ff12bce2cbb98c3478838bbe7f"
+      },
+      {
+        "bucketPct": 45,
+        "locktime": 4555966,
+        "input": {
+          "txid": "2586c501878159da88b3d07deac31972f511c51af2e1c3496d2379199c8a732f",
+          "vout": 0
+        },
+        "payouts": {
+          "depositorAddress": "tltc1qvgqet7gvx8rq3hx6ds2qh406f9hl3dhzsdwqaj",
+          "depositorAmountSats": "438955",
+          "poolAddress": "tltc1q5zuzh7v6xa85d0jx0hga7dkaasr3uwwepnqfs2",
+          "poolAmountSats": "359145"
+        },
+        "rawTxHex": "02000000012f738a9c1979236d49c3e1f21ac511f57219c3ea7dd0b388da59818701c586250000000000feffffff02abb2060000000000160014620195f90c31c608dcda6c140bd5fa496ff8b6e2e97a050000000000160014a0b82bf99a374f46be467dd1df36ddec071e39d9be844500",
+        "txid": "777c40d4a048ccda6ededab241df9490d57fb041cc57c6f52a1f71ebb6fd913e"
+      },
+      {
+        "bucketPct": 50,
+        "locktime": 4555966,
+        "input": {
+          "txid": "2586c501878159da88b3d07deac31972f511c51af2e1c3496d2379199c8a732f",
+          "vout": 0
+        },
+        "payouts": {
+          "depositorAddress": "tltc1qvgqet7gvx8rq3hx6ds2qh406f9hl3dhzsdwqaj",
+          "depositorAmountSats": "399050",
+          "poolAddress": "tltc1q5zuzh7v6xa85d0jx0hga7dkaasr3uwwepnqfs2",
+          "poolAmountSats": "399050"
+        },
+        "rawTxHex": "02000000012f738a9c1979236d49c3e1f21ac511f57219c3ea7dd0b388da59818701c586250000000000feffffff02ca16060000000000160014620195f90c31c608dcda6c140bd5fa496ff8b6e2ca16060000000000160014a0b82bf99a374f46be467dd1df36ddec071e39d9be844500",
+        "txid": "58e72e633e25816d68a9ad9ec1aae370d72f2e697408672928f6e3250ca6cb60"
+      },
+      {
+        "bucketPct": 55,
+        "locktime": 4555966,
+        "input": {
+          "txid": "2586c501878159da88b3d07deac31972f511c51af2e1c3496d2379199c8a732f",
+          "vout": 0
+        },
+        "payouts": {
+          "depositorAddress": "tltc1qvgqet7gvx8rq3hx6ds2qh406f9hl3dhzsdwqaj",
+          "depositorAmountSats": "359145",
+          "poolAddress": "tltc1q5zuzh7v6xa85d0jx0hga7dkaasr3uwwepnqfs2",
+          "poolAmountSats": "438955"
+        },
+        "rawTxHex": "02000000012f738a9c1979236d49c3e1f21ac511f57219c3ea7dd0b388da59818701c586250000000000feffffff02e97a050000000000160014620195f90c31c608dcda6c140bd5fa496ff8b6e2abb2060000000000160014a0b82bf99a374f46be467dd1df36ddec071e39d9be844500",
+        "txid": "f6dd283bbd7a75f63fe9cbadebca442aafaf58411c34b0f16c7103e946065fae"
+      },
+      {
+        "bucketPct": 60,
+        "locktime": 4555966,
+        "input": {
+          "txid": "2586c501878159da88b3d07deac31972f511c51af2e1c3496d2379199c8a732f",
+          "vout": 0
+        },
+        "payouts": {
+          "depositorAddress": "tltc1qvgqet7gvx8rq3hx6ds2qh406f9hl3dhzsdwqaj",
+          "depositorAmountSats": "319240",
+          "poolAddress": "tltc1q5zuzh7v6xa85d0jx0hga7dkaasr3uwwepnqfs2",
+          "poolAmountSats": "478860"
+        },
+        "rawTxHex": "02000000012f738a9c1979236d49c3e1f21ac511f57219c3ea7dd0b388da59818701c586250000000000feffffff0208df040000000000160014620195f90c31c608dcda6c140bd5fa496ff8b6e28c4e070000000000160014a0b82bf99a374f46be467dd1df36ddec071e39d9be844500",
+        "txid": "80e21c46ba624f043473a3e9df2ed71c6f7f7742da2f411d7d5a740426ae8190"
+      },
+      {
+        "bucketPct": 65,
+        "locktime": 4555966,
+        "input": {
+          "txid": "2586c501878159da88b3d07deac31972f511c51af2e1c3496d2379199c8a732f",
+          "vout": 0
+        },
+        "payouts": {
+          "depositorAddress": "tltc1qvgqet7gvx8rq3hx6ds2qh406f9hl3dhzsdwqaj",
+          "depositorAmountSats": "279335",
+          "poolAddress": "tltc1q5zuzh7v6xa85d0jx0hga7dkaasr3uwwepnqfs2",
+          "poolAmountSats": "518765"
+        },
+        "rawTxHex": "02000000012f738a9c1979236d49c3e1f21ac511f57219c3ea7dd0b388da59818701c586250000000000feffffff022743040000000000160014620195f90c31c608dcda6c140bd5fa496ff8b6e26dea070000000000160014a0b82bf99a374f46be467dd1df36ddec071e39d9be844500",
+        "txid": "052cbd844f074e5f871846640629eed5ce453b2300239e7e08597621ecedb87a"
+      },
+      {
+        "bucketPct": 70,
+        "locktime": 4555966,
+        "input": {
+          "txid": "2586c501878159da88b3d07deac31972f511c51af2e1c3496d2379199c8a732f",
+          "vout": 0
+        },
+        "payouts": {
+          "depositorAddress": "tltc1qvgqet7gvx8rq3hx6ds2qh406f9hl3dhzsdwqaj",
+          "depositorAmountSats": "239430",
+          "poolAddress": "tltc1q5zuzh7v6xa85d0jx0hga7dkaasr3uwwepnqfs2",
+          "poolAmountSats": "558670"
+        },
+        "rawTxHex": "02000000012f738a9c1979236d49c3e1f21ac511f57219c3ea7dd0b388da59818701c586250000000000feffffff0246a7030000000000160014620195f90c31c608dcda6c140bd5fa496ff8b6e24e86080000000000160014a0b82bf99a374f46be467dd1df36ddec071e39d9be844500",
+        "txid": "76245423d057fc9038060c909763b5bd50dcfce4b636e1f8b329072f17f8762d"
+      },
+      {
+        "bucketPct": 75,
+        "locktime": 4555966,
+        "input": {
+          "txid": "2586c501878159da88b3d07deac31972f511c51af2e1c3496d2379199c8a732f",
+          "vout": 0
+        },
+        "payouts": {
+          "depositorAddress": "tltc1qvgqet7gvx8rq3hx6ds2qh406f9hl3dhzsdwqaj",
+          "depositorAmountSats": "199525",
+          "poolAddress": "tltc1q5zuzh7v6xa85d0jx0hga7dkaasr3uwwepnqfs2",
+          "poolAmountSats": "598575"
+        },
+        "rawTxHex": "02000000012f738a9c1979236d49c3e1f21ac511f57219c3ea7dd0b388da59818701c586250000000000feffffff02650b030000000000160014620195f90c31c608dcda6c140bd5fa496ff8b6e22f22090000000000160014a0b82bf99a374f46be467dd1df36ddec071e39d9be844500",
+        "txid": "86b403fd3aefd17203a4015255839050d7880857417b38c04a2cab8645d3c7c8"
+      },
+      {
+        "bucketPct": 80,
+        "locktime": 4555966,
+        "input": {
+          "txid": "2586c501878159da88b3d07deac31972f511c51af2e1c3496d2379199c8a732f",
+          "vout": 0
+        },
+        "payouts": {
+          "depositorAddress": "tltc1qvgqet7gvx8rq3hx6ds2qh406f9hl3dhzsdwqaj",
+          "depositorAmountSats": "159620",
+          "poolAddress": "tltc1q5zuzh7v6xa85d0jx0hga7dkaasr3uwwepnqfs2",
+          "poolAmountSats": "638480"
+        },
+        "rawTxHex": "02000000012f738a9c1979236d49c3e1f21ac511f57219c3ea7dd0b388da59818701c586250000000000feffffff02846f020000000000160014620195f90c31c608dcda6c140bd5fa496ff8b6e210be090000000000160014a0b82bf99a374f46be467dd1df36ddec071e39d9be844500",
+        "txid": "2616923f9f65e21b0089a7e3279d8788ef445d158ca60e700687cde2746f0dfc"
+      },
+      {
+        "bucketPct": 85,
+        "locktime": 4555966,
+        "input": {
+          "txid": "2586c501878159da88b3d07deac31972f511c51af2e1c3496d2379199c8a732f",
+          "vout": 0
+        },
+        "payouts": {
+          "depositorAddress": "tltc1qvgqet7gvx8rq3hx6ds2qh406f9hl3dhzsdwqaj",
+          "depositorAmountSats": "119715",
+          "poolAddress": "tltc1q5zuzh7v6xa85d0jx0hga7dkaasr3uwwepnqfs2",
+          "poolAmountSats": "678385"
+        },
+        "rawTxHex": "02000000012f738a9c1979236d49c3e1f21ac511f57219c3ea7dd0b388da59818701c586250000000000feffffff02a3d3010000000000160014620195f90c31c608dcda6c140bd5fa496ff8b6e2f1590a0000000000160014a0b82bf99a374f46be467dd1df36ddec071e39d9be844500",
+        "txid": "6d8e42b5669859b154573a0b0ba0a5f2d73f2668e94d85ac6c812e41ffb0ffaa"
+      },
+      {
+        "bucketPct": 90,
+        "locktime": 4555966,
+        "input": {
+          "txid": "2586c501878159da88b3d07deac31972f511c51af2e1c3496d2379199c8a732f",
+          "vout": 0
+        },
+        "payouts": {
+          "depositorAddress": "tltc1qvgqet7gvx8rq3hx6ds2qh406f9hl3dhzsdwqaj",
+          "depositorAmountSats": "79810",
+          "poolAddress": "tltc1q5zuzh7v6xa85d0jx0hga7dkaasr3uwwepnqfs2",
+          "poolAmountSats": "718290"
+        },
+        "rawTxHex": "02000000012f738a9c1979236d49c3e1f21ac511f57219c3ea7dd0b388da59818701c586250000000000feffffff02c237010000000000160014620195f90c31c608dcda6c140bd5fa496ff8b6e2d2f50a0000000000160014a0b82bf99a374f46be467dd1df36ddec071e39d9be844500",
+        "txid": "6eba8f676f0e408aadc5c5828c7ab7caa625ef0a10d4737f7dbc49a7cf965497"
+      },
+      {
+        "bucketPct": 95,
+        "locktime": 4555966,
+        "input": {
+          "txid": "2586c501878159da88b3d07deac31972f511c51af2e1c3496d2379199c8a732f",
+          "vout": 0
+        },
+        "payouts": {
+          "depositorAddress": "tltc1qvgqet7gvx8rq3hx6ds2qh406f9hl3dhzsdwqaj",
+          "depositorAmountSats": "39905",
+          "poolAddress": "tltc1q5zuzh7v6xa85d0jx0hga7dkaasr3uwwepnqfs2",
+          "poolAmountSats": "758195"
+        },
+        "rawTxHex": "02000000012f738a9c1979236d49c3e1f21ac511f57219c3ea7dd0b388da59818701c586250000000000feffffff02e19b000000000000160014620195f90c31c608dcda6c140bd5fa496ff8b6e2b3910b0000000000160014a0b82bf99a374f46be467dd1df36ddec071e39d9be844500",
+        "txid": "8b20d834b9ae4486f2bde1528a710f3a3119164cc06f5cf6699e3e17cda5a423"
+      },
+      {
+        "bucketPct": 100,
+        "locktime": 4555966,
+        "input": {
+          "txid": "2586c501878159da88b3d07deac31972f511c51af2e1c3496d2379199c8a732f",
+          "vout": 0
+        },
+        "payouts": {
+          "depositorAddress": "tltc1qvgqet7gvx8rq3hx6ds2qh406f9hl3dhzsdwqaj",
+          "depositorAmountSats": "0",
+          "poolAddress": "tltc1q5zuzh7v6xa85d0jx0hga7dkaasr3uwwepnqfs2",
+          "poolAmountSats": "798100"
+        },
+        "rawTxHex": "02000000012f738a9c1979236d49c3e1f21ac511f57219c3ea7dd0b388da59818701c586250000000000feffffff01942d0c0000000000160014a0b82bf99a374f46be467dd1df36ddec071e39d9be844500",
+        "txid": "7f3ae2f116b75581bc068b7cd755d18b544a0a260d78f9af27b5b181b2ab3543"
+      }
+    ],
+    "refundSkeleton": {
+      "locktime": 4556254,
+      "input": {
+        "txid": "2586c501878159da88b3d07deac31972f511c51af2e1c3496d2379199c8a732f",
+        "vout": 0
+      },
+      "payouts": {
+        "aliceAddress": "tltc1qvgqet7gvx8rq3hx6ds2qh406f9hl3dhzsdwqaj",
+        "aliceAmountSats": "399050",
+        "bobAddress": "tltc1qekq06cugqrfla5ut94l9zqxkad0zw9upnmqfxp",
+        "bobAmountSats": "399050"
+      },
+      "rawTxHex": "02000000012f738a9c1979236d49c3e1f21ac511f57219c3ea7dd0b388da59818701c586250000000000feffffff02ca16060000000000160014620195f90c31c608dcda6c140bd5fa496ff8b6e2ca16060000000000160014cd80fd638800d3fed38b2d7e5100d6eb5e271781de854500",
+      "txid": "2b8cb56a931f5ee1105d2e556aba78f31c61f213fdbeaa09d6f46f3919c545c6"
+    }
+  }
+}
