@@ -1,0 +1,66 @@
+{
+  "kind": "m1_challenge_bundle",
+  "createdAt": "2026-02-12T17:56:27.205Z",
+  "selectedBucketPct": 10,
+  "sourceHashes": {
+    "cet": "31c96677d915cdfed8c2987c43d93afc2d7cb5d38190a307f1fe47fb1379aced",
+    "oracle": "b1abd8d18722f9bc19d5a60ef753e4cb9675118bfdd7115efbefc68e87f0e069",
+    "fundingFinal": "9e4778edb1279834f0ae5bd3b7aa28c760215199bd846d6cd536a0173f6a8365"
+  },
+  "binding": {
+    "fundingOutpoint": {
+      "txid": "2586c501878159da88b3d07deac31972f511c51af2e1c3496d2379199c8a732f",
+      "vout": 0,
+      "valueLtc": "0.007981",
+      "valueSats": "798100"
+    },
+    "fundingTxidFinalized": "2586c501878159da88b3d07deac31972f511c51af2e1c3496d2379199c8a732f",
+    "maturityHeight": 4555966,
+    "refundLocktime": 4556254
+  },
+  "selectedCet": {
+    "txid": "97625a9f878217d9aea211718141a5d4d46a68cd63535df355e6675dac5c6013",
+    "locktime": 4555966,
+    "rawTxHex": "02000000012f738a9c1979236d49c3e1f21ac511f57219c3ea7dd0b388da59818701c586250000000000feffffff02d2f50a0000000000160014620195f90c31c608dcda6c140bd5fa496ff8b6e2c237010000000000160014a0b82bf99a374f46be467dd1df36ddec071e39d9be844500",
+    "payouts": {
+      "depositorAddress": "tltc1qvgqet7gvx8rq3hx6ds2qh406f9hl3dhzsdwqaj",
+      "depositorAmountSats": "718290",
+      "poolAddress": "tltc1q5zuzh7v6xa85d0jx0hga7dkaasr3uwwepnqfs2",
+      "poolAmountSats": "79810"
+    }
+  },
+  "oracleBinding": {
+    "eventId": "m1_oracle_event_1770918761835",
+    "quorumId": "quorum_1of1_placeholder",
+    "keyId": "oracle_key_tl_wallet_placeholder",
+    "messagePayload": "m1_oracle_attestation_v1|m1_oracle_event_1770918761835|2586c501878159da88b3d07deac31972f511c51af2e1c3496d2379199c8a732f|0|10|97625a9f878217d9aea211718141a5d4d46a68cd63535df355e6675dac5c6013|4555966",
+    "messageDigestHex": "e2946a816d55552c128d05f40b5182e60d31651f5c2df78995699d96ab385366",
+    "nonceCommitment": "nonce_commitment_for_10",
+    "oracleSignaturePlaceholder": "oracle_sig_for_10",
+    "adaptorPointPlaceholder": "adaptor_point_for_10",
+    "adaptorSignaturePlaceholder": "adaptor_sig_for_10"
+  },
+  "witnessBundlePlaceholders": {
+    "honestPath": {
+      "required": [
+        "commitmentPackage",
+        "withdrawalProofSet",
+        "selectedBucketPct",
+        "oracleSignature",
+        "cetPreimageOrSig"
+      ],
+      "note": "Populate these fields when challenge protocol witness format is finalized."
+    },
+    "challengedPath": {
+      "required": [
+        "conflictingSweepData",
+        "attestationDigest",
+        "oracleSignature",
+        "merkleMembershipProofs",
+        "capResidualChecks"
+      ],
+      "note": "Use this shape for arbitration redirect payload."
+    }
+  },
+  "bundleHash": "522d5185a28e37240f423ecc34ce35b10b2ee2b5327eb9b7a698dd2c02b3760c"
+}

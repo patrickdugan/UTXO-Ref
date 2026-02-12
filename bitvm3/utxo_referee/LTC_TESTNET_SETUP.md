@@ -97,6 +97,25 @@ Output:
 This artifact binds oracle attestation placeholders to CET txids and provides
 challenge-path evidence field stubs for the next integration phase.
 
+## 8. Finalize and Broadcast Funding Transaction
+
+```powershell
+node bitvm3/utxo_referee/m1_dlc_sign_finalize.js
+```
+
+Output:
+- `bitvm3/utxo_referee/artifacts/m1_funding_finalized_latest.json`
+
+## 9. Select CET Bucket and Emit Challenge Bundle
+
+```powershell
+$env:BUCKET_PCT="10"
+node bitvm3/utxo_referee/m1_select_bucket_bundle.js
+```
+
+Output:
+- `bitvm3/utxo_referee/artifacts/m1_challenge_bundle_latest.json`
+
 Expected behavior:
 - If RPC is available, script prints chain/height probe.
 - If RPC is missing, script falls back to deterministic mock txrefs.
