@@ -75,6 +75,28 @@ Optional env overrides:
 Artifacts are written to:
 - `bitvm3/utxo_referee/artifacts/`
 
+## 6. Generate Funding PSBT + CET Skeletons
+
+```powershell
+node bitvm3/utxo_referee/m1_dlc_psbt_cet.js
+```
+
+Outputs:
+- `bitvm3/utxo_referee/artifacts/m1_funding_psbt_latest.json`
+- `bitvm3/utxo_referee/artifacts/m1_cet_skeletons_latest.json`
+
+## 7. Generate Oracle/Adaptor Wiring Placeholders
+
+```powershell
+node bitvm3/utxo_referee/m1_oracle_wiring.js
+```
+
+Output:
+- `bitvm3/utxo_referee/artifacts/m1_oracle_wiring_latest.json`
+
+This artifact binds oracle attestation placeholders to CET txids and provides
+challenge-path evidence field stubs for the next integration phase.
+
 Expected behavior:
 - If RPC is available, script prints chain/height probe.
 - If RPC is missing, script falls back to deterministic mock txrefs.
