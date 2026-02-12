@@ -1,0 +1,168 @@
+{
+  "kind": "m1_dlc_draft",
+  "createdAt": "2026-02-12T17:47:53.430Z",
+  "chain": {
+    "network": "test",
+    "rpcUrl": "http://127.0.0.1:19332",
+    "blockHeight": 4554958
+  },
+  "template": {
+    "templateId": "dlc-receipt-ltc-testnet-v1",
+    "templateHash": "d0c2721675fc2081ef36a901464e4170ac916b313dbcebef17ae1523e0c086d4"
+  },
+  "roleSet": {
+    "tag": "m1-20260212-144115",
+    "wallet": "tl-wallet",
+    "addresses": {
+      "operator": "tltc1qcss90s7fh7d6dvhj5rcperv6awp37djznnhvfr",
+      "oracle": "tltc1q0gqz70w200ghg4law7ygeaxd5ehqppu3cjgun2",
+      "alice": "tltc1qvgqet7gvx8rq3hx6ds2qh406f9hl3dhzsdwqaj",
+      "bob": "tltc1qekq06cugqrfla5ut94l9zqxkad0zw9upnmqfxp",
+      "residual": "tltc1q5zuzh7v6xa85d0jx0hga7dkaasr3uwwepnqfs2"
+    },
+    "pubkeys": {
+      "operator": "029d8d2ca072945b8a447be34b3d8824391efac24cadd8fd2607b2ec160f4e1906",
+      "oracle": "03a92fd6bd2731e5146b270a1d04c04df2403151970aaa2301166e79232d815b3a"
+    }
+  },
+  "canonical": {
+    "epochId": "1",
+    "payoutLeafSchema": "(epochId, recipientScriptPubKey, amountSats)",
+    "commitmentPackageSchema": "(epochId, withdrawalRoot, capSats, residualDest)"
+  },
+  "contract": {
+    "eventId": "ltc-testnet-epoch-1-1770918473431",
+    "maturityHeight": 4555966,
+    "refundLocktime": 4556254,
+    "collateralSats": "800000",
+    "fundingInputs": [
+      {
+        "role": "alice",
+        "txid": "065b841881cfebbc1d3eebf26ca74867bb264d54a053c854a4beb66ae3a84d61",
+        "vout": 4,
+        "amountLtc": "0.004",
+        "amountSats": "400000"
+      },
+      {
+        "role": "bob",
+        "txid": "065b841881cfebbc1d3eebf26ca74867bb264d54a053c854a4beb66ae3a84d61",
+        "vout": 0,
+        "amountLtc": "0.004",
+        "amountSats": "400000"
+      }
+    ],
+    "outputs": {
+      "operatorAddress": "tltc1qcss90s7fh7d6dvhj5rcperv6awp37djznnhvfr",
+      "oracleAddress": "tltc1q0gqz70w200ghg4law7ygeaxd5ehqppu3cjgun2",
+      "residualAddress": "tltc1q5zuzh7v6xa85d0jx0hga7dkaasr3uwwepnqfs2"
+    },
+    "outcomes": [
+      {
+        "bucketPct": 0,
+        "depositorAmountSats": "800000",
+        "poolAmountSats": "0"
+      },
+      {
+        "bucketPct": 5,
+        "depositorAmountSats": "760000",
+        "poolAmountSats": "40000"
+      },
+      {
+        "bucketPct": 10,
+        "depositorAmountSats": "720000",
+        "poolAmountSats": "80000"
+      },
+      {
+        "bucketPct": 15,
+        "depositorAmountSats": "680000",
+        "poolAmountSats": "120000"
+      },
+      {
+        "bucketPct": 20,
+        "depositorAmountSats": "640000",
+        "poolAmountSats": "160000"
+      },
+      {
+        "bucketPct": 25,
+        "depositorAmountSats": "600000",
+        "poolAmountSats": "200000"
+      },
+      {
+        "bucketPct": 30,
+        "depositorAmountSats": "560000",
+        "poolAmountSats": "240000"
+      },
+      {
+        "bucketPct": 35,
+        "depositorAmountSats": "520000",
+        "poolAmountSats": "280000"
+      },
+      {
+        "bucketPct": 40,
+        "depositorAmountSats": "480000",
+        "poolAmountSats": "320000"
+      },
+      {
+        "bucketPct": 45,
+        "depositorAmountSats": "440000",
+        "poolAmountSats": "360000"
+      },
+      {
+        "bucketPct": 50,
+        "depositorAmountSats": "400000",
+        "poolAmountSats": "400000"
+      },
+      {
+        "bucketPct": 55,
+        "depositorAmountSats": "360000",
+        "poolAmountSats": "440000"
+      },
+      {
+        "bucketPct": 60,
+        "depositorAmountSats": "320000",
+        "poolAmountSats": "480000"
+      },
+      {
+        "bucketPct": 65,
+        "depositorAmountSats": "280000",
+        "poolAmountSats": "520000"
+      },
+      {
+        "bucketPct": 70,
+        "depositorAmountSats": "240000",
+        "poolAmountSats": "560000"
+      },
+      {
+        "bucketPct": 75,
+        "depositorAmountSats": "200000",
+        "poolAmountSats": "600000"
+      },
+      {
+        "bucketPct": 80,
+        "depositorAmountSats": "160000",
+        "poolAmountSats": "640000"
+      },
+      {
+        "bucketPct": 85,
+        "depositorAmountSats": "120000",
+        "poolAmountSats": "680000"
+      },
+      {
+        "bucketPct": 90,
+        "depositorAmountSats": "80000",
+        "poolAmountSats": "720000"
+      },
+      {
+        "bucketPct": 95,
+        "depositorAmountSats": "40000",
+        "poolAmountSats": "760000"
+      },
+      {
+        "bucketPct": 100,
+        "depositorAmountSats": "0",
+        "poolAmountSats": "800000"
+      }
+    ]
+  },
+  "artifactHash": "4eb19511a72ddb3640ed1fa957c970d49ca5a9ef0087b4421ffbf2fe7be55410"
+}

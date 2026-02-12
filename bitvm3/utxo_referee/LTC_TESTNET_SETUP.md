@@ -54,6 +54,27 @@ powershell -File bitvm3/utxo_referee/m1_ltc_wallet_provision.ps1 `
 The script prints JSON containing the generated addresses, funding txid, and wallet balances.
 Use `-CreateOnly` to generate segregated addresses without funding.
 
+## 5. Bootstrap a DLC Draft from Live Wallet State
+
+This discovers the latest full role set in the destination wallet and emits a
+deterministic JSON DLC draft artifact with selected funding UTXOs.
+
+```powershell
+node bitvm3/utxo_referee/m1_dlc_bootstrap.js
+```
+
+Optional env overrides:
+- `LTC_RPC_URL`
+- `LTC_RPC_USER`
+- `LTC_RPC_PASS`
+- `LTC_WALLET`
+- `DLC_EPOCH_ID`
+- `DLC_MATURITY_BLOCKS`
+- `DLC_REFUND_DELAY_BLOCKS`
+
+Artifacts are written to:
+- `bitvm3/utxo_referee/artifacts/`
+
 Expected behavior:
 - If RPC is available, script prints chain/height probe.
 - If RPC is missing, script falls back to deterministic mock txrefs.
