@@ -14,9 +14,12 @@ It does NOT verify:
 - Full L2 state transitions
 - Token economics or staking
 
-## Key Assumption
+## Integration Boundary
 
-**Receipt tokens are 1:1 with sats.** All payout amounts are denominated directly in satoshis. There is no price feed, conversion logic, or collateral math.
+The referee is integration-neutral at the verification layer:
+- Inputs are `epochId`, payout leaves/proofs, cap in satoshis, and residual destination.
+- It does not depend on pricing, collateral, or protocol-specific accounting logic.
+- TradeLayer-specific mapping assumptions are documented in `TLInt.md`.
 
 ## Architecture
 
@@ -30,6 +33,8 @@ utxo_referee/
 ├── demo.js       # Usage demonstration
 └── README.md     # This file
 ```
+
+TradeLayer-specific projection details are kept in `TLInt.md`.
 
 ## Data Structures
 
