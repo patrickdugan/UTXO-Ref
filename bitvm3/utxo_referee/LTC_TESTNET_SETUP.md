@@ -37,9 +37,25 @@ $env:LTC_RPC_PASS="rpcpass"
 node bitvm3/utxo_referee/m1_ltc_testnet_demo.js
 ```
 
+## 4. Provision Segregated Role Addresses
+
+This provisions fresh `operator`, `oracle`, `alice`, `bob`, and `residual` addresses
+in `tl-wallet` and funds them from `tl`.
+
+```powershell
+powershell -File bitvm3/utxo_referee/m1_ltc_wallet_provision.ps1 `
+  -RpcUrl "http://127.0.0.1:19332" `
+  -RpcUser "user" `
+  -RpcPass "pass" `
+  -SourceWallet "tl" `
+  -DestinationWallet "tl-wallet"
+```
+
+The script prints JSON containing the generated addresses, funding txid, and wallet balances.
+Use `-CreateOnly` to generate segregated addresses without funding.
+
 Expected behavior:
 - If RPC is available, script prints chain/height probe.
 - If RPC is missing, script falls back to deterministic mock txrefs.
 - In both cases, it demonstrates:
 `deposit -> receipt minted -> epoch root created`.
-
