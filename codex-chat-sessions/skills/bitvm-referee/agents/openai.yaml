@@ -1,0 +1,4 @@
+interface:
+  display_name: "BitVM Referee"
+  short_description: "Maintain BitVM3 referee verification workflows."
+  default_prompt: "Use this skill to implement and validate BitVM3 UTXO referee sweep verification and circuit scaffolding."
