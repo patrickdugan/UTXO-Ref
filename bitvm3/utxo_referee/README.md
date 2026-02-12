@@ -185,3 +185,11 @@ node bitvm3/utxo_referee/test.js
 node bitvm3/utxo_referee/demo.js
 ```
 
+## Milestone 1 Demo
+
+```bash
+node bitvm3/utxo_referee/m1_ltc_testnet_demo.js
+```
+
+Litecoin testnet RPC setup is documented in `LTC_TESTNET_SETUP.md`.
+
