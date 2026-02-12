@@ -32,6 +32,7 @@ const merkle = require('./merkle');
 const verify = require('./verify');
 const circuit = require('./circuit');
 const m1Spec = require('./m1_spec');
+const m1ReceiptLedger = require('./m1_receipt_ledger');
 
 module.exports = {
   // Types
@@ -71,11 +72,13 @@ module.exports = {
   validatePayoutLeafRecord: m1Spec.validatePayoutLeafRecord,
   validateCommitmentPackageRecord: m1Spec.validateCommitmentPackageRecord,
   templateHashHex: m1Spec.templateHashHex,
+  ReceiptLedger: m1ReceiptLedger.ReceiptLedger,
 
   // Re-export submodules for advanced usage
   types,
   merkle,
   verify,
   circuit,
-  m1Spec
+  m1Spec,
+  m1ReceiptLedger
 };
