@@ -25,13 +25,14 @@ The referee is integration-neutral at the verification layer:
 
 ```
 utxo_referee/
-├── types.js      # CommitmentPackage, PayoutLeaf, SweepObject
-├── merkle.js     # PayoutMerkleTree with proofs
-├── verify.js     # verifySweep() off-chain verification
-├── circuit.js    # BitVM boolean circuit scaffolding
-├── test.js       # Test suite
-├── demo.js       # Usage demonstration
-└── README.md     # This file
+|- types.js      # CommitmentPackage, PayoutLeaf, SweepObject
+|- merkle.js     # PayoutMerkleTree with proofs
+|- verify.js     # verifySweep() off-chain verification
+|- circuit.js    # BitVM boolean circuit scaffolding
+|- test.js       # Test suite
+|- demo.js       # Usage demonstration
+|- TLInt.md      # TradeLayer integration mapping notes
+`- README.md     # This file
 ```
 
 TradeLayer-specific projection details are kept in `TLInt.md`.
@@ -183,3 +184,4 @@ node bitvm3/utxo_referee/test.js
 ```bash
 node bitvm3/utxo_referee/demo.js
 ```
+
