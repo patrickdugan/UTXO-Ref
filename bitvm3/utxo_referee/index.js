@@ -31,6 +31,7 @@ const types = require('./types');
 const merkle = require('./merkle');
 const verify = require('./verify');
 const circuit = require('./circuit');
+const m1Spec = require('./m1_spec');
 
 module.exports = {
   // Types
@@ -61,9 +62,20 @@ module.exports = {
   generateRefereeCircuit: circuit.generateRefereeCircuit,
   toCircuitWitness: circuit.toCircuitWitness,
 
+  // Milestone 1 spec helpers
+  PAYOUT_LEAF_SCHEMA_FIELDS: m1Spec.PAYOUT_LEAF_SCHEMA_FIELDS,
+  COMMITMENT_PACKAGE_SCHEMA_FIELDS: m1Spec.COMMITMENT_PACKAGE_SCHEMA_FIELDS,
+  RECEIPT_DLC_TEMPLATE_V1: m1Spec.RECEIPT_DLC_TEMPLATE_V1,
+  normalizeEpochId: m1Spec.normalizeEpochId,
+  normalizeAmountSats: m1Spec.normalizeAmountSats,
+  validatePayoutLeafRecord: m1Spec.validatePayoutLeafRecord,
+  validateCommitmentPackageRecord: m1Spec.validateCommitmentPackageRecord,
+  templateHashHex: m1Spec.templateHashHex,
+
   // Re-export submodules for advanced usage
   types,
   merkle,
   verify,
-  circuit
+  circuit,
+  m1Spec
 };
