@@ -1,14 +1,14 @@
 {
   "kind": "m1_oracle_wiring",
-  "createdAt": "2026-03-05T14:45:04.513Z",
+  "createdAt": "2026-03-23T21:22:57.838Z",
   "sourceArtifacts": {
     "fundingPsbt": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\m1_funding_psbt_latest.json",
     "cetSkeletons": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\m1_cet_skeletons_latest.json",
-    "fundingHash": "afeb20525b65ec3c9b1978cd3534652e2cabde348efa6519f972ead01e22fd38",
-    "cetHash": "31c96677d915cdfed8c2987c43d93afc2d7cb5d38190a307f1fe47fb1379aced"
+    "fundingHash": "b9f01ea1030b97cde2cfc930333b40670106d252649e56fe06bc2e3ba8242ba2",
+    "cetHash": "b9599565b62f940340bf6f0b98bae66cfb41aa286b690d4dca6fb3692d2d58aa"
   },
   "oracle": {
-    "eventId": "m1_oracle_event_1772721904511",
+    "eventId": "m1_oracle_event_1774300977837",
     "oracleKeyId": "oracle_key_tl_wallet_placeholder",
     "quorumId": "quorum_1of1_placeholder",
     "network": "test",
@@ -16,294 +16,50 @@
   },
   "binding": {
     "fundingOutpoint": {
-      "txid": "2586c501878159da88b3d07deac31972f511c51af2e1c3496d2379199c8a732f",
+      "txid": "e335829be0ee219c7775c22e1d65748d6adb66ac4950205456155c925cb6ff70",
       "vout": 0,
       "valueLtc": "0.007981",
       "valueSats": "798100"
     },
-    "maturityHeight": 4555966,
-    "refundLocktime": 4556254
+    "maturityHeight": 4631668,
+    "refundLocktime": 4631956,
+    "dustCarrySats": "0"
   },
   "attestationTargets": [
     {
-      "bucketPct": 0,
-      "cetTxid": "08f93d253086567cd72592e32cef7f36206d8a8496f688e3bf9031f2ba07a9a9",
-      "locktime": 4555966,
+      "pathId": "flat",
+      "bucketPct": null,
+      "cetTxid": "3b25d6f8489c4a831f2295538b85ebcea89d80d26bcb856d4ecfb3ee860101c8",
+      "locktime": 4631668,
       "message": {
-        "payload": "m1_oracle_attestation_v1|m1_oracle_event_1772721904511|2586c501878159da88b3d07deac31972f511c51af2e1c3496d2379199c8a732f|0|0|08f93d253086567cd72592e32cef7f36206d8a8496f688e3bf9031f2ba07a9a9|4555966",
-        "digestHex": "109ab7b28653e3b1714e7eb25dd246b76a998c05ff8846322a8085ae5150833b"
+        "payload": "m1_oracle_attestation_v1|m1_oracle_event_1774300977837|e335829be0ee219c7775c22e1d65748d6adb66ac4950205456155c925cb6ff70|0|flat|3b25d6f8489c4a831f2295538b85ebcea89d80d26bcb856d4ecfb3ee860101c8|4631668",
+        "digestHex": "940e745ae46918bdc9d3ca8f52eb828abf0fac380c9b09bbd0d6f54b68bf5508"
       },
-      "oracleNonceCommitment": "nonce_commitment_for_0",
-      "oracleSignaturePlaceholder": "oracle_sig_for_0",
-      "adaptorPointPlaceholder": "adaptor_point_for_0",
-      "adaptorSignaturePlaceholder": "adaptor_sig_for_0"
+      "oracleNonceCommitment": "nonce_commitment_for_flat",
+      "oracleSignaturePlaceholder": "oracle_sig_for_flat",
+      "adaptorPointPlaceholder": "adaptor_point_for_flat",
+      "adaptorSignaturePlaceholder": "adaptor_sig_for_flat"
     },
     {
-      "bucketPct": 5,
-      "cetTxid": "237e2c398f23f9121277fe2d011d85ed3c436332027a9a5a2249c79b4ed73fee",
-      "locktime": 4555966,
+      "pathId": "pnl",
+      "bucketPct": null,
+      "cetTxid": "ee90280628ca8d25dd99199f85971fb7e8454d8f0deab28e08bc78fb0420b33b",
+      "locktime": 4631668,
       "message": {
-        "payload": "m1_oracle_attestation_v1|m1_oracle_event_1772721904511|2586c501878159da88b3d07deac31972f511c51af2e1c3496d2379199c8a732f|0|5|237e2c398f23f9121277fe2d011d85ed3c436332027a9a5a2249c79b4ed73fee|4555966",
-        "digestHex": "ad487cc0ce0d0ccde3298ffd8ceb28aff824d6eeab0c3702dd9b0d85cd5334a4"
+        "payload": "m1_oracle_attestation_v1|m1_oracle_event_1774300977837|e335829be0ee219c7775c22e1d65748d6adb66ac4950205456155c925cb6ff70|0|pnl|ee90280628ca8d25dd99199f85971fb7e8454d8f0deab28e08bc78fb0420b33b|4631668",
+        "digestHex": "84d31023640e59e149ac10c9b596bf5bb40c8f3479213d3e8f84a8d3bd650f3e"
       },
-      "oracleNonceCommitment": "nonce_commitment_for_5",
-      "oracleSignaturePlaceholder": "oracle_sig_for_5",
-      "adaptorPointPlaceholder": "adaptor_point_for_5",
-      "adaptorSignaturePlaceholder": "adaptor_sig_for_5"
-    },
-    {
-      "bucketPct": 10,
-      "cetTxid": "97625a9f878217d9aea211718141a5d4d46a68cd63535df355e6675dac5c6013",
-      "locktime": 4555966,
-      "message": {
-        "payload": "m1_oracle_attestation_v1|m1_oracle_event_1772721904511|2586c501878159da88b3d07deac31972f511c51af2e1c3496d2379199c8a732f|0|10|97625a9f878217d9aea211718141a5d4d46a68cd63535df355e6675dac5c6013|4555966",
-        "digestHex": "fa67f0fe22da2c158de819cb5968cfc73f24422f8de33c6a4acc774087837600"
-      },
-      "oracleNonceCommitment": "nonce_commitment_for_10",
-      "oracleSignaturePlaceholder": "oracle_sig_for_10",
-      "adaptorPointPlaceholder": "adaptor_point_for_10",
-      "adaptorSignaturePlaceholder": "adaptor_sig_for_10"
-    },
-    {
-      "bucketPct": 15,
-      "cetTxid": "7d0ee930137d9c6ce3bad5f6f04b9522e7c36775f4ddbdaed8b151e7953a5121",
-      "locktime": 4555966,
-      "message": {
-        "payload": "m1_oracle_attestation_v1|m1_oracle_event_1772721904511|2586c501878159da88b3d07deac31972f511c51af2e1c3496d2379199c8a732f|0|15|7d0ee930137d9c6ce3bad5f6f04b9522e7c36775f4ddbdaed8b151e7953a5121|4555966",
-        "digestHex": "0862c16789fc02ff25e6b79f2026d85e47fb44640872822678cef1873c911b96"
-      },
-      "oracleNonceCommitment": "nonce_commitment_for_15",
-      "oracleSignaturePlaceholder": "oracle_sig_for_15",
-      "adaptorPointPlaceholder": "adaptor_point_for_15",
-      "adaptorSignaturePlaceholder": "adaptor_sig_for_15"
-    },
-    {
-      "bucketPct": 20,
-      "cetTxid": "471bd924d09e58f427fe0f1de096c03b8f52dc45d419a8d50288006cbb42ea4b",
-      "locktime": 4555966,
-      "message": {
-        "payload": "m1_oracle_attestation_v1|m1_oracle_event_1772721904511|2586c501878159da88b3d07deac31972f511c51af2e1c3496d2379199c8a732f|0|20|471bd924d09e58f427fe0f1de096c03b8f52dc45d419a8d50288006cbb42ea4b|4555966",
-        "digestHex": "33cfe6f117de61bf18f66c77da69c02bdd0c20139e1dd3a7505ea7b666055067"
-      },
-      "oracleNonceCommitment": "nonce_commitment_for_20",
-      "oracleSignaturePlaceholder": "oracle_sig_for_20",
-      "adaptorPointPlaceholder": "adaptor_point_for_20",
-      "adaptorSignaturePlaceholder": "adaptor_sig_for_20"
-    },
-    {
-      "bucketPct": 25,
-      "cetTxid": "bc6b97a9307962916b88138c3fe9ea0527f7b1016f49320e777959af4187a44e",
-      "locktime": 4555966,
-      "message": {
-        "payload": "m1_oracle_attestation_v1|m1_oracle_event_1772721904511|2586c501878159da88b3d07deac31972f511c51af2e1c3496d2379199c8a732f|0|25|bc6b97a9307962916b88138c3fe9ea0527f7b1016f49320e777959af4187a44e|4555966",
-        "digestHex": "fedcb1f9806312a393e9f40467aff4dfb55739b082148682323245009bb94da3"
-      },
-      "oracleNonceCommitment": "nonce_commitment_for_25",
-      "oracleSignaturePlaceholder": "oracle_sig_for_25",
-      "adaptorPointPlaceholder": "adaptor_point_for_25",
-      "adaptorSignaturePlaceholder": "adaptor_sig_for_25"
-    },
-    {
-      "bucketPct": 30,
-      "cetTxid": "717133e6ea445ae020846cee9e5e1e9726f6ce36b52b78f6116198771514f558",
-      "locktime": 4555966,
-      "message": {
-        "payload": "m1_oracle_attestation_v1|m1_oracle_event_1772721904511|2586c501878159da88b3d07deac31972f511c51af2e1c3496d2379199c8a732f|0|30|717133e6ea445ae020846cee9e5e1e9726f6ce36b52b78f6116198771514f558|4555966",
-        "digestHex": "b59aca484d8bb210f12fbbde3853f136cd3d65746566a40dd5c469018ae09409"
-      },
-      "oracleNonceCommitment": "nonce_commitment_for_30",
-      "oracleSignaturePlaceholder": "oracle_sig_for_30",
-      "adaptorPointPlaceholder": "adaptor_point_for_30",
-      "adaptorSignaturePlaceholder": "adaptor_sig_for_30"
-    },
-    {
-      "bucketPct": 35,
-      "cetTxid": "c25a0a0e863ba3d0693e7ceb68f3934bffc28525042cdb6dffcfb6fc384b2700",
-      "locktime": 4555966,
-      "message": {
-        "payload": "m1_oracle_attestation_v1|m1_oracle_event_1772721904511|2586c501878159da88b3d07deac31972f511c51af2e1c3496d2379199c8a732f|0|35|c25a0a0e863ba3d0693e7ceb68f3934bffc28525042cdb6dffcfb6fc384b2700|4555966",
-        "digestHex": "e8830b3739a3aba9679c402c7502a76560c886eb13b584f997f02388bc4beacf"
-      },
-      "oracleNonceCommitment": "nonce_commitment_for_35",
-      "oracleSignaturePlaceholder": "oracle_sig_for_35",
-      "adaptorPointPlaceholder": "adaptor_point_for_35",
-      "adaptorSignaturePlaceholder": "adaptor_sig_for_35"
-    },
-    {
-      "bucketPct": 40,
-      "cetTxid": "308428411684985c5a86b61b5148970eba2408ff12bce2cbb98c3478838bbe7f",
-      "locktime": 4555966,
-      "message": {
-        "payload": "m1_oracle_attestation_v1|m1_oracle_event_1772721904511|2586c501878159da88b3d07deac31972f511c51af2e1c3496d2379199c8a732f|0|40|308428411684985c5a86b61b5148970eba2408ff12bce2cbb98c3478838bbe7f|4555966",
-        "digestHex": "d77ce58b6b4e220a33676831ff402400c5f345957923d47ec617b16f2f76d923"
-      },
-      "oracleNonceCommitment": "nonce_commitment_for_40",
-      "oracleSignaturePlaceholder": "oracle_sig_for_40",
-      "adaptorPointPlaceholder": "adaptor_point_for_40",
-      "adaptorSignaturePlaceholder": "adaptor_sig_for_40"
-    },
-    {
-      "bucketPct": 45,
-      "cetTxid": "777c40d4a048ccda6ededab241df9490d57fb041cc57c6f52a1f71ebb6fd913e",
-      "locktime": 4555966,
-      "message": {
-        "payload": "m1_oracle_attestation_v1|m1_oracle_event_1772721904511|2586c501878159da88b3d07deac31972f511c51af2e1c3496d2379199c8a732f|0|45|777c40d4a048ccda6ededab241df9490d57fb041cc57c6f52a1f71ebb6fd913e|4555966",
-        "digestHex": "b5194a23710b707c2f8103cee7d4433d952a64d5e5b2016d64d1ed0a584ac575"
-      },
-      "oracleNonceCommitment": "nonce_commitment_for_45",
-      "oracleSignaturePlaceholder": "oracle_sig_for_45",
-      "adaptorPointPlaceholder": "adaptor_point_for_45",
-      "adaptorSignaturePlaceholder": "adaptor_sig_for_45"
-    },
-    {
-      "bucketPct": 50,
-      "cetTxid": "58e72e633e25816d68a9ad9ec1aae370d72f2e697408672928f6e3250ca6cb60",
-      "locktime": 4555966,
-      "message": {
-        "payload": "m1_oracle_attestation_v1|m1_oracle_event_1772721904511|2586c501878159da88b3d07deac31972f511c51af2e1c3496d2379199c8a732f|0|50|58e72e633e25816d68a9ad9ec1aae370d72f2e697408672928f6e3250ca6cb60|4555966",
-        "digestHex": "cbf89e768b13647c0a452bd0f06d6739346e135e751cad8b72a615588194f537"
-      },
-      "oracleNonceCommitment": "nonce_commitment_for_50",
-      "oracleSignaturePlaceholder": "oracle_sig_for_50",
-      "adaptorPointPlaceholder": "adaptor_point_for_50",
-      "adaptorSignaturePlaceholder": "adaptor_sig_for_50"
-    },
-    {
-      "bucketPct": 55,
-      "cetTxid": "f6dd283bbd7a75f63fe9cbadebca442aafaf58411c34b0f16c7103e946065fae",
-      "locktime": 4555966,
-      "message": {
-        "payload": "m1_oracle_attestation_v1|m1_oracle_event_1772721904511|2586c501878159da88b3d07deac31972f511c51af2e1c3496d2379199c8a732f|0|55|f6dd283bbd7a75f63fe9cbadebca442aafaf58411c34b0f16c7103e946065fae|4555966",
-        "digestHex": "54431d24ee79256efcd298239221fb99f7a013c649ae608a0586691ed94ecae0"
-      },
-      "oracleNonceCommitment": "nonce_commitment_for_55",
-      "oracleSignaturePlaceholder": "oracle_sig_for_55",
-      "adaptorPointPlaceholder": "adaptor_point_for_55",
-      "adaptorSignaturePlaceholder": "adaptor_sig_for_55"
-    },
-    {
-      "bucketPct": 60,
-      "cetTxid": "80e21c46ba624f043473a3e9df2ed71c6f7f7742da2f411d7d5a740426ae8190",
-      "locktime": 4555966,
-      "message": {
-        "payload": "m1_oracle_attestation_v1|m1_oracle_event_1772721904511|2586c501878159da88b3d07deac31972f511c51af2e1c3496d2379199c8a732f|0|60|80e21c46ba624f043473a3e9df2ed71c6f7f7742da2f411d7d5a740426ae8190|4555966",
-        "digestHex": "2f1e6654ddc40b979821d15b990f95f27ba5d82f39b6dffc55e69520d7d1fec8"
-      },
-      "oracleNonceCommitment": "nonce_commitment_for_60",
-      "oracleSignaturePlaceholder": "oracle_sig_for_60",
-      "adaptorPointPlaceholder": "adaptor_point_for_60",
-      "adaptorSignaturePlaceholder": "adaptor_sig_for_60"
-    },
-    {
-      "bucketPct": 65,
-      "cetTxid": "052cbd844f074e5f871846640629eed5ce453b2300239e7e08597621ecedb87a",
-      "locktime": 4555966,
-      "message": {
-        "payload": "m1_oracle_attestation_v1|m1_oracle_event_1772721904511|2586c501878159da88b3d07deac31972f511c51af2e1c3496d2379199c8a732f|0|65|052cbd844f074e5f871846640629eed5ce453b2300239e7e08597621ecedb87a|4555966",
-        "digestHex": "8ce6134adb623345ccb0f0b9f2d45c60106bdebe9d84acd114fb2645261ed014"
-      },
-      "oracleNonceCommitment": "nonce_commitment_for_65",
-      "oracleSignaturePlaceholder": "oracle_sig_for_65",
-      "adaptorPointPlaceholder": "adaptor_point_for_65",
-      "adaptorSignaturePlaceholder": "adaptor_sig_for_65"
-    },
-    {
-      "bucketPct": 70,
-      "cetTxid": "76245423d057fc9038060c909763b5bd50dcfce4b636e1f8b329072f17f8762d",
-      "locktime": 4555966,
-      "message": {
-        "payload": "m1_oracle_attestation_v1|m1_oracle_event_1772721904511|2586c501878159da88b3d07deac31972f511c51af2e1c3496d2379199c8a732f|0|70|76245423d057fc9038060c909763b5bd50dcfce4b636e1f8b329072f17f8762d|4555966",
-        "digestHex": "5020da7af4b070d7d9b43fcc8d5af07908f90062e61eda76395a64dd7893106e"
-      },
-      "oracleNonceCommitment": "nonce_commitment_for_70",
-      "oracleSignaturePlaceholder": "oracle_sig_for_70",
-      "adaptorPointPlaceholder": "adaptor_point_for_70",
-      "adaptorSignaturePlaceholder": "adaptor_sig_for_70"
-    },
-    {
-      "bucketPct": 75,
-      "cetTxid": "86b403fd3aefd17203a4015255839050d7880857417b38c04a2cab8645d3c7c8",
-      "locktime": 4555966,
-      "message": {
-        "payload": "m1_oracle_attestation_v1|m1_oracle_event_1772721904511|2586c501878159da88b3d07deac31972f511c51af2e1c3496d2379199c8a732f|0|75|86b403fd3aefd17203a4015255839050d7880857417b38c04a2cab8645d3c7c8|4555966",
-        "digestHex": "39c4160baa5c4e838fcece1da6b694415235ee128b4c129ba35f9ed1534d7632"
-      },
-      "oracleNonceCommitment": "nonce_commitment_for_75",
-      "oracleSignaturePlaceholder": "oracle_sig_for_75",
-      "adaptorPointPlaceholder": "adaptor_point_for_75",
-      "adaptorSignaturePlaceholder": "adaptor_sig_for_75"
-    },
-    {
-      "bucketPct": 80,
-      "cetTxid": "2616923f9f65e21b0089a7e3279d8788ef445d158ca60e700687cde2746f0dfc",
-      "locktime": 4555966,
-      "message": {
-        "payload": "m1_oracle_attestation_v1|m1_oracle_event_1772721904511|2586c501878159da88b3d07deac31972f511c51af2e1c3496d2379199c8a732f|0|80|2616923f9f65e21b0089a7e3279d8788ef445d158ca60e700687cde2746f0dfc|4555966",
-        "digestHex": "e13219720083e3c7be4fbb6c4a9a7ba5ec97cd2572329f56fafccbdb82a4213b"
-      },
-      "oracleNonceCommitment": "nonce_commitment_for_80",
-      "oracleSignaturePlaceholder": "oracle_sig_for_80",
-      "adaptorPointPlaceholder": "adaptor_point_for_80",
-      "adaptorSignaturePlaceholder": "adaptor_sig_for_80"
-    },
-    {
-      "bucketPct": 85,
-      "cetTxid": "6d8e42b5669859b154573a0b0ba0a5f2d73f2668e94d85ac6c812e41ffb0ffaa",
-      "locktime": 4555966,
-      "message": {
-        "payload": "m1_oracle_attestation_v1|m1_oracle_event_1772721904511|2586c501878159da88b3d07deac31972f511c51af2e1c3496d2379199c8a732f|0|85|6d8e42b5669859b154573a0b0ba0a5f2d73f2668e94d85ac6c812e41ffb0ffaa|4555966",
-        "digestHex": "cbab004e42f0c10c8af66533e4655d2acda781e07d47b1d3ce97f841cfaf0713"
-      },
-      "oracleNonceCommitment": "nonce_commitment_for_85",
-      "oracleSignaturePlaceholder": "oracle_sig_for_85",
-      "adaptorPointPlaceholder": "adaptor_point_for_85",
-      "adaptorSignaturePlaceholder": "adaptor_sig_for_85"
-    },
-    {
-      "bucketPct": 90,
-      "cetTxid": "6eba8f676f0e408aadc5c5828c7ab7caa625ef0a10d4737f7dbc49a7cf965497",
-      "locktime": 4555966,
-      "message": {
-        "payload": "m1_oracle_attestation_v1|m1_oracle_event_1772721904511|2586c501878159da88b3d07deac31972f511c51af2e1c3496d2379199c8a732f|0|90|6eba8f676f0e408aadc5c5828c7ab7caa625ef0a10d4737f7dbc49a7cf965497|4555966",
-        "digestHex": "db5cc7d14b35c0ccb9c25fb12b827480175563bd2a123166ce2493429acfbfdc"
-      },
-      "oracleNonceCommitment": "nonce_commitment_for_90",
-      "oracleSignaturePlaceholder": "oracle_sig_for_90",
-      "adaptorPointPlaceholder": "adaptor_point_for_90",
-      "adaptorSignaturePlaceholder": "adaptor_sig_for_90"
-    },
-    {
-      "bucketPct": 95,
-      "cetTxid": "8b20d834b9ae4486f2bde1528a710f3a3119164cc06f5cf6699e3e17cda5a423",
-      "locktime": 4555966,
-      "message": {
-        "payload": "m1_oracle_attestation_v1|m1_oracle_event_1772721904511|2586c501878159da88b3d07deac31972f511c51af2e1c3496d2379199c8a732f|0|95|8b20d834b9ae4486f2bde1528a710f3a3119164cc06f5cf6699e3e17cda5a423|4555966",
-        "digestHex": "be7f6dcb7fed7c379031bc057c8ad55d22aff89fc18a0068d9aba689b291ab9f"
-      },
-      "oracleNonceCommitment": "nonce_commitment_for_95",
-      "oracleSignaturePlaceholder": "oracle_sig_for_95",
-      "adaptorPointPlaceholder": "adaptor_point_for_95",
-      "adaptorSignaturePlaceholder": "adaptor_sig_for_95"
-    },
-    {
-      "bucketPct": 100,
-      "cetTxid": "7f3ae2f116b75581bc068b7cd755d18b544a0a260d78f9af27b5b181b2ab3543",
-      "locktime": 4555966,
-      "message": {
-        "payload": "m1_oracle_attestation_v1|m1_oracle_event_1772721904511|2586c501878159da88b3d07deac31972f511c51af2e1c3496d2379199c8a732f|0|100|7f3ae2f116b75581bc068b7cd755d18b544a0a260d78f9af27b5b181b2ab3543|4555966",
-        "digestHex": "985e6920875c189ae62cc082d0c7cb81703282148c7d5c5021fec416fa7e8a43"
-      },
-      "oracleNonceCommitment": "nonce_commitment_for_100",
-      "oracleSignaturePlaceholder": "oracle_sig_for_100",
-      "adaptorPointPlaceholder": "adaptor_point_for_100",
-      "adaptorSignaturePlaceholder": "adaptor_sig_for_100"
+      "oracleNonceCommitment": "nonce_commitment_for_pnl",
+      "oracleSignaturePlaceholder": "oracle_sig_for_pnl",
+      "adaptorPointPlaceholder": "adaptor_point_for_pnl",
+      "adaptorSignaturePlaceholder": "adaptor_sig_for_pnl"
     }
   ],
   "challengePathPlaceholders": {
     "honestSweepEvidence": {
       "required": [
         "commitmentPackage",
-        "selectedBucket",
+        "selectedPath",
         "oracleSignature",
         "cetTxid"
       ],
@@ -319,5 +75,5 @@
       "notes": "Use this bundle to redirect to arbitration path."
     }
   },
-  "artifactHash": "65ccc68619fa8f7e9ffae408012231fa2d4b9c63017627443c2e9abe3b261d8b"
+  "artifactHash": "00f6cce9348e13c77e175d61af686a44cb744d536a91341e402816fe9ef872a6"
 }

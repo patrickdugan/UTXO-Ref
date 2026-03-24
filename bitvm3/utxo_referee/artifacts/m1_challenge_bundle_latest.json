@@ -1,51 +1,51 @@
 {
   "kind": "m1_challenge_bundle",
-  "createdAt": "2026-03-05T14:45:30.180Z",
-  "selectedBucketPct": 10,
+  "createdAt": "2026-03-23T21:23:07.043Z",
+  "selectedPathId": "roll",
+  "selectedBucketPct": null,
   "sourceHashes": {
-    "cet": "31c96677d915cdfed8c2987c43d93afc2d7cb5d38190a307f1fe47fb1379aced",
-    "oracle": "3f03f861473a861e642d7859192215bc82feca7ad995b0572621224a28be0517",
-    "fundingFinal": "9e4778edb1279834f0ae5bd3b7aa28c760215199bd846d6cd536a0173f6a8365"
+    "cet": "b9599565b62f940340bf6f0b98bae66cfb41aa286b690d4dca6fb3692d2d58aa",
+    "oracle": "eb6fb50e3388faaff0b835d73638bad4b18934a15e8131b83fbc34d4f1be5152",
+    "fundingFinal": "b369528a12102f918ce06b0029e4a66deb24dafe725a6b06d65cab9743f3132a"
   },
   "binding": {
     "fundingOutpoint": {
-      "txid": "2586c501878159da88b3d07deac31972f511c51af2e1c3496d2379199c8a732f",
+      "txid": "e335829be0ee219c7775c22e1d65748d6adb66ac4950205456155c925cb6ff70",
       "vout": 0,
       "valueLtc": "0.007981",
       "valueSats": "798100"
     },
-    "fundingTxidFinalized": "2586c501878159da88b3d07deac31972f511c51af2e1c3496d2379199c8a732f",
-    "maturityHeight": 4555966,
-    "refundLocktime": 4556254
+    "fundingTxidFinalized": "b1b0002288189886ae15b8b47a7c2685312e3a1cf15c8b09dd55b6f90b259fde",
+    "maturityHeight": 4631668,
+    "refundLocktime": 4631956,
+    "dustCarrySats": "0"
   },
-  "selectedCet": {
-    "txid": "97625a9f878217d9aea211718141a5d4d46a68cd63535df355e6675dac5c6013",
-    "locktime": 4555966,
-    "rawTxHex": "02000000012f738a9c1979236d49c3e1f21ac511f57219c3ea7dd0b388da59818701c586250000000000feffffff02d2f50a0000000000160014620195f90c31c608dcda6c140bd5fa496ff8b6e2c237010000000000160014a0b82bf99a374f46be467dd1df36ddec071e39d9be844500",
-    "payouts": {
-      "depositorAddress": "tltc1qvgqet7gvx8rq3hx6ds2qh406f9hl3dhzsdwqaj",
-      "depositorAmountSats": "718290",
-      "poolAddress": "tltc1q5zuzh7v6xa85d0jx0hga7dkaasr3uwwepnqfs2",
-      "poolAmountSats": "79810"
-    }
+  "selectedPath": {
+    "pathId": "roll",
+    "locktime": 4631956,
+    "rawTxHex": "020000000170ffb65c925c155654205049ac66db6a8d74651d2ec275779c21eee09b8235e30000000000feffffff01942d0c00000000001600143c23e36056f52cbbcd428b70d1c0bc5fed014b0494ad4600",
+    "txid": "6d14287a73cc851c3d5c6187680a251317d554e1fbdeba3eb1ebbe96091ed4e7",
+    "payoutSats": null,
+    "residualSats": null,
+    "dustCarrySats": null,
+    "defaultOnExpiry": false
   },
   "oracleBinding": {
-    "eventId": "m1_oracle_event_1772721904511",
+    "eventId": "m1_oracle_event_1774300977837",
     "quorumId": "quorum_1of1_placeholder",
     "keyId": "oracle_key_tl_wallet_placeholder",
-    "messagePayload": "m1_oracle_attestation_v1|m1_oracle_event_1772721904511|2586c501878159da88b3d07deac31972f511c51af2e1c3496d2379199c8a732f|0|10|97625a9f878217d9aea211718141a5d4d46a68cd63535df355e6675dac5c6013|4555966",
-    "messageDigestHex": "fa67f0fe22da2c158de819cb5968cfc73f24422f8de33c6a4acc774087837600",
-    "nonceCommitment": "nonce_commitment_for_10",
-    "oracleSignaturePlaceholder": "oracle_sig_for_10",
-    "adaptorPointPlaceholder": "adaptor_point_for_10",
-    "adaptorSignaturePlaceholder": "adaptor_sig_for_10"
+    "messagePayload": null,
+    "messageDigestHex": null,
+    "nonceCommitment": null,
+    "oracleSignaturePlaceholder": null,
+    "adaptorPointPlaceholder": null,
+    "adaptorSignaturePlaceholder": null
   },
   "witnessBundlePlaceholders": {
     "honestPath": {
       "required": [
         "commitmentPackage",
-        "withdrawalProofSet",
-        "selectedBucketPct",
+        "selectedPathId",
         "oracleSignature",
         "cetPreimageOrSig"
       ],
@@ -62,5 +62,5 @@
       "note": "Use this shape for arbitration redirect payload."
     }
   },
-  "bundleHash": "8413bbd52329ab3c3b101ee919d17d7c0b6b7134b5fde52d0cad2f981be6bee4"
+  "bundleHash": "ec849d2477c03d956d67ddbb8419d19e105f079882513324088b7deb24126a8b"
 }

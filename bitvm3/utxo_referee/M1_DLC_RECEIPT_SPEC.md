@@ -22,6 +22,24 @@ Lock the contract shape and 1:1 receipt model:
 3. Commitment package schema
 - `(epochId, withdrawalRoot, capSats, residualDest)`
 
+4. Milestone-1 settlement shape
+- `flat` and `pnl` are the bounded settlement paths.
+- `roll` is the non-interactive timeout path.
+- `dustCarrySats` is the explicit satoshi remainder carried into the next epoch or residual accounting.
+- `m1_roll_forward.js` emits the next-epoch handoff artifact for the roll path.
+
+5. Path determination
+- The route paths are determined with integer satoshi arithmetic only.
+- The payout ratio is stored as basis points, so the branch amounts are exact `BigInt` satoshi values.
+- If a ratio does not divide evenly, the leftover satoshi becomes `dustCarrySats`.
+- BitVM can represent this exactly because the committed leaves and branch checks are integer constraints, not floating-point math.
+
+6. Tally state blob
+- The receipt ledger state is encoded as a canonical JSON blob called `receipt-tally-map`.
+- The blob stores sorted balances, exact satoshi totals, deposit IDs, redemption IDs, and the previous snapshot hash.
+- `m1_tally_map.js` is the state-machine wrapper over the ledger.
+- The blob hash is the commitment target for replay and next-epoch handoff.
+
 Code implementation is in `bitvm3/utxo_referee/m1_spec.js`.
 
 ## Deterministic Receipt Ledger Rules
@@ -52,3 +70,19 @@ The demo supports two modes:
 - Mocked txrefs (default)
 - Litecoin testnet RPC probe when RPC env vars are configured
 
+The DLC artifact generator emits:
+- `flat` settlement path
+- `pnl` settlement path
+- `roll` timeout path
+- `dustCarrySats` rounding metadata
+- `m1_roll_forward_latest.json` next-epoch handoff
+
+Smoke-test order:
+1. `m1_ltc_wallet_provision.ps1`
+2. `m1_dlc_bootstrap.js`
+3. `m1_dlc_psbt_cet.js`
+4. `m1_oracle_wiring.js`
+5. `m1_select_bucket_bundle.js` with `PATH_NAME=flat`
+6. `m1_select_bucket_bundle.js` with `PATH_NAME=roll`
+7. `m1_roll_forward.js`
+8. `m1_tally_map.test.js`

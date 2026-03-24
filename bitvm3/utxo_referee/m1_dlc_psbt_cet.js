@@ -22,6 +22,7 @@ const http = require('http');
 const https = require('https');
 const { URL } = require('url');
 const crypto = require('crypto');
+const { computeRouteAmounts } = require('./m1_transition');
 
 const RPC_URL = process.env.LTC_RPC_URL || 'http://127.0.0.1:19332';
 const RPC_USER = process.env.LTC_RPC_USER || 'user';
@@ -112,6 +113,88 @@ function ensureFile(p) {
   if (!fs.existsSync(p)) {
     throw new Error(`Draft artifact not found: ${p}`);
   }
+}
+
+function readSettlementDraft(draft) {
+  const settlement = draft.contract && draft.contract.settlement;
+  if (settlement && Array.isArray(settlement.paths)) {
+    return settlement;
+  }
+
+  const outcomes = draft.contract && Array.isArray(draft.contract.outcomes)
+    ? draft.contract.outcomes
+    : [];
+  if (outcomes.length === 0) {
+    throw new Error('Draft artifact does not include settlement paths');
+  }
+
+  return {
+    model: 'legacy-bucket-fallback',
+    paths: outcomes.map(outcome => ({
+      pathId: outcome.bucketPct === 0 ? 'flat' : (outcome.bucketPct === 100 ? 'pnl' : `bucket-${outcome.bucketPct}`),
+      kind: 'settlement',
+      recipientRole: outcome.bucketPct === 0 ? 'alice' : 'bob',
+      payoutSats: outcome.depositorAmountSats || outcome.payoutSats || '0',
+      residualSats: outcome.poolAmountSats || outcome.residualSats || '0',
+      dustCarrySats: '0',
+      defaultOnExpiry: false
+    })),
+    roll: {
+      pathId: 'roll',
+      kind: 'timeout',
+      defaultOnExpiry: true,
+      rollLocktime: Number(draft.contract.refundLocktime || 0),
+      rolloverCollateralSats: draft.contract.collateralSats || '0',
+      dustCarrySats: draft.contract.dustCarrySats || '0'
+    },
+    dustCarrySats: draft.contract.dustCarrySats || '0'
+  };
+}
+
+function normalizeBinarySettlement(settlementDraft, collateralSats, rollLocktime) {
+  const payoutRatioBps = Number(settlementDraft.payoutRatioBps || 5000);
+  if (!Number.isInteger(payoutRatioBps) || payoutRatioBps < 0 || payoutRatioBps > 10000) {
+    throw new Error('Invalid settlement payoutRatioBps');
+  }
+
+  const computed = computeRouteAmounts(collateralSats, payoutRatioBps);
+  const rolloverCollateralSats = computed.collateralSats - computed.dustCarrySats;
+
+  return {
+    model: 'binary-settlement',
+    payoutRatioBps: computed.pnlPayoutBps,
+    flatPayoutBps: 10000 - computed.pnlPayoutBps,
+    paths: [
+      {
+        pathId: 'flat',
+        kind: 'settlement',
+        recipientRole: 'alice',
+        payoutSats: computed.flatPayoutSats.toString(),
+        residualSats: (computed.collateralSats - computed.flatPayoutSats).toString(),
+        dustCarrySats: '0',
+        defaultOnExpiry: false
+      },
+      {
+        pathId: 'pnl',
+        kind: 'settlement',
+        recipientRole: 'bob',
+        payoutSats: computed.pnlPayoutSats.toString(),
+        residualSats: (computed.collateralSats - computed.pnlPayoutSats).toString(),
+        dustCarrySats: '0',
+        defaultOnExpiry: false
+      }
+    ],
+    roll: {
+      pathId: 'roll',
+      kind: 'timeout',
+      defaultOnExpiry: true,
+      rollLocktime,
+      rolloverCollateralSats: rolloverCollateralSats.toString(),
+      residualSats: rolloverCollateralSats.toString(),
+      dustCarrySats: computed.dustCarrySats.toString()
+    },
+    dustCarrySats: computed.dustCarrySats.toString()
+  };
 }
 
 function outputAddress(vout) {
@@ -210,22 +293,25 @@ async function buildCetSkeletons(rpc, draft, funding) {
   const collateralSats = BigInt(funding.effectiveCollateralSats);
   const maturityHeight = Number(draft.contract.maturityHeight);
   const refundLocktime = Number(draft.contract.refundLocktime);
+  const settlementDraft = readSettlementDraft(draft);
+  const settlement = settlementDraft.model === 'binary-settlement'
+    ? normalizeBinarySettlement(settlementDraft, collateralSats, refundLocktime)
+    : settlementDraft;
 
   const aliceAddress = draft.roleSet.addresses.alice;
   const residualAddress = draft.roleSet.addresses.residual;
   const bobAddress = draft.roleSet.addresses.bob;
 
-  const cets = [];
-  for (let bucket = 0; bucket <= 100; bucket += 5) {
-    const poolSats = (collateralSats * BigInt(bucket)) / 100n;
-    const depositorSats = collateralSats - poolSats;
-
+  const settlementPaths = [];
+  for (const path of settlement.paths) {
     const outputs = {};
-    if (depositorSats > 0n) {
-      outputs[aliceAddress] = satsToLtcDecimalString(depositorSats);
-    }
-    if (poolSats > 0n) {
-      outputs[residualAddress] = satsToLtcDecimalString(poolSats);
+    const payoutSats = BigInt(path.payoutSats);
+    const residualSats = BigInt(path.residualSats || '0');
+    const dustCarrySats = BigInt(path.dustCarrySats || '0');
+    const recipientAddress = path.recipientRole === 'bob' ? bobAddress : aliceAddress;
+    outputs[recipientAddress] = satsToLtcDecimalString(payoutSats);
+    if (residualSats > 0n) {
+      outputs[residualAddress] = satsToLtcDecimalString(residualSats);
     }
 
     const rawHex = await rpc(
@@ -234,50 +320,55 @@ async function buildCetSkeletons(rpc, draft, funding) {
     );
     const decoded = await rpc('decoderawtransaction', [rawHex]);
 
-    cets.push({
-      bucketPct: bucket,
+    settlementPaths.push({
+      pathId: path.pathId,
+      kind: path.kind,
+      recipientRole: path.recipientRole || null,
       locktime: maturityHeight,
       input: { txid: fundingTxid, vout: fundingVout },
-      payouts: {
-        depositorAddress: aliceAddress,
-        depositorAmountSats: depositorSats.toString(),
-        poolAddress: residualAddress,
-        poolAmountSats: poolSats.toString()
-      },
+      payoutSats: payoutSats.toString(),
+      residualSats: residualSats.toString(),
+      dustCarrySats: dustCarrySats.toString(),
+      defaultOnExpiry: !!path.defaultOnExpiry,
       rawTxHex: rawHex,
       txid: decoded.txid
     });
   }
 
-  // Refund skeleton: split collateral equally to alice and bob at refund locktime.
-  const half = collateralSats / 2n;
-  const remainder = collateralSats - half;
-  const refundOutputs = {};
-  refundOutputs[aliceAddress] = satsToLtcDecimalString(half);
-  refundOutputs[bobAddress] = satsToLtcDecimalString(remainder);
+  const rollLocktime = Number(settlement.roll && settlement.roll.rollLocktime ? settlement.roll.rollLocktime : refundLocktime);
+  const rollDustCarrySats = BigInt(settlement.roll && settlement.roll.dustCarrySats ? settlement.roll.dustCarrySats : settlement.dustCarrySats || '0');
+  const rolloverCollateralSats = BigInt(settlement.roll && settlement.roll.rolloverCollateralSats ? settlement.roll.rolloverCollateralSats : collateralSats - rollDustCarrySats);
 
-  const refundRaw = await rpc(
+  const rollOutputs = {};
+  if (rolloverCollateralSats > 0n) {
+    rollOutputs[residualAddress] = satsToLtcDecimalString(rolloverCollateralSats);
+  }
+  if (rollDustCarrySats > 0n) {
+    rollOutputs[aliceAddress] = satsToLtcDecimalString(rollDustCarrySats);
+  }
+
+  const rollRaw = await rpc(
     'createrawtransaction',
-    [[{ txid: fundingTxid, vout: fundingVout, sequence: 0xfffffffe }], refundOutputs, refundLocktime]
+    [[{ txid: fundingTxid, vout: fundingVout, sequence: 0xfffffffe }], rollOutputs, rollLocktime]
   );
-  const refundDecoded = await rpc('decoderawtransaction', [refundRaw]);
+  const rollDecoded = await rpc('decoderawtransaction', [rollRaw]);
 
   return {
     maturityHeight,
     refundLocktime,
-    cets,
-    refundSkeleton: {
-      locktime: refundLocktime,
+    settlementPaths,
+    rollSkeleton: {
+      locktime: rollLocktime,
       input: { txid: fundingTxid, vout: fundingVout },
       payouts: {
-        aliceAddress,
-        aliceAmountSats: half.toString(),
-        bobAddress,
-        bobAmountSats: remainder.toString()
+        residualAddress,
+        rolloverCollateralSats: rolloverCollateralSats.toString(),
+        dustCarrySats: rollDustCarrySats.toString()
       },
-      rawTxHex: refundRaw,
-      txid: refundDecoded.txid
-    }
+      rawTxHex: rollRaw,
+      txid: rollDecoded.txid
+    },
+    settlement
   };
 }
 
@@ -318,7 +409,14 @@ async function run() {
       epochId: draft.canonical.epochId,
       eventId: draft.contract.eventId,
       maturityHeight: draft.contract.maturityHeight,
-      refundLocktime: draft.contract.refundLocktime
+      refundLocktime: draft.contract.refundLocktime,
+      dustCarrySats: draft.contract.dustCarrySats
+    },
+    settlement: {
+      model: cets.settlement.model,
+      paths: cets.settlementPaths,
+      roll: cets.rollSkeleton,
+      dustCarrySats: cets.settlement.dustCarrySats
     },
     funding
   };
@@ -333,8 +431,15 @@ async function run() {
     wallet: WALLET,
     sourceDraftPath: DRAFT_PATH,
     sourceDraftHash: draftDigest,
+    maturityHeight: cets.maturityHeight,
+    refundLocktime: cets.refundLocktime,
     fundingOutpoint: funding.fundingOutpoint,
-    cets
+    settlement: {
+      model: cets.settlement.model,
+      paths: cets.settlementPaths,
+      roll: cets.rollSkeleton,
+      dustCarrySats: cets.settlement.dustCarrySats
+    }
   };
 
   const fundingPath = path.join(artifactsDir, 'm1_funding_psbt_latest.json');
@@ -350,7 +455,8 @@ async function run() {
   console.log(`fundingVout=${funding.fundingOutpoint.vout}`);
   console.log(`effectiveCollateralSats=${funding.fundingOutpoint.valueSats}`);
   console.log(`feeSats=${funding.feeSats}`);
-  console.log(`cetsGenerated=${cets.cets.length}`);
+  console.log(`settlementPaths=${cets.settlementPaths.length}`);
+  console.log(`dustCarrySats=${cets.settlement.dustCarrySats}`);
   console.log(`fundingArtifact=${fundingPath}`);
   console.log(`cetArtifact=${cetPath}`);
 }

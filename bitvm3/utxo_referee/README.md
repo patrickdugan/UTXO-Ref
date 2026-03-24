@@ -193,3 +193,68 @@ node bitvm3/utxo_referee/m1_ltc_testnet_demo.js
 
 Litecoin testnet RPC setup is documented in `LTC_TESTNET_SETUP.md`.
 
+## M1 Transition Function
+
+The current router is implemented as an integer-satoshi transition helper:
+
+```javascript
+const referee = require('./bitvm3/utxo_referee');
+const next = referee.applyBinarySettlementTransition(
+  { epochId: 1n, collateralSats: 762000n, pnlPayoutBps: 3333 },
+  { route: 'flat' }
+);
+```
+
+Route semantics:
+- `flat` and `pnl` are exact satoshi branches computed from basis points
+- `roll` is the timeout branch and defaults non-interactively
+- `dustCarrySats` captures any remainder from integer division
+
+## M1 Transition Circuit
+
+The same router can be emitted as a circuit scaffold:
+
+```javascript
+const referee = require('./bitvm3/utxo_referee');
+const built = referee.generateTransitionCircuit({ bitWidth: 64 });
+```
+
+This checks:
+- one-hot route selection
+- exact satoshi conservation
+- floor-division bounds for the payout ratio
+- roll-forward epoch increment
+
+## Receipt Tally Map
+
+The receipt-token state machine is represented by a canonical JSON blob:
+
+```javascript
+const referee = require('./bitvm3/utxo_referee');
+const tally = new referee.ReceiptTallyMap({ epochId: 1n });
+tally.applyDeposit({ depositId: 'd1', accountId: 'alice', amountSats: 100n });
+const blob = tally.toBlob();
+const hash = tally.snapshotHashHex();
+```
+
+The blob is:
+- versioned
+- sorted
+- exact-satoshi
+- replayable
+- hash-committed for next-epoch handoff
+
+The committed envelope can be retrieved with `tally.getCommittedSnapshot()`.
+The transition witness/circuit now carries `balanceRoot` from `tally.getBalanceMerkleRootHex()` instead of the flat JSON hash, while the JSON hash remains available for persistence and replay checks.
+
+To prove one account, use `tally.getBalanceProof(accountId)`. The proof shape is:
+`{ accountId, balanceSats, leafHash, index, siblings, root, epochId }`, and `ReceiptTallyMap.verifyBalanceProof(proof, root)` checks it against the committed root.
+
+For a serialized bundle, use `tally.getBalanceClaim(accountId)`. That returns the proof plus root and snapshot metadata as a JSON-friendly object, and `ReceiptTallyMap.verifyBalanceClaim(claim, root)` validates it off-chain.
+
+The transition witness can carry `balanceClaim` alongside `balanceClaimEpochId`, `balanceClaimBalanceSats`, `balanceClaimLeafHash`, and `balanceClaimRoot` so the account-specific proof bundle stays attached to the route transition.
+The current circuit scaffold consumes a bounded `balanceClaimIndex` plus `balanceClaimSiblings` array at depth 16 to verify membership against the committed balance root.
+The same bundle now carries `challengeWindowStart`, `challengeWindowLength`, and `challengeWindowEnd`, so redemption timing can be bounded separately from the claim's epoch.
+
+The default template in `m1_spec.js` now exposes `settlement.challengeWindowLength` so the window size can be fixed at contract-definition time.
+

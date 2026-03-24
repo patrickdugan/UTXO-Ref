@@ -1,69 +1,122 @@
 {
   "kind": "m1_funding_psbt",
-  "createdAt": "2026-02-12T17:51:54.338Z",
+  "createdAt": "2026-03-23T21:22:48.325Z",
   "chain": {
     "network": "test",
     "rpcUrl": "http://127.0.0.1:19332"
   },
   "wallet": "tl-wallet",
   "sourceDraftPath": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\m1_dlc_draft_latest.json",
-  "sourceDraftHash": "07545950d391964de029f382ebac7c8c1466d39bc81e796de37382c2ca5728c1",
+  "sourceDraftHash": "6c53f9ab4cceb5b9be79f9244d99ac3d8b9ba3885cda7e183785a3ae3370a33b",
   "template": {
     "templateId": "dlc-receipt-ltc-testnet-v1",
-    "templateHash": "d0c2721675fc2081ef36a901464e4170ac916b313dbcebef17ae1523e0c086d4"
+    "templateHash": "e5963c361cbef3c8ccaaea5c1eccd1a8877650584cdae2deed66929e4eba7578"
   },
   "roleSet": {
-    "tag": "m1-20260212-144115",
+    "tag": "m1-20260323-182221",
     "wallet": "tl-wallet",
     "addresses": {
-      "operator": "tltc1qcss90s7fh7d6dvhj5rcperv6awp37djznnhvfr",
-      "oracle": "tltc1q0gqz70w200ghg4law7ygeaxd5ehqppu3cjgun2",
-      "alice": "tltc1qvgqet7gvx8rq3hx6ds2qh406f9hl3dhzsdwqaj",
-      "bob": "tltc1qekq06cugqrfla5ut94l9zqxkad0zw9upnmqfxp",
-      "residual": "tltc1q5zuzh7v6xa85d0jx0hga7dkaasr3uwwepnqfs2"
+      "operator": "tltc1qkz0vft2fc4nk0u9fx4k9yk4th7zherna3zxh22",
+      "oracle": "tltc1qzdh7pd9kkhpjl7gjusqxsdy03fnlm0uaytpmf6",
+      "alice": "tltc1qayekmvr4nltylxv7ypvt5amu69kmxl5cy3raz6",
+      "bob": "tltc1qv96qqu4qg698fllp4h45escxrk2q35y8t9u8td",
+      "residual": "tltc1q8s37xczk75kthn2z3dcdrs9utlkszjcy7qej6m"
     },
     "pubkeys": {
-      "operator": "029d8d2ca072945b8a447be34b3d8824391efac24cadd8fd2607b2ec160f4e1906",
-      "oracle": "03a92fd6bd2731e5146b270a1d04c04df2403151970aaa2301166e79232d815b3a"
+      "operator": "030f69bd814a94419d9eedbb73ecfb15de9470d69be22dfe6109e1c7fc32aa7282",
+      "oracle": "039daa45ec494094389e3e3b2910b76b0a10092a027e2f738c4e102f9e06389dcc"
     }
   },
   "contract": {
     "epochId": "1",
-    "eventId": "ltc-testnet-epoch-1-1770918473431",
-    "maturityHeight": 4555966,
-    "refundLocktime": 4556254
+    "eventId": "ltc-testnet-epoch-1-1774300961041",
+    "maturityHeight": 4631668,
+    "refundLocktime": 4631956,
+    "dustCarrySats": "0"
+  },
+  "settlement": {
+    "model": "binary-settlement",
+    "paths": [
+      {
+        "pathId": "flat",
+        "kind": "settlement",
+        "recipientRole": "alice",
+        "locktime": 4631668,
+        "input": {
+          "txid": "e335829be0ee219c7775c22e1d65748d6adb66ac4950205456155c925cb6ff70",
+          "vout": 0
+        },
+        "payoutSats": "532094",
+        "residualSats": "266006",
+        "dustCarrySats": "0",
+        "defaultOnExpiry": false,
+        "rawTxHex": "020000000170ffb65c925c155654205049ac66db6a8d74651d2ec275779c21eee09b8235e30000000000feffffff027e1e080000000000160014e9336db0759fd64f999e2058ba777cd16db37e98160f0400000000001600143c23e36056f52cbbcd428b70d1c0bc5fed014b0474ac4600",
+        "txid": "3b25d6f8489c4a831f2295538b85ebcea89d80d26bcb856d4ecfb3ee860101c8"
+      },
+      {
+        "pathId": "pnl",
+        "kind": "settlement",
+        "recipientRole": "bob",
+        "locktime": 4631668,
+        "input": {
+          "txid": "e335829be0ee219c7775c22e1d65748d6adb66ac4950205456155c925cb6ff70",
+          "vout": 0
+        },
+        "payoutSats": "266006",
+        "residualSats": "532094",
+        "dustCarrySats": "0",
+        "defaultOnExpiry": false,
+        "rawTxHex": "020000000170ffb65c925c155654205049ac66db6a8d74651d2ec275779c21eee09b8235e30000000000feffffff02160f04000000000016001461740072a0468a74ffe1adeb4cc3061d9408d0877e1e0800000000001600143c23e36056f52cbbcd428b70d1c0bc5fed014b0474ac4600",
+        "txid": "ee90280628ca8d25dd99199f85971fb7e8454d8f0deab28e08bc78fb0420b33b"
+      }
+    ],
+    "roll": {
+      "locktime": 4631956,
+      "input": {
+        "txid": "e335829be0ee219c7775c22e1d65748d6adb66ac4950205456155c925cb6ff70",
+        "vout": 0
+      },
+      "payouts": {
+        "residualAddress": "tltc1q8s37xczk75kthn2z3dcdrs9utlkszjcy7qej6m",
+        "rolloverCollateralSats": "798100",
+        "dustCarrySats": "0"
+      },
+      "rawTxHex": "020000000170ffb65c925c155654205049ac66db6a8d74651d2ec275779c21eee09b8235e30000000000feffffff01942d0c00000000001600143c23e36056f52cbbcd428b70d1c0bc5fed014b0494ad4600",
+      "txid": "6d14287a73cc851c3d5c6187680a251317d554e1fbdeba3eb1ebbe96091ed4e7"
+    },
+    "dustCarrySats": "0"
   },
   "funding": {
     "rolePubkeys": {
-      "alice": "039c4d69b9752d0bd25311859b943b6ab08450beae350e643195f06954b1d811ff",
-      "bob": "0291c025de864f06d5067b80143365b8fd3072e6261d5154f91fc039d1f6709b1e"
+      "alice": "0278fcd27147884f92d4c2bcac0739b6f78db2f6fb0ce2f71f5c79196a17415f1f",
+      "bob": "02ff2bfc3183e1766791733a74084b097badf48278fa7fff25d63d5268e4032160"
     },
-    "fundingAddress": "tltc1qpwrhfrnyevfg9fn7mu296w55frw8zacdlz6wf5wmegqppduylusq5f3jfh",
-    "fundingRedeemScript": "5221039c4d69b9752d0bd25311859b943b6ab08450beae350e643195f06954b1d811ff210291c025de864f06d5067b80143365b8fd3072e6261d5154f91fc039d1f6709b1e52ae",
+    "fundingAddress": "tltc1quvkawe644cscfywrak6pul4f9vyfv26wd5h53xvyg0jj0ygv3a9sqa3vxj",
+    "fundingRedeemScript": "52210278fcd27147884f92d4c2bcac0739b6f78db2f6fb0ce2f71f5c79196a17415f1f2102ff2bfc3183e1766791733a74084b097badf48278fa7fff25d63d5268e403216052ae",
     "fundingWitnessScript": null,
     "selectedInputs": [
       {
-        "txid": "065b841881cfebbc1d3eebf26ca74867bb264d54a053c854a4beb66ae3a84d61",
-        "vout": 4
+        "txid": "b5afd795804295feae60d7610865a6befe2149c183b138a57384a4941e97f910",
+        "vout": 3
       },
       {
-        "txid": "065b841881cfebbc1d3eebf26ca74867bb264d54a053c854a4beb66ae3a84d61",
-        "vout": 0
+        "txid": "b5afd795804295feae60d7610865a6befe2149c183b138a57384a4941e97f910",
+        "vout": 1
       }
     ],
     "requestedCollateralSats": "800000",
     "effectiveCollateralSats": "798100",
     "feeLtc": "0.000019",
     "feeSats": "1900",
-    "psbt": "cHNidP8BAIcCAAAAAmFNqONqtr6kVMhToFRNJrtnSKds8us+Hbzrz4EYhFsGBAAAAAD/////YU2o42q2vqRUyFOgVE0mu2dIp2zy6z4dvOvPgRiEWwYAAAAAAP////8BlC0MAAAAAAAiACALh3SOZMsSgqZ+3xRdOpRI3HF3Dfi05NHbygAQt4T/IAAAAAAAAQD9PwECAAAAA/787BxWVClGA0I/lfpuhyFJ4wgWV8Azqf3L8UCJbrRzAQAAAAD+/////vzsHFZUKUYDQj+V+m6HIUnjCBZXwDOp/cvxQIlutHMAAAAAAP7///9saZpPSUpfdXoTGJryHU7dJXum00ld3oIoBQFHbVq8vgAAAAAA/v///waAGgYAAAAAABYAFM2A/WOIANP+04stflEA1uteJxeBZAgbAAAAAAAWABSRRWj45z/ccQP0MxlYS2Lu5ZYXx+CTBAAAAAAAFgAUegAvPcp70XRX/XeIjPTNpm4Ah5EgoQcAAAAAABYAFKC4K/maN09GvkZ90d823ewHHjnZgBoGAAAAAAAWABRiAZX5DDHGCNzabBQL1fpJb/i24iChBwAAAAAAFgAUxCBXw8m/m6ay8qDwHI2a64MfNkLNgEUAAQEfgBoGAAAAAAAWABRiAZX5DDHGCNzabBQL1fpJb/i24iIGA5xNabl1LQvSUxGFm5Q7arCEUL6uNQ5kMZXwaVSx2BH/ENTlr1QAAACAAAAAgAMAAIAAAQD9PwECAAAAA/787BxWVClGA0I/lfpuhyFJ4wgWV8Azqf3L8UCJbrRzAQAAAAD+/////vzsHFZUKUYDQj+V+m6HIUnjCBZXwDOp/cvxQIlutHMAAAAAAP7///9saZpPSUpfdXoTGJryHU7dJXum00ld3oIoBQFHbVq8vgAAAAAA/v///waAGgYAAAAAABYAFM2A/WOIANP+04stflEA1uteJxeBZAgbAAAAAAAWABSRRWj45z/ccQP0MxlYS2Lu5ZYXx+CTBAAAAAAAFgAUegAvPcp70XRX/XeIjPTNpm4Ah5EgoQcAAAAAABYAFKC4K/maN09GvkZ90d823ewHHjnZgBoGAAAAAAAWABRiAZX5DDHGCNzabBQL1fpJb/i24iChBwAAAAAAFgAUxCBXw8m/m6ay8qDwHI2a64MfNkLNgEUAAQEfgBoGAAAAAAAWABTNgP1jiADT/tOLLX5RANbrXicXgSIGApHAJd6GTwbVBnuAFDNluP0wcuYmHVFU+R/AOdH2cJseENTlr1QAAACAAAAAgAQAAIAAAA==",
+    "psbt": "cHNidP8BAIcCAAAAAhD5lx6UpIRzpTixg8FJIf6+pmUIYddgrv6VQoCV16+1AwAAAAD/////EPmXHpSkhHOlOLGDwUkh/r6mZQhh12Cu/pVCgJXXr7UBAAAAAP////8BlC0MAAAAAAAiACDjLddnVa4hhJHD7bQefqkrCJYrTm0vSJmEQ+UnkQyPSwAAAAAAAQDtAgAAAAGuKJSPEFGGqa6t3zjh0IEH443O8GWTI6wEJLMEzB3f3gMAAAAA/v///wbgkwQAAAAAABYAFBNv4LS2tcMv+RLkAGg0j4pn/b+dgBoGAAAAAAAWABRhdAByoEaKdP/hretMwwYdlAjQhyChBwAAAAAAFgAUsJ7ErUnFZ2fwqTVsUlqrv4V8jn2AGgYAAAAAABYAFOkzbbB1n9ZPmZ4gWLp3fNFts36YYJ7JAAAAAAAWABTk2gmbK5V3sdmAJrH69hUWY3UuQiChBwAAAAAAFgAUPCPjYFb1LLvNQotw0cC8X+0BSwSEqEYAAQEfgBoGAAAAAAAWABTpM22wdZ/WT5meIFi6d3zRbbN+mCIGAnj80nFHiE+S1MK8rAc5tveNsvb7DOL3H1x5GWoXQV8fENTlr1QAAACAAAAAgCEAAIAAAQDtAgAAAAGuKJSPEFGGqa6t3zjh0IEH443O8GWTI6wEJLMEzB3f3gMAAAAA/v///wbgkwQAAAAAABYAFBNv4LS2tcMv+RLkAGg0j4pn/b+dgBoGAAAAAAAWABRhdAByoEaKdP/hretMwwYdlAjQhyChBwAAAAAAFgAUsJ7ErUnFZ2fwqTVsUlqrv4V8jn2AGgYAAAAAABYAFOkzbbB1n9ZPmZ4gWLp3fNFts36YYJ7JAAAAAAAWABTk2gmbK5V3sdmAJrH69hUWY3UuQiChBwAAAAAAFgAUPCPjYFb1LLvNQotw0cC8X+0BSwSEqEYAAQEfgBoGAAAAAAAWABRhdAByoEaKdP/hretMwwYdlAjQhyIGAv8r/DGD4XZnkXM6dAhLCXut9IJ4+n//JdY9UmjkAyFgENTlr1QAAACAAAAAgCIAAIAAAA==",
     "psbtDecodedSummary": {
-      "txid": "2586c501878159da88b3d07deac31972f511c51af2e1c3496d2379199c8a732f",
-      "hash": "2586c501878159da88b3d07deac31972f511c51af2e1c3496d2379199c8a732f",
+      "txid": "e335829be0ee219c7775c22e1d65748d6adb66ac4950205456155c925cb6ff70",
+      "hash": "e335829be0ee219c7775c22e1d65748d6adb66ac4950205456155c925cb6ff70",
       "vsize": 135,
       "locktime": 0
     },
     "fundingOutpoint": {
-      "txid": "2586c501878159da88b3d07deac31972f511c51af2e1c3496d2379199c8a732f",
+      "txid": "e335829be0ee219c7775c22e1d65748d6adb66ac4950205456155c925cb6ff70",
       "vout": 0,
       "valueLtc": "0.007981",
       "valueSats": "798100"

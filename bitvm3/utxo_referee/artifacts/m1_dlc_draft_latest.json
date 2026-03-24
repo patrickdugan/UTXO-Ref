@@ -1,28 +1,28 @@
 {
   "kind": "m1_dlc_draft",
-  "createdAt": "2026-02-12T17:47:53.430Z",
+  "createdAt": "2026-03-23T21:22:41.040Z",
   "chain": {
     "network": "test",
     "rpcUrl": "http://127.0.0.1:19332",
-    "blockHeight": 4554958
+    "blockHeight": 4630660
   },
   "template": {
     "templateId": "dlc-receipt-ltc-testnet-v1",
-    "templateHash": "d0c2721675fc2081ef36a901464e4170ac916b313dbcebef17ae1523e0c086d4"
+    "templateHash": "e5963c361cbef3c8ccaaea5c1eccd1a8877650584cdae2deed66929e4eba7578"
   },
   "roleSet": {
-    "tag": "m1-20260212-144115",
+    "tag": "m1-20260323-182221",
     "wallet": "tl-wallet",
     "addresses": {
-      "operator": "tltc1qcss90s7fh7d6dvhj5rcperv6awp37djznnhvfr",
-      "oracle": "tltc1q0gqz70w200ghg4law7ygeaxd5ehqppu3cjgun2",
-      "alice": "tltc1qvgqet7gvx8rq3hx6ds2qh406f9hl3dhzsdwqaj",
-      "bob": "tltc1qekq06cugqrfla5ut94l9zqxkad0zw9upnmqfxp",
-      "residual": "tltc1q5zuzh7v6xa85d0jx0hga7dkaasr3uwwepnqfs2"
+      "operator": "tltc1qkz0vft2fc4nk0u9fx4k9yk4th7zherna3zxh22",
+      "oracle": "tltc1qzdh7pd9kkhpjl7gjusqxsdy03fnlm0uaytpmf6",
+      "alice": "tltc1qayekmvr4nltylxv7ypvt5amu69kmxl5cy3raz6",
+      "bob": "tltc1qv96qqu4qg698fllp4h45escxrk2q35y8t9u8td",
+      "residual": "tltc1q8s37xczk75kthn2z3dcdrs9utlkszjcy7qej6m"
     },
     "pubkeys": {
-      "operator": "029d8d2ca072945b8a447be34b3d8824391efac24cadd8fd2607b2ec160f4e1906",
-      "oracle": "03a92fd6bd2731e5146b270a1d04c04df2403151970aaa2301166e79232d815b3a"
+      "operator": "030f69bd814a94419d9eedbb73ecfb15de9470d69be22dfe6109e1c7fc32aa7282",
+      "oracle": "039daa45ec494094389e3e3b2910b76b0a10092a027e2f738c4e102f9e06389dcc"
     }
   },
   "canonical": {
@@ -31,138 +31,80 @@
     "commitmentPackageSchema": "(epochId, withdrawalRoot, capSats, residualDest)"
   },
   "contract": {
-    "eventId": "ltc-testnet-epoch-1-1770918473431",
-    "maturityHeight": 4555966,
-    "refundLocktime": 4556254,
+    "eventId": "ltc-testnet-epoch-1-1774300961041",
+    "maturityHeight": 4631668,
+    "refundLocktime": 4631956,
     "collateralSats": "800000",
+    "payoutRatioBps": 3333,
+    "dustCarrySats": "0",
     "fundingInputs": [
       {
         "role": "alice",
-        "txid": "065b841881cfebbc1d3eebf26ca74867bb264d54a053c854a4beb66ae3a84d61",
-        "vout": 4,
+        "txid": "b5afd795804295feae60d7610865a6befe2149c183b138a57384a4941e97f910",
+        "vout": 3,
         "amountLtc": "0.004",
         "amountSats": "400000"
       },
       {
         "role": "bob",
-        "txid": "065b841881cfebbc1d3eebf26ca74867bb264d54a053c854a4beb66ae3a84d61",
-        "vout": 0,
+        "txid": "b5afd795804295feae60d7610865a6befe2149c183b138a57384a4941e97f910",
+        "vout": 1,
         "amountLtc": "0.004",
         "amountSats": "400000"
       }
     ],
     "outputs": {
-      "operatorAddress": "tltc1qcss90s7fh7d6dvhj5rcperv6awp37djznnhvfr",
-      "oracleAddress": "tltc1q0gqz70w200ghg4law7ygeaxd5ehqppu3cjgun2",
-      "residualAddress": "tltc1q5zuzh7v6xa85d0jx0hga7dkaasr3uwwepnqfs2"
+      "operatorAddress": "tltc1qkz0vft2fc4nk0u9fx4k9yk4th7zherna3zxh22",
+      "oracleAddress": "tltc1qzdh7pd9kkhpjl7gjusqxsdy03fnlm0uaytpmf6",
+      "residualAddress": "tltc1q8s37xczk75kthn2z3dcdrs9utlkszjcy7qej6m"
+    },
+    "settlement": {
+      "model": "binary-settlement",
+      "payoutRatioBps": 3333,
+      "flatPayoutBps": 6667,
+      "paths": [
+        {
+          "pathId": "flat",
+          "kind": "settlement",
+          "recipientRole": "alice",
+          "payoutSats": "533360",
+          "residualSats": "266640",
+          "dustCarrySats": "0",
+          "defaultOnExpiry": false
+        },
+        {
+          "pathId": "pnl",
+          "kind": "settlement",
+          "recipientRole": "bob",
+          "payoutSats": "266640",
+          "residualSats": "533360",
+          "dustCarrySats": "0",
+          "defaultOnExpiry": false
+        }
+      ],
+      "roll": {
+        "pathId": "roll",
+        "kind": "timeout",
+        "defaultOnExpiry": true,
+        "rollLocktime": 4631956,
+        "rolloverCollateralSats": "800000",
+        "residualSats": "800000",
+        "dustCarrySats": "0"
+      },
+      "dustCarrySats": "0"
     },
     "outcomes": [
       {
-        "bucketPct": 0,
-        "depositorAmountSats": "800000",
-        "poolAmountSats": "0"
+        "pathId": "flat",
+        "kind": "settlement",
+        "payoutSats": "533360"
       },
       {
-        "bucketPct": 5,
-        "depositorAmountSats": "760000",
-        "poolAmountSats": "40000"
-      },
-      {
-        "bucketPct": 10,
-        "depositorAmountSats": "720000",
-        "poolAmountSats": "80000"
-      },
-      {
-        "bucketPct": 15,
-        "depositorAmountSats": "680000",
-        "poolAmountSats": "120000"
-      },
-      {
-        "bucketPct": 20,
-        "depositorAmountSats": "640000",
-        "poolAmountSats": "160000"
-      },
-      {
-        "bucketPct": 25,
-        "depositorAmountSats": "600000",
-        "poolAmountSats": "200000"
-      },
-      {
-        "bucketPct": 30,
-        "depositorAmountSats": "560000",
-        "poolAmountSats": "240000"
-      },
-      {
-        "bucketPct": 35,
-        "depositorAmountSats": "520000",
-        "poolAmountSats": "280000"
-      },
-      {
-        "bucketPct": 40,
-        "depositorAmountSats": "480000",
-        "poolAmountSats": "320000"
-      },
-      {
-        "bucketPct": 45,
-        "depositorAmountSats": "440000",
-        "poolAmountSats": "360000"
-      },
-      {
-        "bucketPct": 50,
-        "depositorAmountSats": "400000",
-        "poolAmountSats": "400000"
-      },
-      {
-        "bucketPct": 55,
-        "depositorAmountSats": "360000",
-        "poolAmountSats": "440000"
-      },
-      {
-        "bucketPct": 60,
-        "depositorAmountSats": "320000",
-        "poolAmountSats": "480000"
-      },
-      {
-        "bucketPct": 65,
-        "depositorAmountSats": "280000",
-        "poolAmountSats": "520000"
-      },
-      {
-        "bucketPct": 70,
-        "depositorAmountSats": "240000",
-        "poolAmountSats": "560000"
-      },
-      {
-        "bucketPct": 75,
-        "depositorAmountSats": "200000",
-        "poolAmountSats": "600000"
-      },
-      {
-        "bucketPct": 80,
-        "depositorAmountSats": "160000",
-        "poolAmountSats": "640000"
-      },
-      {
-        "bucketPct": 85,
-        "depositorAmountSats": "120000",
-        "poolAmountSats": "680000"
-      },
-      {
-        "bucketPct": 90,
-        "depositorAmountSats": "80000",
-        "poolAmountSats": "720000"
-      },
-      {
-        "bucketPct": 95,
-        "depositorAmountSats": "40000",
-        "poolAmountSats": "760000"
-      },
-      {
-        "bucketPct": 100,
-        "depositorAmountSats": "0",
-        "poolAmountSats": "800000"
+        "pathId": "pnl",
+        "kind": "settlement",
+        "payoutSats": "266640"
       }
     ]
   },
-  "artifactHash": "4eb19511a72ddb3640ed1fa957c970d49ca5a9ef0087b4421ffbf2fe7be55410"
+  "artifactHash": "7122b6b4f684e33229c0ec1540865ba277bfa25523467c8df68c9feda22792b9"
 }

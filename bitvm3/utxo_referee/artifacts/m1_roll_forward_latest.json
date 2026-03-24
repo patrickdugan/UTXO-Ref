@@ -1,0 +1,35 @@
+{
+  "kind": "m1_roll_forward",
+  "createdAt": "2026-03-23T21:23:33.849Z",
+  "sourceArtifacts": {
+    "draftPath": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\m1_dlc_draft_latest.json",
+    "fundedPath": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\m1_funding_psbt_latest.json",
+    "finalizedPath": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\m1_funding_finalized_latest.json",
+    "draftHash": "6c53f9ab4cceb5b9be79f9244d99ac3d8b9ba3885cda7e183785a3ae3370a33b",
+    "fundedHash": "b9f01ea1030b97cde2cfc930333b40670106d252649e56fe06bc2e3ba8242ba2",
+    "finalizedHash": "2f5a9b0ae1a68773870570ed1110f6b174259b29c4f5aa87d883c666fa783af8"
+  },
+  "currentEpoch": {
+    "epochId": "1",
+    "fundingTxid": "e335829be0ee219c7775c22e1d65748d6adb66ac4950205456155c925cb6ff70",
+    "fundingVout": 0,
+    "rollLocktime": 4631956,
+    "dustCarrySats": "0",
+    "rolloverCollateralSats": "798100"
+  },
+  "nextEpoch": {
+    "epochId": "2",
+    "inheritedCollateralSats": "798100",
+    "inheritedDustCarrySats": "0",
+    "defaultAction": "roll"
+  },
+  "routing": {
+    "timeoutPath": "roll",
+    "settlePaths": [
+      "flat",
+      "pnl"
+    ],
+    "routerSemantics": "non-interactive expiry defaults to roll-forward"
+  },
+  "artifactHash": "aaba233ed29744550421e4d00c54dbcbacb77a5bd0949339ef43bf5e6d7fcaf4"
+}

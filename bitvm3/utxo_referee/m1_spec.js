@@ -27,6 +27,14 @@ const COMMITMENT_PACKAGE_SCHEMA_FIELDS = Object.freeze([
   'residualDest'
 ]);
 
+const SETTLEMENT_PATH_SCHEMA_FIELDS = Object.freeze([
+  'pathId',
+  'kind',
+  'payoutSats',
+  'dustCarrySats',
+  'defaultOnExpiry'
+]);
+
 const RECEIPT_DLC_TEMPLATE_V1 = Object.freeze({
   templateId: 'dlc-receipt-ltc-testnet-v1',
   version: 1,
@@ -49,8 +57,15 @@ const RECEIPT_DLC_TEMPLATE_V1 = Object.freeze({
   },
   settlement: {
     epochCadence: 'weekly',
+    pathModel: 'binary-settlement',
+    payoutRatioBps: 5000,
+    activePaths: ['flat', 'pnl'],
+    timeoutPath: 'roll',
+    challengeWindowLength: 0n,
+    dustCarryField: 'dustCarrySats',
     payoutLeafSchema: PAYOUT_LEAF_SCHEMA_FIELDS.slice(),
-    commitmentSchema: COMMITMENT_PACKAGE_SCHEMA_FIELDS.slice()
+    commitmentSchema: COMMITMENT_PACKAGE_SCHEMA_FIELDS.slice(),
+    settlementPathSchema: SETTLEMENT_PATH_SCHEMA_FIELDS.slice()
   }
 });
 
@@ -96,6 +111,9 @@ function validateCommitmentPackageRecord(record) {
 }
 
 function canonicalStringify(value) {
+  if (typeof value === 'bigint') {
+    return JSON.stringify(value.toString());
+  }
   if (value === null || typeof value !== 'object') {
     return JSON.stringify(value);
   }
@@ -119,6 +137,7 @@ module.exports = {
   U64_MAX,
   PAYOUT_LEAF_SCHEMA_FIELDS,
   COMMITMENT_PACKAGE_SCHEMA_FIELDS,
+  SETTLEMENT_PATH_SCHEMA_FIELDS,
   RECEIPT_DLC_TEMPLATE_V1,
   normalizeEpochId,
   normalizeAmountSats,
@@ -127,4 +146,3 @@ module.exports = {
   canonicalStringify,
   templateHashHex
 };
-

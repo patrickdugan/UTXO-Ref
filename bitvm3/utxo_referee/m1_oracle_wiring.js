@@ -37,12 +37,13 @@ function loadJson(p) {
 }
 
 function makeOutcomeMessage(eventId, fundingOutpoint, cet) {
+  const selector = cet.pathId || String(cet.bucketPct);
   const payload = [
     'm1_oracle_attestation_v1',
     eventId,
     fundingOutpoint.txid,
     String(fundingOutpoint.vout),
-    String(cet.bucketPct),
+    selector,
     cet.txid,
     String(cet.locktime)
   ].join('|');
@@ -58,18 +59,23 @@ function buildPlaceholders({ funding, cets }) {
   const eventId = process.env.ORACLE_EVENT_ID || `m1_oracle_event_${timestamp}`;
   const oracleKeyId = process.env.ORACLE_KEY_ID || 'oracle_key_tl_wallet_placeholder';
   const quorumId = process.env.ORACLE_QUORUM_ID || 'quorum_1of1_placeholder';
+  const settlementPaths = cets.settlement && Array.isArray(cets.settlement.paths)
+    ? cets.settlement.paths
+    : (cets.cets && Array.isArray(cets.cets.cets) ? cets.cets.cets : []);
 
-  const attestationTargets = cets.cets.cets.map(cet => {
+  const attestationTargets = settlementPaths.map(cet => {
     const msg = makeOutcomeMessage(eventId, cets.fundingOutpoint, cet);
+    const pathId = cet.pathId || `bucket-${cet.bucketPct}`;
     return {
-      bucketPct: cet.bucketPct,
+      pathId,
+      bucketPct: typeof cet.bucketPct === 'number' ? cet.bucketPct : null,
       cetTxid: cet.txid,
       locktime: cet.locktime,
       message: msg,
-      oracleNonceCommitment: `nonce_commitment_for_${cet.bucketPct}`,
-      oracleSignaturePlaceholder: `oracle_sig_for_${cet.bucketPct}`,
-      adaptorPointPlaceholder: `adaptor_point_for_${cet.bucketPct}`,
-      adaptorSignaturePlaceholder: `adaptor_sig_for_${cet.bucketPct}`
+      oracleNonceCommitment: `nonce_commitment_for_${pathId}`,
+      oracleSignaturePlaceholder: `oracle_sig_for_${pathId}`,
+      adaptorPointPlaceholder: `adaptor_point_for_${pathId}`,
+      adaptorSignaturePlaceholder: `adaptor_sig_for_${pathId}`
     };
   });
 
@@ -91,13 +97,14 @@ function buildPlaceholders({ funding, cets }) {
     },
     binding: {
       fundingOutpoint: funding.funding.fundingOutpoint,
-      maturityHeight: cets.cets.maturityHeight,
-      refundLocktime: cets.cets.refundLocktime
+      maturityHeight: cets.maturityHeight,
+      refundLocktime: cets.refundLocktime,
+      dustCarrySats: cets.settlement && cets.settlement.dustCarrySats ? cets.settlement.dustCarrySats : null
     },
     attestationTargets,
     challengePathPlaceholders: {
       honestSweepEvidence: {
-        required: ['commitmentPackage', 'selectedBucket', 'oracleSignature', 'cetTxid'],
+        required: ['commitmentPackage', 'selectedPath', 'oracleSignature', 'cetTxid'],
         notes: 'Assemble these fields into witness payload when challenge path is wired.'
       },
       challengedSweepEvidence: {
@@ -133,4 +140,3 @@ try {
   console.error('Oracle wiring generation failed:', err.message);
   process.exit(1);
 }
-

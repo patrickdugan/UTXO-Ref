@@ -4,7 +4,7 @@
  * Builds a concrete DLC draft artifact from live wallet state:
  * - discovers latest role-address set provisioned with m1_* tooling
  * - selects confirmed collateral UTXOs (alice + bob)
- * - computes deterministic outcome buckets and locktimes
+ * - computes deterministic binary settlement paths, roll defaults, and locktimes
  * - writes JSON artifact for inspection/review
  *
  * Run:
@@ -18,6 +18,7 @@
  *   DLC_EPOCH_ID=1
  *   DLC_MATURITY_BLOCKS=1008
  *   DLC_REFUND_DELAY_BLOCKS=288
+ *   DLC_PNL_PAYOUT_BPS=5000
  */
 
 const fs = require('fs');
@@ -27,6 +28,7 @@ const https = require('https');
 const { URL } = require('url');
 const crypto = require('crypto');
 const { templateHashHex, RECEIPT_DLC_TEMPLATE_V1 } = require('./m1_spec');
+const { computeRouteAmounts } = require('./m1_transition');
 
 const DEFAULT_RPC_URL = process.env.LTC_RPC_URL || 'http://127.0.0.1:19332';
 const DEFAULT_RPC_USER = process.env.LTC_RPC_USER || 'user';
@@ -35,6 +37,8 @@ const DEFAULT_WALLET = process.env.LTC_WALLET || 'tl-wallet';
 const EPOCH_ID = BigInt(process.env.DLC_EPOCH_ID || '1');
 const MATURITY_BLOCKS = Number(process.env.DLC_MATURITY_BLOCKS || '1008');
 const REFUND_DELAY_BLOCKS = Number(process.env.DLC_REFUND_DELAY_BLOCKS || '288');
+const MIN_CONFIRMATIONS = Number(process.env.DLC_MIN_CONFIRMATIONS || '1');
+const PNL_PAYOUT_BPS = Number(process.env.DLC_PNL_PAYOUT_BPS || '5000');
 const ROLE_NAMES = ['operator', 'oracle', 'alice', 'bob', 'residual'];
 
 function encodeBasicAuth(user, pass) {
@@ -158,8 +162,8 @@ async function pickLatestFundedRoleSet(rpc, wallet) {
       continue;
     }
 
-    const aliceUtxos = await rpc('listunspent', [1, 9999999, [addresses.alice]], wallet);
-    const bobUtxos = await rpc('listunspent', [1, 9999999, [addresses.bob]], wallet);
+    const aliceUtxos = await rpc('listunspent', [MIN_CONFIRMATIONS, 9999999, [addresses.alice]], wallet);
+    const bobUtxos = await rpc('listunspent', [MIN_CONFIRMATIONS, 9999999, [addresses.bob]], wallet);
     if (aliceUtxos.length > 0 && bobUtxos.length > 0) {
       return { tag, addresses };
     }
@@ -174,7 +178,7 @@ function amountToSats(amount) {
 }
 
 async function selectConfirmedUtxo(rpc, wallet, address) {
-  const utxos = await rpc('listunspent', [1, 9999999, [address]], wallet);
+  const utxos = await rpc('listunspent', [MIN_CONFIRMATIONS, 9999999, [address]], wallet);
   if (!utxos.length) {
     throw new Error(`No confirmed UTXO found for address ${address}`);
   }
@@ -189,18 +193,45 @@ async function getAddressPubkey(rpc, wallet, address) {
   return info.pubkey || null;
 }
 
-function buildOutcomeBuckets(collateralSats) {
-  const rows = [];
-  for (let bucket = 0; bucket <= 100; bucket += 5) {
-    const poolAmountSats = (collateralSats * BigInt(bucket)) / 100n;
-    const depositorAmountSats = collateralSats - poolAmountSats;
-    rows.push({
-      bucketPct: bucket,
-      depositorAmountSats: depositorAmountSats.toString(),
-      poolAmountSats: poolAmountSats.toString()
-    });
-  }
-  return rows;
+function buildBinarySettlementPaths(collateralSats, rollLocktime, pnlPayoutBps) {
+  const routeAmounts = computeRouteAmounts(collateralSats, pnlPayoutBps);
+  const rolloverCollateralSats = routeAmounts.collateralSats - routeAmounts.dustCarrySats;
+
+  return {
+    model: 'binary-settlement',
+    payoutRatioBps: routeAmounts.pnlPayoutBps,
+    flatPayoutBps: 10000 - routeAmounts.pnlPayoutBps,
+    paths: [
+      {
+        pathId: 'flat',
+        kind: 'settlement',
+        recipientRole: 'alice',
+        payoutSats: routeAmounts.flatPayoutSats.toString(),
+        residualSats: (routeAmounts.collateralSats - routeAmounts.flatPayoutSats).toString(),
+        dustCarrySats: '0',
+        defaultOnExpiry: false
+      },
+      {
+        pathId: 'pnl',
+        kind: 'settlement',
+        recipientRole: 'bob',
+        payoutSats: routeAmounts.pnlPayoutSats.toString(),
+        residualSats: (routeAmounts.collateralSats - routeAmounts.pnlPayoutSats).toString(),
+        dustCarrySats: '0',
+        defaultOnExpiry: false
+      }
+    ],
+    roll: {
+      pathId: 'roll',
+      kind: 'timeout',
+      defaultOnExpiry: true,
+      rollLocktime: rollLocktime,
+      rolloverCollateralSats: rolloverCollateralSats.toString(),
+      residualSats: rolloverCollateralSats.toString(),
+      dustCarrySats: routeAmounts.dustCarrySats.toString()
+    },
+    dustCarrySats: routeAmounts.dustCarrySats.toString()
+  };
 }
 
 async function run() {
@@ -220,6 +251,7 @@ async function run() {
 
   const maturityHeight = currentHeight + MATURITY_BLOCKS;
   const refundLocktime = maturityHeight + REFUND_DELAY_BLOCKS;
+  const settlement = buildBinarySettlementPaths(collateralSats, refundLocktime, PNL_PAYOUT_BPS);
 
   const operatorPubkey = await getAddressPubkey(rpc, DEFAULT_WALLET, roleSet.addresses.operator);
   const oraclePubkey = await getAddressPubkey(rpc, DEFAULT_WALLET, roleSet.addresses.oracle);
@@ -258,6 +290,8 @@ async function run() {
       maturityHeight,
       refundLocktime,
       collateralSats: collateralSats.toString(),
+      payoutRatioBps: PNL_PAYOUT_BPS,
+      dustCarrySats: settlement.dustCarrySats,
       fundingInputs: [
         {
           role: 'alice',
@@ -279,7 +313,12 @@ async function run() {
         oracleAddress: roleSet.addresses.oracle,
         residualAddress: roleSet.addresses.residual
       },
-      outcomes: buildOutcomeBuckets(collateralSats)
+      settlement,
+      outcomes: settlement.paths.map(path => ({
+        pathId: path.pathId,
+        kind: path.kind,
+        payoutSats: path.payoutSats
+      }))
     }
   };
 
@@ -298,10 +337,13 @@ async function run() {
 
   console.log('=== M1 DLC Bootstrap ===');
   console.log(`wallet=${DEFAULT_WALLET}`);
+  console.log(`minConfirmations=${MIN_CONFIRMATIONS}`);
   console.log(`roleSetTag=${roleSet.tag}`);
   console.log(`chain=${chainInfo.chain} height=${currentHeight}`);
   console.log(`epochId=${EPOCH_ID.toString()}`);
   console.log(`collateralSats=${collateralSats.toString()}`);
+  console.log(`payoutRatioBps=${PNL_PAYOUT_BPS}`);
+  console.log(`dustCarrySats=${settlement.dustCarrySats}`);
   console.log(`maturityHeight=${maturityHeight}`);
   console.log(`refundLocktime=${refundLocktime}`);
   console.log(`artifactHash=${digest}`);

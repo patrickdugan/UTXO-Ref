@@ -33,6 +33,9 @@ const verify = require('./verify');
 const circuit = require('./circuit');
 const m1Spec = require('./m1_spec');
 const m1ReceiptLedger = require('./m1_receipt_ledger');
+const m1Transition = require('./m1_transition');
+const m1TransitionCircuit = require('./m1_transition_circuit');
+const m1TallyMap = require('./m1_tally_map');
 
 module.exports = {
   // Types
@@ -73,6 +76,12 @@ module.exports = {
   validateCommitmentPackageRecord: m1Spec.validateCommitmentPackageRecord,
   templateHashHex: m1Spec.templateHashHex,
   ReceiptLedger: m1ReceiptLedger.ReceiptLedger,
+  ReceiptTallyMap: m1TallyMap.ReceiptTallyMap,
+  computeRouteAmounts: m1Transition.computeRouteAmounts,
+  applyBinarySettlementTransition: m1Transition.applyBinarySettlementTransition,
+  TransitionCircuit: m1TransitionCircuit.TransitionCircuit,
+  generateTransitionCircuit: m1TransitionCircuit.generateTransitionCircuit,
+  toTransitionWitness: m1TransitionCircuit.toTransitionWitness,
 
   // Re-export submodules for advanced usage
   types,
@@ -80,5 +89,8 @@ module.exports = {
   verify,
   circuit,
   m1Spec,
-  m1ReceiptLedger
+  m1ReceiptLedger,
+  m1Transition,
+  m1TransitionCircuit,
+  m1TallyMap
 };
