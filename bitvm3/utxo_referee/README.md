@@ -185,6 +185,18 @@ node bitvm3/utxo_referee/test.js
 node bitvm3/utxo_referee/demo.js
 ```
 
+## Visualization
+
+Generate a gate-count and DLC flow report:
+
+```bash
+node bitvm3/utxo_referee/m1_visualize.js
+```
+
+This writes:
+- `bitvm3/utxo_referee/artifacts/m1_visualization_latest.json`
+- `bitvm3/utxo_referee/artifacts/m1_visualization_latest.md`
+
 ## Milestone 1 Demo
 
 ```bash
