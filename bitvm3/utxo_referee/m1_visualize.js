@@ -24,6 +24,7 @@ const { RECEIPT_DLC_TEMPLATE_V1 } = require('./m1_spec');
 const ARTIFACTS_DIR = path.join(__dirname, 'artifacts');
 const OUT_JSON = path.join(ARTIFACTS_DIR, 'm1_visualization_latest.json');
 const OUT_MD = path.join(ARTIFACTS_DIR, 'm1_visualization_latest.md');
+const LATEST_DRAFT_PATH = path.join(ARTIFACTS_DIR, 'm1_dlc_draft_latest.json');
 
 function sha256Hex(data) {
   return crypto.createHash('sha256').update(data).digest('hex');
@@ -69,6 +70,10 @@ function artifactMeta(filePath) {
   };
 }
 
+function latestSettlementArtifact() {
+  return safeReadJson(LATEST_DRAFT_PATH);
+}
+
 function normalizeForJson(value) {
   if (typeof value === 'bigint') return value.toString();
   if (Array.isArray(value)) return value.map(normalizeForJson);
@@ -83,6 +88,14 @@ function normalizeForJson(value) {
 }
 
 function buildFlowGraph() {
+  const draft = latestSettlementArtifact();
+  const settlement = draft?.contract?.settlement || RECEIPT_DLC_TEMPLATE_V1.settlement;
+  const pathModel = settlement?.model || RECEIPT_DLC_TEMPLATE_V1.settlement.pathModel;
+  const activePaths = Array.isArray(settlement?.paths)
+    ? settlement.paths.map(pathEntry => pathEntry.pathId).filter(Boolean)
+    : (RECEIPT_DLC_TEMPLATE_V1.settlement.activePaths || []);
+  const timeoutPath = settlement?.roll?.pathId || RECEIPT_DLC_TEMPLATE_V1.settlement.timeoutPath || 'roll';
+
   return {
     nodes: [
       { id: 'wallet', label: 'Funded LTC wallet UTXOs' },
@@ -107,7 +120,10 @@ function buildFlowGraph() {
       ['transition', 'roll', 'timeout branch carries forward dust/collateral'],
       ['oracle', 'referee', 'attestation + payout claims'],
       ['transition', 'referee', 'receipt balance root / claim root check']
-    ]
+    ],
+    pathModel,
+    activePaths,
+    timeoutPath
   };
 }
 
@@ -126,6 +142,8 @@ function buildReport() {
   const refereeCircuit = referee.generateRefereeCircuit({ maxPayouts: 8, merkleDepth: 16 });
   const transitionCircuit = referee.generateTransitionCircuit({ bitWidth: 64 });
   const templateHash = referee.templateHashHex(RECEIPT_DLC_TEMPLATE_V1);
+  const draft = latestSettlementArtifact();
+  const settlement = draft?.contract?.settlement || RECEIPT_DLC_TEMPLATE_V1.settlement;
 
   const graph = buildFlowGraph();
   const latestArtifacts = {
@@ -143,7 +161,7 @@ function buildReport() {
     template: {
       templateId: RECEIPT_DLC_TEMPLATE_V1.templateId,
       templateHash,
-      settlement: RECEIPT_DLC_TEMPLATE_V1.settlement,
+      settlement,
       receiptToken: RECEIPT_DLC_TEMPLATE_V1.receiptToken
     },
     circuits: {
@@ -151,8 +169,8 @@ function buildReport() {
         'Verifies sweep membership, cap, residual destination, and epoch binding.',
         'Current hash is a placeholder circuit primitive, not full SHA256.'
       ]),
-      transition: summarizeCircuit(transitionCircuit, 'binary-settlement-router', [
-        'Selects flat, pnl, or roll route.',
+      transition: summarizeCircuit(transitionCircuit, 'bounded-loss-router', [
+        'Selects flat, pnl, settle-loss, settle-gain, or roll route.',
         'Proves exact satoshi conservation and claim-root binding.'
       ])
     },
@@ -178,9 +196,9 @@ function renderMarkdown(report) {
   lines.push('## Template');
   lines.push(`- Template ID: \`${report.template.templateId}\``);
   lines.push(`- Template hash: \`${report.template.templateHash}\``);
-  lines.push(`- Settlement model: \`${report.template.settlement.pathModel}\``);
-  lines.push(`- Active paths: \`${report.template.settlement.activePaths.join(', ')}\``);
-  lines.push(`- Timeout path: \`${report.template.settlement.timeoutPath}\``);
+  lines.push(`- Settlement model: \`${report.template.settlement.model || report.template.settlement.pathModel}\``);
+  lines.push(`- Active paths: \`${(report.template.settlement.paths || report.template.settlement.activePaths || []).map(p => typeof p === 'string' ? p : p.pathId).join(', ')}\``);
+  lines.push(`- Timeout path: \`${report.template.settlement.roll?.pathId || report.template.settlement.timeoutPath || 'roll'}\``);
   lines.push('');
   lines.push('## Circuits');
   for (const [key, circuit] of Object.entries(report.circuits)) {
@@ -205,6 +223,15 @@ function renderMarkdown(report) {
   lines.push('```');
   lines.push('');
   lines.push('## Path Summary');
+  if (report.flow.graph.pathModel) {
+    lines.push(`- Path model: \`${report.flow.graph.pathModel}\``);
+  }
+  if (Array.isArray(report.flow.graph.activePaths)) {
+    lines.push(`- Active paths: \`${report.flow.graph.activePaths.join(', ')}\``);
+  }
+  if (report.flow.graph.timeoutPath) {
+    lines.push(`- Timeout path: \`${report.flow.graph.timeoutPath}\``);
+  }
   for (const [from, to, label] of report.flow.graph.edges) {
     lines.push(`- \`${from}\` -> \`${to}\`: ${label}`);
   }

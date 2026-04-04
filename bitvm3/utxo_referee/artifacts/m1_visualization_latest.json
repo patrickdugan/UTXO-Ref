@@ -1,0 +1,255 @@
+{
+  "kind": "m1_bitvm_dlc_visualization",
+  "createdAt": "2026-04-04T00:48:51.770Z",
+  "template": {
+    "templateId": "dlc-receipt-ltc-testnet-v1",
+    "templateHash": "79755ea8e3b1df4e4c4266d8809e46e6a50356dec24de20d298a6e64f28482d7",
+    "settlement": {
+      "model": "bounded-loss-carry-forward",
+      "bucketCapBps": 500,
+      "realizedPnlBps": 155,
+      "effectivePnlBps": 155,
+      "feeBps": 25,
+      "paths": [
+        {
+          "pathId": "settle-gain",
+          "kind": "settlement",
+          "recipientRole": "alice",
+          "bucketCapBps": 500,
+          "realizedPnlBps": 155,
+          "effectivePnlBps": 155,
+          "feeBps": 25,
+          "actualPayoutSats": "12400",
+          "payoutSats": "12400",
+          "feeSats": "2000",
+          "refundSats": "785600",
+          "rolloverCollateralSats": "785600",
+          "residualSats": "785600",
+          "dustCarrySats": "0",
+          "defaultOnExpiry": false
+        },
+        {
+          "pathId": "settle-loss",
+          "kind": "settlement",
+          "recipientRole": "bob",
+          "bucketCapBps": 500,
+          "realizedPnlBps": 155,
+          "effectivePnlBps": 155,
+          "feeBps": 25,
+          "actualPayoutSats": "12400",
+          "payoutSats": "12400",
+          "feeSats": "2000",
+          "refundSats": "785600",
+          "rolloverCollateralSats": "785600",
+          "residualSats": "785600",
+          "dustCarrySats": "0",
+          "defaultOnExpiry": false
+        }
+      ],
+      "roll": {
+        "pathId": "roll",
+        "kind": "timeout",
+        "defaultOnExpiry": true,
+        "rollLocktime": 4658048,
+        "rolloverCollateralSats": "785600",
+        "residualSats": "785600",
+        "dustCarrySats": "0"
+      },
+      "dustCarrySats": "0"
+    },
+    "receiptToken": {
+      "symbol": "rLTC-SAT",
+      "offChainOnly": true,
+      "backingUnit": "sats",
+      "mintRatioNumerator": 1,
+      "mintRatioDenominator": 1,
+      "burnRedeemsBacking": true
+    }
+  },
+  "circuits": {
+    "referee": {
+      "purpose": "sweep-referee",
+      "name": "utxo_referee_verify",
+      "totalGates": 338855,
+      "wireCount": 375343,
+      "inputBits": 36488,
+      "outputBits": 1,
+      "freeGates": 236308,
+      "nonFreeGates": 102547,
+      "gateBreakdown": {
+        "AND": 102547,
+        "XOR": 233745,
+        "INV": 2563,
+        "OR": 0
+      },
+      "notes": [
+        "Verifies sweep membership, cap, residual destination, and epoch binding.",
+        "Current hash is a placeholder circuit primitive, not full SHA256."
+      ]
+    },
+    "transition": {
+      "purpose": "bounded-loss-router",
+      "name": "m1_binary_settlement_transition",
+      "totalGates": 457102,
+      "wireCount": 463523,
+      "inputBits": 6421,
+      "outputBits": 1,
+      "freeGates": 257086,
+      "nonFreeGates": 200016,
+      "gateBreakdown": {
+        "AND": 200016,
+        "XOR": 254096,
+        "INV": 2990,
+        "OR": 0
+      },
+      "notes": [
+        "Selects flat, pnl, settle-loss, settle-gain, or roll route.",
+        "Proves exact satoshi conservation and claim-root binding."
+      ]
+    }
+  },
+  "flow": {
+    "graph": {
+      "nodes": [
+        {
+          "id": "wallet",
+          "label": "Funded LTC wallet UTXOs"
+        },
+        {
+          "id": "bootstrap",
+          "label": "m1_dlc_bootstrap"
+        },
+        {
+          "id": "psbt",
+          "label": "m1_dlc_psbt_cet"
+        },
+        {
+          "id": "sign",
+          "label": "m1_dlc_sign_finalize"
+        },
+        {
+          "id": "funding",
+          "label": "Funding UTXO / DLC vault"
+        },
+        {
+          "id": "oracle",
+          "label": "m1_oracle_wiring"
+        },
+        {
+          "id": "roll",
+          "label": "m1_roll_forward"
+        },
+        {
+          "id": "ledger",
+          "label": "Receipt ledger + tally map"
+        },
+        {
+          "id": "transition",
+          "label": "m1_transition + circuit"
+        },
+        {
+          "id": "referee",
+          "label": "UTXO referee sweep circuit"
+        }
+      ],
+      "edges": [
+        [
+          "wallet",
+          "bootstrap",
+          "select confirmed inputs"
+        ],
+        [
+          "bootstrap",
+          "psbt",
+          "publish draft + settlement paths"
+        ],
+        [
+          "psbt",
+          "sign",
+          "walletprocesspsbt / finalizepsbt"
+        ],
+        [
+          "sign",
+          "funding",
+          "broadcast funding UTXO"
+        ],
+        [
+          "funding",
+          "oracle",
+          "oracle attestation binds CET path"
+        ],
+        [
+          "funding",
+          "ledger",
+          "mint / burn receipt balances"
+        ],
+        [
+          "ledger",
+          "transition",
+          "epoch handoff and route selection"
+        ],
+        [
+          "transition",
+          "roll",
+          "timeout branch carries forward dust/collateral"
+        ],
+        [
+          "oracle",
+          "referee",
+          "attestation + payout claims"
+        ],
+        [
+          "transition",
+          "referee",
+          "receipt balance root / claim root check"
+        ]
+      ],
+      "pathModel": "bounded-loss-carry-forward",
+      "activePaths": [
+        "settle-gain",
+        "settle-loss"
+      ],
+      "timeoutPath": "roll"
+    },
+    "mermaid": "graph TD\n  wallet[\"Funded LTC wallet UTXOs\"]\n  bootstrap[\"m1_dlc_bootstrap\"]\n  psbt[\"m1_dlc_psbt_cet\"]\n  sign[\"m1_dlc_sign_finalize\"]\n  funding[\"Funding UTXO / DLC vault\"]\n  oracle[\"m1_oracle_wiring\"]\n  roll[\"m1_roll_forward\"]\n  ledger[\"Receipt ledger + tally map\"]\n  transition[\"m1_transition + circuit\"]\n  referee[\"UTXO referee sweep circuit\"]\n  wallet -->|select confirmed inputs| bootstrap\n  bootstrap -->|publish draft + settlement paths| psbt\n  psbt -->|walletprocesspsbt / finalizepsbt| sign\n  sign -->|broadcast funding UTXO| funding\n  funding -->|oracle attestation binds CET path| oracle\n  funding -->|mint / burn receipt balances| ledger\n  ledger -->|epoch handoff and route selection| transition\n  transition -->|timeout branch carries forward dust/collateral| roll\n  oracle -->|attestation + payout claims| referee\n  transition -->|receipt balance root / claim root check| referee"
+  },
+  "latestArtifacts": {
+    "draft": {
+      "path": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\m1_dlc_draft_latest.json",
+      "kind": "m1_dlc_draft",
+      "createdAt": "2026-04-04T00:43:15.053Z",
+      "hash": "255c2ac4f41515f2876e0d1cb163b553725e8dabbe5007df1703315332b0c339"
+    },
+    "fundingPsbt": {
+      "path": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\m1_funding_psbt_latest.json",
+      "kind": "m1_funding_psbt",
+      "createdAt": "2026-04-04T00:43:38.651Z",
+      "hash": "061a4bedcad0da3c43ab57731ac02153425ec7bb1074fe4d8c9c50f86c4e7475"
+    },
+    "finalized": {
+      "path": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\m1_funding_finalized_latest.json",
+      "kind": "m1_funding_finalized",
+      "createdAt": "2026-04-04T00:45:39.910Z",
+      "hash": "54ff8a32668cb02b203f4d1d856348b0b63abb2b74388d98173461494377e18d"
+    },
+    "cetSkeletons": {
+      "path": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\m1_cet_skeletons_latest.json",
+      "kind": "m1_cet_skeletons",
+      "createdAt": "2026-04-04T00:43:38.651Z",
+      "hash": "4bfe8f7b50a4d191e4257c201b351498886dda91dcd2f142e0faf3ac5c890564"
+    },
+    "oracleWiring": {
+      "path": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\m1_oracle_wiring_latest.json",
+      "kind": "m1_oracle_wiring",
+      "createdAt": "2026-04-04T00:45:39.886Z",
+      "hash": "de6a85baa9171c10322f740d85260596bb40c30d2aaeb29ec568b07978e73c6a"
+    },
+    "rollForward": {
+      "path": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\m1_roll_forward_latest.json",
+      "kind": "m1_roll_forward",
+      "createdAt": "2026-04-04T00:45:40.038Z",
+      "hash": "99db96f1d08dce99d71bf6e38684dd1fe33ce7cde455a23d0100147b76f507fe"
+    }
+  },
+  "reportHash": "f48c0dcc0a8a4e521a2c1ac3c61fd9cf0c067046923c82f512d7c5f43d4e4e38"
+}
