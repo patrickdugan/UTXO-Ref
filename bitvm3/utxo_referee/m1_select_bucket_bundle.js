@@ -8,7 +8,7 @@
  *   node bitvm3/utxo_referee/m1_select_bucket_bundle.js
  *
  * Optional env:
- *   PATH_NAME=flat|pnl|roll
+ *   PATH_NAME=settle-gain|settle-loss|roll
  *   BUCKET_PCT=10  (legacy fallback)
  */
 
@@ -98,9 +98,10 @@ function run() {
           rawTxHex: selectedPath.rawTxHex || null,
           txid: selectedPath.txid || null,
           payoutSats: selectedPath.payoutSats || null,
-          residualSats: selectedPath.residualSats || null,
-          dustCarrySats: selectedPath.dustCarrySats || null,
-          defaultOnExpiry: !!selectedPath.defaultOnExpiry
+          residualSats: selectedPath.residualSats || (selectedPath.payouts ? selectedPath.payouts.rolloverCollateralSats || null : null),
+          dustCarrySats: selectedPath.dustCarrySats || (selectedPath.payouts ? selectedPath.payouts.dustCarrySats || null : null),
+          rolloverCollateralSats: selectedPath.rolloverCollateralSats || (selectedPath.payouts ? selectedPath.payouts.rolloverCollateralSats || null : null),
+          defaultOnExpiry: PATH_NAME === 'roll' ? true : !!selectedPath.defaultOnExpiry
         }
       : {
           pathId: selectedCet.pathId || `bucket-${BUCKET}`,

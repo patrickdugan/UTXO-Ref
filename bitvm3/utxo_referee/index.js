@@ -78,6 +78,7 @@ module.exports = {
   ReceiptLedger: m1ReceiptLedger.ReceiptLedger,
   ReceiptTallyMap: m1TallyMap.ReceiptTallyMap,
   computeRouteAmounts: m1Transition.computeRouteAmounts,
+  computeBoundedSettlementAmounts: m1Transition.computeBoundedSettlementAmounts,
   applyBinarySettlementTransition: m1Transition.applyBinarySettlementTransition,
   TransitionCircuit: m1TransitionCircuit.TransitionCircuit,
   generateTransitionCircuit: m1TransitionCircuit.generateTransitionCircuit,

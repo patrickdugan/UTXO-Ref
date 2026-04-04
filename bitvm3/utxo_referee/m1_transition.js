@@ -41,6 +41,35 @@ function computeRouteAmounts(collateralSats, pnlPayoutBps) {
   };
 }
 
+function computeBoundedSettlementAmounts(collateralSats, bucketCapBps, realizedPnlBps, feeBps = 0) {
+  const collateral = toBigInt(collateralSats, 'collateralSats');
+  const bucket = validateBps(bucketCapBps, 'bucketCapBps');
+  const realized = validateBps(realizedPnlBps, 'realizedPnlBps');
+  const fee = validateBps(feeBps, 'feeBps');
+  const effectivePnlBps = Math.min(bucket, realized);
+  const actualPayoutSats = (collateral * BigInt(effectivePnlBps)) / 10000n;
+  const feeSats = (collateral * BigInt(fee)) / 10000n;
+  const refundSats = collateral - actualPayoutSats - feeSats;
+  const dust = collateral - actualPayoutSats - feeSats - refundSats;
+
+  if (refundSats < 0n) {
+    throw new Error('bounded settlement produced negative refund');
+  }
+
+  return {
+    collateralSats: collateral,
+    bucketCapBps: bucket,
+    realizedPnlBps: realized,
+    effectivePnlBps,
+    feeBps: fee,
+    actualPayoutSats,
+    feeSats,
+    refundSats,
+    rolloverCollateralSats: refundSats,
+    dustCarrySats: dust
+  };
+}
+
 function applyBinarySettlementTransition(state, event) {
   const collateralSats = toBigInt(state.collateralSats, 'state.collateralSats');
   const pnlPayoutBps = validateBps(state.pnlPayoutBps ?? 5000, 'state.pnlPayoutBps');
@@ -78,6 +107,42 @@ function applyBinarySettlementTransition(state, event) {
     };
   }
 
+  if (route === 'settle-loss' || route === 'settle-gain') {
+    const bucketCapBps = validateBps(state.bucketCapBps ?? state.pnlPayoutBps ?? 5000, 'state.bucketCapBps');
+    const realizedPnlBps = validateBps(state.realizedPnlBps ?? bucketCapBps, 'state.realizedPnlBps');
+    const feeBps = validateBps(state.feeBps ?? 0, 'state.feeBps');
+    const bounded = computeBoundedSettlementAmounts(collateralSats, bucketCapBps, realizedPnlBps, feeBps);
+
+    return {
+      route,
+      epochId: epochId.toString(),
+      collateralSats: bounded.collateralSats.toString(),
+      bucketCapBps: bounded.bucketCapBps,
+      realizedPnlBps: bounded.realizedPnlBps,
+      effectivePnlBps: bounded.effectivePnlBps,
+      feeBps: bounded.feeBps,
+      receiptBalanceRoot,
+      prevBalanceRoot,
+      balanceClaim,
+      challengeWindowStart: challengeWindowStart.toString(),
+      challengeWindowLength: challengeWindowLength.toString(),
+      challengeWindowEnd: challengeWindowEnd.toString(),
+      actualPayoutSats: bounded.actualPayoutSats.toString(),
+      payoutSats: bounded.actualPayoutSats.toString(),
+      feeSats: bounded.feeSats.toString(),
+      refundSats: bounded.refundSats.toString(),
+      residualSats: bounded.refundSats.toString(),
+      rolloverCollateralSats: bounded.rolloverCollateralSats.toString(),
+      dustCarrySats: bounded.dustCarrySats.toString(),
+      outputs: {
+        payoutSats: bounded.actualPayoutSats.toString(),
+        feeSats: bounded.feeSats.toString(),
+        refundSats: bounded.refundSats.toString(),
+        rolloverCollateralSats: bounded.rolloverCollateralSats.toString()
+      }
+    };
+  }
+
   if (route !== 'flat' && route !== 'pnl') {
     throw new Error(`Unsupported route: ${route}`);
   }
@@ -111,5 +176,6 @@ function applyBinarySettlementTransition(state, event) {
 
 module.exports = {
   computeRouteAmounts,
+  computeBoundedSettlementAmounts,
   applyBinarySettlementTransition
 };

@@ -7,6 +7,7 @@
 const {
   ReceiptTallyMap,
   computeRouteAmounts,
+  computeBoundedSettlementAmounts,
   applyBinarySettlementTransition,
   generateTransitionCircuit,
   toTransitionWitness
@@ -130,6 +131,42 @@ test('route amounts remain exact integer sats', () => {
   assertEq(result.flatPayoutSats.toString(), '532094');
   assertEq(result.pnlPayoutSats.toString(), '266006');
   assertEq(result.dustCarrySats.toString(), '0');
+});
+
+test('bounded settlement only pays realized loss and carries refund forward', () => {
+  const result = computeBoundedSettlementAmounts(1000000n, 500, 155, 0);
+  assertEq(result.actualPayoutSats.toString(), '15500');
+  assertEq(result.feeSats.toString(), '0');
+  assertEq(result.refundSats.toString(), '984500');
+  assertEq(result.rolloverCollateralSats.toString(), '984500');
+  assertEq(result.effectivePnlBps, 155);
+});
+
+test('bounded settlement caps realized loss at the active bucket', () => {
+  const result = computeBoundedSettlementAmounts(1000000n, 500, 1553, 25);
+  assertEq(result.effectivePnlBps, 500);
+  assertEq(result.actualPayoutSats.toString(), '50000');
+  assertEq(result.feeSats.toString(), '2500');
+  assertEq(result.refundSats.toString(), '947500');
+  assertEq(result.rolloverCollateralSats.toString(), '947500');
+});
+
+test('bounded transition emits payout fee and rollover fields', () => {
+  const next = applyBinarySettlementTransition({
+    epochId: 7n,
+    collateralSats: 1000000n,
+    bucketCapBps: 500,
+    realizedPnlBps: 155,
+    feeBps: 25
+  }, { route: 'settle-loss' });
+
+  assertEq(next.route, 'settle-loss');
+  assertEq(next.actualPayoutSats, '15500');
+  assertEq(next.feeSats, '2500');
+  assertEq(next.refundSats, '982000');
+  assertEq(next.rolloverCollateralSats, '982000');
+  assertEq(next.residualSats, '982000');
+  assertEq(next.outputs.rolloverCollateralSats, '982000');
 });
 
 console.log('\n-----------------------------------');

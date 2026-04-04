@@ -1,70 +1,86 @@
 {
   "kind": "m1_cet_skeletons",
-  "createdAt": "2026-03-23T21:22:48.325Z",
+  "createdAt": "2026-04-03T23:50:25.262Z",
   "chain": {
     "network": "test",
     "rpcUrl": "http://127.0.0.1:19332"
   },
   "wallet": "tl-wallet",
   "sourceDraftPath": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\m1_dlc_draft_latest.json",
-  "sourceDraftHash": "6c53f9ab4cceb5b9be79f9244d99ac3d8b9ba3885cda7e183785a3ae3370a33b",
-  "maturityHeight": 4631668,
-  "refundLocktime": 4631956,
+  "sourceDraftHash": "a101dfc2c302287b513b8b07b4a5f9b8113277fdc69237f72a9375c42d593b27",
+  "maturityHeight": 4657594,
+  "refundLocktime": 4657882,
   "fundingOutpoint": {
-    "txid": "e335829be0ee219c7775c22e1d65748d6adb66ac4950205456155c925cb6ff70",
+    "txid": "126ce2ceca0a350f4365d9e496e29cd9d0359934e8e4af6feb01ef953ae0835e",
     "vout": 0,
     "valueLtc": "0.007981",
     "valueSats": "798100"
   },
   "settlement": {
-    "model": "binary-settlement",
+    "model": "bounded-loss-carry-forward",
     "paths": [
       {
-        "pathId": "flat",
+        "pathId": "settle-gain",
         "kind": "settlement",
         "recipientRole": "alice",
-        "locktime": 4631668,
+        "locktime": 4657594,
         "input": {
-          "txid": "e335829be0ee219c7775c22e1d65748d6adb66ac4950205456155c925cb6ff70",
+          "txid": "126ce2ceca0a350f4365d9e496e29cd9d0359934e8e4af6feb01ef953ae0835e",
           "vout": 0
         },
-        "payoutSats": "532094",
-        "residualSats": "266006",
+        "bucketCapBps": 500,
+        "realizedPnlBps": 500,
+        "effectivePnlBps": 500,
+        "feeBps": 0,
+        "actualPayoutSats": "39905",
+        "payoutSats": "39905",
+        "feeSats": "0",
+        "refundSats": "758195",
+        "rolloverCollateralSats": "758195",
+        "residualSats": "758195",
         "dustCarrySats": "0",
         "defaultOnExpiry": false,
-        "rawTxHex": "020000000170ffb65c925c155654205049ac66db6a8d74651d2ec275779c21eee09b8235e30000000000feffffff027e1e080000000000160014e9336db0759fd64f999e2058ba777cd16db37e98160f0400000000001600143c23e36056f52cbbcd428b70d1c0bc5fed014b0474ac4600",
-        "txid": "3b25d6f8489c4a831f2295538b85ebcea89d80d26bcb856d4ecfb3ee860101c8"
+        "rawTxHex": "02000000015e83e03a95ef01eb6fafe4e8349935d0d99ce296e4d965430f350acacee26c120000000000feffffff02e19b0000000000001600148ec96e8898d1d172b4db05cb5a1ff92e29964ebdb3910b000000000016001424e5853656a33e9f89e01deabc9f32e1163225e4ba114700",
+        "txid": "3ccd3eb98323f680e2b4267e2b015ae530ef03773870e9ca6bf5317f8cd33870"
       },
       {
-        "pathId": "pnl",
+        "pathId": "settle-loss",
         "kind": "settlement",
         "recipientRole": "bob",
-        "locktime": 4631668,
+        "locktime": 4657594,
         "input": {
-          "txid": "e335829be0ee219c7775c22e1d65748d6adb66ac4950205456155c925cb6ff70",
+          "txid": "126ce2ceca0a350f4365d9e496e29cd9d0359934e8e4af6feb01ef953ae0835e",
           "vout": 0
         },
-        "payoutSats": "266006",
-        "residualSats": "532094",
+        "bucketCapBps": 500,
+        "realizedPnlBps": 500,
+        "effectivePnlBps": 500,
+        "feeBps": 0,
+        "actualPayoutSats": "39905",
+        "payoutSats": "39905",
+        "feeSats": "0",
+        "refundSats": "758195",
+        "rolloverCollateralSats": "758195",
+        "residualSats": "758195",
         "dustCarrySats": "0",
         "defaultOnExpiry": false,
-        "rawTxHex": "020000000170ffb65c925c155654205049ac66db6a8d74651d2ec275779c21eee09b8235e30000000000feffffff02160f04000000000016001461740072a0468a74ffe1adeb4cc3061d9408d0877e1e0800000000001600143c23e36056f52cbbcd428b70d1c0bc5fed014b0474ac4600",
-        "txid": "ee90280628ca8d25dd99199f85971fb7e8454d8f0deab28e08bc78fb0420b33b"
+        "rawTxHex": "02000000015e83e03a95ef01eb6fafe4e8349935d0d99ce296e4d965430f350acacee26c120000000000feffffff02e19b0000000000001600140dfcdae33ccbc2fcdb2543c5846e707b7017010bb3910b000000000016001424e5853656a33e9f89e01deabc9f32e1163225e4ba114700",
+        "txid": "3e25e8fd462061993abe18aa55e566f5696ced01791bfc38e4627d59ed701992"
       }
     ],
     "roll": {
-      "locktime": 4631956,
+      "locktime": 4657882,
       "input": {
-        "txid": "e335829be0ee219c7775c22e1d65748d6adb66ac4950205456155c925cb6ff70",
+        "txid": "126ce2ceca0a350f4365d9e496e29cd9d0359934e8e4af6feb01ef953ae0835e",
         "vout": 0
       },
       "payouts": {
-        "residualAddress": "tltc1q8s37xczk75kthn2z3dcdrs9utlkszjcy7qej6m",
-        "rolloverCollateralSats": "798100",
+        "residualAddress": "tltc1qynjc2djk5vlflz0qrh4te8ejuytryf0ynmne7d",
+        "rolloverCollateralSats": "758195",
         "dustCarrySats": "0"
       },
-      "rawTxHex": "020000000170ffb65c925c155654205049ac66db6a8d74651d2ec275779c21eee09b8235e30000000000feffffff01942d0c00000000001600143c23e36056f52cbbcd428b70d1c0bc5fed014b0494ad4600",
-      "txid": "6d14287a73cc851c3d5c6187680a251317d554e1fbdeba3eb1ebbe96091ed4e7"
+      "rawTxHex": "02000000015e83e03a95ef01eb6fafe4e8349935d0d99ce296e4d965430f350acacee26c120000000000feffffff01b3910b000000000016001424e5853656a33e9f89e01deabc9f32e1163225e4da124700",
+      "txid": "1647baa7f91c118351c2d933e1298436732e0dd1fffe87edc433b8754effabd0"
     },
     "dustCarrySats": "0"
   }

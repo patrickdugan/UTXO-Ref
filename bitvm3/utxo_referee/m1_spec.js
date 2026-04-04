@@ -30,7 +30,16 @@ const COMMITMENT_PACKAGE_SCHEMA_FIELDS = Object.freeze([
 const SETTLEMENT_PATH_SCHEMA_FIELDS = Object.freeze([
   'pathId',
   'kind',
+  'bucketCapBps',
+  'realizedPnlBps',
+  'effectivePnlBps',
+  'feeBps',
+  'actualPayoutSats',
+  'feeSats',
+  'refundSats',
+  'rolloverCollateralSats',
   'payoutSats',
+  'residualSats',
   'dustCarrySats',
   'defaultOnExpiry'
 ]);
@@ -58,11 +67,17 @@ const RECEIPT_DLC_TEMPLATE_V1 = Object.freeze({
   settlement: {
     epochCadence: 'weekly',
     pathModel: 'binary-settlement',
+    amountComputation: 'bounded-loss-carry-forward',
     payoutRatioBps: 5000,
     activePaths: ['flat', 'pnl'],
     timeoutPath: 'roll',
     challengeWindowLength: 0n,
     dustCarryField: 'dustCarrySats',
+    feeField: 'feeSats',
+    refundField: 'refundSats',
+    carryForwardField: 'rolloverCollateralSats',
+    realizedPnlField: 'realizedPnlBps',
+    bucketCapField: 'bucketCapBps',
     payoutLeafSchema: PAYOUT_LEAF_SCHEMA_FIELDS.slice(),
     commitmentSchema: COMMITMENT_PACKAGE_SCHEMA_FIELDS.slice(),
     settlementPathSchema: SETTLEMENT_PATH_SCHEMA_FIELDS.slice()

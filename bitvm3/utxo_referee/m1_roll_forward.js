@@ -54,6 +54,12 @@ function pickLatestSettlement() {
   const rollPayouts = settlement.roll.payouts || {};
   const dustCarrySats = BigInt(settlement.dustCarrySats || rollPayouts.dustCarrySats || '0');
   const rolloverCollateralSats = BigInt(rollPayouts.rolloverCollateralSats || '0');
+  const settlePaths = Array.isArray(settlement.paths)
+    ? settlement.paths
+        .filter(pathEntry => pathEntry && pathEntry.kind === 'settlement' && typeof pathEntry.pathId === 'string')
+        .map(pathEntry => pathEntry.pathId)
+    : [];
+  const timeoutPath = settlement.roll.pathId || 'roll';
 
   return {
     kind: 'm1_roll_forward',
@@ -81,8 +87,8 @@ function pickLatestSettlement() {
       defaultAction: 'roll'
     },
     routing: {
-      timeoutPath: 'roll',
-      settlePaths: ['flat', 'pnl'],
+      timeoutPath,
+      settlePaths,
       routerSemantics: 'non-interactive expiry defaults to roll-forward'
     }
   };

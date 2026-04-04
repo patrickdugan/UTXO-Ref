@@ -18,7 +18,9 @@
  *   DLC_EPOCH_ID=1
  *   DLC_MATURITY_BLOCKS=1008
  *   DLC_REFUND_DELAY_BLOCKS=288
- *   DLC_PNL_PAYOUT_BPS=5000
+ *   DLC_BUCKET_CAP_BPS=500
+ *   DLC_REALIZED_PNL_BPS=500
+ *   DLC_FEE_BPS=0
  */
 
 const fs = require('fs');
@@ -28,7 +30,7 @@ const https = require('https');
 const { URL } = require('url');
 const crypto = require('crypto');
 const { templateHashHex, RECEIPT_DLC_TEMPLATE_V1 } = require('./m1_spec');
-const { computeRouteAmounts } = require('./m1_transition');
+const { computeBoundedSettlementAmounts } = require('./m1_transition');
 
 const DEFAULT_RPC_URL = process.env.LTC_RPC_URL || 'http://127.0.0.1:19332';
 const DEFAULT_RPC_USER = process.env.LTC_RPC_USER || 'user';
@@ -38,7 +40,9 @@ const EPOCH_ID = BigInt(process.env.DLC_EPOCH_ID || '1');
 const MATURITY_BLOCKS = Number(process.env.DLC_MATURITY_BLOCKS || '1008');
 const REFUND_DELAY_BLOCKS = Number(process.env.DLC_REFUND_DELAY_BLOCKS || '288');
 const MIN_CONFIRMATIONS = Number(process.env.DLC_MIN_CONFIRMATIONS || '1');
-const PNL_PAYOUT_BPS = Number(process.env.DLC_PNL_PAYOUT_BPS || '5000');
+const BUCKET_CAP_BPS = Number(process.env.DLC_BUCKET_CAP_BPS || '500');
+const REALIZED_PNL_BPS = Number(process.env.DLC_REALIZED_PNL_BPS || String(BUCKET_CAP_BPS));
+const FEE_BPS = Number(process.env.DLC_FEE_BPS || '0');
 const ROLE_NAMES = ['operator', 'oracle', 'alice', 'bob', 'residual'];
 
 function encodeBasicAuth(user, pass) {
@@ -193,31 +197,48 @@ async function getAddressPubkey(rpc, wallet, address) {
   return info.pubkey || null;
 }
 
-function buildBinarySettlementPaths(collateralSats, rollLocktime, pnlPayoutBps) {
-  const routeAmounts = computeRouteAmounts(collateralSats, pnlPayoutBps);
-  const rolloverCollateralSats = routeAmounts.collateralSats - routeAmounts.dustCarrySats;
+function buildBoundedSettlementPaths(collateralSats, rollLocktime, bucketCapBps, realizedPnlBps, feeBps) {
+  const bounded = computeBoundedSettlementAmounts(collateralSats, bucketCapBps, realizedPnlBps, feeBps);
 
   return {
-    model: 'binary-settlement',
-    payoutRatioBps: routeAmounts.pnlPayoutBps,
-    flatPayoutBps: 10000 - routeAmounts.pnlPayoutBps,
+    model: 'bounded-loss-carry-forward',
+    bucketCapBps: bounded.bucketCapBps,
+    realizedPnlBps: bounded.realizedPnlBps,
+    effectivePnlBps: bounded.effectivePnlBps,
+    feeBps: bounded.feeBps,
     paths: [
       {
-        pathId: 'flat',
+        pathId: 'settle-gain',
         kind: 'settlement',
         recipientRole: 'alice',
-        payoutSats: routeAmounts.flatPayoutSats.toString(),
-        residualSats: (routeAmounts.collateralSats - routeAmounts.flatPayoutSats).toString(),
-        dustCarrySats: '0',
+        bucketCapBps: bounded.bucketCapBps,
+        realizedPnlBps: bounded.realizedPnlBps,
+        effectivePnlBps: bounded.effectivePnlBps,
+        feeBps: bounded.feeBps,
+        actualPayoutSats: bounded.actualPayoutSats.toString(),
+        payoutSats: bounded.actualPayoutSats.toString(),
+        feeSats: bounded.feeSats.toString(),
+        refundSats: bounded.refundSats.toString(),
+        rolloverCollateralSats: bounded.rolloverCollateralSats.toString(),
+        residualSats: bounded.refundSats.toString(),
+        dustCarrySats: bounded.dustCarrySats.toString(),
         defaultOnExpiry: false
       },
       {
-        pathId: 'pnl',
+        pathId: 'settle-loss',
         kind: 'settlement',
         recipientRole: 'bob',
-        payoutSats: routeAmounts.pnlPayoutSats.toString(),
-        residualSats: (routeAmounts.collateralSats - routeAmounts.pnlPayoutSats).toString(),
-        dustCarrySats: '0',
+        bucketCapBps: bounded.bucketCapBps,
+        realizedPnlBps: bounded.realizedPnlBps,
+        effectivePnlBps: bounded.effectivePnlBps,
+        feeBps: bounded.feeBps,
+        actualPayoutSats: bounded.actualPayoutSats.toString(),
+        payoutSats: bounded.actualPayoutSats.toString(),
+        feeSats: bounded.feeSats.toString(),
+        refundSats: bounded.refundSats.toString(),
+        rolloverCollateralSats: bounded.rolloverCollateralSats.toString(),
+        residualSats: bounded.refundSats.toString(),
+        dustCarrySats: bounded.dustCarrySats.toString(),
         defaultOnExpiry: false
       }
     ],
@@ -226,11 +247,11 @@ function buildBinarySettlementPaths(collateralSats, rollLocktime, pnlPayoutBps) 
       kind: 'timeout',
       defaultOnExpiry: true,
       rollLocktime: rollLocktime,
-      rolloverCollateralSats: rolloverCollateralSats.toString(),
-      residualSats: rolloverCollateralSats.toString(),
-      dustCarrySats: routeAmounts.dustCarrySats.toString()
+      rolloverCollateralSats: bounded.rolloverCollateralSats.toString(),
+      residualSats: bounded.rolloverCollateralSats.toString(),
+      dustCarrySats: bounded.dustCarrySats.toString()
     },
-    dustCarrySats: routeAmounts.dustCarrySats.toString()
+    dustCarrySats: bounded.dustCarrySats.toString()
   };
 }
 
@@ -251,7 +272,13 @@ async function run() {
 
   const maturityHeight = currentHeight + MATURITY_BLOCKS;
   const refundLocktime = maturityHeight + REFUND_DELAY_BLOCKS;
-  const settlement = buildBinarySettlementPaths(collateralSats, refundLocktime, PNL_PAYOUT_BPS);
+  const settlement = buildBoundedSettlementPaths(
+    collateralSats,
+    refundLocktime,
+    BUCKET_CAP_BPS,
+    REALIZED_PNL_BPS,
+    FEE_BPS
+  );
 
   const operatorPubkey = await getAddressPubkey(rpc, DEFAULT_WALLET, roleSet.addresses.operator);
   const oraclePubkey = await getAddressPubkey(rpc, DEFAULT_WALLET, roleSet.addresses.oracle);
@@ -290,7 +317,9 @@ async function run() {
       maturityHeight,
       refundLocktime,
       collateralSats: collateralSats.toString(),
-      payoutRatioBps: PNL_PAYOUT_BPS,
+      bucketCapBps: BUCKET_CAP_BPS,
+      realizedPnlBps: REALIZED_PNL_BPS,
+      feeBps: FEE_BPS,
       dustCarrySats: settlement.dustCarrySats,
       fundingInputs: [
         {
@@ -317,7 +346,10 @@ async function run() {
       outcomes: settlement.paths.map(path => ({
         pathId: path.pathId,
         kind: path.kind,
-        payoutSats: path.payoutSats
+        payoutSats: path.payoutSats,
+        feeSats: path.feeSats,
+        refundSats: path.refundSats,
+        rolloverCollateralSats: path.rolloverCollateralSats
       }))
     }
   };
@@ -342,7 +374,9 @@ async function run() {
   console.log(`chain=${chainInfo.chain} height=${currentHeight}`);
   console.log(`epochId=${EPOCH_ID.toString()}`);
   console.log(`collateralSats=${collateralSats.toString()}`);
-  console.log(`payoutRatioBps=${PNL_PAYOUT_BPS}`);
+  console.log(`bucketCapBps=${BUCKET_CAP_BPS}`);
+  console.log(`realizedPnlBps=${REALIZED_PNL_BPS}`);
+  console.log(`feeBps=${FEE_BPS}`);
   console.log(`dustCarrySats=${settlement.dustCarrySats}`);
   console.log(`maturityHeight=${maturityHeight}`);
   console.log(`refundLocktime=${refundLocktime}`);

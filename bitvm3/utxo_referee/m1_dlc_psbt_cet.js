@@ -22,7 +22,7 @@ const http = require('http');
 const https = require('https');
 const { URL } = require('url');
 const crypto = require('crypto');
-const { computeRouteAmounts } = require('./m1_transition');
+const { computeBoundedSettlementAmounts } = require('./m1_transition');
 
 const RPC_URL = process.env.LTC_RPC_URL || 'http://127.0.0.1:19332';
 const RPC_USER = process.env.LTC_RPC_USER || 'user';
@@ -151,36 +151,61 @@ function readSettlementDraft(draft) {
   };
 }
 
-function normalizeBinarySettlement(settlementDraft, collateralSats, rollLocktime) {
-  const payoutRatioBps = Number(settlementDraft.payoutRatioBps || 5000);
-  if (!Number.isInteger(payoutRatioBps) || payoutRatioBps < 0 || payoutRatioBps > 10000) {
-    throw new Error('Invalid settlement payoutRatioBps');
+function normalizeBoundedSettlement(settlementDraft, collateralSats, rollLocktime) {
+  const bucketCapBps = Number(settlementDraft.bucketCapBps || settlementDraft.payoutRatioBps || 500);
+  const realizedPnlBps = Number(settlementDraft.realizedPnlBps || bucketCapBps);
+  const feeBps = Number(settlementDraft.feeBps || 0);
+  if (!Number.isInteger(bucketCapBps) || bucketCapBps < 0 || bucketCapBps > 10000) {
+    throw new Error('Invalid settlement bucketCapBps');
+  }
+  if (!Number.isInteger(realizedPnlBps) || realizedPnlBps < 0 || realizedPnlBps > 10000) {
+    throw new Error('Invalid settlement realizedPnlBps');
+  }
+  if (!Number.isInteger(feeBps) || feeBps < 0 || feeBps > 10000) {
+    throw new Error('Invalid settlement feeBps');
   }
 
-  const computed = computeRouteAmounts(collateralSats, payoutRatioBps);
-  const rolloverCollateralSats = computed.collateralSats - computed.dustCarrySats;
+  const computed = computeBoundedSettlementAmounts(collateralSats, bucketCapBps, realizedPnlBps, feeBps);
 
   return {
-    model: 'binary-settlement',
-    payoutRatioBps: computed.pnlPayoutBps,
-    flatPayoutBps: 10000 - computed.pnlPayoutBps,
+    model: 'bounded-loss-carry-forward',
+    bucketCapBps: computed.bucketCapBps,
+    realizedPnlBps: computed.realizedPnlBps,
+    effectivePnlBps: computed.effectivePnlBps,
+    feeBps: computed.feeBps,
     paths: [
       {
-        pathId: 'flat',
+        pathId: 'settle-gain',
         kind: 'settlement',
         recipientRole: 'alice',
-        payoutSats: computed.flatPayoutSats.toString(),
-        residualSats: (computed.collateralSats - computed.flatPayoutSats).toString(),
-        dustCarrySats: '0',
+        bucketCapBps: computed.bucketCapBps,
+        realizedPnlBps: computed.realizedPnlBps,
+        effectivePnlBps: computed.effectivePnlBps,
+        feeBps: computed.feeBps,
+        actualPayoutSats: computed.actualPayoutSats.toString(),
+        payoutSats: computed.actualPayoutSats.toString(),
+        feeSats: computed.feeSats.toString(),
+        refundSats: computed.refundSats.toString(),
+        rolloverCollateralSats: computed.rolloverCollateralSats.toString(),
+        residualSats: computed.refundSats.toString(),
+        dustCarrySats: computed.dustCarrySats.toString(),
         defaultOnExpiry: false
       },
       {
-        pathId: 'pnl',
+        pathId: 'settle-loss',
         kind: 'settlement',
         recipientRole: 'bob',
-        payoutSats: computed.pnlPayoutSats.toString(),
-        residualSats: (computed.collateralSats - computed.pnlPayoutSats).toString(),
-        dustCarrySats: '0',
+        bucketCapBps: computed.bucketCapBps,
+        realizedPnlBps: computed.realizedPnlBps,
+        effectivePnlBps: computed.effectivePnlBps,
+        feeBps: computed.feeBps,
+        actualPayoutSats: computed.actualPayoutSats.toString(),
+        payoutSats: computed.actualPayoutSats.toString(),
+        feeSats: computed.feeSats.toString(),
+        refundSats: computed.refundSats.toString(),
+        rolloverCollateralSats: computed.rolloverCollateralSats.toString(),
+        residualSats: computed.refundSats.toString(),
+        dustCarrySats: computed.dustCarrySats.toString(),
         defaultOnExpiry: false
       }
     ],
@@ -189,8 +214,8 @@ function normalizeBinarySettlement(settlementDraft, collateralSats, rollLocktime
       kind: 'timeout',
       defaultOnExpiry: true,
       rollLocktime,
-      rolloverCollateralSats: rolloverCollateralSats.toString(),
-      residualSats: rolloverCollateralSats.toString(),
+      rolloverCollateralSats: computed.rolloverCollateralSats.toString(),
+      residualSats: computed.rolloverCollateralSats.toString(),
       dustCarrySats: computed.dustCarrySats.toString()
     },
     dustCarrySats: computed.dustCarrySats.toString()
@@ -294,22 +319,27 @@ async function buildCetSkeletons(rpc, draft, funding) {
   const maturityHeight = Number(draft.contract.maturityHeight);
   const refundLocktime = Number(draft.contract.refundLocktime);
   const settlementDraft = readSettlementDraft(draft);
-  const settlement = settlementDraft.model === 'binary-settlement'
-    ? normalizeBinarySettlement(settlementDraft, collateralSats, refundLocktime)
+  const settlement = settlementDraft.model === 'bounded-loss-carry-forward' || settlementDraft.model === 'binary-settlement'
+    ? normalizeBoundedSettlement(settlementDraft, collateralSats, refundLocktime)
     : settlementDraft;
 
   const aliceAddress = draft.roleSet.addresses.alice;
   const residualAddress = draft.roleSet.addresses.residual;
   const bobAddress = draft.roleSet.addresses.bob;
+  const operatorAddress = draft.roleSet.addresses.operator;
 
   const settlementPaths = [];
   for (const path of settlement.paths) {
     const outputs = {};
     const payoutSats = BigInt(path.payoutSats);
     const residualSats = BigInt(path.residualSats || '0');
+    const feeSats = BigInt(path.feeSats || '0');
     const dustCarrySats = BigInt(path.dustCarrySats || '0');
     const recipientAddress = path.recipientRole === 'bob' ? bobAddress : aliceAddress;
     outputs[recipientAddress] = satsToLtcDecimalString(payoutSats);
+    if (feeSats > 0n) {
+      outputs[operatorAddress] = satsToLtcDecimalString(feeSats);
+    }
     if (residualSats > 0n) {
       outputs[residualAddress] = satsToLtcDecimalString(residualSats);
     }
@@ -326,7 +356,15 @@ async function buildCetSkeletons(rpc, draft, funding) {
       recipientRole: path.recipientRole || null,
       locktime: maturityHeight,
       input: { txid: fundingTxid, vout: fundingVout },
+      bucketCapBps: path.bucketCapBps ?? null,
+      realizedPnlBps: path.realizedPnlBps ?? null,
+      effectivePnlBps: path.effectivePnlBps ?? null,
+      feeBps: path.feeBps ?? null,
+      actualPayoutSats: path.actualPayoutSats || payoutSats.toString(),
       payoutSats: payoutSats.toString(),
+      feeSats: feeSats.toString(),
+      refundSats: path.refundSats || residualSats.toString(),
+      rolloverCollateralSats: path.rolloverCollateralSats || residualSats.toString(),
       residualSats: residualSats.toString(),
       dustCarrySats: dustCarrySats.toString(),
       defaultOnExpiry: !!path.defaultOnExpiry,
