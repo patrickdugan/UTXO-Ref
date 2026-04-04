@@ -1,28 +1,28 @@
 {
   "kind": "m1_dlc_draft",
-  "createdAt": "2026-04-03T23:50:17.472Z",
+  "createdAt": "2026-04-04T00:43:15.053Z",
   "chain": {
     "network": "test",
     "rpcUrl": "http://127.0.0.1:19332",
-    "blockHeight": 4656586
+    "blockHeight": 4656752
   },
   "template": {
     "templateId": "dlc-receipt-ltc-testnet-v1",
     "templateHash": "79755ea8e3b1df4e4c4266d8809e46e6a50356dec24de20d298a6e64f28482d7"
   },
   "roleSet": {
-    "tag": "m1-20260403-205000",
+    "tag": "m1-20260403-213845",
     "wallet": "tl-wallet",
     "addresses": {
-      "operator": "tltc1qd0jzcl7v0kh8cflclc4938g88pzd89cvk0ghhc",
-      "oracle": "tltc1q73r8s6l7yjj3lxr0grykxzu4vcnskvz679c45x",
-      "alice": "tltc1q3mykazyc68gh9dxmqh9458le9c5evn4amcw9l5",
-      "bob": "tltc1qph7d4ceue0p0eke9g0zcgmns0dcpwqgtl67dau",
-      "residual": "tltc1qynjc2djk5vlflz0qrh4te8ejuytryf0ynmne7d"
+      "operator": "tltc1qwn7vd5zcfuxqekk4jutr8egcz4s30kn07jse0l",
+      "oracle": "tltc1q590xp68awkzkdq9j32u336mmtc62hjh5skplmf",
+      "alice": "tltc1qmfa7qccj8h28t075fk60rsnpq86ldq887dlnct",
+      "bob": "tltc1q9vcqku0nrj5jmc20gyf4tlcx6sqyvxnpze3zel",
+      "residual": "tltc1qu5g2cfpt4nuzxcxe9wdvkayk4mjnh4v3lzvph0"
     },
     "pubkeys": {
-      "operator": "029843dfb4c78e427a13bc2f8445b4e00b764faee4afdf745c6155ac18e0842608",
-      "oracle": "0382ee445a6ba125803ea6c6581c29283a1d0524bb47d4e8fed160da0bd6fc0396"
+      "operator": "03e56ca5b08d2b4b17b21ca90a89a9d0ff03774e2e5991ec76f548b59fadf37095",
+      "oracle": "03e4f0c7d42f760b230f7b8b07e1cbd3498c4f63b4f0f96ff08ad122ca5bf518ce"
     }
   },
   "canonical": {
@@ -31,56 +31,56 @@
     "commitmentPackageSchema": "(epochId, withdrawalRoot, capSats, residualDest)"
   },
   "contract": {
-    "eventId": "ltc-testnet-epoch-1-1775260217472",
-    "maturityHeight": 4657594,
-    "refundLocktime": 4657882,
+    "eventId": "ltc-testnet-epoch-1-1775263395053",
+    "maturityHeight": 4657760,
+    "refundLocktime": 4658048,
     "collateralSats": "800000",
     "bucketCapBps": 500,
-    "realizedPnlBps": 500,
-    "feeBps": 0,
+    "realizedPnlBps": 155,
+    "feeBps": 25,
     "dustCarrySats": "0",
     "fundingInputs": [
       {
         "role": "alice",
-        "txid": "4517e445a214b6f2d877e08aa48a23f96735179a106fe45116b5566ec8058b9d",
-        "vout": 0,
+        "txid": "d27db7b9bea0d629a9e015979c02d41196531ed2ab7b95e636be9620f262c36f",
+        "vout": 1,
         "amountLtc": "0.004",
         "amountSats": "400000"
       },
       {
         "role": "bob",
-        "txid": "4517e445a214b6f2d877e08aa48a23f96735179a106fe45116b5566ec8058b9d",
-        "vout": 3,
+        "txid": "d27db7b9bea0d629a9e015979c02d41196531ed2ab7b95e636be9620f262c36f",
+        "vout": 2,
         "amountLtc": "0.004",
         "amountSats": "400000"
       }
     ],
     "outputs": {
-      "operatorAddress": "tltc1qd0jzcl7v0kh8cflclc4938g88pzd89cvk0ghhc",
-      "oracleAddress": "tltc1q73r8s6l7yjj3lxr0grykxzu4vcnskvz679c45x",
-      "residualAddress": "tltc1qynjc2djk5vlflz0qrh4te8ejuytryf0ynmne7d"
+      "operatorAddress": "tltc1qwn7vd5zcfuxqekk4jutr8egcz4s30kn07jse0l",
+      "oracleAddress": "tltc1q590xp68awkzkdq9j32u336mmtc62hjh5skplmf",
+      "residualAddress": "tltc1qu5g2cfpt4nuzxcxe9wdvkayk4mjnh4v3lzvph0"
     },
     "settlement": {
       "model": "bounded-loss-carry-forward",
       "bucketCapBps": 500,
-      "realizedPnlBps": 500,
-      "effectivePnlBps": 500,
-      "feeBps": 0,
+      "realizedPnlBps": 155,
+      "effectivePnlBps": 155,
+      "feeBps": 25,
       "paths": [
         {
           "pathId": "settle-gain",
           "kind": "settlement",
           "recipientRole": "alice",
           "bucketCapBps": 500,
-          "realizedPnlBps": 500,
-          "effectivePnlBps": 500,
-          "feeBps": 0,
-          "actualPayoutSats": "40000",
-          "payoutSats": "40000",
-          "feeSats": "0",
-          "refundSats": "760000",
-          "rolloverCollateralSats": "760000",
-          "residualSats": "760000",
+          "realizedPnlBps": 155,
+          "effectivePnlBps": 155,
+          "feeBps": 25,
+          "actualPayoutSats": "12400",
+          "payoutSats": "12400",
+          "feeSats": "2000",
+          "refundSats": "785600",
+          "rolloverCollateralSats": "785600",
+          "residualSats": "785600",
           "dustCarrySats": "0",
           "defaultOnExpiry": false
         },
@@ -89,15 +89,15 @@
           "kind": "settlement",
           "recipientRole": "bob",
           "bucketCapBps": 500,
-          "realizedPnlBps": 500,
-          "effectivePnlBps": 500,
-          "feeBps": 0,
-          "actualPayoutSats": "40000",
-          "payoutSats": "40000",
-          "feeSats": "0",
-          "refundSats": "760000",
-          "rolloverCollateralSats": "760000",
-          "residualSats": "760000",
+          "realizedPnlBps": 155,
+          "effectivePnlBps": 155,
+          "feeBps": 25,
+          "actualPayoutSats": "12400",
+          "payoutSats": "12400",
+          "feeSats": "2000",
+          "refundSats": "785600",
+          "rolloverCollateralSats": "785600",
+          "residualSats": "785600",
           "dustCarrySats": "0",
           "defaultOnExpiry": false
         }
@@ -106,9 +106,9 @@
         "pathId": "roll",
         "kind": "timeout",
         "defaultOnExpiry": true,
-        "rollLocktime": 4657882,
-        "rolloverCollateralSats": "760000",
-        "residualSats": "760000",
+        "rollLocktime": 4658048,
+        "rolloverCollateralSats": "785600",
+        "residualSats": "785600",
         "dustCarrySats": "0"
       },
       "dustCarrySats": "0"
@@ -117,20 +117,20 @@
       {
         "pathId": "settle-gain",
         "kind": "settlement",
-        "payoutSats": "40000",
-        "feeSats": "0",
-        "refundSats": "760000",
-        "rolloverCollateralSats": "760000"
+        "payoutSats": "12400",
+        "feeSats": "2000",
+        "refundSats": "785600",
+        "rolloverCollateralSats": "785600"
       },
       {
         "pathId": "settle-loss",
         "kind": "settlement",
-        "payoutSats": "40000",
-        "feeSats": "0",
-        "refundSats": "760000",
-        "rolloverCollateralSats": "760000"
+        "payoutSats": "12400",
+        "feeSats": "2000",
+        "refundSats": "785600",
+        "rolloverCollateralSats": "785600"
       }
     ]
   },
-  "artifactHash": "d78de8f9a7cf88301380f1d75a61c55c3026d462b53c93feaa8052c24d3e8ddd"
+  "artifactHash": "255c2ac4f41515f2876e0d1cb163b553725e8dabbe5007df1703315332b0c339"
 }

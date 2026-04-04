@@ -1,37 +1,37 @@
 {
   "kind": "m1_funding_psbt",
-  "createdAt": "2026-04-03T23:50:25.262Z",
+  "createdAt": "2026-04-04T00:43:38.651Z",
   "chain": {
     "network": "test",
     "rpcUrl": "http://127.0.0.1:19332"
   },
   "wallet": "tl-wallet",
   "sourceDraftPath": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\m1_dlc_draft_latest.json",
-  "sourceDraftHash": "a101dfc2c302287b513b8b07b4a5f9b8113277fdc69237f72a9375c42d593b27",
+  "sourceDraftHash": "26580e4aa213bf3a83f727a4e82a25c54fae67352db8fde77a2743b617494efa",
   "template": {
     "templateId": "dlc-receipt-ltc-testnet-v1",
     "templateHash": "79755ea8e3b1df4e4c4266d8809e46e6a50356dec24de20d298a6e64f28482d7"
   },
   "roleSet": {
-    "tag": "m1-20260403-205000",
+    "tag": "m1-20260403-213845",
     "wallet": "tl-wallet",
     "addresses": {
-      "operator": "tltc1qd0jzcl7v0kh8cflclc4938g88pzd89cvk0ghhc",
-      "oracle": "tltc1q73r8s6l7yjj3lxr0grykxzu4vcnskvz679c45x",
-      "alice": "tltc1q3mykazyc68gh9dxmqh9458le9c5evn4amcw9l5",
-      "bob": "tltc1qph7d4ceue0p0eke9g0zcgmns0dcpwqgtl67dau",
-      "residual": "tltc1qynjc2djk5vlflz0qrh4te8ejuytryf0ynmne7d"
+      "operator": "tltc1qwn7vd5zcfuxqekk4jutr8egcz4s30kn07jse0l",
+      "oracle": "tltc1q590xp68awkzkdq9j32u336mmtc62hjh5skplmf",
+      "alice": "tltc1qmfa7qccj8h28t075fk60rsnpq86ldq887dlnct",
+      "bob": "tltc1q9vcqku0nrj5jmc20gyf4tlcx6sqyvxnpze3zel",
+      "residual": "tltc1qu5g2cfpt4nuzxcxe9wdvkayk4mjnh4v3lzvph0"
     },
     "pubkeys": {
-      "operator": "029843dfb4c78e427a13bc2f8445b4e00b764faee4afdf745c6155ac18e0842608",
-      "oracle": "0382ee445a6ba125803ea6c6581c29283a1d0524bb47d4e8fed160da0bd6fc0396"
+      "operator": "03e56ca5b08d2b4b17b21ca90a89a9d0ff03774e2e5991ec76f548b59fadf37095",
+      "oracle": "03e4f0c7d42f760b230f7b8b07e1cbd3498c4f63b4f0f96ff08ad122ca5bf518ce"
     }
   },
   "contract": {
     "epochId": "1",
-    "eventId": "ltc-testnet-epoch-1-1775260217472",
-    "maturityHeight": 4657594,
-    "refundLocktime": 4657882,
+    "eventId": "ltc-testnet-epoch-1-1775263395053",
+    "maturityHeight": 4657760,
+    "refundLocktime": 4658048,
     "dustCarrySats": "0"
   },
   "settlement": {
@@ -41,98 +41,98 @@
         "pathId": "settle-gain",
         "kind": "settlement",
         "recipientRole": "alice",
-        "locktime": 4657594,
+        "locktime": 4657760,
         "input": {
-          "txid": "126ce2ceca0a350f4365d9e496e29cd9d0359934e8e4af6feb01ef953ae0835e",
+          "txid": "fc27a1a61622ee53e80dbf01c313101294c98a7319287d76b897cbf48604c32e",
           "vout": 0
         },
         "bucketCapBps": 500,
-        "realizedPnlBps": 500,
-        "effectivePnlBps": 500,
-        "feeBps": 0,
-        "actualPayoutSats": "39905",
-        "payoutSats": "39905",
-        "feeSats": "0",
-        "refundSats": "758195",
-        "rolloverCollateralSats": "758195",
-        "residualSats": "758195",
+        "realizedPnlBps": 155,
+        "effectivePnlBps": 155,
+        "feeBps": 25,
+        "actualPayoutSats": "12370",
+        "payoutSats": "12370",
+        "feeSats": "1995",
+        "refundSats": "783735",
+        "rolloverCollateralSats": "783735",
+        "residualSats": "783735",
         "dustCarrySats": "0",
         "defaultOnExpiry": false,
-        "rawTxHex": "02000000015e83e03a95ef01eb6fafe4e8349935d0d99ce296e4d965430f350acacee26c120000000000feffffff02e19b0000000000001600148ec96e8898d1d172b4db05cb5a1ff92e29964ebdb3910b000000000016001424e5853656a33e9f89e01deabc9f32e1163225e4ba114700",
-        "txid": "3ccd3eb98323f680e2b4267e2b015ae530ef03773870e9ca6bf5317f8cd33870"
+        "rawTxHex": "02000000012ec30486f4cb97b8767d2819738ac994121013c301bf0de853ee2216a6a127fc0000000000feffffff035230000000000000160014da7be063123dd475bfd44db4f1c26101f5f680e7cb0700000000000016001474fcc6d0584f0c0cdad5971633e518156117da6f77f50b0000000000160014e510ac242bacf82360d92b9acb7496aee53bd59160124700",
+        "txid": "42d21d36ed0f4c93842f921493f4e3a1fafef7e8bf704cc8f2a2a263bc6411d8"
       },
       {
         "pathId": "settle-loss",
         "kind": "settlement",
         "recipientRole": "bob",
-        "locktime": 4657594,
+        "locktime": 4657760,
         "input": {
-          "txid": "126ce2ceca0a350f4365d9e496e29cd9d0359934e8e4af6feb01ef953ae0835e",
+          "txid": "fc27a1a61622ee53e80dbf01c313101294c98a7319287d76b897cbf48604c32e",
           "vout": 0
         },
         "bucketCapBps": 500,
-        "realizedPnlBps": 500,
-        "effectivePnlBps": 500,
-        "feeBps": 0,
-        "actualPayoutSats": "39905",
-        "payoutSats": "39905",
-        "feeSats": "0",
-        "refundSats": "758195",
-        "rolloverCollateralSats": "758195",
-        "residualSats": "758195",
+        "realizedPnlBps": 155,
+        "effectivePnlBps": 155,
+        "feeBps": 25,
+        "actualPayoutSats": "12370",
+        "payoutSats": "12370",
+        "feeSats": "1995",
+        "refundSats": "783735",
+        "rolloverCollateralSats": "783735",
+        "residualSats": "783735",
         "dustCarrySats": "0",
         "defaultOnExpiry": false,
-        "rawTxHex": "02000000015e83e03a95ef01eb6fafe4e8349935d0d99ce296e4d965430f350acacee26c120000000000feffffff02e19b0000000000001600140dfcdae33ccbc2fcdb2543c5846e707b7017010bb3910b000000000016001424e5853656a33e9f89e01deabc9f32e1163225e4ba114700",
-        "txid": "3e25e8fd462061993abe18aa55e566f5696ced01791bfc38e4627d59ed701992"
+        "rawTxHex": "02000000012ec30486f4cb97b8767d2819738ac994121013c301bf0de853ee2216a6a127fc0000000000feffffff0352300000000000001600142b300b71f31ca92de14f411355ff06d400461a61cb0700000000000016001474fcc6d0584f0c0cdad5971633e518156117da6f77f50b0000000000160014e510ac242bacf82360d92b9acb7496aee53bd59160124700",
+        "txid": "aa704a575583072f4b69a1ea2d3d2c8c7e6957a0fbd83070b22c78d5dccd61dc"
       }
     ],
     "roll": {
-      "locktime": 4657882,
+      "locktime": 4658048,
       "input": {
-        "txid": "126ce2ceca0a350f4365d9e496e29cd9d0359934e8e4af6feb01ef953ae0835e",
+        "txid": "fc27a1a61622ee53e80dbf01c313101294c98a7319287d76b897cbf48604c32e",
         "vout": 0
       },
       "payouts": {
-        "residualAddress": "tltc1qynjc2djk5vlflz0qrh4te8ejuytryf0ynmne7d",
-        "rolloverCollateralSats": "758195",
+        "residualAddress": "tltc1qu5g2cfpt4nuzxcxe9wdvkayk4mjnh4v3lzvph0",
+        "rolloverCollateralSats": "783735",
         "dustCarrySats": "0"
       },
-      "rawTxHex": "02000000015e83e03a95ef01eb6fafe4e8349935d0d99ce296e4d965430f350acacee26c120000000000feffffff01b3910b000000000016001424e5853656a33e9f89e01deabc9f32e1163225e4da124700",
-      "txid": "1647baa7f91c118351c2d933e1298436732e0dd1fffe87edc433b8754effabd0"
+      "rawTxHex": "02000000012ec30486f4cb97b8767d2819738ac994121013c301bf0de853ee2216a6a127fc0000000000feffffff0177f50b0000000000160014e510ac242bacf82360d92b9acb7496aee53bd59180134700",
+      "txid": "d7a479421bcfa1158eb4ecd2cdff7c41a124b1746601719f4c419f6b16e413a3"
     },
     "dustCarrySats": "0"
   },
   "funding": {
     "rolePubkeys": {
-      "alice": "030a9cc0f943ea7bcc74c20a614f888a981ecf00d0661105dfadf235c1962d50cb",
-      "bob": "0277e6ee76c15c4e97b060a51c6e0e346bdf5b9b96c60c1fd43794b99e39f0cb5b"
+      "alice": "034fa083585bf953cd31ee499d977b4b744e55f5d0185537638d0f88282569775a",
+      "bob": "02148055047b87ad7a6cc7506ca122aee0635e62047be9686932843589ed1e7736"
     },
-    "fundingAddress": "tltc1qgnu4mnxxlha93543kjs64hh5l2mu789qw5y3v5tycxh68ern67uqugnlnz",
-    "fundingRedeemScript": "5221030a9cc0f943ea7bcc74c20a614f888a981ecf00d0661105dfadf235c1962d50cb210277e6ee76c15c4e97b060a51c6e0e346bdf5b9b96c60c1fd43794b99e39f0cb5b52ae",
+    "fundingAddress": "tltc1q5pfdxawu60xudsxyqrzmhkhd4d5qcwl3kkextgrf30j7q8vcd57q7nz6dl",
+    "fundingRedeemScript": "5221034fa083585bf953cd31ee499d977b4b744e55f5d0185537638d0f88282569775a2102148055047b87ad7a6cc7506ca122aee0635e62047be9686932843589ed1e773652ae",
     "fundingWitnessScript": null,
     "selectedInputs": [
       {
-        "txid": "4517e445a214b6f2d877e08aa48a23f96735179a106fe45116b5566ec8058b9d",
-        "vout": 0
+        "txid": "d27db7b9bea0d629a9e015979c02d41196531ed2ab7b95e636be9620f262c36f",
+        "vout": 1
       },
       {
-        "txid": "4517e445a214b6f2d877e08aa48a23f96735179a106fe45116b5566ec8058b9d",
-        "vout": 3
+        "txid": "d27db7b9bea0d629a9e015979c02d41196531ed2ab7b95e636be9620f262c36f",
+        "vout": 2
       }
     ],
     "requestedCollateralSats": "800000",
     "effectiveCollateralSats": "798100",
     "feeLtc": "0.000019",
     "feeSats": "1900",
-    "psbt": "cHNidP8BAIcCAAAAAp2LBchuVrUWUeRvEJoXNWf5I4qkiuB32PK2FKJF5BdFAAAAAAD/////nYsFyG5WtRZR5G8Qmhc1Z/kjiqSK4HfY8rYUokXkF0UDAAAAAP////8BlC0MAAAAAAAiACBE+V3Mxv36WNKxtKGq3vT6t88coHUJFlFkwa+j5HPXuAAAAAAAAQD9PwICAAAACi3ctSSDrtvpFAvSKRMw00f1cE7UDnx6PxI7GuMt4h7sAAAAAAD+////+c9pg1vyfQ+slma4owQmqoN7BP4uvx2H362kLy2yUxwAAAAAAP7///+YHW2XsJ3n64E8gi0HRDOCdluGBTGOQ4ZLa1zWE3cNigAAAAAA/v///6xkh2rpxo8YBQ8y8uiLjYuuYU6nOReA/FOw4tUG7c9CAQAAAAD+////N2e+ClinBf3s+DggcKJ7gbuOTgYvPlHTYCSLmyOhxhoAAAAAAP7///8jOslWQBUnJqXmxjfhmKmbTOo7+anXnT3FUZ9xU0yMOQAAAAAA/v///y/jZNLqqpM5zpgz33amRilzDTY/dM5yDQwempUdcPC7AAAAAAD+////9SlTY1jK60zNnWYluuUsO6qN4B/dXCPKcOqTXdHe42kAAAAAAP7////Ygw2L4U3ZqMklW1OJWBFeQ7a5rrPrUeclyQ0Clql3zQEAAAAA/v///7hgwMMlfVYe7XouV8gZNjz7Tk9Ez05NuwDyOBEcfwINAQAAAAD+////BYAaBgAAAAAAFgAUjsluiJjR0XK02wXLWh/5LimWTr0goQcAAAAAABYAFCTlhTZWoz6fieAd6ryfMuEWMiXkIKEHAAAAAAAWABRr5Cx/zH2ufCf4/ipYnQc4RNOXDIAaBgAAAAAAFgAUDfza4zzLwvzbJUPFhG5we3AXAQvgkwQAAAAAABYAFPRGeGv+JKUfmG9AyWMLlWYnCzBayg1HAAEBH4AaBgAAAAAAFgAUjsluiJjR0XK02wXLWh/5LimWTr0iBgMKnMD5Q+p7zHTCCmFPiIqYHs8A0GYRBd+t8jXBli1QyxDU5a9UAAAAgAAAAIA3AACAAAEA/T8CAgAAAAot3LUkg67b6RQL0ikTMNNH9XBO1A58ej8SOxrjLeIe7AAAAAAA/v////nPaYNb8n0PrJZmuKMEJqqDewT+Lr8dh9+tpC8tslMcAAAAAAD+////mB1tl7Cd5+uBPIItB0QzgnZbhgUxjkOGS2tc1hN3DYoAAAAAAP7///+sZIdq6caPGAUPMvLoi42LrmFOpzkXgPxTsOLVBu3PQgEAAAAA/v///zdnvgpYpwX97Pg4IHCie4G7jk4GLz5R02Aki5sjocYaAAAAAAD+////IzrJVkAVJyal5sY34Zipm0zqO/mp1509xVGfcVNMjDkAAAAAAP7///8v42TS6qqTOc6YM992pkYpcw02P3TOcg0MHpqVHXDwuwAAAAAA/v////UpU2NYyutMzZ1mJbrlLDuqjeAf3VwjynDqk13R3uNpAAAAAAD+////2IMNi+FN2ajJJVtTiVgRXkO2ua6z61HnJckNApapd80BAAAAAP7///+4YMDDJX1WHu16LlfIGTY8+05PRM9OTbsA8jgRHH8CDQEAAAAA/v///wWAGgYAAAAAABYAFI7JboiY0dFytNsFy1of+S4plk69IKEHAAAAAAAWABQk5YU2VqM+n4ngHeq8nzLhFjIl5CChBwAAAAAAFgAUa+Qsf8x9rnwn+P4qWJ0HOETTlwyAGgYAAAAAABYAFA382uM8y8L82yVDxYRucHtwFwEL4JMEAAAAAAAWABT0Rnhr/iSlH5hvQMljC5VmJwswWsoNRwABAR+AGgYAAAAAABYAFA382uM8y8L82yVDxYRucHtwFwELIgYCd+budsFcTpewYKUcbg40a99bm5bGDB/UN5S5njnwy1sQ1OWvVAAAAIAAAACAOAAAgAAA",
+    "psbt": "cHNidP8BAIcCAAAAAm/DYvIglr425pV7q9IeU5YR1AKclxXgqSnWoL65t33SAQAAAAD/////b8Ni8iCWvjbmlXur0h5TlhHUApyXFeCpKdagvrm3fdICAAAAAP////8BlC0MAAAAAAAiACCgUtN13NPNxsDEAMW72u2raAw78bWyZaBpi+XgHZhtPAAAAAAAAQD9FgICAAAACZ2LBchuVrUWUeRvEJoXNWf5I4qkiuB32PK2FKJF5BdFAQAAAAD+////xnefANnY5DJQMvxCAJ5+lB3cJaztixLp+UQ3y6jrflYBAAAAAP7///86z3xIHZWcwwZ4M18SBd6UOonmtwsik3Zlk7cExJakPwEAAAAA/v///1ECT+lWAG84sv1KeIX/IGSn8VLrUNT5KUMWnRHO48VeAAAAAAD+////ByD/n+4TYZ78YQ9bMaighQ0JnVhudCNdHDIXD6Nx+1gDAAAAAP7///+ADHjWzhP6DyieqXf4Hw76zPUCpR8Ci+ejwVQhBgvJlwEAAAAA/v///6GG2w7kFpkAEqu6Hz/+QaaRfRFVkQDuMTK5JkYl2lPVAQAAAAD+////nYsFyG5WtRZR5G8Qmhc1Z/kjiqSK4HfY8rYUokXkF0UEAAAAAP7///96KzS4gfwAscvLn06kEiV7zSXHoHxVulN1T9oKrldVuQEAAAAA/v///wXgkwQAAAAAABYAFKFeYOj9dYVmgLKKuRjre140q8r0gBoGAAAAAAAWABTae+BjEj3Udb/UTbTxwmEB9faA54AaBgAAAAAAFgAUKzALcfMcqS3hT0ETVf8G1ABGGmEgoQcAAAAAABYAFHT8xtBYTwwM2tWXFjPlGBVhF9pvIKEHAAAAAAAWABTlEKwkK6z4I2DZK5rLdJau5TvVkWIORwABAR+AGgYAAAAAABYAFNp74GMSPdR1v9RNtPHCYQH19oDnIgYDT6CDWFv5U80x7kmdl3tLdE5V9dAYVTdjjQ+IKCVpd1oQ1OWvVAAAAIAAAACAPAAAgAABAP0WAgIAAAAJnYsFyG5WtRZR5G8Qmhc1Z/kjiqSK4HfY8rYUokXkF0UBAAAAAP7////Gd58A2djkMlAy/EIAnn6UHdwlrO2LEun5RDfLqOt+VgEAAAAA/v///zrPfEgdlZzDBngzXxIF3pQ6iea3CyKTdmWTtwTElqQ/AQAAAAD+////UQJP6VYAbziy/Up4hf8gZKfxUutQ1PkpQxadEc7jxV4AAAAAAP7///8HIP+f7hNhnvxhD1sxqKCFDQmdWG50I10cMhcPo3H7WAMAAAAA/v///4AMeNbOE/oPKJ6pd/gfDvrM9QKlHwKL56PBVCEGC8mXAQAAAAD+////oYbbDuQWmQASq7ofP/5BppF9EVWRAO4xMrkmRiXaU9UBAAAAAP7///+diwXIbla1FlHkbxCaFzVn+SOKpIrgd9jythSiReQXRQQAAAAA/v///3orNLiB/ACxy8ufTqQSJXvNJcegfFW6U3VP2gquV1W5AQAAAAD+////BeCTBAAAAAAAFgAUoV5g6P11hWaAsoq5GOt7XjSryvSAGgYAAAAAABYAFNp74GMSPdR1v9RNtPHCYQH19oDngBoGAAAAAAAWABQrMAtx8xypLeFPQRNV/wbUAEYaYSChBwAAAAAAFgAUdPzG0FhPDAza1ZcWM+UYFWEX2m8goQcAAAAAABYAFOUQrCQrrPgjYNkrmst0lq7lO9WRYg5HAAEBH4AaBgAAAAAAFgAUKzALcfMcqS3hT0ETVf8G1ABGGmEiBgIUgFUEe4etemzHUGyhIq7gY15iBHvpaGkyhDWJ7R53NhDU5a9UAAAAgAAAAIA9AACAAAA=",
     "psbtDecodedSummary": {
-      "txid": "126ce2ceca0a350f4365d9e496e29cd9d0359934e8e4af6feb01ef953ae0835e",
-      "hash": "126ce2ceca0a350f4365d9e496e29cd9d0359934e8e4af6feb01ef953ae0835e",
+      "txid": "fc27a1a61622ee53e80dbf01c313101294c98a7319287d76b897cbf48604c32e",
+      "hash": "fc27a1a61622ee53e80dbf01c313101294c98a7319287d76b897cbf48604c32e",
       "vsize": 135,
       "locktime": 0
     },
     "fundingOutpoint": {
-      "txid": "126ce2ceca0a350f4365d9e496e29cd9d0359934e8e4af6feb01ef953ae0835e",
+      "txid": "fc27a1a61622ee53e80dbf01c313101294c98a7319287d76b897cbf48604c32e",
       "vout": 0,
       "valueLtc": "0.007981",
       "valueSats": "798100"
