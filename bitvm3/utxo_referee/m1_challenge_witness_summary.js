@@ -14,6 +14,7 @@ const referee = require('./index');
 
 const ARTIFACTS_DIR = path.join(__dirname, 'artifacts');
 const BUNDLE_PATH = path.join(ARTIFACTS_DIR, 'm1_challenge_bundle_latest.json');
+const WITNESS_PATH = path.join(ARTIFACTS_DIR, 'm1_challenge_witness_latest.json');
 
 function ensureFile(p) {
   if (!fs.existsSync(p)) {
@@ -33,15 +34,18 @@ function run() {
   ensureFile(BUNDLE_PATH);
   const bundle = loadJson(BUNDLE_PATH);
   const route = pickRouteLabel(bundle);
-  const built = referee.buildChallengeWitnessBundle({
-    challengeBundle: bundle,
-    transitionState: {
-      epochId: 1n,
-      challengeWindowStart: 1n,
-      challengeWindowLength: 6n,
-      challengeWindowEnd: 7n
-    }
-  });
+  const witnessArtifact = fs.existsSync(WITNESS_PATH)
+    ? loadJson(WITNESS_PATH)
+    : referee.buildChallengeWitnessBundle({
+        challengeBundle: bundle,
+        transitionState: {
+          epochId: 1n,
+          challengeWindowStart: 1n,
+          challengeWindowLength: 6n,
+          challengeWindowEnd: 7n
+        }
+      });
+  const built = witnessArtifact.witness || witnessArtifact;
 
   const summary = {
     route,
@@ -64,7 +68,8 @@ function run() {
       settleLoss: built.transitionWitness.routeSettleLoss,
       settleGain: built.transitionWitness.routeSettleGain,
       roll: built.transitionWitness.routeRoll
-    }
+    },
+    witnessArtifactPath: fs.existsSync(WITNESS_PATH) ? WITNESS_PATH : null
   };
 
   console.log(JSON.stringify(summary, null, 2));

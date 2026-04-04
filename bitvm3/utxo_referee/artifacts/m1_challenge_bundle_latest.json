@@ -1,6 +1,6 @@
 {
   "kind": "m1_challenge_bundle",
-  "createdAt": "2026-04-04T00:45:51.102Z",
+  "createdAt": "2026-04-04T01:01:21.789Z",
   "selectedPathId": "settle-loss",
   "selectedBucketPct": null,
   "sourceHashes": {
@@ -70,5 +70,5 @@
       "note": "Use this shape for arbitration redirect payload."
     }
   },
-  "bundleHash": "d6372544693116c0d9c777b0c099e1e6859a7b38c795cc6aa736ec3178df094e"
+  "bundleHash": "dc94eb859538227a0284a8b71ee769a34be252d6b2d055e8d75224a0ffcd2749"
 }

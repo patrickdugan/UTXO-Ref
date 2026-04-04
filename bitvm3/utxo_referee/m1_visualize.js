@@ -152,6 +152,8 @@ function buildReport() {
     finalized: artifactMeta(path.join(ARTIFACTS_DIR, 'm1_funding_finalized_latest.json')),
     cetSkeletons: artifactMeta(path.join(ARTIFACTS_DIR, 'm1_cet_skeletons_latest.json')),
     oracleWiring: artifactMeta(path.join(ARTIFACTS_DIR, 'm1_oracle_wiring_latest.json')),
+    challengeBundle: artifactMeta(path.join(ARTIFACTS_DIR, 'm1_challenge_bundle_latest.json')),
+    challengeWitness: artifactMeta(path.join(ARTIFACTS_DIR, 'm1_challenge_witness_latest.json')),
     rollForward: artifactMeta(path.join(ARTIFACTS_DIR, 'm1_roll_forward_latest.json'))
   };
 

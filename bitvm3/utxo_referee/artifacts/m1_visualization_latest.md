@@ -1,7 +1,7 @@
 # M1 BitVM / DLC Visualization
 
-- Generated: `2026-04-04T00:48:51.770Z`
-- Report hash: `f48c0dcc0a8a4e521a2c1ac3c61fd9cf0c067046923c82f512d7c5f43d4e4e38`
+- Generated: `2026-04-04T01:01:22.750Z`
+- Report hash: `8249840fb2b301cfd4d4522996cb6fe85f5b44572ad74def38363492a5f47722`
 
 ## Template
 - Template ID: `dlc-receipt-ltc-testnet-v1`
@@ -83,4 +83,6 @@ graph TD
 - finalized: `m1_funding_finalized_latest.json` (m1_funding_finalized, 54ff8a32668cb02b203f4d1d856348b0b63abb2b74388d98173461494377e18d)
 - cetSkeletons: `m1_cet_skeletons_latest.json` (m1_cet_skeletons, 4bfe8f7b50a4d191e4257c201b351498886dda91dcd2f142e0faf3ac5c890564)
 - oracleWiring: `m1_oracle_wiring_latest.json` (m1_oracle_wiring, de6a85baa9171c10322f740d85260596bb40c30d2aaeb29ec568b07978e73c6a)
+- challengeBundle: `m1_challenge_bundle_latest.json` (m1_challenge_bundle, abf09c8a6575dff87092f3b1743ffab92d192b3973227cdfe802d51947b5b1e2)
+- challengeWitness: `m1_challenge_witness_latest.json` (m1_challenge_witness, 1aa29fbdf55f6412552a132de04f2005a69e7ce6e1172442efb70c352563ae6b)
 - rollForward: `m1_roll_forward_latest.json` (m1_roll_forward, 99db96f1d08dce99d71bf6e38684dd1fe33ce7cde455a23d0100147b76f507fe)

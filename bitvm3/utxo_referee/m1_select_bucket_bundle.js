@@ -21,11 +21,21 @@ const CET_PATH = path.join(ARTIFACTS_DIR, 'm1_cet_skeletons_latest.json');
 const ORACLE_PATH = path.join(ARTIFACTS_DIR, 'm1_oracle_wiring_latest.json');
 const FUNDING_FINAL_PATH = path.join(ARTIFACTS_DIR, 'm1_funding_finalized_latest.json');
 const OUT_PATH = path.join(ARTIFACTS_DIR, 'm1_challenge_bundle_latest.json');
+const WITNESS_PATH = path.join(ARTIFACTS_DIR, 'm1_challenge_witness_latest.json');
 const PATH_NAME = process.env.PATH_NAME || null;
 const BUCKET = process.env.BUCKET_PCT !== undefined ? Number(process.env.BUCKET_PCT) : null;
+const { buildChallengeWitnessBundle } = require('./m1_challenge_witness');
 
 function sha256Hex(data) {
   return crypto.createHash('sha256').update(data).digest('hex');
+}
+
+function stringifyJson(value, pretty = false) {
+  return JSON.stringify(
+    value,
+    (_key, v) => (typeof v === 'bigint' ? v.toString() : v),
+    pretty ? 2 : 0
+  );
 }
 
 function loadJson(p) {
@@ -154,8 +164,31 @@ function run() {
     }
   };
 
-  bundle.bundleHash = sha256Hex(JSON.stringify(bundle));
-  fs.writeFileSync(OUT_PATH, JSON.stringify(bundle, null, 2));
+  bundle.bundleHash = sha256Hex(stringifyJson(bundle));
+  fs.writeFileSync(OUT_PATH, stringifyJson(bundle, true));
+
+  let witness = null;
+  if (selectingByPath) {
+    const witnessBundle = buildChallengeWitnessBundle({
+      challengeBundle: bundle,
+      transitionState: {
+        epochId: 1n,
+        challengeWindowStart: BigInt(bundle.binding?.maturityHeight || 0),
+        challengeWindowLength: 6n,
+        challengeWindowEnd: BigInt(bundle.binding?.maturityHeight || 0) + 6n
+      }
+    });
+    witness = {
+      kind: 'm1_challenge_witness',
+      createdAt: new Date().toISOString(),
+      sourceChallengeBundlePath: OUT_PATH,
+      sourceChallengeBundleHash: bundle.bundleHash,
+      route: witnessBundle.route,
+      witness: witnessBundle
+    };
+    witness.artifactHash = sha256Hex(stringifyJson(witness));
+    fs.writeFileSync(WITNESS_PATH, stringifyJson(witness, true));
+  }
 
   console.log('=== M1 CET Bundle Selection ===');
   console.log(`path=${selectorLabel}`);
@@ -163,6 +196,10 @@ function run() {
   console.log(`messageDigest=${bundle.oracleBinding.messageDigestHex}`);
   console.log(`bundleHash=${bundle.bundleHash}`);
   console.log(`artifactPath=${OUT_PATH}`);
+  if (witness) {
+    console.log(`witnessRoute=${witness.route}`);
+    console.log(`witnessArtifactPath=${WITNESS_PATH}`);
+  }
 }
 
 try {
