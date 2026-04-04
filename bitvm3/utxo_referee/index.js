@@ -36,6 +36,7 @@ const m1ReceiptLedger = require('./m1_receipt_ledger');
 const m1Transition = require('./m1_transition');
 const m1TransitionCircuit = require('./m1_transition_circuit');
 const m1TallyMap = require('./m1_tally_map');
+const m1ChallengeWitness = require('./m1_challenge_witness');
 
 module.exports = {
   // Types
@@ -83,6 +84,9 @@ module.exports = {
   TransitionCircuit: m1TransitionCircuit.TransitionCircuit,
   generateTransitionCircuit: m1TransitionCircuit.generateTransitionCircuit,
   toTransitionWitness: m1TransitionCircuit.toTransitionWitness,
+  normalizeChallengeRoute: m1ChallengeWitness.normalizeRoute,
+  buildTransitionStateFromChallengeBundle: m1ChallengeWitness.buildTransitionStateFromChallengeBundle,
+  buildChallengeWitnessBundle: m1ChallengeWitness.buildChallengeWitnessBundle,
 
   // Re-export submodules for advanced usage
   types,
@@ -93,5 +97,6 @@ module.exports = {
   m1ReceiptLedger,
   m1Transition,
   m1TransitionCircuit,
-  m1TallyMap
+  m1TallyMap,
+  m1ChallengeWitness
 };
