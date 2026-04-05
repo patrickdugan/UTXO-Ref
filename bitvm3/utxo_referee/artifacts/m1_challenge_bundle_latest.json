@@ -1,11 +1,11 @@
 {
   "kind": "m1_challenge_bundle",
-  "createdAt": "2026-04-04T01:01:21.789Z",
-  "selectedPathId": "settle-loss",
+  "createdAt": "2026-04-05T14:56:38.766Z",
+  "selectedPathId": "roll",
   "selectedBucketPct": null,
   "sourceHashes": {
     "cet": "4bfe8f7b50a4d191e4257c201b351498886dda91dcd2f142e0faf3ac5c890564",
-    "oracle": "d9568cd9e136c7011aae3c98b34b5c24ad0c1d97e001264738d4a50978c1506b",
+    "oracle": "e09bad2d7002ae9d941fc467dd42d021e941bf10bf619922398eabc3a545d4ac",
     "fundingFinal": "54ff8a32668cb02b203f4d1d856348b0b63abb2b74388d98173461494377e18d"
   },
   "binding": {
@@ -21,33 +21,68 @@
     "dustCarrySats": "0"
   },
   "selectedPath": {
-    "pathId": "settle-loss",
-    "kind": "settlement",
-    "locktime": 4657760,
-    "rawTxHex": "02000000012ec30486f4cb97b8767d2819738ac994121013c301bf0de853ee2216a6a127fc0000000000feffffff0352300000000000001600142b300b71f31ca92de14f411355ff06d400461a61cb0700000000000016001474fcc6d0584f0c0cdad5971633e518156117da6f77f50b0000000000160014e510ac242bacf82360d92b9acb7496aee53bd59160124700",
-    "txid": "aa704a575583072f4b69a1ea2d3d2c8c7e6957a0fbd83070b22c78d5dccd61dc",
-    "bucketCapBps": 500,
-    "realizedPnlBps": 155,
-    "effectivePnlBps": 155,
-    "feeBps": 25,
-    "actualPayoutSats": "12370",
-    "payoutSats": "12370",
-    "feeSats": "1995",
+    "pathId": "roll",
+    "locktime": 4658048,
+    "rawTxHex": "02000000012ec30486f4cb97b8767d2819738ac994121013c301bf0de853ee2216a6a127fc0000000000feffffff0177f50b0000000000160014e510ac242bacf82360d92b9acb7496aee53bd59180134700",
+    "txid": "d7a479421bcfa1158eb4ecd2cdff7c41a124b1746601719f4c419f6b16e413a3",
+    "bucketCapBps": null,
+    "realizedPnlBps": null,
+    "effectivePnlBps": null,
+    "feeBps": null,
+    "actualPayoutSats": null,
+    "payoutSats": null,
+    "feeSats": null,
     "residualSats": "783735",
+    "timeoutRemainderSats": null,
     "dustCarrySats": "0",
     "rolloverCollateralSats": "783735",
-    "defaultOnExpiry": false
+    "defaultOnExpiry": true
   },
   "oracleBinding": {
-    "eventId": "m1_oracle_event_1775263539886",
+    "eventId": "m1_oracle_event_1775300895321",
     "quorumId": "quorum_1of1_placeholder",
     "keyId": "oracle_key_tl_wallet_placeholder",
-    "messagePayload": "m1_oracle_attestation_v1|m1_oracle_event_1775263539886|fc27a1a61622ee53e80dbf01c313101294c98a7319287d76b897cbf48604c32e|0|settle-loss|aa704a575583072f4b69a1ea2d3d2c8c7e6957a0fbd83070b22c78d5dccd61dc|4657760",
-    "messageDigestHex": "74d5089ded6dc6ad0c6ab279e5222830169afec2852f9e24c477f3a355f1306d",
-    "nonceCommitment": "nonce_commitment_for_settle-loss",
-    "oracleSignaturePlaceholder": "oracle_sig_for_settle-loss",
-    "adaptorPointPlaceholder": "adaptor_point_for_settle-loss",
-    "adaptorSignaturePlaceholder": "adaptor_sig_for_settle-loss"
+    "oracleMapId": "af7f8a551bd41acf",
+    "fundingOutpoint": {
+      "txid": "fc27a1a61622ee53e80dbf01c313101294c98a7319287d76b897cbf48604c32e",
+      "vout": 0,
+      "valueLtc": "0.007981",
+      "valueSats": "798100"
+    },
+    "messagePayload": null,
+    "messageDigestHex": null,
+    "nonceCommitment": null,
+    "oracleSignaturePlaceholder": null,
+    "adaptorPointPlaceholder": null,
+    "adaptorSignaturePlaceholder": null
+  },
+  "deltaPublication": {
+    "kind": "m1_oracle_delta_publication",
+    "publicationId": "77b7d07cd0945b422738fdc6",
+    "oracleMapId": "af7f8a551bd41acf",
+    "eventId": "m1_oracle_event_1775300895321",
+    "quorumId": "quorum_1of1_placeholder",
+    "keyId": "oracle_key_tl_wallet_placeholder",
+    "pathId": "roll",
+    "deltaSats": "783735",
+    "bundleHash": "47ae0929699d2c3949d513ecee32535206f2fc0f59b8ff9a09428e55a907fb1e",
+    "payloadText": "m1delta|af7f8a551bd41acf|roll|783735|f271c9dd51b0820f",
+    "payloadHex": "6d3164656c74617c616637663861353531626434316163667c726f6c6c7c3738333733357c66323731633964643531623038323066",
+    "opReturnScriptHex": "6a356d3164656c74617c616637663861353531626434316163667c726f6c6c7c3738333733357c66323731633964643531623038323066",
+    "adaptorMapping": {
+      "adaptorSignaturePlaceholder": null,
+      "adaptorPointPlaceholder": null,
+      "cetTxid": "d7a479421bcfa1158eb4ecd2cdff7c41a124b1746601719f4c419f6b16e413a3",
+      "messageDigestHex": null,
+      "selectedPathId": "roll"
+    },
+    "rollTrigger": {
+      "kind": "event-driven-roll",
+      "canRoll": true,
+      "nextContractId": "f271c9dd51b0820f",
+      "activation": "send"
+    },
+    "publicationHash": "5579a56254497a647dc1b7596667efe7388db2b9cf9473000a8d2d2ab8bbe487"
   },
   "witnessBundlePlaceholders": {
     "honestPath": {
@@ -70,5 +105,5 @@
       "note": "Use this shape for arbitration redirect payload."
     }
   },
-  "bundleHash": "dc94eb859538227a0284a8b71ee769a34be252d6b2d055e8d75224a0ffcd2749"
+  "bundleHash": "47ae0929699d2c3949d513ecee32535206f2fc0f59b8ff9a09428e55a907fb1e"
 }

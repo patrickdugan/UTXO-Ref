@@ -48,15 +48,29 @@ function buildTransitionStateFromChallengeBundle(challengeBundle, overrides = {}
   const actualPayoutSats = overrides.actualPayoutSats !== undefined
     ? BigInt(overrides.actualPayoutSats)
     : BigInt(selectedPath.payoutSats ?? 0n);
-  const refundSats = overrides.refundSats !== undefined
-    ? BigInt(overrides.refundSats)
-    : BigInt(selectedPath.residualSats ?? selectedPath.rolloverCollateralSats ?? 0n);
-  const rolloverCollateralSats = overrides.rolloverCollateralSats !== undefined
+  const provisionalRolloverCollateralSats = overrides.rolloverCollateralSats !== undefined
     ? BigInt(overrides.rolloverCollateralSats)
     : BigInt(selectedPath.rolloverCollateralSats ?? selectedPath.residualSats ?? 0n);
+  const timeoutRemainderSats = overrides.timeoutRemainderSats !== undefined
+    ? BigInt(overrides.timeoutRemainderSats)
+    : BigInt(
+        selectedPath.timeoutRemainderSats
+        ?? (
+          route === 'roll'
+            ? collateralSats - provisionalRolloverCollateralSats - BigInt(selectedPath.feeSats ?? 0n) - dustCarrySats
+            : 0n
+        )
+      );
+  const refundSats = overrides.refundSats !== undefined
+    ? BigInt(overrides.refundSats)
+    : BigInt(selectedPath.refundSats ?? timeoutRemainderSats);
+  const rolloverCollateralSats = overrides.rolloverCollateralSats !== undefined
+    ? BigInt(overrides.rolloverCollateralSats)
+    : provisionalRolloverCollateralSats;
   const feeSats = overrides.feeSats !== undefined
     ? BigInt(overrides.feeSats)
     : BigInt(selectedPath.feeSats ?? 0n);
+  const deltaPublication = challengeBundle.deltaPublication || null;
 
   return {
     epochId: BigInt(overrides.epochId ?? 0n),
@@ -69,13 +83,19 @@ function buildTransitionStateFromChallengeBundle(challengeBundle, overrides = {}
     payoutSats: actualPayoutSats,
     actualPayoutSats,
     feeSats,
+    timeoutRemainderSats,
     residualSats: refundSats,
     refundSats,
     rolloverCollateralSats,
     dustCarrySats,
     challengeWindowStart: BigInt(overrides.challengeWindowStart ?? 0n),
     challengeWindowLength: BigInt(overrides.challengeWindowLength ?? 0n),
-    challengeWindowEnd: BigInt(overrides.challengeWindowEnd ?? 0n)
+    challengeWindowEnd: BigInt(overrides.challengeWindowEnd ?? 0n),
+    deltaPublicationId: deltaPublication ? deltaPublication.publicationId || null : null,
+    deltaPublicationHash: deltaPublication ? deltaPublication.publicationHash || null : null,
+    deltaPublicationPayloadHex: deltaPublication ? deltaPublication.payloadHex || null : null,
+    deltaPublicationOpReturnScriptHex: deltaPublication ? deltaPublication.opReturnScriptHex || null : null,
+    deltaPublicationNextContractId: deltaPublication?.rollTrigger?.nextContractId || null
   };
 }
 
@@ -121,7 +141,8 @@ function buildChallengeWitnessBundle(params) {
     oracleSignature: resolvedOracleSignature,
     cetPreimageOrSig: resolvedCetPreimageOrSig,
     oracleMessageDigestHex: messageDigestHex,
-    oracleMessagePayload: messagePayload
+    oracleMessagePayload: messagePayload,
+    deltaPublication: challengeBundle.deltaPublication || null
   };
 
   const challengedPath = {
@@ -134,7 +155,8 @@ function buildChallengeWitnessBundle(params) {
       residualSats: challengeBundle.selectedPath?.residualSats ?? null,
       rolloverCollateralSats: challengeBundle.selectedPath?.rolloverCollateralSats ?? null,
       dustCarrySats: challengeBundle.selectedPath?.dustCarrySats ?? challengeBundle.binding?.dustCarrySats ?? null
-    }
+    },
+    deltaPublication: challengeBundle.deltaPublication || null
   };
 
   return {

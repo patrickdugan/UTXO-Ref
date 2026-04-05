@@ -27,6 +27,7 @@ Lock the contract shape and 1:1 receipt model:
 - `roll` is the non-interactive timeout path.
 - `dustCarrySats` is the explicit satoshi remainder carried into the next epoch or residual accounting.
 - `m1_roll_forward.js` emits the next-epoch handoff artifact for the roll path.
+- The expiry sidecar now also carries an explicit `settlementBreakdown` object with `winnerSweepSats`, `refundSats`, `residualSats`, `winnerPnlSats`, `loserPnlSats`, and `dustCarrySats`.
 
 5. Path determination
 - The route paths are determined with integer satoshi arithmetic only.
@@ -39,6 +40,13 @@ Lock the contract shape and 1:1 receipt model:
 - The blob stores sorted balances, exact satoshi totals, deposit IDs, redemption IDs, and the previous snapshot hash.
 - `m1_tally_map.js` is the state-machine wrapper over the ledger.
 - The blob hash is the commitment target for replay and next-epoch handoff.
+- Runtime delta annotations belong in a sidecar witness blob, not in the committed snapshot hash.
+- The sidecar can carry `redeemedSats`, `pnlGainSats`, `pnlLossSats`, and `netDeltaSats` without changing the canonical tally hash.
+- The sidecar can also name the economic remainder explicitly:
+  - `winnerSweepSats` for the main payout
+  - `refundSats` / `residualSats` for the remainder returned to the refund destination
+  - `winnerPnlSats` and `loserPnlSats` for outcome attribution
+  - `dustCarrySats` for rounding carry
 
 Code implementation is in `bitvm3/utxo_referee/m1_spec.js`.
 
@@ -85,4 +93,5 @@ Smoke-test order:
 5. `m1_select_bucket_bundle.js` with `PATH_NAME=flat`
 6. `m1_select_bucket_bundle.js` with `PATH_NAME=roll`
 7. `m1_roll_forward.js`
-8. `m1_tally_map.test.js`
+8. `m1_expiry_redemption.js`
+9. `m1_tally_map.test.js`

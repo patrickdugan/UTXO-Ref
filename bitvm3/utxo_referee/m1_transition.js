@@ -88,13 +88,16 @@ function applyBinarySettlementTransition(state, event) {
   const challengeWindowEnd = toBigInt(state.challengeWindowEnd ?? (challengeWindowStart + challengeWindowLength), 'state.challengeWindowEnd');
 
   if (timeout || route === 'roll') {
+    const timeoutRemainderSats = 0n;
+    const rolloverCollateralSats = computed.collateralSats - computed.dustCarrySats;
     return {
       route: 'roll',
       epochId: epochId.toString(),
       nextEpochId: (epochId + 1n).toString(),
       collateralSats: computed.collateralSats.toString(),
       dustCarrySats: computed.dustCarrySats.toString(),
-      rolloverCollateralSats: (computed.collateralSats - computed.dustCarrySats).toString(),
+      timeoutRemainderSats: timeoutRemainderSats.toString(),
+      rolloverCollateralSats: rolloverCollateralSats.toString(),
       receiptBalanceRoot,
       prevBalanceRoot,
       balanceClaim,
@@ -102,7 +105,8 @@ function applyBinarySettlementTransition(state, event) {
       challengeWindowLength: challengeWindowLength.toString(),
       challengeWindowEnd: challengeWindowEnd.toString(),
       outputs: {
-        residualSats: (computed.collateralSats - computed.dustCarrySats).toString()
+        residualSats: rolloverCollateralSats.toString(),
+        timeoutRemainderSats: timeoutRemainderSats.toString()
       }
     };
   }

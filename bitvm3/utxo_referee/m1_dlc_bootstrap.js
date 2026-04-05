@@ -199,6 +199,7 @@ async function getAddressPubkey(rpc, wallet, address) {
 
 function buildBoundedSettlementPaths(collateralSats, rollLocktime, bucketCapBps, realizedPnlBps, feeBps) {
   const bounded = computeBoundedSettlementAmounts(collateralSats, bucketCapBps, realizedPnlBps, feeBps);
+  const timeoutRemainderSats = bounded.collateralSats - bounded.rolloverCollateralSats - bounded.dustCarrySats;
 
   return {
     model: 'bounded-loss-carry-forward',
@@ -247,6 +248,7 @@ function buildBoundedSettlementPaths(collateralSats, rollLocktime, bucketCapBps,
       kind: 'timeout',
       defaultOnExpiry: true,
       rollLocktime: rollLocktime,
+      timeoutRemainderSats: timeoutRemainderSats.toString(),
       rolloverCollateralSats: bounded.rolloverCollateralSats.toString(),
       residualSats: bounded.rolloverCollateralSats.toString(),
       dustCarrySats: bounded.dustCarrySats.toString()

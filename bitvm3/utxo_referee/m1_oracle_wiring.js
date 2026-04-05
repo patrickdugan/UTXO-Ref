@@ -16,6 +16,7 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const { deriveOracleMapId } = require('./m1_oracle_delta_publication');
 
 const ARTIFACTS_DIR = path.join(__dirname, 'artifacts');
 const CET_PATH = path.join(ARTIFACTS_DIR, 'm1_cet_skeletons_latest.json');
@@ -59,6 +60,12 @@ function buildPlaceholders({ funding, cets }) {
   const eventId = process.env.ORACLE_EVENT_ID || `m1_oracle_event_${timestamp}`;
   const oracleKeyId = process.env.ORACLE_KEY_ID || 'oracle_key_tl_wallet_placeholder';
   const quorumId = process.env.ORACLE_QUORUM_ID || 'quorum_1of1_placeholder';
+  const oracleMapId = deriveOracleMapId({
+    eventId,
+    quorumId,
+    keyId: oracleKeyId,
+    fundingOutpoint: funding.funding?.fundingOutpoint || funding.fundingOutpoint || null
+  });
   const settlementPaths = cets.settlement && Array.isArray(cets.settlement.paths)
     ? cets.settlement.paths
     : (cets.cets && Array.isArray(cets.cets.cets) ? cets.cets.cets : []);
@@ -92,6 +99,7 @@ function buildPlaceholders({ funding, cets }) {
       eventId,
       oracleKeyId,
       quorumId,
+      oracleMapId,
       network: funding.chain.network,
       rpcUrl: funding.chain.rpcUrl
     },
@@ -102,6 +110,14 @@ function buildPlaceholders({ funding, cets }) {
       dustCarrySats: cets.settlement && cets.settlement.dustCarrySats ? cets.settlement.dustCarrySats : null
     },
     attestationTargets,
+    adaptorSignatureSlots: attestationTargets.reduce((slots, target) => {
+      slots[target.pathId] = {
+        pathId: target.pathId,
+        adaptorPointPlaceholder: target.adaptorPointPlaceholder,
+        adaptorSignaturePlaceholder: target.adaptorSignaturePlaceholder
+      };
+      return slots;
+    }, {}),
     challengePathPlaceholders: {
       honestSweepEvidence: {
         required: ['commitmentPackage', 'selectedPath', 'oracleSignature', 'cetTxid'],

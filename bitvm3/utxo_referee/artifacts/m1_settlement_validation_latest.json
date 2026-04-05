@@ -1,0 +1,60 @@
+{
+  "kind": "m1_settlement_validation",
+  "createdAt": "2026-04-05T14:56:38.895Z",
+  "sourceArtifacts": {
+    "draftPath": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\m1_dlc_draft_latest.json",
+    "witnessPath": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\m1_challenge_witness_latest.json",
+    "expiryPath": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\m1_expiry_redemption_latest.json",
+    "timeoutProofPath": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\m1_expiry_timeout_testnet_proof.json"
+  },
+  "checks": {
+    "draftPaths": [
+      {
+        "pathId": "settle-gain",
+        "ok": true,
+        "expected": {
+          "settlementKind": "pnl-sweep",
+          "winnerSweepSats": "12400",
+          "refundRemainderSats": "785600",
+          "feeSats": "2000",
+          "collateralSats": "800000"
+        }
+      },
+      {
+        "pathId": "settle-loss",
+        "ok": true,
+        "expected": {
+          "settlementKind": "pnl-sweep",
+          "winnerSweepSats": "12400",
+          "refundRemainderSats": "785600",
+          "feeSats": "2000",
+          "collateralSats": "800000"
+        }
+      }
+    ],
+    "expiryArtifact": {
+      "ok": true,
+      "expected": {
+        "settlementKind": "timeout-refund",
+        "winnerSweepSats": "783735",
+        "refundRemainderSats": "14365",
+        "feeSats": "0",
+        "collateralSats": "798100"
+      }
+    },
+    "timeoutProof": {
+      "ok": true,
+      "expected": {
+        "settlementKind": "timeout-refund",
+        "winnerSweepSats": "783735",
+        "refundRemainderSats": "14365",
+        "feeSats": "0",
+        "collateralSats": "798100"
+      }
+    }
+  },
+  "gaps": [
+    "production BitVM circuit still uses placeholder hashing outside the real Bitcoin validation path"
+  ],
+  "validationHash": "8eb863b7e3aba8eea26e5b7a8f476a07dc5159d38a60a936f0294c8a9b735a9e"
+}

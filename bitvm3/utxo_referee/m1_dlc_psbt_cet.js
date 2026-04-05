@@ -166,6 +166,7 @@ function normalizeBoundedSettlement(settlementDraft, collateralSats, rollLocktim
   }
 
   const computed = computeBoundedSettlementAmounts(collateralSats, bucketCapBps, realizedPnlBps, feeBps);
+  const timeoutRemainderSats = computed.collateralSats - computed.rolloverCollateralSats - computed.dustCarrySats;
 
   return {
     model: 'bounded-loss-carry-forward',
@@ -214,6 +215,7 @@ function normalizeBoundedSettlement(settlementDraft, collateralSats, rollLocktim
       kind: 'timeout',
       defaultOnExpiry: true,
       rollLocktime,
+      timeoutRemainderSats: timeoutRemainderSats.toString(),
       rolloverCollateralSats: computed.rolloverCollateralSats.toString(),
       residualSats: computed.rolloverCollateralSats.toString(),
       dustCarrySats: computed.dustCarrySats.toString()
@@ -400,6 +402,7 @@ async function buildCetSkeletons(rpc, draft, funding) {
       input: { txid: fundingTxid, vout: fundingVout },
       payouts: {
         residualAddress,
+        timeoutRemainderSats: settlement.roll && settlement.roll.timeoutRemainderSats ? settlement.roll.timeoutRemainderSats : '0',
         rolloverCollateralSats: rolloverCollateralSats.toString(),
         dustCarrySats: rollDustCarrySats.toString()
       },

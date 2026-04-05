@@ -170,6 +170,20 @@ test('bounded transition emits payout fee and rollover fields', () => {
   assertEq(next.outputs.rolloverCollateralSats, '982000');
 });
 
+test('roll transition isolates timeout remainder field', () => {
+  const next = applyBinarySettlementTransition({
+    epochId: 9n,
+    collateralSats: 798100n,
+    pnlPayoutBps: 3333
+  }, { route: 'roll' });
+
+  assertEq(next.route, 'roll');
+  assertEq(next.rolloverCollateralSats, '798100');
+  assertEq(next.timeoutRemainderSats, '0');
+  assertEq(next.outputs.residualSats, '798100');
+  assertEq(next.outputs.timeoutRemainderSats, '0');
+});
+
 test('challenge witness consumes settle-loss bundle fields', () => {
   const tally = new ReceiptTallyMap({
     epochId: 1n,
@@ -253,6 +267,7 @@ test('challenge witness allows roll path without oracle digest', () => {
   assertEq(built.route, 'roll');
   assertEq(built.requiresOracle, false);
   assertEq(built.transitionState.rolloverCollateralSats.toString(), '758195');
+  assertEq(built.transitionState.timeoutRemainderSats.toString(), '39905');
   assertEq(built.transitionWitness.routeRoll, 1);
   assertEq(built.transitionWitness.routeSettleLoss, 0);
   assertEq(built.honestPath.oracleSignature, null);

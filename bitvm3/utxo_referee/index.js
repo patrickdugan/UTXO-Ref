@@ -37,6 +37,8 @@ const m1Transition = require('./m1_transition');
 const m1TransitionCircuit = require('./m1_transition_circuit');
 const m1TallyMap = require('./m1_tally_map');
 const m1ChallengeWitness = require('./m1_challenge_witness');
+const m1OracleDeltaPublication = require('./m1_oracle_delta_publication');
+const m1WitnessDelta = require('./m1_witness_delta');
 
 module.exports = {
   // Types
@@ -61,6 +63,8 @@ module.exports = {
   // Verification
   verifySweep: verify.verifySweep,
   verifyRules: verify.verifyRules,
+  deriveSettlementRouting: verify.deriveSettlementRouting,
+  verifySettlementRouting: verify.verifySettlementRouting,
 
   // Circuit
   RefereeCircuit: circuit.RefereeCircuit,
@@ -87,6 +91,13 @@ module.exports = {
   normalizeChallengeRoute: m1ChallengeWitness.normalizeRoute,
   buildTransitionStateFromChallengeBundle: m1ChallengeWitness.buildTransitionStateFromChallengeBundle,
   buildChallengeWitnessBundle: m1ChallengeWitness.buildChallengeWitnessBundle,
+  buildOracleDeltaPublication: m1OracleDeltaPublication.buildOracleDeltaPublication,
+  buildFastRollHandoff: m1OracleDeltaPublication.buildFastRollHandoff,
+  deriveOracleMapId: m1OracleDeltaPublication.deriveOracleMapId,
+  deriveNextContractId: m1OracleDeltaPublication.deriveNextContractId,
+  buildSettlementBreakdown: m1WitnessDelta.buildSettlementBreakdown,
+  buildSettlementDeltaAnnotation: m1WitnessDelta.buildSettlementDeltaAnnotation,
+  buildWitnessBlobWithDelta: m1WitnessDelta.buildWitnessBlobWithDelta,
 
   // Re-export submodules for advanced usage
   types,
@@ -98,5 +109,7 @@ module.exports = {
   m1Transition,
   m1TransitionCircuit,
   m1TallyMap,
-  m1ChallengeWitness
+  m1ChallengeWitness,
+  m1OracleDeltaPublication,
+  m1WitnessDelta
 };

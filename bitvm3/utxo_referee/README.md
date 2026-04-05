@@ -270,3 +270,85 @@ The same bundle now carries `challengeWindowStart`, `challengeWindowLength`, and
 
 The default template in `m1_spec.js` now exposes `settlement.challengeWindowLength` so the window size can be fixed at contract-definition time.
 
+For expiry redemptions, use the sidecar witness blob instead of mutating the canonical tally snapshot:
+
+```javascript
+const referee = require('./bitvm3/utxo_referee');
+const delta = referee.buildSettlementDeltaAnnotation({
+  epochId: 1n,
+  route: 'roll',
+  depositedSats: 798100n,
+  redeemedSats: 783735n,
+  pnlReferenceSats: 798100n,
+  realizedPnlSats: -14365n
+});
+```
+
+That keeps the committed `receipt-tally-map` hash stable while still carrying `redeemedSats`, `pnlGainSats`, `pnlLossSats`, and `netDeltaSats` in the witness output.
+The same sidecar now also names the settlement remainder explicitly:
+- `winnerSweepSats` for the primary payout
+- `refundSats` / `residualSats` for the returned remainder
+- `winnerPnlSats` and `loserPnlSats` for the economic attribution
+- `dustCarrySats` for rounding carry into the next epoch or residual bucket
+- `timeoutRemainderSats` for the non-carried roll-path remainder when the timeout branch needs it as a first-class field
+
+For exact output verification, use the routing verifier:
+
+```javascript
+const referee = require('./bitvm3/utxo_referee');
+const result = referee.verifySettlementRouting(
+  {
+    route: 'roll',
+    collateralSats: 798100n,
+    rolloverCollateralSats: 783735n,
+    feeSats: 0n,
+    dustCarrySats: 0n
+  },
+  {
+    outputs: [
+      { role: 'winner-sweep', amountSats: 783735n },
+      { role: 'refund-remainder', amountSats: 14365n }
+    ]
+  }
+);
+```
+
+To validate the latest draft/witness/expiry/proof artifacts together, run:
+
+```bash
+node bitvm3/utxo_referee/m1_validate_latest_settlement.js
+```
+
+For a testnet-friendly expiry artifact, run:
+
+```bash
+node bitvm3/utxo_referee/m1_expiry_redemption.js
+```
+
+For event-driven rolls, the repo also includes an OP_RETURN delta-publication artifact:
+
+```javascript
+const referee = require('./bitvm3/utxo_referee');
+const pub = referee.buildOracleDeltaPublication({
+  oracleBinding: {
+    eventId: 'm1_oracle_event_123',
+    quorumId: 'quorum_1of1',
+    keyId: 'oracle_key_1',
+    oracleMapId: 'abcd1234ef567890'
+  },
+  selectedPath: {
+    pathId: 'roll',
+    residualSats: 758195n,
+    adaptorSignaturePlaceholder: 'adaptor_sig_for_roll'
+  }
+});
+```
+
+That publication is an off-chain trigger that maps the original DLC oracle slot to the next contract handoff. It does not mean Bitcoin Script is constructing the new transaction on its own.
+
+To generate the fast-roll artifact, run:
+
+```bash
+node bitvm3/utxo_referee/m1_fast_roll.js
+```
+

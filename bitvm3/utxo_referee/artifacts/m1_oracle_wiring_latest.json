@@ -1,6 +1,6 @@
 {
   "kind": "m1_oracle_wiring",
-  "createdAt": "2026-04-04T00:45:39.886Z",
+  "createdAt": "2026-04-04T11:08:15.321Z",
   "sourceArtifacts": {
     "fundingPsbt": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\m1_funding_psbt_latest.json",
     "cetSkeletons": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\m1_cet_skeletons_latest.json",
@@ -8,9 +8,10 @@
     "cetHash": "4bfe8f7b50a4d191e4257c201b351498886dda91dcd2f142e0faf3ac5c890564"
   },
   "oracle": {
-    "eventId": "m1_oracle_event_1775263539886",
+    "eventId": "m1_oracle_event_1775300895321",
     "oracleKeyId": "oracle_key_tl_wallet_placeholder",
     "quorumId": "quorum_1of1_placeholder",
+    "oracleMapId": "af7f8a551bd41acf",
     "network": "test",
     "rpcUrl": "http://127.0.0.1:19332"
   },
@@ -32,8 +33,8 @@
       "cetTxid": "42d21d36ed0f4c93842f921493f4e3a1fafef7e8bf704cc8f2a2a263bc6411d8",
       "locktime": 4657760,
       "message": {
-        "payload": "m1_oracle_attestation_v1|m1_oracle_event_1775263539886|fc27a1a61622ee53e80dbf01c313101294c98a7319287d76b897cbf48604c32e|0|settle-gain|42d21d36ed0f4c93842f921493f4e3a1fafef7e8bf704cc8f2a2a263bc6411d8|4657760",
-        "digestHex": "38c6a2b4eed78404097aeac9f5c50a6cba5036180f921c88e51d766a805f68b0"
+        "payload": "m1_oracle_attestation_v1|m1_oracle_event_1775300895321|fc27a1a61622ee53e80dbf01c313101294c98a7319287d76b897cbf48604c32e|0|settle-gain|42d21d36ed0f4c93842f921493f4e3a1fafef7e8bf704cc8f2a2a263bc6411d8|4657760",
+        "digestHex": "0066c2e1660826551ff452a2518a1b2f009320e95e77811502b94ea2f4ab0518"
       },
       "oracleNonceCommitment": "nonce_commitment_for_settle-gain",
       "oracleSignaturePlaceholder": "oracle_sig_for_settle-gain",
@@ -46,8 +47,8 @@
       "cetTxid": "aa704a575583072f4b69a1ea2d3d2c8c7e6957a0fbd83070b22c78d5dccd61dc",
       "locktime": 4657760,
       "message": {
-        "payload": "m1_oracle_attestation_v1|m1_oracle_event_1775263539886|fc27a1a61622ee53e80dbf01c313101294c98a7319287d76b897cbf48604c32e|0|settle-loss|aa704a575583072f4b69a1ea2d3d2c8c7e6957a0fbd83070b22c78d5dccd61dc|4657760",
-        "digestHex": "74d5089ded6dc6ad0c6ab279e5222830169afec2852f9e24c477f3a355f1306d"
+        "payload": "m1_oracle_attestation_v1|m1_oracle_event_1775300895321|fc27a1a61622ee53e80dbf01c313101294c98a7319287d76b897cbf48604c32e|0|settle-loss|aa704a575583072f4b69a1ea2d3d2c8c7e6957a0fbd83070b22c78d5dccd61dc|4657760",
+        "digestHex": "dd95db7663fc50096af7e0a669895204864eb3e96feaa9f9ed6fa3524b062bf0"
       },
       "oracleNonceCommitment": "nonce_commitment_for_settle-loss",
       "oracleSignaturePlaceholder": "oracle_sig_for_settle-loss",
@@ -55,6 +56,18 @@
       "adaptorSignaturePlaceholder": "adaptor_sig_for_settle-loss"
     }
   ],
+  "adaptorSignatureSlots": {
+    "settle-gain": {
+      "pathId": "settle-gain",
+      "adaptorPointPlaceholder": "adaptor_point_for_settle-gain",
+      "adaptorSignaturePlaceholder": "adaptor_sig_for_settle-gain"
+    },
+    "settle-loss": {
+      "pathId": "settle-loss",
+      "adaptorPointPlaceholder": "adaptor_point_for_settle-loss",
+      "adaptorSignaturePlaceholder": "adaptor_sig_for_settle-loss"
+    }
+  },
   "challengePathPlaceholders": {
     "honestSweepEvidence": {
       "required": [
@@ -75,5 +88,5 @@
       "notes": "Use this bundle to redirect to arbitration path."
     }
   },
-  "artifactHash": "de6a85baa9171c10322f740d85260596bb40c30d2aaeb29ec568b07978e73c6a"
+  "artifactHash": "fea45ed91a54dace154846409c6afe1ea62b72f1e9489d0950b993eedf0e4f73"
 }

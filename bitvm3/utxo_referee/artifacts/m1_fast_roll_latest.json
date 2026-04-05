@@ -1,0 +1,53 @@
+{
+  "kind": "m1_fast_roll",
+  "createdAt": "2026-04-04T11:08:26.878Z",
+  "sourceArtifacts": {
+    "challengeBundlePath": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\m1_challenge_bundle_latest.json",
+    "oracleWiringPath": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\m1_oracle_wiring_latest.json",
+    "challengeBundleHash": "4a1513f9d38d813a6fcd4e84e906fe77ce790b9b00c23f9be22efc52c23ef9bc",
+    "oracleWiringHash": "e09bad2d7002ae9d941fc467dd42d021e941bf10bf619922398eabc3a545d4ac"
+  },
+  "handoff": {
+    "kind": "m1_fast_roll_handoff",
+    "createdAt": "2026-04-04T11:08:26.878Z",
+    "sourceBundleHash": "4a1513f9d38d813a6fcd4e84e906fe77ce790b9b00c23f9be22efc52c23ef9bc",
+    "oracleMapId": "af7f8a551bd41acf",
+    "publication": {
+      "kind": "m1_oracle_delta_publication",
+      "publicationId": "35f158e3a9069bf0a9a18871",
+      "oracleMapId": "af7f8a551bd41acf",
+      "eventId": "m1_oracle_event_1775300895321",
+      "quorumId": "quorum_1of1_placeholder",
+      "keyId": "oracle_key_tl_wallet_placeholder",
+      "pathId": "roll",
+      "deltaSats": "783735",
+      "bundleHash": "4a1513f9d38d813a6fcd4e84e906fe77ce790b9b00c23f9be22efc52c23ef9bc",
+      "payloadText": "m1delta|af7f8a551bd41acf|roll|783735|617502748451cdbc",
+      "payloadHex": "6d3164656c74617c616637663861353531626434316163667c726f6c6c7c3738333733357c36313735303237343834353163646263",
+      "opReturnScriptHex": "6a356d3164656c74617c616637663861353531626434316163667c726f6c6c7c3738333733357c36313735303237343834353163646263",
+      "adaptorMapping": {
+        "adaptorSignaturePlaceholder": null,
+        "adaptorPointPlaceholder": null,
+        "cetTxid": "d7a479421bcfa1158eb4ecd2cdff7c41a124b1746601719f4c419f6b16e413a3",
+        "messageDigestHex": null,
+        "selectedPathId": "roll"
+      },
+      "rollTrigger": {
+        "kind": "event-driven-roll",
+        "canRoll": true,
+        "nextContractId": "617502748451cdbc",
+        "activation": "send"
+      },
+      "publicationHash": "fa71ceb86d0eade47283b8e8910dca44f9a5349720e1976659d376e610998f9e"
+    },
+    "nextContract": {
+      "contractId": "617502748451cdbc",
+      "sourceContractId": "af7f8a551bd41acf",
+      "cadence": "event-driven",
+      "trigger": "send",
+      "route": "roll",
+      "adapterSignatureSlot": null
+    }
+  },
+  "artifactHash": "31eb5e3b5724fdbe68f24e5ea6af2c986d29794e0447c8b435df2909dad9d8f1"
+}

@@ -1,0 +1,196 @@
+{
+  "kind": "m1_expiry_redemption",
+  "createdAt": "2026-04-05T14:56:38.905Z",
+  "chain": {
+    "mode": "mock",
+    "height": null,
+    "chain": null
+  },
+  "sourceArtifacts": {
+    "draftPath": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\m1_dlc_draft_latest.json",
+    "fundingFinalPath": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\m1_funding_finalized_latest.json",
+    "witnessPath": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\m1_challenge_witness_latest.json"
+  },
+  "deposit": {
+    "depositId": "expiry-deposit-1",
+    "accountId": "expiry-depositor",
+    "amountSats": "798100",
+    "txid": "fc27a1a61622ee53e80dbf01c313101294c98a7319287d76b897cbf48604c32e"
+  },
+  "redemption": {
+    "redemptionId": "expiry-redemption-1",
+    "accountId": "expiry-depositor",
+    "amountSats": "783735",
+    "remainingBalanceSats": "14365",
+    "winnerSweepSats": "783735",
+    "refundSats": "14365",
+    "residualSats": "14365",
+    "dustCarrySats": "0",
+    "settlementKind": "timeout-refund"
+  },
+  "deltas": {
+    "kind": "witness-settlement-delta",
+    "version": 1,
+    "epochId": "1",
+    "route": "roll",
+    "depositedSats": "798100",
+    "redeemedSats": "783735",
+    "pnlReferenceSats": "798100",
+    "realizedPnlSats": "-14365",
+    "pnlGainSats": "0",
+    "pnlLossSats": "14365",
+    "feeSats": "0",
+    "netDeltaSats": "-14365",
+    "settlementBreakdown": {
+      "kind": "settlement-breakdown",
+      "version": 1,
+      "epochId": "1",
+      "route": "roll",
+      "settlementKind": "timeout-refund",
+      "collateralSats": "798100",
+      "redeemedSats": "783735",
+      "winnerSweepSats": "783735",
+      "pnlReferenceSats": "798100",
+      "realizedPnlSats": "-14365",
+      "winnerPnlSats": "0",
+      "loserPnlSats": "14365",
+      "feeSats": "0",
+      "refundSats": "14365",
+      "residualSats": "14365",
+      "rolloverCollateralSats": "14365",
+      "dustCarrySats": "0",
+      "refundRecipient": "residual",
+      "winnerRecipient": null,
+      "netSettlementSats": "0",
+      "note": "expiry redemption witness blob"
+    },
+    "maturityHeight": "4657760",
+    "expiryHeight": null,
+    "oracleEventId": "ltc-testnet-epoch-1-1775263395053",
+    "oracleDigestHex": "5579a56254497a647dc1b7596667efe7388db2b9cf9473000a8d2d2ab8bbe487",
+    "note": "expiry redemption witness blob",
+    "annotationHash": "0f2852c1562b700477b454b001b2539481c2966588ba26c333151688ab13028b"
+  },
+  "settlementBreakdown": {
+    "kind": "settlement-breakdown",
+    "version": 1,
+    "epochId": "1",
+    "route": "roll",
+    "settlementKind": "timeout-refund",
+    "collateralSats": "798100",
+    "redeemedSats": "783735",
+    "winnerSweepSats": "783735",
+    "pnlReferenceSats": "798100",
+    "realizedPnlSats": "-14365",
+    "winnerPnlSats": "0",
+    "loserPnlSats": "14365",
+    "feeSats": "0",
+    "refundSats": "14365",
+    "residualSats": "14365",
+    "rolloverCollateralSats": "14365",
+    "dustCarrySats": "0",
+    "refundRecipient": "residual",
+    "winnerRecipient": null,
+    "netSettlementSats": "0",
+    "note": "expiry redemption witness blob"
+  },
+  "witnessBlob": {
+    "committed": {
+      "schemaVersion": 1,
+      "kind": "receipt-tally-map",
+      "assetSymbol": "rLTC-SAT",
+      "network": "litecoin-testnet",
+      "epochId": "1",
+      "prevSnapshotHash": null,
+      "challengeWindowStart": "4657760",
+      "challengeWindowLength": "1",
+      "challengeWindowEnd": "4657761",
+      "totalSupplySats": "14365",
+      "balanceRoot": "00610df622ef38f5ccd6d76fe20d95a340a0777a0374bcb632c8b662ea51f5e9",
+      "balances": [
+        {
+          "accountId": "expiry-depositor",
+          "balanceSats": "14365"
+        }
+      ],
+      "depositIds": [
+        "expiry-deposit-1"
+      ],
+      "redemptionIds": [
+        "expiry-redemption-1"
+      ],
+      "snapshotHash": "46ad2256ab42c2bd207f7c2dd09ef4d90c96c9a006967ceb3d0e36709c3a5462"
+    },
+    "deltaAnnotation": {
+      "kind": "witness-settlement-delta",
+      "version": 1,
+      "epochId": "1",
+      "route": "roll",
+      "depositedSats": "798100",
+      "redeemedSats": "783735",
+      "pnlReferenceSats": "798100",
+      "realizedPnlSats": "-14365",
+      "pnlGainSats": "0",
+      "pnlLossSats": "14365",
+      "feeSats": "0",
+      "netDeltaSats": "-14365",
+      "settlementBreakdown": {
+        "kind": "settlement-breakdown",
+        "version": 1,
+        "epochId": "1",
+        "route": "roll",
+        "settlementKind": "timeout-refund",
+        "collateralSats": "798100",
+        "redeemedSats": "783735",
+        "winnerSweepSats": "783735",
+        "pnlReferenceSats": "798100",
+        "realizedPnlSats": "-14365",
+        "winnerPnlSats": "0",
+        "loserPnlSats": "14365",
+        "feeSats": "0",
+        "refundSats": "14365",
+        "residualSats": "14365",
+        "rolloverCollateralSats": "14365",
+        "dustCarrySats": "0",
+        "refundRecipient": "residual",
+        "winnerRecipient": null,
+        "netSettlementSats": "0",
+        "note": "expiry redemption witness blob"
+      },
+      "maturityHeight": "4657760",
+      "expiryHeight": null,
+      "oracleEventId": "ltc-testnet-epoch-1-1775263395053",
+      "oracleDigestHex": "5579a56254497a647dc1b7596667efe7388db2b9cf9473000a8d2d2ab8bbe487",
+      "note": "expiry redemption witness blob",
+      "annotationHash": "0f2852c1562b700477b454b001b2539481c2966588ba26c333151688ab13028b"
+    },
+    "witnessBlobHash": "8691fc929e1ee6cd0c5379ca644eb764b8c0533ea315eedbdd149ac3394a1857"
+  },
+  "tallySnapshot": {
+    "schemaVersion": 1,
+    "kind": "receipt-tally-map",
+    "assetSymbol": "rLTC-SAT",
+    "network": "litecoin-testnet",
+    "epochId": "1",
+    "prevSnapshotHash": null,
+    "challengeWindowStart": "4657760",
+    "challengeWindowLength": "1",
+    "challengeWindowEnd": "4657761",
+    "totalSupplySats": "14365",
+    "balanceRoot": "00610df622ef38f5ccd6d76fe20d95a340a0777a0374bcb632c8b662ea51f5e9",
+    "balances": [
+      {
+        "accountId": "expiry-depositor",
+        "balanceSats": "14365"
+      }
+    ],
+    "depositIds": [
+      "expiry-deposit-1"
+    ],
+    "redemptionIds": [
+      "expiry-redemption-1"
+    ],
+    "snapshotHash": "46ad2256ab42c2bd207f7c2dd09ef4d90c96c9a006967ceb3d0e36709c3a5462"
+  },
+  "artifactHash": "eca8f5f480c2570bae8193f43b26b0fa6a9b99dad43188c745b3c8442d13d0d8"
+}

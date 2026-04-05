@@ -15,6 +15,7 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const { buildOracleDeltaPublication } = require('./m1_oracle_delta_publication');
 
 const ARTIFACTS_DIR = path.join(__dirname, 'artifacts');
 const CET_PATH = path.join(ARTIFACTS_DIR, 'm1_cet_skeletons_latest.json');
@@ -35,6 +36,18 @@ function stringifyJson(value, pretty = false) {
     value,
     (_key, v) => (typeof v === 'bigint' ? v.toString() : v),
     pretty ? 2 : 0
+  );
+}
+
+function bundleHashSnapshot(bundle) {
+  return JSON.parse(
+    stringifyJson({
+      ...bundle,
+      bundleHash: null,
+      deltaPublication: bundle.deltaPublication
+        ? { ...bundle.deltaPublication, bundleHash: null }
+        : null
+    })
   );
 }
 
@@ -115,6 +128,7 @@ function run() {
           payoutSats: selectedPath.payoutSats || null,
           feeSats: selectedPath.feeSats || null,
           residualSats: selectedPath.residualSats || (selectedPath.payouts ? selectedPath.payouts.rolloverCollateralSats || null : null),
+          timeoutRemainderSats: selectedPath.timeoutRemainderSats || (selectedPath.payouts ? selectedPath.payouts.timeoutRemainderSats || null : null),
           dustCarrySats: selectedPath.dustCarrySats || (selectedPath.payouts ? selectedPath.payouts.dustCarrySats || null : null),
           rolloverCollateralSats: selectedPath.rolloverCollateralSats || (selectedPath.payouts ? selectedPath.payouts.rolloverCollateralSats || null : null),
           defaultOnExpiry: PATH_NAME === 'roll' ? true : !!selectedPath.defaultOnExpiry
@@ -134,6 +148,8 @@ function run() {
       eventId: oracle.oracle.eventId,
       quorumId: oracle.oracle.quorumId,
       keyId: oracle.oracle.oracleKeyId,
+      oracleMapId: oracle.oracle.oracleMapId || null,
+      fundingOutpoint: oracle.binding?.fundingOutpoint || cet.fundingOutpoint || null,
       messagePayload: selectedTarget ? selectedTarget.message.payload : null,
       messageDigestHex: selectedTarget ? selectedTarget.message.digestHex : null,
       nonceCommitment: selectedTarget ? selectedTarget.oracleNonceCommitment : null,
@@ -141,6 +157,7 @@ function run() {
       adaptorPointPlaceholder: selectedTarget ? selectedTarget.adaptorPointPlaceholder : null,
       adaptorSignaturePlaceholder: selectedTarget ? selectedTarget.adaptorSignaturePlaceholder : null
     },
+    deltaPublication: null,
     witnessBundlePlaceholders: {
       honestPath: {
         required: [
@@ -164,7 +181,18 @@ function run() {
     }
   };
 
-  bundle.bundleHash = sha256Hex(stringifyJson(bundle));
+  bundle.deltaPublication = buildOracleDeltaPublication({
+    oracleBinding: bundle.oracleBinding,
+    selectedPath: bundle.selectedPath,
+    bundleHash: null,
+    deltaSats: bundle.selectedPath.residualSats || bundle.selectedPath.rolloverCollateralSats || bundle.selectedPath.payoutSats || 0n
+  });
+
+  bundle.bundleHash = sha256Hex(stringifyJson(bundleHashSnapshot(bundle)));
+  bundle.deltaPublication = {
+    ...bundle.deltaPublication,
+    bundleHash: bundle.bundleHash
+  };
   fs.writeFileSync(OUT_PATH, stringifyJson(bundle, true));
 
   let witness = null;
