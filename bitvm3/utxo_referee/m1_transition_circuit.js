@@ -11,6 +11,7 @@
  */
 
 const { Circuit } = require('../circuit');
+const { sha256PairCircuit } = require('../sha256');
 
 const U64_BITS = 64;
 const HASH_BITS = 256;
@@ -268,22 +269,7 @@ class TransitionCircuit {
   }
 
   hashPairCircuit(leftBits, rightBits) {
-    const c = this.circuit;
-    const n = HASH_BITS;
-    const result = [];
-
-    for (let i = 0; i < n; i++) {
-      const li = leftBits[i];
-      const ri = rightBits[(i + 128) % n];
-      const li2 = leftBits[(i + 64) % n];
-      const ri2 = rightBits[(i + 192) % n];
-      const x1 = c.xor(li, ri);
-      const x2 = c.xor(li2, ri2);
-      const a1 = c.and(x1, x2);
-      result.push(c.xor(x1, a1));
-    }
-
-    return result;
+    return sha256PairCircuit(this.circuit, leftBits, rightBits);
   }
 
   computeClaimRootCircuit(c, inputs) {

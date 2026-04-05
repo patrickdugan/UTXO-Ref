@@ -1,30 +1,38 @@
 {
   "kind": "m1_bitvm_dlc_visualization",
-  "createdAt": "2026-04-04T01:01:22.750Z",
+  "createdAt": "2026-04-05T19:06:46.080Z",
   "template": {
     "templateId": "dlc-receipt-ltc-testnet-v1",
-    "templateHash": "79755ea8e3b1df4e4c4266d8809e46e6a50356dec24de20d298a6e64f28482d7",
+    "templateHash": "5a57ecb55beff99ff5b523d5cdd021aef3781df8b318f9ac9e176cc7c6400151",
     "settlement": {
       "model": "bounded-loss-carry-forward",
       "bucketCapBps": 500,
-      "realizedPnlBps": 155,
-      "effectivePnlBps": 155,
-      "feeBps": 25,
+      "realizedPnlBps": 500,
+      "effectivePnlBps": 500,
+      "feeBps": 0,
       "paths": [
         {
           "pathId": "settle-gain",
           "kind": "settlement",
           "recipientRole": "alice",
+          "winnerRole": "alice",
+          "winnerAddress": "tltc1qgnk6pggf4addaadkkx652kpzayc7r8pppl47jw",
+          "refundRole": "residual",
+          "refundAddress": "tltc1qwghcxqafwvhwj63sdetxck9uaqd9pzu255fsqw",
+          "feeRole": "operator",
+          "feeAddress": "tltc1q9c930xt6x5qjs8tyj5gsq36ktjcwa7eum9k7kg",
+          "dustRole": "alice",
+          "dustAddress": "tltc1qgnk6pggf4addaadkkx652kpzayc7r8pppl47jw",
           "bucketCapBps": 500,
-          "realizedPnlBps": 155,
-          "effectivePnlBps": 155,
-          "feeBps": 25,
-          "actualPayoutSats": "12400",
-          "payoutSats": "12400",
-          "feeSats": "2000",
-          "refundSats": "785600",
-          "rolloverCollateralSats": "785600",
-          "residualSats": "785600",
+          "realizedPnlBps": 500,
+          "effectivePnlBps": 500,
+          "feeBps": 0,
+          "actualPayoutSats": "40000",
+          "payoutSats": "40000",
+          "feeSats": "0",
+          "refundSats": "760000",
+          "rolloverCollateralSats": "760000",
+          "residualSats": "760000",
           "dustCarrySats": "0",
           "defaultOnExpiry": false
         },
@@ -32,16 +40,24 @@
           "pathId": "settle-loss",
           "kind": "settlement",
           "recipientRole": "bob",
+          "winnerRole": "bob",
+          "winnerAddress": "tltc1qw8g3syx0275um9jur3a5ha9cpthuxf0m6rctnc",
+          "refundRole": "residual",
+          "refundAddress": "tltc1qwghcxqafwvhwj63sdetxck9uaqd9pzu255fsqw",
+          "feeRole": "operator",
+          "feeAddress": "tltc1q9c930xt6x5qjs8tyj5gsq36ktjcwa7eum9k7kg",
+          "dustRole": "bob",
+          "dustAddress": "tltc1qw8g3syx0275um9jur3a5ha9cpthuxf0m6rctnc",
           "bucketCapBps": 500,
-          "realizedPnlBps": 155,
-          "effectivePnlBps": 155,
-          "feeBps": 25,
-          "actualPayoutSats": "12400",
-          "payoutSats": "12400",
-          "feeSats": "2000",
-          "refundSats": "785600",
-          "rolloverCollateralSats": "785600",
-          "residualSats": "785600",
+          "realizedPnlBps": 500,
+          "effectivePnlBps": 500,
+          "feeBps": 0,
+          "actualPayoutSats": "40000",
+          "payoutSats": "40000",
+          "feeSats": "0",
+          "refundSats": "760000",
+          "rolloverCollateralSats": "760000",
+          "residualSats": "760000",
           "dustCarrySats": "0",
           "defaultOnExpiry": false
         }
@@ -50,9 +66,18 @@
         "pathId": "roll",
         "kind": "timeout",
         "defaultOnExpiry": true,
-        "rollLocktime": 4658048,
-        "rolloverCollateralSats": "785600",
-        "residualSats": "785600",
+        "winnerRole": "residual",
+        "winnerAddress": "tltc1qwghcxqafwvhwj63sdetxck9uaqd9pzu255fsqw",
+        "refundRole": "residual",
+        "refundAddress": "tltc1qwghcxqafwvhwj63sdetxck9uaqd9pzu255fsqw",
+        "feeRole": "operator",
+        "feeAddress": "tltc1q9c930xt6x5qjs8tyj5gsq36ktjcwa7eum9k7kg",
+        "dustRole": "alice",
+        "dustAddress": "tltc1qgnk6pggf4addaadkkx652kpzayc7r8pppl47jw",
+        "rollLocktime": 4666236,
+        "timeoutRemainderSats": "40000",
+        "rolloverCollateralSats": "760000",
+        "residualSats": "760000",
         "dustCarrySats": "0"
       },
       "dustCarrySats": "0"
@@ -70,36 +95,37 @@
     "referee": {
       "purpose": "sweep-referee",
       "name": "utxo_referee_verify",
-      "totalGates": 338855,
-      "wireCount": 375343,
-      "inputBits": 36488,
+      "totalGates": 8296855,
+      "wireCount": 8307387,
+      "inputBits": 10532,
       "outputBits": 1,
-      "freeGates": 236308,
-      "nonFreeGates": 102547,
+      "freeGates": 5165068,
+      "nonFreeGates": 3131787,
       "gateBreakdown": {
-        "AND": 102547,
-        "XOR": 233745,
-        "INV": 2563,
+        "AND": 3131787,
+        "XOR": 5032457,
+        "INV": 132611,
         "OR": 0
       },
       "notes": [
         "Verifies sweep membership, cap, residual destination, and epoch binding.",
-        "Current hash is a placeholder circuit primitive, not full SHA256."
+        "Current hash path uses a SHA256 pair-hash circuit for committed Merkle checks.",
+        "Visualization reports the bounded demo profile (4 payouts, depth 8) to keep circuit stats tractable."
       ]
     },
     "transition": {
       "purpose": "bounded-loss-router",
       "name": "m1_binary_settlement_transition",
-      "totalGates": 457102,
-      "wireCount": 463523,
+      "totalGates": 4561294,
+      "wireCount": 4567715,
       "inputBits": 6421,
       "outputBits": 1,
-      "freeGates": 257086,
-      "nonFreeGates": 200016,
+      "freeGates": 2808894,
+      "nonFreeGates": 1752400,
       "gateBreakdown": {
-        "AND": 200016,
-        "XOR": 254096,
-        "INV": 2990,
+        "AND": 1752400,
+        "XOR": 2740368,
+        "INV": 68526,
         "OR": 0
       },
       "notes": [
@@ -217,14 +243,14 @@
     "draft": {
       "path": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\m1_dlc_draft_latest.json",
       "kind": "m1_dlc_draft",
-      "createdAt": "2026-04-04T00:43:15.053Z",
-      "hash": "255c2ac4f41515f2876e0d1cb163b553725e8dabbe5007df1703315332b0c339"
+      "createdAt": "2026-04-05T17:07:42.103Z",
+      "hash": "2759ae4d6643e9c84f16df6bb5c16579aeb6a84178e72c4b2b4d983cec0720a4"
     },
     "fundingPsbt": {
       "path": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\m1_funding_psbt_latest.json",
       "kind": "m1_funding_psbt",
-      "createdAt": "2026-04-04T00:43:38.651Z",
-      "hash": "061a4bedcad0da3c43ab57731ac02153425ec7bb1074fe4d8c9c50f86c4e7475"
+      "createdAt": "2026-04-05T17:07:42.103Z",
+      "hash": "057e0ffee7cbef88e2279a2eb83bc8127821432cf2d72e906e6fb1c93169ea2e"
     },
     "finalized": {
       "path": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\m1_funding_finalized_latest.json",
@@ -235,26 +261,26 @@
     "cetSkeletons": {
       "path": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\m1_cet_skeletons_latest.json",
       "kind": "m1_cet_skeletons",
-      "createdAt": "2026-04-04T00:43:38.651Z",
-      "hash": "4bfe8f7b50a4d191e4257c201b351498886dda91dcd2f142e0faf3ac5c890564"
+      "createdAt": "2026-04-05T17:07:42.103Z",
+      "hash": "d8582118bbeddb862ce0b6895d4ef2e209f0e2aa2760102d5daf2a532d7b123a"
     },
     "oracleWiring": {
       "path": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\m1_oracle_wiring_latest.json",
       "kind": "m1_oracle_wiring",
-      "createdAt": "2026-04-04T00:45:39.886Z",
-      "hash": "de6a85baa9171c10322f740d85260596bb40c30d2aaeb29ec568b07978e73c6a"
+      "createdAt": "2026-04-05T17:07:54.954Z",
+      "hash": "5320d2352af02d8ae13c1ba8e4731a4063e0491f9f4c923a9deeedf72db951be"
     },
     "challengeBundle": {
       "path": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\m1_challenge_bundle_latest.json",
       "kind": "m1_challenge_bundle",
-      "createdAt": "2026-04-04T01:01:21.789Z",
-      "hash": "abf09c8a6575dff87092f3b1743ffab92d192b3973227cdfe802d51947b5b1e2"
+      "createdAt": "2026-04-05T17:07:54.843Z",
+      "hash": "0473dfd368fab9deddc5b19f59d8ef8aa9617708f218aeb17712feddaadbd161"
     },
     "challengeWitness": {
       "path": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\m1_challenge_witness_latest.json",
       "kind": "m1_challenge_witness",
-      "createdAt": "2026-04-04T01:01:21.791Z",
-      "hash": "1aa29fbdf55f6412552a132de04f2005a69e7ce6e1172442efb70c352563ae6b"
+      "createdAt": "2026-04-05T17:07:54.848Z",
+      "hash": "f61e4e676ce72171a1fa69bb2fa707104c3e114c71daa06a233f981b6b9a8465"
     },
     "rollForward": {
       "path": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\m1_roll_forward_latest.json",
@@ -263,5 +289,5 @@
       "hash": "99db96f1d08dce99d71bf6e38684dd1fe33ce7cde455a23d0100147b76f507fe"
     }
   },
-  "reportHash": "8249840fb2b301cfd4d4522996cb6fe85f5b44572ad74def38363492a5f47722"
+  "reportHash": "3c4478309d6a60d8da9ddd010b4b560b3aea3563c08bf81bdee4cc317c2fff1b"
 }

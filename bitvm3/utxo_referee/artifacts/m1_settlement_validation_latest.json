@@ -1,6 +1,6 @@
 {
   "kind": "m1_settlement_validation",
-  "createdAt": "2026-04-05T17:08:02.333Z",
+  "createdAt": "2026-04-05T19:02:26.772Z",
   "sourceArtifacts": {
     "draftPath": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\m1_dlc_draft_latest.json",
     "witnessPath": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\m1_challenge_witness_latest.json",
@@ -53,8 +53,6 @@
       }
     }
   },
-  "gaps": [
-    "production BitVM circuit still uses placeholder hashing outside the real Bitcoin validation path"
-  ],
-  "validationHash": "43bdca4cae0de2f83f18688691dba80555ce055a1fd6adf0ffaf73a77d408bee"
+  "gaps": [],
+  "validationHash": "cf759ff0f313d3fbd6d1fb2d625240c3901071586210e0d87cd9ddd58c014373"
 }

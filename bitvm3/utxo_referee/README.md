@@ -161,14 +161,13 @@ The circuit scaffolding in `circuit.js` expresses the rules as boolean constrain
 - Merkle proof verification (hash chain)
 - Sum accumulation with comparison
 
-**Current status**: Uses placeholder hash function. Production requires:
-- Full SHA256 implementation (~22k gates per compression)
-- Or alternative circuit-friendly hash (Poseidon ~300 constraints)
+**Current status**: Uses a real SHA256 pair-hash circuit for Merkle path verification in the referee and transition paths.
+The remaining production work is circuit cost optimization, not hash correctness.
 
 ## TODOs
 
 - [ ] Full Bitcoin transaction parsing
-- [ ] SHA256 circuit implementation
+- [x] SHA256 circuit implementation for fixed 32-byte pair hashing
 - [ ] Integration with BitVM challenge protocol
 - [ ] Batch verification for multiple epochs
 - [ ] Witness generation for circuit inputs

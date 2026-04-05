@@ -25,7 +25,6 @@ Working now:
 Still weak:
 
 - the referee did not have one canonical verifier for exact payout/refund/fee routing
-- circuit path still uses placeholder hashing outside the live Bitcoin-script proof harness
 
 ## Plan
 
@@ -46,7 +45,7 @@ Still weak:
 
 4. Production hardening
 - Bind actual recipient commitments for roll paths at the contract-definition layer.
-- Replace placeholder hash logic in the generic circuit path with production hashing where required.
+- Keep the SHA256 circuit path bounded and operationally profiled so reporting and artifact generation remain usable.
 
 ## Executed In This Pass
 
@@ -68,5 +67,4 @@ The path is acceptable for the current spec when:
 
 ## Remaining Production Gaps
 
-- full production BitVM circuit hashing remains separate work
 - wallet-side product flows still need to consume the committed recipient map everywhere, not just the timeout proof harness

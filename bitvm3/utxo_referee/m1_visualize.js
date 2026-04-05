@@ -18,6 +18,7 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const { execFileSync } = require('child_process');
 const referee = require('./index');
 const { RECEIPT_DLC_TEMPLATE_V1 } = require('./m1_spec');
 
@@ -57,6 +58,20 @@ function summarizeCircuit(result, purpose, notes = []) {
     gateBreakdown: stats.gates || {},
     notes
   };
+}
+
+function summarizeCircuitInChild(className, options, purpose, notes = []) {
+  const script = `
+    const referee = require(${JSON.stringify(path.join(__dirname, 'index.js'))});
+    const instance = new referee[${JSON.stringify(className)}](${JSON.stringify(options || {})});
+    instance.build();
+    process.stdout.write(JSON.stringify(instance.getStats()));
+  `;
+  const stats = JSON.parse(execFileSync(process.execPath, ['-e', script], {
+    encoding: 'utf8',
+    maxBuffer: 10 * 1024 * 1024
+  }));
+  return summarizeCircuit({ stats }, purpose, notes);
 }
 
 function artifactMeta(filePath) {
@@ -139,8 +154,6 @@ function toMermaid(graph) {
 }
 
 function buildReport() {
-  const refereeCircuit = referee.generateRefereeCircuit({ maxPayouts: 8, merkleDepth: 16 });
-  const transitionCircuit = referee.generateTransitionCircuit({ bitWidth: 64 });
   const templateHash = referee.templateHashHex(RECEIPT_DLC_TEMPLATE_V1);
   const draft = latestSettlementArtifact();
   const settlement = draft?.contract?.settlement || RECEIPT_DLC_TEMPLATE_V1.settlement;
@@ -167,11 +180,12 @@ function buildReport() {
       receiptToken: RECEIPT_DLC_TEMPLATE_V1.receiptToken
     },
     circuits: {
-      referee: summarizeCircuit(refereeCircuit, 'sweep-referee', [
+      referee: summarizeCircuitInChild('RefereeCircuit', { maxPayouts: 4, merkleDepth: 8 }, 'sweep-referee', [
         'Verifies sweep membership, cap, residual destination, and epoch binding.',
-        'Current hash is a placeholder circuit primitive, not full SHA256.'
+        'Current hash path uses a SHA256 pair-hash circuit for committed Merkle checks.',
+        'Visualization reports the bounded demo profile (4 payouts, depth 8) to keep circuit stats tractable.'
       ]),
-      transition: summarizeCircuit(transitionCircuit, 'bounded-loss-router', [
+      transition: summarizeCircuitInChild('TransitionCircuit', { bitWidth: 64 }, 'bounded-loss-router', [
         'Selects flat, pnl, settle-loss, settle-gain, or roll route.',
         'Proves exact satoshi conservation and claim-root binding.'
       ])
