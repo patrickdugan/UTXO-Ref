@@ -1,6 +1,6 @@
 {
   "kind": "m1_expiry_redemption",
-  "createdAt": "2026-04-05T14:56:38.905Z",
+  "createdAt": "2026-04-05T17:07:55.005Z",
   "chain": {
     "mode": "mock",
     "height": null,
@@ -20,13 +20,23 @@
   "redemption": {
     "redemptionId": "expiry-redemption-1",
     "accountId": "expiry-depositor",
-    "amountSats": "783735",
-    "remainingBalanceSats": "14365",
-    "winnerSweepSats": "783735",
-    "refundSats": "14365",
-    "residualSats": "14365",
+    "amountSats": "758195",
+    "remainingBalanceSats": "39905",
+    "winnerSweepSats": "758195",
+    "refundSats": "39905",
+    "residualSats": "39905",
     "dustCarrySats": "0",
     "settlementKind": "timeout-refund"
+  },
+  "routingCommitments": {
+    "winnerRole": "residual",
+    "winnerAddress": "tltc1qwghcxqafwvhwj63sdetxck9uaqd9pzu255fsqw",
+    "refundRole": "residual",
+    "refundAddress": "tltc1qwghcxqafwvhwj63sdetxck9uaqd9pzu255fsqw",
+    "feeRole": "operator",
+    "feeAddress": "tltc1q9c930xt6x5qjs8tyj5gsq36ktjcwa7eum9k7kg",
+    "dustRole": "alice",
+    "dustAddress": "tltc1qgnk6pggf4addaadkkx652kpzayc7r8pppl47jw"
   },
   "deltas": {
     "kind": "witness-settlement-delta",
@@ -34,13 +44,13 @@
     "epochId": "1",
     "route": "roll",
     "depositedSats": "798100",
-    "redeemedSats": "783735",
+    "redeemedSats": "758195",
     "pnlReferenceSats": "798100",
-    "realizedPnlSats": "-14365",
+    "realizedPnlSats": "-39905",
     "pnlGainSats": "0",
-    "pnlLossSats": "14365",
+    "pnlLossSats": "39905",
     "feeSats": "0",
-    "netDeltaSats": "-14365",
+    "netDeltaSats": "-39905",
     "settlementBreakdown": {
       "kind": "settlement-breakdown",
       "version": 1,
@@ -48,28 +58,28 @@
       "route": "roll",
       "settlementKind": "timeout-refund",
       "collateralSats": "798100",
-      "redeemedSats": "783735",
-      "winnerSweepSats": "783735",
+      "redeemedSats": "758195",
+      "winnerSweepSats": "758195",
       "pnlReferenceSats": "798100",
-      "realizedPnlSats": "-14365",
+      "realizedPnlSats": "-39905",
       "winnerPnlSats": "0",
-      "loserPnlSats": "14365",
+      "loserPnlSats": "39905",
       "feeSats": "0",
-      "refundSats": "14365",
-      "residualSats": "14365",
-      "rolloverCollateralSats": "14365",
+      "refundSats": "39905",
+      "residualSats": "39905",
+      "rolloverCollateralSats": "39905",
       "dustCarrySats": "0",
       "refundRecipient": "residual",
       "winnerRecipient": null,
       "netSettlementSats": "0",
       "note": "expiry redemption witness blob"
     },
-    "maturityHeight": "4657760",
+    "maturityHeight": "4665948",
     "expiryHeight": null,
-    "oracleEventId": "ltc-testnet-epoch-1-1775263395053",
-    "oracleDigestHex": "5579a56254497a647dc1b7596667efe7388db2b9cf9473000a8d2d2ab8bbe487",
+    "oracleEventId": "ltc-testnet-epoch-1-1775408862103",
+    "oracleDigestHex": "8c291c05c05ae6f5b497d9927a1f5c608fb98512bb4b318f515f325d40e8c261",
     "note": "expiry redemption witness blob",
-    "annotationHash": "0f2852c1562b700477b454b001b2539481c2966588ba26c333151688ab13028b"
+    "annotationHash": "bae299381a3b86d1dbc1914a5a0f733eb5e6f1662740f745607ec818447a8205"
   },
   "settlementBreakdown": {
     "kind": "settlement-breakdown",
@@ -78,16 +88,16 @@
     "route": "roll",
     "settlementKind": "timeout-refund",
     "collateralSats": "798100",
-    "redeemedSats": "783735",
-    "winnerSweepSats": "783735",
+    "redeemedSats": "758195",
+    "winnerSweepSats": "758195",
     "pnlReferenceSats": "798100",
-    "realizedPnlSats": "-14365",
+    "realizedPnlSats": "-39905",
     "winnerPnlSats": "0",
-    "loserPnlSats": "14365",
+    "loserPnlSats": "39905",
     "feeSats": "0",
-    "refundSats": "14365",
-    "residualSats": "14365",
-    "rolloverCollateralSats": "14365",
+    "refundSats": "39905",
+    "residualSats": "39905",
+    "rolloverCollateralSats": "39905",
     "dustCarrySats": "0",
     "refundRecipient": "residual",
     "winnerRecipient": null,
@@ -102,15 +112,15 @@
       "network": "litecoin-testnet",
       "epochId": "1",
       "prevSnapshotHash": null,
-      "challengeWindowStart": "4657760",
+      "challengeWindowStart": "4665948",
       "challengeWindowLength": "1",
-      "challengeWindowEnd": "4657761",
-      "totalSupplySats": "14365",
-      "balanceRoot": "00610df622ef38f5ccd6d76fe20d95a340a0777a0374bcb632c8b662ea51f5e9",
+      "challengeWindowEnd": "4665949",
+      "totalSupplySats": "39905",
+      "balanceRoot": "4f710b5738bedc75bcc07841412e82c930a4d733d871314db11e66ce7361c71c",
       "balances": [
         {
           "accountId": "expiry-depositor",
-          "balanceSats": "14365"
+          "balanceSats": "39905"
         }
       ],
       "depositIds": [
@@ -119,7 +129,7 @@
       "redemptionIds": [
         "expiry-redemption-1"
       ],
-      "snapshotHash": "46ad2256ab42c2bd207f7c2dd09ef4d90c96c9a006967ceb3d0e36709c3a5462"
+      "snapshotHash": "1813bae11da5f12393eb481a38b15a9b29adcbefc6a69ce9b8bfe771c830887a"
     },
     "deltaAnnotation": {
       "kind": "witness-settlement-delta",
@@ -127,13 +137,13 @@
       "epochId": "1",
       "route": "roll",
       "depositedSats": "798100",
-      "redeemedSats": "783735",
+      "redeemedSats": "758195",
       "pnlReferenceSats": "798100",
-      "realizedPnlSats": "-14365",
+      "realizedPnlSats": "-39905",
       "pnlGainSats": "0",
-      "pnlLossSats": "14365",
+      "pnlLossSats": "39905",
       "feeSats": "0",
-      "netDeltaSats": "-14365",
+      "netDeltaSats": "-39905",
       "settlementBreakdown": {
         "kind": "settlement-breakdown",
         "version": 1,
@@ -141,30 +151,30 @@
         "route": "roll",
         "settlementKind": "timeout-refund",
         "collateralSats": "798100",
-        "redeemedSats": "783735",
-        "winnerSweepSats": "783735",
+        "redeemedSats": "758195",
+        "winnerSweepSats": "758195",
         "pnlReferenceSats": "798100",
-        "realizedPnlSats": "-14365",
+        "realizedPnlSats": "-39905",
         "winnerPnlSats": "0",
-        "loserPnlSats": "14365",
+        "loserPnlSats": "39905",
         "feeSats": "0",
-        "refundSats": "14365",
-        "residualSats": "14365",
-        "rolloverCollateralSats": "14365",
+        "refundSats": "39905",
+        "residualSats": "39905",
+        "rolloverCollateralSats": "39905",
         "dustCarrySats": "0",
         "refundRecipient": "residual",
         "winnerRecipient": null,
         "netSettlementSats": "0",
         "note": "expiry redemption witness blob"
       },
-      "maturityHeight": "4657760",
+      "maturityHeight": "4665948",
       "expiryHeight": null,
-      "oracleEventId": "ltc-testnet-epoch-1-1775263395053",
-      "oracleDigestHex": "5579a56254497a647dc1b7596667efe7388db2b9cf9473000a8d2d2ab8bbe487",
+      "oracleEventId": "ltc-testnet-epoch-1-1775408862103",
+      "oracleDigestHex": "8c291c05c05ae6f5b497d9927a1f5c608fb98512bb4b318f515f325d40e8c261",
       "note": "expiry redemption witness blob",
-      "annotationHash": "0f2852c1562b700477b454b001b2539481c2966588ba26c333151688ab13028b"
+      "annotationHash": "bae299381a3b86d1dbc1914a5a0f733eb5e6f1662740f745607ec818447a8205"
     },
-    "witnessBlobHash": "8691fc929e1ee6cd0c5379ca644eb764b8c0533ea315eedbdd149ac3394a1857"
+    "witnessBlobHash": "c91e1cc61debb0fd2f3e910ab0a3a9ae63e49b89f8571c703cdd96dd08827de2"
   },
   "tallySnapshot": {
     "schemaVersion": 1,
@@ -173,15 +183,15 @@
     "network": "litecoin-testnet",
     "epochId": "1",
     "prevSnapshotHash": null,
-    "challengeWindowStart": "4657760",
+    "challengeWindowStart": "4665948",
     "challengeWindowLength": "1",
-    "challengeWindowEnd": "4657761",
-    "totalSupplySats": "14365",
-    "balanceRoot": "00610df622ef38f5ccd6d76fe20d95a340a0777a0374bcb632c8b662ea51f5e9",
+    "challengeWindowEnd": "4665949",
+    "totalSupplySats": "39905",
+    "balanceRoot": "4f710b5738bedc75bcc07841412e82c930a4d733d871314db11e66ce7361c71c",
     "balances": [
       {
         "accountId": "expiry-depositor",
-        "balanceSats": "14365"
+        "balanceSats": "39905"
       }
     ],
     "depositIds": [
@@ -190,7 +200,7 @@
     "redemptionIds": [
       "expiry-redemption-1"
     ],
-    "snapshotHash": "46ad2256ab42c2bd207f7c2dd09ef4d90c96c9a006967ceb3d0e36709c3a5462"
+    "snapshotHash": "1813bae11da5f12393eb481a38b15a9b29adcbefc6a69ce9b8bfe771c830887a"
   },
-  "artifactHash": "eca8f5f480c2570bae8193f43b26b0fa6a9b99dad43188c745b3c8442d13d0d8"
+  "artifactHash": "067a3dd25ad68d3401839c015a67d227220efb60db1ec3ec111d2476c10fa0fb"
 }

@@ -55,6 +55,7 @@ Still weak:
 - Added `m1_validate_latest_settlement.js`
 - Aligned wallet-server route planning to `settle-gain` / `settle-loss` / `roll`
 - Added explicit `timeoutRemainderSats` plumbing for roll-path bookkeeping
+- Added first-class `winnerAddress` / `refundAddress` / `feeAddress` / `dustAddress` commitments to settlement paths and timeout proofs
 
 ## Exit Criteria
 
@@ -67,5 +68,5 @@ The path is acceptable for the current spec when:
 
 ## Remaining Production Gaps
 
-- roll-route recipient commitments are not yet first-class in the draft schema
 - full production BitVM circuit hashing remains separate work
+- wallet-side product flows still need to consume the committed recipient map everywhere, not just the timeout proof harness

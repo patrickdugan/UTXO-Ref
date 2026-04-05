@@ -43,8 +43,7 @@ test('derive settlement routing keeps bounded payout exact', () => {
     actualPayoutSats: 12400n,
     feeSats: 2000n,
     refundSats: 785600n,
-    dustCarrySats: 0n
-  }, {
+    dustCarrySats: 0n,
     winnerAddress: 'alice-dest',
     refundAddress: 'residual-dest',
     feeAddress: 'fee-dest'
@@ -63,7 +62,9 @@ test('derive settlement routing maps roll route to timeout refund', () => {
     collateralSats: 798100n,
     feeSats: 0n,
     rolloverCollateralSats: 783735n,
-    dustCarrySats: 0n
+    dustCarrySats: 0n,
+    winnerAddress: 'roll-dest',
+    refundAddress: 'residual-dest'
   });
 
   assertEq(derived.settlementKind, 'timeout-refund');
@@ -78,15 +79,14 @@ test('verify settlement routing accepts exact timeout proof outputs', () => {
     collateralSats: 798100n,
     feeSats: 0n,
     rolloverCollateralSats: 783735n,
-    dustCarrySats: 0n
+    dustCarrySats: 0n,
+    winnerAddress: 'recipient',
+    refundAddress: 'residual'
   }, {
     outputs: [
       { role: 'winner-sweep', address: 'recipient', amountSats: '783735' },
       { role: 'refund-remainder', address: 'residual', amountSats: '14365' }
     ]
-  }, {
-    winnerAddress: 'recipient',
-    refundAddress: 'residual'
   });
 
   assert(result.ok, result.reason);
@@ -100,21 +100,64 @@ test('verify settlement routing rejects wrong refund remainder', () => {
     actualPayoutSats: 12400n,
     feeSats: 2000n,
     refundSats: 785600n,
-    dustCarrySats: 0n
+    dustCarrySats: 0n,
+    winnerAddress: 'alice',
+    refundAddress: 'residual',
+    feeAddress: 'fee'
   }, {
     outputs: [
       { role: 'winner-sweep', address: 'alice', amountSats: '12400' },
       { role: 'refund-remainder', address: 'residual', amountSats: '785599' },
       { role: 'fee', address: 'fee', amountSats: '2000' }
     ]
-  }, {
-    winnerAddress: 'alice',
-    refundAddress: 'residual',
-    feeAddress: 'fee'
   });
 
   assert(!result.ok, 'routing verification should fail');
   assert(String(result.reason || '').includes('refund-remainder amount mismatch'), 'expected refund mismatch reason');
+});
+
+test('verify settlement routing rejects address mismatch against committed destinations', () => {
+  const result = verifySettlementRouting({
+    route: 'settle-gain',
+    collateralSats: 800000n,
+    actualPayoutSats: 40000n,
+    feeSats: 0n,
+    refundSats: 760000n,
+    dustCarrySats: 0n,
+    winnerAddress: 'alice-committed',
+    refundAddress: 'residual-committed'
+  }, {
+    outputs: [
+      { role: 'winner-sweep', address: 'wrong-address', amountSats: '40000' },
+      { role: 'refund-remainder', address: 'residual-committed', amountSats: '760000' }
+    ]
+  });
+
+  assert(!result.ok, 'routing verification should fail on address mismatch');
+  assert(String(result.reason || '').includes('Missing expected winner-sweep output'), 'expected winner address mismatch reason');
+});
+
+test('verify settlement routing enforces dust output when committed', () => {
+  const result = verifySettlementRouting({
+    route: 'settle-gain',
+    collateralSats: 800000n,
+    actualPayoutSats: 40000n,
+    feeSats: 0n,
+    refundSats: 759995n,
+    dustCarrySats: 5n,
+    winnerAddress: 'alice',
+    refundAddress: 'residual',
+    dustAddress: 'dust-dest'
+  }, {
+    outputs: [
+      { role: 'winner-sweep', address: 'alice', amountSats: '40000' },
+      { role: 'refund-remainder', address: 'residual', amountSats: '759995' },
+      { role: 'dust-carry', address: 'dust-dest', amountSats: '5' }
+    ]
+  });
+
+  assert(result.ok, result.reason);
+  assertEq(result.expected.totalOutputsSats.toString(), '800000');
 });
 
 console.log('\n-----------------------------------');

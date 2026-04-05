@@ -134,6 +134,14 @@ function readSettlementDraft(draft) {
       pathId: outcome.bucketPct === 0 ? 'flat' : (outcome.bucketPct === 100 ? 'pnl' : `bucket-${outcome.bucketPct}`),
       kind: 'settlement',
       recipientRole: outcome.bucketPct === 0 ? 'alice' : 'bob',
+      winnerRole: outcome.bucketPct === 0 ? 'alice' : 'bob',
+      winnerAddress: outcome.bucketPct === 0 ? draft.roleSet.addresses.alice : draft.roleSet.addresses.bob,
+      refundRole: 'residual',
+      refundAddress: draft.roleSet.addresses.residual,
+      feeRole: 'operator',
+      feeAddress: draft.roleSet.addresses.operator,
+      dustRole: outcome.bucketPct === 0 ? 'alice' : 'bob',
+      dustAddress: outcome.bucketPct === 0 ? draft.roleSet.addresses.alice : draft.roleSet.addresses.bob,
       payoutSats: outcome.depositorAmountSats || outcome.payoutSats || '0',
       residualSats: outcome.poolAmountSats || outcome.residualSats || '0',
       dustCarrySats: '0',
@@ -143,6 +151,14 @@ function readSettlementDraft(draft) {
       pathId: 'roll',
       kind: 'timeout',
       defaultOnExpiry: true,
+      winnerRole: 'residual',
+      winnerAddress: draft.roleSet.addresses.residual,
+      refundRole: 'residual',
+      refundAddress: draft.roleSet.addresses.residual,
+      feeRole: 'operator',
+      feeAddress: draft.roleSet.addresses.operator,
+      dustRole: 'alice',
+      dustAddress: draft.roleSet.addresses.alice,
       rollLocktime: Number(draft.contract.refundLocktime || 0),
       rolloverCollateralSats: draft.contract.collateralSats || '0',
       dustCarrySats: draft.contract.dustCarrySats || '0'
@@ -151,7 +167,7 @@ function readSettlementDraft(draft) {
   };
 }
 
-function normalizeBoundedSettlement(settlementDraft, collateralSats, rollLocktime) {
+function normalizeBoundedSettlement(settlementDraft, collateralSats, rollLocktime, addresses = {}) {
   const bucketCapBps = Number(settlementDraft.bucketCapBps || settlementDraft.payoutRatioBps || 500);
   const realizedPnlBps = Number(settlementDraft.realizedPnlBps || bucketCapBps);
   const feeBps = Number(settlementDraft.feeBps || 0);
@@ -179,6 +195,14 @@ function normalizeBoundedSettlement(settlementDraft, collateralSats, rollLocktim
         pathId: 'settle-gain',
         kind: 'settlement',
         recipientRole: 'alice',
+        winnerRole: 'alice',
+        winnerAddress: addresses.alice || null,
+        refundRole: 'residual',
+        refundAddress: addresses.residual || null,
+        feeRole: 'operator',
+        feeAddress: addresses.operator || null,
+        dustRole: 'alice',
+        dustAddress: addresses.alice || null,
         bucketCapBps: computed.bucketCapBps,
         realizedPnlBps: computed.realizedPnlBps,
         effectivePnlBps: computed.effectivePnlBps,
@@ -196,6 +220,14 @@ function normalizeBoundedSettlement(settlementDraft, collateralSats, rollLocktim
         pathId: 'settle-loss',
         kind: 'settlement',
         recipientRole: 'bob',
+        winnerRole: 'bob',
+        winnerAddress: addresses.bob || null,
+        refundRole: 'residual',
+        refundAddress: addresses.residual || null,
+        feeRole: 'operator',
+        feeAddress: addresses.operator || null,
+        dustRole: 'bob',
+        dustAddress: addresses.bob || null,
         bucketCapBps: computed.bucketCapBps,
         realizedPnlBps: computed.realizedPnlBps,
         effectivePnlBps: computed.effectivePnlBps,
@@ -214,6 +246,14 @@ function normalizeBoundedSettlement(settlementDraft, collateralSats, rollLocktim
       pathId: 'roll',
       kind: 'timeout',
       defaultOnExpiry: true,
+      winnerRole: 'residual',
+      winnerAddress: addresses.residual || null,
+      refundRole: 'residual',
+      refundAddress: addresses.residual || null,
+      feeRole: 'operator',
+      feeAddress: addresses.operator || null,
+      dustRole: 'alice',
+      dustAddress: addresses.alice || null,
       rollLocktime,
       timeoutRemainderSats: timeoutRemainderSats.toString(),
       rolloverCollateralSats: computed.rolloverCollateralSats.toString(),
@@ -322,7 +362,7 @@ async function buildCetSkeletons(rpc, draft, funding) {
   const refundLocktime = Number(draft.contract.refundLocktime);
   const settlementDraft = readSettlementDraft(draft);
   const settlement = settlementDraft.model === 'bounded-loss-carry-forward' || settlementDraft.model === 'binary-settlement'
-    ? normalizeBoundedSettlement(settlementDraft, collateralSats, refundLocktime)
+    ? normalizeBoundedSettlement(settlementDraft, collateralSats, refundLocktime, draft.roleSet.addresses)
     : settlementDraft;
 
   const aliceAddress = draft.roleSet.addresses.alice;
@@ -356,6 +396,14 @@ async function buildCetSkeletons(rpc, draft, funding) {
       pathId: path.pathId,
       kind: path.kind,
       recipientRole: path.recipientRole || null,
+      winnerRole: path.winnerRole || path.recipientRole || null,
+      winnerAddress: path.winnerAddress || recipientAddress,
+      refundRole: path.refundRole || 'residual',
+      refundAddress: path.refundAddress || residualAddress,
+      feeRole: path.feeRole || 'operator',
+      feeAddress: path.feeAddress || operatorAddress,
+      dustRole: path.dustRole || path.recipientRole || null,
+      dustAddress: path.dustAddress || recipientAddress,
       locktime: maturityHeight,
       input: { txid: fundingTxid, vout: fundingVout },
       bucketCapBps: path.bucketCapBps ?? null,
@@ -402,10 +450,22 @@ async function buildCetSkeletons(rpc, draft, funding) {
       input: { txid: fundingTxid, vout: fundingVout },
       payouts: {
         residualAddress,
+        winnerAddress: settlement.roll && settlement.roll.winnerAddress ? settlement.roll.winnerAddress : residualAddress,
+        refundAddress: settlement.roll && settlement.roll.refundAddress ? settlement.roll.refundAddress : residualAddress,
+        feeAddress: settlement.roll && settlement.roll.feeAddress ? settlement.roll.feeAddress : operatorAddress,
+        dustAddress: settlement.roll && settlement.roll.dustAddress ? settlement.roll.dustAddress : aliceAddress,
         timeoutRemainderSats: settlement.roll && settlement.roll.timeoutRemainderSats ? settlement.roll.timeoutRemainderSats : '0',
         rolloverCollateralSats: rolloverCollateralSats.toString(),
         dustCarrySats: rollDustCarrySats.toString()
       },
+      winnerRole: settlement.roll && settlement.roll.winnerRole ? settlement.roll.winnerRole : 'residual',
+      winnerAddress: settlement.roll && settlement.roll.winnerAddress ? settlement.roll.winnerAddress : residualAddress,
+      refundRole: settlement.roll && settlement.roll.refundRole ? settlement.roll.refundRole : 'residual',
+      refundAddress: settlement.roll && settlement.roll.refundAddress ? settlement.roll.refundAddress : residualAddress,
+      feeRole: settlement.roll && settlement.roll.feeRole ? settlement.roll.feeRole : 'operator',
+      feeAddress: settlement.roll && settlement.roll.feeAddress ? settlement.roll.feeAddress : operatorAddress,
+      dustRole: settlement.roll && settlement.roll.dustRole ? settlement.roll.dustRole : 'alice',
+      dustAddress: settlement.roll && settlement.roll.dustAddress ? settlement.roll.dustAddress : aliceAddress,
       rawTxHex: rollRaw,
       txid: rollDecoded.txid
     },

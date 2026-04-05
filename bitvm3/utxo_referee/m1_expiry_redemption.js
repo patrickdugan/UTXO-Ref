@@ -251,6 +251,16 @@ async function run() {
       dustCarrySats: deltaAnnotation.settlementBreakdown.dustCarrySats,
       settlementKind: deltaAnnotation.settlementBreakdown.settlementKind
     },
+    routingCommitments: {
+      winnerRole: witnessArtifact?.witness?.transitionState?.winnerRole || null,
+      winnerAddress: witnessArtifact?.witness?.transitionState?.winnerAddress || null,
+      refundRole: witnessArtifact?.witness?.transitionState?.refundRole || null,
+      refundAddress: witnessArtifact?.witness?.transitionState?.refundAddress || null,
+      feeRole: witnessArtifact?.witness?.transitionState?.feeRole || null,
+      feeAddress: witnessArtifact?.witness?.transitionState?.feeAddress || null,
+      dustRole: witnessArtifact?.witness?.transitionState?.dustRole || null,
+      dustAddress: witnessArtifact?.witness?.transitionState?.dustAddress || null
+    },
     deltas: deltaAnnotation,
     settlementBreakdown: deltaAnnotation.settlementBreakdown,
     witnessBlob,

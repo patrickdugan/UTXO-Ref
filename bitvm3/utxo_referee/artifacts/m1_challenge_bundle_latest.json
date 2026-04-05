@@ -1,30 +1,38 @@
 {
   "kind": "m1_challenge_bundle",
-  "createdAt": "2026-04-05T14:56:38.766Z",
+  "createdAt": "2026-04-05T17:07:54.843Z",
   "selectedPathId": "roll",
   "selectedBucketPct": null,
   "sourceHashes": {
-    "cet": "4bfe8f7b50a4d191e4257c201b351498886dda91dcd2f142e0faf3ac5c890564",
-    "oracle": "e09bad2d7002ae9d941fc467dd42d021e941bf10bf619922398eabc3a545d4ac",
+    "cet": "d8582118bbeddb862ce0b6895d4ef2e209f0e2aa2760102d5daf2a532d7b123a",
+    "oracle": "24d1aa33505190e4a34d58ee8b413710af60510d1ab19608a607da65e539ec9d",
     "fundingFinal": "54ff8a32668cb02b203f4d1d856348b0b63abb2b74388d98173461494377e18d"
   },
   "binding": {
     "fundingOutpoint": {
-      "txid": "fc27a1a61622ee53e80dbf01c313101294c98a7319287d76b897cbf48604c32e",
+      "txid": "16e1e35f59268d3651da7f8d4a35a03668e77ff28d21d8aa48b4395dea210de9",
       "vout": 0,
       "valueLtc": "0.007981",
       "valueSats": "798100"
     },
     "fundingTxidFinalized": "fc27a1a61622ee53e80dbf01c313101294c98a7319287d76b897cbf48604c32e",
-    "maturityHeight": 4657760,
-    "refundLocktime": 4658048,
+    "maturityHeight": 4665946,
+    "refundLocktime": 4666234,
     "dustCarrySats": "0"
   },
   "selectedPath": {
     "pathId": "roll",
-    "locktime": 4658048,
-    "rawTxHex": "02000000012ec30486f4cb97b8767d2819738ac994121013c301bf0de853ee2216a6a127fc0000000000feffffff0177f50b0000000000160014e510ac242bacf82360d92b9acb7496aee53bd59180134700",
-    "txid": "d7a479421bcfa1158eb4ecd2cdff7c41a124b1746601719f4c419f6b16e413a3",
+    "winnerRole": "residual",
+    "winnerAddress": "tltc1qwghcxqafwvhwj63sdetxck9uaqd9pzu255fsqw",
+    "refundRole": "residual",
+    "refundAddress": "tltc1qwghcxqafwvhwj63sdetxck9uaqd9pzu255fsqw",
+    "feeRole": "operator",
+    "feeAddress": "tltc1q9c930xt6x5qjs8tyj5gsq36ktjcwa7eum9k7kg",
+    "dustRole": "alice",
+    "dustAddress": "tltc1qgnk6pggf4addaadkkx652kpzayc7r8pppl47jw",
+    "locktime": 4666234,
+    "rawTxHex": "0200000001e90d21ea5d39b448aad8218df27fe76836a0354a8d7fda51368d26595fe3e1160000000000feffffff01b3910b0000000000160014722f8303a9732ee96a306e566c58bce81a508b8a7a334700",
+    "txid": "aa256f318bf649be94e28e3431bb18d91e9dd7d98fbb31dba80ae728cb9d4f34",
     "bucketCapBps": null,
     "realizedPnlBps": null,
     "effectivePnlBps": null,
@@ -32,19 +40,19 @@
     "actualPayoutSats": null,
     "payoutSats": null,
     "feeSats": null,
-    "residualSats": "783735",
-    "timeoutRemainderSats": null,
+    "residualSats": "758195",
+    "timeoutRemainderSats": "39905",
     "dustCarrySats": "0",
-    "rolloverCollateralSats": "783735",
+    "rolloverCollateralSats": "758195",
     "defaultOnExpiry": true
   },
   "oracleBinding": {
-    "eventId": "m1_oracle_event_1775300895321",
+    "eventId": "m1_oracle_event_1775406015465",
     "quorumId": "quorum_1of1_placeholder",
     "keyId": "oracle_key_tl_wallet_placeholder",
-    "oracleMapId": "af7f8a551bd41acf",
+    "oracleMapId": "c180b135a6ac61c8",
     "fundingOutpoint": {
-      "txid": "fc27a1a61622ee53e80dbf01c313101294c98a7319287d76b897cbf48604c32e",
+      "txid": "16e1e35f59268d3651da7f8d4a35a03668e77ff28d21d8aa48b4395dea210de9",
       "vout": 0,
       "valueLtc": "0.007981",
       "valueSats": "798100"
@@ -58,31 +66,31 @@
   },
   "deltaPublication": {
     "kind": "m1_oracle_delta_publication",
-    "publicationId": "77b7d07cd0945b422738fdc6",
-    "oracleMapId": "af7f8a551bd41acf",
-    "eventId": "m1_oracle_event_1775300895321",
+    "publicationId": "19b6371812e0aef23ab74897",
+    "oracleMapId": "c180b135a6ac61c8",
+    "eventId": "m1_oracle_event_1775406015465",
     "quorumId": "quorum_1of1_placeholder",
     "keyId": "oracle_key_tl_wallet_placeholder",
     "pathId": "roll",
-    "deltaSats": "783735",
-    "bundleHash": "47ae0929699d2c3949d513ecee32535206f2fc0f59b8ff9a09428e55a907fb1e",
-    "payloadText": "m1delta|af7f8a551bd41acf|roll|783735|f271c9dd51b0820f",
-    "payloadHex": "6d3164656c74617c616637663861353531626434316163667c726f6c6c7c3738333733357c66323731633964643531623038323066",
-    "opReturnScriptHex": "6a356d3164656c74617c616637663861353531626434316163667c726f6c6c7c3738333733357c66323731633964643531623038323066",
+    "deltaSats": "758195",
+    "bundleHash": "0da014e3e22578116abd10d5adad85ad7b2fcba26df16ceed91f133b2d7ab896",
+    "payloadText": "m1delta|c180b135a6ac61c8|roll|758195|e43d645985c4a919",
+    "payloadHex": "6d3164656c74617c633138306231333561366163363163387c726f6c6c7c3735383139357c65343364363435393835633461393139",
+    "opReturnScriptHex": "6a356d3164656c74617c633138306231333561366163363163387c726f6c6c7c3735383139357c65343364363435393835633461393139",
     "adaptorMapping": {
       "adaptorSignaturePlaceholder": null,
       "adaptorPointPlaceholder": null,
-      "cetTxid": "d7a479421bcfa1158eb4ecd2cdff7c41a124b1746601719f4c419f6b16e413a3",
+      "cetTxid": "aa256f318bf649be94e28e3431bb18d91e9dd7d98fbb31dba80ae728cb9d4f34",
       "messageDigestHex": null,
       "selectedPathId": "roll"
     },
     "rollTrigger": {
       "kind": "event-driven-roll",
       "canRoll": true,
-      "nextContractId": "f271c9dd51b0820f",
+      "nextContractId": "e43d645985c4a919",
       "activation": "send"
     },
-    "publicationHash": "5579a56254497a647dc1b7596667efe7388db2b9cf9473000a8d2d2ab8bbe487"
+    "publicationHash": "8c291c05c05ae6f5b497d9927a1f5c608fb98512bb4b318f515f325d40e8c261"
   },
   "witnessBundlePlaceholders": {
     "honestPath": {
@@ -105,5 +113,5 @@
       "note": "Use this shape for arbitration redirect payload."
     }
   },
-  "bundleHash": "47ae0929699d2c3949d513ecee32535206f2fc0f59b8ff9a09428e55a907fb1e"
+  "bundleHash": "0da014e3e22578116abd10d5adad85ad7b2fcba26df16ceed91f133b2d7ab896"
 }

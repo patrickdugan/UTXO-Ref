@@ -291,6 +291,7 @@ The same sidecar now also names the settlement remainder explicitly:
 - `winnerPnlSats` and `loserPnlSats` for the economic attribution
 - `dustCarrySats` for rounding carry into the next epoch or residual bucket
 - `timeoutRemainderSats` for the non-carried roll-path remainder when the timeout branch needs it as a first-class field
+- `winnerAddress`, `refundAddress`, `feeAddress`, and `dustAddress` as first-class recipient commitments on each settlement path
 
 For exact output verification, use the routing verifier:
 
@@ -302,12 +303,14 @@ const result = referee.verifySettlementRouting(
     collateralSats: 798100n,
     rolloverCollateralSats: 783735n,
     feeSats: 0n,
-    dustCarrySats: 0n
+    dustCarrySats: 0n,
+    winnerAddress: 'tltc1q...',
+    refundAddress: 'tltc1q...'
   },
   {
     outputs: [
-      { role: 'winner-sweep', amountSats: 783735n },
-      { role: 'refund-remainder', amountSats: 14365n }
+      { role: 'winner-sweep', address: 'tltc1q...', amountSats: 783735n },
+      { role: 'refund-remainder', address: 'tltc1q...', amountSats: 14365n }
     ]
   }
 );

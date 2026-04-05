@@ -1,6 +1,6 @@
 {
   "kind": "m1_settlement_validation",
-  "createdAt": "2026-04-05T14:56:38.895Z",
+  "createdAt": "2026-04-05T17:08:02.333Z",
   "sourceArtifacts": {
     "draftPath": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\m1_dlc_draft_latest.json",
     "witnessPath": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\m1_challenge_witness_latest.json",
@@ -14,9 +14,9 @@
         "ok": true,
         "expected": {
           "settlementKind": "pnl-sweep",
-          "winnerSweepSats": "12400",
-          "refundRemainderSats": "785600",
-          "feeSats": "2000",
+          "winnerSweepSats": "40000",
+          "refundRemainderSats": "760000",
+          "feeSats": "0",
           "collateralSats": "800000"
         }
       },
@@ -25,9 +25,9 @@
         "ok": true,
         "expected": {
           "settlementKind": "pnl-sweep",
-          "winnerSweepSats": "12400",
-          "refundRemainderSats": "785600",
-          "feeSats": "2000",
+          "winnerSweepSats": "40000",
+          "refundRemainderSats": "760000",
+          "feeSats": "0",
           "collateralSats": "800000"
         }
       }
@@ -36,8 +36,8 @@
       "ok": true,
       "expected": {
         "settlementKind": "timeout-refund",
-        "winnerSweepSats": "783735",
-        "refundRemainderSats": "14365",
+        "winnerSweepSats": "758195",
+        "refundRemainderSats": "39905",
         "feeSats": "0",
         "collateralSats": "798100"
       }
@@ -46,8 +46,8 @@
       "ok": true,
       "expected": {
         "settlementKind": "timeout-refund",
-        "winnerSweepSats": "783735",
-        "refundRemainderSats": "14365",
+        "winnerSweepSats": "758195",
+        "refundRemainderSats": "39905",
         "feeSats": "0",
         "collateralSats": "798100"
       }
@@ -56,5 +56,5 @@
   "gaps": [
     "production BitVM circuit still uses placeholder hashing outside the real Bitcoin validation path"
   ],
-  "validationHash": "8eb863b7e3aba8eea26e5b7a8f476a07dc5159d38a60a936f0294c8a9b735a9e"
+  "validationHash": "43bdca4cae0de2f83f18688691dba80555ce055a1fd6adf0ffaf73a77d408bee"
 }

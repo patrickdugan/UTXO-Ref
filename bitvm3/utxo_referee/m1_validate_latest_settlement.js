@@ -54,8 +54,6 @@ function assertOk(result, label) {
 
 function validateDraftPaths(draft) {
   const collateralSats = draft?.contract?.collateralSats;
-  const residualAddress = draft?.contract?.outputs?.residualAddress || null;
-  const roleAddresses = draft?.roleSet?.addresses || {};
   const settlementPaths = Array.isArray(draft?.contract?.settlement?.paths)
     ? draft.contract.settlement.paths
     : [];
@@ -72,24 +70,30 @@ function validateDraftPaths(draft) {
       outputs: [
         {
           role: 'winner-sweep',
-          address: roleAddresses[pathRecord.recipientRole] || null,
+          address: pathRecord.winnerAddress || null,
           amountSats: pathRecord.actualPayoutSats ?? pathRecord.payoutSats ?? 0
         },
         {
           role: 'refund-remainder',
-          address: residualAddress,
+          address: pathRecord.refundAddress || null,
           amountSats: pathRecord.refundSats ?? pathRecord.residualSats ?? 0
         },
         {
           role: 'fee',
-          address: residualAddress,
+          address: pathRecord.feeAddress || null,
           amountSats: pathRecord.feeSats ?? 0
+        },
+        {
+          role: 'dust-carry',
+          address: pathRecord.dustAddress || null,
+          amountSats: pathRecord.dustCarrySats ?? 0
         }
       ]
     }, {
-      winnerAddress: roleAddresses[pathRecord.recipientRole] || null,
-      refundAddress: residualAddress,
-      feeAddress: residualAddress
+      winnerAddress: pathRecord.winnerAddress || null,
+      refundAddress: pathRecord.refundAddress || null,
+      feeAddress: pathRecord.feeAddress || null,
+      dustAddress: pathRecord.dustAddress || null
     });
 
     return {
@@ -112,15 +116,23 @@ function validateExpiryArtifact(witnessArtifact, expiryArtifact) {
     outputs: [
       {
         role: 'winner-sweep',
+        address: expiryArtifact?.routingCommitments?.winnerAddress || null,
         amountSats: settlement.winnerSweepSats ?? expiryArtifact?.redemption?.amountSats ?? 0
       },
       {
         role: 'refund-remainder',
+        address: expiryArtifact?.routingCommitments?.refundAddress || null,
         amountSats: settlement.refundSats ?? settlement.residualSats ?? expiryArtifact?.redemption?.remainingBalanceSats ?? 0
       },
       {
         role: 'fee',
+        address: expiryArtifact?.routingCommitments?.feeAddress || null,
         amountSats: settlement.feeSats ?? 0
+      },
+      {
+        role: 'dust-carry',
+        address: expiryArtifact?.routingCommitments?.dustAddress || null,
+        amountSats: settlement.dustCarrySats ?? 0
       }
     ]
   });
@@ -142,18 +154,25 @@ function validateTimeoutProof(witnessArtifact, timeoutProof) {
     outputs: [
       {
         role: 'winner-sweep',
-        address: timeoutProof?.recipient?.address || null,
+        address: timeoutProof?.committedRouting?.winnerAddress || timeoutProof?.recipient?.address || null,
         amountSats: timeoutProof?.timeoutSpend?.recipientSats ?? 0
       },
       {
         role: 'refund-remainder',
-        address: timeoutProof?.residual?.address || null,
+        address: timeoutProof?.committedRouting?.refundAddress || timeoutProof?.residual?.address || null,
         amountSats: timeoutProof?.timeoutSpend?.residualSats ?? 0
+      },
+      {
+        role: 'dust-carry',
+        address: timeoutProof?.committedRouting?.dustAddress || null,
+        amountSats: timeoutProof?.timeoutSpend?.dustCarrySats ?? 0
       }
     ]
   }, {
-    winnerAddress: timeoutProof?.recipient?.address || null,
-    refundAddress: timeoutProof?.residual?.address || null
+    winnerAddress: timeoutProof?.committedRouting?.winnerAddress || timeoutProof?.recipient?.address || null,
+    refundAddress: timeoutProof?.committedRouting?.refundAddress || timeoutProof?.residual?.address || null,
+    feeAddress: timeoutProof?.committedRouting?.feeAddress || null,
+    dustAddress: timeoutProof?.committedRouting?.dustAddress || null
   });
 
   return assertOk(result, 'timeout proof');

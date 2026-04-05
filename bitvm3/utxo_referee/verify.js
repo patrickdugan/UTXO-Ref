@@ -33,11 +33,21 @@ function normalizeOutput(output, index) {
   };
 }
 
+function resolveDestinations(state = {}, destinations = {}) {
+  return {
+    winnerAddress: destinations.winnerAddress ?? state.winnerAddress ?? null,
+    refundAddress: destinations.refundAddress ?? state.refundAddress ?? null,
+    feeAddress: destinations.feeAddress ?? state.feeAddress ?? null,
+    dustAddress: destinations.dustAddress ?? state.dustAddress ?? null
+  };
+}
+
 function deriveSettlementRouting(state, destinations = {}) {
   const route = String(state?.route || '').trim();
   if (!route) {
     throw new Error('state.route is required');
   }
+  const resolvedDestinations = resolveDestinations(state, destinations);
 
   const collateralSats = toBigInt(state.collateralSats ?? 0n, 'state.collateralSats');
   const feeSats = toBigInt(state.feeSats ?? 0n, 'state.feeSats');
@@ -104,18 +114,23 @@ function deriveSettlementRouting(state, destinations = {}) {
     outputs: [
       {
         role: 'winner-sweep',
-        address: destinations.winnerAddress ? String(destinations.winnerAddress) : null,
+        address: resolvedDestinations.winnerAddress ? String(resolvedDestinations.winnerAddress) : null,
         amountSats: winnerSweepSats
       },
       {
         role: 'refund-remainder',
-        address: destinations.refundAddress ? String(destinations.refundAddress) : null,
+        address: resolvedDestinations.refundAddress ? String(resolvedDestinations.refundAddress) : null,
         amountSats: refundRemainderSats
       },
       {
         role: 'fee',
-        address: destinations.feeAddress ? String(destinations.feeAddress) : null,
+        address: resolvedDestinations.feeAddress ? String(resolvedDestinations.feeAddress) : null,
         amountSats: feeSats
+      },
+      {
+        role: 'dust-carry',
+        address: resolvedDestinations.dustAddress ? String(resolvedDestinations.dustAddress) : null,
+        amountSats: dustCarrySats
       }
     ].filter((output) => output.amountSats > 0n)
   };
@@ -160,10 +175,10 @@ function verifySettlementRouting(state, observed = {}, destinations = {}) {
   }
 
   const observedTotal = outputs.reduce((sum, output) => sum + output.amountSats, 0n);
-  if (observedTotal !== expected.winnerSweepSats + expected.refundRemainderSats + expected.feeSats) {
+  if (observedTotal !== expected.totalOutputsSats) {
     return {
       ok: false,
-      reason: `Observed output sum mismatch: expected ${expected.winnerSweepSats + expected.refundRemainderSats + expected.feeSats} sats, got ${observedTotal} sats`,
+      reason: `Observed output sum mismatch: expected ${expected.totalOutputsSats} sats, got ${observedTotal} sats`,
       expected
     };
   }

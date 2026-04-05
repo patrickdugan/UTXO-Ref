@@ -197,9 +197,13 @@ async function getAddressPubkey(rpc, wallet, address) {
   return info.pubkey || null;
 }
 
-function buildBoundedSettlementPaths(collateralSats, rollLocktime, bucketCapBps, realizedPnlBps, feeBps) {
+function buildBoundedSettlementPaths(collateralSats, rollLocktime, bucketCapBps, realizedPnlBps, feeBps, addresses) {
   const bounded = computeBoundedSettlementAmounts(collateralSats, bucketCapBps, realizedPnlBps, feeBps);
   const timeoutRemainderSats = bounded.collateralSats - bounded.rolloverCollateralSats - bounded.dustCarrySats;
+  const winnerAlice = addresses?.alice || null;
+  const winnerBob = addresses?.bob || null;
+  const residualAddress = addresses?.residual || null;
+  const operatorAddress = addresses?.operator || null;
 
   return {
     model: 'bounded-loss-carry-forward',
@@ -212,6 +216,14 @@ function buildBoundedSettlementPaths(collateralSats, rollLocktime, bucketCapBps,
         pathId: 'settle-gain',
         kind: 'settlement',
         recipientRole: 'alice',
+        winnerRole: 'alice',
+        winnerAddress: winnerAlice,
+        refundRole: 'residual',
+        refundAddress: residualAddress,
+        feeRole: 'operator',
+        feeAddress: operatorAddress,
+        dustRole: 'alice',
+        dustAddress: winnerAlice,
         bucketCapBps: bounded.bucketCapBps,
         realizedPnlBps: bounded.realizedPnlBps,
         effectivePnlBps: bounded.effectivePnlBps,
@@ -229,6 +241,14 @@ function buildBoundedSettlementPaths(collateralSats, rollLocktime, bucketCapBps,
         pathId: 'settle-loss',
         kind: 'settlement',
         recipientRole: 'bob',
+        winnerRole: 'bob',
+        winnerAddress: winnerBob,
+        refundRole: 'residual',
+        refundAddress: residualAddress,
+        feeRole: 'operator',
+        feeAddress: operatorAddress,
+        dustRole: 'bob',
+        dustAddress: winnerBob,
         bucketCapBps: bounded.bucketCapBps,
         realizedPnlBps: bounded.realizedPnlBps,
         effectivePnlBps: bounded.effectivePnlBps,
@@ -247,6 +267,14 @@ function buildBoundedSettlementPaths(collateralSats, rollLocktime, bucketCapBps,
       pathId: 'roll',
       kind: 'timeout',
       defaultOnExpiry: true,
+      winnerRole: 'residual',
+      winnerAddress: residualAddress,
+      refundRole: 'residual',
+      refundAddress: residualAddress,
+      feeRole: 'operator',
+      feeAddress: operatorAddress,
+      dustRole: 'alice',
+      dustAddress: winnerAlice,
       rollLocktime: rollLocktime,
       timeoutRemainderSats: timeoutRemainderSats.toString(),
       rolloverCollateralSats: bounded.rolloverCollateralSats.toString(),
@@ -279,7 +307,8 @@ async function run() {
     refundLocktime,
     BUCKET_CAP_BPS,
     REALIZED_PNL_BPS,
-    FEE_BPS
+    FEE_BPS,
+    roleSet.addresses
   );
 
   const operatorPubkey = await getAddressPubkey(rpc, DEFAULT_WALLET, roleSet.addresses.operator);
