@@ -1,0 +1,767 @@
+{
+  "kind": "lnbtc_tlusd_liquidity_patch_bundle",
+  "bundleId": "2d1797f3f84cc9a2a7f3d410237f209e80852cbe92e1b69ca27d117e47410d8e",
+  "bundleCore": {
+    "version": 1,
+    "protocol": "lnbtc_tlusd_liquidity_patch_e2e",
+    "conversionId": "383657933b6a25a5765e6bd00f438a76bcca97f371cdcba65dd456f36f711354",
+    "stakeCommitmentId": "7bd58616eaf5a2e48eeb2304143e12523c46d0a41c74bf46fea8f0a757ae67ee",
+    "mandateId": "dba0322a82b7d6b8245c7a589a78c05f26ddf4e8c594ce543de631003707eb77",
+    "managerBundleId": "16ae7bbda1553209e7ff57db06ef01f6722781ef90516dce6a8586e7ba0d8672"
+  },
+  "conversion": {
+    "kind": "lnbtc_to_tlusd_conversion",
+    "conversionId": "383657933b6a25a5765e6bd00f438a76bcca97f371cdcba65dd456f36f711354",
+    "conversionCore": {
+      "version": 1,
+      "protocol": "lnbtc_to_tlusd_utxoref_conversion",
+      "lnbtcSats": "49000",
+      "btcUsdPriceMicros": "100000000000",
+      "tlusdUnits": "49000000",
+      "assetDescriptorId": "022880d08933e41ea1d4f38d920415ddfe9691307ae61693e8fcba213af21d36",
+      "assetProofId": "b06e3c7be76e0ef3f39ef9907970a9a0347bca40678833fbe10914e5f25be390",
+      "rfqQuoteId": "1f7a57ebf5bd5cef0a375f9b67e8d4559f0a421dc53193253bf3bf117563011a",
+      "settlementId": "233f0107fc266e6bd066d2cd3bbe00a51f06741a407ad1b656857c8683c2e6cd",
+      "subswapFundingTxid": "c563776fe8a6d86e7e185529d7e78e43e4066c7221589c8f688b3b63a7939ad6",
+      "dlcFundingTxid": "fd3e97d30b39c04dea7748cd5a7e8b057bf9e0f7656a6be7d9733c413828be43",
+      "liquidityLeaseBundleId": "6b1278ad5dc15bf6d73f9d0ad40642581c13bd2f5f20926300c32a919dc7624b"
+    },
+    "stablecoin": {
+      "kind": "taproot_assets_lightning_stablecoin_bitvm_bundle",
+      "bundleId": "fa379128f513536f0e2e75c0d80064ee0f2506af1cdc20f3c5ceb9df65639a6f",
+      "bundleCore": {
+        "assetDescriptorId": "022880d08933e41ea1d4f38d920415ddfe9691307ae61693e8fcba213af21d36",
+        "assetProofId": "b06e3c7be76e0ef3f39ef9907970a9a0347bca40678833fbe10914e5f25be390",
+        "quoteId": "1f7a57ebf5bd5cef0a375f9b67e8d4559f0a421dc53193253bf3bf117563011a",
+        "settlementId": "233f0107fc266e6bd066d2cd3bbe00a51f06741a407ad1b656857c8683c2e6cd",
+        "challengeId": "37ed0847f9300a023c52e9eb5c6576e565709fc32df1692b6c6044d40a4715f3"
+      },
+      "asset": {
+        "kind": "taproot_asset_stablecoin_descriptor",
+        "descriptorId": "022880d08933e41ea1d4f38d920415ddfe9691307ae61693e8fcba213af21d36",
+        "descriptorCore": {
+          "protocol": "taproot_assets",
+          "ticker": "TLUSD",
+          "decimalDisplay": 6,
+          "assetId": "59b147eaecbf09762942e96cb8204ee9b765ba147f5dffc7414bf48e23044e16",
+          "genesisPoint": "d791d53833f8c2ffcd71249da87c96044c7ab69f354b28bebecb3f04b0cd0567:0",
+          "groupKey": "58fc09395f52ff2b1dc4091613da5bcb54d31ccc1d0b5e4aece9eaabda8688b6",
+          "issuer": "tradelayer-utxoref-regtest"
+        }
+      },
+      "assetProof": {
+        "kind": "taproot_asset_proof_commitment",
+        "proofId": "b06e3c7be76e0ef3f39ef9907970a9a0347bca40678833fbe10914e5f25be390",
+        "proofCore": {
+          "version": 1,
+          "assetId": "59b147eaecbf09762942e96cb8204ee9b765ba147f5dffc7414bf48e23044e16",
+          "amountUnits": "49000000",
+          "anchorOutpoint": "bc5b5702a38fb5d48ffdf2ace8afabeef03c97742c1c60b5fa6b89db9a4d642f:1",
+          "scriptKey": "8cb98ecc06be6453f21ae8a8668ac9e31831ab0daf57b421aa56799fe41d1385",
+          "universeHost": "regtest-universe.local",
+          "universeRoot": "8cc9b9498954c30e79f75ed58acd40fd9efcc4b4193ddc188518c2e075423f48",
+          "proofRoot": "5f6956ecd8aed91f99300f864d2e22ff6425a4403e9180d55d6853dc7616562d",
+          "proofTransport": "tapd_exported_proof_or_universe_proof"
+        }
+      },
+      "rfqQuote": {
+        "kind": "taproot_asset_lightning_rfq_quote",
+        "quoteId": "1f7a57ebf5bd5cef0a375f9b67e8d4559f0a421dc53193253bf3bf117563011a",
+        "quoteCore": {
+          "version": 1,
+          "protocol": "taproot_assets_rfq_over_bolt08",
+          "assetId": "59b147eaecbf09762942e96cb8204ee9b765ba147f5dffc7414bf48e23044e16",
+          "assetTicker": "TLUSD",
+          "clientNodeId": "tap-client-regtest",
+          "edgeNodeId": "tap-edge-node-regtest",
+          "assetAmountUnits": "49000000",
+          "btcRouteSats": "49000",
+          "maxSpreadPpm": 4500,
+          "quotedSpreadPpm": 1200,
+          "maxRoutingFeePpm": 1200,
+          "quotedRoutingFeePpm": 800,
+          "expiryBlock": 360,
+          "paymentHashHex": "79cdbfa62ea28e4177514f55ae3f5d6e7dbdd780254a6aeff6428270cd5d1d3f"
+        },
+        "commitment": {
+          "assetProofId": "b06e3c7be76e0ef3f39ef9907970a9a0347bca40678833fbe10914e5f25be390",
+          "obligation": "Edge node swaps the Taproot Asset amount into a BTC Lightning payment under the quoted spread and routing fee limits."
+        }
+      },
+      "settlementEvidence": {
+        "kind": "taproot_asset_lightning_stablecoin_settlement_evidence",
+        "settlementId": "233f0107fc266e6bd066d2cd3bbe00a51f06741a407ad1b656857c8683c2e6cd",
+        "settlementCore": {
+          "version": 1,
+          "quoteId": "1f7a57ebf5bd5cef0a375f9b67e8d4559f0a421dc53193253bf3bf117563011a",
+          "assetProofId": "b06e3c7be76e0ef3f39ef9907970a9a0347bca40678833fbe10914e5f25be390",
+          "liquidityLeaseBundleId": "6b1278ad5dc15bf6d73f9d0ad40642581c13bd2f5f20926300c32a919dc7624b",
+          "deliveredBtcSats": "49000",
+          "observedSpreadPpm": 1200,
+          "observedRoutingFeePpm": 800,
+          "observedBlock": 240,
+          "paymentHashHex": "79cdbfa62ea28e4177514f55ae3f5d6e7dbdd780254a6aeff6428270cd5d1d3f",
+          "preimageHashHex": "79cdbfa62ea28e4177514f55ae3f5d6e7dbdd780254a6aeff6428270cd5d1d3f",
+          "lnClaimTxid": "fd3e97d30b39c04dea7748cd5a7e8b057bf9e0f7656a6be7d9733c413828be43",
+          "channelOrSpliceOutpoint": "fd3e97d30b39c04dea7748cd5a7e8b057bf9e0f7656a6be7d9733c413828be43:0"
+        },
+        "checks": {
+          "assetProofMatchesQuote": true,
+          "deliveredAmountMet": true,
+          "spreadCeilingMet": true,
+          "routingFeeCeilingMet": true,
+          "paymentHashMatched": true,
+          "quoteNotExpired": true,
+          "bitvmLeaseVerified": true
+        }
+      },
+      "challengeEvidence": {
+        "kind": "taproot_asset_lightning_stablecoin_challenge",
+        "challengeId": "37ed0847f9300a023c52e9eb5c6576e565709fc32df1692b6c6044d40a4715f3",
+        "challengeCore": {
+          "version": 1,
+          "quoteId": "1f7a57ebf5bd5cef0a375f9b67e8d4559f0a421dc53193253bf3bf117563011a",
+          "observedAssetId": "59b147eaecbf09762942e96cb8204ee9b765ba147f5dffc7414bf48e23044e16",
+          "deliveredBtcSats": "0",
+          "observedSpreadPpm": 9000,
+          "observedRoutingFeePpm": 2500,
+          "observedBlock": 361,
+          "violations": [
+            "btc_route_amount_shortfall",
+            "spread_ppm_above_quote",
+            "routing_fee_ppm_above_quote",
+            "quote_expired_before_settlement"
+          ]
+        },
+        "slashable": true
+      },
+      "thesis": "Use BitVM/DLC commitments to make a Taproot Assets Edge-node RFQ and Lightning liquidity promise externally auditable and challengeable.",
+      "caveats": [
+        "The stablecoin issuer remains a separate trust assumption.",
+        "This validates evidence shape and commitments; production would verify tapd proofs and litd RFQ messages directly.",
+        "The edge node still performs the asset/BTC conversion; ordinary BTC Lightning routers do not need asset awareness."
+      ],
+      "references": [
+        "https://docs.lightning.engineering/the-lightning-network/taproot-assets/taproot-assets-protocol",
+        "https://docs.lightning.engineering/the-lightning-network/taproot-assets/edge-nodes",
+        "https://docs.lightning.engineering/lightning-network-tools/taproot-assets/rfq"
+      ]
+    },
+    "stablecoinVerification": {
+      "ok": true
+    },
+    "checks": {
+      "stablecoinVerified": true,
+      "assetTickerIsTlUsd": true,
+      "btcRouteMatchesLnFunding": true,
+      "tlusdUnitsPositive": true,
+      "paymentHashBound": true
+    }
+  },
+  "stake": {
+    "kind": "tlusd_liquidity_patch_stake",
+    "stakeCommitmentId": "7bd58616eaf5a2e48eeb2304143e12523c46d0a41c74bf46fea8f0a757ae67ee",
+    "stakeCore": {
+      "version": 1,
+      "protocol": "tlusd_liquidity_patch_stake",
+      "stakeId": "tlusd-liquidity-stake-regtest-1",
+      "ownerNodeId": "wallet-liquidity-provider-regtest",
+      "poolId": "ln-liquidity-patch-pool-regtest",
+      "assetId": "59b147eaecbf09762942e96cb8204ee9b765ba147f5dffc7414bf48e23044e16",
+      "assetTicker": "TLUSD",
+      "assetProofId": "b06e3c7be76e0ef3f39ef9907970a9a0347bca40678833fbe10914e5f25be390",
+      "conversionId": "383657933b6a25a5765e6bd00f438a76bcca97f371cdcba65dd456f36f711354",
+      "stakedTlUsdUnits": "40000000",
+      "routingNotionalSats": "40000",
+      "lockBlocks": 1008,
+      "targetYieldPpm": 4200,
+      "slashReserveUnits": "2000000",
+      "rewardSource": "ln_routing_fees_and_liquidity_patch_premiums",
+      "exitRule": "unstake after lock or challenge if Ark/LSP patch obligation fails"
+    },
+    "checks": {
+      "conversionVerified": true,
+      "stakeDoesNotExceedTlUsdBalance": true,
+      "routingNotionalBackedByLnBtc": true,
+      "slashReservePresent": true
+    }
+  },
+  "mandate": {
+    "kind": "tlusd_ark_ln_liquidity_patch_mandate",
+    "mandateId": "dba0322a82b7d6b8245c7a589a78c05f26ddf4e8c594ce543de631003707eb77",
+    "mandateCore": {
+      "version": 1,
+      "protocol": "tlusd_ark_ln_liquidity_patch_mandate",
+      "conversionId": "383657933b6a25a5765e6bd00f438a76bcca97f371cdcba65dd456f36f711354",
+      "stakeCommitmentId": "7bd58616eaf5a2e48eeb2304143e12523c46d0a41c74bf46fea8f0a757ae67ee",
+      "managerBundleId": "16ae7bbda1553209e7ff57db06ef01f6722781ef90516dce6a8586e7ba0d8672",
+      "policyId": "d7e5588dbcc352dec9b4b32809155394554866ca87ef2880a2b450b02327c3e5",
+      "allocationId": "e711d37ebb7f7ca00d232c9b2528c9aa9efc10bd3c96077e6810682bb08b1257",
+      "requestedInboundSats": "40000",
+      "assignedInboundSats": "40000",
+      "slashableAssignments": 1
+    },
+    "manager": {
+      "kind": "ark_ln_bitvm_liquidity_graft_manager_bundle",
+      "bundleId": "16ae7bbda1553209e7ff57db06ef01f6722781ef90516dce6a8586e7ba0d8672",
+      "managerCore": {
+        "version": 1,
+        "protocol": "ark_ln_bitvm_liquidity_graft_manager",
+        "managerId": "tlusd-ark-liquidity-patch-manager",
+        "inventoryId": "28b1c39fde431d9d9d2d4e6338a48c5078af918285f9d27ec8b63432949048a9",
+        "demandId": "c0f700fe83056eebcae9b25a42501c8653440b46290001b2c3114ddd5d5edb22",
+        "policyId": "d7e5588dbcc352dec9b4b32809155394554866ca87ef2880a2b450b02327c3e5",
+        "allocationId": "e711d37ebb7f7ca00d232c9b2528c9aa9efc10bd3c96077e6810682bb08b1257",
+        "challengeId": "03b53d7be7eb52dee32dc14ef5f522ae2a65d97f382d346d73f2cea5a09cfd4f",
+        "costModelId": "4e63f2a5eab1f7ccc7e0e0b2d036c78cff18ce90097837db7ef60519c7ba14a2",
+        "assignmentCount": 2,
+        "unmetRouteCount": 0,
+        "totals": {
+          "requestedInboundSats": "40000",
+          "assignedInboundSats": "40000",
+          "deliveredInboundSats": "36000",
+          "slashableAssignments": 1,
+          "settledAssignments": 1
+        }
+      },
+      "inventory": {
+        "kind": "ark_ln_liquidity_inventory",
+        "inventoryId": "28b1c39fde431d9d9d2d4e6338a48c5078af918285f9d27ec8b63432949048a9",
+        "inventoryCore": {
+          "version": 1,
+          "protocol": "ark_ln_liquidity_inventory",
+          "managerId": "tlusd-ark-liquidity-patch-manager",
+          "aspId": "ark-asp-regtest",
+          "inventoryEpoch": "regtest-epoch-1",
+          "templateCommitmentId": "3e09f985617c7ddf2f857cb82ffd6b545324bd0c5224d809d7fc0162b6adbc79",
+          "vtxos": [
+            {
+              "vtxoCommitmentId": "1b1659bc17c9832ccb2ca07007c150a241f265dcca4ff7d33db6fa3fd47014b9",
+              "vtxoId": "5bb9ce8ba9170c9ec9e7a47b1207dc7136011fa1f6175f4925c4abc6964fcaec",
+              "vtxoAmountSats": "30000",
+              "ownerNodeId": "ln-edge-1",
+              "aspRoundId": "ark-round-liquidity-1",
+              "connectorOutpoint": "7673819358f59489e91cbe21a8d223b45340488c8be8489c378708448e58bab7:0",
+              "exitTxid": "9d17ab8553bc7d698bc4176bfaecb0389b94be5bfca2bf98f5c6126dcbec0d57",
+              "forfeitTxid": "094fd8fa5cc8f446cd800b66ad15f4f00d43f70bd9e3858f6f7a805095b7939b",
+              "inventoryStatus": "available"
+            },
+            {
+              "vtxoCommitmentId": "3dfa5d683daeba871d29f3e92f73fe3af93200acfdde78d680e8fe6eb31e62b1",
+              "vtxoId": "0a2ff7f0895462e54eb1bb797f4d8187aa064007df056cf07eda499506b0a20f",
+              "vtxoAmountSats": "10000",
+              "ownerNodeId": "ln-edge-2",
+              "aspRoundId": "ark-round-liquidity-2",
+              "connectorOutpoint": "08f840eb427ff67dc6c02894efb8b94a4cec529968b0a6bb37831c7ea2466735:1",
+              "exitTxid": "9bb1bd89321df01ce218aeda4bd1de97e2ca107febeb432dff754b06f9b393bf",
+              "forfeitTxid": "370107849e29778f5f6d4816998a5bb9dfe1ed121140f2f81a8c09e8aa36bbd4",
+              "inventoryStatus": "available"
+            },
+            {
+              "vtxoCommitmentId": "7cb6042f9f620232872a3bc75bdc79c734bc7bbcd35d10faef2f3a7b65db58e7",
+              "vtxoId": "596c616e03e8e475137db3e83b8d609584676ca1b432bfa863e315a4523fb4dc",
+              "vtxoAmountSats": "10000",
+              "ownerNodeId": "ln-edge-3",
+              "aspRoundId": "ark-round-liquidity-3",
+              "connectorOutpoint": "8aaa5c6834df6c9cca554cbc9a1f7f281b2a31e0d5cc3a83fdba9b97c10ad4f4:2",
+              "exitTxid": "ed4bb0a25aca7b4faf6a8c9fe31b3ed6a974543552199a2c2db454a8da8bfc7a",
+              "forfeitTxid": "2320133428818f934f937d4385e3e8fc9d72ede2f8bf3cefa1e74e9c395f3e20",
+              "inventoryStatus": "available"
+            }
+          ]
+        },
+        "template": {
+          "kind": "ark_vtxo_template_commitment",
+          "templateCommitmentId": "3e09f985617c7ddf2f857cb82ffd6b545324bd0c5224d809d7fc0162b6adbc79",
+          "templateCore": {
+            "version": 1,
+            "protocol": "ark_vtxo_template",
+            "aspId": "ark-asp-regtest",
+            "templateId": "ark-template-tlusd-patch-v1",
+            "internalKeyHex": "bd5db8a0e67dbf15aa63ca3aa847229c9075681e9d3c74147fa4d8f2204fd609",
+            "taprootOutputKey": "72123a510c4e247e363f83ac59521c2591c727306adcfe59c117e64fc3d28bb7",
+            "leafRoles": [
+              "batch-settle",
+              "user-exit",
+              "asp-forfeit"
+            ],
+            "exitDelayBlocks": 144,
+            "aspForfeitCsv": 2000
+          }
+        },
+        "vtxos": [
+          {
+            "kind": "ark_vtxo_liquidity_commitment",
+            "vtxoCommitmentId": "1b1659bc17c9832ccb2ca07007c150a241f265dcca4ff7d33db6fa3fd47014b9",
+            "vtxoCore": {
+              "version": 1,
+              "protocol": "ark_vtxo_liquidity_graft",
+              "aspId": "ark-asp-regtest",
+              "templateId": "ark-template-tlusd-patch-v1",
+              "templateCommitmentId": "3e09f985617c7ddf2f857cb82ffd6b545324bd0c5224d809d7fc0162b6adbc79",
+              "vtxoId": "5bb9ce8ba9170c9ec9e7a47b1207dc7136011fa1f6175f4925c4abc6964fcaec",
+              "vtxoAmountSats": "30000",
+              "ownerNodeId": "ln-edge-1",
+              "aspRoundId": "ark-round-liquidity-1",
+              "connectorOutpoint": "7673819358f59489e91cbe21a8d223b45340488c8be8489c378708448e58bab7:0",
+              "taprootOutputKey": "72123a510c4e247e363f83ac59521c2591c727306adcfe59c117e64fc3d28bb7",
+              "forfeitTxid": "094fd8fa5cc8f446cd800b66ad15f4f00d43f70bd9e3858f6f7a805095b7939b",
+              "exitTxid": "9d17ab8553bc7d698bc4176bfaecb0389b94be5bfca2bf98f5c6126dcbec0d57",
+              "expiryBlock": 0
+            },
+            "inventoryStatus": "available"
+          },
+          {
+            "kind": "ark_vtxo_liquidity_commitment",
+            "vtxoCommitmentId": "3dfa5d683daeba871d29f3e92f73fe3af93200acfdde78d680e8fe6eb31e62b1",
+            "vtxoCore": {
+              "version": 1,
+              "protocol": "ark_vtxo_liquidity_graft",
+              "aspId": "ark-asp-regtest",
+              "templateId": "ark-template-tlusd-patch-v1",
+              "templateCommitmentId": "3e09f985617c7ddf2f857cb82ffd6b545324bd0c5224d809d7fc0162b6adbc79",
+              "vtxoId": "0a2ff7f0895462e54eb1bb797f4d8187aa064007df056cf07eda499506b0a20f",
+              "vtxoAmountSats": "10000",
+              "ownerNodeId": "ln-edge-2",
+              "aspRoundId": "ark-round-liquidity-2",
+              "connectorOutpoint": "08f840eb427ff67dc6c02894efb8b94a4cec529968b0a6bb37831c7ea2466735:1",
+              "taprootOutputKey": "72123a510c4e247e363f83ac59521c2591c727306adcfe59c117e64fc3d28bb7",
+              "forfeitTxid": "370107849e29778f5f6d4816998a5bb9dfe1ed121140f2f81a8c09e8aa36bbd4",
+              "exitTxid": "9bb1bd89321df01ce218aeda4bd1de97e2ca107febeb432dff754b06f9b393bf",
+              "expiryBlock": 0
+            },
+            "inventoryStatus": "available"
+          },
+          {
+            "kind": "ark_vtxo_liquidity_commitment",
+            "vtxoCommitmentId": "7cb6042f9f620232872a3bc75bdc79c734bc7bbcd35d10faef2f3a7b65db58e7",
+            "vtxoCore": {
+              "version": 1,
+              "protocol": "ark_vtxo_liquidity_graft",
+              "aspId": "ark-asp-regtest",
+              "templateId": "ark-template-tlusd-patch-v1",
+              "templateCommitmentId": "3e09f985617c7ddf2f857cb82ffd6b545324bd0c5224d809d7fc0162b6adbc79",
+              "vtxoId": "596c616e03e8e475137db3e83b8d609584676ca1b432bfa863e315a4523fb4dc",
+              "vtxoAmountSats": "10000",
+              "ownerNodeId": "ln-edge-3",
+              "aspRoundId": "ark-round-liquidity-3",
+              "connectorOutpoint": "8aaa5c6834df6c9cca554cbc9a1f7f281b2a31e0d5cc3a83fdba9b97c10ad4f4:2",
+              "taprootOutputKey": "72123a510c4e247e363f83ac59521c2591c727306adcfe59c117e64fc3d28bb7",
+              "forfeitTxid": "2320133428818f934f937d4385e3e8fc9d72ede2f8bf3cefa1e74e9c395f3e20",
+              "exitTxid": "ed4bb0a25aca7b4faf6a8c9fe31b3ed6a974543552199a2c2db454a8da8bfc7a",
+              "expiryBlock": 0
+            },
+            "inventoryStatus": "available"
+          }
+        ]
+      },
+      "demand": {
+        "kind": "lightning_route_liquidity_demand",
+        "demandId": "c0f700fe83056eebcae9b25a42501c8653440b46290001b2c3114ddd5d5edb22",
+        "demandCore": {
+          "version": 1,
+          "protocol": "lightning_route_liquidity_demand",
+          "managerId": "tlusd-ark-liquidity-patch-manager",
+          "demandEpoch": "regtest-demand-1",
+          "routeIntents": [
+            {
+              "routeId": "tlusd-edge-a-patch",
+              "edgeNodeId": "ldk-tlusd-edge-a",
+              "counterpartyNodeId": "ln-peer-1",
+              "requestedInboundSats": "30000",
+              "leaseBlocks": 144,
+              "maxFeePpm": 900,
+              "maxCltvDelta": 40,
+              "priority": 3,
+              "requiredByBlock": 0,
+              "paymentHashHex": "b2869a895541b2ba04d108e5dad5640eb9fa8a63b4e1c3d0b073119bebb9afe1"
+            },
+            {
+              "routeId": "tlusd-edge-b-patch",
+              "edgeNodeId": "ldk-tlusd-edge-b",
+              "counterpartyNodeId": "ln-peer-2",
+              "requestedInboundSats": "10000",
+              "leaseBlocks": 144,
+              "maxFeePpm": 1000,
+              "maxCltvDelta": 40,
+              "priority": 2,
+              "requiredByBlock": 0,
+              "paymentHashHex": "48d053cf2f7f6375a0e13ae0634fba8caa9b2362b2a3da2007e4799308515702"
+            }
+          ]
+        }
+      },
+      "policy": {
+        "kind": "bitvm_utxoref_ark_liquidity_enforcement_policy",
+        "policyId": "d7e5588dbcc352dec9b4b32809155394554866ca87ef2880a2b450b02327c3e5",
+        "policyCore": {
+          "version": 1,
+          "protocol": "bitvm_utxoref_ark_liquidity_enforcement_policy",
+          "managerId": "tlusd-ark-liquidity-patch-manager",
+          "governorCircuitId": "utxoref-ark-asp-pathing-v1",
+          "settlementWindowBlocks": 18,
+          "challengeWindowBlocks": 144,
+          "slashReserveSats": "25000",
+          "maxAspExposureSats": "160000",
+          "aspBondOutpoint": "035805cefa7a66b5a35e0a7bbf44b50d934977e51a8465754b5d6adc9ebca240:0",
+          "requireExitPath": true,
+          "requireForfeitPath": true,
+          "requireLightningPreimage": true,
+          "requireLeaseProof": true,
+          "enforcementHook": "utxo_referee_bitvm_asp_pathing_challenge"
+        }
+      },
+      "allocation": {
+        "kind": "ark_ln_liquidity_graft_allocation",
+        "allocationId": "e711d37ebb7f7ca00d232c9b2528c9aa9efc10bd3c96077e6810682bb08b1257",
+        "assignments": [
+          {
+            "kind": "ark_ln_liquidity_graft_assignment",
+            "assignmentId": "b4b6384a7e38f49fdc88903d409db6a3e912cab7b1392a985de2f48eefd83f04",
+            "assignmentCore": {
+              "version": 1,
+              "protocol": "ark_ln_liquidity_graft_assignment",
+              "managerId": "tlusd-ark-liquidity-patch-manager",
+              "inventoryId": "28b1c39fde431d9d9d2d4e6338a48c5078af918285f9d27ec8b63432949048a9",
+              "demandId": "c0f700fe83056eebcae9b25a42501c8653440b46290001b2c3114ddd5d5edb22",
+              "policyId": "d7e5588dbcc352dec9b4b32809155394554866ca87ef2880a2b450b02327c3e5",
+              "routeId": "tlusd-edge-a-patch",
+              "edgeNodeId": "ldk-tlusd-edge-a",
+              "vtxoCommitmentId": "1b1659bc17c9832ccb2ca07007c150a241f265dcca4ff7d33db6fa3fd47014b9",
+              "quoteId": "3e252b416a137ec89a15527b07ada38187c10dbb3058e08833e6bd612b3ef139",
+              "settlementId": "be572dad87e33869a16f68f9ee5d161d91ac3cf44b6f0c43b16341f7b1cc1498",
+              "challengeId": "19267048b7803ba96229d2df0bdba40439c9c3056d24d5d057a0a58716db2608",
+              "promisedInboundSats": "30000",
+              "deliveredInboundSats": "30000",
+              "status": "settled"
+            },
+            "route": {
+              "routeId": "tlusd-edge-a-patch",
+              "edgeNodeId": "ldk-tlusd-edge-a",
+              "counterpartyNodeId": "ln-peer-1",
+              "requestedInboundSats": "30000",
+              "leaseBlocks": 144,
+              "maxFeePpm": 900,
+              "maxCltvDelta": 40,
+              "priority": 3,
+              "requiredByBlock": 0,
+              "paymentHashHex": "b2869a895541b2ba04d108e5dad5640eb9fa8a63b4e1c3d0b073119bebb9afe1"
+            },
+            "vtxo": {
+              "kind": "ark_vtxo_liquidity_commitment",
+              "vtxoCommitmentId": "1b1659bc17c9832ccb2ca07007c150a241f265dcca4ff7d33db6fa3fd47014b9",
+              "vtxoCore": {
+                "version": 1,
+                "protocol": "ark_vtxo_liquidity_graft",
+                "aspId": "ark-asp-regtest",
+                "templateId": "ark-template-tlusd-patch-v1",
+                "templateCommitmentId": "3e09f985617c7ddf2f857cb82ffd6b545324bd0c5224d809d7fc0162b6adbc79",
+                "vtxoId": "5bb9ce8ba9170c9ec9e7a47b1207dc7136011fa1f6175f4925c4abc6964fcaec",
+                "vtxoAmountSats": "30000",
+                "ownerNodeId": "ln-edge-1",
+                "aspRoundId": "ark-round-liquidity-1",
+                "connectorOutpoint": "7673819358f59489e91cbe21a8d223b45340488c8be8489c378708448e58bab7:0",
+                "taprootOutputKey": "72123a510c4e247e363f83ac59521c2591c727306adcfe59c117e64fc3d28bb7",
+                "forfeitTxid": "094fd8fa5cc8f446cd800b66ad15f4f00d43f70bd9e3858f6f7a805095b7939b",
+                "exitTxid": "9d17ab8553bc7d698bc4176bfaecb0389b94be5bfca2bf98f5c6126dcbec0d57",
+                "expiryBlock": 0
+              },
+              "inventoryStatus": "available"
+            },
+            "quote": {
+              "kind": "ark_ln_liquidity_graft_quote",
+              "quoteId": "3e252b416a137ec89a15527b07ada38187c10dbb3058e08833e6bd612b3ef139",
+              "quoteCore": {
+                "version": 1,
+                "protocol": "ark_ln_liquidity_graft_quote",
+                "aspId": "ark-asp-regtest",
+                "templateId": "ark-template-tlusd-patch-v1",
+                "vtxoCommitmentId": "1b1659bc17c9832ccb2ca07007c150a241f265dcca4ff7d33db6fa3fd47014b9",
+                "promisedInboundSats": "30000",
+                "leaseBlocks": 144,
+                "maxFeePpm": 900,
+                "maxCltvDelta": 40,
+                "graftPremiumSats": "750",
+                "paymentHashHex": "b2869a895541b2ba04d108e5dad5640eb9fa8a63b4e1c3d0b073119bebb9afe1"
+              },
+              "obligation": "ASP/LSP makes Ark VTXO liquidity available to an LN edge route under the advertised fee and CLTV bounds."
+            },
+            "settlementEvidence": {
+              "kind": "ark_ln_liquidity_graft_settlement_evidence",
+              "settlementId": "be572dad87e33869a16f68f9ee5d161d91ac3cf44b6f0c43b16341f7b1cc1498",
+              "settlementCore": {
+                "version": 1,
+                "quoteId": "3e252b416a137ec89a15527b07ada38187c10dbb3058e08833e6bd612b3ef139",
+                "vtxoCommitmentId": "1b1659bc17c9832ccb2ca07007c150a241f265dcca4ff7d33db6fa3fd47014b9",
+                "liquidityLeaseBundleId": "6b1278ad5dc15bf6d73f9d0ad40642581c13bd2f5f20926300c32a919dc7624b",
+                "deliveredInboundSats": "30000",
+                "observedFeePpm": 900,
+                "observedCltvDelta": 40,
+                "observedBlock": 0,
+                "paymentHashHex": "b2869a895541b2ba04d108e5dad5640eb9fa8a63b4e1c3d0b073119bebb9afe1",
+                "preimageHashHex": "b2869a895541b2ba04d108e5dad5640eb9fa8a63b4e1c3d0b073119bebb9afe1",
+                "lnClaimTxid": "fd3e97d30b39c04dea7748cd5a7e8b057bf9e0f7656a6be7d9733c413828be43",
+                "channelOrSpliceOutpoint": "fd3e97d30b39c04dea7748cd5a7e8b057bf9e0f7656a6be7d9733c413828be43:0",
+                "arkRoundId": "ark-round-liquidity-1",
+                "arkExitTxid": "9d17ab8553bc7d698bc4176bfaecb0389b94be5bfca2bf98f5c6126dcbec0d57",
+                "arkForfeitTxid": "094fd8fa5cc8f446cd800b66ad15f4f00d43f70bd9e3858f6f7a805095b7939b"
+              },
+              "checks": {
+                "templateBindsVtxo": true,
+                "vtxoCoversPromisedInbound": true,
+                "deliveredInboundMet": true,
+                "feeCeilingMet": true,
+                "cltvCeilingMet": true,
+                "paymentHashMatched": true,
+                "arkExitPathPresent": true,
+                "arkForfeitPathPresent": true,
+                "bitvmLeaseVerified": true
+              }
+            },
+            "challengeEvidence": {
+              "kind": "ark_ln_liquidity_graft_challenge",
+              "challengeId": "19267048b7803ba96229d2df0bdba40439c9c3056d24d5d057a0a58716db2608",
+              "challengeCore": {
+                "version": 1,
+                "quoteId": "3e252b416a137ec89a15527b07ada38187c10dbb3058e08833e6bd612b3ef139",
+                "deliveredInboundSats": "30000",
+                "observedFeePpm": 900,
+                "observedCltvDelta": 40,
+                "missingExitPath": false,
+                "missingForfeitPath": false,
+                "violations": []
+              },
+              "slashable": false
+            }
+          },
+          {
+            "kind": "ark_ln_liquidity_graft_assignment",
+            "assignmentId": "2b4b9e619fbdc1f4290961df0c3145ec0ab10441dbfefcae95c14221a5f32c9c",
+            "assignmentCore": {
+              "version": 1,
+              "protocol": "ark_ln_liquidity_graft_assignment",
+              "managerId": "tlusd-ark-liquidity-patch-manager",
+              "inventoryId": "28b1c39fde431d9d9d2d4e6338a48c5078af918285f9d27ec8b63432949048a9",
+              "demandId": "c0f700fe83056eebcae9b25a42501c8653440b46290001b2c3114ddd5d5edb22",
+              "policyId": "d7e5588dbcc352dec9b4b32809155394554866ca87ef2880a2b450b02327c3e5",
+              "routeId": "tlusd-edge-b-patch",
+              "edgeNodeId": "ldk-tlusd-edge-b",
+              "vtxoCommitmentId": "3dfa5d683daeba871d29f3e92f73fe3af93200acfdde78d680e8fe6eb31e62b1",
+              "quoteId": "60ef4d63d760260c1de4ea1f9532bc6fcd9ebb4b1d1ef41a68a019f6ed7ff462",
+              "settlementId": "db3a914d0ad7539dfc9e03b7d2de9f943b1ac607a747bc6aaa2aa44efb4ace19",
+              "challengeId": "5fbd7d05f498c40ed41f602ad0613287c14b200ce81c2f8031d5286ce631f86d",
+              "promisedInboundSats": "10000",
+              "deliveredInboundSats": "6000",
+              "status": "slashable"
+            },
+            "route": {
+              "routeId": "tlusd-edge-b-patch",
+              "edgeNodeId": "ldk-tlusd-edge-b",
+              "counterpartyNodeId": "ln-peer-2",
+              "requestedInboundSats": "10000",
+              "leaseBlocks": 144,
+              "maxFeePpm": 1000,
+              "maxCltvDelta": 40,
+              "priority": 2,
+              "requiredByBlock": 0,
+              "paymentHashHex": "48d053cf2f7f6375a0e13ae0634fba8caa9b2362b2a3da2007e4799308515702"
+            },
+            "vtxo": {
+              "kind": "ark_vtxo_liquidity_commitment",
+              "vtxoCommitmentId": "3dfa5d683daeba871d29f3e92f73fe3af93200acfdde78d680e8fe6eb31e62b1",
+              "vtxoCore": {
+                "version": 1,
+                "protocol": "ark_vtxo_liquidity_graft",
+                "aspId": "ark-asp-regtest",
+                "templateId": "ark-template-tlusd-patch-v1",
+                "templateCommitmentId": "3e09f985617c7ddf2f857cb82ffd6b545324bd0c5224d809d7fc0162b6adbc79",
+                "vtxoId": "0a2ff7f0895462e54eb1bb797f4d8187aa064007df056cf07eda499506b0a20f",
+                "vtxoAmountSats": "10000",
+                "ownerNodeId": "ln-edge-2",
+                "aspRoundId": "ark-round-liquidity-2",
+                "connectorOutpoint": "08f840eb427ff67dc6c02894efb8b94a4cec529968b0a6bb37831c7ea2466735:1",
+                "taprootOutputKey": "72123a510c4e247e363f83ac59521c2591c727306adcfe59c117e64fc3d28bb7",
+                "forfeitTxid": "370107849e29778f5f6d4816998a5bb9dfe1ed121140f2f81a8c09e8aa36bbd4",
+                "exitTxid": "9bb1bd89321df01ce218aeda4bd1de97e2ca107febeb432dff754b06f9b393bf",
+                "expiryBlock": 0
+              },
+              "inventoryStatus": "available"
+            },
+            "quote": {
+              "kind": "ark_ln_liquidity_graft_quote",
+              "quoteId": "60ef4d63d760260c1de4ea1f9532bc6fcd9ebb4b1d1ef41a68a019f6ed7ff462",
+              "quoteCore": {
+                "version": 1,
+                "protocol": "ark_ln_liquidity_graft_quote",
+                "aspId": "ark-asp-regtest",
+                "templateId": "ark-template-tlusd-patch-v1",
+                "vtxoCommitmentId": "3dfa5d683daeba871d29f3e92f73fe3af93200acfdde78d680e8fe6eb31e62b1",
+                "promisedInboundSats": "10000",
+                "leaseBlocks": 144,
+                "maxFeePpm": 1000,
+                "maxCltvDelta": 40,
+                "graftPremiumSats": "750",
+                "paymentHashHex": "48d053cf2f7f6375a0e13ae0634fba8caa9b2362b2a3da2007e4799308515702"
+              },
+              "obligation": "ASP/LSP makes Ark VTXO liquidity available to an LN edge route under the advertised fee and CLTV bounds."
+            },
+            "settlementEvidence": {
+              "kind": "ark_ln_liquidity_graft_settlement_evidence",
+              "settlementId": "db3a914d0ad7539dfc9e03b7d2de9f943b1ac607a747bc6aaa2aa44efb4ace19",
+              "settlementCore": {
+                "version": 1,
+                "quoteId": "60ef4d63d760260c1de4ea1f9532bc6fcd9ebb4b1d1ef41a68a019f6ed7ff462",
+                "vtxoCommitmentId": "3dfa5d683daeba871d29f3e92f73fe3af93200acfdde78d680e8fe6eb31e62b1",
+                "liquidityLeaseBundleId": "6b1278ad5dc15bf6d73f9d0ad40642581c13bd2f5f20926300c32a919dc7624b",
+                "deliveredInboundSats": "6000",
+                "observedFeePpm": 1500,
+                "observedCltvDelta": 60,
+                "observedBlock": 0,
+                "paymentHashHex": "48d053cf2f7f6375a0e13ae0634fba8caa9b2362b2a3da2007e4799308515702",
+                "preimageHashHex": "48d053cf2f7f6375a0e13ae0634fba8caa9b2362b2a3da2007e4799308515702",
+                "lnClaimTxid": "fd3e97d30b39c04dea7748cd5a7e8b057bf9e0f7656a6be7d9733c413828be43",
+                "channelOrSpliceOutpoint": "fd3e97d30b39c04dea7748cd5a7e8b057bf9e0f7656a6be7d9733c413828be43:0",
+                "arkRoundId": "ark-round-liquidity-2",
+                "arkExitTxid": "9bb1bd89321df01ce218aeda4bd1de97e2ca107febeb432dff754b06f9b393bf",
+                "arkForfeitTxid": "370107849e29778f5f6d4816998a5bb9dfe1ed121140f2f81a8c09e8aa36bbd4"
+              },
+              "checks": {
+                "templateBindsVtxo": true,
+                "vtxoCoversPromisedInbound": true,
+                "deliveredInboundMet": false,
+                "feeCeilingMet": false,
+                "cltvCeilingMet": false,
+                "paymentHashMatched": true,
+                "arkExitPathPresent": true,
+                "arkForfeitPathPresent": true,
+                "bitvmLeaseVerified": true
+              }
+            },
+            "challengeEvidence": {
+              "kind": "ark_ln_liquidity_graft_challenge",
+              "challengeId": "5fbd7d05f498c40ed41f602ad0613287c14b200ce81c2f8031d5286ce631f86d",
+              "challengeCore": {
+                "version": 1,
+                "quoteId": "60ef4d63d760260c1de4ea1f9532bc6fcd9ebb4b1d1ef41a68a019f6ed7ff462",
+                "deliveredInboundSats": "6000",
+                "observedFeePpm": 1500,
+                "observedCltvDelta": 60,
+                "missingExitPath": false,
+                "missingForfeitPath": true,
+                "violations": [
+                  "insufficient_ark_grafted_liquidity",
+                  "fee_ppm_above_graft_quote",
+                  "cltv_delta_above_graft_quote",
+                  "missing_ark_forfeit_path"
+                ]
+              },
+              "slashable": true
+            }
+          }
+        ],
+        "unmetRoutes": [],
+        "totals": {
+          "requestedInboundSats": "40000",
+          "assignedInboundSats": "40000",
+          "deliveredInboundSats": "36000",
+          "slashableAssignments": 1,
+          "settledAssignments": 1
+        }
+      },
+      "challengeEvidence": {
+        "kind": "bitvm_utxoref_ark_liquidity_manager_challenge",
+        "challengeId": "03b53d7be7eb52dee32dc14ef5f522ae2a65d97f382d346d73f2cea5a09cfd4f",
+        "challengeCore": {
+          "version": 1,
+          "protocol": "bitvm_utxoref_ark_liquidity_manager_challenge",
+          "managerId": "tlusd-ark-liquidity-patch-manager",
+          "policyId": "d7e5588dbcc352dec9b4b32809155394554866ca87ef2880a2b450b02327c3e5",
+          "assignmentChallenges": [
+            {
+              "routeId": "tlusd-edge-b-patch",
+              "assignmentId": "2b4b9e619fbdc1f4290961df0c3145ec0ab10441dbfefcae95c14221a5f32c9c",
+              "quoteId": "60ef4d63d760260c1de4ea1f9532bc6fcd9ebb4b1d1ef41a68a019f6ed7ff462",
+              "challengeId": "5fbd7d05f498c40ed41f602ad0613287c14b200ce81c2f8031d5286ce631f86d",
+              "violations": [
+                "insufficient_ark_grafted_liquidity",
+                "fee_ppm_above_graft_quote",
+                "cltv_delta_above_graft_quote",
+                "missing_ark_forfeit_path"
+              ]
+            }
+          ],
+          "unmetRoutes": [],
+          "violations": [
+            "assignment_liquidity_obligation_failed"
+          ]
+        },
+        "slashable": true,
+        "remedy": "slash ASP bond or force Ark exit/forfeit path through UTXORef challenge"
+      },
+      "costModel": {
+        "kind": "ark_ln_liquidity_graft_cost_model",
+        "modelId": "4e63f2a5eab1f7ccc7e0e0b2d036c78cff18ce90097837db7ef60519c7ba14a2",
+        "modelCore": {
+          "version": 1,
+          "protocol": "ark_ln_liquidity_graft_cost_model",
+          "graftCount": 2,
+          "graftAmountSats": "20000",
+          "feeRateSatVb": 25,
+          "baseline": {
+            "channelOpenVbytes": 154,
+            "channelCloseVbytes": 154,
+            "spliceVbytes": 220,
+            "rebalanceFeePpm": 1200,
+            "perGraftSats": "13224",
+            "totalSats": "26448"
+          },
+          "ark": {
+            "arkRoundVbytes": 420,
+            "arkRoundParticipants": 24,
+            "arkAspFeePpm": 250,
+            "arkExitReserveVbytes": 180,
+            "arkExitProbabilityBps": 50,
+            "roundShareSats": "438",
+            "expectedExitSats": "22",
+            "bitvmChallengeReserveSats": "25000",
+            "perGraftSats": "465",
+            "totalSats": "25930"
+          },
+          "comparison": {
+            "savingsSats": "518",
+            "savingsBps": 195,
+            "breakEvenGrafts": 2,
+            "saferMarginalCost": true,
+            "lowerTotalCost": true
+          }
+        },
+        "interpretation": "Ark makes short-lived liquidity patching cheaper when batched round share plus ASP fee plus expected exit cost is below repeated LN channel/splice/rebalance cost."
+      },
+      "thesis": "A manager can graft Ark VTXO liquidity onto Lightning edge routes while BitVM/UTXORef governs ASP pathing power and turns under-delivery into slashable evidence.",
+      "caveats": [
+        "This is a deterministic evidence-shape prototype, not a live ASP integration.",
+        "Production needs real Ark round signatures, VTXO membership proofs, LDK/LND route observations, and BitVM challenge transaction construction.",
+        "The manager optimizes fee surface and enforcement, but it does not create net liquidity; it reallocates pledged liquidity with stronger failure handling."
+      ]
+    },
+    "managerVerification": {
+      "ok": true
+    },
+    "checks": {
+      "stakeVerified": true,
+      "managerVerified": true,
+      "assignedLiquidityPresent": true,
+      "assignedLiquidityWithinStakeNotional": true,
+      "bitvmChallengeSurfacePresent": true
+    }
+  },
+  "thesis": "LN-BTC can fund UTXORef, externalize as BTC-based tlUSD for wallet UX, and be staked into an Ark-managed liquidity patching service with BitVM enforcement.",
+  "caveats": [
+    "This is an evidence-shape prototype; it does not mint production Taproot Assets or execute real Ark rounds.",
+    "tlUSD issuer/perp solvency remains a separate risk surface from LN route execution.",
+    "The liquidity patch improves deployability and marginal routing cost, but it reallocates pledged liquidity rather than creating net liquidity."
+  ],
+  "verification": {
+    "ok": true
+  }
+}

@@ -13,6 +13,7 @@ const arkGraftPath = path.join(artifactDir, 'lightning_ark_liquidity_graft_lates
 const arkGovernorBenchPath = path.join(artifactDir, 'ark_liquidity_governor_bench_latest.json');
 const arkDlcSettlementPath = path.join(artifactDir, 'ark_dlc_settlement_latest.json');
 const arkLiquidityGraftManagerPath = path.join(artifactDir, 'ark_liquidity_graft_manager_latest.json');
+const lnbtcTlusdLiquidityPatchPath = path.join(artifactDir, 'lnbtc_tlusd_liquidity_patch_latest.json');
 
 function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, 'utf8'));
@@ -308,6 +309,82 @@ function arkLiquidityGraftManagerWalletView(manager) {
   };
 }
 
+function lnbtcTlusdLiquidityPatchWalletView(patch) {
+  const bundle = patch.verification ? patch : { ...patch, verification: { ok: true } };
+  const conversion = bundle.conversion.conversionCore;
+  const asset = bundle.conversion.stablecoin.asset.descriptorCore;
+  const stake = bundle.stake.stakeCore;
+  const manager = bundle.mandate.manager;
+  const totals = manager.allocation.totals;
+  return {
+    kind: 'wallet_lnbtc_tlusd_liquidity_patch_view',
+    status: bundle.verification.ok ? 'verified' : 'needs_attention',
+    title: 'LN-BTC to tlUSD Liquidity Patch',
+    subtitle: `${conversion.lnbtcSats} sats externalized as ${asset.ticker}, ${stake.stakedTlUsdUnits} units staked for LN patching`,
+    bundleId: bundle.bundleId,
+    conversion: {
+      conversionId: bundle.conversion.conversionId,
+      lnbtcSats: conversion.lnbtcSats,
+      btcUsdPriceMicros: conversion.btcUsdPriceMicros,
+      tlusdUnits: conversion.tlusdUnits,
+      assetTicker: asset.ticker,
+      assetId: asset.assetId,
+      assetProofId: conversion.assetProofId,
+      rfqQuoteId: conversion.rfqQuoteId,
+      settlementId: conversion.settlementId,
+      subswapFundingTxid: conversion.subswapFundingTxid,
+      dlcFundingTxid: conversion.dlcFundingTxid,
+      checks: bundle.conversion.checks
+    },
+    stake: {
+      stakeCommitmentId: bundle.stake.stakeCommitmentId,
+      poolId: stake.poolId,
+      ownerNodeId: stake.ownerNodeId,
+      stakedTlUsdUnits: stake.stakedTlUsdUnits,
+      routingNotionalSats: stake.routingNotionalSats,
+      lockBlocks: stake.lockBlocks,
+      targetYieldPpm: stake.targetYieldPpm,
+      slashReserveUnits: stake.slashReserveUnits,
+      checks: bundle.stake.checks
+    },
+    liquidityPatch: {
+      mandateId: bundle.mandate.mandateId,
+      managerBundleId: manager.bundleId,
+      policyId: manager.policy.policyId,
+      allocationId: manager.allocation.allocationId,
+      totals,
+      assignments: manager.allocation.assignments.map(assignment => ({
+        routeId: assignment.assignmentCore.routeId,
+        status: assignment.assignmentCore.status,
+        promisedInboundSats: assignment.assignmentCore.promisedInboundSats,
+        deliveredInboundSats: assignment.assignmentCore.deliveredInboundSats,
+        quoteId: assignment.quote.quoteId,
+        slashable: assignment.challengeEvidence.slashable,
+        violations: assignment.challengeEvidence.challengeCore.violations
+      })),
+      challenge: {
+        slashable: manager.challengeEvidence.slashable,
+        challengeId: manager.challengeEvidence.challengeId,
+        remedy: manager.challengeEvidence.remedy,
+        violations: manager.challengeEvidence.challengeCore.violations
+      },
+      costModel: {
+        baselinePerGraftSats: manager.costModel.modelCore.baseline.perGraftSats,
+        arkPerGraftSats: manager.costModel.modelCore.ark.perGraftSats,
+        baselineTotalSats: manager.costModel.modelCore.baseline.totalSats,
+        arkTotalSats: manager.costModel.modelCore.ark.totalSats,
+        savingsSats: manager.costModel.modelCore.comparison.savingsSats,
+        saferMarginalCost: manager.costModel.modelCore.comparison.saferMarginalCost
+      }
+    },
+    actions: [
+      { id: 'verify_lnbtc_tlusd_patch', label: 'Verify end-to-end patch' },
+      { id: 'show_tlusd_stake', label: 'Show tlUSD stake' },
+      { id: 'prepare_patch_challenge', label: 'Prepare patch challenge' }
+    ]
+  };
+}
+
 async function handle(req, res) {
   if (req.method === 'OPTIONS') return sendJson(res, 204, {});
 
@@ -358,6 +435,14 @@ async function handle(req, res) {
 
     if (req.method === 'GET' && req.url === '/v1/ark-liquidity-graft-manager/wallet-view') {
       return sendJson(res, 200, arkLiquidityGraftManagerWalletView(readJson(arkLiquidityGraftManagerPath)));
+    }
+
+    if (req.method === 'GET' && req.url === '/v1/lnbtc-tlusd-liquidity-patch/latest') {
+      return sendJson(res, 200, readJson(lnbtcTlusdLiquidityPatchPath));
+    }
+
+    if (req.method === 'GET' && req.url === '/v1/lnbtc-tlusd-liquidity-patch/wallet-view') {
+      return sendJson(res, 200, lnbtcTlusdLiquidityPatchWalletView(readJson(lnbtcTlusdLiquidityPatchPath)));
     }
 
     if (req.method === 'GET' && req.url === '/v1/ark-dlc-settlement/latest') {
@@ -479,6 +564,35 @@ async function handle(req, res) {
       });
     }
 
+    if (req.method === 'POST' && req.url === '/v1/lnbtc-tlusd-liquidity-patch/verify') {
+      const patch = readJson(lnbtcTlusdLiquidityPatchPath);
+      return sendJson(res, 200, {
+        ok: Boolean(patch.verification && patch.verification.ok),
+        reason: patch.verification && patch.verification.reason,
+        bundleId: patch.bundleId,
+        conversionId: patch.conversion.conversionId,
+        stakeCommitmentId: patch.stake.stakeCommitmentId,
+        mandateId: patch.mandate.mandateId,
+        lnbtcSats: patch.conversion.conversionCore.lnbtcSats,
+        tlusdUnits: patch.conversion.conversionCore.tlusdUnits,
+        stakedTlUsdUnits: patch.stake.stakeCore.stakedTlUsdUnits,
+        assignedInboundSats: patch.mandate.manager.allocation.totals.assignedInboundSats,
+        slashableAssignments: patch.mandate.manager.allocation.totals.slashableAssignments
+      });
+    }
+
+    if (req.method === 'POST' && req.url === '/v1/lnbtc-tlusd-liquidity-patch/challenge') {
+      const patch = readJson(lnbtcTlusdLiquidityPatchPath);
+      const manager = patch.mandate.manager;
+      return sendJson(res, 200, {
+        slashable: manager.challengeEvidence.slashable,
+        challengeId: manager.challengeEvidence.challengeId,
+        remedy: manager.challengeEvidence.remedy,
+        assignmentChallenges: manager.challengeEvidence.challengeCore.assignmentChallenges,
+        violations: manager.challengeEvidence.challengeCore.violations
+      });
+    }
+
     if (req.method === 'POST' && req.url === '/v1/ark-dlc-settlement/verify') {
       const arkDlc = readJson(arkDlcSettlementPath);
       return sendJson(res, 200, {
@@ -525,6 +639,7 @@ module.exports = {
   arkGraftWalletView,
   arkDlcSettlementWalletView,
   arkLiquidityGraftManagerWalletView,
+  lnbtcTlusdLiquidityPatchWalletView,
   handle,
   server
 };

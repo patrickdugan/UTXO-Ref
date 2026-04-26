@@ -270,6 +270,41 @@ This is still an evidence-shape prototype. It shows how a serving wallet or LSP
 could farm routing yield by allocating pledged Ark liquidity, while BitVM acts
 as the check against ASP pathing failures.
 
+## LN-BTC to tlUSD Liquidity Patch Prototype
+
+The end-to-end liquidity patch prototype composes the current pieces into one
+wallet/operator flow:
+
+- LN-BTC funds UTXORef through the submarine-swap-shaped funding proof.
+- The BTC-backed position is externalized as `TLUSD` using the Taproot
+  Assets/RFQ evidence shape.
+- The wallet stakes `TLUSD` into a liquidity patch pool.
+- Ark assigns cheap temporary VTXO liquidity to LN routes.
+- BitVM/UTXORef keeps ASP/LSP path failures challengeable.
+
+Generate the current artifact:
+
+```bash
+node bitvm3/utxo_referee/lnbtc_tlusd_liquidity_patch_demo.js
+```
+
+This writes:
+
+- `bitvm3/utxo_referee/artifacts/lnbtc_tlusd_liquidity_patch_latest.json`
+- `bitvm3/utxo_referee/artifacts/lnbtc_tlusd_liquidity_patch_latest.md`
+
+The sidecar exposes:
+
+```text
+GET  http://127.0.0.1:8787/v1/lnbtc-tlusd-liquidity-patch/latest
+GET  http://127.0.0.1:8787/v1/lnbtc-tlusd-liquidity-patch/wallet-view
+POST http://127.0.0.1:8787/v1/lnbtc-tlusd-liquidity-patch/verify
+POST http://127.0.0.1:8787/v1/lnbtc-tlusd-liquidity-patch/challenge
+```
+
+This is the adoption-facing story: users can hold a BTC-based dollar asset in a
+Lightning wallet while opt-in staking supplies fee-optimized routing liquidity.
+
 ## Ark / UTXORef Governor Throughput Bench
 
 The Rust harness in `integrations/ark-liquidity-governor-bench` models the

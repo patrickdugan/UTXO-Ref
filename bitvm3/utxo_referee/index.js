@@ -54,6 +54,7 @@ const lightningTaprootAssetsStablecoin = require('./lightning_taproot_assets_sta
 const lightningArkLiquidityGraft = require('./lightning_ark_liquidity_graft');
 const arkDlcSettlement = require('./ark_dlc_settlement');
 const arkLiquidityGraftManager = require('./ark_liquidity_graft_manager');
+const lnbtcTlusdLiquidityPatch = require('./lnbtc_tlusd_liquidity_patch');
 
 module.exports = {
   // Types
@@ -187,6 +188,12 @@ module.exports = {
   buildArkLiquidityManagerChallenge: arkLiquidityGraftManager.buildArkLiquidityManagerChallenge,
   buildArkLiquidityGraftManagerBundle: arkLiquidityGraftManager.buildArkLiquidityGraftManagerBundle,
   verifyArkLiquidityGraftManagerBundle: arkLiquidityGraftManager.verifyArkLiquidityGraftManagerBundle,
+  usdUnitsFromBtcSats: lnbtcTlusdLiquidityPatch.usdUnitsFromBtcSats,
+  buildLnBtcToTlUsdConversion: lnbtcTlusdLiquidityPatch.buildLnBtcToTlUsdConversion,
+  buildTlUsdLiquidityStake: lnbtcTlusdLiquidityPatch.buildTlUsdLiquidityStake,
+  buildLiquidityPatchMandate: lnbtcTlusdLiquidityPatch.buildLiquidityPatchMandate,
+  buildLnBtcTlUsdLiquidityPatchBundle: lnbtcTlusdLiquidityPatch.buildLnBtcTlUsdLiquidityPatchBundle,
+  verifyLnBtcTlUsdLiquidityPatchBundle: lnbtcTlusdLiquidityPatch.verifyLnBtcTlUsdLiquidityPatchBundle,
   resolvePipelineOptions: m1Pipeline.resolvePipelineOptions,
   buildPipelinePlan: m1Pipeline.buildPipelinePlan,
   buildPipelineSummary: m1Pipeline.buildPipelineSummary,
@@ -219,5 +226,6 @@ module.exports = {
   lightningTaprootAssetsStablecoin,
   lightningArkLiquidityGraft,
   arkDlcSettlement,
-  arkLiquidityGraftManager
+  arkLiquidityGraftManager,
+  lnbtcTlusdLiquidityPatch
 };
