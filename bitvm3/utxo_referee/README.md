@@ -620,6 +620,10 @@ This writes:
 
 Details are in `LIGHTNING_LIVE_TESTNET_DEMO.md`.
 
+For a wallet-fork demo that uses Bitcoin testnet as a remote/proof-backed UI
+target while keeping Litecoin testnet as the local live chain harness, see
+`TESTNET_WALLET_DEMO_PLAN.md`.
+
 To start a local Core Lightning regtest sandbox and pay a real invoice over a
 live Alice-to-Bob channel, run:
 
