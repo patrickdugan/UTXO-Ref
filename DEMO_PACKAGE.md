@@ -37,6 +37,7 @@ Dashboard:
 
 ```text
 http://127.0.0.1:8787/dashboard
+http://127.0.0.1:8787/v1/wallet-demo/stress-dashboard?bots=5000
 ```
 
 ## Current Demo Output
@@ -80,6 +81,18 @@ Stress dashboard:
 - `integrations/wallet-demo/dashboard.html`
 - `integrations/wallet-demo/dashboard.css`
 - `integrations/wallet-demo/dashboard.js`
+- `integrations/wallet-demo/run_stress_simulation.js`
+
+Run the stress simulation report directly:
+
+```powershell
+node integrations/wallet-demo/run_stress_simulation.js --scenarios 96,512,2048,5000
+```
+
+This writes:
+
+- `bitvm3/utxo_referee/artifacts/wallet_stress_simulation_latest.json`
+- `bitvm3/utxo_referee/artifacts/wallet_stress_simulation_latest.md`
 
 LDK server-style API sketch:
 

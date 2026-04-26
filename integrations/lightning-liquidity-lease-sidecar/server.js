@@ -489,12 +489,14 @@ async function handle(req, res) {
       return sendJson(res, 200, walletDemoStatus());
     }
 
-    if (req.method === 'GET' && req.url === '/v1/wallet-demo/stress-dashboard') {
+    if (req.method === 'GET' && req.url.startsWith('/v1/wallet-demo/stress-dashboard')) {
+      const requestUrl = new URL(req.url, 'http://127.0.0.1');
+      const botCount = Number(requestUrl.searchParams.get('bots') || process.env.WALLET_DEMO_BOT_COUNT || 96);
       const config = buildWalletDemoConfig(process.env);
       const dashboard = buildStressDashboard({
         patch: readJson(lnbtcTlusdLiquidityPatchPath),
         config,
-        botCount: Number(process.env.WALLET_DEMO_BOT_COUNT || 96)
+        botCount
       });
       return sendJson(res, 200, { ...dashboard, verification: verifyStressDashboard(dashboard) });
     }

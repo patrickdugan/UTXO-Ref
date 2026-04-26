@@ -44,6 +44,7 @@ if (-not $SkipTests) {
     node bitvm3/utxo_referee/lnbtc_tlusd_liquidity_patch.test.js
     node integrations/wallet-demo/walletBackendProfiles.test.js
     node integrations/wallet-demo/stressDashboard.test.js
+    node integrations/wallet-demo/run_stress_simulation.js --scenarios 96,512,2048,5000
     node bitvm3/utxo_referee/lightning_wallet_integration.test.js
     node -c integrations/lightning-liquidity-lease-sidecar/server.js
   }
