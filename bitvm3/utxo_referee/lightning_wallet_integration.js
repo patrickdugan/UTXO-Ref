@@ -36,6 +36,7 @@ function buildWalletIntegrationManifest({ leaseBundle, subswapProof }) {
     ldkProto: 'integrations/ldk-server/liquidity_lease.proto',
     zeusScreen: 'integrations/zeus/LiquidityLeaseScreen.tsx',
     zeusTlusdPatchScreen: 'integrations/zeus/TlusdLiquidityPatchScreen.tsx',
+    zeusWalletDemoSettingsScreen: 'integrations/zeus/WalletDemoSettingsScreen.tsx',
     zeusTlusdPatchClient: 'integrations/zeus/tlusdLiquidityPatchClient.ts',
     walletBackendProfiles: 'integrations/wallet-demo/walletBackendProfiles.js',
     sidecar: 'integrations/lightning-liquidity-lease-sidecar/server.js'
@@ -64,12 +65,14 @@ function buildWalletIntegrationManifest({ leaseBundle, subswapProof }) {
       clientFile: 'integrations/zeus/liquidityLeaseClient.ts',
       tlusdPatch: {
         screenFile: manifestCore.zeusTlusdPatchScreen,
+        settingsScreenFile: manifestCore.zeusWalletDemoSettingsScreen,
         clientFile: manifestCore.zeusTlusdPatchClient,
         backendProfiles: manifestCore.walletBackendProfiles,
         demoProfile: 'litecoin-testnet-local',
         goLiveProfile: 'bitcoin-testnet-lnd',
         endpoints: [
           'GET /v1/wallet-demo/config',
+          'GET /v1/wallet-demo/status',
           'GET /v1/lnbtc-tlusd-liquidity-patch/wallet-view',
           'POST /v1/lnbtc-tlusd-liquidity-patch/verify',
           'POST /v1/lnbtc-tlusd-liquidity-patch/challenge'
@@ -107,6 +110,9 @@ function verifyWalletIntegrationManifest(manifest) {
   }
   if (manifest.zeus.tlusdPatch.goLiveProfile !== 'bitcoin-testnet-lnd') {
     return { ok: false, reason: 'missing bitcoin testnet LND go-live profile' };
+  }
+  if (!manifest.zeus.tlusdPatch.settingsScreenFile.endsWith('WalletDemoSettingsScreen.tsx')) {
+    return { ok: false, reason: 'missing wallet demo settings screen' };
   }
   return { ok: true };
 }

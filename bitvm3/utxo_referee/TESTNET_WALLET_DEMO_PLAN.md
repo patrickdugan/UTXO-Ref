@@ -113,12 +113,19 @@ The ZEUS mock integration files in this repo are:
 
 - `integrations/zeus/tlusdLiquidityPatchClient.ts`
 - `integrations/zeus/TlusdLiquidityPatchScreen.tsx`
+- `integrations/zeus/WalletDemoSettingsScreen.tsx`
 - `integrations/wallet-demo/walletBackendProfiles.js`
 
 The sidecar reports the active wallet backend profile at:
 
 ```text
 GET http://127.0.0.1:8787/v1/wallet-demo/config
+```
+
+It reports readiness, artifact freshness, chain target, and LND target at:
+
+```text
+GET http://127.0.0.1:8787/v1/wallet-demo/status
 ```
 
 Use the local Litecoin backend during development:

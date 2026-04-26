@@ -56,8 +56,10 @@ test('manifest exposes LDK Server and ZEUS integration targets', () => {
   assert(manifest.ldkServer.methods.includes('QuoteLiquidityLease'), 'missing quote method');
   assert(manifest.zeus.screenFile.includes('LiquidityLeaseScreen'), 'missing ZEUS screen');
   assert(manifest.zeus.tlusdPatch.screenFile.includes('TlusdLiquidityPatchScreen'), 'missing TLUSD patch screen');
+  assert(manifest.zeus.tlusdPatch.settingsScreenFile.includes('WalletDemoSettingsScreen'), 'missing settings screen');
   assert(manifest.zeus.tlusdPatch.demoProfile === 'litecoin-testnet-local', 'wrong demo profile');
   assert(manifest.zeus.tlusdPatch.goLiveProfile === 'bitcoin-testnet-lnd', 'wrong go-live profile');
+  assert(manifest.zeus.tlusdPatch.endpoints.includes('GET /v1/wallet-demo/status'), 'missing status endpoint');
   assert(manifest.walletView.status === 'verified', 'expected verified wallet status');
 });
 

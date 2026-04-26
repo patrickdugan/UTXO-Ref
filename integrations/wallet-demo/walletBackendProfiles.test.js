@@ -31,6 +31,7 @@ test('defaults to local Litecoin testnet mock backend', () => {
   assert(config.activeProfileId === 'litecoin-testnet-local', 'wrong default profile');
   assert(config.activeProfile.bitvm.chain === 'litecoin-testnet', 'wrong default chain');
   assert(config.activeProfile.sidecarEndpoints.walletView.includes('lnbtc-tlusd-liquidity-patch'), 'missing patch endpoint');
+  assert(config.switchPlan.goLive === 'bitcoin-testnet-lnd', 'missing go-live switch plan');
   assert(verifyWalletDemoConfig(config).ok, 'config should verify');
 });
 

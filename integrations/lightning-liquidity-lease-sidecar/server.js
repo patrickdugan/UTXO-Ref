@@ -20,6 +20,80 @@ function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, 'utf8'));
 }
 
+function artifactStatus(name, filePath, summarize) {
+  if (!fs.existsSync(filePath)) {
+    return { name, exists: false };
+  }
+  const stat = fs.statSync(filePath);
+  const artifact = readJson(filePath);
+  return {
+    name,
+    exists: true,
+    path: filePath,
+    updatedAt: stat.mtime.toISOString(),
+    bytes: stat.size,
+    summary: summarize ? summarize(artifact) : undefined
+  };
+}
+
+function walletDemoStatus() {
+  const config = buildWalletDemoConfig(process.env);
+  const patchArtifact = artifactStatus('lnbtc_tlusd_liquidity_patch', lnbtcTlusdLiquidityPatchPath, patch => ({
+    ok: Boolean(patch.verification && patch.verification.ok),
+    lnbtcSats: patch.conversion.conversionCore.lnbtcSats,
+    tlusdUnits: patch.conversion.conversionCore.tlusdUnits,
+    stakedTlUsdUnits: patch.stake.stakeCore.stakedTlUsdUnits,
+    assignedInboundSats: patch.mandate.manager.allocation.totals.assignedInboundSats,
+    slashableAssignments: patch.mandate.manager.allocation.totals.slashableAssignments
+  }));
+  const profile = config.activeProfile;
+  const lnd = profile.lnd
+    ? {
+        network: profile.lnd.network,
+        restUrl: profile.lnd.restUrl,
+        grpcHost: profile.lnd.grpcHost,
+        macaroonConfigured: Boolean(profile.lnd.macaroonPath),
+        tlsConfigured: Boolean(profile.lnd.tlsCertPath)
+      }
+    : null;
+  const bitcoinLndReady = Boolean(
+    profile.id === 'bitcoin-testnet-lnd' &&
+      lnd &&
+      lnd.macaroonConfigured &&
+      lnd.tlsConfigured
+  );
+
+  return {
+    kind: 'utxoref_wallet_demo_status',
+    service: 'utxoref-liquidity-lease-sidecar',
+    sidecarOk: true,
+    activeProfileId: config.activeProfileId,
+    profile: {
+      id: profile.id,
+      mode: profile.mode,
+      displayName: profile.displayName,
+      chainSourceBadge: profile.chainSourceBadge,
+      labels: profile.labels
+    },
+    chain: {
+      chain: profile.bitvm.chain,
+      rpcUrl: profile.bitvm.rpcUrl,
+      wallet: profile.bitvm.wallet,
+      status: 'configured'
+    },
+    lnd,
+    artifacts: {
+      lnbtcTlusdLiquidityPatch: patchArtifact
+    },
+    readiness: {
+      walletViewReady: patchArtifact.exists && Boolean(patchArtifact.summary && patchArtifact.summary.ok),
+      localLitecoinReady: profile.id === 'litecoin-testnet-local',
+      bitcoinLndReady,
+      warnings: config.warnings
+    }
+  };
+}
+
 function sendJson(res, status, payload) {
   const body = `${JSON.stringify(payload, null, 2)}\n`;
   res.writeHead(status, {
@@ -399,6 +473,10 @@ async function handle(req, res) {
       return sendJson(res, 200, { ...config, verification: verifyWalletDemoConfig(config) });
     }
 
+    if (req.method === 'GET' && req.url === '/v1/wallet-demo/status') {
+      return sendJson(res, 200, walletDemoStatus());
+    }
+
     if (req.method === 'GET' && req.url === '/v1/liquidity-lease/latest') {
       return sendJson(res, 200, readJson(leasePath));
     }
@@ -646,6 +724,7 @@ module.exports = {
   arkDlcSettlementWalletView,
   arkLiquidityGraftManagerWalletView,
   lnbtcTlusdLiquidityPatchWalletView,
+  walletDemoStatus,
   handle,
   server
 };

@@ -101,6 +101,52 @@ export type TlusdLiquidityPatchWalletView = {
   };
 };
 
+export type WalletDemoStatus = {
+  kind: 'utxoref_wallet_demo_status';
+  sidecarOk: boolean;
+  activeProfileId: string;
+  profile: {
+    id: string;
+    mode: string;
+    displayName: string;
+    chainSourceBadge: string;
+    labels: string[];
+  };
+  chain: {
+    chain: string;
+    rpcUrl: string;
+    wallet: string;
+    status: string;
+  };
+  lnd: null | {
+    network: string;
+    restUrl: string;
+    grpcHost: string;
+    macaroonConfigured: boolean;
+    tlsConfigured: boolean;
+  };
+  artifacts: {
+    lnbtcTlusdLiquidityPatch: {
+      exists: boolean;
+      updatedAt?: string;
+      summary?: {
+        ok: boolean;
+        lnbtcSats: string;
+        tlusdUnits: string;
+        stakedTlUsdUnits: string;
+        assignedInboundSats: string;
+        slashableAssignments: number;
+      };
+    };
+  };
+  readiness: {
+    walletViewReady: boolean;
+    localLitecoinReady: boolean;
+    bitcoinLndReady: boolean;
+    warnings: string[];
+  };
+};
+
 export class TlusdLiquidityPatchClient {
   baseUrl: string;
 
@@ -111,6 +157,12 @@ export class TlusdLiquidityPatchClient {
   async getBackendConfig(): Promise<WalletDemoBackendConfig> {
     const response = await fetch(`${this.baseUrl}/v1/wallet-demo/config`);
     if (!response.ok) throw new Error(`wallet demo config failed: ${response.status}`);
+    return response.json();
+  }
+
+  async getDemoStatus(): Promise<WalletDemoStatus> {
+    const response = await fetch(`${this.baseUrl}/v1/wallet-demo/status`);
+    if (!response.ok) throw new Error(`wallet demo status failed: ${response.status}`);
     return response.json();
   }
 
