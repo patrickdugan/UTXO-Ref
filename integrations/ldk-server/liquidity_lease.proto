@@ -1,0 +1,70 @@
+syntax = "proto3";
+
+package utxoref.liquiditylease.v1;
+
+service LiquidityLease {
+  rpc QuoteLiquidityLease(QuoteLiquidityLeaseRequest) returns (QuoteLiquidityLeaseResponse);
+  rpc GetLiquidityLease(GetLiquidityLeaseRequest) returns (LiquidityLeaseBundle);
+  rpc VerifyLiquidityLease(VerifyLiquidityLeaseRequest) returns (VerifyLiquidityLeaseResponse);
+  rpc PrepareLiquidityLeaseChallenge(PrepareLiquidityLeaseChallengeRequest) returns (PrepareLiquidityLeaseChallengeResponse);
+}
+
+message QuoteLiquidityLeaseRequest {
+  uint64 requested_inbound_sats = 1;
+  uint32 lease_blocks = 2;
+  uint32 max_fee_ppm = 3;
+  uint32 max_cltv_delta = 4;
+}
+
+message QuoteLiquidityLeaseResponse {
+  string quote_id = 1;
+  uint64 requested_inbound_sats = 2;
+  uint64 estimated_premium_sats = 3;
+  uint64 penalty_sats = 4;
+  string payment_hash_hex = 5;
+  string htlc_address = 6;
+}
+
+message GetLiquidityLeaseRequest {
+  string lease_id = 1;
+}
+
+message LiquidityLeaseBundle {
+  string bundle_id = 1;
+  string offer_id = 2;
+  string payment_hash_hex = 3;
+  uint64 promised_inbound_sats = 4;
+  uint32 lease_blocks = 5;
+  uint32 max_fee_ppm = 6;
+  uint32 max_cltv_delta = 7;
+  uint64 penalty_sats = 8;
+  string channel_or_splice_outpoint = 9;
+  string funding_commitment_hash = 10;
+  string success_evidence_id = 11;
+  string challenge_id = 12;
+}
+
+message VerifyLiquidityLeaseRequest {
+  string bundle_id = 1;
+}
+
+message VerifyLiquidityLeaseResponse {
+  bool ok = 1;
+  string reason = 2;
+  string success_evidence_id = 3;
+}
+
+message PrepareLiquidityLeaseChallengeRequest {
+  string bundle_id = 1;
+  uint64 observed_inbound_sats = 2;
+  uint32 observed_fee_ppm = 3;
+  uint32 observed_cltv_delta = 4;
+  string channel_or_splice_outpoint = 5;
+}
+
+message PrepareLiquidityLeaseChallengeResponse {
+  bool slashable = 1;
+  string challenge_id = 2;
+  uint64 penalty_sats = 3;
+  repeated string violations = 4;
+}

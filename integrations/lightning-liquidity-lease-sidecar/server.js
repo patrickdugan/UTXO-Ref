@@ -3,6 +3,7 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const { buildWalletDemoConfig, verifyWalletDemoConfig } = require('../wallet-demo/walletBackendProfiles');
 
 const repoRoot = path.join(__dirname, '..', '..');
 const artifactDir = path.join(repoRoot, 'bitvm3', 'utxo_referee', 'artifacts');
@@ -391,6 +392,11 @@ async function handle(req, res) {
   try {
     if (req.method === 'GET' && req.url === '/health') {
       return sendJson(res, 200, { ok: true, service: 'utxoref-liquidity-lease-sidecar' });
+    }
+
+    if (req.method === 'GET' && req.url === '/v1/wallet-demo/config') {
+      const config = buildWalletDemoConfig(process.env);
+      return sendJson(res, 200, { ...config, verification: verifyWalletDemoConfig(config) });
     }
 
     if (req.method === 'GET' && req.url === '/v1/liquidity-lease/latest') {

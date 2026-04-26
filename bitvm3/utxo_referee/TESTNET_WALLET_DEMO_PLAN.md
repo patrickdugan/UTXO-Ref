@@ -109,6 +109,41 @@ The UI should show a chain-source badge:
 - `litecoin-testnet`: local Litecoin RPC
 - `bitcoin-testnet`: local or remote Bitcoin testnet backend
 
+The ZEUS mock integration files in this repo are:
+
+- `integrations/zeus/tlusdLiquidityPatchClient.ts`
+- `integrations/zeus/TlusdLiquidityPatchScreen.tsx`
+- `integrations/wallet-demo/walletBackendProfiles.js`
+
+The sidecar reports the active wallet backend profile at:
+
+```text
+GET http://127.0.0.1:8787/v1/wallet-demo/config
+```
+
+Use the local Litecoin backend during development:
+
+```powershell
+$env:WALLET_DEMO_PROFILE="litecoin-testnet-local"
+node integrations/lightning-liquidity-lease-sidecar/server.js
+```
+
+Switch the same wallet UI to Bitcoin testnet LND for go-live testing:
+
+```powershell
+$env:WALLET_DEMO_PROFILE="bitcoin-testnet-lnd"
+$env:BITVM_CHAIN="bitcoin-testnet"
+$env:LND_REST_URL="https://127.0.0.1:8080"
+$env:LND_GRPC_HOST="127.0.0.1:10009"
+$env:LND_MACAROON_PATH="C:\path\to\admin.macaroon"
+$env:LND_TLS_CERT_PATH="C:\path\to\tls.cert"
+node integrations/lightning-liquidity-lease-sidecar/server.js
+```
+
+The key rule is that the wallet screen keeps calling the same TLUSD liquidity
+patch endpoints. Only the backend profile changes from local Litecoin harness to
+Bitcoin testnet LND.
+
 ## Honest Boundary
 
 What is live today:
@@ -124,4 +159,3 @@ What is still integration work:
 - real Ark ASP VTXO membership and round signatures
 - production BitVM challenge transaction construction
 - Bitcoin testnet local validation unless a Bitcoin backend is configured
-
