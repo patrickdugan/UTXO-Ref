@@ -43,6 +43,7 @@ if (-not $SkipTests) {
   Invoke-Step "Run focused wallet demo tests" {
     node bitvm3/utxo_referee/lnbtc_tlusd_liquidity_patch.test.js
     node integrations/wallet-demo/walletBackendProfiles.test.js
+    node integrations/wallet-demo/stressDashboard.test.js
     node bitvm3/utxo_referee/lightning_wallet_integration.test.js
     node -c integrations/lightning-liquidity-lease-sidecar/server.js
   }
@@ -64,6 +65,7 @@ $BaseUrl = "http://127.0.0.1:$Port"
 
 Invoke-Step "Smoke sidecar endpoints" {
   $status = Invoke-RestMethod -Uri "$BaseUrl/v1/wallet-demo/status"
+  $stress = Invoke-RestMethod -Uri "$BaseUrl/v1/wallet-demo/stress-dashboard"
   $verify = Invoke-RestMethod -Method Post -Uri "$BaseUrl/v1/lnbtc-tlusd-liquidity-patch/verify"
   $view = Invoke-RestMethod -Uri "$BaseUrl/v1/lnbtc-tlusd-liquidity-patch/wallet-view"
 
@@ -77,6 +79,9 @@ Invoke-Step "Smoke sidecar endpoints" {
     assignedInboundSats = $verify.assignedInboundSats
     slashableAssignments = $verify.slashableAssignments
     walletViewStatus = $view.status
+    stressBots = $stress.totals.botCount
+    stressTltc = $stress.totals.tltcCollateralDisplay
+    stressChallenges = $stress.totals.challengeCount
   }
   $summary | ConvertTo-Json
 }
@@ -85,10 +90,11 @@ Write-Host ""
 Write-Host "Demo URLs"
 Write-Host "  $BaseUrl/v1/wallet-demo/status"
 Write-Host "  $BaseUrl/v1/wallet-demo/config"
+Write-Host "  $BaseUrl/v1/wallet-demo/stress-dashboard"
 Write-Host "  $BaseUrl/v1/lnbtc-tlusd-liquidity-patch/wallet-view"
+Write-Host "  $BaseUrl/dashboard"
 Write-Host ""
 Write-Host "Wallet files"
 Write-Host "  integrations/zeus/TlusdLiquidityPatchScreen.tsx"
 Write-Host "  integrations/zeus/WalletDemoSettingsScreen.tsx"
 Write-Host "  integrations/zeus/tlusdLiquidityPatchClient.ts"
-

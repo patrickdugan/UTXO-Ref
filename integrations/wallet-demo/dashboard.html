@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>UTXORef Testnet Fleet</title>
+    <link rel="stylesheet" href="/dashboard.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div>
+          <h1>UTXORef Testnet Fleet</h1>
+          <p id="subtitle">Loading fleet telemetry</p>
+        </div>
+        <div class="top-actions">
+          <span id="profileBadge" class="badge">profile</span>
+          <span id="chainBadge" class="badge good">chain</span>
+          <button id="refreshButton" type="button">Refresh</button>
+        </div>
+      </header>
+
+      <main>
+        <section class="kpi-grid" aria-label="Fleet totals">
+          <article class="kpi">
+            <span>Autobots</span>
+            <strong id="botCount">--</strong>
+            <small id="botMix">--</small>
+          </article>
+          <article class="kpi">
+            <span>tLTC Collateral</span>
+            <strong id="tltcCollateral">--</strong>
+            <small>testnet collateral pool</small>
+          </article>
+          <article class="kpi">
+            <span>TLUSD Staked</span>
+            <strong id="tlusdStaked">--</strong>
+            <small>liquidity patch stake</small>
+          </article>
+          <article class="kpi">
+            <span>Assigned Inbound</span>
+            <strong id="assignedInbound">--</strong>
+            <small id="deliveryRate">--</small>
+          </article>
+          <article class="kpi">
+            <span>BitVM Queue</span>
+            <strong id="challengeCount">--</strong>
+            <small>challengeable routes</small>
+          </article>
+        </section>
+
+        <section class="band">
+          <div class="section-title">
+            <h2>Liquidity Lanes</h2>
+            <span id="dashboardId">--</span>
+          </div>
+          <div id="laneRail" class="lane-rail"></div>
+        </section>
+
+        <section class="grid-two">
+          <div class="panel">
+            <div class="section-title">
+              <h2>Throughput</h2>
+              <span id="feeSummary">--</span>
+            </div>
+            <div id="timeline" class="timeline"></div>
+          </div>
+          <div class="panel">
+            <div class="section-title">
+              <h2>Challenge Queue</h2>
+              <span id="savingsSummary">--</span>
+            </div>
+            <div id="challengeQueue" class="queue"></div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="section-title">
+            <h2>Autobot Routing Table</h2>
+            <span id="routeCount">--</span>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Bot</th>
+                  <th>Lane</th>
+                  <th>Status</th>
+                  <th>tLTC</th>
+                  <th>TLUSD</th>
+                  <th>Routes</th>
+                  <th>Delivered</th>
+                  <th>Fee</th>
+                </tr>
+              </thead>
+              <tbody id="botTable"></tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+    <script src="/dashboard.js"></script>
+  </body>
+</html>

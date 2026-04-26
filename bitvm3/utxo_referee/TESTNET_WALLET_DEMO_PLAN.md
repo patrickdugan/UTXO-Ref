@@ -128,6 +128,13 @@ It reports readiness, artifact freshness, chain target, and LND target at:
 GET http://127.0.0.1:8787/v1/wallet-demo/status
 ```
 
+It serves a stress dashboard for tLTC/TLUSD fleet quantities at:
+
+```text
+GET http://127.0.0.1:8787/dashboard
+GET http://127.0.0.1:8787/v1/wallet-demo/stress-dashboard
+```
+
 Use the local Litecoin backend during development:
 
 ```powershell

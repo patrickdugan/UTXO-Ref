@@ -4,6 +4,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const { buildWalletDemoConfig, verifyWalletDemoConfig } = require('../wallet-demo/walletBackendProfiles');
+const { buildStressDashboard, verifyStressDashboard } = require('../wallet-demo/stressDashboard');
 
 const repoRoot = path.join(__dirname, '..', '..');
 const artifactDir = path.join(repoRoot, 'bitvm3', 'utxo_referee', 'artifacts');
@@ -15,6 +16,7 @@ const arkGovernorBenchPath = path.join(artifactDir, 'ark_liquidity_governor_benc
 const arkDlcSettlementPath = path.join(artifactDir, 'ark_dlc_settlement_latest.json');
 const arkLiquidityGraftManagerPath = path.join(artifactDir, 'ark_liquidity_graft_manager_latest.json');
 const lnbtcTlusdLiquidityPatchPath = path.join(artifactDir, 'lnbtc_tlusd_liquidity_patch_latest.json');
+const walletDemoDir = path.join(repoRoot, 'integrations', 'wallet-demo');
 
 function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, 'utf8'));
@@ -102,6 +104,16 @@ function sendJson(res, status, payload) {
     'access-control-allow-origin': '*',
     'access-control-allow-methods': 'GET,POST,OPTIONS',
     'access-control-allow-headers': 'content-type'
+  });
+  res.end(body);
+}
+
+function sendFile(res, filePath, contentType) {
+  const body = fs.readFileSync(filePath);
+  res.writeHead(200, {
+    'content-type': contentType,
+    'cache-control': 'no-store',
+    'access-control-allow-origin': '*'
   });
   res.end(body);
 }
@@ -475,6 +487,28 @@ async function handle(req, res) {
 
     if (req.method === 'GET' && req.url === '/v1/wallet-demo/status') {
       return sendJson(res, 200, walletDemoStatus());
+    }
+
+    if (req.method === 'GET' && req.url === '/v1/wallet-demo/stress-dashboard') {
+      const config = buildWalletDemoConfig(process.env);
+      const dashboard = buildStressDashboard({
+        patch: readJson(lnbtcTlusdLiquidityPatchPath),
+        config,
+        botCount: Number(process.env.WALLET_DEMO_BOT_COUNT || 96)
+      });
+      return sendJson(res, 200, { ...dashboard, verification: verifyStressDashboard(dashboard) });
+    }
+
+    if (req.method === 'GET' && (req.url === '/dashboard' || req.url === '/dashboard/')) {
+      return sendFile(res, path.join(walletDemoDir, 'dashboard.html'), 'text/html; charset=utf-8');
+    }
+
+    if (req.method === 'GET' && req.url === '/dashboard.css') {
+      return sendFile(res, path.join(walletDemoDir, 'dashboard.css'), 'text/css; charset=utf-8');
+    }
+
+    if (req.method === 'GET' && req.url === '/dashboard.js') {
+      return sendFile(res, path.join(walletDemoDir, 'dashboard.js'), 'text/javascript; charset=utf-8');
     }
 
     if (req.method === 'GET' && req.url === '/v1/liquidity-lease/latest') {

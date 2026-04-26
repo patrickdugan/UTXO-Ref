@@ -27,9 +27,16 @@ Expected sidecar URLs:
 ```text
 GET  http://127.0.0.1:8787/v1/wallet-demo/status
 GET  http://127.0.0.1:8787/v1/wallet-demo/config
+GET  http://127.0.0.1:8787/v1/wallet-demo/stress-dashboard
 GET  http://127.0.0.1:8787/v1/lnbtc-tlusd-liquidity-patch/wallet-view
 POST http://127.0.0.1:8787/v1/lnbtc-tlusd-liquidity-patch/verify
 POST http://127.0.0.1:8787/v1/lnbtc-tlusd-liquidity-patch/challenge
+```
+
+Dashboard:
+
+```text
+http://127.0.0.1:8787/dashboard
 ```
 
 ## Current Demo Output
@@ -65,6 +72,14 @@ Backend profile and tests:
 
 - `integrations/wallet-demo/walletBackendProfiles.js`
 - `integrations/wallet-demo/walletBackendProfiles.test.js`
+- `integrations/wallet-demo/stressDashboard.js`
+- `integrations/wallet-demo/stressDashboard.test.js`
+
+Stress dashboard:
+
+- `integrations/wallet-demo/dashboard.html`
+- `integrations/wallet-demo/dashboard.css`
+- `integrations/wallet-demo/dashboard.js`
 
 LDK server-style API sketch:
 
@@ -122,6 +137,7 @@ Live or locally exercised now:
 
 - deterministic LN-BTC -> TLUSD -> stake -> Ark patch -> BitVM challenge artifact
 - sidecar wallet API
+- stress dashboard for deterministic tLTC/TLUSD fleet quantities
 - wallet backend profile switching
 - ZEUS-style screens for patch and settings
 - Litecoin-oriented live chain harness and replay pipeline
@@ -154,4 +170,3 @@ flowchart TD
   stake --> ark
   ark --> bitvm
 ```
-
