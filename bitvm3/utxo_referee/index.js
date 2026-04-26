@@ -53,6 +53,7 @@ const lightningWalletIntegration = require('./lightning_wallet_integration');
 const lightningTaprootAssetsStablecoin = require('./lightning_taproot_assets_stablecoin');
 const lightningArkLiquidityGraft = require('./lightning_ark_liquidity_graft');
 const arkDlcSettlement = require('./ark_dlc_settlement');
+const arkLiquidityGraftManager = require('./ark_liquidity_graft_manager');
 
 module.exports = {
   // Types
@@ -179,6 +180,13 @@ module.exports = {
   buildArkDlcFeeModel: arkDlcSettlement.buildArkDlcFeeModel,
   buildArkDlcSettlementBundle: arkDlcSettlement.buildArkDlcSettlementBundle,
   verifyArkDlcSettlementBundle: arkDlcSettlement.verifyArkDlcSettlementBundle,
+  buildArkLiquidityInventory: arkLiquidityGraftManager.buildArkLiquidityInventory,
+  buildLightningRouteDemand: arkLiquidityGraftManager.buildLightningRouteDemand,
+  buildBitvmEnforcementPolicy: arkLiquidityGraftManager.buildBitvmEnforcementPolicy,
+  allocateArkGrafts: arkLiquidityGraftManager.allocateArkGrafts,
+  buildArkLiquidityManagerChallenge: arkLiquidityGraftManager.buildArkLiquidityManagerChallenge,
+  buildArkLiquidityGraftManagerBundle: arkLiquidityGraftManager.buildArkLiquidityGraftManagerBundle,
+  verifyArkLiquidityGraftManagerBundle: arkLiquidityGraftManager.verifyArkLiquidityGraftManagerBundle,
   resolvePipelineOptions: m1Pipeline.resolvePipelineOptions,
   buildPipelinePlan: m1Pipeline.buildPipelinePlan,
   buildPipelineSummary: m1Pipeline.buildPipelineSummary,
@@ -210,5 +218,6 @@ module.exports = {
   lightningWalletIntegration,
   lightningTaprootAssetsStablecoin,
   lightningArkLiquidityGraft,
-  arkDlcSettlement
+  arkDlcSettlement,
+  arkLiquidityGraftManager
 };

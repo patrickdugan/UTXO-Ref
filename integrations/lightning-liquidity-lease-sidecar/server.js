@@ -12,6 +12,7 @@ const stablecoinPath = path.join(artifactDir, 'lightning_taproot_assets_stableco
 const arkGraftPath = path.join(artifactDir, 'lightning_ark_liquidity_graft_latest.json');
 const arkGovernorBenchPath = path.join(artifactDir, 'ark_liquidity_governor_bench_latest.json');
 const arkDlcSettlementPath = path.join(artifactDir, 'ark_dlc_settlement_latest.json');
+const arkLiquidityGraftManagerPath = path.join(artifactDir, 'ark_liquidity_graft_manager_latest.json');
 
 function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, 'utf8'));
@@ -225,6 +226,88 @@ function arkDlcSettlementWalletView(arkDlc) {
   };
 }
 
+function arkLiquidityGraftManagerWalletView(manager) {
+  const bundle = manager.verification ? manager : { ...manager, verification: { ok: true } };
+  const inventory = bundle.inventory.inventoryCore;
+  const policy = bundle.policy.policyCore;
+  const totals = bundle.allocation.totals;
+  const cost = bundle.costModel && bundle.costModel.modelCore;
+  const totalInventorySats = inventory.vtxos.reduce((sum, vtxo) => sum + BigInt(vtxo.vtxoAmountSats), 0n);
+  const assignedVtxos = new Set(bundle.allocation.assignments.map(assignment => assignment.vtxo.vtxoCommitmentId));
+  const availableInventorySats = inventory.vtxos
+    .filter(vtxo => !assignedVtxos.has(vtxo.vtxoCommitmentId))
+    .reduce((sum, vtxo) => sum + BigInt(vtxo.vtxoAmountSats), 0n);
+  return {
+    kind: 'wallet_ark_liquidity_graft_manager_view',
+    status: bundle.verification.ok ? 'verified' : 'needs_attention',
+    title: 'Ark LN Liquidity Graft Manager',
+    subtitle: `${totals.assignedInboundSats} sats assigned across ${bundle.allocation.assignments.length} LN routes`,
+    managerId: bundle.managerCore.managerId,
+    bundleId: bundle.bundleId,
+    aspId: inventory.aspId,
+    inventoryId: bundle.inventory.inventoryId,
+    demandId: bundle.demand.demandId,
+    policyId: bundle.policy.policyId,
+    allocationId: bundle.allocation.allocationId,
+    bitvmPolicy: {
+      governorCircuitId: policy.governorCircuitId,
+      aspBondOutpoint: policy.aspBondOutpoint,
+      maxAspExposureSats: policy.maxAspExposureSats,
+      slashReserveSats: policy.slashReserveSats,
+      challengeWindowBlocks: policy.challengeWindowBlocks,
+      requireExitPath: policy.requireExitPath,
+      requireForfeitPath: policy.requireForfeitPath
+    },
+    inventory: {
+      vtxoCount: inventory.vtxos.length,
+      totalInventorySats: totalInventorySats.toString(),
+      availableInventorySats: availableInventorySats.toString(),
+      assignedVtxoCount: assignedVtxos.size
+    },
+    totals,
+    assignments: bundle.allocation.assignments.map(assignment => ({
+      routeId: assignment.assignmentCore.routeId,
+      edgeNodeId: assignment.assignmentCore.edgeNodeId,
+      status: assignment.assignmentCore.status,
+      assignmentId: assignment.assignmentId,
+      vtxoCommitmentId: assignment.vtxo.vtxoCommitmentId,
+      quoteId: assignment.quote.quoteId,
+      promisedInboundSats: assignment.assignmentCore.promisedInboundSats,
+      deliveredInboundSats: assignment.assignmentCore.deliveredInboundSats,
+      maxFeePpm: assignment.quote.quoteCore.maxFeePpm,
+      maxCltvDelta: assignment.quote.quoteCore.maxCltvDelta,
+      settlementId: assignment.settlementEvidence.settlementId,
+      settlementChecks: assignment.settlementEvidence.checks,
+      challengeId: assignment.challengeEvidence.challengeId,
+      slashable: assignment.challengeEvidence.slashable,
+      violations: assignment.challengeEvidence.challengeCore.violations
+    })),
+    unmetRoutes: bundle.allocation.unmetRoutes,
+    challenge: {
+      slashable: bundle.challengeEvidence.slashable,
+      challengeId: bundle.challengeEvidence.challengeId,
+      remedy: bundle.challengeEvidence.remedy,
+      violations: bundle.challengeEvidence.challengeCore.violations
+    },
+    costModel: cost && {
+      graftCount: cost.graftCount,
+      graftAmountSats: cost.graftAmountSats,
+      baselinePerGraftSats: cost.baseline.perGraftSats,
+      arkPerGraftSats: cost.ark.perGraftSats,
+      baselineTotalSats: cost.baseline.totalSats,
+      arkTotalSats: cost.ark.totalSats,
+      savingsSats: cost.comparison.savingsSats,
+      lowerTotalCost: cost.comparison.lowerTotalCost,
+      saferMarginalCost: cost.comparison.saferMarginalCost
+    },
+    actions: [
+      { id: 'verify_manager_allocation', label: 'Verify manager allocation' },
+      { id: 'show_route_assignments', label: 'Show route assignments' },
+      { id: 'prepare_manager_challenge', label: 'Prepare BitVM challenge' }
+    ]
+  };
+}
+
 async function handle(req, res) {
   if (req.method === 'OPTIONS') return sendJson(res, 204, {});
 
@@ -267,6 +350,14 @@ async function handle(req, res) {
 
     if (req.method === 'GET' && req.url === '/v1/ark-liquidity-graft/governor-bench/latest') {
       return sendJson(res, 200, readJson(arkGovernorBenchPath));
+    }
+
+    if (req.method === 'GET' && req.url === '/v1/ark-liquidity-graft-manager/latest') {
+      return sendJson(res, 200, readJson(arkLiquidityGraftManagerPath));
+    }
+
+    if (req.method === 'GET' && req.url === '/v1/ark-liquidity-graft-manager/wallet-view') {
+      return sendJson(res, 200, arkLiquidityGraftManagerWalletView(readJson(arkLiquidityGraftManagerPath)));
     }
 
     if (req.method === 'GET' && req.url === '/v1/ark-dlc-settlement/latest') {
@@ -361,6 +452,33 @@ async function handle(req, res) {
       });
     }
 
+    if (req.method === 'POST' && req.url === '/v1/ark-liquidity-graft-manager/verify') {
+      const manager = readJson(arkLiquidityGraftManagerPath);
+      return sendJson(res, 200, {
+        ok: Boolean(manager.verification && manager.verification.ok),
+        reason: manager.verification && manager.verification.reason,
+        managerId: manager.managerCore.managerId,
+        inventoryId: manager.inventory.inventoryId,
+        demandId: manager.demand.demandId,
+        policyId: manager.policy.policyId,
+        allocationId: manager.allocation.allocationId,
+        assignmentCount: manager.allocation.assignments.length,
+        totals: manager.allocation.totals
+      });
+    }
+
+    if (req.method === 'POST' && req.url === '/v1/ark-liquidity-graft-manager/challenge') {
+      const manager = readJson(arkLiquidityGraftManagerPath);
+      return sendJson(res, 200, {
+        slashable: manager.challengeEvidence.slashable,
+        challengeId: manager.challengeEvidence.challengeId,
+        remedy: manager.challengeEvidence.remedy,
+        assignmentChallenges: manager.challengeEvidence.challengeCore.assignmentChallenges,
+        unmetRoutes: manager.challengeEvidence.challengeCore.unmetRoutes,
+        violations: manager.challengeEvidence.challengeCore.violations
+      });
+    }
+
     if (req.method === 'POST' && req.url === '/v1/ark-dlc-settlement/verify') {
       const arkDlc = readJson(arkDlcSettlementPath);
       return sendJson(res, 200, {
@@ -406,6 +524,7 @@ module.exports = {
   stablecoinWalletView,
   arkGraftWalletView,
   arkDlcSettlementWalletView,
+  arkLiquidityGraftManagerWalletView,
   handle,
   server
 };

@@ -239,6 +239,37 @@ POST http://127.0.0.1:8787/v1/ark-liquidity-graft/verify
 POST http://127.0.0.1:8787/v1/ark-liquidity-graft/challenge
 ```
 
+## Ark Liquidity Graft Manager Prototype
+
+The manager prototype coordinates multiple Ark VTXO grafts across Lightning
+route demand. It commits inventory, route constraints, allocation, settlement
+observations, and BitVM/UTXORef challenge evidence into one operator-facing
+bundle.
+
+Generate the current artifact:
+
+```bash
+node bitvm3/utxo_referee/ark_liquidity_graft_manager_demo.js
+```
+
+This writes:
+
+- `bitvm3/utxo_referee/artifacts/ark_liquidity_graft_manager_latest.json`
+- `bitvm3/utxo_referee/artifacts/ark_liquidity_graft_manager_latest.md`
+
+The sidecar exposes:
+
+```text
+GET  http://127.0.0.1:8787/v1/ark-liquidity-graft-manager/latest
+GET  http://127.0.0.1:8787/v1/ark-liquidity-graft-manager/wallet-view
+POST http://127.0.0.1:8787/v1/ark-liquidity-graft-manager/verify
+POST http://127.0.0.1:8787/v1/ark-liquidity-graft-manager/challenge
+```
+
+This is still an evidence-shape prototype. It shows how a serving wallet or LSP
+could farm routing yield by allocating pledged Ark liquidity, while BitVM acts
+as the check against ASP pathing failures.
+
 ## Ark / UTXORef Governor Throughput Bench
 
 The Rust harness in `integrations/ark-liquidity-governor-bench` models the
