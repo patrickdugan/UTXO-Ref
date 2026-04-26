@@ -33,12 +33,26 @@ const verify = require('./verify');
 const circuit = require('./circuit');
 const m1Spec = require('./m1_spec');
 const m1ReceiptLedger = require('./m1_receipt_ledger');
+const m1DepositIndexer = require('./m1_deposit_indexer');
 const m1Transition = require('./m1_transition');
 const m1TransitionCircuit = require('./m1_transition_circuit');
 const m1TallyMap = require('./m1_tally_map');
 const m1ChallengeWitness = require('./m1_challenge_witness');
 const m1OracleDeltaPublication = require('./m1_oracle_delta_publication');
 const m1WitnessDelta = require('./m1_witness_delta');
+const m1RoutingCommitments = require('./m1_routing_commitments');
+const m1ChainEnv = require('./m1_chain_env');
+const m1ProceduralSync = require('./m1_procedural_sync');
+const m1Pipeline = require('./m1_pipeline');
+const m1ParallelUtxoIndex = require('./m1_parallel_utxo_index');
+const m1BitvmSearchManifolds = require('./m1_bitvm_search_manifolds');
+const lightningIntegration = require('./lightning_integration');
+const spiralLdkValueAdd = require('./spiral_ldk_value_add');
+const lightningLiquidityLease = require('./lightning_liquidity_lease');
+const lightningWalletIntegration = require('./lightning_wallet_integration');
+const lightningTaprootAssetsStablecoin = require('./lightning_taproot_assets_stablecoin');
+const lightningArkLiquidityGraft = require('./lightning_ark_liquidity_graft');
+const arkDlcSettlement = require('./ark_dlc_settlement');
 
 module.exports = {
   // Types
@@ -75,12 +89,14 @@ module.exports = {
   PAYOUT_LEAF_SCHEMA_FIELDS: m1Spec.PAYOUT_LEAF_SCHEMA_FIELDS,
   COMMITMENT_PACKAGE_SCHEMA_FIELDS: m1Spec.COMMITMENT_PACKAGE_SCHEMA_FIELDS,
   RECEIPT_DLC_TEMPLATE_V1: m1Spec.RECEIPT_DLC_TEMPLATE_V1,
+  buildReceiptDlcTemplate: m1Spec.buildReceiptDlcTemplate,
   normalizeEpochId: m1Spec.normalizeEpochId,
   normalizeAmountSats: m1Spec.normalizeAmountSats,
   validatePayoutLeafRecord: m1Spec.validatePayoutLeafRecord,
   validateCommitmentPackageRecord: m1Spec.validateCommitmentPackageRecord,
   templateHashHex: m1Spec.templateHashHex,
   ReceiptLedger: m1ReceiptLedger.ReceiptLedger,
+  ReceiptDepositIndexer: m1DepositIndexer.ReceiptDepositIndexer,
   ReceiptTallyMap: m1TallyMap.ReceiptTallyMap,
   computeRouteAmounts: m1Transition.computeRouteAmounts,
   computeBoundedSettlementAmounts: m1Transition.computeBoundedSettlementAmounts,
@@ -98,6 +114,75 @@ module.exports = {
   buildSettlementBreakdown: m1WitnessDelta.buildSettlementBreakdown,
   buildSettlementDeltaAnnotation: m1WitnessDelta.buildSettlementDeltaAnnotation,
   buildWitnessBlobWithDelta: m1WitnessDelta.buildWitnessBlobWithDelta,
+  CHAIN_PROFILES: m1ChainEnv.CHAIN_PROFILES,
+  resolveChainId: m1ChainEnv.resolveChainId,
+  resolveChainEnv: m1ChainEnv.resolveChainEnv,
+  buildEpochEventId: m1ChainEnv.buildEpochEventId,
+  normalizeRoutingCommitments: m1RoutingCommitments.normalizeRoutingCommitments,
+  withCommittedRouting: m1RoutingCommitments.withCommittedRouting,
+  assertCommittedRouting: m1RoutingCommitments.assertCommittedRouting,
+  buildProceduralSyncSummary: m1ProceduralSync.buildProceduralSyncSummary,
+  loadLatestProceduralSyncInputs: m1ProceduralSync.loadLatestProceduralSyncInputs,
+  writeProceduralSyncSummary: m1ProceduralSync.writeProceduralSyncSummary,
+  buildParallelUtxoIndex: m1ParallelUtxoIndex.buildParallelUtxoIndex,
+  loadLatestParallelUtxoIndexInputs: m1ParallelUtxoIndex.loadLatestParallelUtxoIndexInputs,
+  writeParallelUtxoIndex: m1ParallelUtxoIndex.writeParallelUtxoIndex,
+  CONSTANT_ONE_DIGEST_HEX: m1BitvmSearchManifolds.CONSTANT_ONE_DIGEST_HEX,
+  deriveSettlementCore: m1BitvmSearchManifolds.deriveSettlementCore,
+  buildTranscriptMultiplicityFamily: m1BitvmSearchManifolds.buildTranscriptMultiplicityFamily,
+  buildIdentifierBifurcationFamily: m1BitvmSearchManifolds.buildIdentifierBifurcationFamily,
+  buildBitvmSearchManifolds: m1BitvmSearchManifolds.buildBitvmSearchManifolds,
+  loadLatestBitvmSearchManifoldInputs: m1BitvmSearchManifolds.loadLatestBitvmSearchManifoldInputs,
+  writeBitvmSearchManifolds: m1BitvmSearchManifolds.writeBitvmSearchManifolds,
+  deriveLightningPreimageHex: lightningIntegration.derivePreimageHex,
+  deriveLightningPaymentHashHex: lightningIntegration.derivePaymentHashHex,
+  makePrototypeLightningInvoice: lightningIntegration.makePrototypeInvoice,
+  buildLightningFundingOutputCommitment: lightningIntegration.buildFundingOutputCommitment,
+  buildLightningFundedPositionOpen: lightningIntegration.buildLightningFundedPositionOpen,
+  buildLightningPayoutCompression: lightningIntegration.buildLightningPayoutCompression,
+  verifyLightningPayoutCompression: lightningIntegration.verifyLightningPayoutCompression,
+  buildLightningWatchtowerBounty: lightningIntegration.buildLightningWatchtowerBounty,
+  buildContractOpenApiPrototype: lightningIntegration.buildContractOpenApiPrototype,
+  buildLightningFundedRollover: lightningIntegration.buildLightningFundedRollover,
+  buildAllLightningIntegrationPrototypes: lightningIntegration.buildAllLightningIntegrationPrototypes,
+  SPIRAL_LDK_PUBLIC_COMMIT_EVIDENCE: spiralLdkValueAdd.PUBLIC_COMMIT_EVIDENCE,
+  PUBLIC_COMMIT_EVIDENCE: spiralLdkValueAdd.PUBLIC_COMMIT_EVIDENCE,
+  buildLdkExternalFundingReceipt: spiralLdkValueAdd.buildLdkExternalFundingReceipt,
+  verifyLdkExternalFundingReceipt: spiralLdkValueAdd.verifyLdkExternalFundingReceipt,
+  buildSpiralLdkValueAddBrief: spiralLdkValueAdd.buildSpiralLdkValueAddBrief,
+  buildLiquidityLeaseOffer: lightningLiquidityLease.buildLiquidityLeaseOffer,
+  buildLeaseSuccessEvidence: lightningLiquidityLease.buildLeaseSuccessEvidence,
+  buildLeaseChallengeEvidence: lightningLiquidityLease.buildLeaseChallengeEvidence,
+  buildLiquidityLeaseBundle: lightningLiquidityLease.buildLiquidityLeaseBundle,
+  verifyLiquidityLeaseBundle: lightningLiquidityLease.verifyLiquidityLeaseBundle,
+  buildWalletIntegrationManifest: lightningWalletIntegration.buildWalletIntegrationManifest,
+  verifyWalletIntegrationManifest: lightningWalletIntegration.verifyWalletIntegrationManifest,
+  buildTaprootAssetDescriptor: lightningTaprootAssetsStablecoin.buildTaprootAssetDescriptor,
+  buildTaprootAssetProofCommitment: lightningTaprootAssetsStablecoin.buildTaprootAssetProofCommitment,
+  buildStablecoinRfqQuote: lightningTaprootAssetsStablecoin.buildStablecoinRfqQuote,
+  buildStablecoinSettlementEvidence: lightningTaprootAssetsStablecoin.buildStablecoinSettlementEvidence,
+  buildStablecoinChallengeEvidence: lightningTaprootAssetsStablecoin.buildStablecoinChallengeEvidence,
+  buildTaprootAssetsStablecoinBundle: lightningTaprootAssetsStablecoin.buildTaprootAssetsStablecoinBundle,
+  verifyTaprootAssetsStablecoinBundle: lightningTaprootAssetsStablecoin.verifyTaprootAssetsStablecoinBundle,
+  buildArkTemplateCommitment: lightningArkLiquidityGraft.buildArkTemplateCommitment,
+  buildArkVtxoLiquidityCommitment: lightningArkLiquidityGraft.buildArkVtxoLiquidityCommitment,
+  buildArkLiquidityGraftQuote: lightningArkLiquidityGraft.buildArkLiquidityGraftQuote,
+  buildArkGraftSettlementEvidence: lightningArkLiquidityGraft.buildArkGraftSettlementEvidence,
+  buildArkGraftChallengeEvidence: lightningArkLiquidityGraft.buildArkGraftChallengeEvidence,
+  buildArkGraftCostModel: lightningArkLiquidityGraft.buildArkGraftCostModel,
+  buildArkLiquidityGraftBundle: lightningArkLiquidityGraft.buildArkLiquidityGraftBundle,
+  verifyArkLiquidityGraftBundle: lightningArkLiquidityGraft.verifyArkLiquidityGraftBundle,
+  buildArkDlcContract: arkDlcSettlement.buildArkDlcContract,
+  buildVirtualCetSet: arkDlcSettlement.buildVirtualCetSet,
+  buildArkDlcSettlement: arkDlcSettlement.buildArkDlcSettlement,
+  buildArkDlcAspChallenge: arkDlcSettlement.buildArkDlcAspChallenge,
+  buildArkDlcFeeModel: arkDlcSettlement.buildArkDlcFeeModel,
+  buildArkDlcSettlementBundle: arkDlcSettlement.buildArkDlcSettlementBundle,
+  verifyArkDlcSettlementBundle: arkDlcSettlement.verifyArkDlcSettlementBundle,
+  resolvePipelineOptions: m1Pipeline.resolvePipelineOptions,
+  buildPipelinePlan: m1Pipeline.buildPipelinePlan,
+  buildPipelineSummary: m1Pipeline.buildPipelineSummary,
+  resolvePipelineValidationSkipReason: m1Pipeline.resolveValidationSkipReason,
 
   // Re-export submodules for advanced usage
   types,
@@ -106,10 +191,24 @@ module.exports = {
   circuit,
   m1Spec,
   m1ReceiptLedger,
+  m1DepositIndexer,
   m1Transition,
   m1TransitionCircuit,
   m1TallyMap,
   m1ChallengeWitness,
   m1OracleDeltaPublication,
-  m1WitnessDelta
+  m1WitnessDelta,
+  m1ChainEnv,
+  m1RoutingCommitments,
+  m1ProceduralSync,
+  m1Pipeline,
+  m1ParallelUtxoIndex,
+  m1BitvmSearchManifolds,
+  lightningIntegration,
+  spiralLdkValueAdd,
+  lightningLiquidityLease,
+  lightningWalletIntegration,
+  lightningTaprootAssetsStablecoin,
+  lightningArkLiquidityGraft,
+  arkDlcSettlement
 };

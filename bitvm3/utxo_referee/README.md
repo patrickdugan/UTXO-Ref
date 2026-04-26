@@ -269,6 +269,34 @@ The same harness also benchmarks real `rust-secp256k1` ECDSA signing and
 verification for 5,000 CET-like messages, so raw curve throughput can be
 separated from DLC/BitVM protocol overhead.
 
+## Ark DLC Settlement Prototype
+
+The Ark DLC settlement prototype moves the DLC happy path off-chain: outcomes are
+committed as virtual CETs, but the oracle-selected outcome settles by Ark VTXO
+transfer instead of broadcasting an on-chain CET. UTXORef/BitVM is the governor
+against ASP power: it checks whether the ASP routed the oracle-selected virtual
+CET, exposed user exit paths, and retained the forfeit path.
+
+Generate the current artifact:
+
+```bash
+node bitvm3/utxo_referee/ark_dlc_settlement_demo.js
+```
+
+This writes:
+
+- `bitvm3/utxo_referee/artifacts/ark_dlc_settlement_latest.json`
+- `bitvm3/utxo_referee/artifacts/ark_dlc_settlement_latest.md`
+
+The sidecar exposes:
+
+```text
+GET  http://127.0.0.1:8787/v1/ark-dlc-settlement/latest
+GET  http://127.0.0.1:8787/v1/ark-dlc-settlement/wallet-view
+POST http://127.0.0.1:8787/v1/ark-dlc-settlement/verify
+POST http://127.0.0.1:8787/v1/ark-dlc-settlement/challenge
+```
+
 This is not a production Ark round implementation. Production needs ASP
 signatures, VTXO tree proofs, connector tracking, and forfeit/exit validation.
 

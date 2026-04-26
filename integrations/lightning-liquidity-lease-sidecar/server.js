@@ -11,6 +11,7 @@ const subswapPath = path.join(artifactDir, 'lightning_subswap_dlc_latest.json');
 const stablecoinPath = path.join(artifactDir, 'lightning_taproot_assets_stablecoin_latest.json');
 const arkGraftPath = path.join(artifactDir, 'lightning_ark_liquidity_graft_latest.json');
 const arkGovernorBenchPath = path.join(artifactDir, 'ark_liquidity_governor_bench_latest.json');
+const arkDlcSettlementPath = path.join(artifactDir, 'ark_dlc_settlement_latest.json');
 
 function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, 'utf8'));
@@ -177,6 +178,53 @@ function arkGraftWalletView(arkGraft, lease, subswap) {
   };
 }
 
+function arkDlcSettlementWalletView(arkDlc) {
+  const bundle = arkDlc.verification ? arkDlc : { ...arkDlc, verification: { ok: true } };
+  const contract = bundle.contract.contractCore;
+  const settlement = bundle.settlementEvidence.settlementCore;
+  const fee = bundle.feeModel.modelCore;
+  return {
+    kind: 'wallet_ark_dlc_settlement_view',
+    status: bundle.verification.ok ? 'verified' : 'needs_attention',
+    title: 'Ark DLC Settlement',
+    subtitle: `${contract.totalCollateralSats} sats settle by Ark VTXO transfer; no on-chain CET broadcast`,
+    contractId: contract.contractId,
+    aspId: contract.aspId,
+    oracleEventId: contract.oracleEventId,
+    contractCommitmentId: bundle.contract.contractCommitmentId,
+    virtualCetSetId: bundle.virtualCetSet.virtualCetSetId,
+    virtualCetCount: bundle.virtualCetSet.virtualCets.length,
+    selectedVirtualCetId: settlement.selectedVirtualCetId,
+    oracleOutcomeId: settlement.oracleOutcomeId,
+    arkRoundId: settlement.arkRoundId,
+    arkTransitionId: settlement.arkTransitionId,
+    noOnchainCetBroadcast: settlement.noOnchainCetBroadcast,
+    avoidedOnchainCetTxid: settlement.avoidedOnchainCetTxid,
+    payouts: settlement.payouts,
+    feeModel: {
+      outcomeCount: fee.outcomeCount,
+      feeRateSatVb: fee.feeRateSatVb,
+      onchainHappyPathSats: fee.onchainHappyPathSats,
+      onchainCetWorstCaseSats: fee.onchainCetWorstCaseSats,
+      arkHappyPathSats: fee.arkHappyPathSats,
+      governedArkSats: fee.governedArkSats,
+      avoidsOnchainCetHappyPath: fee.avoidsOnchainCetHappyPath,
+      avoidsCetFanoutOnchainExposure: fee.avoidsCetFanoutOnchainExposure
+    },
+    checks: bundle.settlementEvidence.checks,
+    challenge: {
+      slashable: bundle.challengeEvidence.slashable,
+      challengeId: bundle.challengeEvidence.challengeId,
+      violations: bundle.challengeEvidence.challengeCore.violations
+    },
+    actions: [
+      { id: 'verify_ark_dlc_settlement', label: 'Verify Ark DLC settlement' },
+      { id: 'show_virtual_cets', label: 'Show virtual CET set' },
+      { id: 'prepare_asp_challenge', label: 'Prepare ASP challenge' }
+    ]
+  };
+}
+
 async function handle(req, res) {
   if (req.method === 'OPTIONS') return sendJson(res, 204, {});
 
@@ -219,6 +267,14 @@ async function handle(req, res) {
 
     if (req.method === 'GET' && req.url === '/v1/ark-liquidity-graft/governor-bench/latest') {
       return sendJson(res, 200, readJson(arkGovernorBenchPath));
+    }
+
+    if (req.method === 'GET' && req.url === '/v1/ark-dlc-settlement/latest') {
+      return sendJson(res, 200, readJson(arkDlcSettlementPath));
+    }
+
+    if (req.method === 'GET' && req.url === '/v1/ark-dlc-settlement/wallet-view') {
+      return sendJson(res, 200, arkDlcSettlementWalletView(readJson(arkDlcSettlementPath)));
     }
 
     if (req.method === 'GET' && req.url === '/v1/liquidity-lease/subswap-proof') {
@@ -305,6 +361,29 @@ async function handle(req, res) {
       });
     }
 
+    if (req.method === 'POST' && req.url === '/v1/ark-dlc-settlement/verify') {
+      const arkDlc = readJson(arkDlcSettlementPath);
+      return sendJson(res, 200, {
+        ok: Boolean(arkDlc.verification && arkDlc.verification.ok),
+        reason: arkDlc.verification && arkDlc.verification.reason,
+        contractCommitmentId: arkDlc.contract.contractCommitmentId,
+        virtualCetSetId: arkDlc.virtualCetSet.virtualCetSetId,
+        settlementId: arkDlc.settlementEvidence.settlementId,
+        noOnchainCetBroadcast: arkDlc.settlementEvidence.settlementCore.noOnchainCetBroadcast,
+        checks: arkDlc.settlementEvidence.checks
+      });
+    }
+
+    if (req.method === 'POST' && req.url === '/v1/ark-dlc-settlement/challenge') {
+      const arkDlc = readJson(arkDlcSettlementPath);
+      return sendJson(res, 200, {
+        slashable: arkDlc.challengeEvidence.slashable,
+        challengeId: arkDlc.challengeEvidence.challengeId,
+        remedy: arkDlc.challengeEvidence.remedy,
+        violations: arkDlc.challengeEvidence.challengeCore.violations
+      });
+    }
+
     return sendJson(res, 404, { error: 'not found' });
   } catch (err) {
     return sendJson(res, 500, { error: err.message });
@@ -326,6 +405,7 @@ module.exports = {
   walletView,
   stablecoinWalletView,
   arkGraftWalletView,
+  arkDlcSettlementWalletView,
   handle,
   server
 };
