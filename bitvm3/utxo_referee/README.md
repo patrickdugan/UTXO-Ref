@@ -37,6 +37,8 @@ utxo_referee/
 
 TradeLayer-specific projection details are kept in `TLInt.md`.
 
+Launch sequencing for the live custody rail is documented in `LITECOIN_MAINNET_SHIP_PLAN.md`.
+
 ## Data Structures
 
 ### Commitment Package
@@ -184,6 +186,97 @@ node bitvm3/utxo_referee/test.js
 node bitvm3/utxo_referee/demo.js
 ```
 
+## Lightning / Taproot Assets Stablecoin Prototypes
+
+The Lightning integration demos include a Taproot Assets stablecoin/RFQ bundle
+that links:
+
+- Taproot Asset descriptor and proof commitment
+- Edge-node RFQ terms for asset/BTC conversion
+- BTC Lightning settlement evidence
+- BitVM-backed liquidity lease evidence and challenge case
+
+Generate the current artifact:
+
+```bash
+node bitvm3/utxo_referee/lightning_taproot_assets_stablecoin_demo.js
+```
+
+This writes:
+- `bitvm3/utxo_referee/artifacts/lightning_taproot_assets_stablecoin_latest.json`
+- `bitvm3/utxo_referee/artifacts/lightning_taproot_assets_stablecoin_latest.md`
+
+The sidecar exposes the wallet view at:
+
+```text
+GET http://127.0.0.1:8787/v1/taproot-assets-stablecoin/wallet-view
+```
+
+This is an evidence-shape prototype. Production integration should verify real
+`tapd` proofs, `litd`/RFQ messages, and LDK/LND channel state directly.
+
+## Ark Liquidity Graft Prototype
+
+Ark can be modeled as a fast liquidity graft for LN edge routing: an ASP makes
+an Ark VTXO available to the edge/LSP, the LN settlement proves the payment
+side, and the BitVM liquidity lease remains the external challenge layer.
+
+Generate the current artifact:
+
+```bash
+node bitvm3/utxo_referee/lightning_ark_liquidity_graft_demo.js
+```
+
+This writes:
+- `bitvm3/utxo_referee/artifacts/lightning_ark_liquidity_graft_latest.json`
+- `bitvm3/utxo_referee/artifacts/lightning_ark_liquidity_graft_latest.md`
+
+The sidecar exposes:
+
+```text
+GET  http://127.0.0.1:8787/v1/ark-liquidity-graft/wallet-view
+POST http://127.0.0.1:8787/v1/ark-liquidity-graft/verify
+POST http://127.0.0.1:8787/v1/ark-liquidity-graft/challenge
+```
+
+## Ark / UTXORef Governor Throughput Bench
+
+The Rust harness in `integrations/ark-liquidity-governor-bench` models the
+asset-agnostic LN routing hot path: Ark VTXOs make liquidity pathing cheap, while
+UTXORef/BitVM verifies ASP pathing promises and only escalates slashable batches.
+
+Run it from the harness directory:
+
+```powershell
+$env:CARGO_TARGET_DIR='D:\codex-target\ark-liquidity-governor-bench'
+cargo run --release -- --obligations 5000 --work-factor 128 --bad-every 0
+```
+
+This writes:
+
+- `bitvm3/utxo_referee/artifacts/ark_liquidity_governor_bench_latest.json`
+
+The sidecar exposes the latest report at:
+
+```text
+GET http://127.0.0.1:8787/v1/ark-liquidity-graft/governor-bench/latest
+```
+
+Use `--bad-every 1000` to inject slashable obligations and verify that serial
+and parallel checks agree.
+
+The same harness also benchmarks real `rust-secp256k1` ECDSA signing and
+verification for 5,000 CET-like messages, so raw curve throughput can be
+separated from DLC/BitVM protocol overhead.
+
+This is not a production Ark round implementation. Production needs ASP
+signatures, VTXO tree proofs, connector tracking, and forfeit/exit validation.
+
+The artifact includes a marginal cost model comparing repeated LN
+open/close/splice/rebalance operations with Ark round-share, ASP fee, expected
+exit cost, and BitVM challenge reserve. Under the demo assumptions, the Ark path
+has lower per-graft marginal cost and lower total cost after batching.
+
 ## Visualization
 
 Generate a gate-count and DLC flow report:
@@ -203,6 +296,14 @@ node bitvm3/utxo_referee/m1_ltc_testnet_demo.js
 ```
 
 Litecoin testnet RPC setup is documented in `LTC_TESTNET_SETUP.md`.
+
+The live funding scripts now accept `BITVM_CHAIN` so the same workflow can be pointed at:
+- `litecoin-mainnet`
+- `litecoin-testnet`
+- `bitcoin-mainnet`
+- `bitcoin-testnet`
+
+For safety and backward compatibility, the current default remains `litecoin-testnet` unless `BITVM_CHAIN` is set explicitly.
 
 ## M1 Transition Function
 
@@ -353,4 +454,155 @@ To generate the fast-roll artifact, run:
 ```bash
 node bitvm3/utxo_referee/m1_fast_roll.js
 ```
+
+To emit the wallet-facing procedural sync summary from the latest BitVM
+artifacts, run:
+
+```bash
+node bitvm3/utxo_referee/m1_procedural_sync.js
+```
+
+This writes:
+- `bitvm3/utxo_referee/artifacts/bitvm_procedural_sync_latest.json`
+
+To build a parallel UTXO index from the latest funding, CET, expiry, and timeout
+artifacts, run:
+
+```bash
+node bitvm3/utxo_referee/m1_parallel_utxo_index.js
+```
+
+This writes:
+- `bitvm3/utxo_referee/artifacts/m1_parallel_utxo_index_latest.json`
+
+To build BitVM-facing search-manifold experiments from the latest challenge,
+procedural, and anchor artifacts, run:
+
+```bash
+node bitvm3/utxo_referee/m1_bitvm_search_manifolds.js
+```
+
+This writes:
+- `bitvm3/utxo_referee/artifacts/m1_bitvm_search_manifolds_latest.json`
+- `bitvm3/utxo_referee/artifacts/m1_bitvm_search_manifolds_latest.md`
+
+The current manifold bench covers:
+- transcript multiplicity for controlled alias families versus dangerous digest collapse
+- identifier bifurcation for txid-like anchor search around a stable settlement core
+
+These are overlay/search experiments, not claims that the repo already emits
+real alternative Bitcoin txids for the same witness core.
+
+## Lightning Integration Prototypes
+
+To generate deterministic Lightning-facing BitVM/DLC prototype artifacts, run:
+
+```bash
+node bitvm3/utxo_referee/lightning_integration_demo.js
+```
+
+This covers:
+- Lightning-funded BitVM/DLC position opening via a submarine-swap-shaped transcript
+- Lightning payout compression with preimage receipts and on-chain fallbacks
+- Watchtower bounty payment receipts over Lightning
+- LDK/BDK-style contract-open API surface
+- Lightning-funded roll-forward collateral top-ups
+
+This writes:
+- `bitvm3/utxo_referee/artifacts/lightning_integration_latest.json`
+- `bitvm3/utxo_referee/artifacts/lightning_integration_latest.md`
+
+Details are in `LIGHTNING_INTEGRATION_PROTOTYPES.md`.
+
+To probe local testnet chain/Lightning daemons and document what is live, run:
+
+```bash
+node bitvm3/utxo_referee/lightning_live_testnet_demo.js
+```
+
+This writes:
+- `bitvm3/utxo_referee/artifacts/lightning_live_testnet_demo_latest.json`
+- `bitvm3/utxo_referee/artifacts/lightning_live_testnet_demo_latest.md`
+
+Details are in `LIGHTNING_LIVE_TESTNET_DEMO.md`.
+
+To start a local Core Lightning regtest sandbox and pay a real invoice over a
+live Alice-to-Bob channel, run:
+
+```powershell
+wsl -d Ubuntu --exec /bin/bash /mnt/c/projects/UTXORef/UTXO-Ref/bitvm3/utxo_referee/cln_regtest_demo.sh
+```
+
+This writes:
+- `bitvm3/utxo_referee/artifacts/cln_regtest_demo_latest.json`
+- `bitvm3/utxo_referee/artifacts/cln_regtest_demo_latest.md`
+
+Details are in `LIGHTNING_CLN_REGTEST_DEMO.md`.
+
+To run the live regtest submarine-swap-shaped funding bridge into an actual
+BitVM/DLC commitment output, run:
+
+```bash
+node bitvm3/utxo_referee/lightning_subswap_dlc_demo.js
+```
+
+This writes:
+- `bitvm3/utxo_referee/artifacts/lightning_subswap_dlc_latest.json`
+- `bitvm3/utxo_referee/artifacts/lightning_subswap_dlc_latest.md`
+
+To layer a BitVM-backed liquidity lease over the latest HTLC/subswap proof, run:
+
+```bash
+node bitvm3/utxo_referee/lightning_liquidity_lease_demo.js
+```
+
+This writes:
+- `bitvm3/utxo_referee/artifacts/lightning_liquidity_lease_latest.json`
+- `bitvm3/utxo_referee/artifacts/lightning_liquidity_lease_latest.md`
+
+To generate integration artifacts for LDK Server and ZEUS-style wallet demos,
+run:
+
+```bash
+node bitvm3/utxo_referee/lightning_wallet_integration_demo.js
+```
+
+This writes:
+- `bitvm3/utxo_referee/artifacts/lightning_wallet_integration_latest.json`
+- `bitvm3/utxo_referee/artifacts/lightning_wallet_integration_latest.md`
+
+The sidecar API can be served with:
+
+```bash
+node integrations/lightning-liquidity-lease-sidecar/server.js
+```
+
+To generate a Spiral/LDK-facing value-add brief that maps the Lightning
+prototype to public LDK commit themes, run:
+
+```bash
+node bitvm3/utxo_referee/spiral_ldk_value_add_demo.js
+```
+
+This writes:
+- `bitvm3/utxo_referee/artifacts/spiral_ldk_value_add_latest.json`
+- `bitvm3/utxo_referee/artifacts/spiral_ldk_value_add_latest.md`
+
+Details are in `SPIRAL_LDK_VALUE_ADD.md`.
+
+To regenerate the full funded-epoch artifact chain in one command, run:
+
+```bash
+node bitvm3/utxo_referee/m1_pipeline.js
+```
+
+Defaults:
+- runs in `M1_PIPELINE_MODE=fresh`, which requires Litecoin RPC for `bootstrap -> psbt -> finalize`
+- `M1_PIPELINE_MODE=replay` skips those live wallet steps and reuses the current `*_latest.json` artifacts
+- selects the `roll` path unless `M1_PATH_NAME` or `M1_BUCKET_PCT` is set
+- finalizes funding with `BROADCAST_FUNDING=0` unless `M1_BROADCAST_FUNDING=1`
+- runs `m1_validate_latest_settlement.js` only when `m1_expiry_timeout_testnet_proof.json` exists and still matches the latest regenerated expiry artifact, unless `M1_FORCE_SETTLEMENT_VALIDATION=1`
+
+This writes:
+- `bitvm3/utxo_referee/artifacts/m1_pipeline_latest.json`
 

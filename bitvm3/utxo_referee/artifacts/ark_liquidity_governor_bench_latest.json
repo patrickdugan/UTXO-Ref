@@ -1,0 +1,184 @@
+{
+  "architecture": {
+    "governorPath": "UTXORef/BitVM validates ASP pathing promises, fee ceilings, CLTV ceilings, exit paths, and forfeit paths",
+    "hotPathRule": "parallel local verification only; BitVM/DLC settlement is cold-path escalation",
+    "liquidityPath": "Ark VTXO inventory grafts route liquidity for LN without asset-specific semantics"
+  },
+  "bottleneckStress": {
+    "cetTemplateConstruction": {
+      "parallel": {
+        "bytes": 7600000,
+        "checked": 50000,
+        "checksum": "ce272b2d35c26585d02632d8ff5b46c038deac36756525c3735480479e2bcdc0",
+        "elapsedMs": 43.754,
+        "megabytesPerSecond": 173.698,
+        "operationsPerSecond": 1142750
+      },
+      "serial": {
+        "bytes": 7600000,
+        "checked": 50000,
+        "checksum": "ce272b2d35c26585d02632d8ff5b46c038deac36756525c3735480479e2bcdc0",
+        "elapsedMs": 298.78,
+        "megabytesPerSecond": 25.437,
+        "operationsPerSecond": 167347
+      },
+      "speedup": 6.829,
+      "statsMatch": true
+    },
+    "jsonParse": {
+      "bytes": 34138891,
+      "checked": 50000,
+      "checksum": "b26c1cb5f438564f6e8385cca666fb528dff3e2e4f38a8ed52d14f7ab558efc8",
+      "elapsedMs": 870.956,
+      "megabytesPerSecond": 39.197,
+      "operationsPerSecond": 57408
+    },
+    "jsonSerialization": {
+      "bytes": 34138891,
+      "checked": 50000,
+      "checksum": "02438ed71ff82ff77177071fffb8d2f8b5bf3578a618a0a1e8d782933534273a",
+      "elapsedMs": 346.544,
+      "megabytesPerSecond": 98.513,
+      "operationsPerSecond": 144282
+    },
+    "localPersistenceWrites": {
+      "bytes": 17788890,
+      "checked": 50000,
+      "checksum": "8e721e8aae20159bb2cead2b852b1374dc45e03b679caf14fb728066a1281672",
+      "elapsedMs": 457.774,
+      "megabytesPerSecond": 38.86,
+      "operationsPerSecond": 109224
+    },
+    "oracleOutcomeFanout": {
+      "parallel": {
+        "bytes": 25600000,
+        "checked": 50000,
+        "checksum": "bb40c4b0b71e0599931be265cf25b6855ac66005689a197831cc289b48ec10b7",
+        "elapsedMs": 253.256,
+        "megabytesPerSecond": 101.084,
+        "operationsPerSecond": 197429
+      },
+      "serial": {
+        "bytes": 25600000,
+        "checked": 50000,
+        "checksum": "bb40c4b0b71e0599931be265cf25b6855ac66005689a197831cc289b48ec10b7",
+        "elapsedMs": 1854.218,
+        "megabytesPerSecond": 13.806,
+        "operationsPerSecond": 26966
+      },
+      "speedup": 7.322,
+      "statsMatch": true
+    }
+  },
+  "comparison": {
+    "parallelObligationsPerSecond": 105056,
+    "serialObligationsPerSecond": 17015,
+    "speedup": 6.174,
+    "statsMatch": true
+  },
+  "generatedAtUnixMs": 1777218283910,
+  "input": {
+    "artifact": "C:\\projects\\UTXORef\\UTXO-Ref\\integrations\\ark-liquidity-governor-bench\\../../bitvm3/utxo_referee/artifacts/lightning_ark_liquidity_graft_latest.json",
+    "aspId": "ark-asp-regtest",
+    "badEvery": 0,
+    "bundleId": "0e52764d84ff1d97d956b535d8ef5040ff5c8bca45e4fdb9e5a7f7bbcc264fbd",
+    "obligations": 50000,
+    "quoteId": "3de7de5c64e3b1c970b098d83b4e21a7482cc9593273b859892748e936c34ba7",
+    "templateId": "ark-template-ln-graft-v1",
+    "vtxoCommitmentId": "6cb4b0d789dd37bef975e8c941a78d7cf99b2d0481135a86dc21ee2547566430",
+    "workFactor": 128,
+    "workers": 12
+  },
+  "interpretation": {
+    "arkMakesMarginalRoutingAffordable": true,
+    "assetAgnostic": true,
+    "bitvmInHotPath": false,
+    "governorOnlyEscalatesSlashableBatches": true
+  },
+  "kind": "ark_ln_utxoref_governor_throughput_benchmark",
+  "optimizedPaths": {
+    "binaryPersistenceWrites": {
+      "bytes": 8600008,
+      "checked": 50000,
+      "checksum": "896e6ab1f417e455bd7f913f6e9164ded7530ce5fcea74cec7bc84893de7b477",
+      "elapsedMs": 8.956,
+      "megabytesPerSecond": 960.24,
+      "operationsPerSecond": 5582787
+    },
+    "binaryTranscriptParse": {
+      "bytes": 8600008,
+      "checked": 50000,
+      "checksum": "3a28b3f9b15e89a8662de8af31364bb8ffd30cab536393b415bba5314ac073b2",
+      "elapsedMs": 36.588,
+      "megabytesPerSecond": 235.052,
+      "operationsPerSecond": 1366579
+    },
+    "binaryTranscriptSerialization": {
+      "bytes": 8600008,
+      "checked": 50000,
+      "checksum": "896e6ab1f417e455bd7f913f6e9164ded7530ce5fcea74cec7bc84893de7b477",
+      "elapsedMs": 234.045,
+      "megabytesPerSecond": 36.745,
+      "operationsPerSecond": 213634
+    },
+    "jsonToBinaryParseSpeedup": 23.805,
+    "jsonToBinaryPersistenceSpeedup": 51.113
+  },
+  "parallel": {
+    "checked": 50000,
+    "checksum": "d006ed4c5b3f404998bcbbbba3886800441dc1438eb1d9be25fae0ba9c74baad",
+    "elapsedMs": 475.938,
+    "obligationsPerSecond": 105056,
+    "ok": 50000,
+    "slashable": 0,
+    "violations": 0
+  },
+  "secp256k1": {
+    "ecdsaSign": {
+      "parallel": {
+        "checked": 50000,
+        "checksum": "31deb51c4ec9e7efac40542cd2582a752bbbd7476ab579498351045749ce0b59",
+        "elapsedMs": 1182.48,
+        "ok": 50000,
+        "operationsPerSecond": 42284
+      },
+      "serial": {
+        "checked": 50000,
+        "checksum": "31deb51c4ec9e7efac40542cd2582a752bbbd7476ab579498351045749ce0b59",
+        "elapsedMs": 9922.791,
+        "ok": 50000,
+        "operationsPerSecond": 5039
+      },
+      "speedup": 8.392,
+      "statsMatch": true
+    },
+    "ecdsaVerify": {
+      "parallel": {
+        "checked": 50000,
+        "checksum": "31deb51c4ec9e7efac40542cd2582a752bbbd7476ab579498351045749ce0b59",
+        "elapsedMs": 1505.201,
+        "ok": 50000,
+        "operationsPerSecond": 33218
+      },
+      "serial": {
+        "checked": 50000,
+        "checksum": "31deb51c4ec9e7efac40542cd2582a752bbbd7476ab579498351045749ce0b59",
+        "elapsedMs": 13600.041,
+        "ok": 50000,
+        "operationsPerSecond": 3676
+      },
+      "speedup": 9.035,
+      "statsMatch": true
+    },
+    "library": "rust-secp256k1/libsecp256k1"
+  },
+  "serial": {
+    "checked": 50000,
+    "checksum": "d006ed4c5b3f404998bcbbbba3886800441dc1438eb1d9be25fae0ba9c74baad",
+    "elapsedMs": 2938.639,
+    "obligationsPerSecond": 17015,
+    "ok": 50000,
+    "slashable": 0,
+    "violations": 0
+  }
+}
