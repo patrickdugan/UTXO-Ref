@@ -14,7 +14,7 @@ const PROOF_STEPS = [
   ['externalization', 'pledge-tlusd-hybrid-colored', 33, 'Pledge tlUSD into hybrid colored coin form with a P2TR reference output', '3c95934aa8d6a43524cfd2b5089f09e060d514fd6e7c4828eff9e02ccc18f07b'],
   ['tap', 'make-tap-asset-tlusd', 33, 'Create a P2TR TAP asset anchor output for the pledged tlUSD', '9fac61dba0503ed228c75bceb436698946107c698d4db0bd389d11a93aeadebb'],
   ['liquidity', 'plain-liquidity-graft', null, 'Off-chain Lightning route graft commitment referencing the tlUSD/TAP anchor; no Bitcoin txid is created for route construction', null, 'ln-route-commitment'],
-  ['liquidity', 'ark-liquidity-graft', 30, 'Ark batched liquidity graft compresses the same pledged route capital', 'b88247df8c1b0960d9350a75e8c7e1e713bc0898e050407dd60c08f245d727a5']
+  ['liquidity', 'ark-liquidity-graft', null, 'Off-chain Ark VTXO assignment compresses the pledged route capital; no Bitcoin txid exists until a round, exit, or forfeit transaction', null, 'ark-vtxo-commitment']
 ];
 
 function proofStep([phase, label, txType, description, txid, proofKind], index) {
@@ -65,7 +65,7 @@ function buildBitcoinTestnetProof() {
     steps,
     verification: {
       ok: true,
-      rule: 'reviewer-facing chain links each cross-domain Bitcoin testnet transaction'
+      rule: 'reviewer-facing chain links Bitcoin testnet transactions and labels LN/Ark route commitments as off-chain'
     }
   };
 }

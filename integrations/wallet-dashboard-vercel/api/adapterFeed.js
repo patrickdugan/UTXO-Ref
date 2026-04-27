@@ -112,7 +112,7 @@ function buildTaprootAssetEvents() {
 
 function buildTradeLayerEvents() {
   const tx33 = findProofStep('pledge-tlusd-hybrid-colored');
-  const bitvm = findProofStep('ark-liquidity-graft');
+  const tap = findProofStep('make-tap-asset-tlusd');
   return [
     event('tradelayer', 'Tx33SyntheticUsdQuoted', 0, {
       normalizedType: 'tx33_tlusd_quote',
@@ -128,8 +128,8 @@ function buildTradeLayerEvents() {
       status: 'verified',
       amountSats: 57647059,
       correlationId: 'tl-btcusd-perp-0',
-      evidence: bitvm.txid,
-      evidenceUrl: bitvm.explorer,
+      evidence: tap.txid,
+      evidenceUrl: tap.explorer,
       dashboardImpact: 'links BTC/USD perp collateral to TLUSD mint envelope'
     })
   ];

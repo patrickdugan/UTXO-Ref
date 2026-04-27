@@ -40,7 +40,7 @@ function buildStatus() {
         exists: true,
         source: 'Bitcoin testnet4',
         txCount: proof.summary.txCount,
-        finalExplorer: proof.keyTxids.arkLiquidityGraft.explorer
+        finalExplorer: proof.keyTxids.tapAsset.explorer
       }
     },
     readiness: {

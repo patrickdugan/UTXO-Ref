@@ -7,7 +7,7 @@ const dashboard = buildStressDashboard({ botCount: 5000 });
 
 assert.strictEqual(status.ok, true);
 assert.strictEqual(status.readiness.walletViewReady, true);
-assert.strictEqual(status.artifacts.bitcoinTestnetProof.txCount, 13);
+assert.strictEqual(status.artifacts.bitcoinTestnetProof.txCount, 12);
 assert.strictEqual(walletView.conversion.lnbtcSats, 49000);
 assert.match(walletView.conversion.subswapFundingExplorer, /^https:\/\/mempool\.space\/testnet4\/tx\//);
 assert.match(walletView.conversion.dlcFundingTxid, /^[0-9a-f]{64}$/);

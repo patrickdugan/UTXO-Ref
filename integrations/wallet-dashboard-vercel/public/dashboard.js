@@ -554,9 +554,9 @@ function renderBitcoinTestnetProof(testnetProof) {
   $('bitcoinProofSummary').innerHTML = [
     metric('Explorer network', testnetProof.network, 'mempool.space links'),
     metric('Bitcoin txids', testnetProof.summary.txCount.toLocaleString(), 'click linked cards to inspect'),
-    metric('Off-chain events', (testnetProof.summary.offchainCount || 0).toLocaleString(), 'LN route graft has no txid'),
+    metric('Off-chain events', (testnetProof.summary.offchainCount || 0).toLocaleString(), 'LN and Ark grafts have no txid'),
     metric('DLC funding', short(testnetProof.summary.firstTxid), 'submarine swap shaped funding'),
-    metric('Ark graft', short(testnetProof.summary.finalTxid), 'batched liquidity proof')
+    metric('TAP anchor', short(testnetProof.summary.finalTxid), 'last Bitcoin txid before route commitments')
   ].join('');
   $('bitcoinProofLinks').innerHTML = testnetProof.steps
     .map(step => {
@@ -642,7 +642,7 @@ function renderExportPack(dashboard, status, walletView, ark) {
     detailRow('Invariants', `${pack.invariants.filter(item => item.ok).length}/${pack.invariants.length} pass`),
     detailRow('Adapter events', `${pack.adapterFeed?.verification?.normalizedEvents || 0} normalized`),
     detailRow('Bitcoin testnet txids', `${pack.bitcoinTestnetProof?.summary?.txCount || 0} explorer-linked`),
-    detailRow('Off-chain events', `${pack.bitcoinTestnetProof?.summary?.offchainCount || 0} route commitments`),
+    detailRow('Off-chain events', `${pack.bitcoinTestnetProof?.summary?.offchainCount || 0} route/VTXO commitments`),
     detailRow('Smoke command', pack.smokeTestCommand),
     detailRow('Funding brief', pack.fundingBriefUrl)
   ].join('');

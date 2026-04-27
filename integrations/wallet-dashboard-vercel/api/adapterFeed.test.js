@@ -6,11 +6,11 @@ const feed = buildAdapterFeed();
 assert.equal(feed.kind, 'utxoref_layer_adapter_feed');
 assert.equal(feed.verification.ok, true);
 assert.equal(feed.verification.adaptersCovered, 4);
-assert.equal(feed.verification.bitcoinTestnetTxids, 13);
+assert.equal(feed.verification.bitcoinTestnetTxids, 12);
 assert.ok(feed.events.length >= 12);
 assert.equal(feed.testnetProof.network, 'testnet4');
-assert.equal(feed.testnetProof.summary.txCount, 13);
-assert.equal(feed.testnetProof.summary.offchainCount, 1);
+assert.equal(feed.testnetProof.summary.txCount, 12);
+assert.equal(feed.testnetProof.summary.offchainCount, 2);
 
 for (const key of ['ldk', 'ark', 'taprootAssets', 'tradeLayer']) {
   assert.ok(feed.adapters[key], `missing ${key}`);
