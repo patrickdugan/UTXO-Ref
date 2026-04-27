@@ -46,6 +46,11 @@ select {
   font: inherit;
 }
 
+input[type="range"] {
+  width: 100%;
+  accent-color: var(--green);
+}
+
 .app-shell {
   width: min(1440px, 100%);
   margin: 0 auto;
@@ -307,6 +312,123 @@ th {
   display: block;
 }
 
+.trace-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.trace-step,
+.metric,
+.check-item {
+  border: 1px solid var(--line);
+  background: #fbfdfc;
+  padding: 10px;
+}
+
+.trace-step {
+  min-height: 132px;
+  display: grid;
+  gap: 7px;
+  align-content: start;
+}
+
+.trace-step strong,
+.trace-step span,
+.trace-step small {
+  display: block;
+}
+
+.trace-step strong {
+  color: var(--ink);
+}
+
+.control-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.control-grid button {
+  min-height: 54px;
+  padding: 8px;
+  background: var(--steel);
+  font-size: 13px;
+}
+
+.control-grid button.active {
+  background: var(--amber);
+}
+
+.impact-box {
+  border-left: 4px solid var(--amber);
+  background: #fffaf0;
+  padding: 10px;
+  min-height: 74px;
+}
+
+.slider-row {
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.metric-grid.wide {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.metric span,
+.metric strong,
+.metric small {
+  display: block;
+}
+
+.metric strong {
+  margin-top: 5px;
+  font-size: 18px;
+}
+
+.checklist {
+  display: grid;
+  gap: 8px;
+}
+
+.check-item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.check-item .status {
+  min-width: 92px;
+}
+
+.status.local {
+  background: var(--blue);
+}
+
+.status.mocked {
+  background: var(--steel);
+}
+
+.status.remote {
+  background: var(--green);
+}
+
+.status.pending {
+  background: var(--amber);
+}
+
 dialog {
   width: min(720px, calc(100% - 24px));
   border: 1px solid var(--line);
@@ -342,7 +464,14 @@ dialog::backdrop {
   }
 
   .kpi-grid,
-  .lane-rail {
+  .lane-rail,
+  .trace-grid,
+  .metric-grid,
+  .metric-grid.wide {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .control-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -353,7 +482,12 @@ dialog::backdrop {
   }
 
   .kpi-grid,
-  .lane-rail {
+  .lane-rail,
+  .trace-grid,
+  .metric-grid,
+  .metric-grid.wide,
+  .control-grid,
+  .slider-row {
     grid-template-columns: 1fr;
   }
 }

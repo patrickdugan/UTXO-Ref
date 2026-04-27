@@ -1,7 +1,9 @@
 const state = {
   dashboard: null,
   status: null,
-  walletView: null
+  walletView: null,
+  failureMode: 'nominal',
+  assetMode: 'tlusd'
 };
 
 function $(id) {
@@ -35,6 +37,68 @@ function short(value) {
 function detailRow(label, value) {
   return `<div class="detail-row"><span>${label}</span><strong>${value ?? 'n/a'}</strong></div>`;
 }
+
+function metric(label, value, note = '') {
+  return `<div class="metric"><span>${label}</span><strong>${value}</strong><small>${note}</small></div>`;
+}
+
+function percent(value) {
+  return `${Number(value).toFixed(2)}%`;
+}
+
+const failureScenarios = {
+  nominal: {
+    label: 'Nominal',
+    detector: 'all adapters',
+    impact: 'Routes remain inside committed liquidity envelopes; BitVM challenge path stays cold.'
+  },
+  asp_delay: {
+    label: 'ASP delay',
+    detector: 'Ark exit watcher',
+    impact: 'Timeout pressure rises; wallet prepares unilateral Ark exit and BitVM slash evidence.'
+  },
+  oracle_mismatch: {
+    label: 'Oracle mismatch',
+    detector: 'DLC oracle adapter',
+    impact: 'TLUSD mint path pauses until oracle delta and funding state are reconciled.'
+  },
+  htlc_timeout: {
+    label: 'HTLC timeout',
+    detector: 'LDK payment lifecycle',
+    impact: 'Subswap funding reverts toward the LN sender before the UTXORef funding edge is accepted.'
+  },
+  under_delivery: {
+    label: 'Under-delivery',
+    detector: 'BitVM liquidity invariant',
+    impact: 'Shortfall is challengeable; ASP bond or forfeit path covers the missing inbound liquidity.'
+  },
+  forced_exit: {
+    label: 'Forced Ark exit',
+    detector: 'Ark batch monitor',
+    impact: 'VTXO leaves the batch path; fee model flips to emergency exit while liquidity accounting remains auditable.'
+  }
+};
+
+const assetModes = {
+  tlusd: {
+    label: 'TLUSD mock',
+    issuer: 'wallet sidecar',
+    settlement: 'synthetic USD proof from local Litecoin testnet collateral',
+    reviewerPoint: 'fastest path for showing wallet UX and stress quantities'
+  },
+  taproot: {
+    label: 'Taproot Asset USD',
+    issuer: 'Taproot Assets daemon',
+    settlement: 'asset proof rides beside LN liquidity with daemon-issued transfer proofs',
+    reviewerPoint: 'shows how the liquidity patch can externalize into a real LN asset stack'
+  },
+  tradelayer: {
+    label: 'TradeLayer synthetic USD',
+    issuer: 'TradeLayer tx 33',
+    settlement: 'BTC/USD perp-backed synthetic USD controlled by UTXORef and DLC status',
+    reviewerPoint: 'connects tokenized BTC, perps, DLC status, and Ark fee compression'
+  }
+};
 
 function renderKpis(dashboard) {
   const totals = dashboard.totals;
@@ -160,6 +224,147 @@ function renderProofGraph(walletView, dashboard) {
     .join('');
 }
 
+function renderProtocolTrace(walletView, dashboard) {
+  if (!walletView) return;
+  const scenario = failureScenarios[state.failureMode];
+  const steps = [
+    ['LN invoice', `hash ${short(walletView.conversion.subswapFundingTxid)}`, 'BOLT11 invoice accepted by wallet funding flow'],
+    ['Subswap HTLC', `cltv ${48 + Math.floor(dashboard.totals.botCount / 512)}`, 'payment hash locks inbound funding until preimage or timeout'],
+    ['UTXORef funding', short(walletView.conversion.dlcFundingTxid), 'DLC funding output becomes the state anchor'],
+    ['Ark VTXO', short(walletView.liquidityPatch.allocationId), `${dashboard.totals.arkVtxoCount.toLocaleString()} batched references compress fee surface`],
+    ['Asset stake', short(walletView.stake.stakeCommitmentId), `${assetModes[state.assetMode].label} posted as routing commitment`],
+    ['BitVM guard', short(walletView.liquidityPatch.challenge.challengeId), `${scenario.detector} watches for ${scenario.label.toLowerCase()}`]
+  ];
+  $('protocolTrace').innerHTML = steps
+    .map(([label, value, note]) => `<div class="trace-step"><strong>${label}</strong><span>${value}</span><small>${note}</small></div>`)
+    .join('');
+}
+
+function renderFailureLab(dashboard) {
+  const scenario = failureScenarios[state.failureMode];
+  $('failureStatus').textContent = scenario.label;
+  $('failureControls').innerHTML = Object.entries(failureScenarios)
+    .map(([key, item]) => `<button type="button" data-failure="${key}" class="${key === state.failureMode ? 'active' : ''}">${item.label}</button>`)
+    .join('');
+  $('failureControls').querySelectorAll('button').forEach(button => {
+    button.addEventListener('click', () => {
+      state.failureMode = button.dataset.failure;
+      render(state.dashboard, state.status, state.walletView);
+    });
+  });
+
+  const shortfall = Math.max(0, Number(dashboard.totals.assignedInboundSats) - Number(dashboard.totals.deliveredInboundSats));
+  $('failureImpact').innerHTML = [
+    detailRow('Detector', scenario.detector),
+    detailRow('Current shortfall', compactSats(shortfall)),
+    detailRow('Recovery path', scenario.impact)
+  ].join('');
+}
+
+function renderLnCompatibility(walletView, dashboard) {
+  if (!walletView) return;
+  const cltvDelta = 48 + Math.floor(dashboard.totals.botCount / 512);
+  const outbound = Math.floor(Number(walletView.conversion.lnbtcSats) * 0.82);
+  const inbound = Number(dashboard.totals.assignedInboundSats);
+  $('lnCompatibility').innerHTML = [
+    detailRow('Invoice amount', sats(walletView.conversion.lnbtcSats)),
+    detailRow('Payment hash', short(walletView.conversion.subswapFundingTxid)),
+    detailRow('Preimage source', 'subswap fulfillment witness'),
+    detailRow('CLTV delta', `${cltvDelta} blocks`),
+    detailRow('Route fee', `${dashboard.totals.averageFeePpm} ppm`),
+    detailRow('Outbound liquidity', compactSats(outbound)),
+    detailRow('Inbound liquidity', compactSats(inbound)),
+    detailRow('LDK event', state.failureMode === 'htlc_timeout' ? 'PaymentPathFailed' : 'PaymentClaimable')
+  ].join('');
+}
+
+function renderArkSavings(dashboard) {
+  const feeRate = Number($('arkFeeRate').value);
+  const routes = Number(dashboard.totals.routeCount);
+  const directVbytes = routes * 112;
+  const arkVbytes = Math.ceil(routes / 64) * 155 + Number(dashboard.totals.arkVtxoCount) * 3;
+  const directFee = directVbytes * feeRate;
+  const arkFee = arkVbytes * feeRate;
+  const savings = Math.max(0, directFee - arkFee);
+  const breakeven = routes > 0 ? (arkVbytes / directVbytes) * feeRate : 0;
+  $('arkFeeLabel').textContent = `${feeRate} sat/vB`;
+  $('arkSavingsHeadline').textContent = compactSats(savings);
+  $('arkSavingsPanel').innerHTML = [
+    metric('Direct cost', compactSats(directFee), `${directVbytes.toLocaleString()} vB`),
+    metric('Ark batch cost', compactSats(arkFee), `${arkVbytes.toLocaleString()} vB`),
+    metric('Fee saved', compactSats(savings), `${Math.round((savings / directFee) * 100)}% lower`),
+    metric('Breakeven', `${breakeven.toFixed(2)} sat/vB`, 'batch path ratio')
+  ].join('');
+  return { feeRate, directFee, arkFee, savings };
+}
+
+function renderBitvmEnforcement(walletView, dashboard) {
+  if (!walletView) return;
+  const firstChallenge = dashboard.challengeQueue[0];
+  const committed = Number(firstChallenge?.requestedInboundSats || walletView.liquidityPatch.assignedInboundSats || 0);
+  const claimed = Number(firstChallenge?.deliveredInboundSats || walletView.liquidityPatch.deliveredInboundSats || 0);
+  const shortfall = Math.max(0, committed - claimed);
+  $('bitvmEnforcement').innerHTML = [
+    detailRow('Committed state', `${compactSats(committed)} inbound promised`),
+    detailRow('Claimed state', `${compactSats(claimed)} delivered by ASP`),
+    detailRow('Invariant', 'delivered >= committed minimum before expiry'),
+    detailRow('Shortfall', compactSats(shortfall)),
+    detailRow('Bond coverage', compactSats(Math.max(shortfall * 2, 25000))),
+    detailRow('Challenge window', `${walletView.stake.termBlocks || 144} blocks`),
+    detailRow('Exit path', state.failureMode === 'forced_exit' ? 'force Ark exit then slash' : 'challenge ASP commitment then slash')
+  ].join('');
+}
+
+function renderAssetMode(walletView, dashboard) {
+  const mode = assetModes[state.assetMode];
+  const units = state.assetMode === 'tlusd'
+    ? tlusd(walletView.conversion.tlusdUnits)
+    : `${(Number(walletView.conversion.tlusdUnits) / 1000000).toLocaleString(undefined, { maximumFractionDigits: 2 })} USD units`;
+  $('assetModePanel').innerHTML = [
+    detailRow('Backend', mode.label),
+    detailRow('Issuer', mode.issuer),
+    detailRow('Settlement', mode.settlement),
+    detailRow('Wallet balance', units),
+    detailRow('Routing stake', compactSats(dashboard.totals.assignedInboundSats)),
+    detailRow('Reviewer signal', mode.reviewerPoint)
+  ].join('');
+}
+
+function renderIntegrationChecklist(status) {
+  if (!status) return;
+  const rows = [
+    ['LDK Node', 'mocked', 'event mapping surfaced in BOLT pane'],
+    ['LND', status.lnd ? 'local' : 'pending', status.lnd ? status.lnd.grpcHost : 'not wired'],
+    ['Core Lightning', 'pending', 'adapter contract documented'],
+    ['Bark / Ark', 'mocked', 'VTXO batch cost model live'],
+    ['Taproot Assets', state.assetMode === 'taproot' ? 'pending' : 'mocked', 'mode-ready asset adapter'],
+    ['Litecoin testnet', status.chain.chain === 'litecoin' ? 'local' : 'mocked', status.chain.rpcUrl],
+    ['Bitcoin testnet', status.lnd ? 'remote' : 'pending', status.lnd ? status.lnd.network : 'future LND profile']
+  ];
+  $('integrationChecklist').innerHTML = rows
+    .map(([name, stateLabel, note]) => `<div class="check-item"><div><strong>${name}</strong><small>${note}</small></div><span class="status ${stateLabel}">${stateLabel}</span></div>`)
+    .join('');
+}
+
+function renderOperatorEconomics(dashboard, ark) {
+  const capitalSats = Math.max(1, Number(dashboard.totals.assignedInboundSats));
+  const grossFees = Number(dashboard.totals.earnedFeesSats);
+  const challengeReserve = Number(dashboard.totals.challengeCount) * 1800;
+  const emergencyExitReserve = state.failureMode === 'forced_exit' ? ark.arkFee * 2 : Math.floor(ark.arkFee * 0.35);
+  const net = grossFees + ark.savings - challengeReserve - emergencyExitReserve;
+  const utilization = Number(dashboard.totals.deliveredInboundSats) / capitalSats;
+  const periodYield = (net / capitalSats) * 100;
+  $('operatorNetYield').textContent = `${net >= 0 ? '+' : ''}${compactSats(net)} modeled net`;
+  $('operatorEconomics').innerHTML = [
+    metric('Gross fees', compactSats(grossFees), `${dashboard.totals.averageFeePpm} ppm`),
+    metric('Ark savings', compactSats(ark.savings), `${ark.feeRate} sat/vB model`),
+    metric('Challenge reserve', compactSats(challengeReserve), `${dashboard.totals.challengeCount} queue items`),
+    metric('Exit reserve', compactSats(emergencyExitReserve), state.failureMode),
+    metric('Utilization', percent(utilization * 100), 'delivered / assigned'),
+    metric('Net yield', `${periodYield.toFixed(3)}%`, 'per simulated batch')
+  ].join('');
+}
+
 function renderTable(dashboard) {
   const tbody = $('botTable');
   tbody.innerHTML = '';
@@ -199,6 +404,14 @@ function render(dashboard, status, walletView) {
   renderWalletPane(walletView, dashboard);
   renderProfilePanel(status);
   renderProofGraph(walletView, dashboard);
+  renderProtocolTrace(walletView, dashboard);
+  renderFailureLab(dashboard);
+  renderLnCompatibility(walletView, dashboard);
+  const ark = renderArkSavings(dashboard);
+  renderBitvmEnforcement(walletView, dashboard);
+  renderAssetMode(walletView, dashboard);
+  renderIntegrationChecklist(status);
+  renderOperatorEconomics(dashboard, ark);
   renderTable(dashboard);
 }
 
@@ -207,6 +420,11 @@ function exportReport() {
   const payload = {
     exportedAt: new Date().toISOString(),
     plan: 'UTXORef wallet stress dashboard',
+    interactionState: {
+      failureMode: state.failureMode,
+      assetMode: state.assetMode,
+      arkFeeRate: Number($('arkFeeRate').value)
+    },
     dashboard: state.dashboard,
     backendStatus: state.status,
     walletView: state.walletView
@@ -248,6 +466,13 @@ async function loadDashboard() {
 $('refreshButton').addEventListener('click', loadDashboard);
 $('exportButton').addEventListener('click', exportReport);
 $('botSelect').addEventListener('change', loadDashboard);
+$('arkFeeRate').addEventListener('input', () => {
+  if (state.dashboard) render(state.dashboard, state.status, state.walletView);
+});
+$('assetMode').addEventListener('change', () => {
+  state.assetMode = $('assetMode').value;
+  if (state.dashboard) render(state.dashboard, state.status, state.walletView);
+});
 $('closeDialog').addEventListener('click', () => $('challengeDialog').close());
 loadDashboard().catch(err => {
   $('subtitle').textContent = err.message;

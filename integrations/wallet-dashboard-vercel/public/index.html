@@ -114,6 +114,82 @@
 
         <section class="panel">
           <div class="section-title">
+            <h2>Protocol Trace</h2>
+            <span>LN to BitVM path</span>
+          </div>
+          <div id="protocolTrace" class="trace-grid"></div>
+        </section>
+
+        <section class="grid-two">
+          <div class="panel">
+            <div class="section-title">
+              <h2>Failure Injection</h2>
+              <span id="failureStatus">nominal</span>
+            </div>
+            <div id="failureControls" class="control-grid"></div>
+            <div id="failureImpact" class="impact-box"></div>
+          </div>
+          <div class="panel">
+            <div class="section-title">
+              <h2>BOLT / LDK Pane</h2>
+              <span>compatibility map</span>
+            </div>
+            <div id="lnCompatibility" class="detail-list"></div>
+          </div>
+        </section>
+
+        <section class="grid-two">
+          <div class="panel">
+            <div class="section-title">
+              <h2>Ark Batch Savings</h2>
+              <span id="arkFeeLabel">--</span>
+            </div>
+            <div class="slider-row">
+              <input id="arkFeeRate" type="range" min="1" max="80" value="18" />
+              <strong id="arkSavingsHeadline">--</strong>
+            </div>
+            <div id="arkSavingsPanel" class="metric-grid"></div>
+          </div>
+          <div class="panel">
+            <div class="section-title">
+              <h2>BitVM Enforcement</h2>
+              <span>governor path</span>
+            </div>
+            <div id="bitvmEnforcement" class="detail-list"></div>
+          </div>
+        </section>
+
+        <section class="grid-two">
+          <div class="panel">
+            <div class="section-title">
+              <h2>Asset Mode</h2>
+              <select id="assetMode" aria-label="Asset backend">
+                <option value="tlusd">TLUSD mock</option>
+                <option value="taproot">Taproot Asset USD</option>
+                <option value="tradelayer">TradeLayer synthetic USD</option>
+              </select>
+            </div>
+            <div id="assetModePanel" class="detail-list"></div>
+          </div>
+          <div class="panel">
+            <div class="section-title">
+              <h2>Integration Readiness</h2>
+              <span>adapter status</span>
+            </div>
+            <div id="integrationChecklist" class="checklist"></div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="section-title">
+            <h2>Operator Economics</h2>
+            <span id="operatorNetYield">--</span>
+          </div>
+          <div id="operatorEconomics" class="metric-grid wide"></div>
+        </section>
+
+        <section class="panel">
+          <div class="section-title">
             <h2>Autobot Routing Table</h2>
             <span id="routeCount">--</span>
           </div>
