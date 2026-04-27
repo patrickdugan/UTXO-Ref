@@ -2,6 +2,7 @@ const state = {
   dashboard: null,
   status: null,
   walletView: null,
+  adapterFeed: null,
   failureMode: 'nominal',
   assetMode: 'tlusd',
   demoStep: 0,
@@ -286,7 +287,7 @@ function renderFailureLab(dashboard) {
   $('failureControls').querySelectorAll('button').forEach(button => {
     button.addEventListener('click', () => {
       state.failureMode = button.dataset.failure;
-      render(state.dashboard, state.status, state.walletView);
+      render(state.dashboard, state.status, state.walletView, state.adapterFeed);
     });
   });
 
@@ -369,12 +370,14 @@ function renderAssetMode(walletView, dashboard) {
 
 function renderIntegrationChecklist(status) {
   if (!status) return;
+  const adapterReady = state.adapterFeed?.verification?.ok;
   const rows = [
-    ['LDK Node', 'mocked', 'event mapping surfaced in BOLT pane'],
+    ['LDK Node', adapterReady ? 'mocked' : 'pending', 'event fixture normalized into reviewer feed'],
     ['LND', status.lnd ? 'local' : 'pending', status.lnd ? status.lnd.grpcHost : 'not wired'],
     ['Core Lightning', 'pending', 'adapter contract documented'],
-    ['Bark / Ark', 'mocked', 'VTXO batch cost model live'],
-    ['Taproot Assets', state.assetMode === 'taproot' ? 'pending' : 'mocked', 'mode-ready asset adapter'],
+    ['Bark / Ark', adapterReady ? 'mocked' : 'pending', 'VTXO batch fixture and exit event'],
+    ['Taproot Assets', adapterReady ? 'mocked' : 'pending', 'transfer-proof fixture present'],
+    ['TradeLayer tx33', adapterReady ? 'mocked' : 'pending', 'synthetic USD fixture present'],
     ['Litecoin testnet', status.chain.chain === 'litecoin' ? 'local' : 'mocked', status.chain.rpcUrl],
     ['Bitcoin testnet', status.lnd ? 'remote' : 'pending', status.lnd ? status.lnd.network : 'future LND profile']
   ];
@@ -429,6 +432,7 @@ function renderArtifactLinks(dashboard, walletView) {
     ['Stress dashboard JSON', `/v1/wallet-demo/stress-dashboard?bots=${botCount}`, dashboard.dashboardId],
     ['Wallet view JSON', '/v1/lnbtc-tlusd-liquidity-patch/wallet-view', walletView.kind],
     ['Backend status JSON', '/v1/wallet-demo/status', state.status?.activeProfileId],
+    ['Adapter feed JSON', '/v1/wallet-demo/adapter-feed', state.adapterFeed?.feedId],
     ['Dashboard source JS', '/dashboard.js', 'browser renderer'],
     ['Funding brief', '/funding.html', 'Spiral narrative'],
     ['Public dashboard', '/dashboard', 'live alias']
@@ -441,6 +445,27 @@ function renderArtifactLinks(dashboard, walletView) {
 function renderAdapterContracts() {
   $('adapterContracts').innerHTML = adapterContracts
     .map(([name, methods]) => `<div class="contract-item"><strong>${name}</strong><code>${methods}</code><small>adapter boundary for replacing mock data with live layer tech</small></div>`)
+    .join('');
+}
+
+function renderAdapterFeed(adapterFeed) {
+  if (!adapterFeed) return;
+  $('adapterFeedStatus').textContent = `${adapterFeed.verification.normalizedEvents} normalized`;
+  $('adapterFeedStatus').className = `source-badge ${adapterFeed.verification.ok ? 'mock' : 'planned'}`;
+  $('adapterSummary').innerHTML = Object.entries(adapterFeed.adapters)
+    .map(([key, adapter]) => metric(adapter.name, adapter.eventCount.toLocaleString(), `${key}: ${adapter.lastEventType}`))
+    .join('');
+  $('adapterEventFeed').innerHTML = adapterFeed.events
+    .slice(-12)
+    .reverse()
+    .map(item => `
+      <div class="event-item">
+        <strong>${item.adapter}</strong>
+        <span>${item.sourceType}</span>
+        <small>${item.dashboardImpact}</small>
+        <span class="source-badge mock">${item.status}</span>
+      </div>
+    `)
     .join('');
 }
 
@@ -458,6 +483,7 @@ function buildExportPack(dashboard, status, walletView, ark) {
     },
     health: state.latencies,
     invariants: buildInvariants(dashboard, walletView, ark).map(([name, ok, note]) => ({ name, ok, note })),
+    adapterFeed: state.adapterFeed,
     dashboard,
     backendStatus: status,
     walletView,
@@ -468,8 +494,9 @@ function buildExportPack(dashboard, status, walletView, ark) {
 function renderExportPack(dashboard, status, walletView, ark) {
   const pack = buildExportPack(dashboard, status, walletView, ark);
   $('exportPackSummary').innerHTML = [
-    detailRow('Payloads', 'dashboard, status, wallet view'),
+    detailRow('Payloads', 'dashboard, status, wallet view, adapter feed'),
     detailRow('Invariants', `${pack.invariants.filter(item => item.ok).length}/${pack.invariants.length} pass`),
+    detailRow('Adapter events', `${pack.adapterFeed?.verification?.normalizedEvents || 0} normalized`),
     detailRow('Smoke command', pack.smokeTestCommand),
     detailRow('Funding brief', pack.fundingBriefUrl)
   ].join('');
@@ -478,7 +505,7 @@ function renderExportPack(dashboard, status, walletView, ark) {
 
 function renderDeploymentHealth(dashboard) {
   const latencies = state.latencies;
-  const apiOk = latencies.dashboard?.ok && latencies.status?.ok && latencies.walletView?.ok;
+  const apiOk = latencies.dashboard?.ok && latencies.status?.ok && latencies.walletView?.ok && latencies.adapterFeed?.ok;
   const commit = document.querySelector('meta[name="dashboard-commit"]')?.content || 'main';
   $('healthStatus').textContent = apiOk ? 'healthy' : 'degraded';
   $('healthStatus').className = `source-badge ${apiOk ? 'live' : 'planned'}`;
@@ -487,6 +514,7 @@ function renderDeploymentHealth(dashboard) {
     metric('Dashboard API', `${Math.round(latencies.dashboard?.ms || 0)} ms`, latencies.dashboard?.ok ? 'ok' : 'failed'),
     metric('Status API', `${Math.round(latencies.status?.ms || 0)} ms`, latencies.status?.ok ? 'ok' : 'failed'),
     metric('Wallet API', `${Math.round(latencies.walletView?.ms || 0)} ms`, latencies.walletView?.ok ? 'ok' : 'failed'),
+    metric('Adapter API', `${Math.round(latencies.adapterFeed?.ms || 0)} ms`, latencies.adapterFeed?.ok ? 'ok' : 'failed'),
     metric('5k status', dashboard.totals.botCount >= 5000 && dashboard.verification?.ok ? 'pass' : 'sampled', `${dashboard.totals.botCount.toLocaleString()} bots loaded`),
     metric('Git ref', commit, 'deployed build marker')
   ].join('');
@@ -523,7 +551,7 @@ function renderTable(dashboard) {
   });
 }
 
-function render(dashboard, status, walletView) {
+function render(dashboard, status, walletView, adapterFeed) {
   renderGuidedDemo(dashboard);
   renderKpis(dashboard);
   renderLanes(dashboard);
@@ -543,6 +571,7 @@ function render(dashboard, status, walletView) {
   renderInvariantLedger(dashboard, walletView, ark);
   renderArtifactLinks(dashboard, walletView);
   renderAdapterContracts();
+  renderAdapterFeed(adapterFeed);
   renderExportPack(dashboard, status, walletView, ark);
   renderDeploymentHealth(dashboard);
   renderTable(dashboard);
@@ -588,15 +617,17 @@ async function loadDashboard() {
   $('refreshButton').disabled = true;
   try {
     const botCount = $('botSelect').value;
-    const [dashboard, status, walletView] = await Promise.all([
+    const [dashboard, status, walletView, adapterFeed] = await Promise.all([
       timedJson('dashboard', `/v1/wallet-demo/stress-dashboard?bots=${encodeURIComponent(botCount)}`),
       timedJson('status', '/v1/wallet-demo/status'),
-      timedJson('walletView', '/v1/lnbtc-tlusd-liquidity-patch/wallet-view')
+      timedJson('walletView', '/v1/lnbtc-tlusd-liquidity-patch/wallet-view'),
+      timedJson('adapterFeed', '/v1/wallet-demo/adapter-feed')
     ]);
     state.dashboard = dashboard;
     state.status = status;
     state.walletView = walletView;
-    render(dashboard, status, walletView);
+    state.adapterFeed = adapterFeed;
+    render(dashboard, status, walletView, adapterFeed);
   } finally {
     $('refreshButton').disabled = false;
   }
@@ -607,18 +638,18 @@ $('exportButton').addEventListener('click', exportReport);
 $('botSelect').addEventListener('change', loadDashboard);
 $('demoPrev').addEventListener('click', () => {
   state.demoStep = Math.max(0, state.demoStep - 1);
-  if (state.dashboard) render(state.dashboard, state.status, state.walletView);
+  if (state.dashboard) render(state.dashboard, state.status, state.walletView, state.adapterFeed);
 });
 $('demoNext').addEventListener('click', () => {
   state.demoStep = Math.min(demoFlow.length - 1, state.demoStep + 1);
-  if (state.dashboard) render(state.dashboard, state.status, state.walletView);
+  if (state.dashboard) render(state.dashboard, state.status, state.walletView, state.adapterFeed);
 });
 $('arkFeeRate').addEventListener('input', () => {
-  if (state.dashboard) render(state.dashboard, state.status, state.walletView);
+  if (state.dashboard) render(state.dashboard, state.status, state.walletView, state.adapterFeed);
 });
 $('assetMode').addEventListener('change', () => {
   state.assetMode = $('assetMode').value;
-  if (state.dashboard) render(state.dashboard, state.status, state.walletView);
+  if (state.dashboard) render(state.dashboard, state.status, state.walletView, state.adapterFeed);
 });
 $('closeDialog').addEventListener('click', () => $('challengeDialog').close());
 loadDashboard().catch(err => {

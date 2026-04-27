@@ -18,6 +18,10 @@
       "destination": "/api/status"
     },
     {
+      "source": "/v1/wallet-demo/adapter-feed",
+      "destination": "/api/adapter-feed"
+    },
+    {
       "source": "/v1/lnbtc-tlusd-liquidity-patch/wallet-view",
       "destination": "/api/wallet-view"
     }

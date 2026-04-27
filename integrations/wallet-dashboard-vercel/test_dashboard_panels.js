@@ -34,12 +34,13 @@ function runPanel(name, check) {
 }
 
 async function main() {
-  const [html, script, dashboard, status, walletView] = await Promise.all([
+  const [html, script, dashboard, status, walletView, adapterFeed] = await Promise.all([
     getText('/dashboard'),
     getText('/dashboard.js'),
     getJson('/v1/wallet-demo/stress-dashboard?bots=5000'),
     getJson('/v1/wallet-demo/status'),
-    getJson('/v1/lnbtc-tlusd-liquidity-patch/wallet-view')
+    getJson('/v1/lnbtc-tlusd-liquidity-patch/wallet-view'),
+    getJson('/v1/wallet-demo/adapter-feed')
   ]);
   const funding = await getText('/funding');
 
@@ -144,10 +145,26 @@ async function main() {
     }
   });
 
+  runPanel('Layer Adapter Feed', () => {
+    assertMount(html, 'adapterSummary');
+    assertMount(html, 'adapterEventFeed');
+    assertMount(html, 'adapterFeedStatus');
+    assert.equal(adapterFeed.verification.ok, true, 'adapter feed verification failed');
+    assert.equal(adapterFeed.verification.adaptersCovered, 4, 'adapter count mismatch');
+    for (const key of ['ldk', 'ark', 'taprootAssets', 'tradeLayer']) {
+      assert.ok(adapterFeed.adapters[key], `missing adapter feed ${key}`);
+      assert.ok(adapterFeed.adapters[key].eventCount > 0, `${key} has no adapter events`);
+    }
+    for (const sourceType of ['PaymentClaimable', 'VtxoBatchQuoted', 'AssetProofVerified', 'Tx33SyntheticUsdQuoted']) {
+      assert.ok(adapterFeed.events.some(item => item.sourceType === sourceType), `missing ${sourceType}`);
+    }
+  });
+
   runPanel('Reviewer Export Pack', () => {
     assertMount(html, 'exportPackSummary');
     assertMount(html, 'exportPackButton');
     assert.match(script, /buildExportPack/, 'missing export pack builder');
+    assert.match(script, /adapterFeed/, 'missing adapter feed in export pack');
     assert.match(script, /npm run test:panels/, 'missing smoke test command in export pack');
   });
 
@@ -155,6 +172,7 @@ async function main() {
     assertMount(html, 'deploymentHealth');
     assertMount(html, 'healthStatus');
     assert.match(script, /renderDeploymentHealth/, 'missing deployment health renderer');
+    assert.match(script, /Adapter API/, 'missing adapter API health metric');
     assert.match(script, /5k status/, 'missing 5k health metric');
   });
 

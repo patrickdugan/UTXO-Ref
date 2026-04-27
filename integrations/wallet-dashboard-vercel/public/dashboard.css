@@ -395,7 +395,8 @@ th {
 .check-item,
 .invariant-item,
 .artifact-link,
-.contract-item {
+.contract-item,
+.event-item {
   border: 1px solid var(--line);
   background: #fbfdfc;
   padding: 10px;
@@ -508,6 +509,27 @@ th {
   white-space: normal;
 }
 
+.event-feed {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+  max-height: 360px;
+  overflow: auto;
+}
+
+.event-item {
+  display: grid;
+  grid-template-columns: 130px 160px 1fr auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.event-item strong,
+.event-item span,
+.event-item small {
+  display: block;
+}
+
 .metric span,
 .metric strong,
 .metric small {
@@ -598,6 +620,10 @@ dialog::backdrop {
   .control-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .event-item {
+    grid-template-columns: 1fr 1fr;
+  }
 }
 
 @media (max-width: 560px) {
@@ -614,6 +640,10 @@ dialog::backdrop {
   .metric-grid.wide,
   .control-grid,
   .slider-row {
+    grid-template-columns: 1fr;
+  }
+
+  .event-item {
     grid-template-columns: 1fr;
   }
 }

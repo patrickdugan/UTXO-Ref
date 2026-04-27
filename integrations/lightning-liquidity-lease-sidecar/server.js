@@ -5,6 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const { buildWalletDemoConfig, verifyWalletDemoConfig } = require('../wallet-demo/walletBackendProfiles');
 const { buildStressDashboard, verifyStressDashboard } = require('../wallet-demo/stressDashboard');
+const { buildAdapterFeed } = require('../wallet-dashboard-vercel/api/adapterFeed');
 
 const repoRoot = path.join(__dirname, '..', '..');
 const artifactDir = path.join(repoRoot, 'bitvm3', 'utxo_referee', 'artifacts');
@@ -489,6 +490,10 @@ async function handle(req, res) {
       return sendJson(res, 200, walletDemoStatus());
     }
 
+    if (req.method === 'GET' && req.url === '/v1/wallet-demo/adapter-feed') {
+      return sendJson(res, 200, buildAdapterFeed());
+    }
+
     if (req.method === 'GET' && req.url.startsWith('/v1/wallet-demo/stress-dashboard')) {
       const requestUrl = new URL(req.url, 'http://127.0.0.1');
       const botCount = Number(requestUrl.searchParams.get('bots') || process.env.WALLET_DEMO_BOT_COUNT || 96);
@@ -503,6 +508,10 @@ async function handle(req, res) {
 
     if (req.method === 'GET' && (req.url === '/dashboard' || req.url === '/dashboard/')) {
       return sendFile(res, path.join(walletDemoDir, 'dashboard.html'), 'text/html; charset=utf-8');
+    }
+
+    if (req.method === 'GET' && (req.url === '/funding' || req.url === '/funding/')) {
+      return sendFile(res, path.join(walletDemoDir, 'funding.html'), 'text/html; charset=utf-8');
     }
 
     if (req.method === 'GET' && req.url === '/dashboard.css') {

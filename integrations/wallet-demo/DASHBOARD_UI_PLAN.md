@@ -75,3 +75,16 @@ Packaging note: `integrations/wallet-dashboard-vercel` mirrors this UI with Verc
    - Status: implemented.
    - Surface: combines gross routing fees, Ark savings, challenge reserve, exit reserve, utilization, and modeled net yield.
    - Demo value: shows the liquidity service as an operator business, not just a protocol sketch.
+
+## Adapter Fixture Layer
+
+Status: implemented.
+
+The dashboard now consumes `/v1/wallet-demo/adapter-feed`, a multiplexed fixture feed that normalizes events from four layer-tech boundaries:
+
+- LDK: channel readiness, claimable/claimed payments, failed paths, and HTLC handling failure.
+- Bark / Ark: VTXO batch quote, VTXO assignment, and forced-exit preparation.
+- Taproot Assets: asset transfer quote and asset proof verification.
+- TradeLayer tx33: TLUSD quote and BTC/USD perp collateral verification.
+
+The point is not to pretend the browser is running these daemons. The point is to show the exact event shape the dashboard and wallet sidecar expect when each mock boundary is replaced with a live adapter.
