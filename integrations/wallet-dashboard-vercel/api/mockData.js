@@ -98,7 +98,8 @@ function buildStatus() {
         exists: true,
         source: 'Bitcoin testnet4',
         txCount: proof.summary.txCount,
-        finalExplorer: proof.keyTxids.tapAsset.explorer
+        entryExplorer: proof.keyTxids.subswapDlcFunding.explorer,
+        showcaseExplorer: proof.bitvmShowcase.anchorExplorer
       }
     },
     readiness: {
@@ -178,10 +179,10 @@ function buildWalletView() {
         objective: 'Route BTC liquidity directly through a BitVM-enforced router without requiring a USD asset leg',
         flow: ['BTC channel funding', 'router commitment', 'HTLC/preimage proof', 'BitVM circuit', 'challenge or cooperative exit'],
         bitcoinEvidence: [
-          proof.keyTxids.subswapDlcFunding.txid,
-          proof.keyTxids.tapAsset.txid
+          proof.bitvmShowcase.anchorTxid
         ],
         offchainProofs: ['ln-route-commitment', 'bitvm-router-circuit'],
+        entryTxid: proof.summary.entryTxid,
         reviewerSignal: 'isolates the core liquidity primitive: committed BTC route capacity with slashable under-delivery'
       }
     ],
@@ -190,6 +191,9 @@ function buildWalletView() {
       tlusdUnits: 49000000,
       subswapFundingTxid: proof.keyTxids.subswapDlcFunding.txid,
       subswapFundingExplorer: proof.keyTxids.subswapDlcFunding.explorer,
+      journeyEntryTxid: proof.summary.entryTxid,
+      bitvmShowcaseAnchorTxid: proof.bitvmShowcase.anchorTxid,
+      bitvmShowcaseExplorer: proof.bitvmShowcase.anchorExplorer,
       dlcFundingTxid: proof.keyTxids.inverseContract.txid,
       dlcFundingExplorer: proof.keyTxids.inverseContract.explorer,
       rfqQuoteId: proof.keyTxids.hybridColoredPledge.txid,

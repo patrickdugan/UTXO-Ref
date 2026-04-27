@@ -34,6 +34,19 @@ function buildBitcoinTestnetProof() {
   const steps = PROOF_STEPS.map(proofStep);
   const txSteps = steps.filter(step => step.txid);
   const offchainSteps = steps.filter(step => !step.txid);
+  const entryStep = steps.find(step => step.label === 'subswap-dlc-funding');
+  const tapAnchorStep = steps.find(step => step.label === 'make-tap-asset-tlusd');
+  const bitvmShowcase = {
+    kind: 'bitvm-router-circuit',
+    label: 'BitVM router enforcement circuit',
+    txid: null,
+    explorer: null,
+    anchorTxid: tapAnchorStep.txid,
+    anchorExplorer: tapAnchorStep.explorer,
+    routeCommitment: steps.find(step => step.label === 'plain-liquidity-graft'),
+    arkCommitment: steps.find(step => step.label === 'ark-liquidity-graft'),
+    note: 'BitVM showcase evidence is the circuit/challenge commitment anchored to the TAP proof path; the first funding tx is only the journey entry point.'
+  };
   return {
     kind: 'bitcoin_testnet4_cross_domain_proof',
     network: 'testnet4',
@@ -43,8 +56,11 @@ function buildBitcoinTestnetProof() {
       stepCount: steps.length,
       txCount: txSteps.length,
       offchainCount: offchainSteps.length,
-      firstTxid: steps[0].txid,
-      finalTxid: txSteps[txSteps.length - 1].txid
+      entryTxid: entryStep.txid,
+      firstTxid: entryStep.txid,
+      finalTxid: txSteps[txSteps.length - 1].txid,
+      showcaseKind: bitvmShowcase.kind,
+      showcaseAnchorTxid: bitvmShowcase.anchorTxid
     },
     keyTxids: {
       subswapDlcFunding: steps.find(step => step.label === 'subswap-dlc-funding'),
@@ -62,6 +78,7 @@ function buildBitcoinTestnetProof() {
       plainLiquidityGraft: steps.find(step => step.label === 'plain-liquidity-graft'),
       arkLiquidityGraft: steps.find(step => step.label === 'ark-liquidity-graft')
     },
+    bitvmShowcase,
     steps,
     verification: {
       ok: true,

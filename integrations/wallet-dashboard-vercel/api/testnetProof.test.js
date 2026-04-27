@@ -9,7 +9,13 @@ assert.equal(proof.summary.stepCount, 14);
 assert.equal(proof.summary.txCount, 12);
 assert.equal(proof.summary.offchainCount, 2);
 assert.match(proof.summary.firstTxid, /^[0-9a-f]{64}$/);
+assert.match(proof.summary.entryTxid, /^[0-9a-f]{64}$/);
 assert.match(proof.summary.finalTxid, /^[0-9a-f]{64}$/);
+assert.equal(proof.summary.showcaseKind, 'bitvm-router-circuit');
+assert.equal(proof.summary.showcaseAnchorTxid, proof.keyTxids.tapAsset.txid);
+assert.equal(proof.bitvmShowcase.txid, null);
+assert.equal(proof.bitvmShowcase.anchorTxid, proof.keyTxids.tapAsset.txid);
+assert.equal(proof.bitvmShowcase.routeCommitment.proofKind, 'ln-route-commitment');
 
 for (const step of proof.steps) {
   if (step.txid) {

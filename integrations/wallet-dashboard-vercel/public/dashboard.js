@@ -453,6 +453,8 @@ function renderBitvmEnforcement(walletView, dashboard) {
   $('bitvmEnforcement').innerHTML = `
     <div class="bitvm-circuit-summary">
       ${[
+        detailRow('Showcase anchor', txidLink(state.testnetProof?.bitvmShowcase, 'TAP / circuit anchor')),
+        detailRow('Journey entry', short(walletView.conversion.journeyEntryTxid || walletView.conversion.subswapFundingTxid)),
         detailRow('Committed state', `${compactSats(committed)} inbound promised`),
         detailRow('Claimed state', `${compactSats(claimed)} delivered by ASP`),
         detailRow('Invariant', 'delivered >= committed minimum before expiry'),
@@ -590,8 +592,8 @@ function renderBitcoinTestnetProof(testnetProof) {
     metric('Explorer network', testnetProof.network, 'mempool.space links'),
     metric('Bitcoin txids', testnetProof.summary.txCount.toLocaleString(), 'click linked cards to inspect'),
     metric('Off-chain events', (testnetProof.summary.offchainCount || 0).toLocaleString(), 'LN and Ark grafts have no txid'),
-    metric('DLC funding', short(testnetProof.summary.firstTxid), 'submarine swap shaped funding'),
-    metric('TAP anchor', short(testnetProof.summary.finalTxid), 'last Bitcoin txid before route commitments')
+    metric('Journey entry', short(testnetProof.summary.entryTxid || testnetProof.summary.firstTxid), 'subswap/DLC funding start'),
+    metric('BitVM showcase', short(testnetProof.summary.showcaseAnchorTxid || testnetProof.summary.finalTxid), testnetProof.summary.showcaseKind || 'circuit anchor')
   ].join('');
   $('bitcoinProofLinks').innerHTML = testnetProof.steps
     .map(step => {

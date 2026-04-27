@@ -83,6 +83,9 @@ async function main() {
     assert.equal(testnetProof.network, 'testnet4');
     assert.equal(testnetProof.summary.txCount, 12);
     assert.equal(testnetProof.summary.offchainCount, 2);
+    assert.equal(testnetProof.summary.showcaseKind, 'bitvm-router-circuit');
+    assert.equal(testnetProof.summary.showcaseAnchorTxid, testnetProof.keyTxids.tapAsset.txid);
+    assert.notEqual(testnetProof.summary.entryTxid, testnetProof.summary.showcaseAnchorTxid);
     assert.match(testnetProof.keyTxids.hybridColoredPledge.explorer, /^https:\/\/mempool\.space\/testnet4\/tx\//);
     assert.equal(testnetProof.keyTxids.arkLiquidityGraft.explorer, null);
     assert.equal(testnetProof.keyTxids.arkLiquidityGraft.proofKind, 'ark-vtxo-commitment');
