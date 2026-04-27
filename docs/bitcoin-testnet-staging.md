@@ -20,6 +20,30 @@ Bitcoin testnet pruned node
 - Wallet or descriptor setup for test funding.
 - LND or LDK Node connected to the same chain backend.
 
+## Local Node
+
+The local Bitcoin Core node is staged on `E:\BitcoinTestnet` using Bitcoin Core 30.2 and `testnet4`.
+
+```powershell
+.\integrations\wallet-demo\start_bitcoin_testnet4.ps1
+```
+
+Useful direct probes:
+
+```powershell
+$bitcoinBin="C:\projects\BitcoinConsensusObservatory\jurassic-bitcoin\tools\bitcoin-core-30.2\bitcoin-30.2\bin"
+& "$bitcoinBin\bitcoin-cli.exe" -datadir=E:\BitcoinTestnet -chain=testnet4 getblockchaininfo
+& "$bitcoinBin\bitcoin-cli.exe" -datadir=E:\BitcoinTestnet -chain=testnet4 getnetworkinfo
+```
+
+Current local RPC shape:
+
+- Data dir: `E:\BitcoinTestnet`
+- Chain data dir: `E:\BitcoinTestnet\testnet4`
+- RPC: `http://127.0.0.1:48332`
+- P2P: `48333`
+- Prune target: `2000 MiB`
+
 ## Sidecar Profile
 
 The sidecar already has a Bitcoin testnet LND profile shape. The public dashboard should keep saying `modular testnet` until this path is live.
@@ -28,7 +52,7 @@ Expected environment shape:
 
 ```powershell
 $env:WALLET_DEMO_PROFILE="bitcoin-testnet-lnd"
-$env:BTC_RPC_URL="http://127.0.0.1:18332"
+$env:BTC_RPC_URL="http://127.0.0.1:48332"
 $env:BTC_WALLET="utxoref-testnet"
 $env:LND_GRPC_HOST="127.0.0.1:10009"
 $env:LND_REST_URL="https://127.0.0.1:8080"
