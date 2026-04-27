@@ -273,6 +273,39 @@ function renderWalletPane(walletView, dashboard) {
   };
 }
 
+function renderUseCases(walletView, testnetProof) {
+  if (!walletView?.useCases) return;
+  const txLookup = new Map((testnetProof?.steps || []).filter(step => step.txid).map(step => [step.txid, step]));
+  $('useCaseGrid').innerHTML = walletView.useCases.map(useCase => {
+    const txLinks = useCase.bitcoinEvidence
+      .map(txid => txLookup.get(txid))
+      .filter(Boolean)
+      .map(step => `<a href="${step.explorer}" target="_blank" rel="noreferrer">${step.label}<code>${short(step.txid)}</code></a>`)
+      .join('');
+    const offchain = useCase.offchainProofs
+      .map(kind => `<span>${escapeHtml(kind)}</span>`)
+      .join('');
+    const flow = useCase.flow
+      .map(item => `<span>${escapeHtml(item)}</span>`)
+      .join('');
+    return `
+      <article class="use-case-card ${useCase.id}">
+        <div class="use-case-head">
+          <strong>${escapeHtml(useCase.label)}</strong>
+          <span class="source-badge ${useCase.id === 'btc-bitvm-graft' ? 'derived' : 'proof'}">${useCase.id === 'btc-bitvm-graft' ? 'BTC only' : 'asset route'}</span>
+        </div>
+        <p>${escapeHtml(useCase.objective)}</p>
+        <div class="flow-pills">${flow}</div>
+        <div class="use-case-evidence">
+          <div><em>Bitcoin evidence</em>${txLinks}</div>
+          <div><em>Off-chain proofs</em>${offchain}</div>
+        </div>
+        <small>${escapeHtml(useCase.reviewerSignal)}</small>
+      </article>
+    `;
+  }).join('');
+}
+
 function renderProfilePanel(status) {
   if (!status) return;
   $('profileMode').textContent = status.profile.mode;
@@ -282,6 +315,7 @@ function renderProfilePanel(status) {
     detailRow('RPC', scrub(status.chain.rpcUrl)),
     detailRow('Wallet', status.chain.wallet),
     detailRow('LND', status.lnd ? `${status.lnd.network} ${status.lnd.grpcHost}` : 'not active'),
+    detailRow('LN discovery', status.lightningDiscovery?.publicRegistry || 'public gossip only'),
     detailRow('Artifact', status.artifacts.lnbtcTlusdLiquidityPatch.exists ? 'loaded' : 'missing'),
     detailRow('Wallet ready', status.readiness.walletViewReady)
   ].join('');
@@ -702,6 +736,7 @@ function render(dashboard, status, walletView, adapterFeed) {
   renderNetworkMap(dashboard, status, walletView, adapterFeed);
   renderGuidedDemo(dashboard);
   renderBitcoinTestnetProof(state.testnetProof || adapterFeed?.testnetProof);
+  renderUseCases(walletView, state.testnetProof || adapterFeed?.testnetProof);
   renderKpis(dashboard);
   renderLanes(dashboard);
   renderTimeline(dashboard);

@@ -65,6 +65,15 @@ async function main() {
     assert.match(script, /Subswap funds DLC/, 'missing funding guided step');
   });
 
+  runPanel('Separated Use Cases', () => {
+    assertMount(html, 'useCaseGrid');
+    assert.equal(walletView.useCases.length, 2);
+    assert.equal(walletView.useCases[0].id, 'usd-asset-routing');
+    assert.equal(walletView.useCases[1].id, 'btc-bitvm-graft');
+    assert.equal(walletView.useCases[1].label, 'Pure BTC BitVM Liquidity Graft');
+    assert.ok(status.lightningDiscovery.explorers.some(item => /1ML/.test(item.name)), 'missing 1ML discovery link');
+  });
+
   runPanel('Bitcoin Testnet Proofs', () => {
     assertMount(html, 'bitcoinProofSummary');
     assertMount(html, 'bitcoinProofLinks');

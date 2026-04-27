@@ -504,6 +504,83 @@ th {
   gap: 8px;
 }
 
+.use-case-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.use-case-card {
+  border: 1px solid var(--line);
+  border-left: 5px solid var(--blue);
+  background: #fbfdfc;
+  padding: 12px;
+  display: grid;
+  gap: 10px;
+}
+
+.use-case-card.btc-bitvm-graft {
+  border-left-color: var(--amber);
+}
+
+.use-case-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.use-case-card p,
+.use-case-card small {
+  margin: 0;
+}
+
+.flow-pills,
+.use-case-evidence {
+  display: grid;
+  gap: 6px;
+}
+
+.flow-pills {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.flow-pills span,
+.use-case-evidence span,
+.use-case-evidence a {
+  border: 1px solid var(--line);
+  background: #f8fbff;
+  padding: 6px;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.use-case-evidence {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.use-case-evidence div,
+.use-case-evidence a,
+.use-case-evidence span,
+.use-case-evidence em,
+.use-case-evidence code {
+  display: block;
+}
+
+.use-case-evidence em {
+  margin-bottom: 6px;
+  color: var(--muted);
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.use-case-evidence code {
+  margin-top: 4px;
+  overflow-wrap: anywhere;
+}
+
 .bitvm-circuit-summary {
   display: grid;
   gap: 8px;
@@ -892,6 +969,7 @@ dialog::backdrop {
   .artifact-grid,
   .trace-grid,
   .circuit-layout,
+  .use-case-grid,
   .metric-grid,
   .metric-grid.wide {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -923,6 +1001,9 @@ dialog::backdrop {
   .artifact-grid,
   .trace-grid,
   .circuit-layout,
+  .use-case-grid,
+  .flow-pills,
+  .use-case-evidence,
   .metric-grid,
   .metric-grid.wide,
   .control-grid,

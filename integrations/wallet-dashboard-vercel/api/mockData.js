@@ -33,6 +33,13 @@ function buildStatus() {
       network: 'bitcoin-testnet',
       grpcHost: 'proof://ln-testnet'
     },
+    lightningDiscovery: {
+      publicRegistry: 'Public gossip only; private channels and unannounced nodes will not appear',
+      explorers: [
+        { name: 'mempool.space testnet4 Lightning', url: 'https://mempool.space/testnet4/lightning' },
+        { name: '1ML Bitcoin testnet', url: 'https://1ml.com/testnet/' }
+      ]
+    },
     artifacts: {
       lnbtcTlusdLiquidityPatch: { exists: true, source: 'Bitcoin testnet proof API' },
       walletStressSimulation: { exists: true, source: 'deterministic serverless generator' },
@@ -100,6 +107,33 @@ function buildWalletView() {
   return {
     kind: 'lnbtc_tlusd_liquidity_patch_wallet_view',
     generatedAt: '2026-04-26T00:00:00.000Z',
+    useCases: [
+      {
+        id: 'usd-asset-routing',
+        label: 'USD Asset Routing',
+        objective: 'Convert LN-BTC funded collateral into TLUSD/TAP-denominated routing capital',
+        flow: ['LN-BTC', 'subswap funding', 'DLC/perp envelope', 'TLUSD mint', 'TAP anchor', 'route stake'],
+        bitcoinEvidence: [
+          proof.keyTxids.subswapDlcFunding.txid,
+          proof.keyTxids.hybridColoredPledge.txid,
+          proof.keyTxids.tapAsset.txid
+        ],
+        offchainProofs: ['ln-route-commitment', 'ark-vtxo-commitment'],
+        reviewerSignal: 'shows asset-aware liquidity where synthetic USD can back inbound routing service'
+      },
+      {
+        id: 'btc-bitvm-graft',
+        label: 'Pure BTC BitVM Liquidity Graft',
+        objective: 'Route BTC liquidity directly through a BitVM-enforced router without requiring a USD asset leg',
+        flow: ['BTC channel funding', 'router commitment', 'HTLC/preimage proof', 'BitVM circuit', 'challenge or cooperative exit'],
+        bitcoinEvidence: [
+          proof.keyTxids.subswapDlcFunding.txid,
+          proof.keyTxids.tapAsset.txid
+        ],
+        offchainProofs: ['ln-route-commitment', 'bitvm-router-circuit'],
+        reviewerSignal: 'isolates the core liquidity primitive: committed BTC route capacity with slashable under-delivery'
+      }
+    ],
     conversion: {
       lnbtcSats: 49000,
       tlusdUnits: 49000000,
