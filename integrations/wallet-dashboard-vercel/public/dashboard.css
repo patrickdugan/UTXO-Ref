@@ -33,6 +33,16 @@ button {
   cursor: pointer;
 }
 
+.button-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 38px;
+  background: var(--ink);
+  color: #ffffff;
+  padding: 0 14px;
+  text-decoration: none;
+}
+
 button.danger {
   background: var(--red);
 }
@@ -117,6 +127,68 @@ span {
 
 .badge.warn {
   background: var(--amber);
+}
+
+.source-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 0 7px;
+  background: var(--steel);
+  color: #ffffff;
+  font-size: 11px;
+  vertical-align: middle;
+}
+
+.source-badge.live {
+  background: var(--green);
+}
+
+.source-badge.mock {
+  background: var(--steel);
+}
+
+.source-badge.derived {
+  background: var(--blue);
+}
+
+.source-badge.planned {
+  background: var(--amber);
+}
+
+.demo-guide {
+  display: grid;
+  gap: 12px;
+}
+
+.demo-steps {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.demo-step {
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--steel);
+  background: #fbfdfc;
+  padding: 10px;
+  min-height: 112px;
+}
+
+.demo-step.active {
+  border-left-color: var(--green);
+  background: #f1fbf8;
+}
+
+.demo-step strong,
+.demo-step span,
+.demo-step small {
+  display: block;
+}
+
+.demo-actions {
+  display: flex;
+  gap: 8px;
 }
 
 .kpi-grid {
@@ -320,7 +392,10 @@ th {
 
 .trace-step,
 .metric,
-.check-item {
+.check-item,
+.invariant-item,
+.artifact-link,
+.contract-item {
   border: 1px solid var(--line);
   background: #fbfdfc;
   padding: 10px;
@@ -384,6 +459,53 @@ th {
 
 .metric-grid.wide {
   grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.invariant-list,
+.contract-list {
+  display: grid;
+  gap: 8px;
+}
+
+.invariant-item {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.invariant-item.pass {
+  border-left: 4px solid var(--green);
+}
+
+.invariant-item.fail {
+  border-left: 4px solid var(--red);
+}
+
+.artifact-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.artifact-link {
+  display: block;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.artifact-link strong,
+.artifact-link span,
+.contract-item strong,
+.contract-item code,
+.contract-item small {
+  display: block;
+}
+
+.contract-item code {
+  margin-top: 6px;
+  color: var(--green-dark);
+  white-space: normal;
 }
 
 .metric span,
@@ -465,6 +587,8 @@ dialog::backdrop {
 
   .kpi-grid,
   .lane-rail,
+  .demo-steps,
+  .artifact-grid,
   .trace-grid,
   .metric-grid,
   .metric-grid.wide {
@@ -483,6 +607,8 @@ dialog::backdrop {
 
   .kpi-grid,
   .lane-rail,
+  .demo-steps,
+  .artifact-grid,
   .trace-grid,
   .metric-grid,
   .metric-grid.wide,

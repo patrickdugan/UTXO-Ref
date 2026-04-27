@@ -4,6 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>UTXORef Testnet Fleet</title>
+    <meta name="dashboard-commit" content="main" />
     <link rel="stylesheet" href="/dashboard.css" />
   </head>
   <body>
@@ -24,10 +25,25 @@
           </select>
           <button id="exportButton" type="button">Export report</button>
           <button id="refreshButton" type="button">Refresh</button>
+          <a class="button-link" href="/funding.html">Funding brief</a>
         </div>
       </header>
 
       <main>
+        <section class="panel">
+          <div class="section-title">
+            <h2>Guided Demo</h2>
+            <span class="source-badge derived">derived</span>
+          </div>
+          <div class="demo-guide">
+            <div id="demoSteps" class="demo-steps"></div>
+            <div class="demo-actions">
+              <button id="demoPrev" type="button">Previous</button>
+              <button id="demoNext" type="button">Next step</button>
+            </div>
+          </div>
+        </section>
+
         <section class="kpi-grid" aria-label="Fleet totals">
           <article class="kpi">
             <span>Autobots</span>
@@ -59,7 +75,7 @@
         <section class="band">
           <div class="section-title">
             <h2>Liquidity Lanes</h2>
-            <span id="dashboardId">--</span>
+            <span><span id="dashboardId">--</span> <span class="source-badge live">api</span></span>
           </div>
           <div id="laneRail" class="lane-rail"></div>
         </section>
@@ -68,14 +84,14 @@
           <div class="panel">
             <div class="section-title">
               <h2>Throughput</h2>
-              <span id="feeSummary">--</span>
+              <span><span id="feeSummary">--</span> <span class="source-badge live">api</span></span>
             </div>
             <div id="timeline" class="timeline"></div>
           </div>
           <div class="panel">
             <div class="section-title">
               <h2>Challenge Queue</h2>
-              <span id="savingsSummary">--</span>
+              <span><span id="savingsSummary">--</span> <span class="source-badge live">api</span></span>
             </div>
             <div id="challengeQueue" class="queue"></div>
           </div>
@@ -85,7 +101,7 @@
           <div class="panel">
             <div class="section-title">
               <h2>Wallet Mock</h2>
-              <span>reviewer view</span>
+              <span class="source-badge mock">mock</span>
             </div>
             <div class="phone-pane">
               <div class="phone-row"><span>LN-BTC</span><strong id="walletLnBtc">--</strong></div>
@@ -99,14 +115,14 @@
           <div class="panel">
             <div class="section-title">
               <h2>Backend Profile</h2>
-              <span id="profileMode">--</span>
+              <span><span id="profileMode">--</span> <span class="source-badge live">api</span></span>
             </div>
             <div id="profilePanel" class="detail-list"></div>
           </div>
           <div class="panel">
             <div class="section-title">
               <h2>Proof Graph</h2>
-              <span>click path ids</span>
+              <span class="source-badge derived">derived</span>
             </div>
             <div id="proofGraph" class="proof-graph"></div>
           </div>
@@ -115,7 +131,7 @@
         <section class="panel">
           <div class="section-title">
             <h2>Protocol Trace</h2>
-            <span>LN to BitVM path</span>
+            <span><span>LN to BitVM path</span> <span class="source-badge derived">derived</span></span>
           </div>
           <div id="protocolTrace" class="trace-grid"></div>
         </section>
@@ -124,7 +140,7 @@
           <div class="panel">
             <div class="section-title">
               <h2>Failure Injection</h2>
-              <span id="failureStatus">nominal</span>
+              <span><span id="failureStatus">nominal</span> <span class="source-badge derived">derived</span></span>
             </div>
             <div id="failureControls" class="control-grid"></div>
             <div id="failureImpact" class="impact-box"></div>
@@ -132,7 +148,7 @@
           <div class="panel">
             <div class="section-title">
               <h2>BOLT / LDK Pane</h2>
-              <span>compatibility map</span>
+              <span class="source-badge planned">planned</span>
             </div>
             <div id="lnCompatibility" class="detail-list"></div>
           </div>
@@ -142,7 +158,7 @@
           <div class="panel">
             <div class="section-title">
               <h2>Ark Batch Savings</h2>
-              <span id="arkFeeLabel">--</span>
+              <span><span id="arkFeeLabel">--</span> <span class="source-badge derived">derived</span></span>
             </div>
             <div class="slider-row">
               <input id="arkFeeRate" type="range" min="1" max="80" value="18" />
@@ -153,7 +169,7 @@
           <div class="panel">
             <div class="section-title">
               <h2>BitVM Enforcement</h2>
-              <span>governor path</span>
+              <span class="source-badge derived">derived</span>
             </div>
             <div id="bitvmEnforcement" class="detail-list"></div>
           </div>
@@ -168,13 +184,14 @@
                 <option value="taproot">Taproot Asset USD</option>
                 <option value="tradelayer">TradeLayer synthetic USD</option>
               </select>
+              <span class="source-badge mock">mock</span>
             </div>
             <div id="assetModePanel" class="detail-list"></div>
           </div>
           <div class="panel">
             <div class="section-title">
               <h2>Integration Readiness</h2>
-              <span>adapter status</span>
+              <span class="source-badge derived">derived</span>
             </div>
             <div id="integrationChecklist" class="checklist"></div>
           </div>
@@ -183,9 +200,52 @@
         <section class="panel">
           <div class="section-title">
             <h2>Operator Economics</h2>
-            <span id="operatorNetYield">--</span>
+            <span><span id="operatorNetYield">--</span> <span class="source-badge derived">derived</span></span>
           </div>
           <div id="operatorEconomics" class="metric-grid wide"></div>
+        </section>
+
+        <section class="grid-two">
+          <div class="panel">
+            <div class="section-title">
+              <h2>Invariant Ledger</h2>
+              <span class="source-badge derived">machine checks</span>
+            </div>
+            <div id="invariantLedger" class="invariant-list"></div>
+          </div>
+          <div class="panel">
+            <div class="section-title">
+              <h2>Artifact Links</h2>
+              <span class="source-badge live">raw data</span>
+            </div>
+            <div id="artifactLinks" class="artifact-grid"></div>
+          </div>
+        </section>
+
+        <section class="grid-two">
+          <div class="panel">
+            <div class="section-title">
+              <h2>Adapter Contracts</h2>
+              <span class="source-badge planned">interfaces</span>
+            </div>
+            <div id="adapterContracts" class="contract-list"></div>
+          </div>
+          <div class="panel">
+            <div class="section-title">
+              <h2>Reviewer Export Pack</h2>
+              <span class="source-badge derived">evidence</span>
+            </div>
+            <div id="exportPackSummary" class="detail-list"></div>
+            <button id="exportPackButton" type="button">Export pack</button>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="section-title">
+            <h2>Deployment Health</h2>
+            <span id="healthStatus" class="source-badge live">checking</span>
+          </div>
+          <div id="deploymentHealth" class="metric-grid wide"></div>
         </section>
 
         <section class="panel">

@@ -41,6 +41,15 @@ async function main() {
     getJson('/v1/wallet-demo/status'),
     getJson('/v1/lnbtc-tlusd-liquidity-patch/wallet-view')
   ]);
+  const funding = await getText('/funding');
+
+  runPanel('Guided Demo', () => {
+    assertMount(html, 'demoSteps');
+    assertMount(html, 'demoNext');
+    assertMount(html, 'demoPrev');
+    assert.match(script, /demoFlow/, 'missing guided demo flow');
+    assert.match(script, /LN-BTC in/, 'missing LN-BTC guided step');
+  });
 
   runPanel('Protocol Trace', () => {
     assertMount(html, 'protocolTrace');
@@ -112,6 +121,48 @@ async function main() {
     assertPositive(dashboard.totals.challengeCount, 'challenge count');
     assertPositive(dashboard.totals.deliveredInboundSats, 'delivered inbound sats');
     assert.ok(Number(dashboard.totals.deliveryBps) <= 10000, 'delivery bps is too high');
+  });
+
+  runPanel('Invariant Ledger', () => {
+    assertMount(html, 'invariantLedger');
+    for (const claim of ['assigned >= delivered', 'Ark fee < direct fee', '5k smoke payload verifies']) {
+      assert.match(script, new RegExp(claim.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), `missing invariant ${claim}`);
+    }
+  });
+
+  runPanel('Artifact Links', () => {
+    assertMount(html, 'artifactLinks');
+    assert.match(script, /stress-dashboard/, 'missing stress dashboard artifact link');
+    assert.match(script, /wallet-view/, 'missing wallet view artifact link');
+    assert.match(script, /funding\.html/, 'missing funding artifact link');
+  });
+
+  runPanel('Adapter Contracts', () => {
+    assertMount(html, 'adapterContracts');
+    for (const adapter of ['LDK Node', 'LND', 'Core Lightning', 'Bark / Ark', 'Taproot Assets', 'TradeLayer']) {
+      assert.match(script, new RegExp(adapter.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), `missing adapter ${adapter}`);
+    }
+  });
+
+  runPanel('Reviewer Export Pack', () => {
+    assertMount(html, 'exportPackSummary');
+    assertMount(html, 'exportPackButton');
+    assert.match(script, /buildExportPack/, 'missing export pack builder');
+    assert.match(script, /npm run test:panels/, 'missing smoke test command in export pack');
+  });
+
+  runPanel('Deployment Health', () => {
+    assertMount(html, 'deploymentHealth');
+    assertMount(html, 'healthStatus');
+    assert.match(script, /renderDeploymentHealth/, 'missing deployment health renderer');
+    assert.match(script, /5k status/, 'missing 5k health metric');
+  });
+
+  runPanel('Funding Brief', () => {
+    assert.match(funding, /UTXORef Spiral Brief/, 'missing funding title');
+    assert.match(funding, /What Works Today/, 'missing works today section');
+    assert.match(funding, /Grant Milestones/, 'missing milestones section');
+    assert.match(funding, /Acceptance Criteria/, 'missing acceptance criteria section');
   });
 
   console.log(`panel data smoke test ok: ${BASE_URL}`);

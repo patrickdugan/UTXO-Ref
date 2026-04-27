@@ -6,6 +6,10 @@
       "destination": "/index.html"
     },
     {
+      "source": "/funding",
+      "destination": "/funding.html"
+    },
+    {
       "source": "/v1/wallet-demo/stress-dashboard",
       "destination": "/api/stress-dashboard"
     },

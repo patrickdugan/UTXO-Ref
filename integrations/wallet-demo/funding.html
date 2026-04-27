@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>UTXORef Spiral Brief</title>
+    <link rel="stylesheet" href="/dashboard.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div>
+          <h1>UTXORef Spiral Brief</h1>
+          <p>Lightning liquidity patching with Ark fee compression and BitVM enforcement.</p>
+        </div>
+        <div class="top-actions">
+          <a class="button-link" href="/dashboard">Dashboard</a>
+        </div>
+      </header>
+
+      <main>
+        <section class="grid-two">
+          <div class="panel">
+            <div class="section-title">
+              <h2>What Works Today</h2>
+              <span class="source-badge live">demo</span>
+            </div>
+            <div class="detail-list">
+              <div class="detail-row"><span>Wallet UX</span><strong>LN-BTC to TLUSD stake</strong></div>
+              <div class="detail-row"><span>Stress model</span><strong>5,000-bot liquidity fleet</strong></div>
+              <div class="detail-row"><span>Ark model</span><strong>batch fee simulator</strong></div>
+              <div class="detail-row"><span>BitVM model</span><strong>challengeable ASP shortfall</strong></div>
+              <div class="detail-row"><span>Verification</span><strong>panel smoke test</strong></div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="section-title">
+              <h2>What Is Mocked</h2>
+              <span class="source-badge mock">explicit</span>
+            </div>
+            <div class="detail-list">
+              <div class="detail-row"><span>Taproot Assets</span><strong>adapter mode only</strong></div>
+              <div class="detail-row"><span>TradeLayer tx 33</span><strong>synthetic USD mode only</strong></div>
+              <div class="detail-row"><span>Bark / Ark</span><strong>fee and VTXO model</strong></div>
+              <div class="detail-row"><span>LDK events</span><strong>compatibility mapping</strong></div>
+              <div class="detail-row"><span>BitVM</span><strong>enforcement envelope</strong></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="section-title">
+            <h2>Why It Matters To LN</h2>
+            <span class="source-badge derived">thesis</span>
+          </div>
+          <div class="metric-grid">
+            <div class="metric"><span>Capital role</span><strong>patched inbound</strong><small>liquidity can be allocated where routes need it</small></div>
+            <div class="metric"><span>Cost role</span><strong>Ark batches</strong><small>rebalances avoid one chain tx per patch</small></div>
+            <div class="metric"><span>Risk role</span><strong>BitVM guard</strong><small>ASP misbehavior becomes slashable evidence</small></div>
+            <div class="metric"><span>Wallet role</span><strong>LDK-ready UX</strong><small>events are mapped to LN primitives</small></div>
+          </div>
+        </section>
+
+        <section class="grid-two">
+          <div class="panel">
+            <div class="section-title">
+              <h2>Grant Milestones</h2>
+              <span class="source-badge planned">next</span>
+            </div>
+            <div class="invariant-list">
+              <div class="invariant-item pass"><span class="source-badge live">M1</span><strong>Sidecar demo</strong><small>local Litecoin/testnet profile plus Vercel dashboard</small></div>
+              <div class="invariant-item pass"><span class="source-badge live">M2</span><strong>Adapter contracts</strong><small>LDK/LND/Bark/Taproot Assets interface boundaries</small></div>
+              <div class="invariant-item"><span class="source-badge planned">M3</span><strong>Live LDK node path</strong><small>replace compatibility mapping with event stream</small></div>
+              <div class="invariant-item"><span class="source-badge planned">M4</span><strong>Ark client integration</strong><small>swap fee model for VTXO batch quotes and exit proofs</small></div>
+              <div class="invariant-item"><span class="source-badge planned">M5</span><strong>Asset backend</strong><small>Taproot Assets or TradeLayer TLUSD transfer proofs</small></div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="section-title">
+              <h2>Acceptance Criteria</h2>
+              <span class="source-badge derived">checkable</span>
+            </div>
+            <div class="detail-list">
+              <div class="detail-row"><span>Smoke test</span><strong>all panels pass</strong></div>
+              <div class="detail-row"><span>5k fleet</span><strong>API verifies</strong></div>
+              <div class="detail-row"><span>Invariant ledger</span><strong>machine-readable</strong></div>
+              <div class="detail-row"><span>Failure path</span><strong>visible recovery</strong></div>
+              <div class="detail-row"><span>Reviewer pack</span><strong>exportable JSON</strong></div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>

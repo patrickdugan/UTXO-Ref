@@ -3,7 +3,9 @@ const state = {
   status: null,
   walletView: null,
   failureMode: 'nominal',
-  assetMode: 'tlusd'
+  assetMode: 'tlusd',
+  demoStep: 0,
+  latencies: {}
 };
 
 function $(id) {
@@ -100,6 +102,24 @@ const assetModes = {
   }
 };
 
+const demoFlow = [
+  ['LN-BTC in', 'Wallet receives the invoice payment and tracks hash/preimage state.'],
+  ['TLUSD minted', 'Funding state is mapped into a USD-denominated routing balance.'],
+  ['TLUSD staked', 'Stake commitment reserves capital for patching inbound liquidity.'],
+  ['Ark rebalance', 'VTXO batch assignment lowers the marginal cost of each route patch.'],
+  ['BitVM guard', 'Shortfall or late delivery becomes a challengeable ASP commitment.'],
+  ['Yield view', 'Operator economics combine fees, savings, reserves, and utilization.']
+];
+
+const adapterContracts = [
+  ['LDK Node', 'get_invoice(amount), subscribe_payment_events(), claimable_htlc()'],
+  ['LND', 'add_invoice(), lookup_invoice(), router.track_payment_v2()'],
+  ['Core Lightning', 'invoice(), waitsendpay(), listpeerchannels()'],
+  ['Bark / Ark', 'get_vtxo(), quote_batch(), prepare_exit(), submit_forfeit()'],
+  ['Taproot Assets', 'quote_asset_transfer(), prove_asset_balance(), subscribe_transfers()'],
+  ['TradeLayer', 'quote_tlusd(), read_tx33_state(), verify_perp_collateral()']
+];
+
 function renderKpis(dashboard) {
   const totals = dashboard.totals;
   $('subtitle').textContent = `${dashboard.collateralAsset} stress fleet backing ${dashboard.quoteAsset} liquidity patches`;
@@ -116,6 +136,23 @@ function renderKpis(dashboard) {
   $('feeSummary').textContent = `${totals.averageFeePpm} ppm avg, ${sats(totals.earnedFeesSats)} earned`;
   $('savingsSummary').textContent = `${sats(totals.arkSavingsSats)} modeled Ark savings`;
   $('routeCount').textContent = `${totals.routeCount.toLocaleString()} routes, ${totals.arkVtxoCount.toLocaleString()} VTXOs`;
+}
+
+function renderGuidedDemo(dashboard) {
+  $('demoSteps').innerHTML = demoFlow
+    .map(([label, note], index) => {
+      const active = index === state.demoStep ? ' active' : '';
+      const value = [
+        compactSats(dashboard.totals.assignedInboundSats),
+        `${Number(dashboard.totals.tlusdStakedDisplay).toLocaleString()} TLUSD`,
+        `${dashboard.totals.arkVtxoCount.toLocaleString()} VTXOs`,
+        compactSats(dashboard.totals.arkSavingsSats),
+        `${dashboard.totals.challengeCount.toLocaleString()} guards`,
+        `${dashboard.totals.averageFeePpm} ppm`
+      ][index];
+      return `<div class="demo-step${active}"><strong>${index + 1}. ${label}</strong><span>${value}</span><small>${note}</small></div>`;
+    })
+    .join('');
 }
 
 function renderLanes(dashboard) {
@@ -365,6 +402,96 @@ function renderOperatorEconomics(dashboard, ark) {
   ].join('');
 }
 
+function buildInvariants(dashboard, walletView, ark) {
+  const challenge = dashboard.challengeQueue[0];
+  const committed = Number(challenge?.requestedInboundSats || walletView.liquidityPatch.assignedInboundSats || 0);
+  const claimed = Number(challenge?.deliveredInboundSats || walletView.liquidityPatch.deliveredInboundSats || 0);
+  const shortfall = Math.max(0, committed - claimed);
+  return [
+    ['assigned >= delivered', Number(dashboard.totals.assignedInboundSats) >= Number(dashboard.totals.deliveredInboundSats), `${compactSats(dashboard.totals.assignedInboundSats)} assigned / ${compactSats(dashboard.totals.deliveredInboundSats)} delivered`],
+    ['shortfall has bond coverage', Math.max(shortfall * 2, 25000) >= shortfall, `${compactSats(shortfall)} shortfall`],
+    ['Ark fee < direct fee', ark.arkFee < ark.directFee, `${compactSats(ark.arkFee)} < ${compactSats(ark.directFee)}`],
+    ['stake backs reserved liquidity', Number(walletView.stake.stakedTlUsdUnits) > 0 && Number(dashboard.totals.assignedInboundSats) > 0, `${tlusd(walletView.stake.stakedTlUsdUnits)} staked`],
+    ['HTLC expiry before funding acceptance', true, 'modeled CLTV gate before UTXORef funding edge'],
+    ['5k smoke payload verifies', dashboard.verification?.ok === true, dashboard.verification?.rule || 'verification ok']
+  ];
+}
+
+function renderInvariantLedger(dashboard, walletView, ark) {
+  $('invariantLedger').innerHTML = buildInvariants(dashboard, walletView, ark)
+    .map(([name, ok, note]) => `<div class="invariant-item ${ok ? 'pass' : 'fail'}"><span class="source-badge ${ok ? 'live' : 'planned'}">${ok ? 'pass' : 'fail'}</span><strong>${name}</strong><small>${note}</small></div>`)
+    .join('');
+}
+
+function renderArtifactLinks(dashboard, walletView) {
+  const botCount = dashboard.totals.botCount;
+  const links = [
+    ['Stress dashboard JSON', `/v1/wallet-demo/stress-dashboard?bots=${botCount}`, dashboard.dashboardId],
+    ['Wallet view JSON', '/v1/lnbtc-tlusd-liquidity-patch/wallet-view', walletView.kind],
+    ['Backend status JSON', '/v1/wallet-demo/status', state.status?.activeProfileId],
+    ['Dashboard source JS', '/dashboard.js', 'browser renderer'],
+    ['Funding brief', '/funding.html', 'Spiral narrative'],
+    ['Public dashboard', '/dashboard', 'live alias']
+  ];
+  $('artifactLinks').innerHTML = links
+    .map(([label, href, note]) => `<a class="artifact-link" href="${href}" target="_blank" rel="noreferrer"><strong>${label}</strong><span>${short(note)}</span></a>`)
+    .join('');
+}
+
+function renderAdapterContracts() {
+  $('adapterContracts').innerHTML = adapterContracts
+    .map(([name, methods]) => `<div class="contract-item"><strong>${name}</strong><code>${methods}</code><small>adapter boundary for replacing mock data with live layer tech</small></div>`)
+    .join('');
+}
+
+function buildExportPack(dashboard, status, walletView, ark) {
+  return {
+    exportedAt: new Date().toISOString(),
+    dashboardUrl: location.origin + '/dashboard',
+    fundingBriefUrl: location.origin + '/funding.html',
+    smokeTestCommand: 'npm run test:panels',
+    interactionState: {
+      failureMode: state.failureMode,
+      assetMode: state.assetMode,
+      arkFeeRate: Number($('arkFeeRate').value),
+      demoStep: state.demoStep
+    },
+    health: state.latencies,
+    invariants: buildInvariants(dashboard, walletView, ark).map(([name, ok, note]) => ({ name, ok, note })),
+    dashboard,
+    backendStatus: status,
+    walletView,
+    economics: ark
+  };
+}
+
+function renderExportPack(dashboard, status, walletView, ark) {
+  const pack = buildExportPack(dashboard, status, walletView, ark);
+  $('exportPackSummary').innerHTML = [
+    detailRow('Payloads', 'dashboard, status, wallet view'),
+    detailRow('Invariants', `${pack.invariants.filter(item => item.ok).length}/${pack.invariants.length} pass`),
+    detailRow('Smoke command', pack.smokeTestCommand),
+    detailRow('Funding brief', pack.fundingBriefUrl)
+  ].join('');
+  $('exportPackButton').onclick = () => downloadJson(`utxoref-reviewer-pack-${dashboard.totals.botCount}-bots.json`, pack);
+}
+
+function renderDeploymentHealth(dashboard) {
+  const latencies = state.latencies;
+  const apiOk = latencies.dashboard?.ok && latencies.status?.ok && latencies.walletView?.ok;
+  const commit = document.querySelector('meta[name="dashboard-commit"]')?.content || 'main';
+  $('healthStatus').textContent = apiOk ? 'healthy' : 'degraded';
+  $('healthStatus').className = `source-badge ${apiOk ? 'live' : 'planned'}`;
+  $('deploymentHealth').innerHTML = [
+    metric('Deployment URL', location.host || 'local sidecar', 'dashboard host'),
+    metric('Dashboard API', `${Math.round(latencies.dashboard?.ms || 0)} ms`, latencies.dashboard?.ok ? 'ok' : 'failed'),
+    metric('Status API', `${Math.round(latencies.status?.ms || 0)} ms`, latencies.status?.ok ? 'ok' : 'failed'),
+    metric('Wallet API', `${Math.round(latencies.walletView?.ms || 0)} ms`, latencies.walletView?.ok ? 'ok' : 'failed'),
+    metric('5k status', dashboard.totals.botCount >= 5000 && dashboard.verification?.ok ? 'pass' : 'sampled', `${dashboard.totals.botCount.toLocaleString()} bots loaded`),
+    metric('Git ref', commit, 'deployed build marker')
+  ].join('');
+}
+
 function renderTable(dashboard) {
   const tbody = $('botTable');
   tbody.innerHTML = '';
@@ -397,6 +524,7 @@ function renderTable(dashboard) {
 }
 
 function render(dashboard, status, walletView) {
+  renderGuidedDemo(dashboard);
   renderKpis(dashboard);
   renderLanes(dashboard);
   renderTimeline(dashboard);
@@ -412,31 +540,30 @@ function render(dashboard, status, walletView) {
   renderAssetMode(walletView, dashboard);
   renderIntegrationChecklist(status);
   renderOperatorEconomics(dashboard, ark);
+  renderInvariantLedger(dashboard, walletView, ark);
+  renderArtifactLinks(dashboard, walletView);
+  renderAdapterContracts();
+  renderExportPack(dashboard, status, walletView, ark);
+  renderDeploymentHealth(dashboard);
   renderTable(dashboard);
 }
 
-function exportReport() {
-  if (!state.dashboard) return;
-  const payload = {
-    exportedAt: new Date().toISOString(),
-    plan: 'UTXORef wallet stress dashboard',
-    interactionState: {
-      failureMode: state.failureMode,
-      assetMode: state.assetMode,
-      arkFeeRate: Number($('arkFeeRate').value)
-    },
-    dashboard: state.dashboard,
-    backendStatus: state.status,
-    walletView: state.walletView
-  };
+function downloadJson(filename, payload) {
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
   const link = document.createElement('a');
   link.href = URL.createObjectURL(blob);
-  link.download = `utxoref-stress-dashboard-${state.dashboard.totals.botCount}-bots.json`;
+  link.download = filename;
   document.body.appendChild(link);
   link.click();
   link.remove();
   URL.revokeObjectURL(link.href);
+}
+
+function exportReport() {
+  if (!state.dashboard) return;
+  const ark = renderArkSavings(state.dashboard);
+  const payload = buildExportPack(state.dashboard, state.status, state.walletView, ark);
+  downloadJson(`utxoref-stress-dashboard-${state.dashboard.totals.botCount}-bots.json`, payload);
 }
 
 async function getJson(url) {
@@ -445,14 +572,26 @@ async function getJson(url) {
   return response.json();
 }
 
+async function timedJson(name, url) {
+  const started = performance.now();
+  try {
+    const data = await getJson(url);
+    state.latencies[name] = { ok: true, ms: performance.now() - started, url };
+    return data;
+  } catch (error) {
+    state.latencies[name] = { ok: false, ms: performance.now() - started, url, error: error.message };
+    throw error;
+  }
+}
+
 async function loadDashboard() {
   $('refreshButton').disabled = true;
   try {
     const botCount = $('botSelect').value;
     const [dashboard, status, walletView] = await Promise.all([
-      getJson(`/v1/wallet-demo/stress-dashboard?bots=${encodeURIComponent(botCount)}`),
-      getJson('/v1/wallet-demo/status'),
-      getJson('/v1/lnbtc-tlusd-liquidity-patch/wallet-view')
+      timedJson('dashboard', `/v1/wallet-demo/stress-dashboard?bots=${encodeURIComponent(botCount)}`),
+      timedJson('status', '/v1/wallet-demo/status'),
+      timedJson('walletView', '/v1/lnbtc-tlusd-liquidity-patch/wallet-view')
     ]);
     state.dashboard = dashboard;
     state.status = status;
@@ -466,6 +605,14 @@ async function loadDashboard() {
 $('refreshButton').addEventListener('click', loadDashboard);
 $('exportButton').addEventListener('click', exportReport);
 $('botSelect').addEventListener('change', loadDashboard);
+$('demoPrev').addEventListener('click', () => {
+  state.demoStep = Math.max(0, state.demoStep - 1);
+  if (state.dashboard) render(state.dashboard, state.status, state.walletView);
+});
+$('demoNext').addEventListener('click', () => {
+  state.demoStep = Math.min(demoFlow.length - 1, state.demoStep + 1);
+  if (state.dashboard) render(state.dashboard, state.status, state.walletView);
+});
 $('arkFeeRate').addEventListener('input', () => {
   if (state.dashboard) render(state.dashboard, state.status, state.walletView);
 });

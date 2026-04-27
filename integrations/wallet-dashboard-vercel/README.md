@@ -3,6 +3,7 @@
 Standalone Vercel package for the wallet-facing liquidity patch demo.
 
 Production URL: https://wallet-dashboard-vercel.vercel.app
+Funding brief: https://wallet-dashboard-vercel.vercel.app/funding
 
 It mirrors the local sidecar UI from `integrations/wallet-demo` and exposes mock serverless endpoints for:
 
