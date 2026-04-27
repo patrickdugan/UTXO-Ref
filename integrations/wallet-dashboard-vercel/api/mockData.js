@@ -1,4 +1,5 @@
 const crypto = require('crypto');
+const { buildBitcoinTestnetProof } = require('./testnetProof');
 
 const SATS = 100000000;
 
@@ -13,6 +14,7 @@ function boundedBotCount(value) {
 }
 
 function buildStatus() {
+  const proof = buildBitcoinTestnetProof();
   return {
     ok: true,
     activeProfileId: 'vercel-mock-modular-testnet',
@@ -33,7 +35,13 @@ function buildStatus() {
     },
     artifacts: {
       lnbtcTlusdLiquidityPatch: { exists: true, source: 'vercel mock API' },
-      walletStressSimulation: { exists: true, source: 'deterministic serverless generator' }
+      walletStressSimulation: { exists: true, source: 'deterministic serverless generator' },
+      bitcoinTestnetProof: {
+        exists: true,
+        source: 'Bitcoin testnet4',
+        txCount: proof.summary.txCount,
+        finalExplorer: proof.keyTxids.tx33Externalization.explorer
+      }
     },
     readiness: {
       walletViewReady: true,
@@ -44,15 +52,19 @@ function buildStatus() {
 }
 
 function buildWalletView() {
+  const proof = buildBitcoinTestnetProof();
   return {
     kind: 'lnbtc_tlusd_liquidity_patch_wallet_view',
     generatedAt: '2026-04-26T00:00:00.000Z',
     conversion: {
       lnbtcSats: 49000,
       tlusdUnits: 49000000,
-      subswapFundingTxid: id('subswap', 'lnbtc-funding'),
-      dlcFundingTxid: id('dlc', 'utxoref-funding'),
-      rfqQuoteId: id('rfq', 'tlusd-quote')
+      subswapFundingTxid: proof.keyTxids.subswapFunding.txid,
+      subswapFundingExplorer: proof.keyTxids.subswapFunding.explorer,
+      dlcFundingTxid: proof.keyTxids.bitvmRelay.txid,
+      dlcFundingExplorer: proof.keyTxids.bitvmRelay.explorer,
+      rfqQuoteId: proof.keyTxids.tx33Externalization.txid,
+      rfqExplorer: proof.keyTxids.tx33Externalization.explorer
     },
     stake: {
       stakedTlUsdUnits: 40000000,

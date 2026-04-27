@@ -509,6 +509,53 @@ th {
   gap: 8px;
 }
 
+.proof-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.txid-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  max-height: 248px;
+  overflow: auto;
+}
+
+.txid-card,
+.txid-link,
+.event-proof {
+  color: var(--blue);
+}
+
+.txid-card {
+  display: block;
+  border: 1px solid var(--line);
+  background: #f8fbff;
+  padding: 9px;
+  text-decoration: none;
+}
+
+.txid-card strong,
+.txid-card code,
+.txid-card span,
+.txid-link code {
+  display: block;
+}
+
+.txid-card code,
+.txid-link code {
+  margin-top: 4px;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.event-proof {
+  font-weight: 700;
+}
+
 .proof-node {
   border-left: 4px solid var(--blue);
   background: #f8fbff;
@@ -516,7 +563,8 @@ th {
 }
 
 .proof-node strong,
-.proof-node span {
+.proof-node span,
+.proof-node a {
   display: block;
 }
 
@@ -655,14 +703,15 @@ th {
 
 .event-item {
   display: grid;
-  grid-template-columns: 130px 160px 1fr auto;
+  grid-template-columns: 130px 160px 1fr auto auto;
   gap: 10px;
   align-items: center;
 }
 
 .event-item strong,
 .event-item span,
-.event-item small {
+.event-item small,
+.event-item a {
   display: block;
 }
 
@@ -747,6 +796,8 @@ dialog::backdrop {
   .kpi-grid,
   .lane-rail,
   .demo-steps,
+  .proof-summary,
+  .txid-grid,
   .artifact-grid,
   .trace-grid,
   .metric-grid,
@@ -775,6 +826,8 @@ dialog::backdrop {
   .kpi-grid,
   .lane-rail,
   .demo-steps,
+  .proof-summary,
+  .txid-grid,
   .artifact-grid,
   .trace-grid,
   .metric-grid,

@@ -34,13 +34,14 @@ function runPanel(name, check) {
 }
 
 async function main() {
-  const [html, script, dashboard, status, walletView, adapterFeed] = await Promise.all([
+  const [html, script, dashboard, status, walletView, adapterFeed, testnetProof] = await Promise.all([
     getText('/dashboard'),
     getText('/dashboard.js'),
     getJson('/v1/wallet-demo/stress-dashboard?bots=5000'),
     getJson('/v1/wallet-demo/status'),
     getJson('/v1/lnbtc-tlusd-liquidity-patch/wallet-view'),
-    getJson('/v1/wallet-demo/adapter-feed')
+    getJson('/v1/wallet-demo/adapter-feed'),
+    getJson('/v1/wallet-demo/bitcoin-testnet-proof')
   ]);
   const funding = await getText('/funding');
 
@@ -60,6 +61,16 @@ async function main() {
     assertMount(html, 'demoPrev');
     assert.match(script, /demoFlow/, 'missing guided demo flow');
     assert.match(script, /LN-BTC in/, 'missing LN-BTC guided step');
+  });
+
+  runPanel('Bitcoin Testnet Proofs', () => {
+    assertMount(html, 'bitcoinProofSummary');
+    assertMount(html, 'bitcoinProofLinks');
+    assertMount(html, 'bitcoinProofStatus');
+    assert.equal(testnetProof.network, 'testnet4');
+    assert.equal(testnetProof.summary.txCount, 18);
+    assert.match(testnetProof.keyTxids.tx33Externalization.explorer, /^https:\/\/mempool\.space\/testnet4\/tx\//);
+    assert.match(script, /bitcoin-testnet-proof/, 'missing Bitcoin testnet proof endpoint');
   });
 
   runPanel('Protocol Trace', () => {
@@ -161,6 +172,7 @@ async function main() {
     assertMount(html, 'adapterFeedStatus');
     assert.equal(adapterFeed.verification.ok, true, 'adapter feed verification failed');
     assert.equal(adapterFeed.verification.adaptersCovered, 4, 'adapter count mismatch');
+    assert.equal(adapterFeed.verification.bitcoinTestnetTxids, 18, 'missing Bitcoin testnet txids');
     for (const key of ['ldk', 'ark', 'taprootAssets', 'tradeLayer']) {
       assert.ok(adapterFeed.adapters[key], `missing adapter feed ${key}`);
       assert.ok(adapterFeed.adapters[key].eventCount > 0, `${key} has no adapter events`);

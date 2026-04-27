@@ -3,6 +3,7 @@ const state = {
   status: null,
   walletView: null,
   adapterFeed: null,
+  testnetProof: null,
   failureMode: 'nominal',
   assetMode: 'tlusd',
   demoStep: 0,
@@ -35,6 +36,12 @@ function statusClass(status) {
 function short(value) {
   if (!value) return 'n/a';
   return String(value).length > 18 ? `${String(value).slice(0, 18)}...` : String(value);
+}
+
+function txidLink(step, label = null) {
+  if (!step?.txid || !step?.explorer) return short(step?.txid);
+  const text = label || step.label || short(step.txid);
+  return `<a class="txid-link" href="${step.explorer}" target="_blank" rel="noreferrer" title="${step.txid}">${text}<code>${short(step.txid)}</code></a>`;
 }
 
 function detailRow(label, value) {
@@ -274,16 +281,21 @@ function renderProfilePanel(status) {
 function renderProofGraph(walletView, dashboard) {
   if (!walletView) return;
   const nodes = [
-    ['LN-BTC', walletView.conversion.subswapFundingTxid],
-    ['UTXORef', walletView.conversion.dlcFundingTxid],
-    ['TLUSD RFQ', walletView.conversion.rfqQuoteId],
+    ['LN-BTC', walletView.conversion.subswapFundingTxid, walletView.conversion.subswapFundingExplorer],
+    ['UTXORef', walletView.conversion.dlcFundingTxid, walletView.conversion.dlcFundingExplorer],
+    ['TLUSD RFQ', walletView.conversion.rfqQuoteId, walletView.conversion.rfqExplorer],
     ['Stake', walletView.stake.stakeCommitmentId],
     ['Ark allocation', walletView.liquidityPatch.allocationId],
     ['BitVM challenge', walletView.liquidityPatch.challenge.challengeId],
     ['Fleet dashboard', dashboard.dashboardId]
   ];
   $('proofGraph').innerHTML = nodes
-    .map(([label, value]) => `<div class="proof-node" title="${value || ''}"><strong>${label}</strong><span>${short(value)}</span></div>`)
+    .map(([label, value, href]) => {
+      const rendered = href
+        ? `<a href="${href}" target="_blank" rel="noreferrer">${short(value)}</a>`
+        : `<span>${short(value)}</span>`;
+      return `<div class="proof-node" title="${value || ''}"><strong>${label}</strong>${rendered}</div>`;
+    })
     .join('');
 }
 
@@ -458,12 +470,33 @@ function renderArtifactLinks(dashboard, walletView) {
     ['Wallet view JSON', '/v1/lnbtc-tlusd-liquidity-patch/wallet-view', walletView.kind],
     ['Backend status JSON', '/v1/wallet-demo/status', state.status?.activeProfileId],
     ['Adapter feed JSON', '/v1/wallet-demo/adapter-feed', state.adapterFeed?.feedId],
+    ['Bitcoin testnet proof JSON', '/v1/wallet-demo/bitcoin-testnet-proof', state.testnetProof?.summary?.finalTxid],
     ['Dashboard source JS', '/dashboard.js', 'browser renderer'],
     ['Funding brief', '/funding.html', 'Spiral narrative'],
     ['Public dashboard', '/dashboard', 'live alias']
   ];
   $('artifactLinks').innerHTML = links
     .map(([label, href, note]) => `<a class="artifact-link" href="${href}" target="_blank" rel="noreferrer"><strong>${label}</strong><span>${short(note)}</span></a>`)
+    .join('');
+}
+
+function renderBitcoinTestnetProof(testnetProof) {
+  if (!testnetProof) return;
+  $('bitcoinProofStatus').textContent = `${testnetProof.network} verified links`;
+  $('bitcoinProofSummary').innerHTML = [
+    metric('Explorer network', testnetProof.network, 'mempool.space links'),
+    metric('Broadcast txids', testnetProof.summary.txCount.toLocaleString(), `${testnetProof.summary.setupTxCount} setup + anchor`),
+    metric('Anchor', short(testnetProof.summary.anchorTxid), 'subswap-shaped funding marker'),
+    metric('Final proof', short(testnetProof.summary.finalTxid), 'tx33 externalization')
+  ].join('');
+  $('bitcoinProofLinks').innerHTML = testnetProof.steps
+    .map(step => `
+      <a class="txid-card" href="${step.explorer}" target="_blank" rel="noreferrer" title="${step.txid}">
+        <strong>${step.label}</strong>
+        <code>${short(step.txid)}</code>
+        <span>${step.description}</span>
+      </a>
+    `)
     .join('');
 }
 
@@ -488,6 +521,7 @@ function renderAdapterFeed(adapterFeed) {
         <strong>${item.adapter}</strong>
         <span>${item.sourceType}</span>
         <small>${item.dashboardImpact}</small>
+        ${item.evidenceUrl ? `<a class="event-proof" href="${item.evidenceUrl}" target="_blank" rel="noreferrer">txid</a>` : ''}
         <span class="source-badge mock">${item.status}</span>
       </div>
     `)
@@ -509,6 +543,7 @@ function buildExportPack(dashboard, status, walletView, ark) {
     health: state.latencies,
     invariants: buildInvariants(dashboard, walletView, ark).map(([name, ok, note]) => ({ name, ok, note })),
     adapterFeed: state.adapterFeed,
+    bitcoinTestnetProof: state.testnetProof,
     dashboard,
     backendStatus: status,
     walletView,
@@ -522,6 +557,7 @@ function renderExportPack(dashboard, status, walletView, ark) {
     detailRow('Payloads', 'dashboard, status, wallet view, adapter feed'),
     detailRow('Invariants', `${pack.invariants.filter(item => item.ok).length}/${pack.invariants.length} pass`),
     detailRow('Adapter events', `${pack.adapterFeed?.verification?.normalizedEvents || 0} normalized`),
+    detailRow('Bitcoin testnet txids', `${pack.bitcoinTestnetProof?.summary?.txCount || 0} explorer-linked`),
     detailRow('Smoke command', pack.smokeTestCommand),
     detailRow('Funding brief', pack.fundingBriefUrl)
   ].join('');
@@ -530,7 +566,7 @@ function renderExportPack(dashboard, status, walletView, ark) {
 
 function renderDeploymentHealth(dashboard) {
   const latencies = state.latencies;
-  const apiOk = latencies.dashboard?.ok && latencies.status?.ok && latencies.walletView?.ok && latencies.adapterFeed?.ok;
+  const apiOk = latencies.dashboard?.ok && latencies.status?.ok && latencies.walletView?.ok && latencies.adapterFeed?.ok && latencies.testnetProof?.ok;
   const commit = document.querySelector('meta[name="dashboard-commit"]')?.content || 'main';
   $('healthStatus').textContent = apiOk ? 'healthy' : 'degraded';
   $('healthStatus').className = `source-badge ${apiOk ? 'live' : 'planned'}`;
@@ -540,6 +576,7 @@ function renderDeploymentHealth(dashboard) {
     metric('Status API', `${Math.round(latencies.status?.ms || 0)} ms`, latencies.status?.ok ? 'ok' : 'failed'),
     metric('Wallet API', `${Math.round(latencies.walletView?.ms || 0)} ms`, latencies.walletView?.ok ? 'ok' : 'failed'),
     metric('Adapter API', `${Math.round(latencies.adapterFeed?.ms || 0)} ms`, latencies.adapterFeed?.ok ? 'ok' : 'failed'),
+    metric('Proof API', `${Math.round(latencies.testnetProof?.ms || 0)} ms`, latencies.testnetProof?.ok ? 'ok' : 'failed'),
     metric('5k status', dashboard.totals.botCount >= 5000 && dashboard.verification?.ok ? 'pass' : 'sampled', `${dashboard.totals.botCount.toLocaleString()} bots loaded`),
     metric('Git ref', commit, 'deployed build marker')
   ].join('');
@@ -579,6 +616,7 @@ function renderTable(dashboard) {
 function render(dashboard, status, walletView, adapterFeed) {
   renderNetworkMap(dashboard, status, walletView, adapterFeed);
   renderGuidedDemo(dashboard);
+  renderBitcoinTestnetProof(state.testnetProof || adapterFeed?.testnetProof);
   renderKpis(dashboard);
   renderLanes(dashboard);
   renderTimeline(dashboard);
@@ -643,16 +681,18 @@ async function loadDashboard() {
   $('refreshButton').disabled = true;
   try {
     const botCount = $('botSelect').value;
-    const [dashboard, status, walletView, adapterFeed] = await Promise.all([
+    const [dashboard, status, walletView, adapterFeed, testnetProof] = await Promise.all([
       timedJson('dashboard', `/v1/wallet-demo/stress-dashboard?bots=${encodeURIComponent(botCount)}`),
       timedJson('status', '/v1/wallet-demo/status'),
       timedJson('walletView', '/v1/lnbtc-tlusd-liquidity-patch/wallet-view'),
-      timedJson('adapterFeed', '/v1/wallet-demo/adapter-feed')
+      timedJson('adapterFeed', '/v1/wallet-demo/adapter-feed'),
+      timedJson('testnetProof', '/v1/wallet-demo/bitcoin-testnet-proof')
     ]);
     state.dashboard = dashboard;
     state.status = status;
     state.walletView = walletView;
     state.adapterFeed = adapterFeed;
+    state.testnetProof = testnetProof;
     render(dashboard, status, walletView, adapterFeed);
   } finally {
     $('refreshButton').disabled = false;

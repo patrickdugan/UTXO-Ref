@@ -22,6 +22,10 @@
       "destination": "/api/adapter-feed"
     },
     {
+      "source": "/v1/wallet-demo/bitcoin-testnet-proof",
+      "destination": "/api/bitcoin-testnet-proof"
+    },
+    {
       "source": "/v1/lnbtc-tlusd-liquidity-patch/wallet-view",
       "destination": "/api/wallet-view"
     }

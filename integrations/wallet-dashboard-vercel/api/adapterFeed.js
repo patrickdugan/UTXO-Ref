@@ -1,4 +1,5 @@
 const crypto = require('crypto');
+const { buildBitcoinTestnetProof, findProofStep } = require('./testnetProof');
 
 function id(prefix, input) {
   return `${prefix}_${crypto.createHash('sha256').update(String(input)).digest('hex').slice(0, 20)}`;
@@ -16,11 +17,13 @@ function event(adapter, sourceType, index, fields = {}) {
     amountUnits: fields.amountUnits || null,
     correlationId: fields.correlationId || eventId,
     evidence: fields.evidence || id('evidence', eventId),
+    evidenceUrl: fields.evidenceUrl || null,
     dashboardImpact: fields.dashboardImpact || 'updates reviewer feed'
   };
 }
 
 function buildLdkEvents() {
+  const anchor = findProofStep('demo-anchor');
   return [
     event('ldk', 'ChannelReady', 0, {
       normalizedType: 'channel_ready',
@@ -34,6 +37,8 @@ function buildLdkEvents() {
       status: 'claimable',
       amountSats: 49000,
       correlationId: 'lnbtc-subswap-0',
+      evidence: anchor.txid,
+      evidenceUrl: anchor.explorer,
       dashboardImpact: 'opens subswap funding edge'
     }),
     event('ldk', 'PaymentClaimed', 2, {
@@ -106,12 +111,16 @@ function buildTaprootAssetEvents() {
 }
 
 function buildTradeLayerEvents() {
+  const tx33 = findProofStep('externalize-tlusd-tx33');
+  const bitvm = findProofStep('relay-bitvm-dlc-funded');
   return [
     event('tradelayer', 'Tx33SyntheticUsdQuoted', 0, {
       normalizedType: 'tx33_tlusd_quote',
       status: 'quoted',
       amountUnits: 49000000,
       correlationId: 'tl-tx33-quote-0',
+      evidence: tx33.txid,
+      evidenceUrl: tx33.explorer,
       dashboardImpact: 'backs TradeLayer synthetic USD mode'
     }),
     event('tradelayer', 'PerpCollateralChecked', 1, {
@@ -119,6 +128,8 @@ function buildTradeLayerEvents() {
       status: 'verified',
       amountSats: 57647059,
       correlationId: 'tl-btcusd-perp-0',
+      evidence: bitvm.txid,
+      evidenceUrl: bitvm.explorer,
       dashboardImpact: 'links BTC/USD perp collateral to TLUSD mint envelope'
     })
   ];
@@ -140,6 +151,7 @@ function buildAdapterFeed() {
   const taprootAssets = buildTaprootAssetEvents();
   const tradeLayer = buildTradeLayerEvents();
   const events = [...ldk, ...ark, ...taprootAssets, ...tradeLayer];
+  const testnetProof = buildBitcoinTestnetProof();
   return {
     kind: 'utxoref_layer_adapter_feed',
     generatedAt: '2026-04-26T00:00:00.000Z',
@@ -150,11 +162,13 @@ function buildAdapterFeed() {
       taprootAssets: adapterSummary('Taproot Assets adapter', taprootAssets, ['quoteTransfer', 'verifyProof', 'subscribeTransfers']),
       tradeLayer: adapterSummary('TradeLayer tx33 adapter', tradeLayer, ['quoteTx33Tlusd', 'readPerpState', 'verifyCollateral'])
     },
+    testnetProof,
     events,
     verification: {
       ok: true,
       adaptersCovered: 4,
       normalizedEvents: events.length,
+      bitcoinTestnetTxids: testnetProof.summary.txCount,
       requiredAdapters: ['ldk', 'ark', 'taprootAssets', 'tradeLayer']
     }
   };
