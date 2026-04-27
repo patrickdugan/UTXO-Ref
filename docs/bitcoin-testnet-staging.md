@@ -22,7 +22,7 @@ Bitcoin testnet pruned node
 
 ## Local Node
 
-The local Bitcoin Core node is staged on `E:\BitcoinTestnet` using Bitcoin Core 30.2 and `testnet4`.
+The local Bitcoin Core node is staged on `D:\BitcoinTestnet` using Bitcoin Core 30.2 and `testnet4`.
 
 ```powershell
 .\integrations\wallet-demo\start_bitcoin_testnet4.ps1
@@ -32,14 +32,14 @@ Useful direct probes:
 
 ```powershell
 $bitcoinBin="C:\projects\BitcoinConsensusObservatory\jurassic-bitcoin\tools\bitcoin-core-30.2\bitcoin-30.2\bin"
-& "$bitcoinBin\bitcoin-cli.exe" -datadir=E:\BitcoinTestnet -chain=testnet4 getblockchaininfo
-& "$bitcoinBin\bitcoin-cli.exe" -datadir=E:\BitcoinTestnet -chain=testnet4 getnetworkinfo
+& "$bitcoinBin\bitcoin-cli.exe" -datadir=D:\BitcoinTestnet -chain=testnet4 getblockchaininfo
+& "$bitcoinBin\bitcoin-cli.exe" -datadir=D:\BitcoinTestnet -chain=testnet4 getnetworkinfo
 ```
 
 Current local RPC shape:
 
-- Data dir: `E:\BitcoinTestnet`
-- Chain data dir: `E:\BitcoinTestnet\testnet4`
+- Data dir: `D:\BitcoinTestnet`
+- Chain data dir: `D:\BitcoinTestnet\testnet4`
 - RPC: `http://127.0.0.1:48332`
 - P2P: `48333`
 - Prune target: `2000 MiB`

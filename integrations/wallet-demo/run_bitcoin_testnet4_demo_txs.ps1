@@ -1,5 +1,5 @@
 param(
-  [string]$DataDir = "E:\BitcoinTestnet",
+  [string]$DataDir = "D:\BitcoinTestnet",
   [string]$BitcoinBin = "C:\projects\BitcoinConsensusObservatory\jurassic-bitcoin\tools\bitcoin-core-30.2\bitcoin-30.2\bin",
   [string]$Wallet = "utxoref-testnet",
   [decimal]$AnchorAmount = 0.00000546,
