@@ -127,7 +127,7 @@ const demoFlow = [
   ['Oracle prices contract', 'BTC/USD oracle creation and entry price bind both sides of the inverse contract.'],
   ['tlBTC sides trade', 'Router and counterparty mint tlBTC against the same DLC template and take opposite legs.'],
   ['Short mints TLUSD', 'The inverse short mints synthetic USD and pledges it through tx 33.'],
-  ['TAP proof externalizes', 'The pledged TLUSD receives a TAP asset proof root for wallet-facing transfer semantics.'],
+  ['TAP anchor externalizes', 'The pledged TLUSD is carried forward into a P2TR TAP asset anchor output.'],
   ['Liquidity grafts', 'The same capital is shown in plain Lightning form and then Ark batched form.']
 ];
 

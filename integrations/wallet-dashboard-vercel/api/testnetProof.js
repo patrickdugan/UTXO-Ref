@@ -11,8 +11,8 @@ const PROOF_STEPS = [
   ['trade', 'router-long-inverse-trade', 18, 'Router side posts the long leg of the inverse contract trade', '17c9696dac26db5a792cb29535021bed4819e2311e72eba17a2c5add6998ff6a'],
   ['trade', 'counterparty-short-inverse-trade', 18, 'Funded second address posts the short leg of the inverse contract trade', 'c2ad12b66809703c4a1585f1cdae8e9064ab800655de6e82393c820b89ce13fb'],
   ['synthetic', 'short-mints-tlusd', 24, 'Short side mints tlUSD from the inverse BTC/USD contract envelope', 'afeb8b6add09477531c4a9dbc295d623f157448cc8ee38506ddd0029c47902cb'],
-  ['externalization', 'pledge-tlusd-hybrid-colored', 33, 'Pledge tlUSD into hybrid colored coin form', '360b635dc0b4758ccff2f2cc905b9f7a4dae07c70365af5251c8f4dfbe2e066b'],
-  ['tap', 'make-tap-asset-tlusd', 33, 'Create a TAP asset proof root for the pledged tlUSD', 'a68a8c4da83ba82f5c898d1dd79b2fc64bffba01074242f6e2fbb58bf465fbb0'],
+  ['externalization', 'pledge-tlusd-hybrid-colored', 33, 'Pledge tlUSD into hybrid colored coin form with a P2TR reference output', '3c95934aa8d6a43524cfd2b5089f09e060d514fd6e7c4828eff9e02ccc18f07b'],
+  ['tap', 'make-tap-asset-tlusd', 33, 'Create a P2TR TAP asset anchor output for the pledged tlUSD', '9fac61dba0503ed228c75bceb436698946107c698d4db0bd389d11a93aeadebb'],
   ['liquidity', 'plain-liquidity-graft', 30, 'Plain Lightning liquidity graft pledges the tlUSD/TAP reference', 'bf58a39333e554d9d0f80820f85e8b8e9ad8ba8abb11a2039971be739da25a9f'],
   ['liquidity', 'ark-liquidity-graft', 30, 'Ark batched liquidity graft compresses the same pledged route capital', 'b88247df8c1b0960d9350a75e8c7e1e713bc0898e050407dd60c08f245d727a5']
 ];
