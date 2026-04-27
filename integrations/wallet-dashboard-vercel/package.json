@@ -4,7 +4,8 @@
   "private": true,
   "description": "Standalone Vercel dashboard for the UTXORef Lightning, Ark, TLUSD, and BitVM liquidity patch demo.",
   "scripts": {
-    "test": "node api/mockData.test.js"
+    "test": "node api/mockData.test.js",
+    "test:panels": "node test_dashboard_panels.js"
   },
   "engines": {
     "node": "22.x"

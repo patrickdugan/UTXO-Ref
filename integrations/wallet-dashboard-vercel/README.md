@@ -16,7 +16,10 @@ The Vercel version is meant for grant-review walkthroughs when a public URL is m
 
 ```powershell
 npm test
+npm run test:panels
 ```
+
+`test:panels` defaults to `https://wallet-dashboard-vercel.vercel.app`. Set `DASHBOARD_BASE_URL` to test a preview deployment or local Vercel dev URL.
 
 ## Deploy
 
