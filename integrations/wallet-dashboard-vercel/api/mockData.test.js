@@ -14,6 +14,8 @@ assert.strictEqual(walletView.useCases[0].id, 'usd-asset-routing');
 assert.strictEqual(walletView.useCases[1].id, 'btc-bitvm-graft');
 assert.ok(walletView.useCases[1].offchainProofs.includes('bitvm-router-circuit'));
 assert.ok(status.lightningDiscovery.explorers.length >= 2);
+assert.ok(status.lightningDiscovery.candidatePeers.length >= 5);
+assert.ok(status.lightningDiscovery.candidatePeers.every(peer => peer.tcpOpen === true));
 assert.match(walletView.conversion.subswapFundingExplorer, /^https:\/\/mempool\.space\/testnet4\/tx\//);
 assert.match(walletView.conversion.dlcFundingTxid, /^[0-9a-f]{64}$/);
 assert.strictEqual(walletView.liquidityPatch.routerCircuit.totalGates, 768);

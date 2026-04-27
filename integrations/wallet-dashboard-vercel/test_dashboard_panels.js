@@ -72,6 +72,8 @@ async function main() {
     assert.equal(walletView.useCases[1].id, 'btc-bitvm-graft');
     assert.equal(walletView.useCases[1].label, 'Pure BTC BitVM Liquidity Graft');
     assert.ok(status.lightningDiscovery.explorers.some(item => /1ML/.test(item.name)), 'missing 1ML discovery link');
+    assert.ok(status.lightningDiscovery.candidatePeers.length >= 5, 'missing candidate peers');
+    assert.ok(status.lightningDiscovery.candidatePeers.every(peer => peer.tcpOpen === true), 'candidate peer not reachable');
   });
 
   runPanel('Bitcoin Testnet Proofs', () => {

@@ -38,6 +38,57 @@ function buildStatus() {
       explorers: [
         { name: 'mempool.space testnet4 Lightning', url: 'https://mempool.space/testnet4/lightning' },
         { name: '1ML Bitcoin testnet', url: 'https://1ml.com/testnet/' }
+      ],
+      testnet4DnsSeed: {
+        service: 'test4.nodes.lightning.wiki',
+        note: 'SRV records resolve to public testnet4 Lightning bootstrap targets'
+      },
+      candidatePeers: [
+        {
+          alias: 'bankofbots',
+          network: 'bitcoin-testnet',
+          pubkey: '0235fc2914eefacd263e170be34efa8688ed252b5e3306c8fd94309b3ecf30700b',
+          address: '54.244.234.100:20141',
+          capacitySats: 3000000,
+          channels: 3,
+          tcpOpen: true
+        },
+        {
+          alias: 'bitwage-testnet',
+          network: 'bitcoin-testnet',
+          pubkey: '021bac297cf06bfa1c705fa8a4c65b39e1082c5c5f8a36d977e05aeabaa52220db',
+          address: '54.174.137.47:9735',
+          capacitySats: 1050000,
+          channels: 3,
+          tcpOpen: true
+        },
+        {
+          alias: 'yyds Testnet',
+          network: 'bitcoin-testnet',
+          pubkey: '03df34d02818f2c3511bbb994c79420c5868cebf33a6fac091aa3f6d2ff6237c17',
+          address: '43.206.113.97:9735',
+          capacitySats: 450000,
+          channels: 3,
+          tcpOpen: true
+        },
+        {
+          alias: 'liv.io',
+          network: 'bitcoin-testnet',
+          pubkey: '037b775c158f63d879ed586ecdaad9c91213f48643805b805db0f8fe1f4a912b5f',
+          address: '213.193.83.252:9735',
+          capacitySats: 30000000,
+          channels: 2,
+          tcpOpen: true
+        },
+        {
+          alias: 'volt_07a224b1',
+          network: 'bitcoin-testnet',
+          pubkey: '03c2f15acc07c9a20e3515e0b7b43a492a8c8889003bfcbb5f9823da3353caf2b7',
+          address: '54.244.234.100:20223',
+          capacitySats: 10147952,
+          channels: 2,
+          tcpOpen: true
+        }
       ]
     },
     artifacts: {

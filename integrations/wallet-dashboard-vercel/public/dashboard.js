@@ -316,6 +316,7 @@ function renderProfilePanel(status) {
     detailRow('Wallet', status.chain.wallet),
     detailRow('LND', status.lnd ? `${status.lnd.network} ${status.lnd.grpcHost}` : 'not active'),
     detailRow('LN discovery', status.lightningDiscovery?.publicRegistry || 'public gossip only'),
+    detailRow('Candidate peers', `${status.lightningDiscovery?.candidatePeers?.filter(peer => peer.tcpOpen).length || 0} TCP reachable`),
     detailRow('Artifact', status.artifacts.lnbtcTlusdLiquidityPatch.exists ? 'loaded' : 'missing'),
     detailRow('Wallet ready', status.readiness.walletViewReady)
   ].join('');
