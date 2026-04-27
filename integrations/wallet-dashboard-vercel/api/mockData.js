@@ -21,7 +21,7 @@ function buildStatus() {
     profile: {
       id: 'bitcoin-testnet-cross-domain',
       mode: 'Bitcoin testnet proof feed',
-      notes: 'Vercel package exposing the Bitcoin testnet transaction chain and wallet-demo API contract.'
+      notes: 'Public package exposing the Bitcoin testnet transaction chain and wallet-demo API contract.'
     },
     chain: {
       chain: 'bitcoin-testnet4',

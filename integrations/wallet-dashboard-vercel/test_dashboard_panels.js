@@ -204,7 +204,8 @@ async function main() {
   runPanel('Funding Brief', () => {
     assert.match(funding, /UTXORef Spiral Brief/, 'missing funding title');
     assert.match(funding, /What Works Today/, 'missing works today section');
-    assert.match(funding, /Grant Milestones/, 'missing milestones section');
+    assert.match(funding, />Milestones</, 'missing milestones section');
+    assert.doesNotMatch(funding, /Grant Milestones/, 'funding brief should use neutral milestone wording');
     assert.match(funding, /Acceptance Criteria/, 'missing acceptance criteria section');
   });
 
