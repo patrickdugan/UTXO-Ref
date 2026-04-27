@@ -19,18 +19,31 @@ if (!(Test-Path $bitcoinCli)) {
 
 function Invoke-BitcoinCli {
   param([Parameter(ValueFromRemainingArguments = $true)] [string[]]$Args)
-  & $bitcoinCli $dataDirArg $chainArg @Args
+  $output = & $bitcoinCli $dataDirArg $chainArg @Args 2>&1
+  if ($LASTEXITCODE -ne 0) {
+    throw ($output -join "`n")
+  }
+  $output
 }
 
 function Invoke-WalletCli {
   param([Parameter(ValueFromRemainingArguments = $true)] [string[]]$Args)
-  & $bitcoinCli $dataDirArg $chainArg $walletArg @Args
+  $output = & $bitcoinCli $dataDirArg $chainArg $walletArg @Args 2>&1
+  if ($LASTEXITCODE -ne 0) {
+    throw ($output -join "`n")
+  }
+  $output
 }
 
 function ConvertTo-HexAscii {
   param([string]$Text)
   $bytes = [System.Text.Encoding]::ASCII.GetBytes($Text)
   -join ($bytes | ForEach-Object { $_.ToString("x2") })
+}
+
+function ConvertTo-BitcoinCliJsonArg {
+  param([string]$Json)
+  $Json.Replace('"', '\"')
 }
 
 function Get-OrCreateAddress {
@@ -96,12 +109,13 @@ $outputs = @(
 )
 $outputsJson = $outputs | ConvertTo-Json -Compress
 
-$raw = Invoke-WalletCli createrawtransaction "[]" $outputsJson
+$raw = Invoke-WalletCli createrawtransaction "[]" (ConvertTo-BitcoinCliJsonArg $outputsJson)
 $fundOptions = @{
-  fee_rate = 0.00001000
+  fee_rate = 1
   changeAddress = $changeAddress
+  include_unsafe = $true
 } | ConvertTo-Json -Compress
-$funded = Invoke-WalletCli fundrawtransaction $raw $fundOptions | ConvertFrom-Json
+$funded = Invoke-WalletCli fundrawtransaction $raw (ConvertTo-BitcoinCliJsonArg $fundOptions) | ConvertFrom-Json
 $signed = Invoke-WalletCli signrawtransactionwithwallet $funded.hex | ConvertFrom-Json
 
 if (!$signed.complete) {
