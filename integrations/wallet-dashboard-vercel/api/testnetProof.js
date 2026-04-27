@@ -1,7 +1,16 @@
 const EXPLORER_BASE = 'https://mempool.space/testnet4/tx/';
+const STAGED_SUBSWAP_HTLC = {
+  txid: 'bf3694aaf87eda0df0230e421775be6d5c0ee40b1e701aadbc7a61417682c0c0',
+  amountSats: 25000,
+  htlcAddress: 'tb1q30j7htje6q2nm006y89mujlhywnp4xs3mp8g5th2yzha4k8dqm5q3plwxm',
+  paymentHash: '366161841ab76122518ed383bc37b22d61d7ca9eb3ee122fc2aacc656c8617c3',
+  expiryHeight: 132857,
+  redeemScriptAsm: 'OP_IF OP_SHA256 366161841ab76122518ed383bc37b22d61d7ca9eb3ee122fc2aacc656c8617c3 OP_EQUALVERIFY 02884b870f2895b49460ac6fd7f767386318c38f797cb927719650f8e83f219536 OP_CHECKSIG OP_ELSE 132857 OP_CHECKLOCKTIMEVERIFY OP_DROP 024193be883f385382958c6081e8a2af0a525643747277b400f0b650f077bda9c6 OP_CHECKSIG OP_ENDIF',
+  supersedesMarkerTxid: '58ff891cf904aaa6b85f8f34e20637d8b6ef7fbc7baa2cfeff41fd9bf6481d7f'
+};
 
 const PROOF_STEPS = [
-  ['funding', 'subswap-dlc-funding', null, 'LN submarine swap shaped funding output enters the DLC template', '58ff891cf904aaa6b85f8f34e20637d8b6ef7fbc7baa2cfeff41fd9bf6481d7f'],
+  ['funding', 'subswap-dlc-funding', null, 'Staged submarine swap HTLC output enters the DLC template with hashlock and CLTV refund branches', STAGED_SUBSWAP_HTLC.txid],
   ['funding', 'fund-counterparty-address', null, 'Second Bitcoin testnet address receives BTC for the opposite side', '9e20ab8ec2b72b5619af3f575304f33894055d2c90c3c3dc7a6ebe7fa8cea98d'],
   ['oracle', 'create-btcusd-oracle', 13, 'Create the BTC/USD oracle used by the inverse contract', '96b9ecf2f2e7fada76c580963de08c3ab9f4b385f5081402f05ca58121c7e8cb'],
   ['oracle', 'publish-btcusd-entry', 14, 'Publish the entry price used by both sides of the DLC/perp envelope', '22accff5ad661d6bc9fcf8d972ef822305965da866f597dade40ac322124fd63'],
@@ -77,6 +86,10 @@ function buildBitcoinTestnetProof() {
       tapAsset: steps.find(step => step.label === 'make-tap-asset-tlusd'),
       plainLiquidityGraft: steps.find(step => step.label === 'plain-liquidity-graft'),
       arkLiquidityGraft: steps.find(step => step.label === 'ark-liquidity-graft')
+    },
+    submarineSwapHtlc: {
+      ...STAGED_SUBSWAP_HTLC,
+      explorer: `${EXPLORER_BASE}${STAGED_SUBSWAP_HTLC.txid}`
     },
     bitvmShowcase,
     steps,

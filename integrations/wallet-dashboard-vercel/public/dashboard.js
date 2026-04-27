@@ -348,7 +348,7 @@ function renderProtocolTrace(walletView, dashboard) {
   const scenario = failureScenarios[state.failureMode];
   const steps = [
     ['LN invoice', `hash ${short(walletView.conversion.subswapFundingTxid)}`, 'BOLT11 invoice accepted by wallet funding flow'],
-    ['Subswap HTLC', `cltv ${48 + Math.floor(dashboard.totals.botCount / 512)}`, 'payment hash locks inbound funding until preimage or timeout'],
+    ['Subswap HTLC', `cltv ${walletView.conversion.submarineSwapHtlc?.expiryHeight || 48 + Math.floor(dashboard.totals.botCount / 512)}`, `P2WSH hash ${short(walletView.conversion.submarineSwapHtlc?.paymentHash)}`],
     ['UTXORef funding', short(walletView.conversion.dlcFundingTxid), 'DLC funding output becomes the state anchor'],
     ['Ark VTXO', short(walletView.liquidityPatch.allocationId), `${dashboard.totals.arkVtxoCount.toLocaleString()} batched references compress fee surface`],
     ['Asset stake', short(walletView.stake.stakeCommitmentId), `${assetModes[state.assetMode].label} posted as routing commitment`],
@@ -592,7 +592,7 @@ function renderBitcoinTestnetProof(testnetProof) {
     metric('Explorer network', testnetProof.network, 'mempool.space links'),
     metric('Bitcoin txids', testnetProof.summary.txCount.toLocaleString(), 'click linked cards to inspect'),
     metric('Off-chain events', (testnetProof.summary.offchainCount || 0).toLocaleString(), 'LN and Ark grafts have no txid'),
-    metric('Journey entry', short(testnetProof.summary.entryTxid || testnetProof.summary.firstTxid), 'subswap/DLC funding start'),
+    metric('Journey entry', short(testnetProof.summary.entryTxid || testnetProof.summary.firstTxid), 'P2WSH submarine swap HTLC'),
     metric('BitVM showcase', short(testnetProof.summary.showcaseAnchorTxid || testnetProof.summary.finalTxid), testnetProof.summary.showcaseKind || 'circuit anchor')
   ].join('');
   $('bitcoinProofLinks').innerHTML = testnetProof.steps

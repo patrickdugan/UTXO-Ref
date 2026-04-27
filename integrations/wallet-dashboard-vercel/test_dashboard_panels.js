@@ -86,6 +86,8 @@ async function main() {
     assert.equal(testnetProof.summary.showcaseKind, 'bitvm-router-circuit');
     assert.equal(testnetProof.summary.showcaseAnchorTxid, testnetProof.keyTxids.tapAsset.txid);
     assert.notEqual(testnetProof.summary.entryTxid, testnetProof.summary.showcaseAnchorTxid);
+    assert.equal(testnetProof.submarineSwapHtlc.txid, testnetProof.summary.entryTxid);
+    assert.match(testnetProof.submarineSwapHtlc.redeemScriptAsm, /OP_CHECKLOCKTIMEVERIFY/);
     assert.match(testnetProof.keyTxids.hybridColoredPledge.explorer, /^https:\/\/mempool\.space\/testnet4\/tx\//);
     assert.equal(testnetProof.keyTxids.arkLiquidityGraft.explorer, null);
     assert.equal(testnetProof.keyTxids.arkLiquidityGraft.proofKind, 'ark-vtxo-commitment');

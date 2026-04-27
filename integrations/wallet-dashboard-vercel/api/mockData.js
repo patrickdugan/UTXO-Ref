@@ -191,6 +191,7 @@ function buildWalletView() {
       tlusdUnits: 49000000,
       subswapFundingTxid: proof.keyTxids.subswapDlcFunding.txid,
       subswapFundingExplorer: proof.keyTxids.subswapDlcFunding.explorer,
+      submarineSwapHtlc: proof.submarineSwapHtlc,
       journeyEntryTxid: proof.summary.entryTxid,
       bitvmShowcaseAnchorTxid: proof.bitvmShowcase.anchorTxid,
       bitvmShowcaseExplorer: proof.bitvmShowcase.anchorExplorer,

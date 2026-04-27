@@ -16,9 +16,14 @@ This package separates the Bitcoin testnet4 proof path from the Lightning receip
 
 Journey entry, not the BitVM showcase:
 
-- `58ff891cf904aaa6b85f8f34e20637d8b6ef7fbc7baa2cfeff41fd9bf6481d7f`
-- Explorer: `https://mempool.space/testnet4/tx/58ff891cf904aaa6b85f8f34e20637d8b6ef7fbc7baa2cfeff41fd9bf6481d7f`
-- Role: subswap/DLC funding start.
+- `bf3694aaf87eda0df0230e421775be6d5c0ee40b1e701aadbc7a61417682c0c0`
+- Explorer: `https://mempool.space/testnet4/tx/bf3694aaf87eda0df0230e421775be6d5c0ee40b1e701aadbc7a61417682c0c0`
+- Role: staged submarine swap HTLC funding output.
+- HTLC address: `tb1q30j7htje6q2nm006y89mujlhywnp4xs3mp8g5th2yzha4k8dqm5q3plwxm`
+- Amount: `25000 sats`
+- Payment hash: `366161841ab76122518ed383bc37b22d61d7ca9eb3ee122fc2aacc656c8617c3`
+- CLTV expiry height: `132857`
+- Supersedes earlier marker tx: `58ff891cf904aaa6b85f8f34e20637d8b6ef7fbc7baa2cfeff41fd9bf6481d7f`
 
 BitVM showcase anchor path:
 

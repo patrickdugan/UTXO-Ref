@@ -16,6 +16,9 @@ assert.ok(walletView.useCases[1].offchainProofs.includes('bitvm-router-circuit')
 assert.strictEqual(walletView.useCases[1].bitcoinEvidence.length, 1);
 assert.strictEqual(walletView.useCases[1].bitcoinEvidence[0], walletView.conversion.bitvmShowcaseAnchorTxid);
 assert.notStrictEqual(walletView.conversion.journeyEntryTxid, walletView.conversion.bitvmShowcaseAnchorTxid);
+assert.strictEqual(walletView.conversion.submarineSwapHtlc.txid, walletView.conversion.journeyEntryTxid);
+assert.match(walletView.conversion.submarineSwapHtlc.redeemScriptAsm, /OP_SHA256/);
+assert.match(walletView.conversion.submarineSwapHtlc.redeemScriptAsm, /OP_CHECKLOCKTIMEVERIFY/);
 assert.ok(status.lightningDiscovery.explorers.length >= 2);
 assert.ok(status.lightningDiscovery.candidatePeers.length >= 5);
 assert.ok(status.lightningDiscovery.candidatePeers.every(peer => peer.tcpOpen === true));
