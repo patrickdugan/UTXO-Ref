@@ -23,6 +23,15 @@ npm run test:panels
 
 `test:panels` defaults to `https://wallet-dashboard-vercel.vercel.app`. Set `DASHBOARD_BASE_URL` to test a preview deployment or local Vercel dev URL.
 
+## Grant Review Docs
+
+- `../../SPIRAL_GRANT_README.md`
+- `../../docs/bitcoin-core-scope.md`
+- `../../docs/upstream-targets.md`
+- `../../docs/demo-video-script.md`
+- `../../docs/milestone-budget.md`
+- `../../docs/review-request-template.md`
+
 ## Deploy
 
 ```powershell
