@@ -70,7 +70,8 @@ async function main() {
     assertMount(html, 'bitcoinProofLinks');
     assertMount(html, 'bitcoinProofStatus');
     assert.equal(testnetProof.network, 'testnet4');
-    assert.equal(testnetProof.summary.txCount, 14);
+    assert.equal(testnetProof.summary.txCount, 13);
+    assert.equal(testnetProof.summary.offchainCount, 1);
     assert.match(testnetProof.keyTxids.hybridColoredPledge.explorer, /^https:\/\/mempool\.space\/testnet4\/tx\//);
     assert.match(testnetProof.keyTxids.arkLiquidityGraft.explorer, /^https:\/\/mempool\.space\/testnet4\/tx\//);
     assert.match(script, /bitcoin-testnet-proof/, 'missing Bitcoin testnet proof endpoint');
@@ -175,7 +176,7 @@ async function main() {
     assertMount(html, 'adapterFeedStatus');
     assert.equal(adapterFeed.verification.ok, true, 'adapter feed verification failed');
     assert.equal(adapterFeed.verification.adaptersCovered, 4, 'adapter count mismatch');
-    assert.equal(adapterFeed.verification.bitcoinTestnetTxids, 14, 'missing Bitcoin testnet txids');
+    assert.equal(adapterFeed.verification.bitcoinTestnetTxids, 13, 'missing Bitcoin testnet txids');
     for (const key of ['ldk', 'ark', 'taprootAssets', 'tradeLayer']) {
       assert.ok(adapterFeed.adapters[key], `missing adapter feed ${key}`);
       assert.ok(adapterFeed.adapters[key].eventCount > 0, `${key} has no adapter events`);

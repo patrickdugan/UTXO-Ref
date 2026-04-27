@@ -538,6 +538,11 @@ th {
   text-decoration: none;
 }
 
+.txid-card.offchain {
+  background: #fbfaf7;
+  color: var(--ink);
+}
+
 .txid-card em {
   display: inline-flex;
   margin-bottom: 6px;

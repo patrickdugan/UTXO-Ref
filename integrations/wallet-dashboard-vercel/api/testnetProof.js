@@ -13,33 +13,38 @@ const PROOF_STEPS = [
   ['synthetic', 'short-mints-tlusd', 24, 'Short side mints tlUSD from the inverse BTC/USD contract envelope', 'afeb8b6add09477531c4a9dbc295d623f157448cc8ee38506ddd0029c47902cb'],
   ['externalization', 'pledge-tlusd-hybrid-colored', 33, 'Pledge tlUSD into hybrid colored coin form with a P2TR reference output', '3c95934aa8d6a43524cfd2b5089f09e060d514fd6e7c4828eff9e02ccc18f07b'],
   ['tap', 'make-tap-asset-tlusd', 33, 'Create a P2TR TAP asset anchor output for the pledged tlUSD', '9fac61dba0503ed228c75bceb436698946107c698d4db0bd389d11a93aeadebb'],
-  ['liquidity', 'plain-liquidity-graft', 30, 'Plain Lightning liquidity graft pledges the tlUSD/TAP reference', 'bf58a39333e554d9d0f80820f85e8b8e9ad8ba8abb11a2039971be739da25a9f'],
+  ['liquidity', 'plain-liquidity-graft', null, 'Off-chain Lightning route graft commitment referencing the tlUSD/TAP anchor; no Bitcoin txid is created for route construction', null, 'ln-route-commitment'],
   ['liquidity', 'ark-liquidity-graft', 30, 'Ark batched liquidity graft compresses the same pledged route capital', 'b88247df8c1b0960d9350a75e8c7e1e713bc0898e050407dd60c08f245d727a5']
 ];
 
-function proofStep([phase, label, txType, description, txid], index) {
+function proofStep([phase, label, txType, description, txid, proofKind], index) {
   return {
     index: index + 1,
     phase,
     label,
     txType,
+    proofKind: proofKind || 'bitcoin-testnet-tx',
     description,
     txid,
-    explorer: `${EXPLORER_BASE}${txid}`
+    explorer: txid ? `${EXPLORER_BASE}${txid}` : null
   };
 }
 
 function buildBitcoinTestnetProof() {
   const steps = PROOF_STEPS.map(proofStep);
+  const txSteps = steps.filter(step => step.txid);
+  const offchainSteps = steps.filter(step => !step.txid);
   return {
     kind: 'bitcoin_testnet4_cross_domain_proof',
     network: 'testnet4',
     generatedAt: '2026-04-27T19:33:04.433Z',
     explorerBase: EXPLORER_BASE,
     summary: {
-      txCount: steps.length,
+      stepCount: steps.length,
+      txCount: txSteps.length,
+      offchainCount: offchainSteps.length,
       firstTxid: steps[0].txid,
-      finalTxid: steps[steps.length - 1].txid
+      finalTxid: txSteps[txSteps.length - 1].txid
     },
     keyTxids: {
       subswapDlcFunding: steps.find(step => step.label === 'subswap-dlc-funding'),

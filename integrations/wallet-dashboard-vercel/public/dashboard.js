@@ -484,19 +484,33 @@ function renderBitcoinTestnetProof(testnetProof) {
   $('bitcoinProofStatus').textContent = `${testnetProof.network} verified links`;
   $('bitcoinProofSummary').innerHTML = [
     metric('Explorer network', testnetProof.network, 'mempool.space links'),
-    metric('Cross-domain txids', testnetProof.summary.txCount.toLocaleString(), 'click each card to inspect'),
+    metric('Bitcoin txids', testnetProof.summary.txCount.toLocaleString(), 'click linked cards to inspect'),
+    metric('Off-chain events', (testnetProof.summary.offchainCount || 0).toLocaleString(), 'LN route graft has no txid'),
     metric('DLC funding', short(testnetProof.summary.firstTxid), 'submarine swap shaped funding'),
     metric('Ark graft', short(testnetProof.summary.finalTxid), 'batched liquidity proof')
   ].join('');
   $('bitcoinProofLinks').innerHTML = testnetProof.steps
-    .map(step => `
+    .map(step => {
+      const tag = `${String(step.index).padStart(2, '0')} ${step.phase}${step.txType ? ` / tx ${step.txType}` : ''}`;
+      if (!step.explorer) {
+        return `
+      <div class="txid-card offchain" title="${step.proofKind || 'off-chain proof'}">
+        <em>${tag} / off-chain</em>
+        <strong>${step.label}</strong>
+        <code>${step.proofKind || 'off-chain commitment'}</code>
+        <span>${step.description}</span>
+      </div>
+    `;
+      }
+      return `
       <a class="txid-card" href="${step.explorer}" target="_blank" rel="noreferrer" title="${step.txid}">
-        <em>${String(step.index).padStart(2, '0')} ${step.phase}${step.txType ? ` / tx ${step.txType}` : ''}</em>
+        <em>${tag}</em>
         <strong>${step.label}</strong>
         <code>${short(step.txid)}</code>
         <span>${step.description}</span>
       </a>
-    `)
+    `;
+    })
     .join('');
 }
 
@@ -558,6 +572,7 @@ function renderExportPack(dashboard, status, walletView, ark) {
     detailRow('Invariants', `${pack.invariants.filter(item => item.ok).length}/${pack.invariants.length} pass`),
     detailRow('Adapter events', `${pack.adapterFeed?.verification?.normalizedEvents || 0} normalized`),
     detailRow('Bitcoin testnet txids', `${pack.bitcoinTestnetProof?.summary?.txCount || 0} explorer-linked`),
+    detailRow('Off-chain events', `${pack.bitcoinTestnetProof?.summary?.offchainCount || 0} route commitments`),
     detailRow('Smoke command', pack.smokeTestCommand),
     detailRow('Funding brief', pack.fundingBriefUrl)
   ].join('');
