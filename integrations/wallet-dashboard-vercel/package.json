@@ -1,0 +1,12 @@
+{
+  "name": "utxoref-testnet-fleet-dashboard",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Standalone Vercel dashboard for the UTXORef Lightning, Ark, TLUSD, and BitVM liquidity patch demo.",
+  "scripts": {
+    "test": "node api/mockData.test.js"
+  },
+  "engines": {
+    "node": "22.x"
+  }
+}

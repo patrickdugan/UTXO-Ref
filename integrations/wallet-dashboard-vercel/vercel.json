@@ -1,0 +1,21 @@
+{
+  "version": 2,
+  "rewrites": [
+    {
+      "source": "/dashboard",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/v1/wallet-demo/stress-dashboard",
+      "destination": "/api/stress-dashboard"
+    },
+    {
+      "source": "/v1/wallet-demo/status",
+      "destination": "/api/status"
+    },
+    {
+      "source": "/v1/lnbtc-tlusd-liquidity-patch/wallet-view",
+      "destination": "/api/wallet-view"
+    }
+  ]
+}
