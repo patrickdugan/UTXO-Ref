@@ -68,6 +68,15 @@ function scrub(value) {
     .replace(oldUnit, 'testnet coin');
 }
 
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 const failureScenarios = {
   nominal: {
     label: 'Nominal',
@@ -379,15 +388,75 @@ function renderBitvmEnforcement(walletView, dashboard) {
   const committed = Number(firstChallenge?.requestedInboundSats || walletView.liquidityPatch.assignedInboundSats || 0);
   const claimed = Number(firstChallenge?.deliveredInboundSats || walletView.liquidityPatch.deliveredInboundSats || 0);
   const shortfall = Math.max(0, committed - claimed);
-  $('bitvmEnforcement').innerHTML = [
-    detailRow('Committed state', `${compactSats(committed)} inbound promised`),
-    detailRow('Claimed state', `${compactSats(claimed)} delivered by ASP`),
-    detailRow('Invariant', 'delivered >= committed minimum before expiry'),
-    detailRow('Shortfall', compactSats(shortfall)),
-    detailRow('Bond coverage', compactSats(Math.max(shortfall * 2, 25000))),
-    detailRow('Challenge window', `${walletView.stake.termBlocks || 144} blocks`),
-    detailRow('Exit path', state.failureMode === 'forced_exit' ? 'force Ark exit then slash' : 'challenge ASP commitment then slash')
-  ].join('');
+  const circuit = walletView.liquidityPatch.routerCircuit || {
+    version: 'router-circuit-unavailable',
+    totalGates: 0,
+    gateCounts: [],
+    publicInputs: [],
+    witnessInputs: [],
+    scriptTemplate: [],
+    challengePath: []
+  };
+  const gateBars = circuit.gateCounts.map((gate, index) => {
+    const width = Math.max(12, Math.round((gate.count / circuit.totalGates) * 240));
+    return `
+      <g transform="translate(18 ${28 + index * 24})">
+        <rect width="${width}" height="12" rx="2"></rect>
+        <text x="${width + 8}" y="10">${escapeHtml(gate.family)} ${gate.count}</text>
+      </g>
+    `;
+  }).join('');
+  const scriptLines = circuit.scriptTemplate
+    .map(line => `<code>${escapeHtml(line)}</code>`)
+    .join('');
+  const inputs = [
+    ['Public inputs', circuit.publicInputs.join(', ')],
+    ['Witness inputs', circuit.witnessInputs.join(', ')],
+    ['Challenge path', circuit.challengePath.join(' -> ')]
+  ].map(([label, value]) => detailRow(label, escapeHtml(value))).join('');
+
+  $('bitvmEnforcement').innerHTML = `
+    <div class="bitvm-circuit-summary">
+      ${[
+        detailRow('Committed state', `${compactSats(committed)} inbound promised`),
+        detailRow('Claimed state', `${compactSats(claimed)} delivered by ASP`),
+        detailRow('Invariant', 'delivered >= committed minimum before expiry'),
+        detailRow('Shortfall', compactSats(shortfall)),
+        detailRow('Bond coverage', compactSats(Math.max(shortfall * 2, 25000))),
+        detailRow('Challenge window', `${walletView.stake.termBlocks || 144} blocks`),
+        detailRow('Exit path', state.failureMode === 'forced_exit' ? 'force Ark exit then slash' : 'challenge ASP commitment then slash')
+      ].join('')}
+    </div>
+    <div class="circuit-layout">
+      <div class="circuit-card">
+        <div class="circuit-head">
+          <strong>Router Circuit</strong>
+          <span class="source-badge proof">${circuit.totalGates.toLocaleString()} gates</span>
+        </div>
+        <svg class="circuit-svg" viewBox="0 0 520 248" role="img" aria-label="BitVM router circuit gate count visualization">
+          <path d="M28 222 H492" class="circuit-wire"></path>
+          <path d="M86 222 V48 H148" class="circuit-wire"></path>
+          <path d="M236 222 V72 H304" class="circuit-wire"></path>
+          <path d="M386 222 V96 H456" class="circuit-wire"></path>
+          <g class="gate-bars">${gateBars}</g>
+          <circle cx="86" cy="222" r="6"></circle>
+          <circle cx="236" cy="222" r="6"></circle>
+          <circle cx="386" cy="222" r="6"></circle>
+          <text x="28" y="242">LN commitment</text>
+          <text x="196" y="242">liquidity comparator</text>
+          <text x="372" y="242">BitVM challenge</text>
+        </svg>
+      </div>
+      <div class="circuit-card">
+        <div class="circuit-head">
+          <strong>${escapeHtml(circuit.version)}</strong>
+          <span class="source-badge derived">script</span>
+        </div>
+        <div class="script-template">${scriptLines}</div>
+        <div class="circuit-inputs">${inputs}</div>
+      </div>
+    </div>
+  `;
 }
 
 function renderAssetMode(walletView, dashboard) {
@@ -556,6 +625,7 @@ function buildExportPack(dashboard, status, walletView, ark) {
     },
     health: state.latencies,
     invariants: buildInvariants(dashboard, walletView, ark).map(([name, ok, note]) => ({ name, ok, note })),
+    routerCircuit: walletView.liquidityPatch.routerCircuit,
     adapterFeed: state.adapterFeed,
     bitcoinTestnetProof: state.testnetProof,
     dashboard,

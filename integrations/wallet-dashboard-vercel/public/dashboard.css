@@ -504,6 +504,80 @@ th {
   gap: 8px;
 }
 
+.bitvm-circuit-summary {
+  display: grid;
+  gap: 8px;
+}
+
+.circuit-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.circuit-card {
+  border: 1px solid var(--line);
+  background: #fbfdfc;
+  padding: 10px;
+  min-width: 0;
+}
+
+.circuit-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.circuit-svg {
+  width: 100%;
+  min-height: 214px;
+  display: block;
+}
+
+.circuit-svg rect {
+  fill: var(--blue);
+}
+
+.circuit-svg circle {
+  fill: var(--amber);
+  stroke: var(--ink);
+  stroke-width: 2;
+}
+
+.circuit-svg text {
+  fill: var(--ink);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.circuit-wire {
+  fill: none;
+  stroke: var(--steel);
+  stroke-width: 3;
+}
+
+.script-template {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.script-template code {
+  display: block;
+  padding: 7px;
+  background: #eef5f3;
+  color: var(--green-dark);
+  overflow-wrap: anywhere;
+}
+
+.circuit-inputs {
+  display: grid;
+  gap: 8px;
+}
+
 .proof-graph {
   display: grid;
   gap: 8px;
@@ -817,6 +891,7 @@ dialog::backdrop {
   .txid-grid,
   .artifact-grid,
   .trace-grid,
+  .circuit-layout,
   .metric-grid,
   .metric-grid.wide {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -847,6 +922,7 @@ dialog::backdrop {
   .txid-grid,
   .artifact-grid,
   .trace-grid,
+  .circuit-layout,
   .metric-grid,
   .metric-grid.wide,
   .control-grid,

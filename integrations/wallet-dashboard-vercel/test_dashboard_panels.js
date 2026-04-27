@@ -120,6 +120,12 @@ async function main() {
     assertString(dashboard.challengeQueue[0].bitvmChallengeId, 'challenge id');
     assertPositive(dashboard.challengeQueue[0].requestedInboundSats, 'challenge requested sats');
     assertPositive(dashboard.challengeQueue[0].deliveredInboundSats, 'challenge delivered sats');
+    assert.equal(walletView.liquidityPatch.routerCircuit.totalGates, 768);
+    assert.match(script, /Router Circuit/, 'missing router circuit renderer');
+    assert.ok(
+      walletView.liquidityPatch.routerCircuit.scriptTemplate.some(line => line.includes('OP_GREATERTHANOREQUAL')),
+      'missing liquidity comparator script'
+    );
   });
 
   runPanel('Asset Mode', () => {

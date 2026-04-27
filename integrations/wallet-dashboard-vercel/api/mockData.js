@@ -53,6 +53,50 @@ function buildStatus() {
 
 function buildWalletView() {
   const proof = buildBitcoinTestnetProof();
+  const routerCircuit = {
+    circuitId: id('router_circuit', 'ln-bitvm-liquidity-graft-v1'),
+    version: 'ln-bitvm-liquidity-graft-v1',
+    totalGates: 768,
+    constraintSystem: 'booleanized route commitment plus liquidity shortfall comparator',
+    gateCounts: [
+      { family: 'HTLC hashlock', count: 96, checks: 'payment_hash == sha256(preimage)' },
+      { family: 'CLTV timeout', count: 64, checks: 'expiry_height <= channel_expiry' },
+      { family: 'Route sum', count: 112, checks: 'delivered_msat accumulates hop commitments' },
+      { family: 'Liquidity comparator', count: 144, checks: 'delivered_sats >= committed_min_sats' },
+      { family: 'TAP anchor binding', count: 128, checks: 'tap_anchor_outpoint matches tx33/TAP proof root' },
+      { family: 'Ark batch binding', count: 96, checks: 'vtxo_batch_root commits route allocation' },
+      { family: 'Challenge mux', count: 80, checks: 'select honest exit or slash path' },
+      { family: 'Public input pack', count: 48, checks: 'pack proof root and challenge id' }
+    ],
+    publicInputs: [
+      'tap_anchor_outpoint',
+      'ark_batch_root',
+      'payment_hash',
+      'committed_min_sats',
+      'expiry_height',
+      'challenge_id'
+    ],
+    witnessInputs: [
+      'payment_preimage',
+      'hop_commitments',
+      'delivered_sats',
+      'router_signature',
+      'asp_forfeit_signature'
+    ],
+    scriptTemplate: [
+      '<tap_anchor_outpoint> OP_EQUALVERIFY',
+      'OP_SHA256 <payment_hash> OP_EQUALVERIFY',
+      '<delivered_sats> <committed_min_sats> OP_GREATERTHANOREQUAL',
+      'OP_IF <router_pubkey> OP_CHECKSIG',
+      'OP_ELSE <asp_forfeit_pubkey> OP_CHECKSIG OP_ENDIF'
+    ],
+    challengePath: [
+      'route commitment published off-chain',
+      'watcher recomputes delivered liquidity',
+      'shortfall opens BitVM challenge',
+      'script selects slash or cooperative exit'
+    ]
+  };
   return {
     kind: 'lnbtc_tlusd_liquidity_patch_wallet_view',
     generatedAt: '2026-04-26T00:00:00.000Z',
@@ -80,7 +124,8 @@ function buildWalletView() {
         challengeId: id('challenge', 'bitvm-asp-shortfall'),
         status: 'prepared',
         remedy: 'slash ASP bond or force Ark exit/forfeit path'
-      }
+      },
+      routerCircuit
     }
   };
 }
