@@ -144,7 +144,7 @@ span {
   background: var(--green);
 }
 
-.source-badge.mock {
+.source-badge.proof {
   background: var(--steel);
 }
 
@@ -538,6 +538,18 @@ th {
   text-decoration: none;
 }
 
+.txid-card em {
+  display: inline-flex;
+  margin-bottom: 6px;
+  padding: 2px 6px;
+  background: #e7f0ff;
+  color: var(--blue);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
 .txid-card strong,
 .txid-card code,
 .txid-card span,
@@ -746,7 +758,7 @@ th {
   background: var(--blue);
 }
 
-.status.mocked {
+.status.proof {
   background: var(--steel);
 }
 

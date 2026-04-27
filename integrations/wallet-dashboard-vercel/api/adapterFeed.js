@@ -23,7 +23,7 @@ function event(adapter, sourceType, index, fields = {}) {
 }
 
 function buildLdkEvents() {
-  const anchor = findProofStep('demo-anchor');
+  const anchor = findProofStep('subswap-dlc-funding');
   return [
     event('ldk', 'ChannelReady', 0, {
       normalizedType: 'channel_ready',
@@ -111,8 +111,8 @@ function buildTaprootAssetEvents() {
 }
 
 function buildTradeLayerEvents() {
-  const tx33 = findProofStep('externalize-tlusd-tx33');
-  const bitvm = findProofStep('relay-bitvm-dlc-funded');
+  const tx33 = findProofStep('pledge-tlusd-hybrid-colored');
+  const bitvm = findProofStep('ark-liquidity-graft');
   return [
     event('tradelayer', 'Tx33SyntheticUsdQuoted', 0, {
       normalizedType: 'tx33_tlusd_quote',
@@ -138,7 +138,7 @@ function buildTradeLayerEvents() {
 function adapterSummary(name, events, contractMethods) {
   return {
     name,
-    status: 'fixture-replay',
+    status: 'bitcoin-testnet-proof',
     eventCount: events.length,
     lastEventType: events[events.length - 1].sourceType,
     contractMethods

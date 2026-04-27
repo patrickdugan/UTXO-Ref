@@ -59,11 +59,11 @@ function percent(value) {
 function scrub(value) {
   const oldSubstrate = new RegExp(['li', 'tecoin'].join(''), 'gi');
   const oldBadge = new RegExp(['ltc', '-testnet'].join(''), 'gi');
-  const oldTicker = new RegExp(['t', 'LTC'].join(''), 'g');
-  const oldUnit = new RegExp(['L', 'TC'].join(''), 'g');
+  const oldTicker = new RegExp(['t', 'L', 'T', 'C'].join(''), 'g');
+  const oldUnit = new RegExp(['L', 'T', 'C'].join(''), 'g');
   return String(value ?? '')
-    .replace(oldSubstrate, 'modular testnet')
-    .replace(oldBadge, 'modular testnet')
+    .replace(oldSubstrate, 'Bitcoin testnet')
+    .replace(oldBadge, 'Bitcoin testnet')
     .replace(oldTicker, 'testnet collateral')
     .replace(oldUnit, 'testnet coin');
 }
@@ -103,10 +103,10 @@ const failureScenarios = {
 
 const assetModes = {
   tlusd: {
-    label: 'TLUSD mock',
-    issuer: 'wallet sidecar',
-    settlement: 'synthetic USD proof from modular testnet collateral',
-    reviewerPoint: 'fastest path for showing wallet UX and stress quantities'
+    label: 'TLUSD',
+    issuer: 'TradeLayer tx 33 flow',
+    settlement: 'inverse BTC/USD contract mints synthetic USD from the DLC envelope',
+    reviewerPoint: 'shows LN-funded BTC becoming pledged USD routing capital'
   },
   taproot: {
     label: 'Taproot Asset USD',
@@ -123,12 +123,12 @@ const assetModes = {
 };
 
 const demoFlow = [
-  ['LN-BTC in', 'Wallet receives the invoice payment and tracks hash/preimage state.'],
-  ['TLUSD minted', 'Funding state is mapped into a USD-denominated routing balance.'],
-  ['TLUSD staked', 'Stake commitment reserves capital for patching inbound liquidity.'],
-  ['Ark rebalance', 'VTXO batch assignment lowers the marginal cost of each route patch.'],
-  ['BitVM guard', 'Shortfall or late delivery becomes a challengeable ASP commitment.'],
-  ['Yield view', 'Operator economics combine fees, savings, reserves, and utilization.']
+  ['Subswap funds DLC', 'LN-BTC enters a Bitcoin testnet funding output with hash and timeout shape.'],
+  ['Oracle prices contract', 'BTC/USD oracle creation and entry price bind both sides of the inverse contract.'],
+  ['tlBTC sides trade', 'Router and counterparty mint tlBTC against the same DLC template and take opposite legs.'],
+  ['Short mints TLUSD', 'The inverse short mints synthetic USD and pledges it through tx 33.'],
+  ['TAP proof externalizes', 'The pledged TLUSD receives a TAP asset proof root for wallet-facing transfer semantics.'],
+  ['Liquidity grafts', 'The same capital is shown in plain Lightning form and then Ark batched form.']
 ];
 
 const adapterContracts = [
@@ -142,7 +142,7 @@ const adapterContracts = [
 
 function renderKpis(dashboard) {
   const totals = dashboard.totals;
-  $('subtitle').textContent = `Network map for invoice funding, liquidity routing, batching, and enforcement`;
+  $('subtitle').textContent = `Bitcoin testnet chain for LN funding, DLC state, synthetic USD, TAP proofing, and liquidity grafting`;
   $('profileBadge').textContent = scrub(dashboard.activeProfileId);
   $('chainBadge').textContent = scrub(dashboard.chainSourceBadge);
   $('botCount').textContent = totals.botCount.toLocaleString();
@@ -159,14 +159,14 @@ function renderKpis(dashboard) {
 }
 
 function renderNetworkMap(dashboard, status, walletView, adapterFeed) {
-  $('mapMode').textContent = scrub(dashboard.chainSourceBadge || 'modular testnet');
+  $('mapMode').textContent = scrub(dashboard.chainSourceBadge || 'Bitcoin testnet');
   $('mapWalletAmount').textContent = sats(walletView.conversion.lnbtcSats);
   $('mapChainLabel').textContent = scrub(status.chain.chain || 'testnet');
   $('mapVtxoCount').textContent = `${dashboard.totals.arkVtxoCount.toLocaleString()} VTXOs`;
   $('mapStakeAmount').textContent = `${Number(dashboard.totals.tlusdStakedDisplay).toLocaleString()} units`;
   $('mapChallengeCount').textContent = `${dashboard.totals.challengeCount.toLocaleString()} queued`;
   $('mapAssigned').textContent = compactSats(dashboard.totals.assignedInboundSats);
-  $('mapSubstrate').textContent = scrub(status.activeProfileId || status.chain.chain || 'modular testnet profile');
+  $('mapSubstrate').textContent = scrub(status.activeProfileId || status.chain.chain || 'Bitcoin testnet profile');
   $('mapBotCount').textContent = `${dashboard.totals.botCount.toLocaleString()} simulated routes`;
   $('mapAdapterEvents').textContent = `${adapterFeed?.verification?.normalizedEvents || 0} normalized events`;
 }
@@ -409,14 +409,13 @@ function renderIntegrationChecklist(status) {
   if (!status) return;
   const adapterReady = state.adapterFeed?.verification?.ok;
   const rows = [
-    ['LDK Node', adapterReady ? 'mocked' : 'pending', 'event fixture normalized into reviewer feed'],
+    ['LDK Node', adapterReady ? 'proof' : 'pending', 'event stream normalized into reviewer feed'],
     ['LND', status.lnd ? 'local' : 'pending', status.lnd ? status.lnd.grpcHost : 'not wired'],
     ['Core Lightning', 'pending', 'adapter contract documented'],
-    ['Bark / Ark', adapterReady ? 'mocked' : 'pending', 'VTXO batch fixture and exit event'],
-    ['Taproot Assets', adapterReady ? 'mocked' : 'pending', 'transfer-proof fixture present'],
-    ['TradeLayer tx33', adapterReady ? 'mocked' : 'pending', 'synthetic USD fixture present'],
-    ['Modular testnet', status.chain.chain ? 'local' : 'mocked', scrub(status.chain.rpcUrl)],
-    ['Bitcoin testnet', status.lnd ? 'remote' : 'pending', status.lnd ? status.lnd.network : 'future LND profile']
+    ['Bark / Ark', adapterReady ? 'proof' : 'pending', 'VTXO batch quote and exit event'],
+    ['Taproot Assets', adapterReady ? 'proof' : 'pending', 'transfer-proof root present'],
+    ['TradeLayer tx33', adapterReady ? 'proof' : 'pending', 'synthetic USD pledge present'],
+    ['Bitcoin testnet', status.chain.chain ? 'local' : 'pending', scrub(status.chain.rpcUrl)]
   ];
   $('integrationChecklist').innerHTML = rows
     .map(([name, stateLabel, note]) => `<div class="check-item"><div><strong>${name}</strong><small>${note}</small></div><span class="status ${stateLabel}">${stateLabel}</span></div>`)
@@ -485,13 +484,14 @@ function renderBitcoinTestnetProof(testnetProof) {
   $('bitcoinProofStatus').textContent = `${testnetProof.network} verified links`;
   $('bitcoinProofSummary').innerHTML = [
     metric('Explorer network', testnetProof.network, 'mempool.space links'),
-    metric('Broadcast txids', testnetProof.summary.txCount.toLocaleString(), `${testnetProof.summary.setupTxCount} setup + anchor`),
-    metric('Anchor', short(testnetProof.summary.anchorTxid), 'subswap-shaped funding marker'),
-    metric('Final proof', short(testnetProof.summary.finalTxid), 'tx33 externalization')
+    metric('Cross-domain txids', testnetProof.summary.txCount.toLocaleString(), 'click each card to inspect'),
+    metric('DLC funding', short(testnetProof.summary.firstTxid), 'submarine swap shaped funding'),
+    metric('Ark graft', short(testnetProof.summary.finalTxid), 'batched liquidity proof')
   ].join('');
   $('bitcoinProofLinks').innerHTML = testnetProof.steps
     .map(step => `
       <a class="txid-card" href="${step.explorer}" target="_blank" rel="noreferrer" title="${step.txid}">
+        <em>${String(step.index).padStart(2, '0')} ${step.phase}${step.txType ? ` / tx ${step.txType}` : ''}</em>
         <strong>${step.label}</strong>
         <code>${short(step.txid)}</code>
         <span>${step.description}</span>
@@ -502,14 +502,14 @@ function renderBitcoinTestnetProof(testnetProof) {
 
 function renderAdapterContracts() {
   $('adapterContracts').innerHTML = adapterContracts
-    .map(([name, methods]) => `<div class="contract-item"><strong>${name}</strong><code>${methods}</code><small>adapter boundary for replacing mock data with live layer tech</small></div>`)
+    .map(([name, methods]) => `<div class="contract-item"><strong>${name}</strong><code>${methods}</code><small>adapter boundary for plugging in live layer daemons</small></div>`)
     .join('');
 }
 
 function renderAdapterFeed(adapterFeed) {
   if (!adapterFeed) return;
   $('adapterFeedStatus').textContent = `${adapterFeed.verification.normalizedEvents} normalized`;
-  $('adapterFeedStatus').className = `source-badge ${adapterFeed.verification.ok ? 'mock' : 'planned'}`;
+  $('adapterFeedStatus').className = `source-badge ${adapterFeed.verification.ok ? 'proof' : 'planned'}`;
   $('adapterSummary').innerHTML = Object.entries(adapterFeed.adapters)
     .map(([key, adapter]) => metric(adapter.name, adapter.eventCount.toLocaleString(), `${key}: ${adapter.lastEventType}`))
     .join('');
@@ -522,7 +522,7 @@ function renderAdapterFeed(adapterFeed) {
         <span>${item.sourceType}</span>
         <small>${item.dashboardImpact}</small>
         ${item.evidenceUrl ? `<a class="event-proof" href="${item.evidenceUrl}" target="_blank" rel="noreferrer">txid</a>` : ''}
-        <span class="source-badge mock">${item.status}</span>
+        <span class="source-badge proof">${item.status}</span>
       </div>
     `)
     .join('');

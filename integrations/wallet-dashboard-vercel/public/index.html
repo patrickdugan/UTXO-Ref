@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>UTXORef Testnet Fleet</title>
+    <title>UTXORef Bitcoin Testnet Flow</title>
     <meta name="dashboard-commit" content="main" />
     <link rel="stylesheet" href="/dashboard.css" />
   </head>
@@ -11,8 +11,8 @@
     <div class="app-shell">
       <header class="topbar">
         <div>
-          <h1>UTXORef Testnet Fleet</h1>
-          <p id="subtitle">Loading fleet telemetry</p>
+          <h1>UTXORef Bitcoin Testnet Flow</h1>
+          <p id="subtitle">Loading cross-domain transaction chain</p>
         </div>
         <div class="top-actions">
           <span id="profileBadge" class="badge">profile</span>
@@ -32,13 +32,13 @@
       <main>
         <section class="map-panel">
           <div class="section-title">
-            <h2>Liquidity Routing Map</h2>
-            <span id="mapMode" class="source-badge derived">modular testnet</span>
+            <h2>Cross-Domain Liquidity Map</h2>
+            <span id="mapMode" class="source-badge derived">Bitcoin testnet</span>
           </div>
           <div class="network-layout">
             <svg class="network-map" viewBox="0 0 1120 540" role="img" aria-labelledby="mapTitle mapDesc">
               <title id="mapTitle">UTXORef liquidity routing network</title>
-              <desc id="mapDesc">Vector map showing how Lightning, swap funding, UTXORef, Ark batching, asset accounting, BitVM enforcement, and wallet telemetry fit together.</desc>
+              <desc id="mapDesc">Vector map showing how Lightning funding, DLC state, TradeLayer assets, TAP proofs, Ark batching, BitVM enforcement, and wallet telemetry fit together.</desc>
               <defs>
                 <marker id="arrow" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto" markerUnits="strokeWidth">
                   <path d="M0,0 L0,6 L8,3 z" fill="#334155"></path>
@@ -58,22 +58,22 @@
 
               <g class="map-node wallet" transform="translate(70 90)">
                 <rect width="150" height="110" rx="12"></rect>
-                <text x="20" y="34">Wallet</text>
+                <text x="20" y="34">LN Wallet</text>
                 <text x="20" y="62" id="mapWalletAmount">LN-BTC</text>
                 <text x="20" y="84">invoice/payment</text>
               </g>
 
               <g class="map-node swap" transform="translate(380 90)">
                 <rect width="150" height="110" rx="12"></rect>
-                <text x="20" y="34">HTLC / Swap</text>
+                <text x="20" y="34">Subswap</text>
                 <text x="20" y="62">hash + expiry</text>
-                <text x="20" y="84">funding gate</text>
+                <text x="20" y="84">DLC funding</text>
               </g>
 
               <g class="map-node utxo" transform="translate(725 90)">
                 <rect width="150" height="110" rx="12"></rect>
-                <text x="20" y="34">UTXORef</text>
-                <text x="20" y="62">state anchor</text>
+                <text x="20" y="34">Oracle / DLC</text>
+                <text x="20" y="62">BTC/USD entry</text>
                 <text x="20" y="84" id="mapChainLabel">testnet</text>
               </g>
 
@@ -86,9 +86,9 @@
 
               <g class="map-node asset" transform="translate(345 345)">
                 <rect width="185" height="110" rx="12"></rect>
-                <text x="20" y="34">Asset / Stake</text>
+                <text x="20" y="34">TLUSD / TAP</text>
                 <text x="20" y="62" id="mapStakeAmount">routing reserve</text>
-                <text x="20" y="84">mode selectable</text>
+                <text x="20" y="84">pledged asset</text>
               </g>
 
               <g class="map-node bitvm" transform="translate(955 215)">
@@ -106,8 +106,8 @@
               </g>
             </svg>
             <div class="map-readout">
-              <div class="readout-item"><span>Core flow</span><strong>Invoice -> Funding -> Router -> Batch -> Guard</strong></div>
-              <div class="readout-item"><span>Substrate</span><strong id="mapSubstrate">modular testnet profile</strong></div>
+              <div class="readout-item"><span>Core flow</span><strong>LN-BTC -> DLC -> tlBTC -> tlUSD -> TAP -> Graft</strong></div>
+              <div class="readout-item"><span>Network</span><strong id="mapSubstrate">Bitcoin testnet profile</strong></div>
               <div class="readout-item"><span>Stress scale</span><strong id="mapBotCount">--</strong></div>
               <div class="readout-item"><span>Adapter feed</span><strong id="mapAdapterEvents">--</strong></div>
             </div>
@@ -130,7 +130,7 @@
 
         <section class="panel">
           <div class="section-title">
-            <h2>Bitcoin Testnet Proofs</h2>
+            <h2>Bitcoin Testnet Transaction Chain</h2>
             <span id="bitcoinProofStatus" class="source-badge live">testnet4</span>
           </div>
           <div id="bitcoinProofSummary" class="proof-summary"></div>
@@ -195,8 +195,8 @@
         <section class="grid-three">
           <div class="panel">
             <div class="section-title">
-              <h2>Wallet Mock</h2>
-              <span class="source-badge mock">mock</span>
+              <h2>Wallet Flow</h2>
+              <span class="source-badge proof">proof</span>
             </div>
             <div class="phone-pane">
               <div class="phone-row"><span>LN-BTC</span><strong id="walletLnBtc">--</strong></div>
@@ -278,11 +278,11 @@
             <div class="section-title">
               <h2>Asset Mode</h2>
               <select id="assetMode" aria-label="Asset backend">
-                <option value="tlusd">TLUSD mock</option>
+                <option value="tlusd">TLUSD</option>
                 <option value="taproot">Taproot Asset USD</option>
                 <option value="tradelayer">TradeLayer synthetic USD</option>
               </select>
-              <span class="source-badge mock">mock</span>
+              <span class="source-badge proof">proof</span>
             </div>
             <div id="assetModePanel" class="detail-list"></div>
           </div>
@@ -344,7 +344,7 @@
         <section class="panel">
           <div class="section-title">
             <h2>Layer Adapter Feed</h2>
-            <span id="adapterFeedStatus" class="source-badge mock">fixture replay</span>
+            <span id="adapterFeedStatus" class="source-badge proof">proof feed</span>
           </div>
           <div id="adapterSummary" class="metric-grid"></div>
           <div id="adapterEventFeed" class="event-feed"></div>

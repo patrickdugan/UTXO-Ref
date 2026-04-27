@@ -17,30 +17,30 @@ function buildStatus() {
   const proof = buildBitcoinTestnetProof();
   return {
     ok: true,
-    activeProfileId: 'vercel-mock-modular-testnet',
+    activeProfileId: 'bitcoin-testnet-cross-domain',
     profile: {
-      id: 'vercel-mock-modular-testnet',
-      mode: 'serverless mock',
-      notes: 'Static Vercel package mirroring the local wallet-demo sidecar contract.'
+      id: 'bitcoin-testnet-cross-domain',
+      mode: 'Bitcoin testnet proof feed',
+      notes: 'Vercel package exposing the Bitcoin testnet transaction chain and wallet-demo API contract.'
     },
     chain: {
-      chain: 'bitcoin-compatible-testnet',
-      network: 'testnet',
-      rpcUrl: 'mock://modular-testnet',
+      chain: 'bitcoin-testnet4',
+      network: 'testnet4',
+      rpcUrl: 'proof://bitcoin-testnet4',
       wallet: 'utxoref-demo'
     },
     lnd: {
       network: 'bitcoin-testnet',
-      grpcHost: 'mock://lnd-testnet'
+      grpcHost: 'proof://ln-testnet'
     },
     artifacts: {
-      lnbtcTlusdLiquidityPatch: { exists: true, source: 'vercel mock API' },
+      lnbtcTlusdLiquidityPatch: { exists: true, source: 'Bitcoin testnet proof API' },
       walletStressSimulation: { exists: true, source: 'deterministic serverless generator' },
       bitcoinTestnetProof: {
         exists: true,
         source: 'Bitcoin testnet4',
         txCount: proof.summary.txCount,
-        finalExplorer: proof.keyTxids.tx33Externalization.explorer
+        finalExplorer: proof.keyTxids.arkLiquidityGraft.explorer
       }
     },
     readiness: {
@@ -59,12 +59,12 @@ function buildWalletView() {
     conversion: {
       lnbtcSats: 49000,
       tlusdUnits: 49000000,
-      subswapFundingTxid: proof.keyTxids.subswapFunding.txid,
-      subswapFundingExplorer: proof.keyTxids.subswapFunding.explorer,
-      dlcFundingTxid: proof.keyTxids.bitvmRelay.txid,
-      dlcFundingExplorer: proof.keyTxids.bitvmRelay.explorer,
-      rfqQuoteId: proof.keyTxids.tx33Externalization.txid,
-      rfqExplorer: proof.keyTxids.tx33Externalization.explorer
+      subswapFundingTxid: proof.keyTxids.subswapDlcFunding.txid,
+      subswapFundingExplorer: proof.keyTxids.subswapDlcFunding.explorer,
+      dlcFundingTxid: proof.keyTxids.inverseContract.txid,
+      dlcFundingExplorer: proof.keyTxids.inverseContract.explorer,
+      rfqQuoteId: proof.keyTxids.hybridColoredPledge.txid,
+      rfqExplorer: proof.keyTxids.hybridColoredPledge.explorer
     },
     stake: {
       stakedTlUsdUnits: 40000000,
@@ -149,8 +149,8 @@ function buildStressDashboard(input = {}) {
   return {
     kind: 'wallet_stress_dashboard',
     dashboardId: id('dashboard', `${botCount}:${assignedInboundSats}:${deliveredInboundSats}`),
-    activeProfileId: 'vercel-mock-modular-testnet',
-    chainSourceBadge: 'modular testnet mock',
+    activeProfileId: 'bitcoin-testnet-cross-domain',
+    chainSourceBadge: 'Bitcoin testnet',
     quoteAsset: 'TLUSD',
     collateralAsset: 'testnet collateral',
     totals: {

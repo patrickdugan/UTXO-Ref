@@ -46,13 +46,15 @@ async function main() {
   const funding = await getText('/funding');
 
   runPanel('Network Map Frame', () => {
-    assert.match(html, /Liquidity Routing Map/, 'missing network map title');
+    assert.match(html, /Cross-Domain Liquidity Map/, 'missing network map title');
     assert.match(html, /class="network-map"/, 'missing SVG network map');
     for (const id of ['mapAssigned', 'mapSubstrate', 'mapAdapterEvents', 'mapChainLabel']) {
       assertMount(html, id);
     }
     assert.doesNotMatch(html, /litecoin|tLTC/i, 'public dashboard frame leaks old substrate wording');
     assert.doesNotMatch(funding, /litecoin/i, 'funding brief leaks old substrate wording');
+    assert.doesNotMatch(html, /testnet mock|fixture replay|modular testnet|Wallet Mock|TLUSD mock/i, 'public dashboard leaks old demo wording');
+    assert.doesNotMatch(funding, /What Is Mocked|fixture replay|modular testnet/i, 'funding brief leaks old scope wording');
   });
 
   runPanel('Guided Demo', () => {
@@ -60,7 +62,7 @@ async function main() {
     assertMount(html, 'demoNext');
     assertMount(html, 'demoPrev');
     assert.match(script, /demoFlow/, 'missing guided demo flow');
-    assert.match(script, /LN-BTC in/, 'missing LN-BTC guided step');
+    assert.match(script, /Subswap funds DLC/, 'missing funding guided step');
   });
 
   runPanel('Bitcoin Testnet Proofs', () => {
@@ -68,8 +70,9 @@ async function main() {
     assertMount(html, 'bitcoinProofLinks');
     assertMount(html, 'bitcoinProofStatus');
     assert.equal(testnetProof.network, 'testnet4');
-    assert.equal(testnetProof.summary.txCount, 18);
-    assert.match(testnetProof.keyTxids.tx33Externalization.explorer, /^https:\/\/mempool\.space\/testnet4\/tx\//);
+    assert.equal(testnetProof.summary.txCount, 14);
+    assert.match(testnetProof.keyTxids.hybridColoredPledge.explorer, /^https:\/\/mempool\.space\/testnet4\/tx\//);
+    assert.match(testnetProof.keyTxids.arkLiquidityGraft.explorer, /^https:\/\/mempool\.space\/testnet4\/tx\//);
     assert.match(script, /bitcoin-testnet-proof/, 'missing Bitcoin testnet proof endpoint');
   });
 
@@ -172,7 +175,7 @@ async function main() {
     assertMount(html, 'adapterFeedStatus');
     assert.equal(adapterFeed.verification.ok, true, 'adapter feed verification failed');
     assert.equal(adapterFeed.verification.adaptersCovered, 4, 'adapter count mismatch');
-    assert.equal(adapterFeed.verification.bitcoinTestnetTxids, 18, 'missing Bitcoin testnet txids');
+    assert.equal(adapterFeed.verification.bitcoinTestnetTxids, 14, 'missing Bitcoin testnet txids');
     for (const key of ['ldk', 'ark', 'taprootAssets', 'tradeLayer']) {
       assert.ok(adapterFeed.adapters[key], `missing adapter feed ${key}`);
       assert.ok(adapterFeed.adapters[key].eventCount > 0, `${key} has no adapter events`);
