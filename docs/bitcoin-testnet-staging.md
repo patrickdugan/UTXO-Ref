@@ -44,6 +44,22 @@ Current local RPC shape:
 - P2P: `48333`
 - Prune target: `2000 MiB`
 
+## Demo Transaction Anchor
+
+Create or load the `utxoref-testnet` wallet, fund the printed address from a Bitcoin testnet4 faucet, then broadcast the demo anchor:
+
+```powershell
+.\integrations\wallet-demo\run_bitcoin_testnet4_demo_txs.ps1
+```
+
+When the wallet is unfunded the script exits with a JSON funding prompt that includes the receive address, testnet4 explorer link, and faucet links. Once funded, it broadcasts a small testnet4 transaction with an OP_RETURN marker:
+
+```text
+UTXORef LN-BTC BitVM liquidity demo
+```
+
+The script prints the resulting mempool.space testnet4 transaction URL for the email/demo packet.
+
 ## Sidecar Profile
 
 The sidecar already has a Bitcoin testnet LND profile shape. The public dashboard should keep saying `modular testnet` until this path is live.
