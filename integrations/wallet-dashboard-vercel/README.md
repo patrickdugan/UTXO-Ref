@@ -12,7 +12,7 @@ It mirrors the local sidecar UI from `integrations/wallet-demo` and exposes mock
 - `/v1/wallet-demo/adapter-feed`
 - `/v1/lnbtc-tlusd-liquidity-patch/wallet-view`
 
-The Vercel version is meant for grant-review walkthroughs when a public URL is more useful than a local Litecoin testnet sidecar. The local sidecar remains the richer source of live node-backed telemetry.
+The Vercel version is meant for grant-review walkthroughs when a public URL is more useful than a local modular testnet sidecar. The local sidecar remains the richer source of live node-backed telemetry.
 
 ## Local Checks
 

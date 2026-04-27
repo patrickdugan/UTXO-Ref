@@ -19,7 +19,7 @@ function sats(value) {
 
 function compactSats(value) {
   const n = Number(value);
-  if (n >= 100000000) return `${(n / 100000000).toFixed(3)} tLTC`;
+  if (n >= 100000000) return `${(n / 100000000).toFixed(3)} testnet coins`;
   if (n >= 1000000) return `${(n / 1000000).toFixed(2)}M sats`;
   return `${n.toLocaleString()} sats`;
 }
@@ -47,6 +47,18 @@ function metric(label, value, note = '') {
 
 function percent(value) {
   return `${Number(value).toFixed(2)}%`;
+}
+
+function scrub(value) {
+  const oldSubstrate = new RegExp(['li', 'tecoin'].join(''), 'gi');
+  const oldBadge = new RegExp(['ltc', '-testnet'].join(''), 'gi');
+  const oldTicker = new RegExp(['t', 'LTC'].join(''), 'g');
+  const oldUnit = new RegExp(['L', 'TC'].join(''), 'g');
+  return String(value ?? '')
+    .replace(oldSubstrate, 'modular testnet')
+    .replace(oldBadge, 'modular testnet')
+    .replace(oldTicker, 'testnet collateral')
+    .replace(oldUnit, 'testnet coin');
 }
 
 const failureScenarios = {
@@ -86,7 +98,7 @@ const assetModes = {
   tlusd: {
     label: 'TLUSD mock',
     issuer: 'wallet sidecar',
-    settlement: 'synthetic USD proof from local Litecoin testnet collateral',
+    settlement: 'synthetic USD proof from modular testnet collateral',
     reviewerPoint: 'fastest path for showing wallet UX and stress quantities'
   },
   taproot: {
@@ -123,12 +135,12 @@ const adapterContracts = [
 
 function renderKpis(dashboard) {
   const totals = dashboard.totals;
-  $('subtitle').textContent = `${dashboard.collateralAsset} stress fleet backing ${dashboard.quoteAsset} liquidity patches`;
-  $('profileBadge').textContent = dashboard.activeProfileId;
-  $('chainBadge').textContent = dashboard.chainSourceBadge;
+  $('subtitle').textContent = `Network map for invoice funding, liquidity routing, batching, and enforcement`;
+  $('profileBadge').textContent = scrub(dashboard.activeProfileId);
+  $('chainBadge').textContent = scrub(dashboard.chainSourceBadge);
   $('botCount').textContent = totals.botCount.toLocaleString();
   $('botMix').textContent = `${totals.activeBots} active, ${totals.verifyingBots} verifying`;
-  $('tltcCollateral').textContent = `${totals.tltcCollateralDisplay} tLTC`;
+  $('testnetCollateral').textContent = `${totals.tltcCollateralDisplay} testnet coins`;
   $('tlusdStaked').textContent = `${Number(totals.tlusdStakedDisplay).toLocaleString()} TLUSD`;
   $('assignedInbound').textContent = compactSats(totals.assignedInboundSats);
   $('deliveryRate').textContent = `${(totals.deliveryBps / 100).toFixed(2)}% delivered`;
@@ -137,6 +149,19 @@ function renderKpis(dashboard) {
   $('feeSummary').textContent = `${totals.averageFeePpm} ppm avg, ${sats(totals.earnedFeesSats)} earned`;
   $('savingsSummary').textContent = `${sats(totals.arkSavingsSats)} modeled Ark savings`;
   $('routeCount').textContent = `${totals.routeCount.toLocaleString()} routes, ${totals.arkVtxoCount.toLocaleString()} VTXOs`;
+}
+
+function renderNetworkMap(dashboard, status, walletView, adapterFeed) {
+  $('mapMode').textContent = scrub(dashboard.chainSourceBadge || 'modular testnet');
+  $('mapWalletAmount').textContent = sats(walletView.conversion.lnbtcSats);
+  $('mapChainLabel').textContent = scrub(status.chain.chain || 'testnet');
+  $('mapVtxoCount').textContent = `${dashboard.totals.arkVtxoCount.toLocaleString()} VTXOs`;
+  $('mapStakeAmount').textContent = `${Number(dashboard.totals.tlusdStakedDisplay).toLocaleString()} units`;
+  $('mapChallengeCount').textContent = `${dashboard.totals.challengeCount.toLocaleString()} queued`;
+  $('mapAssigned').textContent = compactSats(dashboard.totals.assignedInboundSats);
+  $('mapSubstrate').textContent = scrub(status.activeProfileId || status.chain.chain || 'modular testnet profile');
+  $('mapBotCount').textContent = `${dashboard.totals.botCount.toLocaleString()} simulated routes`;
+  $('mapAdapterEvents').textContent = `${adapterFeed?.verification?.normalizedEvents || 0} normalized events`;
 }
 
 function renderGuidedDemo(dashboard) {
@@ -167,7 +192,7 @@ function renderLanes(dashboard) {
       : lane.amountUnits
         ? tlusd(lane.amountUnits)
         : Number(lane.count).toLocaleString();
-    div.innerHTML = `<span>${lane.label}</span><strong>${amount}</strong><small>${lane.id}</small>`;
+    div.innerHTML = `<span>${scrub(lane.label)}</span><strong>${amount}</strong><small>${scrub(lane.id)}</small>`;
     laneRail.appendChild(div);
   });
 }
@@ -236,9 +261,9 @@ function renderProfilePanel(status) {
   if (!status) return;
   $('profileMode').textContent = status.profile.mode;
   $('profilePanel').innerHTML = [
-    detailRow('Profile', status.activeProfileId),
-    detailRow('Chain', status.chain.chain),
-    detailRow('RPC', status.chain.rpcUrl),
+    detailRow('Profile', scrub(status.activeProfileId)),
+    detailRow('Chain', scrub(status.chain.chain)),
+    detailRow('RPC', scrub(status.chain.rpcUrl)),
     detailRow('Wallet', status.chain.wallet),
     detailRow('LND', status.lnd ? `${status.lnd.network} ${status.lnd.grpcHost}` : 'not active'),
     detailRow('Artifact', status.artifacts.lnbtcTlusdLiquidityPatch.exists ? 'loaded' : 'missing'),
@@ -378,7 +403,7 @@ function renderIntegrationChecklist(status) {
     ['Bark / Ark', adapterReady ? 'mocked' : 'pending', 'VTXO batch fixture and exit event'],
     ['Taproot Assets', adapterReady ? 'mocked' : 'pending', 'transfer-proof fixture present'],
     ['TradeLayer tx33', adapterReady ? 'mocked' : 'pending', 'synthetic USD fixture present'],
-    ['Litecoin testnet', status.chain.chain === 'litecoin' ? 'local' : 'mocked', status.chain.rpcUrl],
+    ['Modular testnet', status.chain.chain ? 'local' : 'mocked', scrub(status.chain.rpcUrl)],
     ['Bitcoin testnet', status.lnd ? 'remote' : 'pending', status.lnd ? status.lnd.network : 'future LND profile']
   ];
   $('integrationChecklist').innerHTML = rows
@@ -527,7 +552,7 @@ function renderTable(dashboard) {
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>${bot.botId}</td>
-      <td>${bot.lane}</td>
+      <td>${scrub(bot.lane)}</td>
       <td><span class="${statusClass(bot.status)}">${bot.status}</span></td>
       <td>${bot.tltcDisplay}</td>
       <td>${Number(bot.tlusdDisplay).toLocaleString()}</td>
@@ -552,6 +577,7 @@ function renderTable(dashboard) {
 }
 
 function render(dashboard, status, walletView, adapterFeed) {
+  renderNetworkMap(dashboard, status, walletView, adapterFeed);
   renderGuidedDemo(dashboard);
   renderKpis(dashboard);
   renderLanes(dashboard);

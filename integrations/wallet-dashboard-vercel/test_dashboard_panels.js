@@ -44,6 +44,16 @@ async function main() {
   ]);
   const funding = await getText('/funding');
 
+  runPanel('Network Map Frame', () => {
+    assert.match(html, /Liquidity Routing Map/, 'missing network map title');
+    assert.match(html, /class="network-map"/, 'missing SVG network map');
+    for (const id of ['mapAssigned', 'mapSubstrate', 'mapAdapterEvents', 'mapChainLabel']) {
+      assertMount(html, id);
+    }
+    assert.doesNotMatch(html, /litecoin|tLTC/i, 'public dashboard frame leaks old substrate wording');
+    assert.doesNotMatch(funding, /litecoin/i, 'funding brief leaks old substrate wording');
+  });
+
   runPanel('Guided Demo', () => {
     assertMount(html, 'demoSteps');
     assertMount(html, 'demoNext');

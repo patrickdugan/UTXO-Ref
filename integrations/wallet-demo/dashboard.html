@@ -30,6 +30,90 @@
       </header>
 
       <main>
+        <section class="map-panel">
+          <div class="section-title">
+            <h2>Liquidity Routing Map</h2>
+            <span id="mapMode" class="source-badge derived">modular testnet</span>
+          </div>
+          <div class="network-layout">
+            <svg class="network-map" viewBox="0 0 1120 540" role="img" aria-labelledby="mapTitle mapDesc">
+              <title id="mapTitle">UTXORef liquidity routing network</title>
+              <desc id="mapDesc">Vector map showing how Lightning, swap funding, UTXORef, Ark batching, asset accounting, BitVM enforcement, and wallet telemetry fit together.</desc>
+              <defs>
+                <marker id="arrow" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto" markerUnits="strokeWidth">
+                  <path d="M0,0 L0,6 L8,3 z" fill="#334155"></path>
+                </marker>
+              </defs>
+
+              <path class="map-link primary" d="M170 145 C260 95 330 95 420 145" marker-end="url(#arrow)"></path>
+              <path class="map-link primary" d="M505 145 C590 100 660 100 745 145" marker-end="url(#arrow)"></path>
+              <path class="map-link primary" d="M825 190 C850 255 850 310 825 375" marker-end="url(#arrow)"></path>
+              <path class="map-link primary" d="M740 410 C645 460 540 460 445 410" marker-end="url(#arrow)"></path>
+              <path class="map-link primary" d="M365 375 C305 305 250 245 185 185" marker-end="url(#arrow)"></path>
+
+              <path class="map-link secondary" d="M505 185 C585 255 645 325 725 375"></path>
+              <path class="map-link secondary" d="M420 375 C455 305 470 240 460 185"></path>
+              <path class="map-link secondary" d="M825 145 C900 140 950 165 990 220"></path>
+              <path class="map-link secondary" d="M825 375 C900 360 955 325 995 275"></path>
+
+              <g class="map-node wallet" transform="translate(70 90)">
+                <rect width="150" height="110" rx="12"></rect>
+                <text x="20" y="34">Wallet</text>
+                <text x="20" y="62" id="mapWalletAmount">LN-BTC</text>
+                <text x="20" y="84">invoice/payment</text>
+              </g>
+
+              <g class="map-node swap" transform="translate(380 90)">
+                <rect width="150" height="110" rx="12"></rect>
+                <text x="20" y="34">HTLC / Swap</text>
+                <text x="20" y="62">hash + expiry</text>
+                <text x="20" y="84">funding gate</text>
+              </g>
+
+              <g class="map-node utxo" transform="translate(725 90)">
+                <rect width="150" height="110" rx="12"></rect>
+                <text x="20" y="34">UTXORef</text>
+                <text x="20" y="62">state anchor</text>
+                <text x="20" y="84" id="mapChainLabel">testnet</text>
+              </g>
+
+              <g class="map-node ark" transform="translate(725 345)">
+                <rect width="150" height="110" rx="12"></rect>
+                <text x="20" y="34">Ark Batch</text>
+                <text x="20" y="62" id="mapVtxoCount">VTXOs</text>
+                <text x="20" y="84">fee compression</text>
+              </g>
+
+              <g class="map-node asset" transform="translate(345 345)">
+                <rect width="185" height="110" rx="12"></rect>
+                <text x="20" y="34">Asset / Stake</text>
+                <text x="20" y="62" id="mapStakeAmount">routing reserve</text>
+                <text x="20" y="84">mode selectable</text>
+              </g>
+
+              <g class="map-node bitvm" transform="translate(955 215)">
+                <rect width="150" height="110" rx="12"></rect>
+                <text x="20" y="34">BitVM Guard</text>
+                <text x="20" y="62" id="mapChallengeCount">challenges</text>
+                <text x="20" y="84">enforcement</text>
+              </g>
+
+              <g class="map-core" transform="translate(474 228)">
+                <circle r="76" cx="86" cy="42"></circle>
+                <text x="86" y="32">Liquidity</text>
+                <text x="86" y="58">Patch Router</text>
+                <text x="86" y="88" id="mapAssigned">assigned inbound</text>
+              </g>
+            </svg>
+            <div class="map-readout">
+              <div class="readout-item"><span>Core flow</span><strong>Invoice -> Funding -> Router -> Batch -> Guard</strong></div>
+              <div class="readout-item"><span>Substrate</span><strong id="mapSubstrate">modular testnet profile</strong></div>
+              <div class="readout-item"><span>Stress scale</span><strong id="mapBotCount">--</strong></div>
+              <div class="readout-item"><span>Adapter feed</span><strong id="mapAdapterEvents">--</strong></div>
+            </div>
+          </div>
+        </section>
+
         <section class="panel">
           <div class="section-title">
             <h2>Guided Demo</h2>
@@ -44,6 +128,8 @@
           </div>
         </section>
 
+        <details class="detail-group" open>
+          <summary>Core Flow And Wallet Telemetry</summary>
         <section class="kpi-grid" aria-label="Fleet totals">
           <article class="kpi">
             <span>Autobots</span>
@@ -51,8 +137,8 @@
             <small id="botMix">--</small>
           </article>
           <article class="kpi">
-            <span>tLTC Collateral</span>
-            <strong id="tltcCollateral">--</strong>
+            <span>Testnet Collateral</span>
+            <strong id="testnetCollateral">--</strong>
             <small>testnet collateral pool</small>
           </article>
           <article class="kpi">
@@ -127,7 +213,10 @@
             <div id="proofGraph" class="proof-graph"></div>
           </div>
         </section>
+        </details>
 
+        <details class="detail-group">
+          <summary>Protocol, Failure, And Economics Layers</summary>
         <section class="panel">
           <div class="section-title">
             <h2>Protocol Trace</h2>
@@ -204,7 +293,10 @@
           </div>
           <div id="operatorEconomics" class="metric-grid wide"></div>
         </section>
+        </details>
 
+        <details class="detail-group">
+          <summary>Evidence, Adapter Feed, And Raw Tables</summary>
         <section class="grid-two">
           <div class="panel">
             <div class="section-title">
@@ -269,7 +361,7 @@
                   <th>Bot</th>
                   <th>Lane</th>
                   <th>Status</th>
-                  <th>tLTC</th>
+                  <th>Collateral</th>
                   <th>TLUSD</th>
                   <th>Routes</th>
                   <th>Delivered</th>
@@ -280,6 +372,7 @@
             </table>
           </div>
         </section>
+        </details>
       </main>
     </div>
     <dialog id="challengeDialog">

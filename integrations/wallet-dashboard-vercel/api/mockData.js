@@ -15,16 +15,16 @@ function boundedBotCount(value) {
 function buildStatus() {
   return {
     ok: true,
-    activeProfileId: 'vercel-mock-litecoin-testnet',
+    activeProfileId: 'vercel-mock-modular-testnet',
     profile: {
-      id: 'vercel-mock-litecoin-testnet',
+      id: 'vercel-mock-modular-testnet',
       mode: 'serverless mock',
       notes: 'Static Vercel package mirroring the local wallet-demo sidecar contract.'
     },
     chain: {
-      chain: 'litecoin',
+      chain: 'bitcoin-compatible-testnet',
       network: 'testnet',
-      rpcUrl: 'mock://litecoin-testnet',
+      rpcUrl: 'mock://modular-testnet',
       wallet: 'utxoref-demo'
     },
     lnd: {
@@ -137,10 +137,10 @@ function buildStressDashboard(input = {}) {
   return {
     kind: 'wallet_stress_dashboard',
     dashboardId: id('dashboard', `${botCount}:${assignedInboundSats}:${deliveredInboundSats}`),
-    activeProfileId: 'vercel-mock-litecoin-testnet',
-    chainSourceBadge: 'ltc-testnet mock',
+    activeProfileId: 'vercel-mock-modular-testnet',
+    chainSourceBadge: 'modular testnet mock',
     quoteAsset: 'TLUSD',
-    collateralAsset: 'tLTC',
+    collateralAsset: 'testnet collateral',
     totals: {
       botCount,
       activeBots,
