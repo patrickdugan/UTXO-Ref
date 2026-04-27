@@ -22,7 +22,7 @@ Bitcoin testnet pruned node
 
 ## Local Node
 
-The local Bitcoin Core node is staged on `D:\BitcoinTestnet` using Bitcoin Core 30.2 and `testnet4`.
+The local Bitcoin Core node can use Bitcoin Core's default datadir, or a local override through `BTCTEST_DATADIR`.
 
 ```powershell
 .\integrations\wallet-demo\start_bitcoin_testnet4.ps1
@@ -31,15 +31,18 @@ The local Bitcoin Core node is staged on `D:\BitcoinTestnet` using Bitcoin Core 
 Useful direct probes:
 
 ```powershell
-$bitcoinBin="C:\projects\BitcoinConsensusObservatory\jurassic-bitcoin\tools\bitcoin-core-30.2\bitcoin-30.2\bin"
-& "$bitcoinBin\bitcoin-cli.exe" -datadir=D:\BitcoinTestnet -chain=testnet4 getblockchaininfo
-& "$bitcoinBin\bitcoin-cli.exe" -datadir=D:\BitcoinTestnet -chain=testnet4 getnetworkinfo
+bitcoin-cli -chain=testnet4 getblockchaininfo
+bitcoin-cli -chain=testnet4 getnetworkinfo
+
+# Optional local override:
+$env:BTCTEST_DATADIR="<local-testnet-dir>"
+bitcoin-cli -datadir=$env:BTCTEST_DATADIR -chain=testnet4 getblockchaininfo
 ```
 
 Current local RPC shape:
 
-- Data dir: `D:\BitcoinTestnet`
-- Chain data dir: `D:\BitcoinTestnet\testnet4`
+- Data dir: Bitcoin Core default, unless `BTCTEST_DATADIR` is set locally
+- Chain data dir: `<datadir>\testnet4`
 - RPC: `http://127.0.0.1:48332`
 - P2P: `48333`
 - Prune target: `2000 MiB`

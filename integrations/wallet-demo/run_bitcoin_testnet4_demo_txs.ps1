@@ -1,6 +1,6 @@
 param(
-  [string]$DataDir = "D:\BitcoinTestnet",
-  [string]$BitcoinBin = "C:\projects\BitcoinConsensusObservatory\jurassic-bitcoin\tools\bitcoin-core-30.2\bitcoin-30.2\bin",
+  [string]$DataDir = $env:BTCTEST_DATADIR,
+  [string]$BitcoinBin = $env:BITCOIN_BIN,
   [string]$Wallet = "utxoref-testnet",
   [decimal]$AnchorAmount = 0.00000546,
   [string]$Marker = "UTXORef LN-BTC BitVM liquidity demo"
@@ -8,18 +8,21 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$bitcoinCli = Join-Path $BitcoinBin "bitcoin-cli.exe"
-$dataDirArg = "-datadir=$DataDir"
+$bitcoinCli = if ($BitcoinBin) { Join-Path $BitcoinBin "bitcoin-cli.exe" } else { "bitcoin-cli.exe" }
+$dataDirArgs = @()
+if ($DataDir) {
+  $dataDirArgs += "-datadir=$DataDir"
+}
 $chainArg = "-chain=testnet4"
 $walletArg = "-rpcwallet=$Wallet"
 
-if (!(Test-Path $bitcoinCli)) {
+if ($BitcoinBin -and !(Test-Path $bitcoinCli)) {
   throw "bitcoin-cli.exe not found at $bitcoinCli"
 }
 
 function Invoke-BitcoinCli {
   param([Parameter(ValueFromRemainingArguments = $true)] [string[]]$Args)
-  $output = & $bitcoinCli $dataDirArg $chainArg @Args 2>&1
+  $output = & $bitcoinCli @dataDirArgs $chainArg @Args 2>&1
   if ($LASTEXITCODE -ne 0) {
     throw ($output -join "`n")
   }
@@ -28,7 +31,7 @@ function Invoke-BitcoinCli {
 
 function Invoke-WalletCli {
   param([Parameter(ValueFromRemainingArguments = $true)] [string[]]$Args)
-  $output = & $bitcoinCli $dataDirArg $chainArg $walletArg @Args 2>&1
+  $output = & $bitcoinCli @dataDirArgs $chainArg $walletArg @Args 2>&1
   if ($LASTEXITCODE -ne 0) {
     throw ($output -join "`n")
   }
@@ -65,7 +68,7 @@ if ($wallets -notcontains $Wallet) {
   try {
     Invoke-BitcoinCli loadwallet $Wallet | Out-Null
   } catch {
-    & $bitcoinCli $dataDirArg $chainArg "-named" "createwallet" "wallet_name=$Wallet" "descriptors=true" "load_on_startup=true" | Out-Null
+    & $bitcoinCli @dataDirArgs $chainArg "-named" "createwallet" "wallet_name=$Wallet" "descriptors=true" "load_on_startup=true" | Out-Null
   }
 }
 
