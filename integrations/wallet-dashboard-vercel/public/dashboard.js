@@ -182,30 +182,35 @@ function renderKpis(dashboard) {
   $('routeCount').textContent = `${totals.routeCount.toLocaleString()} routes, ${totals.arkVtxoCount.toLocaleString()} VTXOs`;
 }
 
-function renderNetworkMap(dashboard, status, walletView, adapterFeed) {
-  $('mapMode').textContent = scrub(dashboard.chainSourceBadge || 'Bitcoin testnet');
+function renderNetworkMap(status, walletView, testnetProof) {
+  const oracleDlc = walletView.tradeLayerOracleDlc;
+  $('subtitle').textContent = 'Bitcoin testnet proofs, Lightning receipts, DLC triggers, and BitVM challenge paths';
+  $('profileBadge').textContent = scrub(status.activeProfileId);
+  $('chainBadge').textContent = scrub(status.chain.chain || 'bitcoin-testnet4');
+  $('mapMode').textContent = scrub(status.chain.network || 'Bitcoin testnet');
   $('mapWalletAmount').textContent = sats(walletView.conversion.lnbtcSats);
   $('mapChainLabel').textContent = scrub(status.chain.chain || 'testnet');
-  $('mapVtxoCount').textContent = `${dashboard.totals.arkVtxoCount.toLocaleString()} VTXOs`;
-  $('mapStakeAmount').textContent = `${Number(dashboard.totals.tlusdStakedDisplay).toLocaleString()} units`;
-  $('mapChallengeCount').textContent = `${dashboard.totals.challengeCount.toLocaleString()} queued`;
-  $('mapAssigned').textContent = compactSats(dashboard.totals.assignedInboundSats);
+  $('mapVtxoCount').textContent = `${testnetProof.summary.offchainCount.toLocaleString()} off-chain proofs`;
+  $('mapStakeAmount').textContent = oracleDlc?.noTapAssets ? 'BTC-only DLC path' : 'routing reserve';
+  $('mapChallengeCount').textContent = `${walletView.liquidityPatch.routerCircuit.totalGates.toLocaleString()} gates`;
+  $('mapAssigned').textContent = compactSats(walletView.liquidityPatch.assignedInboundSats);
   $('mapSubstrate').textContent = scrub(status.activeProfileId || status.chain.chain || 'Bitcoin testnet profile');
-  $('mapBotCount').textContent = `${dashboard.totals.botCount.toLocaleString()} simulated routes`;
-  $('mapAdapterEvents').textContent = `${adapterFeed?.verification?.normalizedEvents || 0} normalized events`;
+  $('mapBotCount').textContent = `${testnetProof.summary.txCount.toLocaleString()} linked txids`;
+  $('mapAdapterEvents').textContent = oracleDlc?.trigger?.payloadText || 'tx14 OP_RETURN';
 }
 
-function renderGuidedDemo(dashboard) {
+function renderGuidedDemo(walletView, testnetProof) {
+  const oracleDlc = walletView.tradeLayerOracleDlc;
   $('demoSteps').innerHTML = demoFlow
     .map(([label, note], index) => {
       const active = index === state.demoStep ? ' active' : '';
       const value = [
-        compactSats(dashboard.totals.assignedInboundSats),
-        `${Number(dashboard.totals.tlusdStakedDisplay).toLocaleString()} TLUSD`,
-        `${dashboard.totals.arkVtxoCount.toLocaleString()} VTXOs`,
-        compactSats(dashboard.totals.arkSavingsSats),
-        `${dashboard.totals.challengeCount.toLocaleString()} guards`,
-        `${dashboard.totals.averageFeePpm} ppm`
+        compactSats(walletView.conversion.lnbtcSats),
+        `${oracleDlc.trigger.pair} ${oracleDlc.trigger.price}`,
+        short(walletView.conversion.dlcFundingTxid),
+        tlusd(walletView.conversion.tlusdUnits),
+        short(testnetProof.summary.showcaseAnchorTxid),
+        `${walletView.liquidityPatch.routerCircuit.totalGates.toLocaleString()} gates`
       ][index];
       return `<div class="demo-step${active}"><strong>${index + 1}. ${label}</strong><span>${value}</span><small>${note}</small></div>`;
     })
@@ -466,6 +471,50 @@ function renderPureBtcRouteDemo(walletView) {
   `;
 }
 
+function renderTradeLayerOracleDlc(walletView) {
+  const demo = walletView?.tradeLayerOracleDlc;
+  if (!demo) return;
+  const triggerLink = txidLink(demo.trigger, 'inspect tx14');
+  const flow = demo.bitvmOrganizer.flow
+    .map((item, index) => `
+      <div class="mechanic-node ${index === 1 ? 'selected' : ''}">
+        <span>${index + 1}</span>
+        <strong>${escapeHtml(item)}</strong>
+        <small>${index === 0 ? escapeHtml(demo.trigger.payloadText) : index === 2 ? escapeHtml(demo.settlement.selectedOutcomeId) : index === 3 ? escapeHtml(demo.settlement.settlementRail) : 'BitVM witness'}</small>
+      </div>
+    `)
+    .join('');
+  const code = demo.bitvmOrganizer.pseudocode
+    .map(line => `<code>${escapeHtml(line)}</code>`)
+    .join('');
+  $('tradelayerOracleDlc').innerHTML = `
+    <div class="pure-demo-head oracle-head">
+      <strong>${escapeHtml(demo.summary)}</strong>
+      <span>No TAP asset path. BTC collateral enters through Lightning receipts; the TradeLayer OP_RETURN only selects the DLC branch.</span>
+    </div>
+    <div class="oracle-grid">
+      <div class="mechanic-card">
+        <div class="mechanic-flow oracle-flow">${flow}</div>
+        <div class="script-template mechanic-code">${code}</div>
+      </div>
+      <div class="oracle-readout">
+        ${[
+          detailRow('Trigger txid', triggerLink),
+          detailRow('Payload', `<code>${escapeHtml(demo.trigger.payloadText)}</code>`),
+          detailRow('OP_RETURN', `<code>${escapeHtml(demo.trigger.opReturnScriptHex)}</code>`),
+          detailRow('Oracle price', `${escapeHtml(demo.trigger.pair)} ${escapeHtml(demo.trigger.price)}`),
+          detailRow('Contract', short(demo.contract.commitmentId)),
+          detailRow('Collateral', compactSats(demo.contract.totalCollateralSats)),
+          detailRow('Selected outcome', escapeHtml(demo.settlement.selectedOutcomeId)),
+          detailRow('BTC payouts', `${compactSats(demo.settlement.longPayoutSats)} long / ${compactSats(demo.settlement.shortPayoutSats)} short`),
+          detailRow('BitVM organizer', `${short(demo.bitvmOrganizer.organizerId)} / ${demo.bitvmOrganizer.totalGates.toLocaleString()} gates`),
+          detailRow('Challenge', escapeHtml(demo.bitvmOrganizer.challengeViolation))
+        ].join('')}
+      </div>
+    </div>
+  `;
+}
+
 function renderProfilePanel(status) {
   if (!status) return;
   $('profileMode').textContent = status.profile.mode;
@@ -643,7 +692,7 @@ function renderBitvmUnpack(circuit, selectedGate) {
 
 function renderBitvmEnforcement(walletView, dashboard) {
   if (!walletView) return;
-  const firstChallenge = dashboard.challengeQueue[0];
+  const firstChallenge = dashboard?.challengeQueue?.[0];
   const committed = Number(firstChallenge?.requestedInboundSats || walletView.liquidityPatch.assignedInboundSats || 0);
   const claimed = Number(firstChallenge?.deliveredInboundSats || walletView.liquidityPatch.deliveredInboundSats || 0);
   const shortfall = Math.max(0, committed - claimed);
@@ -989,35 +1038,16 @@ function renderTable(dashboard) {
 }
 
 function render(dashboard, status, walletView, adapterFeed) {
-  renderNetworkMap(dashboard, status, walletView, adapterFeed);
-  renderGuidedDemo(dashboard);
+  const testnetProof = state.testnetProof || adapterFeed?.testnetProof;
+  renderNetworkMap(status, walletView, testnetProof);
+  renderGuidedDemo(walletView, testnetProof);
   renderSwapStateMachine(walletView);
   renderDlcSettlement(walletView);
-  renderBitcoinTestnetProof(state.testnetProof || adapterFeed?.testnetProof);
-  renderUseCases(walletView, state.testnetProof || adapterFeed?.testnetProof);
+  renderBitcoinTestnetProof(testnetProof);
+  renderUseCases(walletView, testnetProof);
   renderPureBtcRouteDemo(walletView);
-  renderKpis(dashboard);
-  renderLanes(dashboard);
-  renderTimeline(dashboard);
-  renderQueue(dashboard);
-  renderWalletPane(walletView, dashboard);
-  renderProfilePanel(status);
-  renderProofGraph(walletView, dashboard);
-  renderProtocolTrace(walletView, dashboard);
-  renderFailureLab(dashboard);
-  renderLnCompatibility(walletView, dashboard);
-  const ark = renderArkSavings(dashboard);
-  renderBitvmEnforcement(walletView, dashboard);
-  renderAssetMode(walletView, dashboard);
-  renderIntegrationChecklist(status);
-  renderOperatorEconomics(dashboard, ark);
-  renderInvariantLedger(dashboard, walletView, ark);
-  renderArtifactLinks(dashboard, walletView);
-  renderAdapterContracts();
-  renderAdapterFeed(adapterFeed);
-  renderExportPack(dashboard, status, walletView, ark);
-  renderDeploymentHealth(dashboard);
-  renderTable(dashboard);
+  renderTradeLayerOracleDlc(walletView);
+  renderBitvmEnforcement(walletView, null);
 }
 
 function downloadJson(filename, payload) {
@@ -1059,9 +1089,8 @@ async function timedJson(name, url) {
 async function loadDashboard() {
   $('refreshButton').disabled = true;
   try {
-    const botCount = $('botSelect').value;
     const [dashboard, status, walletView, adapterFeed, testnetProof] = await Promise.all([
-      timedJson('dashboard', `/v1/wallet-demo/stress-dashboard?bots=${encodeURIComponent(botCount)}`),
+      timedJson('dashboard', '/v1/wallet-demo/stress-dashboard?bots=96'),
       timedJson('status', '/v1/wallet-demo/status'),
       timedJson('walletView', '/v1/lnbtc-tlusd-liquidity-patch/wallet-view'),
       timedJson('adapterFeed', '/v1/wallet-demo/adapter-feed'),
@@ -1079,8 +1108,8 @@ async function loadDashboard() {
 }
 
 $('refreshButton').addEventListener('click', loadDashboard);
-$('exportButton').addEventListener('click', exportReport);
-$('botSelect').addEventListener('change', loadDashboard);
+if ($('exportButton')) $('exportButton').addEventListener('click', exportReport);
+if ($('botSelect')) $('botSelect').addEventListener('change', loadDashboard);
 $('demoPrev').addEventListener('click', () => {
   state.demoStep = Math.max(0, state.demoStep - 1);
   if (state.dashboard) render(state.dashboard, state.status, state.walletView, state.adapterFeed);
@@ -1089,21 +1118,21 @@ $('demoNext').addEventListener('click', () => {
   state.demoStep = Math.min(demoFlow.length - 1, state.demoStep + 1);
   if (state.dashboard) render(state.dashboard, state.status, state.walletView, state.adapterFeed);
 });
-$('arkFeeRate').addEventListener('input', () => {
+if ($('arkFeeRate')) $('arkFeeRate').addEventListener('input', () => {
   if (state.dashboard) render(state.dashboard, state.status, state.walletView, state.adapterFeed);
 });
-$('arkRouteCount').addEventListener('input', () => {
+if ($('arkRouteCount')) $('arkRouteCount').addEventListener('input', () => {
   if (state.dashboard) render(state.dashboard, state.status, state.walletView, state.adapterFeed);
 });
 $('dlcPrice').addEventListener('input', () => {
   state.dlcPrice = Number($('dlcPrice').value);
   if (state.dashboard) render(state.dashboard, state.status, state.walletView, state.adapterFeed);
 });
-$('assetMode').addEventListener('change', () => {
+if ($('assetMode')) $('assetMode').addEventListener('change', () => {
   state.assetMode = $('assetMode').value;
   if (state.dashboard) render(state.dashboard, state.status, state.walletView, state.adapterFeed);
 });
-$('closeDialog').addEventListener('click', () => $('challengeDialog').close());
+if ($('closeDialog')) $('closeDialog').addEventListener('click', () => $('challengeDialog').close());
 loadDashboard().catch(err => {
   $('subtitle').textContent = err.message;
 });

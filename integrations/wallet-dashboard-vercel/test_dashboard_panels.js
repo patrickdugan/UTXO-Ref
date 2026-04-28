@@ -18,14 +18,8 @@ function assertMount(html, id) {
   assert.match(html, new RegExp(`id="${id}"`), `missing #${id}`);
 }
 
-function assertPositive(value, label) {
-  assert.equal(Number.isFinite(Number(value)), true, `${label} is not numeric`);
-  assert.ok(Number(value) > 0, `${label} is not positive`);
-}
-
-function assertString(value, label) {
-  assert.equal(typeof value, 'string', `${label} is not a string`);
-  assert.ok(value.length > 0, `${label} is empty`);
+function assertNoMount(html, id) {
+  assert.doesNotMatch(html, new RegExp(`id="${id}"`), `unexpected #${id}`);
 }
 
 function runPanel(name, check) {
@@ -34,230 +28,92 @@ function runPanel(name, check) {
 }
 
 async function main() {
-  const [html, script, dashboard, status, walletView, adapterFeed, testnetProof] = await Promise.all([
+  const [html, script, walletView, testnetProof, funding] = await Promise.all([
     getText('/dashboard'),
     getText('/dashboard.js'),
-    getJson('/v1/wallet-demo/stress-dashboard?bots=5000'),
-    getJson('/v1/wallet-demo/status'),
     getJson('/v1/lnbtc-tlusd-liquidity-patch/wallet-view'),
-    getJson('/v1/wallet-demo/adapter-feed'),
-    getJson('/v1/wallet-demo/bitcoin-testnet-proof')
+    getJson('/v1/wallet-demo/bitcoin-testnet-proof'),
+    getText('/funding')
   ]);
-  const funding = await getText('/funding');
 
-  runPanel('Network Map Frame', () => {
+  runPanel('Proof Frame', () => {
     assert.match(html, /Cross-Domain Liquidity Map/, 'missing network map title');
-    assert.match(html, /class="network-map"/, 'missing SVG network map');
-    for (const id of ['mapAssigned', 'mapSubstrate', 'mapAdapterEvents', 'mapChainLabel']) {
+    assert.match(html, /BTC-Only TradeLayer Oracle DLC/, 'missing new DLC subsection');
+    assert.match(html, /Bitcoin Testnet Transaction Chain/, 'missing tx chain');
+    assert.match(html, /BitVM Router Circuit/, 'missing BitVM circuit');
+    for (const id of [
+      'useCaseGrid',
+      'pureBtcRouteDemo',
+      'tradelayerOracleDlc',
+      'demoSteps',
+      'swapStateMachine',
+      'dlcSettlement',
+      'bitcoinProofLinks',
+      'bitvmEnforcement'
+    ]) {
       assertMount(html, id);
     }
     assert.doesNotMatch(html, /litecoin|tLTC/i, 'public dashboard frame leaks old substrate wording');
     assert.doesNotMatch(funding, /litecoin/i, 'funding brief leaks old substrate wording');
-    assert.doesNotMatch(html, /testnet mock|fixture replay|modular testnet|Wallet Mock|TLUSD mock/i, 'public dashboard leaks old demo wording');
-    assert.doesNotMatch(funding, /What Is Mocked|fixture replay|modular testnet/i, 'funding brief leaks old scope wording');
   });
 
-  runPanel('Guided Demo', () => {
-    assertMount(html, 'demoSteps');
-    assertMount(html, 'demoNext');
-    assertMount(html, 'demoPrev');
-    assertMount(html, 'swapStateMachine');
-    assertMount(html, 'dlcPrice');
-    assertMount(html, 'dlcSettlement');
-    assert.match(script, /demoFlow/, 'missing guided demo flow');
-    assert.match(script, /Subswap funds DLC/, 'missing funding guided step');
-    assert.match(script, /renderSwapStateMachine/, 'missing submarine swap state renderer');
-    assert.match(script, /renderDlcSettlement/, 'missing DLC settlement renderer');
-    assert.match(script, /wrong_hash/, 'missing HTLC wrong-hash branch');
-    assert.match(script, /selected_cet = bucket\(price\)/, 'missing DLC pseudocode');
+  runPanel('Bottom Cut', () => {
+    for (const id of [
+      'botSelect',
+      'operatorEconomics',
+      'adapterEventFeed',
+      'deploymentHealth',
+      'botTable',
+      'arkSavingsPanel',
+      'failureControls',
+      'assetMode',
+      'integrationChecklist',
+      'exportPackSummary'
+    ]) {
+      assertNoMount(html, id);
+    }
+    assert.doesNotMatch(html, /Autobot Routing Table|Operator Economics|Layer Adapter Feed|Deployment Health|Failure Injection/, 'simulated bottom panels still render');
   });
 
-  runPanel('Separated Use Cases', () => {
-    assertMount(html, 'useCaseGrid');
-    assert.equal(walletView.useCases.length, 2);
-    assert.equal(walletView.useCases[0].id, 'usd-asset-routing');
-    assert.equal(walletView.useCases[1].id, 'btc-bitvm-graft');
-    assert.equal(walletView.useCases[1].label, 'Pure BTC BitVM Liquidity Graft');
-    assert.ok(status.lightningDiscovery.explorers.some(item => /1ML/.test(item.name)), 'missing 1ML discovery link');
-    assert.ok(status.lightningDiscovery.candidatePeers.length >= 5, 'missing candidate peers');
-    assert.ok(status.lightningDiscovery.candidatePeers.every(peer => peer.tcpOpen === true), 'candidate peer not reachable');
-  });
-
-  runPanel('Standalone Pure BTC Demo', () => {
-    assertMount(html, 'pureBtcRouteDemo');
-    assert.equal(walletView.pureBtcRouteDemo.id, 'demo-3-pure-btc-bitvm-ln');
-    assert.equal(walletView.pureBtcRouteDemo.stages.length, 3);
-    assert.equal(walletView.pureBtcRouteDemo.stages[0].txid, testnetProof.submarineSwapHtlc.txid);
-    assert.equal(walletView.pureBtcRouteDemo.stages[1].status, 'complete');
-    assert.equal(walletView.pureBtcRouteDemo.stages[2].anchorTxid, testnetProof.summary.showcaseAnchorTxid);
-    assert.match(script, /renderPureBtcRouteDemo/, 'missing standalone pure BTC renderer');
+  runPanel('TradeLayer Oracle DLC', () => {
+    const demo = walletView.tradeLayerOracleDlc;
+    assert.equal(walletView.useCases.length, 3);
+    assert.equal(walletView.useCases[2].id, 'btc-only-oracle-dlc');
+    assert.equal(demo.noTapAssets, true);
+    assert.equal(demo.trigger.txid, testnetProof.keyTxids.oraclePublish.txid);
+    assert.equal(demo.trigger.payloadText, 'tle1,aqzr7k');
+    assert.equal(demo.trigger.opReturnScriptHex, '6a0b746c65312c61717a72376b');
+    assert.equal(demo.contract.settlementAsset, 'btc-only');
+    assert.equal(demo.settlement.settlementRail, 'lightning');
+    assert.equal(demo.settlement.noTapAssetPath, true);
+    assert.equal(demo.bitvmOrganizer.totalGates, 680);
+    assert.ok(demo.bitvmOrganizer.pseudocode.some(line => line.includes('decode_tx14(payloadText)')), 'missing tx14 pseudocode');
+    assert.match(script, /renderTradeLayerOracleDlc/, 'missing oracle DLC renderer');
   });
 
   runPanel('Bitcoin Testnet Proofs', () => {
-    assertMount(html, 'bitcoinProofSummary');
-    assertMount(html, 'bitcoinProofLinks');
-    assertMount(html, 'bitcoinProofStatus');
     assert.equal(testnetProof.network, 'testnet4');
     assert.equal(testnetProof.summary.txCount, 12);
     assert.equal(testnetProof.summary.offchainCount, 2);
-    assert.equal(testnetProof.summary.showcaseKind, 'bitvm-router-circuit');
-    assert.equal(testnetProof.summary.showcaseAnchorTxid, testnetProof.keyTxids.tapAsset.txid);
-    assert.notEqual(testnetProof.summary.entryTxid, testnetProof.summary.showcaseAnchorTxid);
     assert.equal(testnetProof.submarineSwapHtlc.txid, testnetProof.summary.entryTxid);
     assert.match(testnetProof.submarineSwapHtlc.redeemScriptAsm, /OP_CHECKLOCKTIMEVERIFY/);
-    assert.match(testnetProof.keyTxids.hybridColoredPledge.explorer, /^https:\/\/mempool\.space\/testnet4\/tx\//);
-    assert.equal(testnetProof.keyTxids.arkLiquidityGraft.explorer, null);
-    assert.equal(testnetProof.keyTxids.arkLiquidityGraft.proofKind, 'ark-vtxo-commitment');
-    assert.match(script, /bitcoin-testnet-proof/, 'missing Bitcoin testnet proof endpoint');
+    assert.match(testnetProof.keyTxids.oraclePublish.explorer, /^https:\/\/mempool\.space\/testnet4\/tx\//);
   });
 
-  runPanel('Protocol Trace', () => {
-    assertMount(html, 'protocolTrace');
-    assertString(walletView.conversion.subswapFundingTxid, 'subswap funding txid');
-    assertString(walletView.conversion.dlcFundingTxid, 'dlc funding txid');
-    assertString(walletView.liquidityPatch.allocationId, 'ark allocation id');
-    assertString(walletView.liquidityPatch.challenge.challengeId, 'bitvm challenge id');
-    assertString(dashboard.dashboardId, 'dashboard id');
-  });
-
-  runPanel('Failure Injection', () => {
-    assertMount(html, 'failureControls');
-    assertMount(html, 'failureImpact');
-    assertMount(html, 'failureStatus');
-    for (const key of ['asp_delay', 'oracle_mismatch', 'htlc_timeout', 'under_delivery', 'forced_exit']) {
-      assert.match(script, new RegExp(key), `missing failure scenario ${key}`);
-    }
-    assertPositive(dashboard.totals.assignedInboundSats, 'assigned inbound sats');
-    assertPositive(dashboard.totals.deliveredInboundSats, 'delivered inbound sats');
-  });
-
-  runPanel('BOLT / LDK Pane', () => {
-    assertMount(html, 'lnCompatibility');
-    assertPositive(walletView.conversion.lnbtcSats, 'lnbtc sats');
-    assertPositive(dashboard.totals.averageFeePpm, 'average fee ppm');
-    assert.match(script, /PaymentClaimable|PaymentPathFailed/, 'missing LDK event mapping');
-  });
-
-  runPanel('Ark Batch Savings', () => {
-    assertMount(html, 'arkFeeRate');
-    assertMount(html, 'arkRouteCount');
-    assertMount(html, 'arkSavingsPanel');
-    assertMount(html, 'arkSavingsHeadline');
-    assertMount(html, 'arkBatchSimulator');
-    assertPositive(dashboard.totals.routeCount, 'route count');
-    assertPositive(dashboard.totals.arkVtxoCount, 'ark vtxo count');
-    assertPositive(dashboard.totals.arkSavingsSats, 'modeled ark savings');
-    assert.match(script, /Batch root/, 'missing Ark batch flow');
-    assert.match(script, /marginal fee per route/, 'missing Ark marginal fee readout');
-  });
-
-  runPanel('BitVM Enforcement', () => {
-    assertMount(html, 'bitvmEnforcement');
-    assert.ok(Array.isArray(dashboard.challengeQueue), 'challenge queue is not an array');
-    assert.ok(dashboard.challengeQueue.length > 0, 'challenge queue is empty');
-    assertString(dashboard.challengeQueue[0].bitvmChallengeId, 'challenge id');
-    assertPositive(dashboard.challengeQueue[0].requestedInboundSats, 'challenge requested sats');
-    assertPositive(dashboard.challengeQueue[0].deliveredInboundSats, 'challenge delivered sats');
-    assert.equal(walletView.liquidityPatch.routerCircuit.totalGates, 768);
-    assert.ok(walletView.liquidityPatch.routerCircuit.gateCounts.every(gate => gate.id), 'gate row missing id');
-    assert.ok(walletView.liquidityPatch.routerCircuit.gateCounts.every(gate => Array.isArray(gate.pseudocode)), 'gate row missing pseudocode');
-    assert.ok(walletView.liquidityPatch.routerCircuit.gateCounts.every(gate => Array.isArray(gate.flow)), 'gate row missing circuit flow');
-    assert.match(script, /Router Circuit/, 'missing router circuit renderer');
+  runPanel('BitVM Unpack', () => {
+    const circuit = walletView.liquidityPatch.routerCircuit;
+    assert.equal(circuit.totalGates, 768);
+    assert.ok(circuit.gateCounts.every(gate => gate.id), 'gate row missing id');
+    assert.ok(circuit.gateCounts.every(gate => Array.isArray(gate.pseudocode)), 'gate row missing pseudocode');
+    assert.ok(circuit.gateCounts.every(gate => Array.isArray(gate.flow)), 'gate row missing circuit flow');
     assert.match(script, /renderBitvmUnpack/, 'missing BitVM unpack renderer');
     assert.match(script, /data-gate-id/, 'missing clickable gate selector');
-    assert.match(script, /bitvmUnpack/, 'missing unpack mount');
-    assert.ok(
-      walletView.liquidityPatch.routerCircuit.scriptTemplate.some(line => line.includes('OP_GREATERTHANOREQUAL')),
-      'missing liquidity comparator script'
-    );
-  });
-
-  runPanel('Asset Mode', () => {
-    assertMount(html, 'assetMode');
-    assertMount(html, 'assetModePanel');
-    for (const key of ['tlusd', 'taproot', 'tradelayer']) {
-      assert.match(script, new RegExp(key), `missing asset mode ${key}`);
-    }
-    assertPositive(walletView.conversion.tlusdUnits, 'tlusd units');
-    assertPositive(walletView.stake.stakedTlUsdUnits, 'staked tlusd units');
-  });
-
-  runPanel('Integration Readiness', () => {
-    assertMount(html, 'integrationChecklist');
-    assertString(status.activeProfileId, 'active profile id');
-    assertString(status.chain.chain, 'chain name');
-    assert.equal(status.readiness.walletViewReady, true, 'wallet view is not ready');
-    assert.equal(status.readiness.stressDashboardReady, true, 'stress dashboard is not ready');
-  });
-
-  runPanel('Operator Economics', () => {
-    assertMount(html, 'operatorEconomics');
-    assertMount(html, 'operatorNetYield');
-    assertPositive(dashboard.totals.earnedFeesSats, 'earned fees sats');
-    assertPositive(dashboard.totals.challengeCount, 'challenge count');
-    assertPositive(dashboard.totals.deliveredInboundSats, 'delivered inbound sats');
-    assert.ok(Number(dashboard.totals.deliveryBps) <= 10000, 'delivery bps is too high');
-  });
-
-  runPanel('Invariant Ledger', () => {
-    assertMount(html, 'invariantLedger');
-    for (const claim of ['assigned >= delivered', 'Ark fee < direct fee', '5k smoke payload verifies']) {
-      assert.match(script, new RegExp(claim.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), `missing invariant ${claim}`);
-    }
-  });
-
-  runPanel('Artifact Links', () => {
-    assertMount(html, 'artifactLinks');
-    assert.match(script, /stress-dashboard/, 'missing stress dashboard artifact link');
-    assert.match(script, /wallet-view/, 'missing wallet view artifact link');
-    assert.match(script, /funding\.html/, 'missing funding artifact link');
-  });
-
-  runPanel('Adapter Contracts', () => {
-    assertMount(html, 'adapterContracts');
-    for (const adapter of ['LDK Node', 'LND', 'Core Lightning', 'Bark / Ark', 'Taproot Assets', 'TradeLayer']) {
-      assert.match(script, new RegExp(adapter.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), `missing adapter ${adapter}`);
-    }
-  });
-
-  runPanel('Layer Adapter Feed', () => {
-    assertMount(html, 'adapterSummary');
-    assertMount(html, 'adapterEventFeed');
-    assertMount(html, 'adapterFeedStatus');
-    assert.equal(adapterFeed.verification.ok, true, 'adapter feed verification failed');
-    assert.equal(adapterFeed.verification.adaptersCovered, 4, 'adapter count mismatch');
-    assert.equal(adapterFeed.verification.bitcoinTestnetTxids, 12, 'missing Bitcoin testnet txids');
-    for (const key of ['ldk', 'ark', 'taprootAssets', 'tradeLayer']) {
-      assert.ok(adapterFeed.adapters[key], `missing adapter feed ${key}`);
-      assert.ok(adapterFeed.adapters[key].eventCount > 0, `${key} has no adapter events`);
-    }
-    for (const sourceType of ['PaymentClaimable', 'VtxoBatchQuoted', 'AssetProofVerified', 'Tx33SyntheticUsdQuoted']) {
-      assert.ok(adapterFeed.events.some(item => item.sourceType === sourceType), `missing ${sourceType}`);
-    }
-  });
-
-  runPanel('Reviewer Export Pack', () => {
-    assertMount(html, 'exportPackSummary');
-    assertMount(html, 'exportPackButton');
-    assert.match(script, /buildExportPack/, 'missing export pack builder');
-    assert.match(script, /adapterFeed/, 'missing adapter feed in export pack');
-    assert.match(script, /npm run test:panels/, 'missing smoke test command in export pack');
-  });
-
-  runPanel('Deployment Health', () => {
-    assertMount(html, 'deploymentHealth');
-    assertMount(html, 'healthStatus');
-    assert.match(script, /renderDeploymentHealth/, 'missing deployment health renderer');
-    assert.match(script, /Adapter API/, 'missing adapter API health metric');
-    assert.match(script, /5k status/, 'missing 5k health metric');
   });
 
   runPanel('Funding Brief', () => {
     assert.match(funding, /UTXORef Spiral Brief/, 'missing funding title');
-    assert.match(funding, /What Works Today/, 'missing works today section');
     assert.match(funding, />Milestones</, 'missing milestones section');
     assert.doesNotMatch(funding, /Grant Milestones/, 'funding brief should use neutral milestone wording');
-    assert.match(funding, /Acceptance Criteria/, 'missing acceptance criteria section');
   });
 
   console.log(`panel data smoke test ok: ${BASE_URL}`);

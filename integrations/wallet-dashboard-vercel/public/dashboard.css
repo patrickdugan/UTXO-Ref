@@ -674,6 +674,47 @@ th {
   gap: 6px;
 }
 
+.oracle-dlc-panel {
+  border-left: 5px solid var(--green);
+}
+
+.oracle-dlc {
+  display: grid;
+  gap: 12px;
+}
+
+.oracle-head {
+  background: #f0fdfa;
+}
+
+.oracle-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
+  gap: 10px;
+}
+
+.oracle-flow .mechanic-node {
+  border-top-color: var(--green);
+}
+
+.oracle-flow .mechanic-node.selected {
+  border-top-color: var(--blue);
+  background: #f8fbff;
+}
+
+.oracle-readout {
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--line);
+  background: #fbfdfc;
+  padding: 10px;
+  min-width: 0;
+}
+
+.oracle-readout code {
+  overflow-wrap: anywhere;
+}
+
 .mechanics-grid {
   margin-bottom: 12px;
 }
@@ -1305,6 +1346,7 @@ dialog::backdrop {
   .circuit-layout,
   .unpack-grid,
   .mechanic-flow,
+  .oracle-grid,
   .use-case-grid,
   .pure-demo-flow,
   .pure-demo-head,
@@ -1344,6 +1386,7 @@ dialog::backdrop {
   .mechanic-flow,
   .segmented-controls,
   .ark-batch-strip,
+  .oracle-grid,
   .use-case-grid,
   .flow-pills,
   .use-case-evidence,

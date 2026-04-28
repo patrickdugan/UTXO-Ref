@@ -17,13 +17,6 @@
         <div class="top-actions">
           <span id="profileBadge" class="badge">profile</span>
           <span id="chainBadge" class="badge good">chain</span>
-          <select id="botSelect" aria-label="Stress fleet size">
-            <option value="96">96 bots</option>
-            <option value="512">512 bots</option>
-            <option value="2048">2,048 bots</option>
-            <option value="5000">5,000 bots</option>
-          </select>
-          <button id="exportButton" type="button">Export report</button>
           <button id="refreshButton" type="button">Refresh</button>
           <a class="button-link" href="/funding.html">Funding brief</a>
         </div>
@@ -38,7 +31,7 @@
           <div class="network-layout">
             <svg class="network-map" viewBox="0 0 1120 540" role="img" aria-labelledby="mapTitle mapDesc">
               <title id="mapTitle">UTXORef liquidity routing network</title>
-              <desc id="mapDesc">Vector map showing how Lightning funding, DLC state, TradeLayer assets, TAP proofs, Ark batching, BitVM enforcement, and wallet telemetry fit together.</desc>
+              <desc id="mapDesc">Vector map showing how Lightning funding, DLC state, TradeLayer oracle proofs, optional asset proofs, Ark batching, and BitVM enforcement fit together.</desc>
               <defs>
                 <marker id="arrow" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto" markerUnits="strokeWidth">
                   <path d="M0,0 L0,6 L8,3 z" fill="#334155"></path>
@@ -106,10 +99,10 @@
               </g>
             </svg>
             <div class="map-readout">
-              <div class="readout-item"><span>Core flow</span><strong>LN-BTC -> DLC -> tlBTC -> tlUSD -> TAP -> Graft</strong></div>
+              <div class="readout-item"><span>Core flow</span><strong>LN-BTC -> DLC -> BitVM guard; asset route optional</strong></div>
               <div class="readout-item"><span>Network</span><strong id="mapSubstrate">Bitcoin testnet profile</strong></div>
-              <div class="readout-item"><span>Stress scale</span><strong id="mapBotCount">--</strong></div>
-              <div class="readout-item"><span>Adapter feed</span><strong id="mapAdapterEvents">--</strong></div>
+              <div class="readout-item"><span>Explorer links</span><strong id="mapBotCount">--</strong></div>
+              <div class="readout-item"><span>Oracle trigger</span><strong id="mapAdapterEvents">--</strong></div>
             </div>
           </div>
         </section>
@@ -128,6 +121,14 @@
             <span class="source-badge live">stand-alone</span>
           </div>
           <div id="pureBtcRouteDemo" class="pure-demo"></div>
+        </section>
+
+        <section class="panel oracle-dlc-panel">
+          <div class="section-title">
+            <h2>BTC-Only TradeLayer Oracle DLC</h2>
+            <span class="source-badge proof">new subcategory</span>
+          </div>
+          <div id="tradelayerOracleDlc" class="oracle-dlc"></div>
         </section>
 
         <section class="panel">
@@ -174,265 +175,15 @@
           <div id="bitcoinProofLinks" class="txid-grid"></div>
         </section>
 
-        <details class="detail-group" open>
-          <summary>Core Flow And Wallet Telemetry</summary>
-        <section class="kpi-grid" aria-label="Fleet totals">
-          <article class="kpi">
-            <span>Autobots</span>
-            <strong id="botCount">--</strong>
-            <small id="botMix">--</small>
-          </article>
-          <article class="kpi">
-            <span>Testnet Collateral</span>
-            <strong id="testnetCollateral">--</strong>
-            <small>testnet collateral pool</small>
-          </article>
-          <article class="kpi">
-            <span>TLUSD Staked</span>
-            <strong id="tlusdStaked">--</strong>
-            <small>liquidity patch stake</small>
-          </article>
-          <article class="kpi">
-            <span>Assigned Inbound</span>
-            <strong id="assignedInbound">--</strong>
-            <small id="deliveryRate">--</small>
-          </article>
-          <article class="kpi">
-            <span>BitVM Queue</span>
-            <strong id="challengeCount">--</strong>
-            <small>challengeable routes</small>
-          </article>
-        </section>
-
-        <section class="band">
-          <div class="section-title">
-            <h2>Liquidity Lanes</h2>
-            <span><span id="dashboardId">--</span> <span class="source-badge live">api</span></span>
-          </div>
-          <div id="laneRail" class="lane-rail"></div>
-        </section>
-
-        <section class="grid-two">
-          <div class="panel">
-            <div class="section-title">
-              <h2>Throughput</h2>
-              <span><span id="feeSummary">--</span> <span class="source-badge live">api</span></span>
-            </div>
-            <div id="timeline" class="timeline"></div>
-          </div>
-          <div class="panel">
-            <div class="section-title">
-              <h2>Challenge Queue</h2>
-              <span><span id="savingsSummary">--</span> <span class="source-badge live">api</span></span>
-            </div>
-            <div id="challengeQueue" class="queue"></div>
-          </div>
-        </section>
-
-        <section class="grid-three">
-          <div class="panel">
-            <div class="section-title">
-              <h2>Wallet Flow</h2>
-              <span class="source-badge proof">proof</span>
-            </div>
-            <div class="phone-pane">
-              <div class="phone-row"><span>LN-BTC</span><strong id="walletLnBtc">--</strong></div>
-              <div class="phone-row"><span>TLUSD</span><strong id="walletTlusd">--</strong></div>
-              <div class="phone-row"><span>Staked</span><strong id="walletStaked">--</strong></div>
-              <div class="phone-row"><span>Patch</span><strong id="walletPatch">--</strong></div>
-              <button id="walletVerify" type="button">Verify patch</button>
-              <button id="walletChallenge" class="danger" type="button">Prepare challenge</button>
-            </div>
-          </div>
-          <div class="panel">
-            <div class="section-title">
-              <h2>Backend Profile</h2>
-              <span><span id="profileMode">--</span> <span class="source-badge live">api</span></span>
-            </div>
-            <div id="profilePanel" class="detail-list"></div>
-          </div>
-          <div class="panel">
-            <div class="section-title">
-              <h2>Proof Graph</h2>
-              <span class="source-badge derived">derived</span>
-            </div>
-            <div id="proofGraph" class="proof-graph"></div>
-          </div>
-        </section>
-        </details>
-
-        <details class="detail-group">
-          <summary>Protocol, Failure, And Economics Layers</summary>
         <section class="panel">
           <div class="section-title">
-            <h2>Protocol Trace</h2>
-            <span><span>LN to BitVM path</span> <span class="source-badge derived">derived</span></span>
+            <h2>BitVM Router Circuit</h2>
+            <span class="source-badge derived">unpackable</span>
           </div>
-          <div id="protocolTrace" class="trace-grid"></div>
+          <div id="bitvmEnforcement" class="detail-list"></div>
         </section>
-
-        <section class="grid-two">
-          <div class="panel">
-            <div class="section-title">
-              <h2>Failure Injection</h2>
-              <span><span id="failureStatus">nominal</span> <span class="source-badge derived">derived</span></span>
-            </div>
-            <div id="failureControls" class="control-grid"></div>
-            <div id="failureImpact" class="impact-box"></div>
-          </div>
-          <div class="panel">
-            <div class="section-title">
-              <h2>BOLT / LDK Pane</h2>
-              <span class="source-badge planned">planned</span>
-            </div>
-            <div id="lnCompatibility" class="detail-list"></div>
-          </div>
-        </section>
-
-        <section class="grid-two">
-          <div class="panel">
-            <div class="section-title">
-              <h2>Ark Batch Savings</h2>
-              <span><span id="arkFeeLabel">--</span> <span class="source-badge derived">derived</span></span>
-            </div>
-            <div class="slider-row">
-              <input id="arkFeeRate" type="range" min="1" max="80" value="18" />
-              <strong id="arkSavingsHeadline">--</strong>
-            </div>
-            <div class="slider-row">
-              <input id="arkRouteCount" type="range" min="64" max="50000" step="64" value="29952" />
-              <strong id="arkRoutesLabel">--</strong>
-            </div>
-            <div id="arkSavingsPanel" class="metric-grid"></div>
-            <div id="arkBatchSimulator" class="mechanic-card"></div>
-          </div>
-          <div class="panel">
-            <div class="section-title">
-              <h2>BitVM Enforcement</h2>
-              <span class="source-badge derived">derived</span>
-            </div>
-            <div id="bitvmEnforcement" class="detail-list"></div>
-          </div>
-        </section>
-
-        <section class="grid-two">
-          <div class="panel">
-            <div class="section-title">
-              <h2>Asset Mode</h2>
-              <select id="assetMode" aria-label="Asset backend">
-                <option value="tlusd">TLUSD</option>
-                <option value="taproot">Taproot Asset USD</option>
-                <option value="tradelayer">TradeLayer synthetic USD</option>
-              </select>
-              <span class="source-badge proof">proof</span>
-            </div>
-            <div id="assetModePanel" class="detail-list"></div>
-          </div>
-          <div class="panel">
-            <div class="section-title">
-              <h2>Integration Readiness</h2>
-              <span class="source-badge derived">derived</span>
-            </div>
-            <div id="integrationChecklist" class="checklist"></div>
-          </div>
-        </section>
-
-        <section class="panel">
-          <div class="section-title">
-            <h2>Operator Economics</h2>
-            <span><span id="operatorNetYield">--</span> <span class="source-badge derived">derived</span></span>
-          </div>
-          <div id="operatorEconomics" class="metric-grid wide"></div>
-        </section>
-        </details>
-
-        <details class="detail-group">
-          <summary>Evidence, Adapter Feed, And Raw Tables</summary>
-        <section class="grid-two">
-          <div class="panel">
-            <div class="section-title">
-              <h2>Invariant Ledger</h2>
-              <span class="source-badge derived">machine checks</span>
-            </div>
-            <div id="invariantLedger" class="invariant-list"></div>
-          </div>
-          <div class="panel">
-            <div class="section-title">
-              <h2>Artifact Links</h2>
-              <span class="source-badge live">raw data</span>
-            </div>
-            <div id="artifactLinks" class="artifact-grid"></div>
-          </div>
-        </section>
-
-        <section class="grid-two">
-          <div class="panel">
-            <div class="section-title">
-              <h2>Adapter Contracts</h2>
-              <span class="source-badge planned">interfaces</span>
-            </div>
-            <div id="adapterContracts" class="contract-list"></div>
-          </div>
-          <div class="panel">
-            <div class="section-title">
-              <h2>Reviewer Export Pack</h2>
-              <span class="source-badge derived">evidence</span>
-            </div>
-            <div id="exportPackSummary" class="detail-list"></div>
-            <button id="exportPackButton" type="button">Export pack</button>
-          </div>
-        </section>
-
-        <section class="panel">
-          <div class="section-title">
-            <h2>Layer Adapter Feed</h2>
-            <span id="adapterFeedStatus" class="source-badge proof">proof feed</span>
-          </div>
-          <div id="adapterSummary" class="metric-grid"></div>
-          <div id="adapterEventFeed" class="event-feed"></div>
-        </section>
-
-        <section class="panel">
-          <div class="section-title">
-            <h2>Deployment Health</h2>
-            <span id="healthStatus" class="source-badge live">checking</span>
-          </div>
-          <div id="deploymentHealth" class="metric-grid wide"></div>
-        </section>
-
-        <section class="panel">
-          <div class="section-title">
-            <h2>Autobot Routing Table</h2>
-            <span id="routeCount">--</span>
-          </div>
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Bot</th>
-                  <th>Lane</th>
-                  <th>Status</th>
-                  <th>Collateral</th>
-                  <th>TLUSD</th>
-                  <th>Routes</th>
-                  <th>Delivered</th>
-                  <th>Fee</th>
-                </tr>
-              </thead>
-              <tbody id="botTable"></tbody>
-            </table>
-          </div>
-        </section>
-        </details>
       </main>
     </div>
-    <dialog id="challengeDialog">
-      <div class="dialog-head">
-        <h2 id="dialogTitle">Challenge</h2>
-        <button id="closeDialog" type="button">Close</button>
-      </div>
-      <div id="dialogBody" class="detail-list"></div>
-    </dialog>
     <script src="/dashboard.js"></script>
   </body>
 </html>

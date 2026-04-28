@@ -252,6 +252,53 @@ function buildWalletView() {
       'script selects slash or cooperative exit'
     ]
   };
+  const tradeLayerOracleDlc = {
+    id: 'btc-only-tradelayer-oracle-dlc',
+    label: 'BTC-Only TradeLayer Oracle DLC',
+    summary: 'Bilateral Lightning-funded DLC where a TradeLayer tx14 OP_RETURN price publish selects the BTC-only CET branch; BitVM organizes the wrong-trigger challenge path.',
+    noTapAssets: true,
+    trigger: {
+      txid: proof.keyTxids.oraclePublish.txid,
+      explorer: proof.keyTxids.oraclePublish.explorer,
+      txType: 14,
+      oracleId: 1,
+      pair: 'BTCUSD',
+      price: '65000',
+      payloadText: 'tle1,aqzr7k',
+      payloadHex: '746c65312c61717a72376b',
+      opReturnScriptHex: '6a0b746c65312c61717a72376b',
+      payloadHash: 'b64eccb31fc947e29aff0f6f826891b6ac21d80eef2be50340260d87639fefd3',
+      proofShape: 'raw tx + OP_RETURN output index + block header + merkle branch'
+    },
+    contract: {
+      contractId: 'ln-tl-oracle-dlc-1',
+      commitmentId: '905637f8f1bd18f4da98db61894e7808aceb26b685f2e50c331dcc5aa2d2f1cb',
+      longParty: { name: 'alice-long', collateralSats: 50000 },
+      shortParty: { name: 'bob-short', collateralSats: 50000 },
+      totalCollateralSats: 100000,
+      outcomesRoot: 'bea7c5484aa69b560940bfe03d1302e84591d91e9a439221c2c81c8d73568dc4',
+      settlementAsset: 'btc-only'
+    },
+    settlement: {
+      selectedOutcomeId: 'price_at_entry',
+      settlementRail: 'lightning',
+      longPayoutSats: 50000,
+      shortPayoutSats: 50000,
+      noTapAssetPath: true
+    },
+    bitvmOrganizer: {
+      organizerId: '4bdfa8090bbbadfcd1758fffb3808eee31b5d470f585f08462640f0afcb05c14',
+      totalGates: 680,
+      challengeViolation: 'wrong_cet_for_published_price',
+      flow: ['TradeLayer tx14 OP_RETURN', 'payload hash + tx inclusion', 'price bucket comparator', 'Lightning BTC payout'],
+      pseudocode: [
+        'assert sha256(payloadText) == committed_payload_hash',
+        'assert decode_tx14(payloadText).oracle_id == contract.oracle_id',
+        'selected_outcome = bucket(decode_tx14(payloadText).price)',
+        'assert long_payout + short_payout == btc_collateral_sats'
+      ]
+    }
+  };
   return {
     kind: 'lnbtc_tlusd_liquidity_patch_wallet_view',
     generatedAt: '2026-04-26T00:00:00.000Z',
@@ -322,8 +369,21 @@ function buildWalletView() {
         offchainProofs: ['ln-route-commitment', 'bitvm-router-circuit'],
         entryTxid: proof.summary.entryTxid,
         reviewerSignal: 'isolates the core liquidity primitive: committed BTC route capacity with slashable under-delivery'
+      },
+      {
+        id: 'btc-only-oracle-dlc',
+        label: 'BTC-Only Oracle DLC',
+        objective: 'Use a TradeLayer tx14 OP_RETURN price publication as the DLC trigger while settling BTC payouts over Lightning',
+        flow: ['LN collateral receipts', 'TradeLayer tx14 price publish', 'BitVM trigger proof', 'BTC-only DLC payout'],
+        bitcoinEvidence: [
+          proof.keyTxids.oraclePublish.txid
+        ],
+        offchainProofs: ['bitvm-ln-dlc-oracle-trigger', 'lightning-payout-receipts'],
+        entryTxid: proof.keyTxids.oraclePublish.txid,
+        reviewerSignal: 'separates the BTC-only DLC/BitVM mechanism from TAP-asset or TLUSD routing claims'
       }
     ],
+    tradeLayerOracleDlc,
     conversion: {
       lnbtcSats: 49000,
       tlusdUnits: 49000000,
