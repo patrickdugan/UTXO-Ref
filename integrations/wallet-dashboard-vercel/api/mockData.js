@@ -159,6 +159,48 @@ function buildWalletView() {
   return {
     kind: 'lnbtc_tlusd_liquidity_patch_wallet_view',
     generatedAt: '2026-04-26T00:00:00.000Z',
+    pureBtcRouteDemo: {
+      id: 'demo-3-pure-btc-bitvm-ln',
+      label: 'Demo 3: Pure BTC Route Evidence',
+      summary: 'Standalone path showing a staged testnet4 submarine-swap HTLC, a paid Lightning invoice receipt, and the BitVM router circuit anchor.',
+      stages: [
+        {
+          id: 'subswap-htlc',
+          label: 'Submarine Swap HTLC',
+          kind: 'bitcoin-testnet4',
+          txid: proof.submarineSwapHtlc.txid,
+          explorer: proof.submarineSwapHtlc.explorer,
+          amountSats: proof.submarineSwapHtlc.amountSats,
+          htlcAddress: proof.submarineSwapHtlc.htlcAddress,
+          paymentHash: proof.submarineSwapHtlc.paymentHash,
+          expiryHeight: proof.submarineSwapHtlc.expiryHeight,
+          note: 'Real P2WSH hashlock plus CLTV refund branch.'
+        },
+        {
+          id: 'ln-receipt',
+          label: 'Lightning Receipt',
+          kind: 'core-lightning-regtest',
+          channelTxid: 'e93cfd911f1d4c67667b6b79bf58092e03d37ce02345a1497099cd14b8aa6f76',
+          channelState: 'CHANNELD_NORMAL',
+          invoiceAmount: '25000msat',
+          paymentHash: '80cbce547c20a26c4d2a8ab46eaf3b3ecbcff639f068f02276a01ef62d1a705a',
+          paymentPreimage: 'cfc8c6a319f4b892dcbb4c5f84d81180634940f382f1b19c6c37d2c7f165f598',
+          status: 'complete',
+          note: 'Fresh CLN Alice-to-Bob invoice paid locally; public testnet4 route is the next replacement.'
+        },
+        {
+          id: 'bitvm-router-circuit',
+          label: 'BitVM Router Circuit',
+          kind: proof.bitvmShowcase.kind,
+          anchorTxid: proof.bitvmShowcase.anchorTxid,
+          anchorExplorer: proof.bitvmShowcase.anchorExplorer,
+          totalGates: routerCircuit.totalGates,
+          routeCommitment: proof.bitvmShowcase.routeCommitment.proofKind,
+          note: 'Circuit checks delivered liquidity against committed route capacity.'
+        }
+      ],
+      invariant: 'HTLC hash/preimage machinery feeds a route commitment; BitVM handles under-delivery as a challenge path.'
+    },
     useCases: [
       {
         id: 'usd-asset-routing',

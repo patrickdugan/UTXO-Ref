@@ -581,6 +581,95 @@ th {
   overflow-wrap: anywhere;
 }
 
+.demo-three {
+  border-left: 5px solid var(--amber);
+}
+
+.pure-demo {
+  display: grid;
+  gap: 12px;
+}
+
+.pure-demo-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 0.72fr);
+  gap: 12px;
+  padding: 10px;
+  background: #fffaf0;
+  border: 1px solid var(--line);
+}
+
+.pure-demo-head strong,
+.pure-demo-head span {
+  display: block;
+}
+
+.pure-demo-flow {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.pure-demo-card {
+  position: relative;
+  border: 1px solid var(--line);
+  background: #fbfdfc;
+  padding: 12px;
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.pure-demo-card::after {
+  content: ">";
+  position: absolute;
+  top: 50%;
+  right: -12px;
+  transform: translateY(-50%);
+  color: var(--steel);
+  font-weight: 900;
+}
+
+.pure-demo-card:last-child::after {
+  content: "";
+}
+
+.pure-demo-card em,
+.pure-demo-card strong,
+.pure-demo-card span,
+.pure-demo-card small,
+.pure-demo-primary,
+.pure-demo-primary a,
+.pure-demo-primary code {
+  display: block;
+}
+
+.pure-demo-card em {
+  color: var(--blue);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.pure-demo-primary {
+  padding: 8px;
+  background: #f8fbff;
+  border: 1px solid var(--line);
+  overflow-wrap: anywhere;
+}
+
+.pure-demo-primary a {
+  color: var(--blue);
+  text-decoration: none;
+  font-weight: 800;
+}
+
+.pure-demo-details {
+  display: grid;
+  gap: 6px;
+}
+
 .bitvm-circuit-summary {
   display: grid;
   gap: 8px;
@@ -970,6 +1059,8 @@ dialog::backdrop {
   .trace-grid,
   .circuit-layout,
   .use-case-grid,
+  .pure-demo-flow,
+  .pure-demo-head,
   .metric-grid,
   .metric-grid.wide {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1004,6 +1095,8 @@ dialog::backdrop {
   .use-case-grid,
   .flow-pills,
   .use-case-evidence,
+  .pure-demo-flow,
+  .pure-demo-head,
   .metric-grid,
   .metric-grid.wide,
   .control-grid,
@@ -1013,5 +1106,9 @@ dialog::backdrop {
 
   .event-item {
     grid-template-columns: 1fr;
+  }
+
+  .pure-demo-card::after {
+    content: "";
   }
 }

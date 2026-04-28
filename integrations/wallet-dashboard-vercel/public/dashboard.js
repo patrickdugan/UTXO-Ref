@@ -306,6 +306,45 @@ function renderUseCases(walletView, testnetProof) {
   }).join('');
 }
 
+function renderPureBtcRouteDemo(walletView) {
+  const demo = walletView?.pureBtcRouteDemo;
+  if (!demo) return;
+  const cards = demo.stages.map((stage, index) => {
+    const primary = stage.explorer
+      ? `<a href="${stage.explorer}" target="_blank" rel="noreferrer">${short(stage.txid)}</a>`
+      : stage.anchorExplorer
+        ? `<a href="${stage.anchorExplorer}" target="_blank" rel="noreferrer">${short(stage.anchorTxid)}</a>`
+        : `<code>${short(stage.channelTxid || stage.paymentHash)}</code>`;
+    const rows = [
+      stage.amountSats ? ['Amount', sats(stage.amountSats)] : null,
+      stage.htlcAddress ? ['HTLC address', short(stage.htlcAddress)] : null,
+      stage.expiryHeight ? ['CLTV expiry', stage.expiryHeight] : null,
+      stage.channelState ? ['Channel', stage.channelState] : null,
+      stage.invoiceAmount ? ['Invoice', stage.invoiceAmount] : null,
+      stage.paymentPreimage ? ['Preimage', short(stage.paymentPreimage)] : null,
+      stage.totalGates ? ['Circuit', `${stage.totalGates.toLocaleString()} gates`] : null,
+      stage.routeCommitment ? ['Commitment', stage.routeCommitment] : null
+    ].filter(Boolean).map(([label, value]) => detailRow(label, value)).join('');
+    return `
+      <article class="pure-demo-card ${stage.id}">
+        <em>step ${index + 1}</em>
+        <strong>${escapeHtml(stage.label)}</strong>
+        <span>${escapeHtml(stage.kind)}</span>
+        <div class="pure-demo-primary">${primary}</div>
+        <div class="pure-demo-details">${rows}</div>
+        <small>${escapeHtml(stage.note)}</small>
+      </article>
+    `;
+  }).join('');
+  $('pureBtcRouteDemo').innerHTML = `
+    <div class="pure-demo-head">
+      <strong>${escapeHtml(demo.summary)}</strong>
+      <span>${escapeHtml(demo.invariant)}</span>
+    </div>
+    <div class="pure-demo-flow">${cards}</div>
+  `;
+}
+
 function renderProfilePanel(status) {
   if (!status) return;
   $('profileMode').textContent = status.profile.mode;
@@ -740,6 +779,7 @@ function render(dashboard, status, walletView, adapterFeed) {
   renderGuidedDemo(dashboard);
   renderBitcoinTestnetProof(state.testnetProof || adapterFeed?.testnetProof);
   renderUseCases(walletView, state.testnetProof || adapterFeed?.testnetProof);
+  renderPureBtcRouteDemo(walletView);
   renderKpis(dashboard);
   renderLanes(dashboard);
   renderTimeline(dashboard);

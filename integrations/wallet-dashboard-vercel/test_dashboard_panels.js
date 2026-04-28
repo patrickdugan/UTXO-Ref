@@ -76,6 +76,16 @@ async function main() {
     assert.ok(status.lightningDiscovery.candidatePeers.every(peer => peer.tcpOpen === true), 'candidate peer not reachable');
   });
 
+  runPanel('Standalone Pure BTC Demo', () => {
+    assertMount(html, 'pureBtcRouteDemo');
+    assert.equal(walletView.pureBtcRouteDemo.id, 'demo-3-pure-btc-bitvm-ln');
+    assert.equal(walletView.pureBtcRouteDemo.stages.length, 3);
+    assert.equal(walletView.pureBtcRouteDemo.stages[0].txid, testnetProof.submarineSwapHtlc.txid);
+    assert.equal(walletView.pureBtcRouteDemo.stages[1].status, 'complete');
+    assert.equal(walletView.pureBtcRouteDemo.stages[2].anchorTxid, testnetProof.summary.showcaseAnchorTxid);
+    assert.match(script, /renderPureBtcRouteDemo/, 'missing standalone pure BTC renderer');
+  });
+
   runPanel('Bitcoin Testnet Proofs', () => {
     assertMount(html, 'bitcoinProofSummary');
     assertMount(html, 'bitcoinProofLinks');
