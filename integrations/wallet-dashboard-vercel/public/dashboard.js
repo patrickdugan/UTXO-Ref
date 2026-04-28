@@ -6,6 +6,7 @@ const state = {
   testnetProof: null,
   failureMode: 'nominal',
   assetMode: 'tlusd',
+  selectedGateId: 'liquidity-comparator',
   demoStep: 0,
   latencies: {}
 };
@@ -42,6 +43,14 @@ function txidLink(step, label = null) {
   if (!step?.txid || !step?.explorer) return short(step?.txid);
   const text = label || step.label || short(step.txid);
   return `<a class="txid-link" href="${step.explorer}" target="_blank" rel="noreferrer" title="${step.txid}">${text}<code>${short(step.txid)}</code></a>`;
+}
+
+function anchorTxidLink(step, label = null) {
+  const txid = step?.txid || step?.anchorTxid;
+  const explorer = step?.explorer || step?.anchorExplorer;
+  if (!txid || !explorer) return short(txid);
+  const text = label || step.label || short(txid);
+  return `<a class="txid-link" href="${explorer}" target="_blank" rel="noreferrer" title="${txid}">${text}<code>${short(txid)}</code></a>`;
 }
 
 function detailRow(label, value) {
@@ -456,6 +465,45 @@ function renderArkSavings(dashboard) {
   return { feeRate, directFee, arkFee, savings };
 }
 
+function renderBitvmUnpack(circuit, selectedGate) {
+  const flow = selectedGate.flow || [];
+  const pseudocode = selectedGate.pseudocode || [];
+  const inputs = selectedGate.inputs || [];
+  const flowNodes = flow.map((label, index) => `
+    <div class="unpack-flow-node">
+      <span>${index + 1}</span>
+      <strong>${escapeHtml(label)}</strong>
+    </div>
+  `).join('');
+  const codeLines = pseudocode
+    .map((line, index) => `<code><span>${index + 1}</span>${escapeHtml(line)}</code>`)
+    .join('');
+  const inputPills = inputs.map(input => `<span>${escapeHtml(input)}</span>`).join('');
+  return `
+    <div class="bitvm-unpack" id="bitvmUnpack">
+      <div class="circuit-head">
+        <div>
+          <strong>Unpacked Script Family</strong>
+          <small>${escapeHtml(selectedGate.family)} enforces ${escapeHtml(selectedGate.checks)}</small>
+        </div>
+        <span class="source-badge proof">${Number(selectedGate.count || 0).toLocaleString()} gates</span>
+      </div>
+      <div class="unpack-grid">
+        <div class="unpack-flow" aria-label="${escapeHtml(selectedGate.family)} circuit flow">
+          ${flowNodes}
+        </div>
+        <div class="unpack-code">
+          ${codeLines}
+        </div>
+        <div class="unpack-meta">
+          <strong>Witness / public inputs</strong>
+          <div>${inputPills}</div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 function renderBitvmEnforcement(walletView, dashboard) {
   if (!walletView) return;
   const firstChallenge = dashboard.challengeQueue[0];
@@ -471,10 +519,24 @@ function renderBitvmEnforcement(walletView, dashboard) {
     scriptTemplate: [],
     challengePath: []
   };
+  const fallbackGate = {
+    id: 'unavailable',
+    family: 'Circuit unavailable',
+    count: 0,
+    checks: 'no script family loaded',
+    inputs: [],
+    flow: ['load circuit data'],
+    pseudocode: ['assert routerCircuit is present in wallet view']
+  };
+  const selectedGate = circuit.gateCounts.find(gate => gate.id === state.selectedGateId) || circuit.gateCounts[0] || fallbackGate;
+  state.selectedGateId = selectedGate.id;
   const gateBars = circuit.gateCounts.map((gate, index) => {
     const width = Math.max(12, Math.round((gate.count / circuit.totalGates) * 240));
+    const gateId = gate.id || gate.family.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    const active = gateId === selectedGate.id ? ' active' : '';
     return `
-      <g transform="translate(18 ${28 + index * 24})">
+      <g class="gate-row${active}" data-gate-id="${escapeHtml(gateId)}" role="button" tabindex="0" transform="translate(18 ${28 + index * 24})">
+        <title>Unpack ${escapeHtml(gate.family)}</title>
         <rect width="${width}" height="12" rx="2"></rect>
         <text x="${width + 8}" y="10">${escapeHtml(gate.family)} ${gate.count}</text>
       </g>
@@ -489,10 +551,11 @@ function renderBitvmEnforcement(walletView, dashboard) {
     ['Challenge path', circuit.challengePath.join(' -> ')]
   ].map(([label, value]) => detailRow(label, escapeHtml(value))).join('');
 
-  $('bitvmEnforcement').innerHTML = `
+  const enforcement = $('bitvmEnforcement');
+  enforcement.innerHTML = `
     <div class="bitvm-circuit-summary">
       ${[
-        detailRow('Showcase anchor', txidLink(state.testnetProof?.bitvmShowcase, 'TAP / circuit anchor')),
+        detailRow('Showcase anchor', anchorTxidLink(state.testnetProof?.bitvmShowcase, 'TAP / circuit anchor')),
         detailRow('Journey entry', short(walletView.conversion.journeyEntryTxid || walletView.conversion.subswapFundingTxid)),
         detailRow('Committed state', `${compactSats(committed)} inbound promised`),
         detailRow('Claimed state', `${compactSats(claimed)} delivered by ASP`),
@@ -531,8 +594,22 @@ function renderBitvmEnforcement(walletView, dashboard) {
         <div class="script-template">${scriptLines}</div>
         <div class="circuit-inputs">${inputs}</div>
       </div>
+      ${renderBitvmUnpack(circuit, selectedGate)}
     </div>
   `;
+  enforcement.querySelectorAll('[data-gate-id]').forEach(row => {
+    const selectGate = () => {
+      state.selectedGateId = row.dataset.gateId;
+      render(state.dashboard, state.status, state.walletView, state.adapterFeed);
+    };
+    row.addEventListener('click', selectGate);
+    row.addEventListener('keydown', event => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        selectGate();
+      }
+    });
+  });
 }
 
 function renderAssetMode(walletView, dashboard) {

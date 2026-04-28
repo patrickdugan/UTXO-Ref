@@ -118,14 +118,110 @@ function buildWalletView() {
     totalGates: 768,
     constraintSystem: 'booleanized route commitment plus liquidity shortfall comparator',
     gateCounts: [
-      { family: 'HTLC hashlock', count: 96, checks: 'payment_hash == sha256(preimage)' },
-      { family: 'CLTV timeout', count: 64, checks: 'expiry_height <= channel_expiry' },
-      { family: 'Route sum', count: 112, checks: 'delivered_msat accumulates hop commitments' },
-      { family: 'Liquidity comparator', count: 144, checks: 'delivered_sats >= committed_min_sats' },
-      { family: 'TAP anchor binding', count: 128, checks: 'tap_anchor_outpoint matches tx33/TAP proof root' },
-      { family: 'Ark batch binding', count: 96, checks: 'vtxo_batch_root commits route allocation' },
-      { family: 'Challenge mux', count: 80, checks: 'select honest exit or slash path' },
-      { family: 'Public input pack', count: 48, checks: 'pack proof root and challenge id' }
+      {
+        id: 'hashlock',
+        family: 'HTLC hashlock',
+        count: 96,
+        checks: 'payment_hash == sha256(preimage)',
+        inputs: ['payment_hash', 'payment_preimage'],
+        flow: ['invoice hash', 'preimage witness', 'sha256 gate', 'claim branch'],
+        pseudocode: [
+          'digest = sha256(payment_preimage)',
+          'assert digest == payment_hash',
+          'unlock claim path if preimage is revealed'
+        ]
+      },
+      {
+        id: 'cltv-timeout',
+        family: 'CLTV timeout',
+        count: 64,
+        checks: 'expiry_height <= channel_expiry',
+        inputs: ['expiry_height', 'channel_expiry'],
+        flow: ['route expiry', 'channel bound', 'height compare', 'timeout branch'],
+        pseudocode: [
+          'assert expiry_height <= channel_expiry',
+          'if current_height >= expiry_height: enable refund branch',
+          'otherwise keep the route claimable by the invoice preimage'
+        ]
+      },
+      {
+        id: 'route-sum',
+        family: 'Route sum',
+        count: 112,
+        checks: 'delivered_msat accumulates hop commitments',
+        inputs: ['hop_commitments', 'delivered_sats'],
+        flow: ['hop receipts', 'sum msats', 'round to sats', 'delivery witness'],
+        pseudocode: [
+          'delivered_msat = sum(hop.amount_msat for hop in hop_commitments)',
+          'assert each hop is signed by its advertised node key',
+          'delivered_sats = floor(delivered_msat / 1000)'
+        ]
+      },
+      {
+        id: 'liquidity-comparator',
+        family: 'Liquidity comparator',
+        count: 144,
+        checks: 'delivered_sats >= committed_min_sats',
+        inputs: ['delivered_sats', 'committed_min_sats'],
+        flow: ['committed minimum', 'delivered witness', 'range compare', 'slash signal'],
+        pseudocode: [
+          'shortfall = committed_min_sats - delivered_sats',
+          'assert delivered_sats >= committed_min_sats',
+          'if shortfall > 0: route challenge to ASP bond slash'
+        ]
+      },
+      {
+        id: 'tap-anchor',
+        family: 'TAP anchor binding',
+        count: 128,
+        checks: 'tap_anchor_outpoint matches tx33/TAP proof root',
+        inputs: ['tap_anchor_outpoint', 'tap_proof_root'],
+        flow: ['tx33 pledge', 'P2TR output', 'proof root', 'asset continuity'],
+        pseudocode: [
+          'assert tap_anchor_outpoint == committed_outpoint',
+          'assert tap_proof_root binds tx33 token state',
+          'carry the asset branch forward inside the next P2TR output'
+        ]
+      },
+      {
+        id: 'ark-batch',
+        family: 'Ark batch binding',
+        count: 96,
+        checks: 'vtxo_batch_root commits route allocation',
+        inputs: ['ark_batch_root', 'route_allocation_leaf'],
+        flow: ['route allocation', 'VTXO leaf', 'batch root', 'ASP obligation'],
+        pseudocode: [
+          'leaf = hash(route_id, inbound_sats, asp_key, expiry_height)',
+          'assert merkle_verify(leaf, route_allocation_proof, ark_batch_root)',
+          'treat the ASP batch promise as the liquidity source of record'
+        ]
+      },
+      {
+        id: 'challenge-mux',
+        family: 'Challenge mux',
+        count: 80,
+        checks: 'select honest exit or slash path',
+        inputs: ['challenge_id', 'router_signature', 'asp_forfeit_signature'],
+        flow: ['watcher claim', 'challenge id', 'branch select', 'exit script'],
+        pseudocode: [
+          'if router_signature verifies and no shortfall: cooperative_exit()',
+          'if challenge_id is opened and shortfall > 0: require asp_forfeit_signature',
+          'select the unique script branch for the revealed dispute state'
+        ]
+      },
+      {
+        id: 'public-pack',
+        family: 'Public input pack',
+        count: 48,
+        checks: 'pack proof root and challenge id',
+        inputs: ['tap_anchor_outpoint', 'ark_batch_root', 'payment_hash', 'challenge_id'],
+        flow: ['public inputs', 'domain tags', 'packed root', 'BitVM transcript'],
+        pseudocode: [
+          'public_root = tagged_hash(public_inputs)',
+          'assert public_root is the transcript root used by the BitVM verifier',
+          'bind the same root into the dashboard challenge evidence'
+        ]
+      }
     ],
     publicInputs: [
       'tap_anchor_outpoint',

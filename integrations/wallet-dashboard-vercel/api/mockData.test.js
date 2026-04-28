@@ -31,6 +31,15 @@ assert.match(walletView.conversion.subswapFundingExplorer, /^https:\/\/mempool\.
 assert.match(walletView.conversion.dlcFundingTxid, /^[0-9a-f]{64}$/);
 assert.strictEqual(walletView.liquidityPatch.routerCircuit.totalGates, 768);
 assert.ok(walletView.liquidityPatch.routerCircuit.gateCounts.length >= 6);
+assert.ok(walletView.liquidityPatch.routerCircuit.gateCounts.every(gate => gate.id), 'gate missing stable id');
+assert.ok(walletView.liquidityPatch.routerCircuit.gateCounts.every(gate => Array.isArray(gate.flow) && gate.flow.length >= 3), 'gate missing flow unpack');
+assert.ok(walletView.liquidityPatch.routerCircuit.gateCounts.every(gate => Array.isArray(gate.pseudocode) && gate.pseudocode.length >= 2), 'gate missing pseudocode unpack');
+assert.ok(
+  walletView.liquidityPatch.routerCircuit.gateCounts
+    .find(gate => gate.id === 'liquidity-comparator')
+    .pseudocode.some(line => line.includes('delivered_sats')),
+  'liquidity comparator unpack does not explain delivered_sats'
+);
 assert.ok(walletView.liquidityPatch.routerCircuit.scriptTemplate.some(line => line.includes('OP_CHECKSIG')));
 assert.strictEqual(dashboard.totals.botCount, 5000);
 assert.ok(dashboard.totals.challengeCount > 0);

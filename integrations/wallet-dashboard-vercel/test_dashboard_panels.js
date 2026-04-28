@@ -148,7 +148,13 @@ async function main() {
     assertPositive(dashboard.challengeQueue[0].requestedInboundSats, 'challenge requested sats');
     assertPositive(dashboard.challengeQueue[0].deliveredInboundSats, 'challenge delivered sats');
     assert.equal(walletView.liquidityPatch.routerCircuit.totalGates, 768);
+    assert.ok(walletView.liquidityPatch.routerCircuit.gateCounts.every(gate => gate.id), 'gate row missing id');
+    assert.ok(walletView.liquidityPatch.routerCircuit.gateCounts.every(gate => Array.isArray(gate.pseudocode)), 'gate row missing pseudocode');
+    assert.ok(walletView.liquidityPatch.routerCircuit.gateCounts.every(gate => Array.isArray(gate.flow)), 'gate row missing circuit flow');
     assert.match(script, /Router Circuit/, 'missing router circuit renderer');
+    assert.match(script, /renderBitvmUnpack/, 'missing BitVM unpack renderer');
+    assert.match(script, /data-gate-id/, 'missing clickable gate selector');
+    assert.match(script, /bitvmUnpack/, 'missing unpack mount');
     assert.ok(
       walletView.liquidityPatch.routerCircuit.scriptTemplate.some(line => line.includes('OP_GREATERTHANOREQUAL')),
       'missing liquidity comparator script'
