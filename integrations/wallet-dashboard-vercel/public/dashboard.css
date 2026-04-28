@@ -47,6 +47,10 @@ button.danger {
   background: var(--red);
 }
 
+button.active {
+  background: var(--green);
+}
+
 select {
   min-height: 38px;
   border: 1px solid var(--line);
@@ -670,6 +674,114 @@ th {
   gap: 6px;
 }
 
+.mechanics-grid {
+  margin-bottom: 12px;
+}
+
+.mechanic-card {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.segmented-controls {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.segmented-controls button {
+  min-height: 38px;
+  padding: 7px 8px;
+}
+
+.mechanic-flow {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.mechanic-node {
+  position: relative;
+  min-height: 104px;
+  border: 1px solid var(--line);
+  border-top: 4px solid var(--steel);
+  background: #fbfdfc;
+  padding: 9px;
+  min-width: 0;
+}
+
+.mechanic-node:not(:last-child)::after {
+  content: ">";
+  position: absolute;
+  top: 50%;
+  right: -9px;
+  transform: translateY(-50%);
+  color: var(--steel);
+  font-weight: 900;
+  z-index: 1;
+}
+
+.mechanic-node.selected {
+  border-top-color: var(--amber);
+  background: #fffaf0;
+}
+
+.mechanic-node span,
+.mechanic-node strong,
+.mechanic-node small {
+  display: block;
+}
+
+.mechanic-node span {
+  width: 22px;
+  height: 22px;
+  margin-bottom: 8px;
+  display: grid;
+  place-items: center;
+  background: var(--ink);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.mechanic-node strong,
+.mechanic-node small {
+  overflow-wrap: anywhere;
+}
+
+.mechanic-readout {
+  display: grid;
+  gap: 8px;
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+}
+
+.mechanic-code {
+  margin-bottom: 0;
+}
+
+.ark-batch-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.ark-batch-strip div {
+  border: 1px solid var(--line);
+  background: #f8fbff;
+  padding: 9px;
+}
+
+.ark-batch-strip strong,
+.ark-batch-strip span {
+  display: block;
+}
+
+.ark-batch-strip strong {
+  font-size: 20px;
+}
+
 .bitvm-circuit-summary {
   display: grid;
   gap: 8px;
@@ -1192,6 +1304,7 @@ dialog::backdrop {
   .trace-grid,
   .circuit-layout,
   .unpack-grid,
+  .mechanic-flow,
   .use-case-grid,
   .pure-demo-flow,
   .pure-demo-head,
@@ -1228,6 +1341,9 @@ dialog::backdrop {
   .circuit-layout,
   .unpack-grid,
   .unpack-flow,
+  .mechanic-flow,
+  .segmented-controls,
+  .ark-batch-strip,
   .use-case-grid,
   .flow-pills,
   .use-case-evidence,
@@ -1253,6 +1369,10 @@ dialog::backdrop {
   }
 
   .unpack-flow-node:not(:last-child)::after {
+    content: "";
+  }
+
+  .mechanic-node:not(:last-child)::after {
     content: "";
   }
 

@@ -144,6 +144,27 @@
           </div>
         </section>
 
+        <section class="grid-two mechanics-grid">
+          <div class="panel">
+            <div class="section-title">
+              <h2>Submarine Swap State</h2>
+              <span class="source-badge proof">HTLC</span>
+            </div>
+            <div id="swapStateMachine" class="mechanic-card"></div>
+          </div>
+          <div class="panel">
+            <div class="section-title">
+              <h2>DLC Settlement Calculator</h2>
+              <span><span id="dlcPriceLabel">--</span> <span class="source-badge derived">CET</span></span>
+            </div>
+            <div class="slider-row">
+              <input id="dlcPrice" type="range" min="45000" max="125000" step="1000" value="85000" />
+              <strong id="dlcSettlementHeadline">--</strong>
+            </div>
+            <div id="dlcSettlement" class="mechanic-card"></div>
+          </div>
+        </section>
+
         <section class="panel">
           <div class="section-title">
             <h2>Bitcoin Testnet Transaction Chain</h2>
@@ -278,7 +299,12 @@
               <input id="arkFeeRate" type="range" min="1" max="80" value="18" />
               <strong id="arkSavingsHeadline">--</strong>
             </div>
+            <div class="slider-row">
+              <input id="arkRouteCount" type="range" min="64" max="50000" step="64" value="29952" />
+              <strong id="arkRoutesLabel">--</strong>
+            </div>
             <div id="arkSavingsPanel" class="metric-grid"></div>
+            <div id="arkBatchSimulator" class="mechanic-card"></div>
           </div>
           <div class="panel">
             <div class="section-title">

@@ -7,6 +7,8 @@ const state = {
   failureMode: 'nominal',
   assetMode: 'tlusd',
   selectedGateId: 'liquidity-comparator',
+  swapMode: 'claim',
+  dlcPrice: 85000,
   demoStep: 0,
   latencies: {}
 };
@@ -63,6 +65,10 @@ function metric(label, value, note = '') {
 
 function percent(value) {
   return `${Number(value).toFixed(2)}%`;
+}
+
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
 }
 
 function scrub(value) {
@@ -204,6 +210,112 @@ function renderGuidedDemo(dashboard) {
       return `<div class="demo-step${active}"><strong>${index + 1}. ${label}</strong><span>${value}</span><small>${note}</small></div>`;
     })
     .join('');
+}
+
+function renderSwapStateMachine(walletView) {
+  if (!walletView) return;
+  const htlc = walletView.conversion.submarineSwapHtlc || {};
+  const modes = {
+    claim: {
+      label: 'Preimage claim',
+      branch: 'receiver spends with preimage before CLTV',
+      witness: short(htlc.preimage || htlc.paymentPreimage || walletView.pureBtcRouteDemo?.stages?.[1]?.paymentPreimage),
+      result: 'invoice paid, DLC funding leg is valid'
+    },
+    timeout: {
+      label: 'Timeout refund',
+      branch: 'sender refunds after CLTV expiry',
+      witness: `height >= ${htlc.expiryHeight || 'expiry'}`,
+      result: 'DLC leg is not funded by this swap'
+    },
+    wrong_hash: {
+      label: 'Wrong preimage',
+      branch: 'hashlock rejects witness',
+      witness: 'sha256(preimage) != payment_hash',
+      result: 'no claim; funds wait for timeout path'
+    }
+  };
+  const mode = modes[state.swapMode] || modes.claim;
+  const nodes = [
+    ['Invoice hash', short(htlc.paymentHash)],
+    ['P2WSH HTLC', short(htlc.htlcAddress)],
+    [mode.label, mode.branch],
+    ['DLC funding gate', mode.result]
+  ];
+  $('swapStateMachine').innerHTML = `
+    <div class="segmented-controls">
+      ${Object.entries(modes).map(([key, item]) => `<button type="button" data-swap-mode="${key}" class="${key === state.swapMode ? 'active' : ''}">${item.label}</button>`).join('')}
+    </div>
+    <div class="mechanic-flow">
+      ${nodes.map(([label, value], index) => `
+        <div class="mechanic-node ${index === 2 ? 'selected' : ''}">
+          <span>${index + 1}</span>
+          <strong>${escapeHtml(label)}</strong>
+          <small>${escapeHtml(value)}</small>
+        </div>
+      `).join('')}
+    </div>
+    <div class="mechanic-readout">
+      ${[
+        detailRow('Funding txid', anchorTxidLink(htlc, 'inspect HTLC')),
+        detailRow('Witness condition', escapeHtml(mode.witness)),
+        detailRow('Selected branch', escapeHtml(mode.branch)),
+        detailRow('Outcome', escapeHtml(mode.result))
+      ].join('')}
+    </div>
+  `;
+  $('swapStateMachine').querySelectorAll('[data-swap-mode]').forEach(button => {
+    button.addEventListener('click', () => {
+      state.swapMode = button.dataset.swapMode;
+      render(state.dashboard, state.status, state.walletView, state.adapterFeed);
+    });
+  });
+}
+
+function renderDlcSettlement(walletView) {
+  if (!walletView) return;
+  const priceInput = $('dlcPrice');
+  if (document.activeElement !== priceInput) priceInput.value = state.dlcPrice;
+  const entryPrice = 85000;
+  const maturityPrice = Number(state.dlcPrice);
+  const collateralSats = Number(walletView.conversion.lnbtcSats);
+  const priceMove = (maturityPrice - entryPrice) / entryPrice;
+  const longShare = clamp(0.5 + priceMove * 1.6, 0.08, 0.92);
+  const longPayout = Math.round(collateralSats * longShare);
+  const shortPayout = Math.max(0, collateralSats - longPayout);
+  const tlusdMint = Math.round((shortPayout / 100000000) * maturityPrice * 1000000);
+  const cetLabel = maturityPrice >= entryPrice ? 'higher-price CET branch' : 'lower-price CET branch';
+  $('dlcPriceLabel').textContent = `$${maturityPrice.toLocaleString()}`;
+  $('dlcSettlementHeadline').textContent = tlusd(tlusdMint);
+  $('dlcSettlement').innerHTML = `
+    <div class="mechanic-flow settlement-flow">
+      ${[
+        ['Oracle price', `$${maturityPrice.toLocaleString()}`],
+        ['CET selected', cetLabel],
+        ['Short output', compactSats(shortPayout)],
+        ['TLUSD mint', tlusd(tlusdMint)]
+      ].map(([label, value], index) => `
+        <div class="mechanic-node ${index === 1 ? 'selected' : ''}">
+          <span>${index + 1}</span>
+          <strong>${escapeHtml(label)}</strong>
+          <small>${escapeHtml(value)}</small>
+        </div>
+      `).join('')}
+    </div>
+    <div class="metric-grid">
+      ${[
+        metric('Entry price', '$85,000', 'oracle baseline'),
+        metric('Long payout', compactSats(longPayout), `${Math.round(longShare * 100)}% of collateral`),
+        metric('Short payout', compactSats(shortPayout), 'backs synthetic USD leg'),
+        metric('TradeLayer tx', short(walletView.conversion.rfqQuoteId), 'hybrid/TAP continuity')
+      ].join('')}
+    </div>
+    <div class="script-template mechanic-code">
+      <code>price = oracle_attestation(BTCUSD)</code>
+      <code>selected_cet = bucket(price)</code>
+      <code>tlusd_mint = short_output_sats * price / 1e8</code>
+    </div>
+  `;
 }
 
 function renderLanes(dashboard) {
@@ -447,14 +559,18 @@ function renderLnCompatibility(walletView, dashboard) {
 
 function renderArkSavings(dashboard) {
   const feeRate = Number($('arkFeeRate').value);
-  const routes = Number(dashboard.totals.routeCount);
+  const routeInput = $('arkRouteCount');
+  const routes = Number(routeInput?.value || dashboard.totals.routeCount);
+  const batchSize = 64;
+  const batchCount = Math.ceil(routes / batchSize);
   const directVbytes = routes * 112;
-  const arkVbytes = Math.ceil(routes / 64) * 155 + Number(dashboard.totals.arkVtxoCount) * 3;
+  const arkVbytes = batchCount * 155 + Math.min(routes, Number(dashboard.totals.arkVtxoCount)) * 3;
   const directFee = directVbytes * feeRate;
   const arkFee = arkVbytes * feeRate;
   const savings = Math.max(0, directFee - arkFee);
   const breakeven = routes > 0 ? (arkVbytes / directVbytes) * feeRate : 0;
   $('arkFeeLabel').textContent = `${feeRate} sat/vB`;
+  $('arkRoutesLabel').textContent = `${routes.toLocaleString()} routes`;
   $('arkSavingsHeadline').textContent = compactSats(savings);
   $('arkSavingsPanel').innerHTML = [
     metric('Direct cost', compactSats(directFee), `${directVbytes.toLocaleString()} vB`),
@@ -462,7 +578,28 @@ function renderArkSavings(dashboard) {
     metric('Fee saved', compactSats(savings), `${Math.round((savings / directFee) * 100)}% lower`),
     metric('Breakeven', `${breakeven.toFixed(2)} sat/vB`, 'batch path ratio')
   ].join('');
-  return { feeRate, directFee, arkFee, savings };
+  $('arkBatchSimulator').innerHTML = `
+    <div class="ark-batch-strip">
+      <div><strong>${routes.toLocaleString()}</strong><span>direct refresh txs</span></div>
+      <div><strong>${batchCount.toLocaleString()}</strong><span>Ark batch roots</span></div>
+      <div><strong>${compactSats(Math.ceil(arkFee / Math.max(routes, 1)))}</strong><span>marginal fee per route</span></div>
+    </div>
+    <div class="mechanic-flow ark-flow">
+      ${[
+        ['Route leases', `${routes.toLocaleString()} commitments`],
+        ['VTXO leaves', `${batchSize} per batch`],
+        ['Batch root', `${batchCount.toLocaleString()} anchors`],
+        ['BitVM guard', 'slash if under-delivered']
+      ].map(([label, value], index) => `
+        <div class="mechanic-node ${index === 2 ? 'selected' : ''}">
+          <span>${index + 1}</span>
+          <strong>${escapeHtml(label)}</strong>
+          <small>${escapeHtml(value)}</small>
+        </div>
+      `).join('')}
+    </div>
+  `;
+  return { feeRate, routes, batchCount, directFee, arkFee, savings };
 }
 
 function renderBitvmUnpack(circuit, selectedGate) {
@@ -854,6 +991,8 @@ function renderTable(dashboard) {
 function render(dashboard, status, walletView, adapterFeed) {
   renderNetworkMap(dashboard, status, walletView, adapterFeed);
   renderGuidedDemo(dashboard);
+  renderSwapStateMachine(walletView);
+  renderDlcSettlement(walletView);
   renderBitcoinTestnetProof(state.testnetProof || adapterFeed?.testnetProof);
   renderUseCases(walletView, state.testnetProof || adapterFeed?.testnetProof);
   renderPureBtcRouteDemo(walletView);
@@ -951,6 +1090,13 @@ $('demoNext').addEventListener('click', () => {
   if (state.dashboard) render(state.dashboard, state.status, state.walletView, state.adapterFeed);
 });
 $('arkFeeRate').addEventListener('input', () => {
+  if (state.dashboard) render(state.dashboard, state.status, state.walletView, state.adapterFeed);
+});
+$('arkRouteCount').addEventListener('input', () => {
+  if (state.dashboard) render(state.dashboard, state.status, state.walletView, state.adapterFeed);
+});
+$('dlcPrice').addEventListener('input', () => {
+  state.dlcPrice = Number($('dlcPrice').value);
   if (state.dashboard) render(state.dashboard, state.status, state.walletView, state.adapterFeed);
 });
 $('assetMode').addEventListener('change', () => {

@@ -61,8 +61,15 @@ async function main() {
     assertMount(html, 'demoSteps');
     assertMount(html, 'demoNext');
     assertMount(html, 'demoPrev');
+    assertMount(html, 'swapStateMachine');
+    assertMount(html, 'dlcPrice');
+    assertMount(html, 'dlcSettlement');
     assert.match(script, /demoFlow/, 'missing guided demo flow');
     assert.match(script, /Subswap funds DLC/, 'missing funding guided step');
+    assert.match(script, /renderSwapStateMachine/, 'missing submarine swap state renderer');
+    assert.match(script, /renderDlcSettlement/, 'missing DLC settlement renderer');
+    assert.match(script, /wrong_hash/, 'missing HTLC wrong-hash branch');
+    assert.match(script, /selected_cet = bucket\(price\)/, 'missing DLC pseudocode');
   });
 
   runPanel('Separated Use Cases', () => {
@@ -133,11 +140,15 @@ async function main() {
 
   runPanel('Ark Batch Savings', () => {
     assertMount(html, 'arkFeeRate');
+    assertMount(html, 'arkRouteCount');
     assertMount(html, 'arkSavingsPanel');
     assertMount(html, 'arkSavingsHeadline');
+    assertMount(html, 'arkBatchSimulator');
     assertPositive(dashboard.totals.routeCount, 'route count');
     assertPositive(dashboard.totals.arkVtxoCount, 'ark vtxo count');
     assertPositive(dashboard.totals.arkSavingsSats, 'modeled ark savings');
+    assert.match(script, /Batch root/, 'missing Ark batch flow');
+    assert.match(script, /marginal fee per route/, 'missing Ark marginal fee readout');
   });
 
   runPanel('BitVM Enforcement', () => {
