@@ -323,31 +323,58 @@ function buildWalletView() {
       ]
     },
     vwapStateOracle: {
-      summaryCommitmentId: '5a532a19367110338214e927f54772ab0082f2aa17e9b81218ebc0e9b2484125',
-      payloadText: 'tlvwap1:1:2udu-2ueo:5a532a19367110338214e927f54772ab',
-      publishTxid: '9dd623bde3ac48574fb9c7a352bde9c7e5f8fc5c81652f5cc5cdaaf16cef088a',
+      summaryCommitmentId: 'ee65f9f1d5af162564a5822b3c6deedbda710c5b5169e2ec725022fccc7be664',
+      payloadText: 'tle1,b,2,2uh9,2uhl,ee65f9f1d5af162564a5822b3c6deedb,vwap9424',
+      payloadHex: '746c65312c622c322c327568392c3275686c2c65653635663966316435616631363235363461353832326233633664656564622c7677617039343234',
+      publishTxid: '2f034a7e08ad1466b787e1f78cbb3f07566b36ed0cce95e1f1a30da82330d77f',
+      publishExplorer: 'https://mempool.space/testnet4/tx/2f034a7e08ad1466b787e1f78cbb3f07566b36ed0cce95e1f1a30da82330d77f',
+      sourceStablecoinMintTxids: [
+        'a0a6fe2aff079cba775975aea0d4e9c42279d1705534d5e75f23909e07088279',
+        'afeb8b6add09477531c4a9dbc295d623f157448cc8ee38506ddd0029c47902cb',
+        'a23928bbc316027ee5d61c24f510ff267d75c31f7c28c6225eb362d53dc85731'
+      ],
       summaryCore: {
         pair: 'BTCUSD',
         baseTokenId: 'tlBTC',
+        basePropertyId: 1,
         quoteTokenId: 'tlUSD',
-        windowStartHeight: 132690,
-        windowEndHeight: 132720,
-        stateSnapshotRoot: '07dd70d83744e81b2ff04b3c927c4016f72d344e410626ab63777f349820f405',
-        tlbtcBalanceRoot: '3dedc13b7666e5a3e9a0b677127683a556e9ae49651bd7d6a1364eecb3386c0f',
-        tlusdBalanceRoot: 'd8dadccbafcfb4e450859bdd7e3ae48bff2edc52a60a8febbb51d5f6e72d0a30',
-        validTradeSetRoot: 'c1149b0435f51d60f6239318a768a6017458211e040ad2e9f4dd3613538490d1',
+        quotePropertyId: 2,
+        windowStartHeight: 132813,
+        windowEndHeight: 132825,
+        stateSnapshotRoot: '83148f5f9934fd114e2c783bca149cb58e01e3131a6b3076f29c3e4ebe20b84c',
+        tlbtcBalanceRoot: 'c0fcf5453cc0272dfd23d828f55af2dd54dc9679eb71db5759de8312eb359892',
+        tlusdBalanceRoot: '5dabdad7911a8a79f83d91e2fe18c1279796fdab43c92d71f91a7393754717eb',
+        validTradeSetRoot: 'b79e06eb3a152010b3d614f1f0b508e3ce4e3ff9a265c825bd3dad2b03db43b3',
         validTradeCount: 3,
         totalBaseAmountSats: '10000000',
         totalQuoteAmountMicrousd: '6502000000',
         vwapPrice: '65020',
         vwapScaledPrice: '650200000',
         maxDeviationBps: 500,
-        priceDeviationBps: 159
+        priceDeviationBps: 3
       },
       validTrades: [
-        { txid: '17c9696dac26db5a792cb29535021bed4819e2311e72eba17a2c5add6998ff6a', baseAmountSats: '2000000', impliedPrice: '64900' },
-        { txid: 'c2ad12b66809703c4a1585f1cdae8e9064ab800655de6e82393c820b89ce13fb', baseAmountSats: '3000000', impliedPrice: '65000' },
-        { txid: 'e63c707aaacf51de1be273bfd96e1502a71c33ed44e693fc339af905152c7192', baseAmountSats: '5000000', impliedPrice: '65080' }
+        {
+          txid: '87a28c1b30624f07aeb26f8775763851ecea487e9e43362de32f16a7ec3c7295',
+          counterTxid: 'ebf8da435cd4acdb711b5cd391645371dbb76b6ed6f79cb6e077e5fb74d76dfe',
+          baseAmountSats: '2000000',
+          quoteAmountMicrousd: '1298000000',
+          impliedPrice: '64900'
+        },
+        {
+          txid: '858bb7de792a64408dd352d32832d72484ea6e3d4d29c6ec7d6515b57d4e5bca',
+          counterTxid: '5a2b5a6c8550125accbaa5233b8b172e4bfdc65a06985782ec9b46db93466fa0',
+          baseAmountSats: '3000000',
+          quoteAmountMicrousd: '1950000000',
+          impliedPrice: '65000'
+        },
+        {
+          txid: '728552b548eb45c710c258ff95e8eb6e196e00bf343e5bccff0ef2e732906d9f',
+          counterTxid: 'e7b93a172808d3fcaa1fd7e1735ab962f6e16ac912cc31e6bec6b75aa4dba554',
+          baseAmountSats: '5000000',
+          quoteAmountMicrousd: '3254000000',
+          impliedPrice: '65080'
+        }
       ],
       solvencyGuard: {
         withinBand: true,

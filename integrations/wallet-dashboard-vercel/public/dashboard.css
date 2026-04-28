@@ -1056,6 +1056,19 @@ th {
   color: var(--blue);
 }
 
+.txid-stack {
+  display: grid;
+  gap: 6px;
+  justify-items: end;
+}
+
+.txid-stack > span {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
 .txid-card {
   display: block;
   border: 1px solid var(--line);

@@ -6,10 +6,10 @@ const feed = buildAdapterFeed();
 assert.equal(feed.kind, 'utxoref_layer_adapter_feed');
 assert.equal(feed.verification.ok, true);
 assert.equal(feed.verification.adaptersCovered, 4);
-assert.equal(feed.verification.bitcoinTestnetTxids, 12);
+assert.equal(feed.verification.bitcoinTestnetTxids, 20);
 assert.ok(feed.events.length >= 12);
 assert.equal(feed.testnetProof.network, 'testnet4');
-assert.equal(feed.testnetProof.summary.txCount, 12);
+assert.equal(feed.testnetProof.summary.txCount, 20);
 assert.equal(feed.testnetProof.summary.offchainCount, 2);
 
 for (const key of ['ldk', 'ark', 'taprootAssets', 'tradeLayer']) {

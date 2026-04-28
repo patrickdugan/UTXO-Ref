@@ -55,6 +55,11 @@ function anchorTxidLink(step, label = null) {
   return `<a class="txid-link" href="${explorer}" target="_blank" rel="noreferrer" title="${txid}">${text}<code>${short(txid)}</code></a>`;
 }
 
+function directTxidLink(txid, label = 'inspect') {
+  if (!txid) return 'n/a';
+  return `<a class="txid-link" href="https://mempool.space/testnet4/tx/${txid}" target="_blank" rel="noreferrer" title="${txid}">${label}<code>${short(txid)}</code></a>`;
+}
+
 function detailRow(label, value) {
   return `<div class="detail-row"><span>${label}</span><strong>${value ?? 'n/a'}</strong></div>`;
 }
@@ -477,6 +482,9 @@ function renderTradeLayerOracleDlc(walletView) {
   const triggerLink = txidLink(demo.trigger, 'inspect tx14');
   const vwap = demo.vwapStateOracle;
   const vwapChallenge = demo.vwapChallenge;
+  const vwapTradeLinks = (vwap?.validTrades || [])
+    .map(trade => `<span>${escapeHtml(trade.impliedPrice)} ${directTxidLink(trade.txid, 'base')} ${directTxidLink(trade.counterTxid, 'quote')}</span>`)
+    .join('');
   const flowNotes = [
     demo.trigger.payloadText,
     'publisher address proof',
@@ -524,9 +532,11 @@ function renderTradeLayerOracleDlc(walletView) {
       <div class="oracle-readout">
         ${[
           detailRow('Summary id', `<code>${short(vwap.summaryCommitmentId)}</code>`),
+          detailRow('Summary txid', directTxidLink(vwap.publishTxid, 'inspect tx14')),
           detailRow('Window', `${vwap.summaryCore.windowStartHeight} - ${vwap.summaryCore.windowEndHeight}`),
           detailRow('State root', `<code>${short(vwap.summaryCore.stateSnapshotRoot)}</code>`),
           detailRow('Valid trade root', `<code>${short(vwap.summaryCore.validTradeSetRoot)}</code>`),
+          detailRow('Trade txids', `<span class="txid-stack">${vwapTradeLinks}</span>`),
           detailRow('Volume', `${compactSats(vwap.summaryCore.totalBaseAmountSats)} ${escapeHtml(vwap.summaryCore.baseTokenId)}`),
           detailRow('Quote notional', `$${(Number(vwap.summaryCore.totalQuoteAmountMicrousd) / 1000000).toLocaleString()}`),
           detailRow('VWAP mark', `${escapeHtml(vwap.summaryCore.pair)} ${escapeHtml(vwap.summaryCore.vwapPrice)}`),

@@ -5,14 +5,16 @@ const proof = buildBitcoinTestnetProof();
 
 assert.equal(proof.kind, 'bitcoin_testnet4_cross_domain_proof');
 assert.equal(proof.network, 'testnet4');
-assert.equal(proof.summary.stepCount, 14);
-assert.equal(proof.summary.txCount, 12);
+assert.equal(proof.summary.stepCount, 22);
+assert.equal(proof.summary.txCount, 20);
 assert.equal(proof.summary.offchainCount, 2);
 assert.match(proof.summary.firstTxid, /^[0-9a-f]{64}$/);
 assert.match(proof.summary.entryTxid, /^[0-9a-f]{64}$/);
 assert.match(proof.summary.finalTxid, /^[0-9a-f]{64}$/);
 assert.equal(proof.summary.showcaseKind, 'bitvm-router-circuit');
 assert.equal(proof.summary.showcaseAnchorTxid, proof.keyTxids.tapAsset.txid);
+assert.equal(proof.keyTxids.vwapTradePrints.length, 6);
+assert.equal(proof.keyTxids.vwapStateOracle.txid, '2f034a7e08ad1466b787e1f78cbb3f07566b36ed0cce95e1f1a30da82330d77f');
 assert.equal(proof.submarineSwapHtlc.txid, proof.summary.entryTxid);
 assert.equal(proof.submarineSwapHtlc.supersedesMarkerTxid, '58ff891cf904aaa6b85f8f34e20637d8b6ef7fbc7baa2cfeff41fd9bf6481d7f');
 assert.match(proof.submarineSwapHtlc.redeemScriptAsm, /OP_CHECKLOCKTIMEVERIFY/);
@@ -34,7 +36,7 @@ for (const step of proof.steps) {
 assert.equal(findProofStep('plain-liquidity-graft').proofKind, 'ln-route-commitment');
 assert.equal(findProofStep('ark-liquidity-graft').proofKind, 'ark-vtxo-commitment');
 
-for (const label of ['subswap-dlc-funding', 'fund-counterparty-address', 'mint-tlbtc-counterparty-dlc', 'short-mints-tlusd', 'plain-liquidity-graft', 'make-tap-asset-tlusd', 'ark-liquidity-graft']) {
+for (const label of ['subswap-dlc-funding', 'fund-counterparty-address', 'mint-tlbtc-counterparty-dlc', 'short-mints-tlusd', 'mint-vwap-tlusd-liquidity', 'vwap-sell-tlbtc-64900', 'publish-vwap-state-oracle', 'plain-liquidity-graft', 'make-tap-asset-tlusd', 'ark-liquidity-graft']) {
   assert.equal(findProofStep(label).label, label);
 }
 

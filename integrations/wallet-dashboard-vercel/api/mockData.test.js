@@ -7,7 +7,7 @@ const dashboard = buildStressDashboard({ botCount: 5000 });
 
 assert.strictEqual(status.ok, true);
 assert.strictEqual(status.readiness.walletViewReady, true);
-assert.strictEqual(status.artifacts.bitcoinTestnetProof.txCount, 12);
+assert.strictEqual(status.artifacts.bitcoinTestnetProof.txCount, 20);
 assert.strictEqual(walletView.conversion.lnbtcSats, 49000);
 assert.strictEqual(walletView.pureBtcRouteDemo.id, 'demo-3-pure-btc-bitvm-ln');
 assert.strictEqual(walletView.pureBtcRouteDemo.stages.length, 3);
@@ -40,6 +40,7 @@ assert.ok(
 assert.strictEqual(walletView.tradeLayerOracleDlc.vwapStateOracle.summaryCore.vwapPrice, '65020');
 assert.strictEqual(walletView.tradeLayerOracleDlc.vwapStateOracle.summaryCore.validTradeCount, 3);
 assert.strictEqual(walletView.tradeLayerOracleDlc.vwapStateOracle.solvencyGuard.withinBand, true);
+assert.strictEqual(walletView.tradeLayerOracleDlc.vwapStateOracle.publishTxid, '2f034a7e08ad1466b787e1f78cbb3f07566b36ed0cce95e1f1a30da82330d77f');
 assert.strictEqual(walletView.tradeLayerOracleDlc.vwapChallenge.totalGates, 1056);
 assert.strictEqual(walletView.tradeLayerOracleDlc.vwapChallenge.challengeViolation, 'bad_vwap_arithmetic');
 assert.strictEqual(walletView.tradeLayerOracleDlc.settlement.settlementRail, 'lightning');

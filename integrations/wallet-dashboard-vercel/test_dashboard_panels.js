@@ -106,7 +106,7 @@ async function main() {
 
   runPanel('Bitcoin Testnet Proofs', () => {
     assert.equal(testnetProof.network, 'testnet4');
-    assert.equal(testnetProof.summary.txCount, 12);
+    assert.equal(testnetProof.summary.txCount, 20);
     assert.equal(testnetProof.summary.offchainCount, 2);
     assert.equal(testnetProof.submarineSwapHtlc.txid, testnetProof.summary.entryTxid);
     assert.match(testnetProof.submarineSwapHtlc.redeemScriptAsm, /OP_CHECKLOCKTIMEVERIFY/);
