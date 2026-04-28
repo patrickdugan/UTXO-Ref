@@ -55,6 +55,7 @@ const lightningArkLiquidityGraft = require('./lightning_ark_liquidity_graft');
 const arkDlcSettlement = require('./ark_dlc_settlement');
 const arkLiquidityGraftManager = require('./ark_liquidity_graft_manager');
 const lnbtcTlusdLiquidityPatch = require('./lnbtc_tlusd_liquidity_patch');
+const lightningTradeLayerOracleDlc = require('./lightning_tradelayer_oracle_dlc');
 
 module.exports = {
   // Types
@@ -194,6 +195,17 @@ module.exports = {
   buildLiquidityPatchMandate: lnbtcTlusdLiquidityPatch.buildLiquidityPatchMandate,
   buildLnBtcTlUsdLiquidityPatchBundle: lnbtcTlusdLiquidityPatch.buildLnBtcTlUsdLiquidityPatchBundle,
   verifyLnBtcTlUsdLiquidityPatchBundle: lnbtcTlusdLiquidityPatch.verifyLnBtcTlUsdLiquidityPatchBundle,
+  encodeTradeLayerPublishOracleData: lightningTradeLayerOracleDlc.encodeTradeLayerPublishOracleData,
+  decodeTradeLayerPublishOracleData: lightningTradeLayerOracleDlc.decodeTradeLayerPublishOracleData,
+  buildTradeLayerOracleOpReturnScriptHex: lightningTradeLayerOracleDlc.buildOpReturnScriptHex,
+  buildTradeLayerPricePublishTrigger: lightningTradeLayerOracleDlc.buildTradeLayerPricePublishTrigger,
+  buildBilateralLnDlcContract: lightningTradeLayerOracleDlc.buildBilateralLnDlcContract,
+  selectTradeLayerOracleDlcOutcomeForPrice: lightningTradeLayerOracleDlc.selectOutcomeForPrice,
+  buildBitvmTradeLayerOracleDlcOrganizer: lightningTradeLayerOracleDlc.buildBitvmOrganizer,
+  buildLnTradeLayerOracleDlcSettlement: lightningTradeLayerOracleDlc.buildLnDlcSettlement,
+  buildBitvmTradeLayerOracleDlcChallenge: lightningTradeLayerOracleDlc.buildBitvmDlcChallenge,
+  buildLightningTradeLayerOracleDlcBundle: lightningTradeLayerOracleDlc.buildLightningTradeLayerOracleDlcBundle,
+  verifyLightningTradeLayerOracleDlcBundle: lightningTradeLayerOracleDlc.verifyLightningTradeLayerOracleDlcBundle,
   resolvePipelineOptions: m1Pipeline.resolvePipelineOptions,
   buildPipelinePlan: m1Pipeline.buildPipelinePlan,
   buildPipelineSummary: m1Pipeline.buildPipelineSummary,
@@ -227,5 +239,6 @@ module.exports = {
   lightningArkLiquidityGraft,
   arkDlcSettlement,
   arkLiquidityGraftManager,
-  lnbtcTlusdLiquidityPatch
+  lnbtcTlusdLiquidityPatch,
+  lightningTradeLayerOracleDlc
 };

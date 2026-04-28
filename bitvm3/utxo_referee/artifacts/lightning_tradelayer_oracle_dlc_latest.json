@@ -1,0 +1,277 @@
+{
+  "kind": "lightning_tradelayer_oracle_dlc_bundle",
+  "bundleId": "16184ea4faa9da25e46ad13a6083a7ccf7b6a376016ad4e74a23655ea6c5047f",
+  "bundleCore": {
+    "contractCommitmentId": "905637f8f1bd18f4da98db61894e7808aceb26b685f2e50c331dcc5aa2d2f1cb",
+    "triggerId": "71b9aa36250dfd2f0e06d652967701aa43f2a3ef2750934e62a84cf54e0ea677",
+    "organizerId": "4bdfa8090bbbadfcd1758fffb3808eee31b5d470f585f08462640f0afcb05c14",
+    "settlementId": "b88b2536e2d098f79c6ac6acd47701c47bf239866e333b3bf6d7d7224da452bf",
+    "challengeId": "5d5e7fc8ca6c4c985b41674037d4acd3bc6d2433e38e6a7cdeee287c3a6407d3"
+  },
+  "contract": {
+    "kind": "lightning_bilateral_dlc_contract",
+    "contractCommitmentId": "905637f8f1bd18f4da98db61894e7808aceb26b685f2e50c331dcc5aa2d2f1cb",
+    "contractCore": {
+      "version": 1,
+      "protocol": "lightning_bilateral_dlc_tradelayer_oracle_trigger",
+      "contractId": "ln-tl-oracle-dlc-1",
+      "network": "bitcoin-testnet4",
+      "pair": "BTCUSD",
+      "oracleId": 1,
+      "entryPrice": "65000",
+      "entryPriceScaled": "650000000",
+      "longParty": {
+        "name": "alice-long",
+        "nodeId": "alice-long-ln-node",
+        "payoutNodeId": "alice-long-ln-node",
+        "collateralSats": "50000"
+      },
+      "shortParty": {
+        "name": "bob-short",
+        "nodeId": "bob-short-ln-node",
+        "payoutNodeId": "bob-short-ln-node",
+        "collateralSats": "50000"
+      },
+      "totalCollateralSats": "100000",
+      "outcomesRoot": "bea7c5484aa69b560940bfe03d1302e84591d91e9a439221c2c81c8d73568dc4",
+      "tapAssetsUsed": false,
+      "settlementAsset": "btc-only"
+    },
+    "outcomes": [
+      {
+        "outcomeId": "price_below_entry",
+        "minScaledPrice": null,
+        "maxScaledPrice": "649999999",
+        "longPayoutSats": "30000",
+        "shortPayoutSats": "70000"
+      },
+      {
+        "outcomeId": "price_at_entry",
+        "minScaledPrice": "650000000",
+        "maxScaledPrice": "650000000",
+        "longPayoutSats": "50000",
+        "shortPayoutSats": "50000"
+      },
+      {
+        "outcomeId": "price_above_entry",
+        "minScaledPrice": "650000001",
+        "maxScaledPrice": null,
+        "longPayoutSats": "70000",
+        "shortPayoutSats": "30000"
+      }
+    ],
+    "lightningFunding": {
+      "mode": "bilateral-ln-hold-invoices",
+      "receipts": [
+        {
+          "role": "long-collateral",
+          "party": "alice-long",
+          "nodeId": "alice-long-ln-node",
+          "amountSats": "50000",
+          "amountMsat": "50000000",
+          "invoice": "lnbc50000n1p2525b5e1f06e4f31c552150e52f5b7dc",
+          "paymentHashHex": "07940d7f3b9b1ff4577e40e8d33791214e75417195d88e00e5f9198b93d0fbc9",
+          "preimageHex": "47261581f74a7776d2c87d0343b6e4fbf22951f60bf5a94afb55a7749d9425ae",
+          "holdCondition": "release only after both collateral receipts and DLC contract root are committed"
+        },
+        {
+          "role": "short-collateral",
+          "party": "bob-short",
+          "nodeId": "bob-short-ln-node",
+          "amountSats": "50000",
+          "amountMsat": "50000000",
+          "invoice": "lnbc50000n1p86f57f9c68517c5c5b27d7b41c2bb2e7",
+          "paymentHashHex": "e181a821da76afe10a48d6445af4cc64f9b8709f185c4410ccb1e706da6b9684",
+          "preimageHex": "f7db95f0a16bac1a069c945716d7f1fffefd8994c1a9ccf0f1516c4ee565d4f2",
+          "holdCondition": "release only after both collateral receipts and DLC contract root are committed"
+        }
+      ],
+      "fundingRoot": "7e9b63062e73484d3da2c82a707e1cb5ce5d1bc4759c77ea506072bfbdecd868"
+    }
+  },
+  "trigger": {
+    "kind": "tradelayer_tx14_price_publish_trigger",
+    "triggerId": "71b9aa36250dfd2f0e06d652967701aa43f2a3ef2750934e62a84cf54e0ea677",
+    "txType": 14,
+    "oracleId": 1,
+    "pair": "BTCUSD",
+    "price": "65000",
+    "scaledPrice": "650000000",
+    "payloadText": "tle1,aqzr7k",
+    "payloadHex": "746c65312c61717a72376b",
+    "payloadBytes": 11,
+    "payloadHash": "b64eccb31fc947e29aff0f6f826891b6ac21d80eef2be50340260d87639fefd3",
+    "opReturnScriptHex": "6a0b746c65312c61717a72376b",
+    "publishTxid": "22accff5ad661d6bc9fcf8d972ef822305965da866f597dade40ac322124fd63",
+    "blockHeight": 132846,
+    "maturityHeight": 132847,
+    "proofShape": {
+      "txid": "22accff5ad661d6bc9fcf8d972ef822305965da866f597dade40ac322124fd63",
+      "opReturnOutputIndex": 0,
+      "requiredPayloadHash": "b64eccb31fc947e29aff0f6f826891b6ac21d80eef2be50340260d87639fefd3",
+      "requiredScriptHex": "6a0b746c65312c61717a72376b",
+      "inclusion": "witness supplies raw tx, output index, block header, and merkle branch"
+    }
+  },
+  "bitvmOrganizer": {
+    "kind": "bitvm_organized_ln_dlc_oracle_trigger",
+    "organizerId": "4bdfa8090bbbadfcd1758fffb3808eee31b5d470f585f08462640f0afcb05c14",
+    "rootCore": {
+      "contractCommitmentId": "905637f8f1bd18f4da98db61894e7808aceb26b685f2e50c331dcc5aa2d2f1cb",
+      "outcomesRoot": "bea7c5484aa69b560940bfe03d1302e84591d91e9a439221c2c81c8d73568dc4",
+      "triggerPayloadHash": "b64eccb31fc947e29aff0f6f826891b6ac21d80eef2be50340260d87639fefd3",
+      "publishTxid": "22accff5ad661d6bc9fcf8d972ef822305965da866f597dade40ac322124fd63",
+      "selectedOutcomeId": "price_at_entry",
+      "lightningFundingRoot": "7e9b63062e73484d3da2c82a707e1cb5ce5d1bc4759c77ea506072bfbdecd868"
+    },
+    "publicInputs": [
+      "contract_commitment_id",
+      "tradelayer_publish_txid",
+      "tradelayer_payload_hash",
+      "oracle_id",
+      "selected_outcome_id",
+      "ln_funding_root"
+    ],
+    "witnessInputs": [
+      "raw_publish_tx",
+      "op_return_output_index",
+      "block_header",
+      "tx_merkle_branch",
+      "ln_collateral_receipts",
+      "ln_payout_preimages"
+    ],
+    "gateCounts": [
+      {
+        "family": "OP_RETURN payload hash",
+        "count": 96,
+        "checks": "sha256(payloadText) == tradelayer_payload_hash"
+      },
+      {
+        "family": "TradeLayer tx14 parser",
+        "count": 80,
+        "checks": "payload starts with tle and oracle id matches"
+      },
+      {
+        "family": "Tx inclusion proof",
+        "count": 144,
+        "checks": "publish txid is committed by block merkle root"
+      },
+      {
+        "family": "Price bucket comparator",
+        "count": 128,
+        "checks": "scaled price selects exactly one outcome"
+      },
+      {
+        "family": "Bilateral payout sum",
+        "count": 72,
+        "checks": "long payout + short payout == collateral"
+      },
+      {
+        "family": "LN receipt binding",
+        "count": 96,
+        "checks": "collateral and payout payment hashes match preimages"
+      },
+      {
+        "family": "Challenge mux",
+        "count": 64,
+        "checks": "cooperative LN payout or slash wrong trigger/CET"
+      }
+    ],
+    "scriptTemplate": [
+      "<tl_payload_hash> OP_EQUALVERIFY",
+      "<oracle_id> <contract_oracle_id> OP_EQUALVERIFY",
+      "<selected_price_bucket> <selected_cet_bucket> OP_EQUALVERIFY",
+      "<long_payout_sats> <short_payout_sats> OP_ADD <total_collateral_sats> OP_EQUALVERIFY",
+      "OP_IF <cooperative_ln_payout_key> OP_CHECKSIG",
+      "OP_ELSE <bitvm_challenge_key> OP_CHECKSIG OP_ENDIF"
+    ],
+    "note": "Bitcoin Script is not parsing another transaction directly; the BitVM transcript verifies the raw tx/output/merkle witness against the committed TradeLayer OP_RETURN payload."
+  },
+  "settlement": {
+    "kind": "lightning_bilateral_dlc_settlement",
+    "settlementId": "b88b2536e2d098f79c6ac6acd47701c47bf239866e333b3bf6d7d7224da452bf",
+    "settlementCore": {
+      "version": 1,
+      "protocol": "lightning_bilateral_dlc_settlement",
+      "contractCommitmentId": "905637f8f1bd18f4da98db61894e7808aceb26b685f2e50c331dcc5aa2d2f1cb",
+      "organizerId": "4bdfa8090bbbadfcd1758fffb3808eee31b5d470f585f08462640f0afcb05c14",
+      "triggerId": "71b9aa36250dfd2f0e06d652967701aa43f2a3ef2750934e62a84cf54e0ea677",
+      "publishTxid": "22accff5ad661d6bc9fcf8d972ef822305965da866f597dade40ac322124fd63",
+      "payloadHash": "b64eccb31fc947e29aff0f6f826891b6ac21d80eef2be50340260d87639fefd3",
+      "selectedOutcomeId": "price_at_entry",
+      "price": "65000",
+      "scaledPrice": "650000000",
+      "longPayoutSats": "50000",
+      "shortPayoutSats": "50000",
+      "settlementRail": "lightning",
+      "tapAssetsUsed": false
+    },
+    "selectedOutcome": {
+      "outcomeId": "price_at_entry",
+      "minScaledPrice": "650000000",
+      "maxScaledPrice": "650000000",
+      "longPayoutSats": "50000",
+      "shortPayoutSats": "50000"
+    },
+    "payoutReceipts": [
+      {
+        "role": "long-payout",
+        "party": "alice-long",
+        "nodeId": "alice-long-ln-node",
+        "amountSats": "50000",
+        "amountMsat": "50000000",
+        "paymentHashHex": "c23767a79d6d0b1e6f7d49f331a3fdfd1a020ce289295e66bef3b3140d79abe0",
+        "preimageHex": "335ece5248dbf94d5107bd48d3384d24d872169d5b6a9e0634c1ed0c459447aa",
+        "receiptHash": "72ae6422462203bf3a2ae4853421f387428b8a24f7475dfe3b35ea9decd8b4ee"
+      },
+      {
+        "role": "short-payout",
+        "party": "bob-short",
+        "nodeId": "bob-short-ln-node",
+        "amountSats": "50000",
+        "amountMsat": "50000000",
+        "paymentHashHex": "8a869dd04ebe556c50fee30d821a2f9701fcdb23edea93e7ab8e9f101ee83cb2",
+        "preimageHex": "d655e9323a8d3ff970eda3a169c8b2c0d0700b64e2e89e772e13c5bbd0e3c193",
+        "receiptHash": "b66c93256bd0f2f601217d1eeda23828479dfb76a621df0aeab3e9d44501dc71"
+      }
+    ],
+    "checks": {
+      "triggerPayloadMatchesTradeLayerTx14": true,
+      "triggerOracleMatchesContract": true,
+      "selectedOutcomeCoversPrice": true,
+      "payoutSumPreservesCollateral": true,
+      "lightningPayoutReceiptsMatch": true,
+      "noTapAssetPath": true
+    }
+  },
+  "challenge": {
+    "kind": "bitvm_ln_dlc_tradelayer_trigger_challenge",
+    "challengeId": "5d5e7fc8ca6c4c985b41674037d4acd3bc6d2433e38e6a7cdeee287c3a6407d3",
+    "challengeCore": {
+      "protocol": "bitvm_ln_dlc_tradelayer_trigger_challenge",
+      "contractCommitmentId": "905637f8f1bd18f4da98db61894e7808aceb26b685f2e50c331dcc5aa2d2f1cb",
+      "settlementId": "b88b2536e2d098f79c6ac6acd47701c47bf239866e333b3bf6d7d7224da452bf",
+      "triggerId": "71b9aa36250dfd2f0e06d652967701aa43f2a3ef2750934e62a84cf54e0ea677",
+      "oraclePublishTxid": "22accff5ad661d6bc9fcf8d972ef822305965da866f597dade40ac322124fd63",
+      "expectedPayloadHash": "b64eccb31fc947e29aff0f6f826891b6ac21d80eef2be50340260d87639fefd3",
+      "claimedPayloadHash": "b64eccb31fc947e29aff0f6f826891b6ac21d80eef2be50340260d87639fefd3",
+      "expectedOutcomeId": "price_at_entry",
+      "claimedOutcomeId": "price_above_entry",
+      "staleHeight": null,
+      "violations": [
+        "wrong_cet_for_published_price"
+      ]
+    },
+    "slashable": true,
+    "remedy": "BitVM challenge proves the TradeLayer OP_RETURN trigger selects a different DLC outcome, then routes to refund/slash."
+  },
+  "thesis": "A bilateral BTC-only DLC can settle over Lightning while a TradeLayer tx14 OP_RETURN price publication is the oracle trigger and BitVM organizes disputes over wrong payloads, stale proofs, or wrong CET selection.",
+  "caveats": [
+    "Prototype invoices and receipts are deterministic; production needs real LDK/LND/CLN payment handling.",
+    "The TradeLayer OP_RETURN is a trigger witness. Bitcoin Script cannot directly inspect arbitrary historical transactions without a supplied BitVM transcript proof.",
+    "No TAP asset state is used; payouts and collateral are BTC-denominated Lightning receipts with fallback/challenge paths."
+  ],
+  "verification": {
+    "ok": true
+  }
+}

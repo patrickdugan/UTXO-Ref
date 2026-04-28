@@ -658,6 +658,17 @@ This writes:
 - `bitvm3/utxo_referee/artifacts/lightning_liquidity_lease_latest.json`
 - `bitvm3/utxo_referee/artifacts/lightning_liquidity_lease_latest.md`
 
+To generate a BTC-only bilateral Lightning DLC where a TradeLayer tx14
+OP_RETURN oracle-price publication is the trigger, run:
+
+```bash
+node bitvm3/utxo_referee/lightning_tradelayer_oracle_dlc_demo.js
+```
+
+This writes:
+- `bitvm3/utxo_referee/artifacts/lightning_tradelayer_oracle_dlc_latest.json`
+- `bitvm3/utxo_referee/artifacts/lightning_tradelayer_oracle_dlc_latest.md`
+
 To generate integration artifacts for LDK Server and ZEUS-style wallet demos,
 run:
 
