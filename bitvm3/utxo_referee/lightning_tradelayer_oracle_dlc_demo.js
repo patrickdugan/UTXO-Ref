@@ -38,7 +38,7 @@ function buildMarkdownReport(bundle, verification) {
     '- Bilateral DLC collateral is BTC-only and funded by Lightning hold-invoice receipts.',
     '- No TAP asset path is present.',
     '- TradeLayer tx14 OP_RETURN price publication is the oracle trigger.',
-    '- BitVM organizes the dispute path over payload inclusion, price bucket selection, and wrong-CET claims.',
+    '- BitVM organizes the dispute path over payload inclusion, designated oracle provenance, the 5% solvency band, price bucket selection, and wrong-CET claims.',
     '',
     '## TradeLayer Trigger',
     '',
@@ -47,10 +47,15 @@ function buildMarkdownReport(bundle, verification) {
     `- OP_RETURN script: \`${trigger.opReturnScriptHex}\``,
     `- Oracle id: \`${trigger.oracleId}\``,
     `- Pair/price: \`${trigger.pair} ${trigger.price}\``,
+    `- Designated publisher: \`${trigger.designatedOracleAddress}\``,
+    `- Previous accepted mark: \`${trigger.lastAcceptedPrice}\``,
+    `- Max deviation: ${trigger.maxDeviationBps} bps`,
+    `- Observed deviation: ${trigger.priceDeviationBps} bps (${trigger.solvencyGuard.withinBand ? 'inside band' : 'outside band'})`,
     '',
     '## Contract',
     '',
     `- Contract: \`${contract.contractId}\``,
+    `- Oracle policy: designated address hash \`${contract.oraclePolicy.designatedOracleAddressHash}\`, max move ${contract.oraclePolicy.maxDeviationBps} bps`,
     `- Long party: \`${contract.longParty.name}\` / ${contract.longParty.collateralSats} sats`,
     `- Short party: \`${contract.shortParty.name}\` / ${contract.shortParty.collateralSats} sats`,
     `- Outcomes root: \`${contract.outcomesRoot}\``,
@@ -70,7 +75,7 @@ function buildMarkdownReport(bundle, verification) {
     '',
     '## Boundary',
     '',
-    'This is a deterministic protocol artifact. A live build still needs raw transaction inclusion proofs, real Lightning node receipts, real oracle/admin key policy, and production challenge bond accounting.'
+    'This is a deterministic protocol artifact. It does not validate all TradeLayer state; the in-protocol BitVM boundary is the designated oracle address plus a 5% maximum move from the previous accepted BTC/USD mark. A live build still needs raw transaction inclusion proofs, real Lightning node receipts, real oracle/admin key policy, and production challenge bond accounting.'
   ].join('\n');
 }
 
@@ -79,8 +84,8 @@ function main() {
     trigger: {
       price: 65000,
       publishTxid: BTCTEST_PRICE_PUBLISH_TXID,
-      blockHeight: 132846,
-      maturityHeight: 132847
+      blockHeight: 132690,
+      maturityHeight: 132691
     },
     challengeClaimedOutcomeId: 'price_above_entry'
   });

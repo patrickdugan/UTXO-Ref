@@ -83,11 +83,18 @@ async function main() {
     assert.equal(demo.trigger.txid, testnetProof.keyTxids.oraclePublish.txid);
     assert.equal(demo.trigger.payloadText, 'tle1,aqzr7k');
     assert.equal(demo.trigger.opReturnScriptHex, '6a0b746c65312c61717a72376b');
+    assert.equal(demo.trigger.publisherAddress, demo.trigger.designatedOracleAddress);
+    assert.equal(demo.trigger.maxDeviationBps, 500);
+    assert.ok(demo.trigger.priceDeviationBps <= 500, 'oracle mark exceeds solvency band');
+    assert.equal(demo.trigger.solvencyGuard.withinBand, true);
     assert.equal(demo.contract.settlementAsset, 'btc-only');
+    assert.equal(demo.contract.oraclePolicy.maxDeviationBps, 500);
     assert.equal(demo.settlement.settlementRail, 'lightning');
     assert.equal(demo.settlement.noTapAssetPath, true);
-    assert.equal(demo.bitvmOrganizer.totalGates, 680);
+    assert.equal(demo.bitvmOrganizer.totalGates, 888);
     assert.ok(demo.bitvmOrganizer.pseudocode.some(line => line.includes('decode_tx14(payloadText)')), 'missing tx14 pseudocode');
+    assert.ok(demo.bitvmOrganizer.pseudocode.some(line => line.includes('designated_oracle_address_hash')), 'missing oracle publisher pseudocode');
+    assert.ok(demo.bitvmOrganizer.pseudocode.some(line => line.includes('last_price * 500')), 'missing solvency band pseudocode');
     assert.match(script, /renderTradeLayerOracleDlc/, 'missing oracle DLC renderer');
   });
 

@@ -255,7 +255,7 @@ function buildWalletView() {
   const tradeLayerOracleDlc = {
     id: 'btc-only-tradelayer-oracle-dlc',
     label: 'BTC-Only TradeLayer Oracle DLC',
-    summary: 'Bilateral Lightning-funded DLC where a TradeLayer tx14 OP_RETURN price publish selects the BTC-only CET branch; BitVM organizes the wrong-trigger challenge path.',
+    summary: 'Bilateral Lightning-funded DLC where a TradeLayer tx14 OP_RETURN price publish selects the BTC-only CET branch; BitVM checks the designated oracle publisher and 5% solvency band before accepting the mark.',
     noTapAssets: true,
     trigger: {
       txid: proof.keyTxids.oraclePublish.txid,
@@ -268,16 +268,38 @@ function buildWalletView() {
       payloadHex: '746c65312c61717a72376b',
       opReturnScriptHex: '6a0b746c65312c61717a72376b',
       payloadHash: 'b64eccb31fc947e29aff0f6f826891b6ac21d80eef2be50340260d87639fefd3',
+      designatedOracleAddress: 'tb1qn75cnly6zn4540k7824rmw02eeylaygcpj49rs',
+      publisherAddress: 'tb1qn75cnly6zn4540k7824rmw02eeylaygcpj49rs',
+      oracleAddressProof: {
+        kind: 'designated_oracle_address_proof',
+        addressCommitmentHash: '87018922fc0036f87edff0e91f95a895f06b9031a3b7928a890b24fba9704673',
+        inputIndex: 0,
+        witnessRule: 'publish tx input proves the designated oracle address funded the price publication'
+      },
+      lastAcceptedPrice: '64000',
+      lastAcceptedScaledPrice: '640000000',
+      maxDeviationBps: 500,
+      priceDeviationBps: 156,
+      solvencyGuard: {
+        withinBand: true,
+        rule: 'abs(price - last_price) * 10000 <= last_price * 500'
+      },
       proofShape: 'raw tx + OP_RETURN output index + block header + merkle branch'
     },
     contract: {
       contractId: 'ln-tl-oracle-dlc-1',
-      commitmentId: '905637f8f1bd18f4da98db61894e7808aceb26b685f2e50c331dcc5aa2d2f1cb',
+      commitmentId: '934250a8ae80785bd4b6e8e29269514f13ab5d8486b582f6cdd4a6495fb7edd2',
       longParty: { name: 'alice-long', collateralSats: 50000 },
       shortParty: { name: 'bob-short', collateralSats: 50000 },
       totalCollateralSats: 100000,
       outcomesRoot: 'bea7c5484aa69b560940bfe03d1302e84591d91e9a439221c2c81c8d73568dc4',
-      settlementAsset: 'btc-only'
+      settlementAsset: 'btc-only',
+      oraclePolicy: {
+        designatedOracleAddressHash: '87018922fc0036f87edff0e91f95a895f06b9031a3b7928a890b24fba9704673',
+        lastAcceptedPrice: '64000',
+        maxDeviationBps: 500,
+        validationBoundary: 'BitVM does not validate all TradeLayer state; it verifies publisher provenance and bounded mark movement.'
+      }
     },
     settlement: {
       selectedOutcomeId: 'price_at_entry',
@@ -287,13 +309,15 @@ function buildWalletView() {
       noTapAssetPath: true
     },
     bitvmOrganizer: {
-      organizerId: '4bdfa8090bbbadfcd1758fffb3808eee31b5d470f585f08462640f0afcb05c14',
-      totalGates: 680,
+      organizerId: 'd5f2a5da32d0b0f930ae98beb19dc701e7b9da2ad37e9b7b573ea5fce2aaced8',
+      totalGates: 888,
       challengeViolation: 'wrong_cet_for_published_price',
-      flow: ['TradeLayer tx14 OP_RETURN', 'payload hash + tx inclusion', 'price bucket comparator', 'Lightning BTC payout'],
+      flow: ['TradeLayer tx14 OP_RETURN', 'designated oracle input', '5% solvency band', 'price bucket comparator', 'Lightning BTC payout'],
       pseudocode: [
         'assert sha256(payloadText) == committed_payload_hash',
         'assert decode_tx14(payloadText).oracle_id == contract.oracle_id',
+        'assert publisher_address_hash == designated_oracle_address_hash',
+        'assert abs(price - last_price) * 10000 <= last_price * 500',
         'selected_outcome = bucket(decode_tx14(payloadText).price)',
         'assert long_payout + short_payout == btc_collateral_sats'
       ]

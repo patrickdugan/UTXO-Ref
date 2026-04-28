@@ -475,12 +475,19 @@ function renderTradeLayerOracleDlc(walletView) {
   const demo = walletView?.tradeLayerOracleDlc;
   if (!demo) return;
   const triggerLink = txidLink(demo.trigger, 'inspect tx14');
+  const flowNotes = [
+    demo.trigger.payloadText,
+    'publisher address proof',
+    `${demo.trigger.priceDeviationBps} / ${demo.trigger.maxDeviationBps} bps`,
+    demo.settlement.selectedOutcomeId,
+    demo.settlement.settlementRail
+  ];
   const flow = demo.bitvmOrganizer.flow
     .map((item, index) => `
-      <div class="mechanic-node ${index === 1 ? 'selected' : ''}">
+      <div class="mechanic-node ${index === 2 ? 'selected' : ''}">
         <span>${index + 1}</span>
         <strong>${escapeHtml(item)}</strong>
-        <small>${index === 0 ? escapeHtml(demo.trigger.payloadText) : index === 2 ? escapeHtml(demo.settlement.selectedOutcomeId) : index === 3 ? escapeHtml(demo.settlement.settlementRail) : 'BitVM witness'}</small>
+        <small>${escapeHtml(flowNotes[index] || 'BitVM witness')}</small>
       </div>
     `)
     .join('');
@@ -490,7 +497,7 @@ function renderTradeLayerOracleDlc(walletView) {
   $('tradelayerOracleDlc').innerHTML = `
     <div class="pure-demo-head oracle-head">
       <strong>${escapeHtml(demo.summary)}</strong>
-      <span>No TAP asset path. BTC collateral enters through Lightning receipts; the TradeLayer OP_RETURN only selects the DLC branch.</span>
+      <span>No TAP asset path. BTC collateral enters through Lightning receipts; BitVM treats the TradeLayer OP_RETURN as a bounded oracle witness.</span>
     </div>
     <div class="oracle-grid">
       <div class="mechanic-card">
@@ -503,6 +510,11 @@ function renderTradeLayerOracleDlc(walletView) {
           detailRow('Payload', `<code>${escapeHtml(demo.trigger.payloadText)}</code>`),
           detailRow('OP_RETURN', `<code>${escapeHtml(demo.trigger.opReturnScriptHex)}</code>`),
           detailRow('Oracle price', `${escapeHtml(demo.trigger.pair)} ${escapeHtml(demo.trigger.price)}`),
+          detailRow('Designated oracle', `<code>${short(demo.trigger.designatedOracleAddress)}</code>`),
+          detailRow('Publisher hash', `<code>${short(demo.trigger.oracleAddressProof?.addressCommitmentHash)}</code>`),
+          detailRow('Previous mark', `${escapeHtml(demo.trigger.pair)} ${escapeHtml(demo.trigger.lastAcceptedPrice)}`),
+          detailRow('Max delta', `${demo.trigger.maxDeviationBps} bps`),
+          detailRow('Observed delta', `${demo.trigger.priceDeviationBps} bps / ${demo.trigger.solvencyGuard?.withinBand ? 'inside band' : 'outside band'}`),
           detailRow('Contract', short(demo.contract.commitmentId)),
           detailRow('Collateral', compactSats(demo.contract.totalCollateralSats)),
           detailRow('Selected outcome', escapeHtml(demo.settlement.selectedOutcomeId)),

@@ -19,6 +19,8 @@ const HEX_32_RE = /^[0-9a-f]{64}$/i;
 const TRADELAYER_MARKER = 'tl';
 const PUBLISH_ORACLE_TX_TYPE = 14;
 const DEFAULT_PRICE_SCALE = 10000n;
+const DEFAULT_MAX_PRICE_DEVIATION_BPS = 500;
+const DEFAULT_DESIGNATED_ORACLE_ADDRESS = 'tb1qn75cnly6zn4540k7824rmw02eeylaygcpj49rs';
 
 function sha256Hex(value) {
   return crypto.createHash('sha256').update(value).digest('hex');
@@ -68,6 +70,36 @@ function scaledIntToPriceString(value, scale = DEFAULT_PRICE_SCALE) {
   const fractional = scaled % scale;
   if (fractional === 0n) return whole.toString();
   return `${whole}.${fractional.toString().padStart(scale.toString().length - 1, '0').replace(/0+$/, '')}`;
+}
+
+function priceDeviationBps(previousScaledPrice, nextScaledPrice) {
+  const previous = BigInt(previousScaledPrice);
+  const next = BigInt(nextScaledPrice);
+  if (previous <= 0n) throw new Error('previous price must be positive');
+  const delta = previous > next ? previous - next : next - previous;
+  return Number((delta * 10000n) / previous);
+}
+
+function buildOracleAddressProof({ address, txid, inputIndex = 0, scriptPubKeyHex = null }) {
+  const oracleAddress = normalizeString(address, 'oracleAddress');
+  const publishTxid = normalizeHex32(txid, 'publishTxid');
+  const proofCore = {
+    oracleAddress,
+    publishTxid,
+    inputIndex: Number(inputIndex),
+    scriptPubKeyHex: scriptPubKeyHex || null
+  };
+  return {
+    kind: 'designated_oracle_address_proof',
+    oracleAddress,
+    addressCommitmentHash: sha256Hex(oracleAddress),
+    publishTxid,
+    inputIndex: proofCore.inputIndex,
+    scriptPubKeyHex: proofCore.scriptPubKeyHex,
+    proofHash: hashCanonical(proofCore),
+    witnessRule:
+      'witness supplies the publish tx input, previous output script, and spend witness proving the tx was funded by the designated oracle address'
+  };
 }
 
 function pushDataHex(buf) {
@@ -129,6 +161,26 @@ function buildTradeLayerPricePublishTrigger(options = {}) {
   );
   const blockHeight = normalizePositiveInteger(options.blockHeight ?? 132900, 'blockHeight');
   const maturityHeight = normalizePositiveInteger(options.maturityHeight ?? blockHeight + 1, 'maturityHeight');
+  const designatedOracleAddress = normalizeString(
+    options.designatedOracleAddress || DEFAULT_DESIGNATED_ORACLE_ADDRESS,
+    'designatedOracleAddress'
+  );
+  const publisherAddress = normalizeString(
+    options.publisherAddress || designatedOracleAddress,
+    'publisherAddress'
+  );
+  const lastAcceptedScaledPrice = priceToScaledInt(options.lastAcceptedPrice ?? '64000').toString();
+  const maxDeviationBps = Number(options.maxDeviationBps ?? DEFAULT_MAX_PRICE_DEVIATION_BPS);
+  if (!Number.isSafeInteger(maxDeviationBps) || maxDeviationBps <= 0) {
+    throw new Error('maxDeviationBps must be a positive safe integer');
+  }
+  const deviationBps = priceDeviationBps(lastAcceptedScaledPrice, decoded.scaledPrice);
+  const oracleAddressProof = buildOracleAddressProof({
+    address: publisherAddress,
+    txid: publishTxid,
+    inputIndex: options.oracleInputIndex ?? 0,
+    scriptPubKeyHex: options.oracleScriptPubKeyHex || null
+  });
 
   return {
     kind: 'tradelayer_tx14_price_publish_trigger',
@@ -136,7 +188,10 @@ function buildTradeLayerPricePublishTrigger(options = {}) {
       publishTxid,
       payloadHash,
       blockHeight,
-      maturityHeight
+      maturityHeight,
+      publisherAddress,
+      lastAcceptedScaledPrice,
+      maxDeviationBps
     }),
     txType: PUBLISH_ORACLE_TX_TYPE,
     oracleId: decoded.oracleId,
@@ -151,11 +206,29 @@ function buildTradeLayerPricePublishTrigger(options = {}) {
     publishTxid,
     blockHeight,
     maturityHeight,
+    designatedOracleAddress,
+    publisherAddress,
+    oracleAddressProof,
+    lastAcceptedPrice: scaledIntToPriceString(lastAcceptedScaledPrice),
+    lastAcceptedScaledPrice,
+    maxDeviationBps,
+    priceDeviationBps: deviationBps,
+    solvencyGuard: {
+      rule: 'abs(published_price - last_accepted_price) * 10000 <= last_accepted_price * max_deviation_bps',
+      withinBand: deviationBps <= maxDeviationBps,
+      maxDeviationBps,
+      actualDeviationBps: deviationBps
+    },
     proofShape: {
       txid: publishTxid,
       opReturnOutputIndex: Number(options.opReturnOutputIndex ?? 0),
       requiredPayloadHash: payloadHash,
       requiredScriptHex: opReturnScriptHex,
+      requiredPublisherAddressHash: sha256Hex(designatedOracleAddress),
+      previousMark: {
+        price: scaledIntToPriceString(lastAcceptedScaledPrice),
+        scaledPrice: lastAcceptedScaledPrice
+      },
       inclusion: 'witness supplies raw tx, output index, block header, and merkle branch'
     }
   };
@@ -277,6 +350,15 @@ function buildBilateralLnDlcContract(options = {}) {
   const oracleId = normalizePositiveInteger(options.oracleId ?? 1, 'oracleId');
   const entryPrice = options.entryPrice ?? '65000';
   const entryPriceScaled = priceToScaledInt(entryPrice);
+  const lastAcceptedScaledPrice = priceToScaledInt(options.lastAcceptedPrice ?? '64000');
+  const maxDeviationBps = Number(options.maxDeviationBps ?? DEFAULT_MAX_PRICE_DEVIATION_BPS);
+  if (!Number.isSafeInteger(maxDeviationBps) || maxDeviationBps <= 0) {
+    throw new Error('maxDeviationBps must be a positive safe integer');
+  }
+  const designatedOracleAddress = normalizeString(
+    options.designatedOracleAddress || DEFAULT_DESIGNATED_ORACLE_ADDRESS,
+    'designatedOracleAddress'
+  );
   const longParty = normalizeParty(options.longParty, 'alice-long', options.longCollateralSats ?? 50000n);
   const shortParty = normalizeParty(options.shortParty, 'bob-short', options.shortCollateralSats ?? 50000n);
   const totalCollateralSats = BigInt(longParty.collateralSats) + BigInt(shortParty.collateralSats);
@@ -293,6 +375,15 @@ function buildBilateralLnDlcContract(options = {}) {
     oracleId,
     entryPrice: scaledIntToPriceString(entryPriceScaled),
     entryPriceScaled: entryPriceScaled.toString(),
+    oraclePolicy: {
+      designatedOracleAddress,
+      designatedOracleAddressHash: sha256Hex(designatedOracleAddress),
+      lastAcceptedPrice: scaledIntToPriceString(lastAcceptedScaledPrice),
+      lastAcceptedScaledPrice: lastAcceptedScaledPrice.toString(),
+      maxDeviationBps,
+      validationBoundary:
+        'BitVM does not validate full TradeLayer state; it verifies designated publisher provenance and bounded mark movement.'
+    },
     longParty,
     shortParty,
     totalCollateralSats: totalCollateralSats.toString(),
@@ -327,11 +418,15 @@ function buildBilateralLnDlcContract(options = {}) {
 function buildBitvmOrganizer(contract, trigger) {
   const selectedOutcome = selectOutcomeForPrice(contract.outcomes, trigger.scaledPrice);
   if (!selectedOutcome) throw new Error(`no DLC outcome covers price ${trigger.price}`);
+  const policy = contract.contractCore.oraclePolicy;
   const rootCore = {
     contractCommitmentId: contract.contractCommitmentId,
     outcomesRoot: contract.contractCore.outcomesRoot,
     triggerPayloadHash: trigger.payloadHash,
     publishTxid: trigger.publishTxid,
+    designatedOracleAddressHash: policy.designatedOracleAddressHash,
+    lastAcceptedScaledPrice: policy.lastAcceptedScaledPrice,
+    maxDeviationBps: policy.maxDeviationBps,
     selectedOutcomeId: selectedOutcome.outcomeId,
     lightningFundingRoot: contract.lightningFunding.fundingRoot
   };
@@ -345,12 +440,17 @@ function buildBitvmOrganizer(contract, trigger) {
       'tradelayer_publish_txid',
       'tradelayer_payload_hash',
       'oracle_id',
+      'designated_oracle_address_hash',
+      'last_accepted_scaled_price',
+      'max_deviation_bps',
       'selected_outcome_id',
       'ln_funding_root'
     ],
     witnessInputs: [
       'raw_publish_tx',
       'op_return_output_index',
+      'oracle_publish_input_proof',
+      'previous_mark_commitment',
       'block_header',
       'tx_merkle_branch',
       'ln_collateral_receipts',
@@ -359,6 +459,8 @@ function buildBitvmOrganizer(contract, trigger) {
     gateCounts: [
       { family: 'OP_RETURN payload hash', count: 96, checks: 'sha256(payloadText) == tradelayer_payload_hash' },
       { family: 'TradeLayer tx14 parser', count: 80, checks: 'payload starts with tle and oracle id matches' },
+      { family: 'Designated oracle publisher', count: 112, checks: 'publish tx spends from the committed oracle address' },
+      { family: '5% solvency band', count: 96, checks: 'abs(price - last_price) * 10000 <= last_price * 500' },
       { family: 'Tx inclusion proof', count: 144, checks: 'publish txid is committed by block merkle root' },
       { family: 'Price bucket comparator', count: 128, checks: 'scaled price selects exactly one outcome' },
       { family: 'Bilateral payout sum', count: 72, checks: 'long payout + short payout == collateral' },
@@ -368,13 +470,15 @@ function buildBitvmOrganizer(contract, trigger) {
     scriptTemplate: [
       '<tl_payload_hash> OP_EQUALVERIFY',
       '<oracle_id> <contract_oracle_id> OP_EQUALVERIFY',
+      '<publisher_address_hash> <designated_oracle_address_hash> OP_EQUALVERIFY',
+      'ABS(<price_scaled> - <last_accepted_scaled_price>) 10000 OP_MUL <last_accepted_scaled_price> <max_deviation_bps> OP_MUL OP_LESSTHANOREQUAL',
       '<selected_price_bucket> <selected_cet_bucket> OP_EQUALVERIFY',
       '<long_payout_sats> <short_payout_sats> OP_ADD <total_collateral_sats> OP_EQUALVERIFY',
       'OP_IF <cooperative_ln_payout_key> OP_CHECKSIG',
       'OP_ELSE <bitvm_challenge_key> OP_CHECKSIG OP_ENDIF'
     ],
     note:
-      'Bitcoin Script is not parsing another transaction directly; the BitVM transcript verifies the raw tx/output/merkle witness against the committed TradeLayer OP_RETURN payload.'
+      'Bitcoin Script is not parsing another transaction directly; the BitVM transcript verifies the raw tx/output/merkle witness, designated oracle provenance, and 5% bounded mark update against the committed TradeLayer OP_RETURN payload.'
   };
 }
 
@@ -383,6 +487,7 @@ function buildLnDlcSettlement(contract, trigger, bitvmOrganizer) {
   if (!outcome) throw new Error(`no DLC outcome covers price ${trigger.price}`);
   const longParty = contract.contractCore.longParty;
   const shortParty = contract.contractCore.shortParty;
+  const policy = contract.contractCore.oraclePolicy;
   const longPayout = BigInt(outcome.longPayoutSats);
   const shortPayout = BigInt(outcome.shortPayoutSats);
   const payoutReceipts = [
@@ -397,6 +502,11 @@ function buildLnDlcSettlement(contract, trigger, bitvmOrganizer) {
     triggerId: trigger.triggerId,
     publishTxid: trigger.publishTxid,
     payloadHash: trigger.payloadHash,
+    designatedOracleAddressHash: policy.designatedOracleAddressHash,
+    publisherAddressHash: trigger.oracleAddressProof.addressCommitmentHash,
+    lastAcceptedScaledPrice: trigger.lastAcceptedScaledPrice,
+    maxDeviationBps: trigger.maxDeviationBps,
+    priceDeviationBps: trigger.priceDeviationBps,
     selectedOutcomeId: outcome.outcomeId,
     price: trigger.price,
     scaledPrice: trigger.scaledPrice,
@@ -415,6 +525,12 @@ function buildLnDlcSettlement(contract, trigger, bitvmOrganizer) {
     checks: {
       triggerPayloadMatchesTradeLayerTx14: trigger.payloadText.startsWith('tle'),
       triggerOracleMatchesContract: trigger.oracleId === contract.contractCore.oracleId,
+      triggerFromDesignatedOracleAddress:
+        trigger.publisherAddress === policy.designatedOracleAddress &&
+        trigger.oracleAddressProof.addressCommitmentHash === policy.designatedOracleAddressHash,
+      priceWithinSolvencyBand:
+        trigger.priceDeviationBps <= policy.maxDeviationBps &&
+        trigger.lastAcceptedScaledPrice === policy.lastAcceptedScaledPrice,
       selectedOutcomeCoversPrice: selectOutcomeForPrice(contract.outcomes, trigger.scaledPrice)?.outcomeId === outcome.outcomeId,
       payoutSumPreservesCollateral:
         longPayout + shortPayout === BigInt(contract.contractCore.totalCollateralSats),
@@ -432,10 +548,18 @@ function buildBitvmDlcChallenge(contract, trigger, settlement, options = {}) {
   );
   const claimedPayloadHash = options.claimedPayloadHash || trigger.payloadHash;
   const staleHeight = options.staleHeight ? normalizePositiveInteger(options.staleHeight, 'staleHeight') : null;
+  const claimedPublisherAddress = normalizeString(
+    options.claimedPublisherAddress || trigger.publisherAddress,
+    'claimedPublisherAddress'
+  );
+  const claimedDeviationBps = Number(options.claimedDeviationBps ?? trigger.priceDeviationBps);
+  const policy = contract.contractCore.oraclePolicy;
   const violations = [];
   if (claimedPayloadHash !== trigger.payloadHash) violations.push('wrong_tradelayer_payload_hash');
   if (claimedOutcomeId !== settlement.selectedOutcome.outcomeId) violations.push('wrong_cet_for_published_price');
   if (staleHeight != null && staleHeight < trigger.maturityHeight) violations.push('oracle_publish_not_mature');
+  if (claimedPublisherAddress !== policy.designatedOracleAddress) violations.push('wrong_oracle_publisher_address');
+  if (claimedDeviationBps > policy.maxDeviationBps) violations.push('price_outside_5pct_solvency_band');
 
   const challengeCore = {
     protocol: 'bitvm_ln_dlc_tradelayer_trigger_challenge',
@@ -445,6 +569,10 @@ function buildBitvmDlcChallenge(contract, trigger, settlement, options = {}) {
     oraclePublishTxid: trigger.publishTxid,
     expectedPayloadHash: trigger.payloadHash,
     claimedPayloadHash,
+    designatedOracleAddressHash: policy.designatedOracleAddressHash,
+    claimedPublisherAddress,
+    expectedMaxDeviationBps: policy.maxDeviationBps,
+    claimedDeviationBps,
     expectedOutcomeId: settlement.selectedOutcome.outcomeId,
     claimedOutcomeId,
     staleHeight,
@@ -467,6 +595,9 @@ function buildLightningTradeLayerOracleDlcBundle(options = {}) {
   const trigger = buildTradeLayerPricePublishTrigger({
     pair: contract.contractCore.pair,
     oracleId: contract.contractCore.oracleId,
+    designatedOracleAddress: contract.contractCore.oraclePolicy.designatedOracleAddress,
+    lastAcceptedPrice: contract.contractCore.oraclePolicy.lastAcceptedPrice,
+    maxDeviationBps: contract.contractCore.oraclePolicy.maxDeviationBps,
     ...(options.trigger || {})
   });
   const bitvmOrganizer = buildBitvmOrganizer(contract, trigger);
@@ -474,6 +605,8 @@ function buildLightningTradeLayerOracleDlcBundle(options = {}) {
   const challenge = buildBitvmDlcChallenge(contract, trigger, settlement, {
     claimedOutcomeId: options.challengeClaimedOutcomeId || 'price_above_entry',
     claimedPayloadHash: options.challengeClaimedPayloadHash,
+    claimedPublisherAddress: options.challengeClaimedPublisherAddress,
+    claimedDeviationBps: options.challengeClaimedDeviationBps,
     staleHeight: options.challengeStaleHeight
   });
 
@@ -498,7 +631,7 @@ function buildLightningTradeLayerOracleDlcBundle(options = {}) {
       'A bilateral BTC-only DLC can settle over Lightning while a TradeLayer tx14 OP_RETURN price publication is the oracle trigger and BitVM organizes disputes over wrong payloads, stale proofs, or wrong CET selection.',
     caveats: [
       'Prototype invoices and receipts are deterministic; production needs real LDK/LND/CLN payment handling.',
-      'The TradeLayer OP_RETURN is a trigger witness. Bitcoin Script cannot directly inspect arbitrary historical transactions without a supplied BitVM transcript proof.',
+      'The TradeLayer OP_RETURN is a trigger witness. BitVM does not validate all TradeLayer state; it checks the designated oracle publisher and a 5% max move from the last accepted mark.',
       'No TAP asset state is used; payouts and collateral are BTC-denominated Lightning receipts with fallback/challenge paths.'
     ]
   };
@@ -517,9 +650,22 @@ function verifyLightningTradeLayerOracleDlcBundle(bundle) {
   if (bundle.contract.contractCore.tapAssetsUsed !== false) {
     return { ok: false, reason: 'TAP assets must not be used' };
   }
+  const oraclePolicy = bundle.contract.contractCore.oraclePolicy;
   const decoded = decodeTradeLayerPublishOracleData(bundle.trigger.payloadText);
   if (decoded.oracleId !== bundle.contract.contractCore.oracleId) {
     return { ok: false, reason: 'oracle id mismatch' };
+  }
+  if (bundle.trigger.publisherAddress !== oraclePolicy.designatedOracleAddress) {
+    return { ok: false, reason: 'designated oracle address mismatch' };
+  }
+  if (bundle.trigger.oracleAddressProof.addressCommitmentHash !== oraclePolicy.designatedOracleAddressHash) {
+    return { ok: false, reason: 'oracle address proof mismatch' };
+  }
+  if (bundle.trigger.lastAcceptedScaledPrice !== oraclePolicy.lastAcceptedScaledPrice) {
+    return { ok: false, reason: 'previous mark mismatch' };
+  }
+  if (bundle.trigger.priceDeviationBps > oraclePolicy.maxDeviationBps) {
+    return { ok: false, reason: 'price outside 5pct solvency band' };
   }
   if (sha256Hex(bundle.trigger.payloadText) !== bundle.trigger.payloadHash) {
     return { ok: false, reason: 'trigger payload hash mismatch' };
@@ -546,9 +692,13 @@ function verifyLightningTradeLayerOracleDlcBundle(bundle) {
 }
 
 module.exports = {
+  DEFAULT_MAX_PRICE_DEVIATION_BPS,
+  DEFAULT_DESIGNATED_ORACLE_ADDRESS,
   encodeTradeLayerPublishOracleData,
   decodeTradeLayerPublishOracleData,
   buildOpReturnScriptHex,
+  priceDeviationBps,
+  buildOracleAddressProof,
   buildTradeLayerPricePublishTrigger,
   buildBilateralLnDlcContract,
   selectOutcomeForPrice,

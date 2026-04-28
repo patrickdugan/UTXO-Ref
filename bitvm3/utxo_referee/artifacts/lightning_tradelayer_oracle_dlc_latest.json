@@ -1,16 +1,16 @@
 {
   "kind": "lightning_tradelayer_oracle_dlc_bundle",
-  "bundleId": "16184ea4faa9da25e46ad13a6083a7ccf7b6a376016ad4e74a23655ea6c5047f",
+  "bundleId": "9ed10293bf4ffc0ea09253a806b77e77747a1043931345fca31b825f080ca50b",
   "bundleCore": {
-    "contractCommitmentId": "905637f8f1bd18f4da98db61894e7808aceb26b685f2e50c331dcc5aa2d2f1cb",
-    "triggerId": "71b9aa36250dfd2f0e06d652967701aa43f2a3ef2750934e62a84cf54e0ea677",
-    "organizerId": "4bdfa8090bbbadfcd1758fffb3808eee31b5d470f585f08462640f0afcb05c14",
-    "settlementId": "b88b2536e2d098f79c6ac6acd47701c47bf239866e333b3bf6d7d7224da452bf",
-    "challengeId": "5d5e7fc8ca6c4c985b41674037d4acd3bc6d2433e38e6a7cdeee287c3a6407d3"
+    "contractCommitmentId": "934250a8ae80785bd4b6e8e29269514f13ab5d8486b582f6cdd4a6495fb7edd2",
+    "triggerId": "f6e73ce842993c8e36235a440520d2bb389a87f82378793bd4f16d649f70e017",
+    "organizerId": "d5f2a5da32d0b0f930ae98beb19dc701e7b9da2ad37e9b7b573ea5fce2aaced8",
+    "settlementId": "00111de38b8ba37d31a6720f789f3d861c2620da623a826155c031e4374ce4c6",
+    "challengeId": "280b0a2a6d04d817ac6dc2df49cb6f9379f023be1d9c346829f555ba403c4e80"
   },
   "contract": {
     "kind": "lightning_bilateral_dlc_contract",
-    "contractCommitmentId": "905637f8f1bd18f4da98db61894e7808aceb26b685f2e50c331dcc5aa2d2f1cb",
+    "contractCommitmentId": "934250a8ae80785bd4b6e8e29269514f13ab5d8486b582f6cdd4a6495fb7edd2",
     "contractCore": {
       "version": 1,
       "protocol": "lightning_bilateral_dlc_tradelayer_oracle_trigger",
@@ -20,6 +20,14 @@
       "oracleId": 1,
       "entryPrice": "65000",
       "entryPriceScaled": "650000000",
+      "oraclePolicy": {
+        "designatedOracleAddress": "tb1qn75cnly6zn4540k7824rmw02eeylaygcpj49rs",
+        "designatedOracleAddressHash": "87018922fc0036f87edff0e91f95a895f06b9031a3b7928a890b24fba9704673",
+        "lastAcceptedPrice": "64000",
+        "lastAcceptedScaledPrice": "640000000",
+        "maxDeviationBps": 500,
+        "validationBoundary": "BitVM does not validate full TradeLayer state; it verifies designated publisher provenance and bounded mark movement."
+      },
       "longParty": {
         "name": "alice-long",
         "nodeId": "alice-long-ln-node",
@@ -86,12 +94,12 @@
           "holdCondition": "release only after both collateral receipts and DLC contract root are committed"
         }
       ],
-      "fundingRoot": "7e9b63062e73484d3da2c82a707e1cb5ce5d1bc4759c77ea506072bfbdecd868"
+      "fundingRoot": "62cacebd6d6774d5c956c96a8b44b3012a9997174a35466709cb1011f9e7300e"
     }
   },
   "trigger": {
     "kind": "tradelayer_tx14_price_publish_trigger",
-    "triggerId": "71b9aa36250dfd2f0e06d652967701aa43f2a3ef2750934e62a84cf54e0ea677",
+    "triggerId": "f6e73ce842993c8e36235a440520d2bb389a87f82378793bd4f16d649f70e017",
     "txType": 14,
     "oracleId": 1,
     "pair": "BTCUSD",
@@ -103,38 +111,73 @@
     "payloadHash": "b64eccb31fc947e29aff0f6f826891b6ac21d80eef2be50340260d87639fefd3",
     "opReturnScriptHex": "6a0b746c65312c61717a72376b",
     "publishTxid": "22accff5ad661d6bc9fcf8d972ef822305965da866f597dade40ac322124fd63",
-    "blockHeight": 132846,
-    "maturityHeight": 132847,
+    "blockHeight": 132690,
+    "maturityHeight": 132691,
+    "designatedOracleAddress": "tb1qn75cnly6zn4540k7824rmw02eeylaygcpj49rs",
+    "publisherAddress": "tb1qn75cnly6zn4540k7824rmw02eeylaygcpj49rs",
+    "oracleAddressProof": {
+      "kind": "designated_oracle_address_proof",
+      "oracleAddress": "tb1qn75cnly6zn4540k7824rmw02eeylaygcpj49rs",
+      "addressCommitmentHash": "87018922fc0036f87edff0e91f95a895f06b9031a3b7928a890b24fba9704673",
+      "publishTxid": "22accff5ad661d6bc9fcf8d972ef822305965da866f597dade40ac322124fd63",
+      "inputIndex": 0,
+      "scriptPubKeyHex": null,
+      "proofHash": "639f7def65c656270eaea265b6fb5dfc8dfef8ba7c9db1e44167a4a23062cbe4",
+      "witnessRule": "witness supplies the publish tx input, previous output script, and spend witness proving the tx was funded by the designated oracle address"
+    },
+    "lastAcceptedPrice": "64000",
+    "lastAcceptedScaledPrice": "640000000",
+    "maxDeviationBps": 500,
+    "priceDeviationBps": 156,
+    "solvencyGuard": {
+      "rule": "abs(published_price - last_accepted_price) * 10000 <= last_accepted_price * max_deviation_bps",
+      "withinBand": true,
+      "maxDeviationBps": 500,
+      "actualDeviationBps": 156
+    },
     "proofShape": {
       "txid": "22accff5ad661d6bc9fcf8d972ef822305965da866f597dade40ac322124fd63",
       "opReturnOutputIndex": 0,
       "requiredPayloadHash": "b64eccb31fc947e29aff0f6f826891b6ac21d80eef2be50340260d87639fefd3",
       "requiredScriptHex": "6a0b746c65312c61717a72376b",
+      "requiredPublisherAddressHash": "87018922fc0036f87edff0e91f95a895f06b9031a3b7928a890b24fba9704673",
+      "previousMark": {
+        "price": "64000",
+        "scaledPrice": "640000000"
+      },
       "inclusion": "witness supplies raw tx, output index, block header, and merkle branch"
     }
   },
   "bitvmOrganizer": {
     "kind": "bitvm_organized_ln_dlc_oracle_trigger",
-    "organizerId": "4bdfa8090bbbadfcd1758fffb3808eee31b5d470f585f08462640f0afcb05c14",
+    "organizerId": "d5f2a5da32d0b0f930ae98beb19dc701e7b9da2ad37e9b7b573ea5fce2aaced8",
     "rootCore": {
-      "contractCommitmentId": "905637f8f1bd18f4da98db61894e7808aceb26b685f2e50c331dcc5aa2d2f1cb",
+      "contractCommitmentId": "934250a8ae80785bd4b6e8e29269514f13ab5d8486b582f6cdd4a6495fb7edd2",
       "outcomesRoot": "bea7c5484aa69b560940bfe03d1302e84591d91e9a439221c2c81c8d73568dc4",
       "triggerPayloadHash": "b64eccb31fc947e29aff0f6f826891b6ac21d80eef2be50340260d87639fefd3",
       "publishTxid": "22accff5ad661d6bc9fcf8d972ef822305965da866f597dade40ac322124fd63",
+      "designatedOracleAddressHash": "87018922fc0036f87edff0e91f95a895f06b9031a3b7928a890b24fba9704673",
+      "lastAcceptedScaledPrice": "640000000",
+      "maxDeviationBps": 500,
       "selectedOutcomeId": "price_at_entry",
-      "lightningFundingRoot": "7e9b63062e73484d3da2c82a707e1cb5ce5d1bc4759c77ea506072bfbdecd868"
+      "lightningFundingRoot": "62cacebd6d6774d5c956c96a8b44b3012a9997174a35466709cb1011f9e7300e"
     },
     "publicInputs": [
       "contract_commitment_id",
       "tradelayer_publish_txid",
       "tradelayer_payload_hash",
       "oracle_id",
+      "designated_oracle_address_hash",
+      "last_accepted_scaled_price",
+      "max_deviation_bps",
       "selected_outcome_id",
       "ln_funding_root"
     ],
     "witnessInputs": [
       "raw_publish_tx",
       "op_return_output_index",
+      "oracle_publish_input_proof",
+      "previous_mark_commitment",
       "block_header",
       "tx_merkle_branch",
       "ln_collateral_receipts",
@@ -150,6 +193,16 @@
         "family": "TradeLayer tx14 parser",
         "count": 80,
         "checks": "payload starts with tle and oracle id matches"
+      },
+      {
+        "family": "Designated oracle publisher",
+        "count": 112,
+        "checks": "publish tx spends from the committed oracle address"
+      },
+      {
+        "family": "5% solvency band",
+        "count": 96,
+        "checks": "abs(price - last_price) * 10000 <= last_price * 500"
       },
       {
         "family": "Tx inclusion proof",
@@ -180,24 +233,31 @@
     "scriptTemplate": [
       "<tl_payload_hash> OP_EQUALVERIFY",
       "<oracle_id> <contract_oracle_id> OP_EQUALVERIFY",
+      "<publisher_address_hash> <designated_oracle_address_hash> OP_EQUALVERIFY",
+      "ABS(<price_scaled> - <last_accepted_scaled_price>) 10000 OP_MUL <last_accepted_scaled_price> <max_deviation_bps> OP_MUL OP_LESSTHANOREQUAL",
       "<selected_price_bucket> <selected_cet_bucket> OP_EQUALVERIFY",
       "<long_payout_sats> <short_payout_sats> OP_ADD <total_collateral_sats> OP_EQUALVERIFY",
       "OP_IF <cooperative_ln_payout_key> OP_CHECKSIG",
       "OP_ELSE <bitvm_challenge_key> OP_CHECKSIG OP_ENDIF"
     ],
-    "note": "Bitcoin Script is not parsing another transaction directly; the BitVM transcript verifies the raw tx/output/merkle witness against the committed TradeLayer OP_RETURN payload."
+    "note": "Bitcoin Script is not parsing another transaction directly; the BitVM transcript verifies the raw tx/output/merkle witness, designated oracle provenance, and 5% bounded mark update against the committed TradeLayer OP_RETURN payload."
   },
   "settlement": {
     "kind": "lightning_bilateral_dlc_settlement",
-    "settlementId": "b88b2536e2d098f79c6ac6acd47701c47bf239866e333b3bf6d7d7224da452bf",
+    "settlementId": "00111de38b8ba37d31a6720f789f3d861c2620da623a826155c031e4374ce4c6",
     "settlementCore": {
       "version": 1,
       "protocol": "lightning_bilateral_dlc_settlement",
-      "contractCommitmentId": "905637f8f1bd18f4da98db61894e7808aceb26b685f2e50c331dcc5aa2d2f1cb",
-      "organizerId": "4bdfa8090bbbadfcd1758fffb3808eee31b5d470f585f08462640f0afcb05c14",
-      "triggerId": "71b9aa36250dfd2f0e06d652967701aa43f2a3ef2750934e62a84cf54e0ea677",
+      "contractCommitmentId": "934250a8ae80785bd4b6e8e29269514f13ab5d8486b582f6cdd4a6495fb7edd2",
+      "organizerId": "d5f2a5da32d0b0f930ae98beb19dc701e7b9da2ad37e9b7b573ea5fce2aaced8",
+      "triggerId": "f6e73ce842993c8e36235a440520d2bb389a87f82378793bd4f16d649f70e017",
       "publishTxid": "22accff5ad661d6bc9fcf8d972ef822305965da866f597dade40ac322124fd63",
       "payloadHash": "b64eccb31fc947e29aff0f6f826891b6ac21d80eef2be50340260d87639fefd3",
+      "designatedOracleAddressHash": "87018922fc0036f87edff0e91f95a895f06b9031a3b7928a890b24fba9704673",
+      "publisherAddressHash": "87018922fc0036f87edff0e91f95a895f06b9031a3b7928a890b24fba9704673",
+      "lastAcceptedScaledPrice": "640000000",
+      "maxDeviationBps": 500,
+      "priceDeviationBps": 156,
       "selectedOutcomeId": "price_at_entry",
       "price": "65000",
       "scaledPrice": "650000000",
@@ -238,6 +298,8 @@
     "checks": {
       "triggerPayloadMatchesTradeLayerTx14": true,
       "triggerOracleMatchesContract": true,
+      "triggerFromDesignatedOracleAddress": true,
+      "priceWithinSolvencyBand": true,
       "selectedOutcomeCoversPrice": true,
       "payoutSumPreservesCollateral": true,
       "lightningPayoutReceiptsMatch": true,
@@ -246,15 +308,19 @@
   },
   "challenge": {
     "kind": "bitvm_ln_dlc_tradelayer_trigger_challenge",
-    "challengeId": "5d5e7fc8ca6c4c985b41674037d4acd3bc6d2433e38e6a7cdeee287c3a6407d3",
+    "challengeId": "280b0a2a6d04d817ac6dc2df49cb6f9379f023be1d9c346829f555ba403c4e80",
     "challengeCore": {
       "protocol": "bitvm_ln_dlc_tradelayer_trigger_challenge",
-      "contractCommitmentId": "905637f8f1bd18f4da98db61894e7808aceb26b685f2e50c331dcc5aa2d2f1cb",
-      "settlementId": "b88b2536e2d098f79c6ac6acd47701c47bf239866e333b3bf6d7d7224da452bf",
-      "triggerId": "71b9aa36250dfd2f0e06d652967701aa43f2a3ef2750934e62a84cf54e0ea677",
+      "contractCommitmentId": "934250a8ae80785bd4b6e8e29269514f13ab5d8486b582f6cdd4a6495fb7edd2",
+      "settlementId": "00111de38b8ba37d31a6720f789f3d861c2620da623a826155c031e4374ce4c6",
+      "triggerId": "f6e73ce842993c8e36235a440520d2bb389a87f82378793bd4f16d649f70e017",
       "oraclePublishTxid": "22accff5ad661d6bc9fcf8d972ef822305965da866f597dade40ac322124fd63",
       "expectedPayloadHash": "b64eccb31fc947e29aff0f6f826891b6ac21d80eef2be50340260d87639fefd3",
       "claimedPayloadHash": "b64eccb31fc947e29aff0f6f826891b6ac21d80eef2be50340260d87639fefd3",
+      "designatedOracleAddressHash": "87018922fc0036f87edff0e91f95a895f06b9031a3b7928a890b24fba9704673",
+      "claimedPublisherAddress": "tb1qn75cnly6zn4540k7824rmw02eeylaygcpj49rs",
+      "expectedMaxDeviationBps": 500,
+      "claimedDeviationBps": 156,
       "expectedOutcomeId": "price_at_entry",
       "claimedOutcomeId": "price_above_entry",
       "staleHeight": null,
@@ -268,7 +334,7 @@
   "thesis": "A bilateral BTC-only DLC can settle over Lightning while a TradeLayer tx14 OP_RETURN price publication is the oracle trigger and BitVM organizes disputes over wrong payloads, stale proofs, or wrong CET selection.",
   "caveats": [
     "Prototype invoices and receipts are deterministic; production needs real LDK/LND/CLN payment handling.",
-    "The TradeLayer OP_RETURN is a trigger witness. Bitcoin Script cannot directly inspect arbitrary historical transactions without a supplied BitVM transcript proof.",
+    "The TradeLayer OP_RETURN is a trigger witness. BitVM does not validate all TradeLayer state; it checks the designated oracle publisher and a 5% max move from the last accepted mark.",
     "No TAP asset state is used; payouts and collateral are BTC-denominated Lightning receipts with fallback/challenge paths."
   ],
   "verification": {

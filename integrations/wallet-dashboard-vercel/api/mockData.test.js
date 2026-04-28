@@ -24,6 +24,19 @@ assert.strictEqual(walletView.useCases[1].bitcoinEvidence[0], walletView.convers
 assert.strictEqual(walletView.tradeLayerOracleDlc.noTapAssets, true);
 assert.strictEqual(walletView.tradeLayerOracleDlc.trigger.payloadText, 'tle1,aqzr7k');
 assert.strictEqual(walletView.tradeLayerOracleDlc.trigger.opReturnScriptHex, '6a0b746c65312c61717a72376b');
+assert.strictEqual(walletView.tradeLayerOracleDlc.trigger.publisherAddress, walletView.tradeLayerOracleDlc.trigger.designatedOracleAddress);
+assert.strictEqual(walletView.tradeLayerOracleDlc.trigger.maxDeviationBps, 500);
+assert.ok(walletView.tradeLayerOracleDlc.trigger.priceDeviationBps <= 500);
+assert.strictEqual(walletView.tradeLayerOracleDlc.trigger.solvencyGuard.withinBand, true);
+assert.strictEqual(walletView.tradeLayerOracleDlc.bitvmOrganizer.totalGates, 888);
+assert.ok(
+  walletView.tradeLayerOracleDlc.bitvmOrganizer.pseudocode.some(line => line.includes('designated_oracle_address_hash')),
+  'oracle DLC pseudocode missing designated publisher check'
+);
+assert.ok(
+  walletView.tradeLayerOracleDlc.bitvmOrganizer.pseudocode.some(line => line.includes('last_price * 500')),
+  'oracle DLC pseudocode missing 5% solvency band'
+);
 assert.strictEqual(walletView.tradeLayerOracleDlc.settlement.settlementRail, 'lightning');
 assert.strictEqual(walletView.tradeLayerOracleDlc.settlement.noTapAssetPath, true);
 assert.notStrictEqual(walletView.conversion.journeyEntryTxid, walletView.conversion.bitvmShowcaseAnchorTxid);
