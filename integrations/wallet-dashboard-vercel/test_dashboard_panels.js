@@ -95,7 +95,13 @@ async function main() {
     assert.ok(demo.bitvmOrganizer.pseudocode.some(line => line.includes('decode_tx14(payloadText)')), 'missing tx14 pseudocode');
     assert.ok(demo.bitvmOrganizer.pseudocode.some(line => line.includes('designated_oracle_address_hash')), 'missing oracle publisher pseudocode');
     assert.ok(demo.bitvmOrganizer.pseudocode.some(line => line.includes('last_price * 500')), 'missing solvency band pseudocode');
+    assert.equal(demo.vwapStateOracle.summaryCore.vwapPrice, '65020');
+    assert.equal(demo.vwapStateOracle.summaryCore.validTradeCount, 3);
+    assert.equal(demo.vwapStateOracle.solvencyGuard.withinBand, true);
+    assert.equal(demo.vwapChallenge.totalGates, 1056);
+    assert.equal(demo.vwapChallenge.challengeViolation, 'bad_vwap_arithmetic');
     assert.match(script, /renderTradeLayerOracleDlc/, 'missing oracle DLC renderer');
+    assert.match(script, /TradeLayer VWAP State Oracle/, 'missing VWAP state oracle renderer');
   });
 
   runPanel('Bitcoin Testnet Proofs', () => {

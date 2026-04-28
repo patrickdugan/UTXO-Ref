@@ -25,7 +25,10 @@ function buildMarkdownReport(bundle, verification) {
   const trigger = bundle.trigger;
   const settlement = bundle.settlement.settlementCore;
   const challenge = bundle.challenge.challengeCore;
+  const vwap = bundle.vwapStateOracle;
+  const vwapChallenge = bundle.vwapChallenge;
   const gateTotal = bundle.bitvmOrganizer.gateCounts.reduce((sum, gate) => sum + gate.count, 0);
+  const vwapGateTotal = vwapChallenge.gateCounts.reduce((sum, gate) => sum + gate.count, 0);
 
   return [
     '# Lightning TradeLayer Oracle DLC',
@@ -39,6 +42,7 @@ function buildMarkdownReport(bundle, verification) {
     '- No TAP asset path is present.',
     '- TradeLayer tx14 OP_RETURN price publication is the oracle trigger.',
     '- BitVM organizes the dispute path over payload inclusion, designated oracle provenance, the 5% solvency band, price bucket selection, and wrong-CET claims.',
+    '- The VWAP state-oracle variant commits a valid-trade root and TradeLayer state snapshot root instead of asking BitVM to replay full token state.',
     '',
     '## TradeLayer Trigger',
     '',
@@ -51,6 +55,18 @@ function buildMarkdownReport(bundle, verification) {
     `- Previous accepted mark: \`${trigger.lastAcceptedPrice}\``,
     `- Max deviation: ${trigger.maxDeviationBps} bps`,
     `- Observed deviation: ${trigger.priceDeviationBps} bps (${trigger.solvencyGuard.withinBand ? 'inside band' : 'outside band'})`,
+    '',
+    '## VWAP State Oracle',
+    '',
+    `- Summary id: \`${vwap.summaryCommitmentId}\``,
+    `- Window: ${vwap.summaryCore.windowStartHeight}-${vwap.summaryCore.windowEndHeight}`,
+    `- Valid trade root: \`${vwap.summaryCore.validTradeSetRoot}\``,
+    `- State snapshot root: \`${vwap.summaryCore.stateSnapshotRoot}\``,
+    `- Volume: ${vwap.summaryCore.totalBaseAmountSats} sats of ${vwap.summaryCore.baseTokenId}`,
+    `- Quote notional: ${vwap.summaryCore.totalQuoteAmountMicrousd} micro-USD`,
+    `- VWAP: \`${vwap.summaryCore.pair} ${vwap.summaryCore.vwapPrice}\``,
+    `- VWAP deviation: ${vwap.summaryCore.priceDeviationBps} bps (${vwap.solvencyGuard.withinBand ? 'inside band' : 'outside band'})`,
+    `- Fraud-proof surface: ${vwap.fraudProofSurface.join(', ')}`,
     '',
     '## Contract',
     '',
@@ -72,10 +88,12 @@ function buildMarkdownReport(bundle, verification) {
     `- Organizer id: \`${bundle.bitvmOrganizer.organizerId}\``,
     `- Circuit gates: ${gateTotal}`,
     `- Challenge violations in demo: ${challenge.violations.join(', ')}`,
+    `- VWAP challenge gates: ${vwapGateTotal}`,
+    `- VWAP challenge violations in demo: ${vwapChallenge.challengeCore.violations.join(', ')}`,
     '',
     '## Boundary',
     '',
-    'This is a deterministic protocol artifact. It does not validate all TradeLayer state; the in-protocol BitVM boundary is the designated oracle address plus a 5% maximum move from the previous accepted BTC/USD mark. A live build still needs raw transaction inclusion proofs, real Lightning node receipts, real oracle/admin key policy, and production challenge bond accounting.'
+    'This is a deterministic protocol artifact. It does not validate all TradeLayer state; the in-protocol BitVM boundary is the designated oracle address plus a 5% maximum move from the previous accepted BTC/USD mark. For VWAP, the state oracle commits the TradeLayer snapshot and valid-trade set; challengers can prove invalid inclusion, valid-trade omission, stale roots, or bad arithmetic. A live build still needs raw transaction inclusion proofs, real Lightning node receipts, real oracle/admin key policy, and production challenge bond accounting.'
   ].join('\n');
 }
 

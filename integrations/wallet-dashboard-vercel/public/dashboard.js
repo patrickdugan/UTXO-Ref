@@ -475,6 +475,8 @@ function renderTradeLayerOracleDlc(walletView) {
   const demo = walletView?.tradeLayerOracleDlc;
   if (!demo) return;
   const triggerLink = txidLink(demo.trigger, 'inspect tx14');
+  const vwap = demo.vwapStateOracle;
+  const vwapChallenge = demo.vwapChallenge;
   const flowNotes = [
     demo.trigger.payloadText,
     'publisher address proof',
@@ -494,6 +496,47 @@ function renderTradeLayerOracleDlc(walletView) {
   const code = demo.bitvmOrganizer.pseudocode
     .map(line => `<code>${escapeHtml(line)}</code>`)
     .join('');
+  const vwapPanel = vwap ? `
+    <div class="pure-demo-head oracle-head">
+      <strong>TradeLayer VWAP State Oracle</strong>
+      <span>${escapeHtml(vwap.validationBoundary)}</span>
+    </div>
+    <div class="oracle-grid">
+      <div class="mechanic-card">
+        <div class="mechanic-flow oracle-flow">
+          ${[
+            ['State snapshot', short(vwap.summaryCore.stateSnapshotRoot)],
+            ['Valid trades', `${vwap.summaryCore.validTradeCount} trades`],
+            ['VWAP arithmetic', `${vwap.summaryCore.pair} ${vwap.summaryCore.vwapPrice}`],
+            ['Fraud proof', vwapChallenge.challengeViolation]
+          ].map(([label, value], index) => `
+            <div class="mechanic-node ${index === 2 ? 'selected' : ''}">
+              <span>${index + 1}</span>
+              <strong>${escapeHtml(label)}</strong>
+              <small>${escapeHtml(value)}</small>
+            </div>
+          `).join('')}
+        </div>
+        <div class="script-template mechanic-code">
+          ${vwapChallenge.scriptTemplate.map(line => `<code>${escapeHtml(line)}</code>`).join('')}
+        </div>
+      </div>
+      <div class="oracle-readout">
+        ${[
+          detailRow('Summary id', `<code>${short(vwap.summaryCommitmentId)}</code>`),
+          detailRow('Window', `${vwap.summaryCore.windowStartHeight} - ${vwap.summaryCore.windowEndHeight}`),
+          detailRow('State root', `<code>${short(vwap.summaryCore.stateSnapshotRoot)}</code>`),
+          detailRow('Valid trade root', `<code>${short(vwap.summaryCore.validTradeSetRoot)}</code>`),
+          detailRow('Volume', `${compactSats(vwap.summaryCore.totalBaseAmountSats)} ${escapeHtml(vwap.summaryCore.baseTokenId)}`),
+          detailRow('Quote notional', `$${(Number(vwap.summaryCore.totalQuoteAmountMicrousd) / 1000000).toLocaleString()}`),
+          detailRow('VWAP mark', `${escapeHtml(vwap.summaryCore.pair)} ${escapeHtml(vwap.summaryCore.vwapPrice)}`),
+          detailRow('VWAP delta', `${vwap.summaryCore.priceDeviationBps} bps / ${vwap.solvencyGuard.withinBand ? 'inside band' : 'outside band'}`),
+          detailRow('Fraud surface', escapeHtml(vwap.fraudProofSurface.join(', '))),
+          detailRow('Challenge circuit', `${vwapChallenge.totalGates.toLocaleString()} gates`)
+        ].join('')}
+      </div>
+    </div>
+  ` : '';
   $('tradelayerOracleDlc').innerHTML = `
     <div class="pure-demo-head oracle-head">
       <strong>${escapeHtml(demo.summary)}</strong>
@@ -524,6 +567,7 @@ function renderTradeLayerOracleDlc(walletView) {
         ].join('')}
       </div>
     </div>
+    ${vwapPanel}
   `;
 }
 

@@ -53,6 +53,17 @@ function normalizePositiveInteger(value, fieldName) {
   return number;
 }
 
+function normalizePositiveBigInt(value, fieldName) {
+  let bigint;
+  try {
+    bigint = BigInt(value);
+  } catch (_err) {
+    throw new Error(`${fieldName} must be a positive integer`);
+  }
+  if (bigint <= 0n) throw new Error(`${fieldName} must be a positive integer`);
+  return bigint;
+}
+
 function priceToScaledInt(price, scale = DEFAULT_PRICE_SCALE) {
   const text = String(price);
   if (!/^\d+(\.\d+)?$/.test(text)) {
@@ -99,6 +110,320 @@ function buildOracleAddressProof({ address, txid, inputIndex = 0, scriptPubKeyHe
     proofHash: hashCanonical(proofCore),
     witnessRule:
       'witness supplies the publish tx input, previous output script, and spend witness proving the tx was funded by the designated oracle address'
+  };
+}
+
+function defaultVwapTrades() {
+  return [
+    {
+      txid: '17c9696dac26db5a792cb29535021bed4819e2311e72eba17a2c5add6998ff6a',
+      tradeIndex: 0,
+      baseAmountSats: '2000000',
+      quoteAmountMicrousd: '1298000000'
+    },
+    {
+      txid: 'c2ad12b66809703c4a1585f1cdae8e9064ab800655de6e82393c820b89ce13fb',
+      tradeIndex: 0,
+      baseAmountSats: '3000000',
+      quoteAmountMicrousd: '1950000000'
+    },
+    {
+      txid: sha256Hex('tl-vwap-valid-trade-3'),
+      tradeIndex: 1,
+      baseAmountSats: '5000000',
+      quoteAmountMicrousd: '3254000000'
+    }
+  ];
+}
+
+function normalizeVwapTrade(trade, index) {
+  const txid = normalizeHex32(trade.txid || sha256Hex(`tl-vwap-trade:${index}`), `validTrades[${index}].txid`);
+  const tradeIndex = Number(trade.tradeIndex ?? index);
+  if (!Number.isSafeInteger(tradeIndex) || tradeIndex < 0) {
+    throw new Error(`validTrades[${index}].tradeIndex must be a non-negative safe integer`);
+  }
+  const baseAmountSats = normalizePositiveBigInt(
+    trade.baseAmountSats ?? trade.baseAmount ?? trade.baseSats,
+    `validTrades[${index}].baseAmountSats`
+  );
+  const quoteAmountMicrousd = normalizePositiveBigInt(
+    trade.quoteAmountMicrousd ?? trade.quoteMicrousd ?? trade.quoteAmount,
+    `validTrades[${index}].quoteAmountMicrousd`
+  );
+  const leaf = {
+    txid,
+    tradeIndex,
+    baseTokenId: normalizeString(trade.baseTokenId || 'tlBTC', `validTrades[${index}].baseTokenId`),
+    quoteTokenId: normalizeString(trade.quoteTokenId || 'tlUSD', `validTrades[${index}].quoteTokenId`),
+    baseAmountSats: baseAmountSats.toString(),
+    quoteAmountMicrousd: quoteAmountMicrousd.toString()
+  };
+  return {
+    ...leaf,
+    impliedPrice: scaledIntToPriceString(computeVwapScaledPrice([leaf])),
+    leafHash: hashCanonical(leaf)
+  };
+}
+
+function computeVwapScaledPrice(validTrades) {
+  const totals = validTrades.reduce(
+    (acc, trade) => ({
+      baseAmountSats: acc.baseAmountSats + BigInt(trade.baseAmountSats),
+      quoteAmountMicrousd: acc.quoteAmountMicrousd + BigInt(trade.quoteAmountMicrousd)
+    }),
+    { baseAmountSats: 0n, quoteAmountMicrousd: 0n }
+  );
+  if (totals.baseAmountSats <= 0n) throw new Error('VWAP requires positive base volume');
+  return (totals.quoteAmountMicrousd * 1000000n) / totals.baseAmountSats;
+}
+
+function buildTradeLayerVwapStateOracle(options = {}) {
+  const oracleId = normalizePositiveInteger(options.oracleId ?? 1, 'oracleId');
+  const pair = normalizeString(options.pair || 'BTCUSD', 'pair');
+  const baseTokenId = normalizeString(options.baseTokenId || 'tlBTC', 'baseTokenId');
+  const quoteTokenId = normalizeString(options.quoteTokenId || 'tlUSD', 'quoteTokenId');
+  const windowStartHeight = normalizePositiveInteger(options.windowStartHeight ?? 132690, 'windowStartHeight');
+  const windowEndHeight = normalizePositiveInteger(options.windowEndHeight ?? 132720, 'windowEndHeight');
+  if (windowEndHeight < windowStartHeight) {
+    throw new Error('windowEndHeight must be greater than or equal to windowStartHeight');
+  }
+  const designatedOracleAddress = normalizeString(
+    options.designatedOracleAddress || DEFAULT_DESIGNATED_ORACLE_ADDRESS,
+    'designatedOracleAddress'
+  );
+  const publisherAddress = normalizeString(options.publisherAddress || designatedOracleAddress, 'publisherAddress');
+  const validTrades = (options.validTrades || defaultVwapTrades()).map(normalizeVwapTrade);
+  const totalBaseAmountSats = validTrades.reduce((sum, trade) => sum + BigInt(trade.baseAmountSats), 0n);
+  const totalQuoteAmountMicrousd = validTrades.reduce(
+    (sum, trade) => sum + BigInt(trade.quoteAmountMicrousd),
+    0n
+  );
+  const vwapScaledPrice = computeVwapScaledPrice(validTrades).toString();
+  const lastAcceptedScaledPrice = priceToScaledInt(options.lastAcceptedPrice ?? '64000').toString();
+  const maxDeviationBps = Number(options.maxDeviationBps ?? DEFAULT_MAX_PRICE_DEVIATION_BPS);
+  if (!Number.isSafeInteger(maxDeviationBps) || maxDeviationBps <= 0) {
+    throw new Error('maxDeviationBps must be a positive safe integer');
+  }
+  const deviationBps = priceDeviationBps(lastAcceptedScaledPrice, vwapScaledPrice);
+  const validTradeSetRoot = hashCanonical(validTrades);
+  const tlbtcBalanceRoot = options.tlbtcBalanceRoot || hashCanonical({
+    tokenId: baseTokenId,
+    windowStartHeight,
+    windowEndHeight,
+    side: 'base-token-balances'
+  });
+  const tlusdBalanceRoot = options.tlusdBalanceRoot || hashCanonical({
+    tokenId: quoteTokenId,
+    windowStartHeight,
+    windowEndHeight,
+    side: 'quote-token-balances'
+  });
+  const stateSnapshotRoot = options.stateSnapshotRoot || hashCanonical({
+    protocol: 'tradelayer-state-snapshot',
+    pair,
+    baseTokenId,
+    quoteTokenId,
+    windowStartHeight,
+    windowEndHeight,
+    tlbtcBalanceRoot,
+    tlusdBalanceRoot,
+    validTradeSetRoot
+  });
+  const summaryCore = {
+    version: 1,
+    protocol: 'tradelayer_vwap_state_oracle_summary',
+    oracleId,
+    pair,
+    baseTokenId,
+    quoteTokenId,
+    windowStartHeight,
+    windowEndHeight,
+    designatedOracleAddressHash: sha256Hex(designatedOracleAddress),
+    publisherAddressHash: sha256Hex(publisherAddress),
+    stateSnapshotRoot,
+    tlbtcBalanceRoot,
+    tlusdBalanceRoot,
+    validTradeSetRoot,
+    validTradeCount: validTrades.length,
+    totalBaseAmountSats: totalBaseAmountSats.toString(),
+    totalQuoteAmountMicrousd: totalQuoteAmountMicrousd.toString(),
+    vwapPrice: scaledIntToPriceString(vwapScaledPrice),
+    vwapScaledPrice,
+    lastAcceptedScaledPrice,
+    maxDeviationBps,
+    priceDeviationBps: deviationBps
+  };
+  const summaryCommitmentId = hashCanonical(summaryCore);
+  const payloadText = options.payloadText ||
+    `tlvwap1:${oracleId.toString(36)}:${windowStartHeight.toString(36)}-${windowEndHeight.toString(36)}:${summaryCommitmentId.slice(0, 32)}`;
+  const payloadHash = sha256Hex(payloadText);
+  const opReturnScriptHex = buildOpReturnScriptHex(payloadText);
+  const publishTxid = normalizeHex32(
+    options.publishTxid || sha256Hex(`tl-vwap-state-oracle:${payloadHash}`),
+    'vwapPublishTxid'
+  );
+  const oracleAddressProof = buildOracleAddressProof({
+    address: publisherAddress,
+    txid: publishTxid,
+    inputIndex: options.oracleInputIndex ?? 0,
+    scriptPubKeyHex: options.oracleScriptPubKeyHex || null
+  });
+
+  return {
+    kind: 'tradelayer_vwap_state_oracle_trigger',
+    summaryCommitmentId,
+    summaryCore,
+    payloadText,
+    payloadHash,
+    opReturnScriptHex,
+    publishTxid,
+    designatedOracleAddress,
+    publisherAddress,
+    oracleAddressProof,
+    validTrades,
+    validationBoundary:
+      'BitVM does not replay all TradeLayer token state; it accepts a state-oracle VWAP summary and leaves invalid inclusion, omission, and arithmetic claims challengeable.',
+    solvencyGuard: {
+      rule: 'abs(vwap_price - last_accepted_price) * 10000 <= last_accepted_price * max_deviation_bps',
+      withinBand: deviationBps <= maxDeviationBps,
+      maxDeviationBps,
+      actualDeviationBps: deviationBps
+    },
+    fraudProofSurface: [
+      'invalid_trade_included',
+      'valid_trade_omitted',
+      'bad_vwap_arithmetic',
+      'stale_or_wrong_state_snapshot',
+      'wrong_state_oracle_publisher',
+      'out_of_band_vwap_mark'
+    ]
+  };
+}
+
+function verifyTradeLayerVwapStateOracle(vwapStateOracle, oraclePolicy = null) {
+  if (!vwapStateOracle || vwapStateOracle.kind !== 'tradelayer_vwap_state_oracle_trigger') {
+    return { ok: false, reason: 'wrong VWAP oracle kind' };
+  }
+  if (vwapStateOracle.summaryCommitmentId !== hashCanonical(vwapStateOracle.summaryCore)) {
+    return { ok: false, reason: 'VWAP summary commitment mismatch' };
+  }
+  if (vwapStateOracle.summaryCore.validTradeSetRoot !== hashCanonical(vwapStateOracle.validTrades)) {
+    return { ok: false, reason: 'VWAP valid trade set root mismatch' };
+  }
+  if (computeVwapScaledPrice(vwapStateOracle.validTrades).toString() !== vwapStateOracle.summaryCore.vwapScaledPrice) {
+    return { ok: false, reason: 'VWAP arithmetic mismatch' };
+  }
+  if (sha256Hex(vwapStateOracle.payloadText) !== vwapStateOracle.payloadHash) {
+    return { ok: false, reason: 'VWAP payload hash mismatch' };
+  }
+  if (buildOpReturnScriptHex(vwapStateOracle.payloadText) !== vwapStateOracle.opReturnScriptHex) {
+    return { ok: false, reason: 'VWAP OP_RETURN script mismatch' };
+  }
+  if (
+    vwapStateOracle.oracleAddressProof.addressCommitmentHash !==
+    vwapStateOracle.summaryCore.publisherAddressHash
+  ) {
+    return { ok: false, reason: 'VWAP publisher proof mismatch' };
+  }
+  if (oraclePolicy) {
+    if (vwapStateOracle.publisherAddress !== oraclePolicy.designatedOracleAddress) {
+      return { ok: false, reason: 'VWAP designated oracle address mismatch' };
+    }
+    if (vwapStateOracle.summaryCore.lastAcceptedScaledPrice !== oraclePolicy.lastAcceptedScaledPrice) {
+      return { ok: false, reason: 'VWAP previous mark mismatch' };
+    }
+    if (vwapStateOracle.summaryCore.priceDeviationBps > oraclePolicy.maxDeviationBps) {
+      return { ok: false, reason: 'VWAP price outside 5pct solvency band' };
+    }
+  }
+  return { ok: true };
+}
+
+function buildTradeLayerVwapStateOracleChallenge(vwapStateOracle, options = {}) {
+  const claimedSummaryCommitmentId = options.claimedSummaryCommitmentId || vwapStateOracle.summaryCommitmentId;
+  const claimedStateSnapshotRoot = options.claimedStateSnapshotRoot || vwapStateOracle.summaryCore.stateSnapshotRoot;
+  const claimedTradeSetRoot = options.claimedTradeSetRoot || vwapStateOracle.summaryCore.validTradeSetRoot;
+  const claimedVwapScaledPrice = BigInt(
+    options.claimedVwapScaledPrice ?? vwapStateOracle.summaryCore.vwapScaledPrice
+  ).toString();
+  const claimedPublisherAddress = normalizeString(
+    options.claimedPublisherAddress || vwapStateOracle.publisherAddress,
+    'claimedPublisherAddress'
+  );
+  const claimedDeviationBps = Number(options.claimedDeviationBps ?? vwapStateOracle.summaryCore.priceDeviationBps);
+  const violations = [];
+  if (claimedSummaryCommitmentId !== vwapStateOracle.summaryCommitmentId) {
+    violations.push('vwap_summary_commitment_mismatch');
+  }
+  if (claimedStateSnapshotRoot !== vwapStateOracle.summaryCore.stateSnapshotRoot) {
+    violations.push('stale_or_wrong_state_snapshot');
+  }
+  if (claimedTradeSetRoot !== vwapStateOracle.summaryCore.validTradeSetRoot) {
+    violations.push('invalid_or_omitted_trade_set');
+  }
+  if (claimedVwapScaledPrice !== vwapStateOracle.summaryCore.vwapScaledPrice) {
+    violations.push('bad_vwap_arithmetic');
+  }
+  if (claimedPublisherAddress !== vwapStateOracle.designatedOracleAddress) {
+    violations.push('wrong_state_oracle_publisher');
+  }
+  if (claimedDeviationBps > vwapStateOracle.summaryCore.maxDeviationBps) {
+    violations.push('out_of_band_vwap_mark');
+  }
+  const challengeCore = {
+    protocol: 'bitvm_tradelayer_vwap_state_oracle_challenge',
+    summaryCommitmentId: vwapStateOracle.summaryCommitmentId,
+    expectedStateSnapshotRoot: vwapStateOracle.summaryCore.stateSnapshotRoot,
+    claimedStateSnapshotRoot,
+    expectedTradeSetRoot: vwapStateOracle.summaryCore.validTradeSetRoot,
+    claimedTradeSetRoot,
+    expectedVwapScaledPrice: vwapStateOracle.summaryCore.vwapScaledPrice,
+    claimedVwapScaledPrice,
+    designatedOracleAddressHash: vwapStateOracle.summaryCore.designatedOracleAddressHash,
+    claimedPublisherAddress,
+    expectedMaxDeviationBps: vwapStateOracle.summaryCore.maxDeviationBps,
+    claimedDeviationBps,
+    violations
+  };
+  return {
+    kind: 'bitvm_tradelayer_vwap_state_oracle_challenge',
+    challengeId: hashCanonical(challengeCore),
+    challengeCore,
+    slashable: violations.length > 0,
+    gateCounts: [
+      { family: 'State oracle summary root', count: 96, checks: 'summary hash binds interval, balances, and VWAP' },
+      { family: 'Valid trade membership', count: 256, checks: 'included trades are members of the committed valid-trade set' },
+      { family: 'Token state snapshot roots', count: 224, checks: 'tlBTC/tlUSD balances support trade validity' },
+      { family: 'VWAP accumulator arithmetic', count: 192, checks: 'sum(quote) / sum(base) equals claimed VWAP' },
+      { family: 'Publisher provenance', count: 112, checks: 'summary tx spends from designated state oracle' },
+      { family: '5% solvency band', count: 96, checks: 'VWAP mark stays within max deviation from prior mark' },
+      { family: 'Challenge mux', count: 80, checks: 'select cooperative summary or fraud-proof slash path' }
+    ],
+    publicInputs: [
+      'state_snapshot_root',
+      'valid_trade_set_root',
+      'tlbtc_balance_root',
+      'tlusd_balance_root',
+      'vwap_scaled_price',
+      'designated_oracle_address_hash'
+    ],
+    witnessInputs: [
+      'trade_membership_proofs',
+      'token_balance_transition_proofs',
+      'omitted_trade_counterexample',
+      'vwap_accumulator_witness',
+      'state_oracle_publisher_proof'
+    ],
+    scriptTemplate: [
+      '<state_snapshot_root> OP_EQUALVERIFY',
+      '<valid_trade_set_root> OP_EQUALVERIFY',
+      'SUM(<quote_amount_microusd>) 1000000 OP_MUL SUM(<base_amount_sats>) OP_DIV <vwap_scaled_price> OP_EQUALVERIFY',
+      '<publisher_address_hash> <designated_oracle_address_hash> OP_EQUALVERIFY',
+      'ABS(<vwap_scaled_price> - <last_accepted_scaled_price>) 10000 OP_MUL <last_accepted_scaled_price> <max_deviation_bps> OP_MUL OP_LESSTHANOREQUAL'
+    ],
+    remedy: violations.length
+      ? 'BitVM challenge proves the VWAP state-oracle summary used an invalid/omitted trade, wrong state root, bad arithmetic, or out-of-band mark.'
+      : 'State-oracle VWAP summary remains cooperative.'
   };
 }
 
@@ -602,6 +927,23 @@ function buildLightningTradeLayerOracleDlcBundle(options = {}) {
   });
   const bitvmOrganizer = buildBitvmOrganizer(contract, trigger);
   const settlement = buildLnDlcSettlement(contract, trigger, bitvmOrganizer);
+  const vwapStateOracle = options.includeVwapStateOracle === false ? null : buildTradeLayerVwapStateOracle({
+    pair: contract.contractCore.pair,
+    oracleId: contract.contractCore.oracleId,
+    designatedOracleAddress: contract.contractCore.oraclePolicy.designatedOracleAddress,
+    lastAcceptedPrice: contract.contractCore.oraclePolicy.lastAcceptedPrice,
+    maxDeviationBps: contract.contractCore.oraclePolicy.maxDeviationBps,
+    ...(options.vwapStateOracle || {})
+  });
+  const vwapChallenge = vwapStateOracle ? buildTradeLayerVwapStateOracleChallenge(vwapStateOracle, {
+    claimedVwapScaledPrice:
+      options.vwapChallengeClaimedVwapScaledPrice ||
+      (BigInt(vwapStateOracle.summaryCore.vwapScaledPrice) + 10000n).toString(),
+    claimedTradeSetRoot: options.vwapChallengeClaimedTradeSetRoot,
+    claimedStateSnapshotRoot: options.vwapChallengeClaimedStateSnapshotRoot,
+    claimedPublisherAddress: options.vwapChallengeClaimedPublisherAddress,
+    claimedDeviationBps: options.vwapChallengeClaimedDeviationBps
+  }) : null;
   const challenge = buildBitvmDlcChallenge(contract, trigger, settlement, {
     claimedOutcomeId: options.challengeClaimedOutcomeId || 'price_above_entry',
     claimedPayloadHash: options.challengeClaimedPayloadHash,
@@ -615,7 +957,9 @@ function buildLightningTradeLayerOracleDlcBundle(options = {}) {
     triggerId: trigger.triggerId,
     organizerId: bitvmOrganizer.organizerId,
     settlementId: settlement.settlementId,
-    challengeId: challenge.challengeId
+    challengeId: challenge.challengeId,
+    vwapStateOracleId: vwapStateOracle ? vwapStateOracle.summaryCommitmentId : null,
+    vwapChallengeId: vwapChallenge ? vwapChallenge.challengeId : null
   };
 
   return {
@@ -627,11 +971,14 @@ function buildLightningTradeLayerOracleDlcBundle(options = {}) {
     bitvmOrganizer,
     settlement,
     challenge,
+    vwapStateOracle,
+    vwapChallenge,
     thesis:
       'A bilateral BTC-only DLC can settle over Lightning while a TradeLayer tx14 OP_RETURN price publication is the oracle trigger and BitVM organizes disputes over wrong payloads, stale proofs, or wrong CET selection.',
     caveats: [
       'Prototype invoices and receipts are deterministic; production needs real LDK/LND/CLN payment handling.',
       'The TradeLayer OP_RETURN is a trigger witness. BitVM does not validate all TradeLayer state; it checks the designated oracle publisher and a 5% max move from the last accepted mark.',
+      'The optional VWAP state-oracle mode does not replay TradeLayer token state inside BitVM; it commits state roots and valid-trade roots so invalid inclusion, omission, stale state, and arithmetic fraud proofs remain challengeable.',
       'No TAP asset state is used; payouts and collateral are BTC-denominated Lightning receipts with fallback/challenge paths.'
     ]
   };
@@ -685,6 +1032,13 @@ function verifyLightningTradeLayerOracleDlcBundle(bundle) {
       return { ok: false, reason: `collateral receipt failed: ${receipt.party}` };
     }
   }
+  if (bundle.vwapStateOracle) {
+    const vwapResult = verifyTradeLayerVwapStateOracle(bundle.vwapStateOracle, oraclePolicy);
+    if (!vwapResult.ok) return vwapResult;
+    if (!bundle.vwapChallenge || !bundle.vwapChallenge.slashable) {
+      return { ok: false, reason: 'demo VWAP challenge should show slashable fraud-proof path' };
+    }
+  }
   if (!bundle.challenge.slashable) {
     return { ok: false, reason: 'demo challenge should show slashable wrong-CET path' };
   }
@@ -699,6 +1053,10 @@ module.exports = {
   buildOpReturnScriptHex,
   priceDeviationBps,
   buildOracleAddressProof,
+  computeVwapScaledPrice,
+  buildTradeLayerVwapStateOracle,
+  verifyTradeLayerVwapStateOracle,
+  buildTradeLayerVwapStateOracleChallenge,
   buildTradeLayerPricePublishTrigger,
   buildBilateralLnDlcContract,
   selectOutcomeForPrice,

@@ -37,6 +37,11 @@ assert.ok(
   walletView.tradeLayerOracleDlc.bitvmOrganizer.pseudocode.some(line => line.includes('last_price * 500')),
   'oracle DLC pseudocode missing 5% solvency band'
 );
+assert.strictEqual(walletView.tradeLayerOracleDlc.vwapStateOracle.summaryCore.vwapPrice, '65020');
+assert.strictEqual(walletView.tradeLayerOracleDlc.vwapStateOracle.summaryCore.validTradeCount, 3);
+assert.strictEqual(walletView.tradeLayerOracleDlc.vwapStateOracle.solvencyGuard.withinBand, true);
+assert.strictEqual(walletView.tradeLayerOracleDlc.vwapChallenge.totalGates, 1056);
+assert.strictEqual(walletView.tradeLayerOracleDlc.vwapChallenge.challengeViolation, 'bad_vwap_arithmetic');
 assert.strictEqual(walletView.tradeLayerOracleDlc.settlement.settlementRail, 'lightning');
 assert.strictEqual(walletView.tradeLayerOracleDlc.settlement.noTapAssetPath, true);
 assert.notStrictEqual(walletView.conversion.journeyEntryTxid, walletView.conversion.bitvmShowcaseAnchorTxid);

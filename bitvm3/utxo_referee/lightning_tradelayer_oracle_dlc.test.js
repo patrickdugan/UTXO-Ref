@@ -5,6 +5,9 @@ const {
   decodeTradeLayerPublishOracleData,
   buildOpReturnScriptHex,
   priceDeviationBps,
+  buildTradeLayerVwapStateOracle,
+  verifyTradeLayerVwapStateOracle,
+  buildTradeLayerVwapStateOracleChallenge,
   buildTradeLayerPricePublishTrigger,
   buildBilateralLnDlcContract,
   selectOutcomeForPrice,
@@ -91,6 +94,36 @@ test('TradeLayer published price selects exactly one DLC outcome bucket', () => 
   );
 });
 
+test('TradeLayer VWAP state oracle commits valid trades and bounded mark movement', () => {
+  const vwap = buildTradeLayerVwapStateOracle();
+  assertEq(vwap.kind, 'tradelayer_vwap_state_oracle_trigger');
+  assertEq(vwap.summaryCore.vwapPrice, '65020');
+  assertEq(vwap.summaryCore.validTradeCount, 3);
+  assertEq(vwap.summaryCore.totalBaseAmountSats, '10000000');
+  assertEq(vwap.summaryCore.totalQuoteAmountMicrousd, '6502000000');
+  assertEq(vwap.summaryCore.priceDeviationBps, 159);
+  assert(vwap.solvencyGuard.withinBand, 'VWAP should stay inside 5% band');
+  const result = verifyTradeLayerVwapStateOracle(vwap, {
+    designatedOracleAddress: vwap.designatedOracleAddress,
+    lastAcceptedScaledPrice: vwap.summaryCore.lastAcceptedScaledPrice,
+    maxDeviationBps: vwap.summaryCore.maxDeviationBps
+  });
+  assert(result.ok, result.reason);
+});
+
+test('TradeLayer VWAP challenge catches bad arithmetic against the valid trade set', () => {
+  const vwap = buildTradeLayerVwapStateOracle();
+  const challenge = buildTradeLayerVwapStateOracleChallenge(vwap, {
+    claimedVwapScaledPrice: '650000000'
+  });
+  assert(challenge.slashable, 'bad VWAP arithmetic should be slashable');
+  assert(
+    challenge.challengeCore.violations.includes('bad_vwap_arithmetic'),
+    'missing bad VWAP arithmetic violation'
+  );
+  assertEq(challenge.gateCounts.reduce((sum, gate) => sum + gate.count, 0), 1056);
+});
+
 test('bundle verifies and exposes a slashable wrong-CET BitVM challenge', () => {
   const bundle = buildLightningTradeLayerOracleDlcBundle({
     trigger: {
@@ -105,6 +138,8 @@ test('bundle verifies and exposes a slashable wrong-CET BitVM challenge', () => 
   assertEq(bundle.settlement.settlementCore.settlementRail, 'lightning');
   assertEq(bundle.settlement.settlementCore.tapAssetsUsed, false);
   assertEq(bundle.bitvmOrganizer.gateCounts.reduce((sum, gate) => sum + gate.count, 0), 888);
+  assertEq(bundle.vwapStateOracle.summaryCore.vwapPrice, '65020');
+  assert(bundle.vwapChallenge.slashable, 'VWAP fraud-proof challenge should be slashable');
   assert(bundle.challenge.slashable, 'wrong-CET challenge should be slashable');
   assert(
     bundle.challenge.challengeCore.violations.includes('wrong_cet_for_published_price'),

@@ -321,6 +321,59 @@ function buildWalletView() {
         'selected_outcome = bucket(decode_tx14(payloadText).price)',
         'assert long_payout + short_payout == btc_collateral_sats'
       ]
+    },
+    vwapStateOracle: {
+      summaryCommitmentId: '5a532a19367110338214e927f54772ab0082f2aa17e9b81218ebc0e9b2484125',
+      payloadText: 'tlvwap1:1:2udu-2ueo:5a532a19367110338214e927f54772ab',
+      publishTxid: '9dd623bde3ac48574fb9c7a352bde9c7e5f8fc5c81652f5cc5cdaaf16cef088a',
+      summaryCore: {
+        pair: 'BTCUSD',
+        baseTokenId: 'tlBTC',
+        quoteTokenId: 'tlUSD',
+        windowStartHeight: 132690,
+        windowEndHeight: 132720,
+        stateSnapshotRoot: '07dd70d83744e81b2ff04b3c927c4016f72d344e410626ab63777f349820f405',
+        tlbtcBalanceRoot: '3dedc13b7666e5a3e9a0b677127683a556e9ae49651bd7d6a1364eecb3386c0f',
+        tlusdBalanceRoot: 'd8dadccbafcfb4e450859bdd7e3ae48bff2edc52a60a8febbb51d5f6e72d0a30',
+        validTradeSetRoot: 'c1149b0435f51d60f6239318a768a6017458211e040ad2e9f4dd3613538490d1',
+        validTradeCount: 3,
+        totalBaseAmountSats: '10000000',
+        totalQuoteAmountMicrousd: '6502000000',
+        vwapPrice: '65020',
+        vwapScaledPrice: '650200000',
+        maxDeviationBps: 500,
+        priceDeviationBps: 159
+      },
+      validTrades: [
+        { txid: '17c9696dac26db5a792cb29535021bed4819e2311e72eba17a2c5add6998ff6a', baseAmountSats: '2000000', impliedPrice: '64900' },
+        { txid: 'c2ad12b66809703c4a1585f1cdae8e9064ab800655de6e82393c820b89ce13fb', baseAmountSats: '3000000', impliedPrice: '65000' },
+        { txid: 'e63c707aaacf51de1be273bfd96e1502a71c33ed44e693fc339af905152c7192', baseAmountSats: '5000000', impliedPrice: '65080' }
+      ],
+      solvencyGuard: {
+        withinBand: true,
+        rule: 'abs(vwap_price - last_accepted_price) * 10000 <= last_accepted_price * 500'
+      },
+      fraudProofSurface: [
+        'invalid_trade_included',
+        'valid_trade_omitted',
+        'bad_vwap_arithmetic',
+        'stale_or_wrong_state_snapshot'
+      ],
+      validationBoundary: 'State oracle commits the TradeLayer snapshot and valid-trade set; challengers prove bad inclusion, omission, stale roots, or arithmetic.'
+    },
+    vwapChallenge: {
+      challengeId: '12ffafc8eb8f8cdf7573264ee2106c29086483a7764ac6e6508dc810e949e627',
+      totalGates: 1056,
+      challengeViolation: 'bad_vwap_arithmetic',
+      publicInputs: ['state_snapshot_root', 'valid_trade_set_root', 'tlbtc_balance_root', 'tlusd_balance_root', 'vwap_scaled_price'],
+      witnessInputs: ['trade_membership_proofs', 'token_balance_transition_proofs', 'omitted_trade_counterexample', 'vwap_accumulator_witness'],
+      scriptTemplate: [
+        '<state_snapshot_root> OP_EQUALVERIFY',
+        '<valid_trade_set_root> OP_EQUALVERIFY',
+        'SUM(<quote_amount_microusd>) 1000000 OP_MUL SUM(<base_amount_sats>) OP_DIV <vwap_scaled_price> OP_EQUALVERIFY',
+        '<publisher_address_hash> <designated_oracle_address_hash> OP_EQUALVERIFY',
+        'ABS(<vwap_scaled_price> - <last_accepted_scaled_price>) 10000 OP_MUL <last_accepted_scaled_price> <max_deviation_bps> OP_MUL OP_LESSTHANOREQUAL'
+      ]
     }
   };
   return {

@@ -1,12 +1,14 @@
 {
   "kind": "lightning_tradelayer_oracle_dlc_bundle",
-  "bundleId": "9ed10293bf4ffc0ea09253a806b77e77747a1043931345fca31b825f080ca50b",
+  "bundleId": "cb8584a6f2cf016ff11af65c019052932ac749aba00dc5b0de0d8aba3cf05b41",
   "bundleCore": {
     "contractCommitmentId": "934250a8ae80785bd4b6e8e29269514f13ab5d8486b582f6cdd4a6495fb7edd2",
     "triggerId": "f6e73ce842993c8e36235a440520d2bb389a87f82378793bd4f16d649f70e017",
     "organizerId": "d5f2a5da32d0b0f930ae98beb19dc701e7b9da2ad37e9b7b573ea5fce2aaced8",
     "settlementId": "00111de38b8ba37d31a6720f789f3d861c2620da623a826155c031e4374ce4c6",
-    "challengeId": "280b0a2a6d04d817ac6dc2df49cb6f9379f023be1d9c346829f555ba403c4e80"
+    "challengeId": "280b0a2a6d04d817ac6dc2df49cb6f9379f023be1d9c346829f555ba403c4e80",
+    "vwapStateOracleId": "5a532a19367110338214e927f54772ab0082f2aa17e9b81218ebc0e9b2484125",
+    "vwapChallengeId": "12ffafc8eb8f8cdf7573264ee2106c29086483a7764ac6e6508dc810e949e627"
   },
   "contract": {
     "kind": "lightning_bilateral_dlc_contract",
@@ -331,10 +333,184 @@
     "slashable": true,
     "remedy": "BitVM challenge proves the TradeLayer OP_RETURN trigger selects a different DLC outcome, then routes to refund/slash."
   },
+  "vwapStateOracle": {
+    "kind": "tradelayer_vwap_state_oracle_trigger",
+    "summaryCommitmentId": "5a532a19367110338214e927f54772ab0082f2aa17e9b81218ebc0e9b2484125",
+    "summaryCore": {
+      "version": 1,
+      "protocol": "tradelayer_vwap_state_oracle_summary",
+      "oracleId": 1,
+      "pair": "BTCUSD",
+      "baseTokenId": "tlBTC",
+      "quoteTokenId": "tlUSD",
+      "windowStartHeight": 132690,
+      "windowEndHeight": 132720,
+      "designatedOracleAddressHash": "87018922fc0036f87edff0e91f95a895f06b9031a3b7928a890b24fba9704673",
+      "publisherAddressHash": "87018922fc0036f87edff0e91f95a895f06b9031a3b7928a890b24fba9704673",
+      "stateSnapshotRoot": "07dd70d83744e81b2ff04b3c927c4016f72d344e410626ab63777f349820f405",
+      "tlbtcBalanceRoot": "3dedc13b7666e5a3e9a0b677127683a556e9ae49651bd7d6a1364eecb3386c0f",
+      "tlusdBalanceRoot": "d8dadccbafcfb4e450859bdd7e3ae48bff2edc52a60a8febbb51d5f6e72d0a30",
+      "validTradeSetRoot": "c1149b0435f51d60f6239318a768a6017458211e040ad2e9f4dd3613538490d1",
+      "validTradeCount": 3,
+      "totalBaseAmountSats": "10000000",
+      "totalQuoteAmountMicrousd": "6502000000",
+      "vwapPrice": "65020",
+      "vwapScaledPrice": "650200000",
+      "lastAcceptedScaledPrice": "640000000",
+      "maxDeviationBps": 500,
+      "priceDeviationBps": 159
+    },
+    "payloadText": "tlvwap1:1:2udu-2ueo:5a532a19367110338214e927f54772ab",
+    "payloadHash": "b80e2704582f2fe721dcb19846866bd7a66c7e26fd6cebea009d362c335ffb37",
+    "opReturnScriptHex": "6a34746c76776170313a313a327564752d3275656f3a3561353332613139333637313130333338323134653932376635343737326162",
+    "publishTxid": "9dd623bde3ac48574fb9c7a352bde9c7e5f8fc5c81652f5cc5cdaaf16cef088a",
+    "designatedOracleAddress": "tb1qn75cnly6zn4540k7824rmw02eeylaygcpj49rs",
+    "publisherAddress": "tb1qn75cnly6zn4540k7824rmw02eeylaygcpj49rs",
+    "oracleAddressProof": {
+      "kind": "designated_oracle_address_proof",
+      "oracleAddress": "tb1qn75cnly6zn4540k7824rmw02eeylaygcpj49rs",
+      "addressCommitmentHash": "87018922fc0036f87edff0e91f95a895f06b9031a3b7928a890b24fba9704673",
+      "publishTxid": "9dd623bde3ac48574fb9c7a352bde9c7e5f8fc5c81652f5cc5cdaaf16cef088a",
+      "inputIndex": 0,
+      "scriptPubKeyHex": null,
+      "proofHash": "5b043fde93f962f285f188b5f9990f94ecf50462f0e573cbba4587e25ecb4888",
+      "witnessRule": "witness supplies the publish tx input, previous output script, and spend witness proving the tx was funded by the designated oracle address"
+    },
+    "validTrades": [
+      {
+        "txid": "17c9696dac26db5a792cb29535021bed4819e2311e72eba17a2c5add6998ff6a",
+        "tradeIndex": 0,
+        "baseTokenId": "tlBTC",
+        "quoteTokenId": "tlUSD",
+        "baseAmountSats": "2000000",
+        "quoteAmountMicrousd": "1298000000",
+        "impliedPrice": "64900",
+        "leafHash": "cdb97a53e61d8420504f67fdd8e624f5c05a7b057b59f0c6bf1ec8274fa4a455"
+      },
+      {
+        "txid": "c2ad12b66809703c4a1585f1cdae8e9064ab800655de6e82393c820b89ce13fb",
+        "tradeIndex": 0,
+        "baseTokenId": "tlBTC",
+        "quoteTokenId": "tlUSD",
+        "baseAmountSats": "3000000",
+        "quoteAmountMicrousd": "1950000000",
+        "impliedPrice": "65000",
+        "leafHash": "a725d7a8affca48de7619f408f742db2a0831f9ed797f1a23dfe33ead80ae241"
+      },
+      {
+        "txid": "e63c707aaacf51de1be273bfd96e1502a71c33ed44e693fc339af905152c7192",
+        "tradeIndex": 1,
+        "baseTokenId": "tlBTC",
+        "quoteTokenId": "tlUSD",
+        "baseAmountSats": "5000000",
+        "quoteAmountMicrousd": "3254000000",
+        "impliedPrice": "65080",
+        "leafHash": "19e965e0dd4c81f301b6ea2ba607690da9d2ea211c7623922aaab0d0a0953c59"
+      }
+    ],
+    "validationBoundary": "BitVM does not replay all TradeLayer token state; it accepts a state-oracle VWAP summary and leaves invalid inclusion, omission, and arithmetic claims challengeable.",
+    "solvencyGuard": {
+      "rule": "abs(vwap_price - last_accepted_price) * 10000 <= last_accepted_price * max_deviation_bps",
+      "withinBand": true,
+      "maxDeviationBps": 500,
+      "actualDeviationBps": 159
+    },
+    "fraudProofSurface": [
+      "invalid_trade_included",
+      "valid_trade_omitted",
+      "bad_vwap_arithmetic",
+      "stale_or_wrong_state_snapshot",
+      "wrong_state_oracle_publisher",
+      "out_of_band_vwap_mark"
+    ]
+  },
+  "vwapChallenge": {
+    "kind": "bitvm_tradelayer_vwap_state_oracle_challenge",
+    "challengeId": "12ffafc8eb8f8cdf7573264ee2106c29086483a7764ac6e6508dc810e949e627",
+    "challengeCore": {
+      "protocol": "bitvm_tradelayer_vwap_state_oracle_challenge",
+      "summaryCommitmentId": "5a532a19367110338214e927f54772ab0082f2aa17e9b81218ebc0e9b2484125",
+      "expectedStateSnapshotRoot": "07dd70d83744e81b2ff04b3c927c4016f72d344e410626ab63777f349820f405",
+      "claimedStateSnapshotRoot": "07dd70d83744e81b2ff04b3c927c4016f72d344e410626ab63777f349820f405",
+      "expectedTradeSetRoot": "c1149b0435f51d60f6239318a768a6017458211e040ad2e9f4dd3613538490d1",
+      "claimedTradeSetRoot": "c1149b0435f51d60f6239318a768a6017458211e040ad2e9f4dd3613538490d1",
+      "expectedVwapScaledPrice": "650200000",
+      "claimedVwapScaledPrice": "650210000",
+      "designatedOracleAddressHash": "87018922fc0036f87edff0e91f95a895f06b9031a3b7928a890b24fba9704673",
+      "claimedPublisherAddress": "tb1qn75cnly6zn4540k7824rmw02eeylaygcpj49rs",
+      "expectedMaxDeviationBps": 500,
+      "claimedDeviationBps": 159,
+      "violations": [
+        "bad_vwap_arithmetic"
+      ]
+    },
+    "slashable": true,
+    "gateCounts": [
+      {
+        "family": "State oracle summary root",
+        "count": 96,
+        "checks": "summary hash binds interval, balances, and VWAP"
+      },
+      {
+        "family": "Valid trade membership",
+        "count": 256,
+        "checks": "included trades are members of the committed valid-trade set"
+      },
+      {
+        "family": "Token state snapshot roots",
+        "count": 224,
+        "checks": "tlBTC/tlUSD balances support trade validity"
+      },
+      {
+        "family": "VWAP accumulator arithmetic",
+        "count": 192,
+        "checks": "sum(quote) / sum(base) equals claimed VWAP"
+      },
+      {
+        "family": "Publisher provenance",
+        "count": 112,
+        "checks": "summary tx spends from designated state oracle"
+      },
+      {
+        "family": "5% solvency band",
+        "count": 96,
+        "checks": "VWAP mark stays within max deviation from prior mark"
+      },
+      {
+        "family": "Challenge mux",
+        "count": 80,
+        "checks": "select cooperative summary or fraud-proof slash path"
+      }
+    ],
+    "publicInputs": [
+      "state_snapshot_root",
+      "valid_trade_set_root",
+      "tlbtc_balance_root",
+      "tlusd_balance_root",
+      "vwap_scaled_price",
+      "designated_oracle_address_hash"
+    ],
+    "witnessInputs": [
+      "trade_membership_proofs",
+      "token_balance_transition_proofs",
+      "omitted_trade_counterexample",
+      "vwap_accumulator_witness",
+      "state_oracle_publisher_proof"
+    ],
+    "scriptTemplate": [
+      "<state_snapshot_root> OP_EQUALVERIFY",
+      "<valid_trade_set_root> OP_EQUALVERIFY",
+      "SUM(<quote_amount_microusd>) 1000000 OP_MUL SUM(<base_amount_sats>) OP_DIV <vwap_scaled_price> OP_EQUALVERIFY",
+      "<publisher_address_hash> <designated_oracle_address_hash> OP_EQUALVERIFY",
+      "ABS(<vwap_scaled_price> - <last_accepted_scaled_price>) 10000 OP_MUL <last_accepted_scaled_price> <max_deviation_bps> OP_MUL OP_LESSTHANOREQUAL"
+    ],
+    "remedy": "BitVM challenge proves the VWAP state-oracle summary used an invalid/omitted trade, wrong state root, bad arithmetic, or out-of-band mark."
+  },
   "thesis": "A bilateral BTC-only DLC can settle over Lightning while a TradeLayer tx14 OP_RETURN price publication is the oracle trigger and BitVM organizes disputes over wrong payloads, stale proofs, or wrong CET selection.",
   "caveats": [
     "Prototype invoices and receipts are deterministic; production needs real LDK/LND/CLN payment handling.",
     "The TradeLayer OP_RETURN is a trigger witness. BitVM does not validate all TradeLayer state; it checks the designated oracle publisher and a 5% max move from the last accepted mark.",
+    "The optional VWAP state-oracle mode does not replay TradeLayer token state inside BitVM; it commits state roots and valid-trade roots so invalid inclusion, omission, stale state, and arithmetic fraud proofs remain challengeable.",
     "No TAP asset state is used; payouts and collateral are BTC-denominated Lightning receipts with fallback/challenge paths."
   ],
   "verification": {
