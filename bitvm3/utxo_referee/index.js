@@ -56,6 +56,7 @@ const arkDlcSettlement = require('./ark_dlc_settlement');
 const arkLiquidityGraftManager = require('./ark_liquidity_graft_manager');
 const lnbtcTlusdLiquidityPatch = require('./lnbtc_tlusd_liquidity_patch');
 const lightningTradeLayerOracleDlc = require('./lightning_tradelayer_oracle_dlc');
+const tradeLayerPnlRouteAdapter = require('./tradelayer_pnl_route_adapter');
 
 module.exports = {
   // Types
@@ -214,6 +215,10 @@ module.exports = {
   buildBitvmTradeLayerOracleDlcChallenge: lightningTradeLayerOracleDlc.buildBitvmDlcChallenge,
   buildLightningTradeLayerOracleDlcBundle: lightningTradeLayerOracleDlc.buildLightningTradeLayerOracleDlcBundle,
   verifyLightningTradeLayerOracleDlcBundle: lightningTradeLayerOracleDlc.verifyLightningTradeLayerOracleDlcBundle,
+  tradeLayerAddressToScriptPubKey: tradeLayerPnlRouteAdapter.addressToScriptPubKey,
+  computeTradeLayerPnlPlanHash: tradeLayerPnlRouteAdapter.computeTradeLayerPlanHash,
+  buildTradeLayerPnlCommitment: tradeLayerPnlRouteAdapter.buildTradeLayerPnlCommitment,
+  verifyTradeLayerPnlRoutePlan: tradeLayerPnlRouteAdapter.verifyTradeLayerPnlRoutePlan,
   resolvePipelineOptions: m1Pipeline.resolvePipelineOptions,
   buildPipelinePlan: m1Pipeline.buildPipelinePlan,
   buildPipelineSummary: m1Pipeline.buildPipelineSummary,
@@ -248,5 +253,6 @@ module.exports = {
   arkDlcSettlement,
   arkLiquidityGraftManager,
   lnbtcTlusdLiquidityPatch,
-  lightningTradeLayerOracleDlc
+  lightningTradeLayerOracleDlc,
+  tradeLayerPnlRouteAdapter
 };

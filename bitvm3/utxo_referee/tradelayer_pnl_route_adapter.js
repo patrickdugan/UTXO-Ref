@@ -1,0 +1,352 @@
+/**
+ * TradeLayer PNL route adapter for the UTXO referee.
+ *
+ * TradeLayer publishes the large PNL route as a witness/oracle blob. BitVM should
+ * not parse that JSON directly. This adapter turns the resolved route into the
+ * compact commitment that the referee already knows how to verify:
+ *
+ *   TL route blob -> concrete payout outputs -> UTXORef PayoutLeaf Merkle root
+ */
+
+const crypto = require('crypto');
+const {
+  CommitmentPackage,
+  PayoutLeaf,
+  SweepObject
+} = require('./types');
+const { buildTreeWithProofs } = require('./merkle');
+const { verifySweep } = require('./verify');
+
+const COIN = 100000000n;
+const BECH32_CHARSET = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
+const BECH32_CONST = 1;
+const BECH32M_CONST = 0x2bc830a3;
+
+const NETWORK_HRPS = {
+  'litecoin-testnet': 'tltc',
+  'bitcoin-testnet': 'tb',
+  'bitcoin-testnet4': 'tb',
+  'bitcoin-regtest': 'bcrt',
+  litecoin: 'ltc',
+  bitcoin: 'bc'
+};
+
+function sha256Hex(value) {
+  const input = Buffer.isBuffer(value)
+    ? value
+    : Buffer.from(typeof value === 'string' ? value : stableStringify(value), 'utf8');
+  return crypto.createHash('sha256').update(input).digest('hex');
+}
+
+function stableStringify(value) {
+  if (value === null || typeof value !== 'object') {
+    if (typeof value === 'bigint') return JSON.stringify(value.toString());
+    return JSON.stringify(value);
+  }
+  if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
+  return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${stableStringify(value[key])}`).join(',')}}`;
+}
+
+function toSats(value, fieldName) {
+  if (typeof value === 'bigint') return value;
+  if (typeof value === 'number') {
+    if (!Number.isSafeInteger(value)) throw new Error(`${fieldName} must be a safe integer sat amount`);
+    return BigInt(value);
+  }
+  if (typeof value === 'string') {
+    if (!/^-?\d+$/.test(value)) throw new Error(`${fieldName} must be an integer sat amount`);
+    return BigInt(value);
+  }
+  throw new Error(`${fieldName} must be an integer sat amount`);
+}
+
+function ltcToSats(value, fieldName) {
+  const text = String(value);
+  if (!/^\d+(\.\d{1,8})?$/.test(text)) throw new Error(`${fieldName} must be a decimal coin amount`);
+  const [whole, fraction = ''] = text.split('.');
+  return BigInt(whole) * COIN + BigInt((fraction + '00000000').slice(0, 8));
+}
+
+function bech32Polymod(values) {
+  const generators = [0x3b6a57b2, 0x26508e6d, 0x1ea119fa, 0x3d4233dd, 0x2a1462b3];
+  let chk = 1;
+  for (const value of values) {
+    const top = chk >> 25;
+    chk = ((chk & 0x1ffffff) << 5) ^ value;
+    for (let i = 0; i < 5; i++) {
+      if ((top >> i) & 1) chk ^= generators[i];
+    }
+  }
+  return chk >>> 0;
+}
+
+function bech32HrpExpand(hrp) {
+  const expanded = [];
+  for (let i = 0; i < hrp.length; i++) expanded.push(hrp.charCodeAt(i) >> 5);
+  expanded.push(0);
+  for (let i = 0; i < hrp.length; i++) expanded.push(hrp.charCodeAt(i) & 31);
+  return expanded;
+}
+
+function decodeBech32(address) {
+  if (address !== address.toLowerCase() && address !== address.toUpperCase()) {
+    throw new Error('bech32 address uses mixed case');
+  }
+
+  const normalized = address.toLowerCase();
+  const sep = normalized.lastIndexOf('1');
+  if (sep < 1 || sep + 7 > normalized.length) throw new Error('invalid bech32 separator');
+
+  const hrp = normalized.slice(0, sep);
+  const data = [];
+  for (const char of normalized.slice(sep + 1)) {
+    const value = BECH32_CHARSET.indexOf(char);
+    if (value === -1) throw new Error(`invalid bech32 character: ${char}`);
+    data.push(value);
+  }
+
+  const check = bech32Polymod(bech32HrpExpand(hrp).concat(data));
+  const encoding = check === BECH32_CONST ? 'bech32' : check === BECH32M_CONST ? 'bech32m' : null;
+  if (!encoding) throw new Error('invalid bech32 checksum');
+
+  return { hrp, data: data.slice(0, -6), encoding };
+}
+
+function convertBits(data, fromBits, toBits, pad) {
+  let acc = 0;
+  let bits = 0;
+  const maxv = (1 << toBits) - 1;
+  const result = [];
+
+  for (const value of data) {
+    if (value < 0 || value >> fromBits !== 0) throw new Error('invalid bech32 data range');
+    acc = (acc << fromBits) | value;
+    bits += fromBits;
+    while (bits >= toBits) {
+      bits -= toBits;
+      result.push((acc >> bits) & maxv);
+    }
+  }
+
+  if (pad) {
+    if (bits > 0) result.push((acc << (toBits - bits)) & maxv);
+  } else if (bits >= fromBits || ((acc << (toBits - bits)) & maxv)) {
+    throw new Error('invalid bech32 padding');
+  }
+
+  return result;
+}
+
+function expectedHrp(network) {
+  return NETWORK_HRPS[network] || network;
+}
+
+function addressToScriptPubKey(address, network = 'litecoin-testnet') {
+  const decoded = decodeBech32(String(address));
+  const hrp = expectedHrp(network);
+  if (decoded.hrp !== hrp) {
+    throw new Error(`address HRP mismatch: expected ${hrp}, got ${decoded.hrp}`);
+  }
+
+  if (!decoded.data.length) throw new Error('bech32 payload is empty');
+  const version = decoded.data[0];
+  const program = Buffer.from(convertBits(decoded.data.slice(1), 5, 8, false));
+
+  if (version > 16) throw new Error(`invalid segwit version ${version}`);
+  if (program.length < 2 || program.length > 40) throw new Error('invalid witness program length');
+  if (version === 0) {
+    if (decoded.encoding !== 'bech32') throw new Error('v0 witness program must use bech32');
+    if (program.length !== 20 && program.length !== 32) throw new Error('v0 witness program must be 20 or 32 bytes');
+  } else if (decoded.encoding !== 'bech32m') {
+    throw new Error('v1+ witness program must use bech32m');
+  }
+
+  const versionOpcode = version === 0 ? 0x00 : 0x50 + version;
+  return Buffer.concat([Buffer.from([versionOpcode, program.length]), program]);
+}
+
+function scriptPubKeyForOutput(output, network) {
+  if (output.scriptPubKey) {
+    const script = Buffer.isBuffer(output.scriptPubKey)
+      ? output.scriptPubKey
+      : Buffer.from(String(output.scriptPubKey), 'hex');
+    if (!script.length) throw new Error('scriptPubKey cannot be empty');
+    return script;
+  }
+  if (!output.address) throw new Error('output must include address or scriptPubKey');
+  return addressToScriptPubKey(output.address, network);
+}
+
+function normalizeOutputPlan(outputPlan) {
+  if (!Array.isArray(outputPlan) || !outputPlan.length) {
+    throw new Error('route plan must include a non-empty outputPlan');
+  }
+
+  return outputPlan.map((output, index) => {
+    const sats = output.sats !== undefined
+      ? toSats(output.sats, `outputPlan[${index}].sats`)
+      : ltcToSats(output.amount, `outputPlan[${index}].amount`);
+    if (sats <= 0n) throw new Error(`outputPlan[${index}] must be positive`);
+    return { ...output, sats };
+  });
+}
+
+function deriveEpochId(routePlan) {
+  if (routePlan.epochId !== undefined) return BigInt(routePlan.epochId);
+  const seed = routePlan.envelope?.dlcRef || routePlan.payloadHash || routePlan.planHash || stableStringify(routePlan);
+  return crypto.createHash('sha256').update(String(seed), 'utf8').digest().readBigUInt64LE(0);
+}
+
+function computeTradeLayerPlanHash(routePlan) {
+  return sha256Hex({
+    revealTxid: routePlan.revealTxid,
+    payloadHash: routePlan.payloadHash,
+    dlcRef: routePlan.envelope?.dlcRef,
+    grantTxid: routePlan.dlcInput?.txid,
+    grantVout: routePlan.dlcInput?.vout,
+    outputPlan: routePlan.outputPlan
+  });
+}
+
+function buildLeaves(outputPlan, epochId, network) {
+  return normalizeOutputPlan(outputPlan).map((output) => new PayoutLeaf({
+    epochId,
+    recipientScriptPubKey: scriptPubKeyForOutput(output, network),
+    amountSats: output.sats
+  }));
+}
+
+function leafKey(leaf) {
+  return `${leaf.recipientScriptPubKey.toString('hex')}:${leaf.amountSats.toString()}`;
+}
+
+function buildSweepOutputs(observedOutputs, committed, network) {
+  const remaining = new Map();
+  committed.leaves.forEach((leaf, index) => {
+    const key = leafKey(leaf);
+    const indexes = remaining.get(key) || [];
+    indexes.push(index);
+    remaining.set(key, indexes);
+  });
+
+  return normalizeOutputPlan(observedOutputs).map((output, index) => {
+    const recipientScriptPubKey = scriptPubKeyForOutput(output, network);
+    const key = `${recipientScriptPubKey.toString('hex')}:${output.sats.toString()}`;
+    const indexes = remaining.get(key) || [];
+    const leafIndex = indexes.length ? indexes.shift() : Math.min(index, committed.proofs.length - 1);
+    if (indexes.length) remaining.set(key, indexes);
+    else remaining.delete(key);
+
+    return {
+      recipientScriptPubKey,
+      amountSats: output.sats,
+      merkleProof: committed.proofs[leafIndex]
+    };
+  });
+}
+
+function buildTradeLayerPnlCommitment(routePlan, options = {}) {
+  const network = options.network || routePlan.network || 'litecoin-testnet';
+  const epochId = options.epochId !== undefined ? BigInt(options.epochId) : deriveEpochId(routePlan);
+  const leaves = buildLeaves(routePlan.outputPlan, epochId, network);
+  const { root, proofs } = buildTreeWithProofs(leaves);
+  const payoutTotalSats = leaves.reduce((sum, leaf) => sum + leaf.amountSats, 0n);
+  const capSats = options.capSats !== undefined ? toSats(options.capSats, 'options.capSats') : payoutTotalSats;
+  const residualDest = options.residualDestScriptPubKey
+    ? Buffer.from(options.residualDestScriptPubKey, 'hex')
+    : options.residualAddress
+      ? addressToScriptPubKey(options.residualAddress, network)
+      : Buffer.from('6a', 'hex');
+
+  const commitment = new CommitmentPackage({
+    epochId,
+    withdrawalRoot: root,
+    capSats,
+    residualDest
+  });
+
+  const committed = { leaves, proofs };
+  const payoutOutputs = buildSweepOutputs(options.observedOutputs || routePlan.outputPlan, committed, network);
+  const observedPayoutTotalSats = payoutOutputs.reduce((sum, output) => sum + BigInt(output.amountSats), 0n);
+  const residualSats = capSats - observedPayoutTotalSats;
+  const sweep = new SweepObject({
+    epochIdCommitted: epochId,
+    payoutOutputs,
+    residualOutput: {
+      recipientScriptPubKey: residualDest,
+      amountSats: residualSats >= 0n ? residualSats : 0n
+    }
+  });
+
+  return {
+    network,
+    epochId,
+    leaves,
+    proofs,
+    payoutTotalSats,
+    commitment,
+    sweep,
+    withdrawalRootHex: root.toString('hex'),
+    commitmentHashHex: commitment.hash().toString('hex')
+  };
+}
+
+function verifyTradeLayerPnlRoutePlan(routePlan, options = {}) {
+  if (!routePlan || typeof routePlan !== 'object') throw new Error('routePlan must be an object');
+
+  const recomputedPlanHash = computeTradeLayerPlanHash(routePlan);
+  if (!options.skipPlanHash && routePlan.planHash && recomputedPlanHash !== String(routePlan.planHash).toLowerCase()) {
+    return {
+      ok: false,
+      reason: `planHash mismatch: expected ${routePlan.planHash}, recomputed ${recomputedPlanHash}`,
+      recomputedPlanHash
+    };
+  }
+
+  const bundle = buildTradeLayerPnlCommitment(routePlan, options);
+  const sweepResult = verifySweep(bundle.commitment, bundle.sweep);
+  if (!sweepResult.ok) {
+    return {
+      ok: false,
+      reason: sweepResult.reason,
+      recomputedPlanHash,
+      withdrawalRootHex: bundle.withdrawalRootHex,
+      commitmentHashHex: bundle.commitmentHashHex
+    };
+  }
+
+  const observedPayoutTotalSats = bundle.sweep.totalPayoutSats();
+  const inputSats = routePlan.dlcInput?.sats !== undefined
+    ? toSats(routePlan.dlcInput.sats, 'routePlan.dlcInput.sats')
+    : null;
+  const feeSats = routePlan.feeSats !== undefined ? toSats(routePlan.feeSats, 'routePlan.feeSats') : 0n;
+  if (inputSats !== null && observedPayoutTotalSats + feeSats !== inputSats) {
+    return {
+      ok: false,
+      reason: `route accounting mismatch: payouts ${observedPayoutTotalSats} + fee ${feeSats} != input ${inputSats}`,
+      recomputedPlanHash,
+      withdrawalRootHex: bundle.withdrawalRootHex,
+      commitmentHashHex: bundle.commitmentHashHex
+    };
+  }
+
+  return {
+    ok: true,
+    recomputedPlanHash,
+    withdrawalRootHex: bundle.withdrawalRootHex,
+    commitmentHashHex: bundle.commitmentHashHex,
+    epochId: bundle.epochId.toString(),
+    payoutTotalSats: observedPayoutTotalSats.toString(),
+    feeSats: feeSats.toString()
+  };
+}
+
+module.exports = {
+  NETWORK_HRPS,
+  stableStringify,
+  sha256Hex,
+  addressToScriptPubKey,
+  computeTradeLayerPlanHash,
+  buildTradeLayerPnlCommitment,
+  verifyTradeLayerPnlRoutePlan
+};
