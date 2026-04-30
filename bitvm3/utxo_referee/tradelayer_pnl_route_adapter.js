@@ -24,8 +24,11 @@ const BECH32M_CONST = 0x2bc830a3;
 
 const NETWORK_HRPS = {
   'litecoin-testnet': 'tltc',
+  ltctest: 'tltc',
   'bitcoin-testnet': 'tb',
   'bitcoin-testnet4': 'tb',
+  btctest: 'tb',
+  'btc-testnet4': 'tb',
   'bitcoin-regtest': 'bcrt',
   litecoin: 'ltc',
   bitcoin: 'bc'
@@ -141,6 +144,29 @@ function expectedHrp(network) {
   return NETWORK_HRPS[network] || network;
 }
 
+function inferNetwork(routePlan, options = {}) {
+  if (options.network) return options.network;
+  if (routePlan?.network) return routePlan.network;
+
+  const chain = String(routePlan?.envelope?.chain || routePlan?.payload?.chain || routePlan?.chain || '');
+  if (/bitcoin|btc/i.test(chain)) return 'bitcoin-testnet4';
+  if (/litecoin|ltc/i.test(chain)) return 'litecoin-testnet';
+
+  const candidateAddress = routePlan?.outputPlan?.find((output) => output?.address)?.address
+    || routePlan?.dlcInput?.address
+    || routePlan?.envelope?.tokenPnl?.find((entry) => entry?.toAddress)?.toAddress
+    || routePlan?.envelope?.tokenPnl?.find((entry) => entry?.fromAddress)?.fromAddress;
+
+  const address = String(candidateAddress || '').toLowerCase();
+  if (address.startsWith('tb1')) return 'bitcoin-testnet4';
+  if (address.startsWith('bcrt1')) return 'bitcoin-regtest';
+  if (address.startsWith('bc1')) return 'bitcoin';
+  if (address.startsWith('tltc1')) return 'litecoin-testnet';
+  if (address.startsWith('ltc1')) return 'litecoin';
+
+  return 'litecoin-testnet';
+}
+
 function addressToScriptPubKey(address, network = 'litecoin-testnet') {
   const decoded = decodeBech32(String(address));
   const hrp = expectedHrp(network);
@@ -246,7 +272,7 @@ function buildSweepOutputs(observedOutputs, committed, network) {
 }
 
 function buildTradeLayerPnlCommitment(routePlan, options = {}) {
-  const network = options.network || routePlan.network || 'litecoin-testnet';
+  const network = inferNetwork(routePlan, options);
   const epochId = options.epochId !== undefined ? BigInt(options.epochId) : deriveEpochId(routePlan);
   const leaves = buildLeaves(routePlan.outputPlan, epochId, network);
   const { root, proofs } = buildTreeWithProofs(leaves);
