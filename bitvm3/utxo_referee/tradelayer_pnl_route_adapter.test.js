@@ -5,10 +5,13 @@
 const {
   addressToScriptPubKey,
   computeTradeLayerPlanHash,
+  buildTradeLayerSendOracleCommitment,
+  buildTradeLayerSendIntentFromStateOracle,
   buildTradeLayerSendRoutePlan,
   buildTradeLayerPnlCommitment,
   verifyTradeLayerPnlRoutePlan,
-  verifyTradeLayerSendRoutePlan
+  verifyTradeLayerSendRoutePlan,
+  verifyTradeLayerSendStateOracleRoute
 } = require('./tradelayer_pnl_route_adapter');
 
 let passed = 0;
@@ -73,6 +76,41 @@ const SEND_INTENT = {
   oracleAddress: 'tltc1qkz0vft2fc4nk0u9fx4k9yk4th7zherna3zxh22',
   refundAddress: 'tltc1qn06nctkv2sm8wdjx5fe2x0zluxlyxynq3vud87hxsfv3u8kwdcaq0xvhqa',
   sendBps: 2500,
+  feeSats: 1000,
+  dlcFunderRegistry: {
+    tltc1qkz0vft2fc4nk0u9fx4k9yk4th7zherna3zxh22: {
+      dlcRef: 'dlc-next-epoch-42',
+      dlcAddress: 'tltc1qldtqy3y0rasay8dqz6kc2nxx6zfs9e9j4veqcz'
+    }
+  }
+};
+
+const SEND_STATE_ORACLE = {
+  kind: 'tradelayer-send-state-oracle-v1',
+  chain: 'litecoin-testnet',
+  epochId: '42',
+  snapshotHeight: 4695498,
+  snapshotTxid: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+  oracleAddress: 'tltc1qn06nctkv2sm8wdjx5fe2x0zluxlyxynq3vud87hxsfv3u8kwdcaq0xvhqa',
+  sends: [
+    {
+      id: 'send-1',
+      txid: 'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc',
+      fromAddress: 'tltc1qn06nctkv2sm8wdjx5fe2x0zluxlyxynq3vud87hxsfv3u8kwdcaq0xvhqa',
+      toAddress: 'tltc1qkz0vft2fc4nk0u9fx4k9yk4th7zherna3zxh22',
+      propertyId: 380,
+      amountUnits: '2500',
+      depositUnits: '10000'
+    }
+  ],
+  dlcInputs: {
+    'send-1': {
+      txid: 'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd',
+      vout: 2,
+      address: 'tltc1qn06nctkv2sm8wdjx5fe2x0zluxlyxynq3vud87hxsfv3u8kwdcaq0xvhqa',
+      sats: 100000
+    }
+  },
   feeSats: 1000,
   dlcFunderRegistry: {
     tltc1qkz0vft2fc4nk0u9fx4k9yk4th7zherna3zxh22: {
@@ -185,6 +223,40 @@ test('rejects a send route amount that does not equal the committed basis points
     threw = String(err.message).includes('send amount mismatch');
   }
   assert(threw, 'expected send amount mismatch');
+});
+
+test('builds a send intent from a TradeLayer state oracle blob', () => {
+  const commitment = buildTradeLayerSendOracleCommitment(SEND_STATE_ORACLE);
+  const intent = buildTradeLayerSendIntentFromStateOracle(SEND_STATE_ORACLE);
+  assertEq(commitment.oracleBlobHash.length, 64);
+  assertEq(commitment.sendRecordHash.length, 64);
+  assertEq(intent.payloadHash, commitment.oracleBlobHash);
+  assertEq(intent.sendBps, 2500);
+  assertEq(intent.oracleAddress, 'tltc1qkz0vft2fc4nk0u9fx4k9yk4th7zherna3zxh22');
+  assertEq(intent.envelope.selectedSendId, 'send-1');
+});
+
+test('verifies a state-oracle send route into the mapped DLC funding output', () => {
+  const result = verifyTradeLayerSendStateOracleRoute(SEND_STATE_ORACLE);
+  assert(result.ok, result.reason);
+  assertEq(result.sendSats, '25000');
+  assertEq(result.residualSats, '74000');
+  assertEq(result.selectedSendId, 'send-1');
+  assertEq(result.selectedSendTxid, 'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc');
+  assertEq(result.oracleBlobHash.length, 64);
+});
+
+test('rejects a state-oracle send route with an inexact token/deposit ratio', () => {
+  const bad = clone(SEND_STATE_ORACLE);
+  bad.sends[0].amountUnits = '1';
+  bad.sends[0].depositUnits = '30000';
+  let threw = false;
+  try {
+    verifyTradeLayerSendStateOracleRoute(bad);
+  } catch (err) {
+    threw = String(err.message).includes('must divide exactly into basis points');
+  }
+  assert(threw, 'expected inexact ratio rejection');
 });
 
 if (failed > 0) {

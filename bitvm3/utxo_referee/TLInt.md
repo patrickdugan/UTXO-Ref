@@ -33,6 +33,10 @@ Keep the referee core protocol-neutral while documenting how TradeLayer settleme
 - The BitVM transition does not parse TradeLayer JSON or scan account state. It
   verifies exact integer arithmetic for `sendBps` and then checks that the sweep
   outputs match the committed output scripts.
+- The adapter can now consume a state-oracle send blob, select a concrete send
+  record, hash the blob/record/DLC registry, derive `sendBps` from either an
+  explicit basis-point field or an exact token amount/deposit ratio, and emit the
+  compact route plan used by the UTXO referee.
 
 ## Integration Pipeline
 
@@ -41,6 +45,16 @@ Keep the referee core protocol-neutral while documenting how TradeLayer settleme
 3. Publish `CommitmentPackage` (`epochId`, `withdrawalRoot`, `capSats`, `residualDest`).
 4. Construct sweep candidate with payout outputs and proofs.
 5. Run `verifySweep(commitment, sweep)` before acceptance/challenge flow.
+
+For send routing:
+
+1. Consume the TradeLayer state-oracle blob for the epoch.
+2. Select the send record by `sendId`, `sendTxid`, or index.
+3. Resolve the send destination against the DLC-funder registry.
+4. Derive exact `sendBps` and build payout leaves for the DLC output plus refund
+   remainder.
+5. Bind `stateOracleHash`, `selectedSendHash`, and `dlcFunderRegistryHash` in the
+   route envelope so fraud challenges can target the exact source material.
 
 ## Non-Goals Inside Referee
 

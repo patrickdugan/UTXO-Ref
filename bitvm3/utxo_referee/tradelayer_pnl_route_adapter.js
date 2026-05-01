@@ -242,6 +242,131 @@ function computeTradeLayerPlanHash(routePlan) {
   });
 }
 
+function normalizeObjectList(value, fieldName) {
+  if (!value) return [];
+  if (Array.isArray(value)) return value;
+  if (typeof value === 'object') {
+    return Object.entries(value).map(([key, item]) => ({
+      ...(item && typeof item === 'object' ? item : { value: item }),
+      id: item?.id ?? item?.sendId ?? key
+    }));
+  }
+  throw new Error(`${fieldName} must be an array or object map`);
+}
+
+function pickSendRecord(stateOracleBlob, options = {}) {
+  const sends = normalizeObjectList(
+    stateOracleBlob.sends || stateOracleBlob.sendRecords || stateOracleBlob.tokenSends,
+    'stateOracleBlob.sends'
+  );
+  if (!sends.length) throw new Error('state oracle blob must include at least one send record');
+
+  const sendId = options.sendId ?? stateOracleBlob.selectedSendId;
+  const sendTxid = options.sendTxid ?? stateOracleBlob.selectedSendTxid;
+  const sendIndex = options.sendIndex ?? stateOracleBlob.selectedSendIndex;
+
+  if (sendId !== undefined && sendId !== null) {
+    const match = sends.find((send) => String(send.id ?? send.sendId) === String(sendId));
+    if (!match) throw new Error(`state oracle sendId not found: ${sendId}`);
+    return match;
+  }
+
+  if (sendTxid !== undefined && sendTxid !== null) {
+    const match = sends.find((send) => String(send.txid || send.revealTxid || '') === String(sendTxid));
+    if (!match) throw new Error(`state oracle sendTxid not found: ${sendTxid}`);
+    return match;
+  }
+
+  if (sendIndex !== undefined && sendIndex !== null) {
+    const index = Number(sendIndex);
+    if (!Number.isInteger(index) || index < 0 || index >= sends.length) {
+      throw new Error(`state oracle sendIndex out of range: ${sendIndex}`);
+    }
+    return sends[index];
+  }
+
+  return sends[0];
+}
+
+function pickDlcInput(stateOracleBlob, sendRecord, options = {}) {
+  if (options.dlcInput) return options.dlcInput;
+  if (sendRecord.dlcInput || sendRecord.depositInput) return sendRecord.dlcInput || sendRecord.depositInput;
+  if (stateOracleBlob.dlcInput || stateOracleBlob.depositInput) return stateOracleBlob.dlcInput || stateOracleBlob.depositInput;
+
+  const inputs = stateOracleBlob.dlcInputs || stateOracleBlob.depositInputs;
+  if (inputs && typeof inputs === 'object') {
+    const sendId = sendRecord.id ?? sendRecord.sendId;
+    if (sendId !== undefined && inputs[sendId]) return inputs[sendId];
+    const txid = sendRecord.txid || sendRecord.revealTxid;
+    if (txid && inputs[txid]) return inputs[txid];
+  }
+
+  throw new Error('state oracle send route requires a DLC/deposit input');
+}
+
+function bpsFromRatio(numerator, denominator, fieldName) {
+  const n = toSats(numerator, `${fieldName}.numerator`);
+  const d = toSats(denominator, `${fieldName}.denominator`);
+  if (d <= 0n) throw new Error(`${fieldName}.denominator must be positive`);
+  const scaled = n * 10000n;
+  if (scaled % d !== 0n) {
+    throw new Error(`${fieldName} must divide exactly into basis points`);
+  }
+  return validateBps((scaled / d).toString(), fieldName);
+}
+
+function deriveSendBps(sendRecord, stateOracleBlob, options = {}) {
+  const direct = options.sendBps
+    ?? sendRecord.sendBps
+    ?? sendRecord.depositBps
+    ?? stateOracleBlob.sendBps
+    ?? stateOracleBlob.depositBps;
+  if (direct !== undefined && direct !== null) return validateBps(direct, 'sendBps');
+
+  const amountUnits = sendRecord.amountUnits ?? sendRecord.tokenAmountUnits ?? sendRecord.amount;
+  const depositUnits = sendRecord.depositUnits
+    ?? sendRecord.depositTokenUnits
+    ?? stateOracleBlob.depositUnits
+    ?? stateOracleBlob.depositTokenUnits;
+  if (amountUnits !== undefined && depositUnits !== undefined) {
+    return bpsFromRatio(amountUnits, depositUnits, 'send token ratio');
+  }
+
+  throw new Error('state oracle send route requires sendBps/depositBps or an exact token amount/deposit ratio');
+}
+
+function buildTradeLayerSendOracleCommitment(stateOracleBlob, options = {}) {
+  if (!stateOracleBlob || typeof stateOracleBlob !== 'object') {
+    throw new Error('stateOracleBlob must be an object');
+  }
+
+  const sendRecord = pickSendRecord(stateOracleBlob, options);
+  const registry = options.dlcFunderRegistry
+    || stateOracleBlob.dlcFunderRegistry
+    || stateOracleBlob.dlcRegistry
+    || stateOracleBlob.funderRegistry
+    || {};
+  const core = {
+    kind: stateOracleBlob.kind || 'tradelayer-send-state-oracle-v1',
+    chain: stateOracleBlob.chain,
+    epochId: stateOracleBlob.epochId,
+    snapshotHeight: stateOracleBlob.snapshotHeight,
+    snapshotTxid: stateOracleBlob.snapshotTxid,
+    oracleAddress: stateOracleBlob.oracleAddress,
+    selectedSend: sendRecord,
+    dlcFunderRegistry: registry
+  };
+
+  return {
+    oracleBlobHash: sha256Hex(core),
+    sendRecordHash: sha256Hex(sendRecord),
+    dlcFunderRegistryHash: sha256Hex(registry),
+    selectedSendId: sendRecord.id ?? sendRecord.sendId ?? null,
+    selectedSendTxid: sendRecord.txid || sendRecord.revealTxid || null,
+    core
+  };
+}
+
 function resolveDlcFunderMapping(address, registry) {
   if (!address || !registry) return null;
   const target = String(address);
@@ -256,6 +381,44 @@ function resolveDlcFunderMapping(address, registry) {
     return { funderAddress: target, dlcAddress: mapped };
   }
   return { funderAddress: target, ...mapped };
+}
+
+function buildTradeLayerSendIntentFromStateOracle(stateOracleBlob, options = {}) {
+  const sendRecord = pickSendRecord(stateOracleBlob, options);
+  const oracleCommitment = buildTradeLayerSendOracleCommitment(stateOracleBlob, options);
+  const dlcInput = pickDlcInput(stateOracleBlob, sendRecord, options);
+  const registry = options.dlcFunderRegistry
+    || stateOracleBlob.dlcFunderRegistry
+    || stateOracleBlob.dlcRegistry
+    || stateOracleBlob.funderRegistry
+    || {};
+  const sendBps = deriveSendBps(sendRecord, stateOracleBlob, options);
+
+  return {
+    network: options.network || stateOracleBlob.network || stateOracleBlob.chain,
+    revealTxid: sendRecord.revealTxid || sendRecord.txid || stateOracleBlob.revealTxid,
+    payloadHash: oracleCommitment.oracleBlobHash,
+    dlcInput,
+    oracleAddress: sendRecord.toAddress || sendRecord.destinationAddress || sendRecord.oracleAddress,
+    refundAddress: options.refundAddress
+      || sendRecord.refundAddress
+      || stateOracleBlob.refundAddress
+      || dlcInput.refundAddress
+      || dlcInput.address,
+    sendBps,
+    feeSats: options.feeSats ?? sendRecord.feeSats ?? stateOracleBlob.feeSats ?? 0,
+    dlcFunderRegistry: registry,
+    envelope: {
+      ...(stateOracleBlob.envelope || {}),
+      routeType: 'send',
+      stateOracleHash: oracleCommitment.oracleBlobHash,
+      selectedSendHash: oracleCommitment.sendRecordHash,
+      dlcFunderRegistryHash: oracleCommitment.dlcFunderRegistryHash,
+      selectedSendId: oracleCommitment.selectedSendId,
+      selectedSendTxid: oracleCommitment.selectedSendTxid,
+      designatedOracleAddress: stateOracleBlob.oracleAddress || null
+    }
+  };
 }
 
 function resolveSendRouteDestination(sendIntent, options = {}) {
@@ -537,14 +700,41 @@ function verifyTradeLayerSendRoutePlan(sendIntent, options = {}) {
   };
 }
 
+function verifyTradeLayerSendStateOracleRoute(stateOracleBlob, options = {}) {
+  const oracleCommitment = buildTradeLayerSendOracleCommitment(stateOracleBlob, options);
+  const sendIntent = buildTradeLayerSendIntentFromStateOracle(stateOracleBlob, options);
+  const routePlan = buildTradeLayerSendRoutePlan(sendIntent, options);
+  const result = verifyTradeLayerPnlRoutePlan(routePlan, options);
+
+  return {
+    ...result,
+    route: 'send',
+    sendBps: routePlan.sendBps,
+    sendSats: routePlan.sendSats,
+    residualSats: routePlan.residualSats,
+    oracleAddress: routePlan.oracleAddress,
+    resolvedDestinationAddress: routePlan.resolvedDestinationAddress,
+    matchedDlcRef: routePlan.matchedDlcRef,
+    oracleBlobHash: oracleCommitment.oracleBlobHash,
+    sendRecordHash: oracleCommitment.sendRecordHash,
+    dlcFunderRegistryHash: oracleCommitment.dlcFunderRegistryHash,
+    selectedSendId: oracleCommitment.selectedSendId,
+    selectedSendTxid: oracleCommitment.selectedSendTxid,
+    planHash: routePlan.planHash
+  };
+}
+
 module.exports = {
   NETWORK_HRPS,
   stableStringify,
   sha256Hex,
   addressToScriptPubKey,
   computeTradeLayerPlanHash,
+  buildTradeLayerSendOracleCommitment,
+  buildTradeLayerSendIntentFromStateOracle,
   buildTradeLayerSendRoutePlan,
   buildTradeLayerPnlCommitment,
   verifyTradeLayerPnlRoutePlan,
-  verifyTradeLayerSendRoutePlan
+  verifyTradeLayerSendRoutePlan,
+  verifyTradeLayerSendStateOracleRoute
 };
