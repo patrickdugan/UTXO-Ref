@@ -415,13 +415,20 @@ function readOracleSignatureEnvelope(stateOracleBlob, options = {}) {
 function verifyTradeLayerSendOracleSignature(stateOracleBlob, options = {}) {
   const envelope = readOracleSignatureEnvelope(stateOracleBlob, options);
   const signing = buildTradeLayerSendOracleSigningPayload(stateOracleBlob, options);
+  const signingSummary = {
+    payloadHash: signing.payloadHash,
+    oracleBlobHash: signing.oracleBlobHash,
+    sendRecordHash: signing.sendRecordHash,
+    dlcFunderRegistryHash: signing.dlcFunderRegistryHash
+  };
 
   if (!envelope) {
     return {
       ok: false,
       reason: 'missing oracle signature',
       required: !!options.requireOracleSignature,
-      ...signing
+      algorithm: 'ed25519',
+      ...signingSummary
     };
   }
 
@@ -430,7 +437,7 @@ function verifyTradeLayerSendOracleSignature(stateOracleBlob, options = {}) {
       ok: false,
       reason: `unsupported oracle signature algorithm: ${envelope.algorithm}`,
       required: !!options.requireOracleSignature,
-      ...signing
+      ...signingSummary
     };
   }
   if (!envelope.signatureHex || !/^[0-9a-fA-F]+$/.test(String(envelope.signatureHex))) {
@@ -438,7 +445,7 @@ function verifyTradeLayerSendOracleSignature(stateOracleBlob, options = {}) {
       ok: false,
       reason: 'oracle signature must be hex',
       required: !!options.requireOracleSignature,
-      ...signing
+      ...signingSummary
     };
   }
   if (!envelope.publicKeyPem) {
@@ -446,7 +453,7 @@ function verifyTradeLayerSendOracleSignature(stateOracleBlob, options = {}) {
       ok: false,
       reason: 'missing oracle public key PEM',
       required: !!options.requireOracleSignature,
-      ...signing
+      ...signingSummary
     };
   }
   if (envelope.payloadHash && envelope.payloadHash !== signing.payloadHash) {
@@ -454,7 +461,7 @@ function verifyTradeLayerSendOracleSignature(stateOracleBlob, options = {}) {
       ok: false,
       reason: `oracle signature payload hash mismatch: expected ${envelope.payloadHash}, recomputed ${signing.payloadHash}`,
       required: !!options.requireOracleSignature,
-      ...signing,
+      ...signingSummary,
       keyId: envelope.keyId
     };
   }
@@ -472,7 +479,7 @@ function verifyTradeLayerSendOracleSignature(stateOracleBlob, options = {}) {
       ok: false,
       reason: `oracle signature verification failed: ${err.message}`,
       required: !!options.requireOracleSignature,
-      ...signing,
+      ...signingSummary,
       keyId: envelope.keyId
     };
   }

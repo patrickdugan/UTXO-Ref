@@ -57,6 +57,7 @@ const arkLiquidityGraftManager = require('./ark_liquidity_graft_manager');
 const lnbtcTlusdLiquidityPatch = require('./lnbtc_tlusd_liquidity_patch');
 const lightningTradeLayerOracleDlc = require('./lightning_tradelayer_oracle_dlc');
 const tradeLayerPnlRouteAdapter = require('./tradelayer_pnl_route_adapter');
+const tradeLayerSendOracleExtractor = require('./tradelayer_send_oracle_extractor');
 
 module.exports = {
   // Types
@@ -227,6 +228,7 @@ module.exports = {
   buildTradeLayerSendRoutePlan: tradeLayerPnlRouteAdapter.buildTradeLayerSendRoutePlan,
   verifyTradeLayerSendRoutePlan: tradeLayerPnlRouteAdapter.verifyTradeLayerSendRoutePlan,
   verifyTradeLayerSendStateOracleRoute: tradeLayerPnlRouteAdapter.verifyTradeLayerSendStateOracleRoute,
+  buildTradeLayerSendStateOracleFromConsensus: tradeLayerSendOracleExtractor.buildTradeLayerSendStateOracleFromConsensus,
   resolvePipelineOptions: m1Pipeline.resolvePipelineOptions,
   buildPipelinePlan: m1Pipeline.buildPipelinePlan,
   buildPipelineSummary: m1Pipeline.buildPipelineSummary,
@@ -262,5 +264,6 @@ module.exports = {
   arkLiquidityGraftManager,
   lnbtcTlusdLiquidityPatch,
   lightningTradeLayerOracleDlc,
-  tradeLayerPnlRouteAdapter
+  tradeLayerPnlRouteAdapter,
+  tradeLayerSendOracleExtractor
 };

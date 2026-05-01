@@ -1,15 +1,15 @@
 {
   "kind": "tradelayer_send_bitvm_e2e",
-  "createdAt": "2026-05-01T23:10:09.660Z",
+  "createdAt": "2026-05-01T23:28:59.959Z",
   "network": "litecoin-testnet",
   "selectedSend": {
-    "id": "send-1",
+    "id": "live-send",
     "txid": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
-    "sendRecordHash": "7f2dcc41f02035f8a81c221424ec3403e935cfd02117e627d5f2d12ed7457b10"
+    "sendRecordHash": "5a41f83d2e783f3a74c01239d1cbc396ecac07b46fa2d92c4dcbf1b53da65709"
   },
   "oracle": {
-    "stateOracleHash": "9f8073e22b3bbb89faf9d3d08e7f57d0741123b09a73982c413be8a5085d158e",
-    "dlcFunderRegistryHash": "85c318de95114593c1cc57d54cf980ece392af2b193f636bb3b32acfce102e23",
+    "stateOracleHash": "c1a461ff7ff1d3a74fed3bc3f39decf6dcf621cff4894bd140607ab8c73390ce",
+    "dlcFunderRegistryHash": "e2057a8fb6fcfd3da569c56dec6978e416c4ec3f9595df7875b0f90052509986",
     "designatedOracleAddress": "tltc1qn06nctkv2sm8wdjx5fe2x0zluxlyxynq3vud87hxsfv3u8kwdcaq0xvhqa",
     "signature": {
       "required": false,
@@ -17,17 +17,17 @@
       "reason": "missing oracle signature",
       "algorithm": "ed25519",
       "keyId": null,
-      "payloadHash": "bd6b355dd71bec60eb3fde1f4a20105250bef060d2d9dcb42ebbbfcd68d5ca2f"
+      "payloadHash": "890ea272d3de5e60f2450e697dbd9c309af4ab8b559bb7c36ad7d68c614948c3"
     }
   },
   "routePlan": {
     "route": "send",
     "network": "litecoin-testnet",
     "revealTxid": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
-    "payloadHash": "9f8073e22b3bbb89faf9d3d08e7f57d0741123b09a73982c413be8a5085d158e",
+    "payloadHash": "c1a461ff7ff1d3a74fed3bc3f39decf6dcf621cff4894bd140607ab8c73390ce",
     "dlcInput": {
-      "txid": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
-      "vout": 2,
+      "txid": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "vout": 1,
       "address": "tltc1qn06nctkv2sm8wdjx5fe2x0zluxlyxynq3vud87hxsfv3u8kwdcaq0xvhqa",
       "sats": "100000"
     },
@@ -37,7 +37,7 @@
     "residualSats": "74000",
     "oracleAddress": "tltc1qkz0vft2fc4nk0u9fx4k9yk4th7zherna3zxh22",
     "resolvedDestinationAddress": "tltc1qldtqy3y0rasay8dqz6kc2nxx6zfs9e9j4veqcz",
-    "matchedDlcRef": "dlc-next-epoch-42",
+    "matchedDlcRef": "dlc-live-77",
     "outputPlan": [
       {
         "role": "send-to-dlc-funding-output",
@@ -45,7 +45,7 @@
         "sats": "25000",
         "amountBps": 2500,
         "oracleAddress": "tltc1qkz0vft2fc4nk0u9fx4k9yk4th7zherna3zxh22",
-        "matchedDlcRef": "dlc-next-epoch-42"
+        "matchedDlcRef": "dlc-live-77"
       },
       {
         "role": "refund-remainder",
@@ -55,22 +55,22 @@
     ],
     "envelope": {
       "routeType": "send",
-      "stateOracleHash": "9f8073e22b3bbb89faf9d3d08e7f57d0741123b09a73982c413be8a5085d158e",
-      "selectedSendHash": "7f2dcc41f02035f8a81c221424ec3403e935cfd02117e627d5f2d12ed7457b10",
-      "dlcFunderRegistryHash": "85c318de95114593c1cc57d54cf980ece392af2b193f636bb3b32acfce102e23",
-      "selectedSendId": "send-1",
+      "stateOracleHash": "c1a461ff7ff1d3a74fed3bc3f39decf6dcf621cff4894bd140607ab8c73390ce",
+      "selectedSendHash": "5a41f83d2e783f3a74c01239d1cbc396ecac07b46fa2d92c4dcbf1b53da65709",
+      "dlcFunderRegistryHash": "e2057a8fb6fcfd3da569c56dec6978e416c4ec3f9595df7875b0f90052509986",
+      "selectedSendId": "live-send",
       "selectedSendTxid": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
       "designatedOracleAddress": "tltc1qn06nctkv2sm8wdjx5fe2x0zluxlyxynq3vud87hxsfv3u8kwdcaq0xvhqa",
       "oracleAddress": "tltc1qkz0vft2fc4nk0u9fx4k9yk4th7zherna3zxh22",
       "resolvedDestinationAddress": "tltc1qldtqy3y0rasay8dqz6kc2nxx6zfs9e9j4veqcz",
-      "matchedDlcRef": "dlc-next-epoch-42"
+      "matchedDlcRef": "dlc-live-77"
     },
-    "planHash": "1b7bc1b27019c051e7af9f94ab6b98a54066ce964941e40f9dcdd6d683c7597c"
+    "planHash": "0fd3fe90391ea6b4958238f5642fe50f27b627d78efff85673b5773e570b20a2"
   },
   "commitment": {
-    "epochId": "5386095966543893073",
-    "withdrawalRootHex": "3477e88e4943e5e598c9b1646f13f1c31ba750865dfae8095ec43a6cfda1e2b4",
-    "commitmentHashHex": "e9e74bfefce91ed8da8bf44dae9062cd6df93a76942de327d2acfda47fa08cb0",
+    "epochId": "11959116002168221348",
+    "withdrawalRootHex": "fc1d5bace84265ee2cf3295a15270e9b9a2241837349634a99ed82bcf682f4e4",
+    "commitmentHashHex": "1f327b20e84381e3158454e88e1ab95ba860c267bb04d0965e6998625d8f274d",
     "payoutTotalSats": "99000"
   },
   "expectedSweepOutputs": [
@@ -81,7 +81,7 @@
       "sats": "25000",
       "amountBps": 2500,
       "oracleAddress": "tltc1qkz0vft2fc4nk0u9fx4k9yk4th7zherna3zxh22",
-      "matchedDlcRef": "dlc-next-epoch-42"
+      "matchedDlcRef": "dlc-live-77"
     },
     {
       "role": "refund-remainder",
@@ -97,8 +97,8 @@
     "status": "planned",
     "inputs": [
       {
-        "txid": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
-        "vout": 2,
+        "txid": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "vout": 1,
         "address": "tltc1qn06nctkv2sm8wdjx5fe2x0zluxlyxynq3vud87hxsfv3u8kwdcaq0xvhqa",
         "sats": "100000"
       }
@@ -121,10 +121,10 @@
   },
   "verification": {
     "ok": true,
-    "recomputedPlanHash": "1b7bc1b27019c051e7af9f94ab6b98a54066ce964941e40f9dcdd6d683c7597c",
-    "withdrawalRootHex": "3477e88e4943e5e598c9b1646f13f1c31ba750865dfae8095ec43a6cfda1e2b4",
-    "commitmentHashHex": "e9e74bfefce91ed8da8bf44dae9062cd6df93a76942de327d2acfda47fa08cb0",
-    "epochId": "5386095966543893073",
+    "recomputedPlanHash": "0fd3fe90391ea6b4958238f5642fe50f27b627d78efff85673b5773e570b20a2",
+    "withdrawalRootHex": "fc1d5bace84265ee2cf3295a15270e9b9a2241837349634a99ed82bcf682f4e4",
+    "commitmentHashHex": "1f327b20e84381e3158454e88e1ab95ba860c267bb04d0965e6998625d8f274d",
+    "epochId": "11959116002168221348",
     "payoutTotalSats": "99000",
     "feeSats": "1000",
     "route": "send",
@@ -133,24 +133,23 @@
     "residualSats": "74000",
     "oracleAddress": "tltc1qkz0vft2fc4nk0u9fx4k9yk4th7zherna3zxh22",
     "resolvedDestinationAddress": "tltc1qldtqy3y0rasay8dqz6kc2nxx6zfs9e9j4veqcz",
-    "matchedDlcRef": "dlc-next-epoch-42",
-    "oracleBlobHash": "9f8073e22b3bbb89faf9d3d08e7f57d0741123b09a73982c413be8a5085d158e",
-    "sendRecordHash": "7f2dcc41f02035f8a81c221424ec3403e935cfd02117e627d5f2d12ed7457b10",
-    "dlcFunderRegistryHash": "85c318de95114593c1cc57d54cf980ece392af2b193f636bb3b32acfce102e23",
-    "selectedSendId": "send-1",
+    "matchedDlcRef": "dlc-live-77",
+    "oracleBlobHash": "c1a461ff7ff1d3a74fed3bc3f39decf6dcf621cff4894bd140607ab8c73390ce",
+    "sendRecordHash": "5a41f83d2e783f3a74c01239d1cbc396ecac07b46fa2d92c4dcbf1b53da65709",
+    "dlcFunderRegistryHash": "e2057a8fb6fcfd3da569c56dec6978e416c4ec3f9595df7875b0f90052509986",
+    "selectedSendId": "live-send",
     "selectedSendTxid": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
-    "planHash": "1b7bc1b27019c051e7af9f94ab6b98a54066ce964941e40f9dcdd6d683c7597c",
+    "planHash": "0fd3fe90391ea6b4958238f5642fe50f27b627d78efff85673b5773e570b20a2",
     "oracleSignature": {
       "ok": false,
       "reason": "missing oracle signature",
       "required": false,
       "algorithm": "ed25519",
-      "payload": "{\"core\":{\"chain\":\"litecoin-testnet\",\"dlcFunderRegistry\":{\"tltc1qkz0vft2fc4nk0u9fx4k9yk4th7zherna3zxh22\":{\"dlcAddress\":\"tltc1qldtqy3y0rasay8dqz6kc2nxx6zfs9e9j4veqcz\",\"dlcRef\":\"dlc-next-epoch-42\"}},\"epochId\":\"42\",\"kind\":\"tradelayer-send-state-oracle-v1\",\"oracleAddress\":\"tltc1qn06nctkv2sm8wdjx5fe2x0zluxlyxynq3vud87hxsfv3u8kwdcaq0xvhqa\",\"selectedSend\":{\"amountUnits\":\"2500\",\"depositUnits\":\"10000\",\"fromAddress\":\"tltc1qn06nctkv2sm8wdjx5fe2x0zluxlyxynq3vud87hxsfv3u8kwdcaq0xvhqa\",\"id\":\"send-1\",\"propertyId\":380,\"toAddress\":\"tltc1qkz0vft2fc4nk0u9fx4k9yk4th7zherna3zxh22\",\"txid\":\"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\"},\"snapshotHeight\":4695498,\"snapshotTxid\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"},\"dlcFunderRegistryHash\":\"85c318de95114593c1cc57d54cf980ece392af2b193f636bb3b32acfce102e23\",\"kind\":\"tradelayer-send-state-oracle-signature-v1\",\"oracleBlobHash\":\"9f8073e22b3bbb89faf9d3d08e7f57d0741123b09a73982c413be8a5085d158e\",\"selectedSendHash\":\"7f2dcc41f02035f8a81c221424ec3403e935cfd02117e627d5f2d12ed7457b10\"}",
-      "payloadHash": "bd6b355dd71bec60eb3fde1f4a20105250bef060d2d9dcb42ebbbfcd68d5ca2f",
-      "oracleBlobHash": "9f8073e22b3bbb89faf9d3d08e7f57d0741123b09a73982c413be8a5085d158e",
-      "sendRecordHash": "7f2dcc41f02035f8a81c221424ec3403e935cfd02117e627d5f2d12ed7457b10",
-      "dlcFunderRegistryHash": "85c318de95114593c1cc57d54cf980ece392af2b193f636bb3b32acfce102e23"
+      "payloadHash": "890ea272d3de5e60f2450e697dbd9c309af4ab8b559bb7c36ad7d68c614948c3",
+      "oracleBlobHash": "c1a461ff7ff1d3a74fed3bc3f39decf6dcf621cff4894bd140607ab8c73390ce",
+      "sendRecordHash": "5a41f83d2e783f3a74c01239d1cbc396ecac07b46fa2d92c4dcbf1b53da65709",
+      "dlcFunderRegistryHash": "e2057a8fb6fcfd3da569c56dec6978e416c4ec3f9595df7875b0f90052509986"
     }
   },
-  "artifactHash": "ed4da3432b4765b9d14c0e1ec2ec896eba783d285ba783c5ae6ba260a970010a"
+  "artifactHash": "9111c1c732bc16ad893b08a9e5b053f91f8dc7b7abbc3da9ea49f904d4c51783"
 }

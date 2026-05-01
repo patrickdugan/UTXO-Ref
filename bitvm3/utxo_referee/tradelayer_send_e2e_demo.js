@@ -13,6 +13,9 @@ const {
   buildTradeLayerPnlCommitment,
   verifyTradeLayerSendStateOracleRoute
 } = require('./tradelayer_pnl_route_adapter');
+const {
+  buildTradeLayerSendStateOracleFromConsensus
+} = require('./tradelayer_send_oracle_extractor');
 
 const ARTIFACTS_DIR = path.join(__dirname, 'artifacts');
 const DEFAULT_OUT = path.join(ARTIFACTS_DIR, 'tradelayer_send_e2e_latest.json');
@@ -58,6 +61,7 @@ function usage() {
     '',
     'Options:',
     '  --input <path>       State-oracle JSON blob. Uses built-in sample if omitted.',
+    '  --tl-consensus-input <path>  TradeLayer consensus/history JSON to extract state oracle from.',
     '  --out <path>         Artifact output path.',
     '  --send-id <id>       Select send record by id.',
     '  --send-txid <txid>   Select send record by txid.',
@@ -215,9 +219,19 @@ function main() {
     return;
   }
 
+  if (cliArgs.input && cliArgs.tlConsensusInput) {
+    throw new Error('Use either --input or --tl-consensus-input, not both');
+  }
   const inputPath = cliArgs.input ? path.resolve(cliArgs.input) : null;
+  const consensusInputPath = cliArgs.tlConsensusInput ? path.resolve(cliArgs.tlConsensusInput) : null;
   const outPath = path.resolve(cliArgs.out || DEFAULT_OUT);
-  const stateOracleBlob = inputPath ? readJson(inputPath) : SAMPLE_STATE_ORACLE;
+  const stateOracleBlob = consensusInputPath
+    ? buildTradeLayerSendStateOracleFromConsensus(readJson(consensusInputPath), {
+      selectedSendId: cliArgs.sendId,
+      selectedSendTxid: cliArgs.sendTxid,
+      feeSats: cliArgs.feeSats
+    })
+    : inputPath ? readJson(inputPath) : SAMPLE_STATE_ORACLE;
   const artifact = buildArtifact(stateOracleBlob, cliArgs);
 
   fs.mkdirSync(path.dirname(outPath), { recursive: true });

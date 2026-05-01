@@ -33,11 +33,14 @@ and later attach a real sweep txid or signed PSBT.
   policy if that becomes the production key format.
 
 2. Real TradeLayer consensus extraction
-- Build the state-oracle send blob directly from parsed TradeLayer consensus
-  state, not from a hand-assembled JSON payload.
-- Include send txid, property id, sender, recipient, amount units, deposit units,
-  snapshot height, and state root.
-- Preserve enough source material for fraud challenges.
+- Status: boundary extractor implemented for parsed TradeLayer tx/history rows.
+- It filters consensus-valid tx type 2 sends, expands multi-send rows, includes
+  send txid, property id, sender, recipient, amount units, deposit units,
+  snapshot height, source hash, and state-root handle.
+- The e2e runner supports `--tl-consensus-input <path>` to build the state-oracle
+  blob before route verification.
+- Remaining: point this at the live TradeLayer listener/RPC response shape and
+  lock the final state-root source once the wallet/parser endpoint is stable.
 
 3. Sweep PSBT construction and broadcast path
 - Convert the resolved route plan into a Bitcoin/Litecoin transaction skeleton.
