@@ -7,6 +7,7 @@ const {
   sha256Hex,
   addressToScriptPubKey,
   buildTradeLayerSendOracleCommitment,
+  verifyTradeLayerSendOracleSignature,
   buildTradeLayerSendIntentFromStateOracle,
   buildTradeLayerSendRoutePlan,
   buildTradeLayerPnlCommitment,
@@ -63,6 +64,7 @@ function usage() {
     '  --send-index <n>     Select send record by array index.',
     '  --txid <txid>        Attach live sweep transaction id.',
     '  --psbt <base64>      Attach signed/final sweep PSBT.',
+    '  --require-oracle-signature  Require a valid Ed25519 oracle signature.',
     '  --help              Show this help.'
   ].join('\n');
 }
@@ -73,6 +75,10 @@ function parseArgs(argv) {
     const arg = argv[i];
     if (arg === '--help' || arg === '-h') {
       args.help = true;
+      continue;
+    }
+    if (arg === '--require-oracle-signature') {
+      args.requireOracleSignature = true;
       continue;
     }
     if (!arg.startsWith('--')) throw new Error(`Unexpected argument: ${arg}`);
@@ -136,7 +142,8 @@ function buildArtifact(stateOracleBlob, cliArgs) {
   const options = {
     sendId: cliArgs.sendId,
     sendTxid: cliArgs.sendTxid,
-    sendIndex: cliArgs.sendIndex
+    sendIndex: cliArgs.sendIndex,
+    requireOracleSignature: cliArgs.requireOracleSignature
   };
   Object.keys(options).forEach((key) => options[key] === undefined && delete options[key]);
 
@@ -145,6 +152,7 @@ function buildArtifact(stateOracleBlob, cliArgs) {
   const routePlan = buildTradeLayerSendRoutePlan(sendIntent, options);
   const commitmentBundle = buildTradeLayerPnlCommitment(routePlan);
   const verification = verifyTradeLayerSendStateOracleRoute(stateOracleBlob, options);
+  const oracleSignature = verifyTradeLayerSendOracleSignature(stateOracleBlob, options);
   const expectedSweepOutputs = routePlan.outputPlan.map(output => outputWithScript(output, routePlan.network));
 
   const artifact = {
@@ -159,7 +167,15 @@ function buildArtifact(stateOracleBlob, cliArgs) {
     oracle: {
       stateOracleHash: oracleCommitment.oracleBlobHash,
       dlcFunderRegistryHash: oracleCommitment.dlcFunderRegistryHash,
-      designatedOracleAddress: stateOracleBlob.oracleAddress || null
+      designatedOracleAddress: stateOracleBlob.oracleAddress || null,
+      signature: {
+        required: !!cliArgs.requireOracleSignature,
+        ok: oracleSignature.ok,
+        reason: oracleSignature.reason,
+        algorithm: oracleSignature.algorithm || null,
+        keyId: oracleSignature.keyId || null,
+        payloadHash: oracleSignature.payloadHash || null
+      }
     },
     routePlan,
     commitment: {
@@ -215,6 +231,10 @@ function main() {
   console.log(`registryHash=${artifact.oracle.dlcFunderRegistryHash}`);
   console.log(`commitmentHash=${artifact.commitment.commitmentHashHex}`);
   console.log(`artifactHash=${artifact.artifactHash}`);
+
+  if (!artifact.verification.ok) {
+    process.exitCode = 1;
+  }
 }
 
 if (require.main === module) {

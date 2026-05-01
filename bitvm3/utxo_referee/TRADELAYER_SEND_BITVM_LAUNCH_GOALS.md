@@ -23,10 +23,14 @@ and later attach a real sweep txid or signed PSBT.
 ## Deferred Hardening Goals
 
 1. Real oracle signature verification
-- Verify the state-oracle blob against the designated oracle key.
-- Bind the signed message to `oracleBlobHash`, `selectedSendHash`, and
+- Status: initial Ed25519 verifier implemented for the current state-oracle
+  payload shape.
+- The signed message binds `oracleBlobHash`, `selectedSendHash`, and
   `dlcFunderRegistryHash`.
-- Reject unsigned or wrong-key blobs before route construction.
+- The e2e runner supports `--require-oracle-signature` so signed live blobs can
+  fail closed.
+- Remaining: swap or extend the verifier for the final Bitcoin/Schnorr oracle
+  policy if that becomes the production key format.
 
 2. Real TradeLayer consensus extraction
 - Build the state-oracle send blob directly from parsed TradeLayer consensus

@@ -1,6 +1,6 @@
 {
   "kind": "tradelayer_send_bitvm_e2e",
-  "createdAt": "2026-05-01T22:44:03.759Z",
+  "createdAt": "2026-05-01T23:10:09.660Z",
   "network": "litecoin-testnet",
   "selectedSend": {
     "id": "send-1",
@@ -10,7 +10,15 @@
   "oracle": {
     "stateOracleHash": "9f8073e22b3bbb89faf9d3d08e7f57d0741123b09a73982c413be8a5085d158e",
     "dlcFunderRegistryHash": "85c318de95114593c1cc57d54cf980ece392af2b193f636bb3b32acfce102e23",
-    "designatedOracleAddress": "tltc1qn06nctkv2sm8wdjx5fe2x0zluxlyxynq3vud87hxsfv3u8kwdcaq0xvhqa"
+    "designatedOracleAddress": "tltc1qn06nctkv2sm8wdjx5fe2x0zluxlyxynq3vud87hxsfv3u8kwdcaq0xvhqa",
+    "signature": {
+      "required": false,
+      "ok": false,
+      "reason": "missing oracle signature",
+      "algorithm": "ed25519",
+      "keyId": null,
+      "payloadHash": "bd6b355dd71bec60eb3fde1f4a20105250bef060d2d9dcb42ebbbfcd68d5ca2f"
+    }
   },
   "routePlan": {
     "route": "send",
@@ -131,7 +139,18 @@
     "dlcFunderRegistryHash": "85c318de95114593c1cc57d54cf980ece392af2b193f636bb3b32acfce102e23",
     "selectedSendId": "send-1",
     "selectedSendTxid": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
-    "planHash": "1b7bc1b27019c051e7af9f94ab6b98a54066ce964941e40f9dcdd6d683c7597c"
+    "planHash": "1b7bc1b27019c051e7af9f94ab6b98a54066ce964941e40f9dcdd6d683c7597c",
+    "oracleSignature": {
+      "ok": false,
+      "reason": "missing oracle signature",
+      "required": false,
+      "algorithm": "ed25519",
+      "payload": "{\"core\":{\"chain\":\"litecoin-testnet\",\"dlcFunderRegistry\":{\"tltc1qkz0vft2fc4nk0u9fx4k9yk4th7zherna3zxh22\":{\"dlcAddress\":\"tltc1qldtqy3y0rasay8dqz6kc2nxx6zfs9e9j4veqcz\",\"dlcRef\":\"dlc-next-epoch-42\"}},\"epochId\":\"42\",\"kind\":\"tradelayer-send-state-oracle-v1\",\"oracleAddress\":\"tltc1qn06nctkv2sm8wdjx5fe2x0zluxlyxynq3vud87hxsfv3u8kwdcaq0xvhqa\",\"selectedSend\":{\"amountUnits\":\"2500\",\"depositUnits\":\"10000\",\"fromAddress\":\"tltc1qn06nctkv2sm8wdjx5fe2x0zluxlyxynq3vud87hxsfv3u8kwdcaq0xvhqa\",\"id\":\"send-1\",\"propertyId\":380,\"toAddress\":\"tltc1qkz0vft2fc4nk0u9fx4k9yk4th7zherna3zxh22\",\"txid\":\"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\"},\"snapshotHeight\":4695498,\"snapshotTxid\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"},\"dlcFunderRegistryHash\":\"85c318de95114593c1cc57d54cf980ece392af2b193f636bb3b32acfce102e23\",\"kind\":\"tradelayer-send-state-oracle-signature-v1\",\"oracleBlobHash\":\"9f8073e22b3bbb89faf9d3d08e7f57d0741123b09a73982c413be8a5085d158e\",\"selectedSendHash\":\"7f2dcc41f02035f8a81c221424ec3403e935cfd02117e627d5f2d12ed7457b10\"}",
+      "payloadHash": "bd6b355dd71bec60eb3fde1f4a20105250bef060d2d9dcb42ebbbfcd68d5ca2f",
+      "oracleBlobHash": "9f8073e22b3bbb89faf9d3d08e7f57d0741123b09a73982c413be8a5085d158e",
+      "sendRecordHash": "7f2dcc41f02035f8a81c221424ec3403e935cfd02117e627d5f2d12ed7457b10",
+      "dlcFunderRegistryHash": "85c318de95114593c1cc57d54cf980ece392af2b193f636bb3b32acfce102e23"
+    }
   },
-  "artifactHash": "6e1cd2a62db34438fe1a4cd1dabca832ae922851814bf758a4f2c7552d8f7c48"
+  "artifactHash": "ed4da3432b4765b9d14c0e1ec2ec896eba783d285ba783c5ae6ba260a970010a"
 }

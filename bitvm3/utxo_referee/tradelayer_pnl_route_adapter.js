@@ -367,6 +367,129 @@ function buildTradeLayerSendOracleCommitment(stateOracleBlob, options = {}) {
   };
 }
 
+function buildTradeLayerSendOracleSigningPayload(stateOracleBlob, options = {}) {
+  const commitment = buildTradeLayerSendOracleCommitment(stateOracleBlob, options);
+  const payload = stableStringify({
+    kind: 'tradelayer-send-state-oracle-signature-v1',
+    oracleBlobHash: commitment.oracleBlobHash,
+    selectedSendHash: commitment.sendRecordHash,
+    dlcFunderRegistryHash: commitment.dlcFunderRegistryHash,
+    core: commitment.core
+  });
+
+  return {
+    algorithm: 'ed25519',
+    payload,
+    payloadHash: sha256Hex(payload),
+    oracleBlobHash: commitment.oracleBlobHash,
+    sendRecordHash: commitment.sendRecordHash,
+    dlcFunderRegistryHash: commitment.dlcFunderRegistryHash
+  };
+}
+
+function readOracleSignatureEnvelope(stateOracleBlob, options = {}) {
+  const source = options.oracleSignature
+    || stateOracleBlob.oracleSignature
+    || stateOracleBlob.signature
+    || null;
+  if (!source) return null;
+
+  if (typeof source === 'string') {
+    return {
+      algorithm: options.oracleSignatureAlgorithm || 'ed25519',
+      signatureHex: source,
+      publicKeyPem: options.oraclePublicKeyPem || stateOracleBlob.oraclePublicKeyPem,
+      keyId: options.oracleKeyId || stateOracleBlob.oracleKeyId || null
+    };
+  }
+
+  return {
+    algorithm: source.algorithm || options.oracleSignatureAlgorithm || 'ed25519',
+    signatureHex: source.signatureHex || source.signature || source.hex,
+    publicKeyPem: source.publicKeyPem || options.oraclePublicKeyPem || stateOracleBlob.oraclePublicKeyPem,
+    keyId: source.keyId || options.oracleKeyId || stateOracleBlob.oracleKeyId || null,
+    payloadHash: source.payloadHash || null
+  };
+}
+
+function verifyTradeLayerSendOracleSignature(stateOracleBlob, options = {}) {
+  const envelope = readOracleSignatureEnvelope(stateOracleBlob, options);
+  const signing = buildTradeLayerSendOracleSigningPayload(stateOracleBlob, options);
+
+  if (!envelope) {
+    return {
+      ok: false,
+      reason: 'missing oracle signature',
+      required: !!options.requireOracleSignature,
+      ...signing
+    };
+  }
+
+  if (String(envelope.algorithm).toLowerCase() !== 'ed25519') {
+    return {
+      ok: false,
+      reason: `unsupported oracle signature algorithm: ${envelope.algorithm}`,
+      required: !!options.requireOracleSignature,
+      ...signing
+    };
+  }
+  if (!envelope.signatureHex || !/^[0-9a-fA-F]+$/.test(String(envelope.signatureHex))) {
+    return {
+      ok: false,
+      reason: 'oracle signature must be hex',
+      required: !!options.requireOracleSignature,
+      ...signing
+    };
+  }
+  if (!envelope.publicKeyPem) {
+    return {
+      ok: false,
+      reason: 'missing oracle public key PEM',
+      required: !!options.requireOracleSignature,
+      ...signing
+    };
+  }
+  if (envelope.payloadHash && envelope.payloadHash !== signing.payloadHash) {
+    return {
+      ok: false,
+      reason: `oracle signature payload hash mismatch: expected ${envelope.payloadHash}, recomputed ${signing.payloadHash}`,
+      required: !!options.requireOracleSignature,
+      ...signing,
+      keyId: envelope.keyId
+    };
+  }
+
+  let verified = false;
+  try {
+    verified = crypto.verify(
+      null,
+      Buffer.from(signing.payload, 'utf8'),
+      envelope.publicKeyPem,
+      Buffer.from(envelope.signatureHex, 'hex')
+    );
+  } catch (err) {
+    return {
+      ok: false,
+      reason: `oracle signature verification failed: ${err.message}`,
+      required: !!options.requireOracleSignature,
+      ...signing,
+      keyId: envelope.keyId
+    };
+  }
+
+  return {
+    ok: verified,
+    reason: verified ? null : 'invalid oracle signature',
+    required: !!options.requireOracleSignature,
+    algorithm: 'ed25519',
+    keyId: envelope.keyId,
+    payloadHash: signing.payloadHash,
+    oracleBlobHash: signing.oracleBlobHash,
+    sendRecordHash: signing.sendRecordHash,
+    dlcFunderRegistryHash: signing.dlcFunderRegistryHash
+  };
+}
+
 function resolveDlcFunderMapping(address, registry) {
   if (!address || !registry) return null;
   const target = String(address);
@@ -702,6 +825,20 @@ function verifyTradeLayerSendRoutePlan(sendIntent, options = {}) {
 
 function verifyTradeLayerSendStateOracleRoute(stateOracleBlob, options = {}) {
   const oracleCommitment = buildTradeLayerSendOracleCommitment(stateOracleBlob, options);
+  const oracleSignature = verifyTradeLayerSendOracleSignature(stateOracleBlob, options);
+  if ((options.requireOracleSignature || stateOracleBlob.oracleSignature || stateOracleBlob.signature) && !oracleSignature.ok) {
+    return {
+      ok: false,
+      reason: oracleSignature.reason,
+      oracleSignature,
+      oracleBlobHash: oracleCommitment.oracleBlobHash,
+      sendRecordHash: oracleCommitment.sendRecordHash,
+      dlcFunderRegistryHash: oracleCommitment.dlcFunderRegistryHash,
+      selectedSendId: oracleCommitment.selectedSendId,
+      selectedSendTxid: oracleCommitment.selectedSendTxid
+    };
+  }
+
   const sendIntent = buildTradeLayerSendIntentFromStateOracle(stateOracleBlob, options);
   const routePlan = buildTradeLayerSendRoutePlan(sendIntent, options);
   const result = verifyTradeLayerPnlRoutePlan(routePlan, options);
@@ -720,7 +857,8 @@ function verifyTradeLayerSendStateOracleRoute(stateOracleBlob, options = {}) {
     dlcFunderRegistryHash: oracleCommitment.dlcFunderRegistryHash,
     selectedSendId: oracleCommitment.selectedSendId,
     selectedSendTxid: oracleCommitment.selectedSendTxid,
-    planHash: routePlan.planHash
+    planHash: routePlan.planHash,
+    oracleSignature
   };
 }
 
@@ -731,6 +869,8 @@ module.exports = {
   addressToScriptPubKey,
   computeTradeLayerPlanHash,
   buildTradeLayerSendOracleCommitment,
+  buildTradeLayerSendOracleSigningPayload,
+  verifyTradeLayerSendOracleSignature,
   buildTradeLayerSendIntentFromStateOracle,
   buildTradeLayerSendRoutePlan,
   buildTradeLayerPnlCommitment,
