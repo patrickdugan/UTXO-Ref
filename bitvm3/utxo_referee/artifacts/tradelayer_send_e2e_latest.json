@@ -1,0 +1,137 @@
+{
+  "kind": "tradelayer_send_bitvm_e2e",
+  "createdAt": "2026-05-01T22:44:03.759Z",
+  "network": "litecoin-testnet",
+  "selectedSend": {
+    "id": "send-1",
+    "txid": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "sendRecordHash": "7f2dcc41f02035f8a81c221424ec3403e935cfd02117e627d5f2d12ed7457b10"
+  },
+  "oracle": {
+    "stateOracleHash": "9f8073e22b3bbb89faf9d3d08e7f57d0741123b09a73982c413be8a5085d158e",
+    "dlcFunderRegistryHash": "85c318de95114593c1cc57d54cf980ece392af2b193f636bb3b32acfce102e23",
+    "designatedOracleAddress": "tltc1qn06nctkv2sm8wdjx5fe2x0zluxlyxynq3vud87hxsfv3u8kwdcaq0xvhqa"
+  },
+  "routePlan": {
+    "route": "send",
+    "network": "litecoin-testnet",
+    "revealTxid": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "payloadHash": "9f8073e22b3bbb89faf9d3d08e7f57d0741123b09a73982c413be8a5085d158e",
+    "dlcInput": {
+      "txid": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "vout": 2,
+      "address": "tltc1qn06nctkv2sm8wdjx5fe2x0zluxlyxynq3vud87hxsfv3u8kwdcaq0xvhqa",
+      "sats": "100000"
+    },
+    "sendBps": 2500,
+    "sendSats": "25000",
+    "feeSats": "1000",
+    "residualSats": "74000",
+    "oracleAddress": "tltc1qkz0vft2fc4nk0u9fx4k9yk4th7zherna3zxh22",
+    "resolvedDestinationAddress": "tltc1qldtqy3y0rasay8dqz6kc2nxx6zfs9e9j4veqcz",
+    "matchedDlcRef": "dlc-next-epoch-42",
+    "outputPlan": [
+      {
+        "role": "send-to-dlc-funding-output",
+        "address": "tltc1qldtqy3y0rasay8dqz6kc2nxx6zfs9e9j4veqcz",
+        "sats": "25000",
+        "amountBps": 2500,
+        "oracleAddress": "tltc1qkz0vft2fc4nk0u9fx4k9yk4th7zherna3zxh22",
+        "matchedDlcRef": "dlc-next-epoch-42"
+      },
+      {
+        "role": "refund-remainder",
+        "address": "tltc1qn06nctkv2sm8wdjx5fe2x0zluxlyxynq3vud87hxsfv3u8kwdcaq0xvhqa",
+        "sats": "74000"
+      }
+    ],
+    "envelope": {
+      "routeType": "send",
+      "stateOracleHash": "9f8073e22b3bbb89faf9d3d08e7f57d0741123b09a73982c413be8a5085d158e",
+      "selectedSendHash": "7f2dcc41f02035f8a81c221424ec3403e935cfd02117e627d5f2d12ed7457b10",
+      "dlcFunderRegistryHash": "85c318de95114593c1cc57d54cf980ece392af2b193f636bb3b32acfce102e23",
+      "selectedSendId": "send-1",
+      "selectedSendTxid": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "designatedOracleAddress": "tltc1qn06nctkv2sm8wdjx5fe2x0zluxlyxynq3vud87hxsfv3u8kwdcaq0xvhqa",
+      "oracleAddress": "tltc1qkz0vft2fc4nk0u9fx4k9yk4th7zherna3zxh22",
+      "resolvedDestinationAddress": "tltc1qldtqy3y0rasay8dqz6kc2nxx6zfs9e9j4veqcz",
+      "matchedDlcRef": "dlc-next-epoch-42"
+    },
+    "planHash": "1b7bc1b27019c051e7af9f94ab6b98a54066ce964941e40f9dcdd6d683c7597c"
+  },
+  "commitment": {
+    "epochId": "5386095966543893073",
+    "withdrawalRootHex": "3477e88e4943e5e598c9b1646f13f1c31ba750865dfae8095ec43a6cfda1e2b4",
+    "commitmentHashHex": "e9e74bfefce91ed8da8bf44dae9062cd6df93a76942de327d2acfda47fa08cb0",
+    "payoutTotalSats": "99000"
+  },
+  "expectedSweepOutputs": [
+    {
+      "role": "send-to-dlc-funding-output",
+      "address": "tltc1qldtqy3y0rasay8dqz6kc2nxx6zfs9e9j4veqcz",
+      "scriptPubKey": "0014fb5602448f1f61d21da016ad854cc6d09302e4b2",
+      "sats": "25000",
+      "amountBps": 2500,
+      "oracleAddress": "tltc1qkz0vft2fc4nk0u9fx4k9yk4th7zherna3zxh22",
+      "matchedDlcRef": "dlc-next-epoch-42"
+    },
+    {
+      "role": "refund-remainder",
+      "address": "tltc1qn06nctkv2sm8wdjx5fe2x0zluxlyxynq3vud87hxsfv3u8kwdcaq0xvhqa",
+      "scriptPubKey": "00209bf53c2ecc5436773646a272a33c5fe1be4312608b38d3fae682591e1ece6e3a",
+      "sats": "74000",
+      "amountBps": null,
+      "oracleAddress": null,
+      "matchedDlcRef": null
+    }
+  ],
+  "sweepTx": {
+    "status": "planned",
+    "inputs": [
+      {
+        "txid": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "vout": 2,
+        "address": "tltc1qn06nctkv2sm8wdjx5fe2x0zluxlyxynq3vud87hxsfv3u8kwdcaq0xvhqa",
+        "sats": "100000"
+      }
+    ],
+    "outputs": [
+      {
+        "address": "tltc1qldtqy3y0rasay8dqz6kc2nxx6zfs9e9j4veqcz",
+        "sats": "25000",
+        "role": "send-to-dlc-funding-output"
+      },
+      {
+        "address": "tltc1qn06nctkv2sm8wdjx5fe2x0zluxlyxynq3vud87hxsfv3u8kwdcaq0xvhqa",
+        "sats": "74000",
+        "role": "refund-remainder"
+      }
+    ],
+    "feeSats": "1000",
+    "liveTxid": null,
+    "signedPsbt": null
+  },
+  "verification": {
+    "ok": true,
+    "recomputedPlanHash": "1b7bc1b27019c051e7af9f94ab6b98a54066ce964941e40f9dcdd6d683c7597c",
+    "withdrawalRootHex": "3477e88e4943e5e598c9b1646f13f1c31ba750865dfae8095ec43a6cfda1e2b4",
+    "commitmentHashHex": "e9e74bfefce91ed8da8bf44dae9062cd6df93a76942de327d2acfda47fa08cb0",
+    "epochId": "5386095966543893073",
+    "payoutTotalSats": "99000",
+    "feeSats": "1000",
+    "route": "send",
+    "sendBps": 2500,
+    "sendSats": "25000",
+    "residualSats": "74000",
+    "oracleAddress": "tltc1qkz0vft2fc4nk0u9fx4k9yk4th7zherna3zxh22",
+    "resolvedDestinationAddress": "tltc1qldtqy3y0rasay8dqz6kc2nxx6zfs9e9j4veqcz",
+    "matchedDlcRef": "dlc-next-epoch-42",
+    "oracleBlobHash": "9f8073e22b3bbb89faf9d3d08e7f57d0741123b09a73982c413be8a5085d158e",
+    "sendRecordHash": "7f2dcc41f02035f8a81c221424ec3403e935cfd02117e627d5f2d12ed7457b10",
+    "dlcFunderRegistryHash": "85c318de95114593c1cc57d54cf980ece392af2b193f636bb3b32acfce102e23",
+    "selectedSendId": "send-1",
+    "selectedSendTxid": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "planHash": "1b7bc1b27019c051e7af9f94ab6b98a54066ce964941e40f9dcdd6d683c7597c"
+  },
+  "artifactHash": "6e1cd2a62db34438fe1a4cd1dabca832ae922851814bf758a4f2c7552d8f7c48"
+}
