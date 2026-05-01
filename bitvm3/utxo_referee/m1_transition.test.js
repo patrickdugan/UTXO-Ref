@@ -8,6 +8,7 @@ const {
   ReceiptTallyMap,
   computeRouteAmounts,
   computeBoundedSettlementAmounts,
+  computeSendRouteAmounts,
   applyBinarySettlementTransition,
   generateTransitionCircuit,
   toTransitionWitness,
@@ -125,6 +126,9 @@ test('transition circuit exposes balance root inputs', () => {
   assert(built.inputs.challengeWindowStart, 'challengeWindowStart input missing');
   assert(built.inputs.challengeWindowLength, 'challengeWindowLength input missing');
   assert(built.inputs.challengeWindowEnd, 'challengeWindowEnd input missing');
+  assert(built.inputs.sendBps, 'sendBps input missing');
+  assert(built.inputs.sendPayoutSats, 'sendPayoutSats input missing');
+  assert(built.inputs.routeSend, 'routeSend input missing');
 });
 
 test('route amounts remain exact integer sats', () => {
@@ -168,6 +172,31 @@ test('bounded transition emits payout fee and rollover fields', () => {
   assertEq(next.rolloverCollateralSats, '982000');
   assertEq(next.residualSats, '982000');
   assertEq(next.outputs.rolloverCollateralSats, '982000');
+});
+
+test('send route computes a percent of deposit and leaves the remainder to roll', () => {
+  const result = computeSendRouteAmounts(1000000n, 2500, 25);
+  assertEq(result.sendPayoutSats.toString(), '250000');
+  assertEq(result.feeSats.toString(), '2500');
+  assertEq(result.refundSats.toString(), '747500');
+  assertEq(result.rolloverCollateralSats.toString(), '747500');
+});
+
+test('send transition emits send payout, fee and rollover fields', () => {
+  const next = applyBinarySettlementTransition({
+    epochId: 11n,
+    collateralSats: 100000n,
+    sendBps: 2500,
+    feeBps: 100,
+    oracleDestinationHash: 'aa'.repeat(32)
+  }, { route: 'send' });
+
+  assertEq(next.route, 'send');
+  assertEq(next.sendPayoutSats, '25000');
+  assertEq(next.feeSats, '1000');
+  assertEq(next.refundSats, '74000');
+  assertEq(next.rolloverCollateralSats, '74000');
+  assertEq(next.resolvedDestinationHash, 'aa'.repeat(32));
 });
 
 test('roll transition isolates timeout remainder field', () => {

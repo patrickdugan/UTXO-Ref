@@ -36,6 +36,7 @@ function normalizeOutput(output, index) {
 function resolveDestinations(state = {}, destinations = {}) {
   return {
     winnerAddress: destinations.winnerAddress ?? state.winnerAddress ?? null,
+    sendAddress: destinations.sendAddress ?? state.sendAddress ?? state.resolvedSendAddress ?? null,
     refundAddress: destinations.refundAddress ?? state.refundAddress ?? null,
     feeAddress: destinations.feeAddress ?? state.feeAddress ?? null,
     dustAddress: destinations.dustAddress ?? state.dustAddress ?? null
@@ -55,6 +56,10 @@ function deriveSettlementRouting(state, destinations = {}) {
   const actualPayoutSats = toBigInt(
     state.actualPayoutSats ?? state.payoutSats ?? 0n,
     'state.actualPayoutSats'
+  );
+  const sendPayoutSats = toBigInt(
+    state.sendPayoutSats ?? state.sendSats ?? state.actualPayoutSats ?? state.payoutSats ?? 0n,
+    'state.sendPayoutSats'
   );
   const rolloverCollateralSats = toBigInt(
     state.rolloverCollateralSats ?? state.timeoutRemainderSats ?? state.refundSats ?? state.residualSats ?? 0n,
@@ -83,6 +88,12 @@ function deriveSettlementRouting(state, destinations = {}) {
       ? explicitRefundSats
       : collateralSats - winnerSweepSats - feeSats - dustCarrySats;
     settlementKind = 'pnl-sweep';
+  } else if (route === 'send') {
+    winnerSweepSats = sendPayoutSats;
+    refundRemainderSats = explicitRefundSats !== null
+      ? explicitRefundSats
+      : collateralSats - winnerSweepSats - feeSats - dustCarrySats;
+    settlementKind = 'send-sweep';
   } else if (route === 'flat' || route === 'pnl') {
     winnerSweepSats = actualPayoutSats;
     refundRemainderSats = collateralSats - winnerSweepSats - feeSats - dustCarrySats;
@@ -113,8 +124,10 @@ function deriveSettlementRouting(state, destinations = {}) {
     conservationHolds,
     outputs: [
       {
-        role: 'winner-sweep',
-        address: resolvedDestinations.winnerAddress ? String(resolvedDestinations.winnerAddress) : null,
+        role: route === 'send' ? 'send-destination' : 'winner-sweep',
+        address: route === 'send'
+          ? (resolvedDestinations.sendAddress ? String(resolvedDestinations.sendAddress) : null)
+          : (resolvedDestinations.winnerAddress ? String(resolvedDestinations.winnerAddress) : null),
         amountSats: winnerSweepSats
       },
       {

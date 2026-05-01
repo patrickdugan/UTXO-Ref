@@ -2,7 +2,7 @@
  * Milestone 1 Transition Circuit
  *
  * Circuit scaffolding for the exact-satoshi router:
- * - one-hot route selection: flat | pnl | settle-loss | settle-gain | roll
+ * - one-hot route selection: flat | pnl | settle-loss | settle-gain | roll | send
  * - exact arithmetic over collateral, bounded realized PnL, and fees
  * - timeout roll-forward state transition
  *
@@ -70,12 +70,14 @@ class TransitionCircuit {
     const nextEpochId = c.addInput(n, 'nextEpochId');
     const collateralSats = c.addInput(n, 'collateralSats');
     const pnlPayoutBps = c.addInput(n, 'pnlPayoutBps');
+    const sendBps = c.addInput(n, 'sendBps');
     const bucketCapBps = c.addInput(n, 'bucketCapBps');
     const realizedPnlBps = c.addInput(n, 'realizedPnlBps');
     const effectivePnlBps = c.addInput(n, 'effectivePnlBps');
     const feeBps = c.addInput(n, 'feeBps');
     const flatPayoutSats = c.addInput(n, 'flatPayoutSats');
     const pnlPayoutSats = c.addInput(n, 'pnlPayoutSats');
+    const sendPayoutSats = c.addInput(n, 'sendPayoutSats');
     const actualPayoutSats = c.addInput(n, 'actualPayoutSats');
     const feeSats = c.addInput(n, 'feeSats');
     const refundSats = c.addInput(n, 'refundSats');
@@ -100,12 +102,13 @@ class TransitionCircuit {
     const routeRoll = c.addInputScalar('routeRoll');
     const routeSettleLoss = c.addInputScalar('routeSettleLoss');
     const routeSettleGain = c.addInputScalar('routeSettleGain');
+    const routeSend = c.addInputScalar('routeSend');
 
     const oneBits = c.constantBits(1, n);
     const tenThousandBits = c.constantBits(10000, n);
 
     // Route selection must be one-hot.
-    const routeInputs = [routeFlat, routePnl, routeRoll, routeSettleLoss, routeSettleGain];
+    const routeInputs = [routeFlat, routePnl, routeRoll, routeSettleLoss, routeSettleGain, routeSend];
     let pairwiseCollision = c.zero();
     for (let i = 0; i < routeInputs.length; i++) {
       for (let j = i + 1; j < routeInputs.length; j++) {
@@ -173,6 +176,20 @@ class TransitionCircuit {
     const feeUpperBound = c.ltN(collateralTimesFee, feePlusOneTimesTenThousand);
     const boundedFeeFloor = c.and(feeLowerBound, feeUpperBound);
 
+    // Send route identity:
+    // send + fee + refund + dust == collateral, where send is floor(collateral * sendBps / 10000).
+    const sendPlusFee = c.addN(sendPayoutSats, feeSats).sum;
+    const sendFeePlusRefund = c.addN(sendPlusFee, refundSats).sum;
+    const sendIdentity = c.eqN(c.addN(sendFeePlusRefund, dustCarrySats).sum, collateralSats);
+    const sendAliasValid = c.eqN(actualPayoutSats, sendPayoutSats);
+    const collateralTimesSend = c.mulN(collateralSats, sendBps);
+    const sendTimesTenThousand = c.mulN(sendPayoutSats, tenThousandBits);
+    const sendPlusOne = c.addN(sendPayoutSats, oneBits).sum;
+    const sendPlusOneTimesTenThousand = c.mulN(sendPlusOne, tenThousandBits);
+    const sendLowerBound = c.inv(c.ltN(collateralTimesSend, sendTimesTenThousand));
+    const sendUpperBound = c.ltN(collateralTimesSend, sendPlusOneTimesTenThousand);
+    const sendFloor = c.and(sendLowerBound, sendUpperBound);
+
     // Roll-forward state.
     const epochPlusOne = c.addN(epochId, oneBits).sum;
     const nextEpochValid = c.eqN(epochPlusOne, nextEpochId);
@@ -180,6 +197,7 @@ class TransitionCircuit {
     const rolloverValid = c.and(
       implies(routeRoll, c.eqN(dustComplement, rolloverCollateralSats)),
       implies(routeBounded, c.eqN(refundSats, rolloverCollateralSats)),
+      implies(routeSend, c.eqN(refundSats, rolloverCollateralSats)),
       implies(c.or(routeFlat, routePnl), c.eqN(dustComplement, rolloverCollateralSats))
     );
 
@@ -218,6 +236,10 @@ class TransitionCircuit {
     valid = c.and(valid, implies(routeBounded, minWhenEqual));
     valid = c.and(valid, implies(routeBounded, boundedPayoutFloor));
     valid = c.and(valid, implies(routeBounded, boundedFeeFloor));
+    valid = c.and(valid, implies(routeSend, sendIdentity));
+    valid = c.and(valid, implies(routeSend, sendAliasValid));
+    valid = c.and(valid, implies(routeSend, sendFloor));
+    valid = c.and(valid, implies(routeSend, boundedFeeFloor));
     valid = c.and(valid, nextEpochValid);
     valid = c.and(valid, rolloverValid);
     valid = c.and(valid, balanceRootLinked);
@@ -237,12 +259,14 @@ class TransitionCircuit {
         nextEpochId,
         collateralSats,
         pnlPayoutBps,
+        sendBps,
         bucketCapBps,
         realizedPnlBps,
         effectivePnlBps,
         feeBps,
         flatPayoutSats,
         pnlPayoutSats,
+        sendPayoutSats,
         actualPayoutSats,
         feeSats,
         refundSats,
@@ -263,7 +287,8 @@ class TransitionCircuit {
         routePnl,
         routeRoll,
         routeSettleLoss,
-        routeSettleGain
+        routeSettleGain,
+        routeSend
       }
     };
   }
@@ -311,6 +336,7 @@ function toTransitionWitness(state, route = 'flat') {
   const collateralSats = computed.collateralSats ?? state.collateralSats ?? 0n;
   const epochId = computed.epochId ?? state.epochId ?? 0n;
   const pnlPayoutBps = computed.pnlPayoutBps ?? state.pnlPayoutBps ?? 5000n;
+  const sendBps = computed.sendBps ?? state.sendBps ?? 0n;
   const bucketCapBps = computed.bucketCapBps ?? state.bucketCapBps ?? pnlPayoutBps;
   const realizedPnlBps = computed.realizedPnlBps ?? state.realizedPnlBps ?? bucketCapBps;
   const effectivePnlBps = computed.effectivePnlBps ?? state.effectivePnlBps ?? realizedPnlBps;
@@ -320,9 +346,11 @@ function toTransitionWitness(state, route = 'flat') {
   const routeRoll = route === 'roll' ? 1 : 0;
   const routeSettleLoss = route === 'settle-loss' ? 1 : 0;
   const routeSettleGain = route === 'settle-gain' ? 1 : 0;
+  const routeSend = route === 'send' ? 1 : 0;
 
   let flatPayoutSats = computed.flatPayoutSats;
   let pnlPayoutSats = computed.pnlPayoutSats;
+  let sendPayoutSats = computed.sendPayoutSats;
   let actualPayoutSats = computed.actualPayoutSats;
   let feeSats = computed.feeSats;
   let refundSats = computed.refundSats;
@@ -340,7 +368,14 @@ function toTransitionWitness(state, route = 'flat') {
 
   const collateral = BigInt(collateralSats);
 
-  if (routeSettleLoss || routeSettleGain) {
+  if (routeSend) {
+    sendPayoutSats = BigInt(sendPayoutSats ?? computed.payoutSats ?? state.payoutSats ?? 0n);
+    actualPayoutSats = sendPayoutSats;
+    feeSats = BigInt(feeSats ?? 0n);
+    refundSats = BigInt(refundSats ?? computed.residualSats ?? state.residualSats ?? (collateral - sendPayoutSats - feeSats));
+    flatPayoutSats = refundSats;
+    pnlPayoutSats = 0n;
+  } else if (routeSettleLoss || routeSettleGain) {
     actualPayoutSats = BigInt(actualPayoutSats ?? computed.payoutSats ?? state.payoutSats ?? 0n);
     feeSats = BigInt(feeSats ?? 0n);
     refundSats = BigInt(refundSats ?? computed.residualSats ?? state.residualSats ?? (collateral - actualPayoutSats - feeSats));
@@ -362,6 +397,9 @@ function toTransitionWitness(state, route = 'flat') {
   if (actualPayoutSats === undefined) {
     actualPayoutSats = route === 'pnl' ? pnlPayoutSats : BigInt(computed.payoutSats ?? state.payoutSats ?? 0n);
   }
+  if (sendPayoutSats === undefined) {
+    sendPayoutSats = routeSend ? BigInt(actualPayoutSats) : 0n;
+  }
   if (feeSats === undefined) {
     feeSats = 0n;
   }
@@ -376,7 +414,7 @@ function toTransitionWitness(state, route = 'flat') {
   if (rolloverCollateralSats === undefined) {
     rolloverCollateralSats = route === 'roll'
       ? collateral - BigInt(dustCarrySats)
-      : (routeSettleLoss || routeSettleGain)
+      : (routeSettleLoss || routeSettleGain || routeSend)
         ? BigInt(refundSats)
       : collateral;
   }
@@ -412,12 +450,14 @@ function toTransitionWitness(state, route = 'flat') {
     nextEpochId: bitsFromBigInt(BigInt(epochId) + 1n, U64_BITS),
     collateralSats: bitsFromBigInt(collateral, U64_BITS),
     pnlPayoutBps: bitsFromBigInt(pnlPayoutBps, U64_BITS),
+    sendBps: bitsFromBigInt(sendBps, U64_BITS),
     bucketCapBps: bitsFromBigInt(bucketCapBps, U64_BITS),
     realizedPnlBps: bitsFromBigInt(realizedPnlBps, U64_BITS),
     effectivePnlBps: bitsFromBigInt(effectivePnlBps, U64_BITS),
     feeBps: bitsFromBigInt(feeBps, U64_BITS),
     flatPayoutSats: bitsFromBigInt(flatPayoutSats, U64_BITS),
     pnlPayoutSats: bitsFromBigInt(pnlPayoutSats, U64_BITS),
+    sendPayoutSats: bitsFromBigInt(sendPayoutSats, U64_BITS),
     actualPayoutSats: bitsFromBigInt(actualPayoutSats, U64_BITS),
     feeSats: bitsFromBigInt(feeSats, U64_BITS),
     refundSats: bitsFromBigInt(refundSats, U64_BITS),
@@ -442,7 +482,8 @@ function toTransitionWitness(state, route = 'flat') {
     routePnl,
     routeRoll,
     routeSettleLoss,
-    routeSettleGain
+    routeSettleGain,
+    routeSend
   };
 }
 

@@ -5,8 +5,10 @@
 const {
   addressToScriptPubKey,
   computeTradeLayerPlanHash,
+  buildTradeLayerSendRoutePlan,
   buildTradeLayerPnlCommitment,
-  verifyTradeLayerPnlRoutePlan
+  verifyTradeLayerPnlRoutePlan,
+  verifyTradeLayerSendRoutePlan
 } = require('./tradelayer_pnl_route_adapter');
 
 let passed = 0;
@@ -57,6 +59,26 @@ const ROUTE_PLAN = {
   ],
   envelope: {
     dlcRef: 'ltc-testnet-epoch-2-1777489615629-fda7a8a8'
+  }
+};
+
+const SEND_INTENT = {
+  revealTxid: '58ff891cf904aaa6b85f8f34e20637d8b6ef7fbc7baa2cfeff41fd9bf6481d7f',
+  dlcInput: {
+    txid: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    vout: 1,
+    address: 'tltc1qn06nctkv2sm8wdjx5fe2x0zluxlyxynq3vud87hxsfv3u8kwdcaq0xvhqa',
+    sats: 100000
+  },
+  oracleAddress: 'tltc1qkz0vft2fc4nk0u9fx4k9yk4th7zherna3zxh22',
+  refundAddress: 'tltc1qn06nctkv2sm8wdjx5fe2x0zluxlyxynq3vud87hxsfv3u8kwdcaq0xvhqa',
+  sendBps: 2500,
+  feeSats: 1000,
+  dlcFunderRegistry: {
+    tltc1qkz0vft2fc4nk0u9fx4k9yk4th7zherna3zxh22: {
+      dlcRef: 'dlc-next-epoch-42',
+      dlcAddress: 'tltc1qldtqy3y0rasay8dqz6kc2nxx6zfs9e9j4veqcz'
+    }
   }
 };
 
@@ -115,6 +137,54 @@ test('rejects payout plus fee accounting mismatch', () => {
   const result = verifyTradeLayerPnlRoutePlan(bad);
   assert(!result.ok, 'wrong fee should fail');
   assert(String(result.reason).includes('route accounting mismatch'), 'expected accounting mismatch');
+});
+
+test('builds a send route that maps a TL recipient funder to its DLC output', () => {
+  const routePlan = buildTradeLayerSendRoutePlan(SEND_INTENT);
+  assertEq(routePlan.route, 'send');
+  assertEq(routePlan.sendSats, '25000');
+  assertEq(routePlan.residualSats, '74000');
+  assertEq(routePlan.resolvedDestinationAddress, 'tltc1qldtqy3y0rasay8dqz6kc2nxx6zfs9e9j4veqcz');
+  assertEq(routePlan.outputPlan[0].role, 'send-to-dlc-funding-output');
+  assertEq(routePlan.outputPlan[0].matchedDlcRef, 'dlc-next-epoch-42');
+});
+
+test('verifies a percent-of-deposit send route including refund remainder', () => {
+  const result = verifyTradeLayerSendRoutePlan(SEND_INTENT);
+  assert(result.ok, result.reason);
+  assertEq(result.sendBps, 2500);
+  assertEq(result.sendSats, '25000');
+  assertEq(result.payoutTotalSats, '99000');
+  assertEq(result.feeSats, '1000');
+});
+
+test('rejects a send route sweep to the oracle address when registry maps it to a DLC address', () => {
+  const result = verifyTradeLayerSendRoutePlan(SEND_INTENT, {
+    observedOutputs: [
+      {
+        address: 'tltc1qkz0vft2fc4nk0u9fx4k9yk4th7zherna3zxh22',
+        sats: 25000
+      },
+      {
+        address: 'tltc1qn06nctkv2sm8wdjx5fe2x0zluxlyxynq3vud87hxsfv3u8kwdcaq0xvhqa',
+        sats: 74000
+      }
+    ]
+  });
+  assert(!result.ok, 'wrong mapped recipient should fail');
+  assert(String(result.reason).includes('invalid Merkle proof'), 'expected invalid proof');
+});
+
+test('rejects a send route amount that does not equal the committed basis points', () => {
+  const bad = clone(SEND_INTENT);
+  bad.sendSats = 25001;
+  let threw = false;
+  try {
+    verifyTradeLayerSendRoutePlan(bad);
+  } catch (err) {
+    threw = String(err.message).includes('send amount mismatch');
+  }
+  assert(threw, 'expected send amount mismatch');
 });
 
 if (failed > 0) {

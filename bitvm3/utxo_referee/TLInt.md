@@ -25,6 +25,15 @@ Keep the referee core protocol-neutral while documenting how TradeLayer settleme
 - Leaves are hashed and committed as `withdrawalRoot`.
 - Claimed sweep payouts must carry matching Merkle proofs.
 
+5. Send-to-DLC mapping
+- TradeLayer/state-oracle logic tracks token sends and decides whether the sent
+  address is also registered as the funder for a follow-on DLC.
+- If a match exists, the route adapter rewrites the user-facing send address into
+  the mapped DLC funding address before building payout leaves.
+- The BitVM transition does not parse TradeLayer JSON or scan account state. It
+  verifies exact integer arithmetic for `sendBps` and then checks that the sweep
+  outputs match the committed output scripts.
+
 ## Integration Pipeline
 
 1. Build payout leaves from finalized TradeLayer withdrawal set.
@@ -39,6 +48,7 @@ Keep the referee core protocol-neutral while documenting how TradeLayer settleme
 - Trade/PnL correctness.
 - Collateral or tokenomics logic.
 - General TradeLayer state transition validity.
+- Full address/DLC registry lookup inside the circuit.
 
 ## Minimal Integration Example
 
@@ -57,4 +67,3 @@ const commitment = new referee.CommitmentPackage({
   residualDest: tlResidualScriptPubKey
 });
 ```
-

@@ -2,7 +2,7 @@
  * Milestone 1 Transition Function
  *
  * A minimal VM-style state transition for bounded settlement:
- * - route: flat | pnl | roll
+ * - route: flat | pnl | roll | settle-loss | settle-gain | send
  * - exact integer satoshi arithmetic
  * - roll-forward on timeout
  *
@@ -63,6 +63,32 @@ function computeBoundedSettlementAmounts(collateralSats, bucketCapBps, realizedP
     effectivePnlBps,
     feeBps: fee,
     actualPayoutSats,
+    feeSats,
+    refundSats,
+    rolloverCollateralSats: refundSats,
+    dustCarrySats: dust
+  };
+}
+
+function computeSendRouteAmounts(collateralSats, sendBps, feeBps = 0) {
+  const collateral = toBigInt(collateralSats, 'collateralSats');
+  const send = validateBps(sendBps, 'sendBps');
+  const fee = validateBps(feeBps, 'feeBps');
+  const sendPayoutSats = (collateral * BigInt(send)) / 10000n;
+  const feeSats = (collateral * BigInt(fee)) / 10000n;
+  const refundSats = collateral - sendPayoutSats - feeSats;
+  const dust = collateral - sendPayoutSats - feeSats - refundSats;
+
+  if (refundSats < 0n) {
+    throw new Error('send route produced negative refund');
+  }
+
+  return {
+    collateralSats: collateral,
+    sendBps: send,
+    feeBps: fee,
+    sendPayoutSats,
+    actualPayoutSats: sendPayoutSats,
     feeSats,
     refundSats,
     rolloverCollateralSats: refundSats,
@@ -147,6 +173,42 @@ function applyBinarySettlementTransition(state, event) {
     };
   }
 
+  if (route === 'send') {
+    const sendBps = validateBps(state.sendBps ?? event.sendBps ?? 0, 'state.sendBps');
+    const feeBps = validateBps(state.feeBps ?? event.feeBps ?? 0, 'state.feeBps');
+    const sendRoute = computeSendRouteAmounts(collateralSats, sendBps, feeBps);
+
+    return {
+      route,
+      epochId: epochId.toString(),
+      collateralSats: sendRoute.collateralSats.toString(),
+      sendBps: sendRoute.sendBps,
+      feeBps: sendRoute.feeBps,
+      receiptBalanceRoot,
+      prevBalanceRoot,
+      balanceClaim,
+      challengeWindowStart: challengeWindowStart.toString(),
+      challengeWindowLength: challengeWindowLength.toString(),
+      challengeWindowEnd: challengeWindowEnd.toString(),
+      actualPayoutSats: sendRoute.sendPayoutSats.toString(),
+      sendPayoutSats: sendRoute.sendPayoutSats.toString(),
+      payoutSats: sendRoute.sendPayoutSats.toString(),
+      feeSats: sendRoute.feeSats.toString(),
+      refundSats: sendRoute.refundSats.toString(),
+      residualSats: sendRoute.refundSats.toString(),
+      rolloverCollateralSats: sendRoute.rolloverCollateralSats.toString(),
+      dustCarrySats: sendRoute.dustCarrySats.toString(),
+      oracleDestinationHash: state.oracleDestinationHash || event.oracleDestinationHash || null,
+      resolvedDestinationHash: state.resolvedDestinationHash || event.resolvedDestinationHash || state.oracleDestinationHash || event.oracleDestinationHash || null,
+      outputs: {
+        sendPayoutSats: sendRoute.sendPayoutSats.toString(),
+        feeSats: sendRoute.feeSats.toString(),
+        refundSats: sendRoute.refundSats.toString(),
+        rolloverCollateralSats: sendRoute.rolloverCollateralSats.toString()
+      }
+    };
+  }
+
   if (route !== 'flat' && route !== 'pnl') {
     throw new Error(`Unsupported route: ${route}`);
   }
@@ -181,5 +243,6 @@ function applyBinarySettlementTransition(state, event) {
 module.exports = {
   computeRouteAmounts,
   computeBoundedSettlementAmounts,
+  computeSendRouteAmounts,
   applyBinarySettlementTransition
 };

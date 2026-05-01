@@ -70,6 +70,14 @@ function ltcToSats(value, fieldName) {
   return BigInt(whole) * COIN + BigInt((fraction + '00000000').slice(0, 8));
 }
 
+function validateBps(value, fieldName) {
+  const n = Number(value);
+  if (!Number.isInteger(n) || n < 0 || n > 10000) {
+    throw new Error(`${fieldName} must be an integer in 0..10000`);
+  }
+  return n;
+}
+
 function bech32Polymod(values) {
   const generators = [0x3b6a57b2, 0x26508e6d, 0x1ea119fa, 0x3d4233dd, 0x2a1462b3];
   let chk = 1;
@@ -234,12 +242,150 @@ function computeTradeLayerPlanHash(routePlan) {
   });
 }
 
+function resolveDlcFunderMapping(address, registry) {
+  if (!address || !registry) return null;
+  const target = String(address);
+
+  if (Array.isArray(registry)) {
+    return registry.find((entry) => String(entry?.funderAddress || entry?.address || '') === target) || null;
+  }
+
+  const mapped = registry[target];
+  if (!mapped) return null;
+  if (typeof mapped === 'string') {
+    return { funderAddress: target, dlcAddress: mapped };
+  }
+  return { funderAddress: target, ...mapped };
+}
+
+function resolveSendRouteDestination(sendIntent, options = {}) {
+  const oracleAddress = sendIntent.oracleAddress
+    || sendIntent.sentAddress
+    || sendIntent.toAddress
+    || sendIntent.destinationAddress;
+  if (!oracleAddress) {
+    throw new Error('send route requires oracleAddress, sentAddress, toAddress, or destinationAddress');
+  }
+
+  const mapping = resolveDlcFunderMapping(
+    oracleAddress,
+    options.dlcFunderRegistry || sendIntent.dlcFunderRegistry
+  );
+  const outputAddress = mapping
+    ? (mapping.dlcAddress || mapping.outputAddress || mapping.address)
+    : oracleAddress;
+  if (!outputAddress) {
+    throw new Error('DLC funder mapping must include dlcAddress or outputAddress');
+  }
+
+  return {
+    oracleAddress: String(oracleAddress),
+    outputAddress: String(outputAddress),
+    matchedDlcRef: mapping ? String(mapping.dlcRef || mapping.contractId || '') || null : null,
+    role: mapping ? 'send-to-dlc-funding-output' : 'send-destination'
+  };
+}
+
+function buildTradeLayerSendRoutePlan(sendIntent, options = {}) {
+  if (!sendIntent || typeof sendIntent !== 'object') throw new Error('sendIntent must be an object');
+
+  const dlcInput = sendIntent.dlcInput || sendIntent.depositInput || {};
+  const depositSats = sendIntent.depositSats !== undefined
+    ? toSats(sendIntent.depositSats, 'sendIntent.depositSats')
+    : dlcInput.sats !== undefined
+      ? toSats(dlcInput.sats, 'sendIntent.dlcInput.sats')
+      : toSats(dlcInput.amountSats, 'sendIntent.dlcInput.amountSats');
+  if (depositSats <= 0n) throw new Error('send route deposit must be positive');
+
+  const sendBps = validateBps(sendIntent.sendBps ?? sendIntent.depositBps, 'sendIntent.sendBps');
+  const derivedSendSats = (depositSats * BigInt(sendBps)) / 10000n;
+  const explicitSendSats = sendIntent.sendSats !== undefined || sendIntent.amountSats !== undefined
+    ? toSats(sendIntent.sendSats ?? sendIntent.amountSats, 'sendIntent.sendSats')
+    : derivedSendSats;
+  if (explicitSendSats !== derivedSendSats) {
+    throw new Error(`send amount mismatch: ${explicitSendSats} sats does not equal ${sendBps} bps of ${depositSats} sats (${derivedSendSats})`);
+  }
+
+  const feeSats = sendIntent.feeSats !== undefined ? toSats(sendIntent.feeSats, 'sendIntent.feeSats') : 0n;
+  const residualSats = depositSats - derivedSendSats - feeSats;
+  if (residualSats < 0n) throw new Error('send route spends more than the deposit');
+
+  const network = inferNetwork(sendIntent, options);
+  const resolved = resolveSendRouteDestination(sendIntent, options);
+  const refundAddress = sendIntent.refundAddress
+    || sendIntent.residualAddress
+    || sendIntent.changeAddress
+    || dlcInput.refundAddress
+    || dlcInput.address;
+  if (residualSats > 0n && !refundAddress) {
+    throw new Error('send route with residual sats requires refundAddress, residualAddress, changeAddress, or dlcInput.address');
+  }
+
+  const outputPlan = [
+    {
+      role: resolved.role,
+      address: resolved.outputAddress,
+      sats: derivedSendSats.toString(),
+      amountBps: sendBps,
+      oracleAddress: resolved.oracleAddress,
+      matchedDlcRef: resolved.matchedDlcRef
+    }
+  ];
+  if (residualSats > 0n) {
+    outputPlan.push({
+      role: 'refund-remainder',
+      address: refundAddress,
+      sats: residualSats.toString()
+    });
+  }
+
+  const routePlan = {
+    route: 'send',
+    network,
+    revealTxid: sendIntent.revealTxid,
+    payloadHash: sendIntent.payloadHash || sha256Hex({
+      kind: 'tradelayer-send-route',
+      oracleAddress: resolved.oracleAddress,
+      outputAddress: resolved.outputAddress,
+      depositSats: depositSats.toString(),
+      sendBps,
+      feeSats: feeSats.toString()
+    }),
+    dlcInput: {
+      ...dlcInput,
+      sats: depositSats.toString()
+    },
+    sendBps,
+    sendSats: derivedSendSats.toString(),
+    feeSats: feeSats.toString(),
+    residualSats: residualSats.toString(),
+    oracleAddress: resolved.oracleAddress,
+    resolvedDestinationAddress: resolved.outputAddress,
+    matchedDlcRef: resolved.matchedDlcRef,
+    outputPlan,
+    envelope: {
+      ...(sendIntent.envelope || {}),
+      routeType: 'send',
+      oracleAddress: resolved.oracleAddress,
+      resolvedDestinationAddress: resolved.outputAddress,
+      matchedDlcRef: resolved.matchedDlcRef
+    }
+  };
+
+  routePlan.planHash = sendIntent.planHash || computeTradeLayerPlanHash(routePlan);
+  return routePlan;
+}
+
 function buildLeaves(outputPlan, epochId, network) {
   return normalizeOutputPlan(outputPlan).map((output) => new PayoutLeaf({
     epochId,
     recipientScriptPubKey: scriptPubKeyForOutput(output, network),
     amountSats: output.sats
   }));
+}
+
+function outputPlanHasAddress(outputPlan, address) {
+  return outputPlan.some((output) => output.address === address);
 }
 
 function leafKey(leaf) {
@@ -367,12 +513,38 @@ function verifyTradeLayerPnlRoutePlan(routePlan, options = {}) {
   };
 }
 
+function verifyTradeLayerSendRoutePlan(sendIntent, options = {}) {
+  const routePlan = buildTradeLayerSendRoutePlan(sendIntent, options);
+  if (!outputPlanHasAddress(routePlan.outputPlan, routePlan.resolvedDestinationAddress)) {
+    return {
+      ok: false,
+      reason: 'send route output plan does not include the resolved destination address'
+    };
+  }
+
+  const result = verifyTradeLayerPnlRoutePlan(routePlan, options);
+  if (!result.ok) return result;
+
+  return {
+    ...result,
+    route: 'send',
+    sendBps: routePlan.sendBps,
+    sendSats: routePlan.sendSats,
+    residualSats: routePlan.residualSats,
+    oracleAddress: routePlan.oracleAddress,
+    resolvedDestinationAddress: routePlan.resolvedDestinationAddress,
+    matchedDlcRef: routePlan.matchedDlcRef
+  };
+}
+
 module.exports = {
   NETWORK_HRPS,
   stableStringify,
   sha256Hex,
   addressToScriptPubKey,
   computeTradeLayerPlanHash,
+  buildTradeLayerSendRoutePlan,
   buildTradeLayerPnlCommitment,
-  verifyTradeLayerPnlRoutePlan
+  verifyTradeLayerPnlRoutePlan,
+  verifyTradeLayerSendRoutePlan
 };
