@@ -52,10 +52,16 @@ and later attach a real sweep txid or signed PSBT.
   broadcast txid/final PSBT in a real run.
 
 4. Fraud challenge packaging
-- Package challenge artifacts for bad send inclusion, invalid send omission,
-  bad DLC-funder mapping, bad ratio arithmetic, wrong destination, wrong fee, and
-  wrong refund remainder.
-- Bind each challenge to the exact oracle blob hash and registry hash.
+- Status: deterministic challenge bundle implemented.
+- It packages bad send inclusion, invalid send omission, bad DLC-funder mapping,
+  bad ratio arithmetic, wrong destination, wrong fee, and wrong refund remainder
+  artifacts.
+- Every challenge binds the exact oracle blob hash, selected send hash, registry
+  hash, route plan hash, withdrawal root, and commitment hash.
+- The e2e artifact now includes `fraudChallenges` and
+  `fraudChallengeVerification`.
+- Remaining: wire these package ids to concrete BitVM challenge transactions
+  once the live sweep signer/broadcaster is attached.
 
 5. Wallet-facing flow object
 - Expose a compact flow model for UI:

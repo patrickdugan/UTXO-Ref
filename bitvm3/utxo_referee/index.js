@@ -59,6 +59,7 @@ const lightningTradeLayerOracleDlc = require('./lightning_tradelayer_oracle_dlc'
 const tradeLayerPnlRouteAdapter = require('./tradelayer_pnl_route_adapter');
 const tradeLayerSendOracleExtractor = require('./tradelayer_send_oracle_extractor');
 const tradeLayerSendSweepPsbt = require('./tradelayer_send_sweep_psbt');
+const tradeLayerSendFraudChallenges = require('./tradelayer_send_fraud_challenges');
 
 module.exports = {
   // Types
@@ -232,6 +233,9 @@ module.exports = {
   buildTradeLayerSendStateOracleFromConsensus: tradeLayerSendOracleExtractor.buildTradeLayerSendStateOracleFromConsensus,
   buildTradeLayerSendSweepPlan: tradeLayerSendSweepPsbt.buildTradeLayerSendSweepPlan,
   verifyTradeLayerObservedSweepOutputs: tradeLayerSendSweepPsbt.verifyObservedSweepOutputs,
+  TRADELAYER_SEND_FRAUD_CHALLENGE_TYPES: tradeLayerSendFraudChallenges.CHALLENGE_TYPES,
+  buildTradeLayerSendFraudChallengeBundle: tradeLayerSendFraudChallenges.buildTradeLayerSendFraudChallengeBundle,
+  verifyTradeLayerSendFraudChallengeBundle: tradeLayerSendFraudChallenges.verifyTradeLayerSendFraudChallengeBundle,
   resolvePipelineOptions: m1Pipeline.resolvePipelineOptions,
   buildPipelinePlan: m1Pipeline.buildPipelinePlan,
   buildPipelineSummary: m1Pipeline.buildPipelineSummary,
@@ -269,5 +273,6 @@ module.exports = {
   lightningTradeLayerOracleDlc,
   tradeLayerPnlRouteAdapter,
   tradeLayerSendOracleExtractor,
-  tradeLayerSendSweepPsbt
+  tradeLayerSendSweepPsbt,
+  tradeLayerSendFraudChallenges
 };
