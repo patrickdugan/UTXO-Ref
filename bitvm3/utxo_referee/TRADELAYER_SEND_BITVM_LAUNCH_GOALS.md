@@ -73,6 +73,11 @@ and later attach a real sweep txid or signed PSBT.
 - The e2e artifact now includes `walletFlow` and `walletFlowVerification`.
 
 6. Production policy checks
-- Add challenge window policy, fee caps, dust limits, registry freshness, and
-  allowed-oracle/key rotation rules.
-- Define how failed verification pauses or blocks wallet spend attempts.
+- Status: production policy gate implemented.
+- It checks challenge window policy, fee caps, dust limits, registry freshness,
+  allowed oracle addresses/key ids, route verification, sweep verification, and
+  optional oracle signature enforcement.
+- Failed checks produce `walletAction: pause_spend` by default so wallet spend
+  attempts can stop before creating/broadcasting a sweep.
+- The e2e artifact now includes `productionPolicy` and
+  `productionPolicyVerification`.

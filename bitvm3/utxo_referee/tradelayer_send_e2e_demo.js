@@ -28,6 +28,10 @@ const {
   buildTradeLayerSendWalletFlow,
   verifyTradeLayerSendWalletFlow
 } = require('./tradelayer_send_flow_model');
+const {
+  buildTradeLayerSendProductionPolicy,
+  verifyTradeLayerSendProductionPolicy
+} = require('./tradelayer_send_policy');
 
 const ARTIFACTS_DIR = path.join(__dirname, 'artifacts');
 const DEFAULT_OUT = path.join(ARTIFACTS_DIR, 'tradelayer_send_e2e_latest.json');
@@ -166,6 +170,13 @@ function buildArtifact(stateOracleBlob, cliArgs) {
     observedSweep
   });
   const walletFlowVerification = verifyTradeLayerSendWalletFlow(walletFlow);
+  const productionPolicy = buildTradeLayerSendProductionPolicy(stateOracleBlob, {
+    ...options,
+    routePlan,
+    observedOutputs: routePlan.outputPlan,
+    requireOracleSignature: cliArgs.requireOracleSignature
+  });
+  const productionPolicyVerification = verifyTradeLayerSendProductionPolicy(productionPolicy);
 
   const artifact = {
     kind: 'tradelayer_send_bitvm_e2e',
@@ -203,6 +214,8 @@ function buildArtifact(stateOracleBlob, cliArgs) {
     fraudChallengeVerification,
     walletFlow,
     walletFlowVerification,
+    productionPolicy,
+    productionPolicyVerification,
     verification
   };
 
@@ -229,6 +242,13 @@ function buildArtifact(stateOracleBlob, cliArgs) {
       verifier: artifact.walletFlow.verifier
     },
     walletFlowVerification: artifact.walletFlowVerification,
+    productionPolicy: {
+      policyHash: artifact.productionPolicy.policyHash,
+      ok: artifact.productionPolicy.ok,
+      walletAction: artifact.productionPolicy.walletAction,
+      failedChecks: artifact.productionPolicy.failedChecks
+    },
+    productionPolicyVerification: artifact.productionPolicyVerification,
     verification: artifact.verification
   }));
 

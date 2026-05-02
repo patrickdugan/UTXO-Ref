@@ -1,6 +1,6 @@
 {
   "kind": "tradelayer_send_bitvm_e2e",
-  "createdAt": "2026-05-02T00:13:55.446Z",
+  "createdAt": "2026-05-02T00:17:29.816Z",
   "network": "litecoin-testnet",
   "selectedSend": {
     "id": "live-send",
@@ -608,6 +608,127 @@
     "destinationKind": "dlc-funding-output",
     "sweepStatus": "planned"
   },
+  "productionPolicy": {
+    "kind": "tradelayer_send_production_policy",
+    "policy": {
+      "challengeWindowBlocks": 144,
+      "minChallengeWindowBlocks": 6,
+      "dustLimitSats": "546",
+      "maxFeeSats": "5000",
+      "maxFeeBpsOfInput": 500,
+      "maxRegistryAgeBlocks": 2016,
+      "requireOracleSignature": false,
+      "allowedOracleAddresses": [],
+      "allowedOracleKeyIds": [],
+      "pauseOnFailure": true
+    },
+    "binding": {
+      "oracleBlobHash": "c1a461ff7ff1d3a74fed3bc3f39decf6dcf621cff4894bd140607ab8c73390ce",
+      "selectedSendHash": "5a41f83d2e783f3a74c01239d1cbc396ecac07b46fa2d92c4dcbf1b53da65709",
+      "dlcFunderRegistryHash": "e2057a8fb6fcfd3da569c56dec6978e416c4ec3f9595df7875b0f90052509986",
+      "routePlanHash": "0fd3fe90391ea6b4958238f5642fe50f27b627d78efff85673b5773e570b20a2"
+    },
+    "checks": [
+      {
+        "name": "challenge_window",
+        "ok": true,
+        "severity": "block",
+        "details": {
+          "challengeWindowBlocks": 144,
+          "minChallengeWindowBlocks": 6
+        }
+      },
+      {
+        "name": "fee_cap",
+        "ok": true,
+        "severity": "block",
+        "details": {
+          "feeSats": "1000",
+          "maxFeeSats": "5000",
+          "maxFeeBpsOfInput": 500,
+          "effectiveFeeCapSats": "5000"
+        }
+      },
+      {
+        "name": "dust_limits",
+        "ok": true,
+        "severity": "block",
+        "details": {
+          "dustLimitSats": "546",
+          "outputs": [
+            {
+              "role": "send-to-dlc-funding-output",
+              "address": "tltc1qldtqy3y0rasay8dqz6kc2nxx6zfs9e9j4veqcz",
+              "sats": "25000"
+            },
+            {
+              "role": "refund-remainder",
+              "address": "tltc1qn06nctkv2sm8wdjx5fe2x0zluxlyxynq3vud87hxsfv3u8kwdcaq0xvhqa",
+              "sats": "74000"
+            }
+          ]
+        }
+      },
+      {
+        "name": "registry_freshness",
+        "ok": true,
+        "severity": "block",
+        "details": {
+          "currentHeight": 4696000,
+          "registryHeight": 4696000,
+          "registryAgeBlocks": 0,
+          "maxRegistryAgeBlocks": 2016
+        }
+      },
+      {
+        "name": "oracle_address_allowed",
+        "ok": true,
+        "severity": "block",
+        "details": {
+          "oracleAddress": "tltc1qn06nctkv2sm8wdjx5fe2x0zluxlyxynq3vud87hxsfv3u8kwdcaq0xvhqa",
+          "allowedOracleAddresses": []
+        }
+      },
+      {
+        "name": "oracle_key_allowed",
+        "ok": true,
+        "severity": "block",
+        "details": {
+          "oracleKeyId": null,
+          "allowedOracleKeyIds": []
+        }
+      },
+      {
+        "name": "route_verifier",
+        "ok": true,
+        "severity": "block",
+        "details": {
+          "reason": null,
+          "planHash": "0fd3fe90391ea6b4958238f5642fe50f27b627d78efff85673b5773e570b20a2"
+        }
+      },
+      {
+        "name": "sweep_verifier",
+        "ok": true,
+        "severity": "block",
+        "details": {
+          "reason": null,
+          "commitmentHashHex": "1f327b20e84381e3158454e88e1ab95ba860c267bb04d0965e6998625d8f274d",
+          "withdrawalRootHex": "fc1d5bace84265ee2cf3295a15270e9b9a2241837349634a99ed82bcf682f4e4"
+        }
+      }
+    ],
+    "ok": true,
+    "failedChecks": [],
+    "walletAction": "allow_sweep",
+    "policyHash": "32f5ce6e5bee7bddcf4019aaeb6b0e8a04535d17d1b4f4be00a8644a65182b3a"
+  },
+  "productionPolicyVerification": {
+    "ok": true,
+    "policyHash": "32f5ce6e5bee7bddcf4019aaeb6b0e8a04535d17d1b4f4be00a8644a65182b3a",
+    "walletAction": "allow_sweep",
+    "failedChecks": []
+  },
   "verification": {
     "ok": true,
     "recomputedPlanHash": "0fd3fe90391ea6b4958238f5642fe50f27b627d78efff85673b5773e570b20a2",
@@ -640,5 +761,5 @@
       "dlcFunderRegistryHash": "e2057a8fb6fcfd3da569c56dec6978e416c4ec3f9595df7875b0f90052509986"
     }
   },
-  "artifactHash": "09fb4d5054aa90bc02c44d58da43274e031a61a9e71f7c776461b3cbc7428da7"
+  "artifactHash": "64661ba3ccd7c32d2892374d12bafc20a173e88cd8b1ca71f2e33fe6064f8db1"
 }
