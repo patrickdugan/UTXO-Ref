@@ -2,6 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { resolveChainEnv } = require('./m1_chain_env');
 const {
   stableStringify,
   sha256Hex,
@@ -32,6 +33,10 @@ const {
   buildTradeLayerSendProductionPolicy,
   verifyTradeLayerSendProductionPolicy
 } = require('./tradelayer_send_policy');
+const {
+  executeTradeLayerSendRpcSweep,
+  attachRpcSweepToSweepPlan
+} = require('./tradelayer_send_rpc_sweep');
 
 const ARTIFACTS_DIR = path.join(__dirname, 'artifacts');
 const DEFAULT_OUT = path.join(ARTIFACTS_DIR, 'tradelayer_send_e2e_latest.json');
@@ -84,6 +89,12 @@ function usage() {
     '  --send-index <n>     Select send record by array index.',
     '  --txid <txid>        Attach live sweep transaction id.',
     '  --psbt <base64>      Attach signed/final sweep PSBT.',
+    '  --rpc-sweep          Use Core RPC to create/sign/finalize/test the sweep PSBT; does not broadcast.',
+    '  --broadcast-sweep    Use Core RPC and broadcast the finalized sweep transaction.',
+    '  --rpc-url <url>      Override BITVM/LTC/BTC RPC URL for --rpc-sweep.',
+    '  --rpc-user <user>    Override BITVM/LTC/BTC RPC user for --rpc-sweep.',
+    '  --rpc-pass <pass>    Override BITVM/LTC/BTC RPC password for --rpc-sweep.',
+    '  --rpc-wallet <name>  Override BITVM/LTC/BTC wallet for --rpc-sweep.',
     '  --require-oracle-signature  Require a valid Ed25519 oracle signature.',
     '  --help              Show this help.'
   ].join('\n');
@@ -99,6 +110,15 @@ function parseArgs(argv) {
     }
     if (arg === '--require-oracle-signature') {
       args.requireOracleSignature = true;
+      continue;
+    }
+    if (arg === '--rpc-sweep') {
+      args.rpcSweep = true;
+      continue;
+    }
+    if (arg === '--broadcast-sweep') {
+      args.rpcSweep = true;
+      args.broadcastSweep = true;
       continue;
     }
     if (!arg.startsWith('--')) throw new Error(`Unexpected argument: ${arg}`);
@@ -138,7 +158,7 @@ function outputWithScript(output, network) {
   };
 }
 
-function buildArtifact(stateOracleBlob, cliArgs) {
+function selectOptionsFromCli(cliArgs) {
   const options = {
     sendId: cliArgs.sendId,
     sendTxid: cliArgs.sendTxid,
@@ -146,6 +166,60 @@ function buildArtifact(stateOracleBlob, cliArgs) {
     requireOracleSignature: cliArgs.requireOracleSignature
   };
   Object.keys(options).forEach((key) => options[key] === undefined && delete options[key]);
+  return options;
+}
+
+function artifactHashInput(artifact) {
+  return {
+    kind: artifact.kind,
+    network: artifact.network,
+    selectedSend: artifact.selectedSend,
+    oracle: artifact.oracle,
+    routePlan: artifact.routePlan,
+    commitment: artifact.commitment,
+    expectedSweepOutputs: artifact.expectedSweepOutputs,
+    sweepTx: artifact.sweepTx,
+    observedSweep: artifact.observedSweep,
+    rpcSweep: artifact.rpcSweep
+      ? {
+        status: artifact.rpcSweep.status,
+        ok: artifact.rpcSweep.ok,
+        broadcast: artifact.rpcSweep.broadcast,
+        decodedTx: artifact.rpcSweep.decodedTx,
+        mempoolAccept: artifact.rpcSweep.mempoolAccept
+      }
+      : null,
+    fraudChallenges: {
+      binding: artifact.fraudChallenges.binding,
+      challengeRoot: artifact.fraudChallenges.challengeRoot,
+      bundleHash: artifact.fraudChallenges.bundleHash
+    },
+    fraudChallengeVerification: artifact.fraudChallengeVerification,
+    walletFlow: {
+      flowHash: artifact.walletFlow.flowHash,
+      destination: artifact.walletFlow.destination,
+      live: artifact.walletFlow.live,
+      verifier: artifact.walletFlow.verifier
+    },
+    walletFlowVerification: artifact.walletFlowVerification,
+    productionPolicy: {
+      policyHash: artifact.productionPolicy.policyHash,
+      ok: artifact.productionPolicy.ok,
+      walletAction: artifact.productionPolicy.walletAction,
+      failedChecks: artifact.productionPolicy.failedChecks
+    },
+    productionPolicyVerification: artifact.productionPolicyVerification,
+    verification: artifact.verification
+  };
+}
+
+function refreshArtifactHash(artifact) {
+  artifact.artifactHash = sha256Hex(stableStringify(artifactHashInput(artifact)));
+  return artifact;
+}
+
+function buildArtifact(stateOracleBlob, cliArgs) {
+  const options = selectOptionsFromCli(cliArgs);
 
   const oracleCommitment = buildTradeLayerSendOracleCommitment(stateOracleBlob, options);
   const sendIntent = buildTradeLayerSendIntentFromStateOracle(stateOracleBlob, options);
@@ -210,6 +284,7 @@ function buildArtifact(stateOracleBlob, cliArgs) {
     expectedSweepOutputs,
     sweepTx,
     observedSweep,
+    rpcSweep: null,
     fraudChallenges,
     fraudChallengeVerification,
     walletFlow,
@@ -219,43 +294,49 @@ function buildArtifact(stateOracleBlob, cliArgs) {
     verification
   };
 
-  artifact.artifactHash = sha256Hex(stableStringify({
-    kind: artifact.kind,
-    network: artifact.network,
-    selectedSend: artifact.selectedSend,
-    oracle: artifact.oracle,
-    routePlan: artifact.routePlan,
-    commitment: artifact.commitment,
-    expectedSweepOutputs: artifact.expectedSweepOutputs,
-    sweepTx: artifact.sweepTx,
-    observedSweep: artifact.observedSweep,
-    fraudChallenges: {
-      binding: artifact.fraudChallenges.binding,
-      challengeRoot: artifact.fraudChallenges.challengeRoot,
-      bundleHash: artifact.fraudChallenges.bundleHash
-    },
-    fraudChallengeVerification: artifact.fraudChallengeVerification,
-    walletFlow: {
-      flowHash: artifact.walletFlow.flowHash,
-      destination: artifact.walletFlow.destination,
-      live: artifact.walletFlow.live,
-      verifier: artifact.walletFlow.verifier
-    },
-    walletFlowVerification: artifact.walletFlowVerification,
-    productionPolicy: {
-      policyHash: artifact.productionPolicy.policyHash,
-      ok: artifact.productionPolicy.ok,
-      walletAction: artifact.productionPolicy.walletAction,
-      failedChecks: artifact.productionPolicy.failedChecks
-    },
-    productionPolicyVerification: artifact.productionPolicyVerification,
-    verification: artifact.verification
-  }));
-
-  return artifact;
+  return refreshArtifactHash(artifact);
 }
 
-function main() {
+function rpcSweepOptionsFromCli(cliArgs) {
+  const chainEnv = resolveChainEnv();
+  return {
+    rpcUrl: cliArgs.rpcUrl || chainEnv.rpcUrl,
+    rpcUser: cliArgs.rpcUser || chainEnv.rpcUser,
+    rpcPass: cliArgs.rpcPass || chainEnv.rpcPass,
+    wallet: cliArgs.rpcWallet || chainEnv.wallet,
+    broadcast: !!cliArgs.broadcastSweep
+  };
+}
+
+async function attachRpcSweepIfRequested(artifact, stateOracleBlob, cliArgs) {
+  if (!cliArgs.rpcSweep) return artifact;
+
+  const rpcOptions = rpcSweepOptionsFromCli(cliArgs);
+  const rpcSweep = await executeTradeLayerSendRpcSweep(artifact.sweepTx, rpcOptions);
+  artifact.rpcSweep = {
+    ...rpcSweep,
+    chain: {
+      rpcUrl: rpcOptions.rpcUrl
+    },
+    wallet: rpcOptions.wallet
+  };
+  artifact.sweepTx = attachRpcSweepToSweepPlan(artifact.sweepTx, rpcSweep);
+
+  const options = selectOptionsFromCli(cliArgs);
+  artifact.walletFlow = buildTradeLayerSendWalletFlow(stateOracleBlob, {
+    ...options,
+    liveTxid: artifact.sweepTx.liveTxid,
+    signedPsbt: artifact.sweepTx.signedPsbt,
+    fraudChallengeBundle: artifact.fraudChallenges,
+    sweepPlan: artifact.sweepTx,
+    observedSweep: artifact.observedSweep
+  });
+  artifact.walletFlowVerification = verifyTradeLayerSendWalletFlow(artifact.walletFlow);
+
+  return refreshArtifactHash(artifact);
+}
+
+async function main() {
   const cliArgs = parseArgs(process.argv.slice(2));
   if (cliArgs.help) {
     console.log(usage());
@@ -275,7 +356,11 @@ function main() {
       feeSats: cliArgs.feeSats
     })
     : inputPath ? readJson(inputPath) : SAMPLE_STATE_ORACLE;
-  const artifact = buildArtifact(stateOracleBlob, cliArgs);
+  const artifact = await attachRpcSweepIfRequested(
+    buildArtifact(stateOracleBlob, cliArgs),
+    stateOracleBlob,
+    cliArgs
+  );
 
   fs.mkdirSync(path.dirname(outPath), { recursive: true });
   fs.writeFileSync(outPath, `${stringifyJson(artifact)}\n`);
@@ -287,23 +372,27 @@ function main() {
   console.log(`selectedSendHash=${artifact.selectedSend.sendRecordHash}`);
   console.log(`registryHash=${artifact.oracle.dlcFunderRegistryHash}`);
   console.log(`commitmentHash=${artifact.commitment.commitmentHashHex}`);
+  if (artifact.rpcSweep) {
+    console.log(`rpcSweep=${artifact.rpcSweep.status} ok=${artifact.rpcSweep.ok}`);
+    if (artifact.rpcSweep.broadcast?.txid) console.log(`sweepTxid=${artifact.rpcSweep.broadcast.txid}`);
+    if (artifact.rpcSweep.error) console.log(`rpcSweepError=${artifact.rpcSweep.error}`);
+  }
   console.log(`artifactHash=${artifact.artifactHash}`);
 
-  if (!artifact.verification.ok) {
+  if (!artifact.verification.ok || (artifact.rpcSweep && !artifact.rpcSweep.ok)) {
     process.exitCode = 1;
   }
 }
 
 if (require.main === module) {
-  try {
-    main();
-  } catch (err) {
+  main().catch((err) => {
     console.error(`TradeLayer send BitVM e2e failed: ${err.message}`);
     process.exit(1);
-  }
+  });
 }
 
 module.exports = {
   SAMPLE_STATE_ORACLE,
-  buildArtifact
+  buildArtifact,
+  attachRpcSweepIfRequested
 };

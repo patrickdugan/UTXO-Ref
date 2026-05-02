@@ -43,13 +43,17 @@ and later attach a real sweep txid or signed PSBT.
   lock the final state-root source once the wallet/parser endpoint is stable.
 
 3. Sweep PSBT construction and broadcast path
-- Status: deterministic sweep planner implemented.
+- Status: deterministic sweep planner and explicit RPC signer/broadcaster
+  implemented.
 - It converts the resolved route plan into exact input/output/fee accounting,
   Bitcoin Core `createrawtransaction` and `createpsbt` command templates, and an
   observed-output verifier against the committed payout leaves.
 - The e2e artifact now includes `sweepTx` and `observedSweep` sections.
-- Remaining: feed the command template to the live wallet signer and attach the
-  broadcast txid/final PSBT in a real run.
+- The e2e runner supports `--rpc-sweep` to create/sign/finalize/test the sweep
+  PSBT through Core RPC without broadcasting, and `--broadcast-sweep` to send the
+  finalized transaction explicitly.
+- Remaining: run the RPC path against a live wallet UTXO controlled by the DLC
+  sweep key and attach the resulting final PSBT or broadcast txid.
 
 4. Fraud challenge packaging
 - Status: deterministic challenge bundle implemented.

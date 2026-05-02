@@ -1,6 +1,6 @@
 {
   "kind": "tradelayer_send_bitvm_e2e",
-  "createdAt": "2026-05-02T00:17:29.816Z",
+  "createdAt": "2026-05-02T00:25:14.544Z",
   "network": "litecoin-testnet",
   "selectedSend": {
     "id": "live-send",
@@ -166,6 +166,7 @@
     "commitmentHashHex": "1f327b20e84381e3158454e88e1ab95ba860c267bb04d0965e6998625d8f274d",
     "withdrawalRootHex": "fc1d5bace84265ee2cf3295a15270e9b9a2241837349634a99ed82bcf682f4e4"
   },
+  "rpcSweep": null,
   "fraudChallenges": {
     "kind": "tradelayer_send_bitvm_fraud_challenge_bundle",
     "binding": {
@@ -761,5 +762,5 @@
       "dlcFunderRegistryHash": "e2057a8fb6fcfd3da569c56dec6978e416c4ec3f9595df7875b0f90052509986"
     }
   },
-  "artifactHash": "64661ba3ccd7c32d2892374d12bafc20a173e88cd8b1ca71f2e33fe6064f8db1"
+  "artifactHash": "919c18e8b3de78b1be1b875d92a18039a1a404bb995c61cf6e3279d05e0e40f2"
 }
