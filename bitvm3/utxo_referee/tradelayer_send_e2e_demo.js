@@ -91,6 +91,8 @@ function usage() {
     '  --psbt <base64>      Attach signed/final sweep PSBT.',
     '  --rpc-sweep          Use Core RPC to create/sign/finalize/test the sweep PSBT; does not broadcast.',
     '  --broadcast-sweep    Use Core RPC and broadcast the finalized sweep transaction.',
+    '  --skip-sweep-preflight  Skip RPC gettxout/getaddressinfo checks before signing.',
+    '  --external-sweep-signer  Do not require the configured wallet to sign the sweep input.',
     '  --rpc-url <url>      Override BITVM/LTC/BTC RPC URL for --rpc-sweep.',
     '  --rpc-user <user>    Override BITVM/LTC/BTC RPC user for --rpc-sweep.',
     '  --rpc-pass <pass>    Override BITVM/LTC/BTC RPC password for --rpc-sweep.',
@@ -119,6 +121,14 @@ function parseArgs(argv) {
     if (arg === '--broadcast-sweep') {
       args.rpcSweep = true;
       args.broadcastSweep = true;
+      continue;
+    }
+    if (arg === '--skip-sweep-preflight') {
+      args.skipSweepPreflight = true;
+      continue;
+    }
+    if (arg === '--external-sweep-signer') {
+      args.externalSweepSigner = true;
       continue;
     }
     if (!arg.startsWith('--')) throw new Error(`Unexpected argument: ${arg}`);
@@ -186,7 +196,13 @@ function artifactHashInput(artifact) {
         ok: artifact.rpcSweep.ok,
         broadcast: artifact.rpcSweep.broadcast,
         decodedTx: artifact.rpcSweep.decodedTx,
-        mempoolAccept: artifact.rpcSweep.mempoolAccept
+        mempoolAccept: artifact.rpcSweep.mempoolAccept,
+        preflight: artifact.rpcSweep.preflight
+          ? {
+            ok: artifact.rpcSweep.preflight.ok,
+            failedChecks: artifact.rpcSweep.preflight.failedChecks
+          }
+          : null
       }
       : null,
     fraudChallenges: {
@@ -304,7 +320,9 @@ function rpcSweepOptionsFromCli(cliArgs) {
     rpcUser: cliArgs.rpcUser || chainEnv.rpcUser,
     rpcPass: cliArgs.rpcPass || chainEnv.rpcPass,
     wallet: cliArgs.rpcWallet || chainEnv.wallet,
-    broadcast: !!cliArgs.broadcastSweep
+    broadcast: !!cliArgs.broadcastSweep,
+    preflight: !cliArgs.skipSweepPreflight,
+    requireWalletSigner: !cliArgs.externalSweepSigner
   };
 }
 

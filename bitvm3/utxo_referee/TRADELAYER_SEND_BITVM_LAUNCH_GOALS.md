@@ -52,6 +52,9 @@ and later attach a real sweep txid or signed PSBT.
 - The e2e runner supports `--rpc-sweep` to create/sign/finalize/test the sweep
   PSBT through Core RPC without broadcasting, and `--broadcast-sweep` to send the
   finalized transaction explicitly.
+- RPC sweep execution preflights `gettxout` value/address and wallet
+  `getaddressinfo` signer capability before creating a PSBT, unless explicitly
+  skipped for an external signer.
 - Remaining: run the RPC path against a live wallet UTXO controlled by the DLC
   sweep key and attach the resulting final PSBT or broadcast txid.
 

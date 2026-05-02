@@ -14,6 +14,7 @@ const {
 } = require('./tradelayer_send_sweep_psbt');
 const {
   createPsbtParams,
+  preflightTradeLayerSendRpcSweep,
   executeTradeLayerSendRpcSweep,
   attachRpcSweepToSweepPlan
 } = require('./tradelayer_send_rpc_sweep');
@@ -92,6 +93,16 @@ function mockRpc(calls, overrides = {}) {
     calls.push({ method, params, wallet: wallet || null });
     if (overrides[method]) return overrides[method](params, wallet);
     if (method === 'createpsbt') return 'unsigned-psbt';
+    if (method === 'getblockchaininfo') return { chain: 'test', blocks: 4696000, headers: 4696000 };
+    if (method === 'gettxout') {
+      return {
+        value: 0.001,
+        scriptPubKey: {
+          address: 'tltc1qn06nctkv2sm8wdjx5fe2x0zluxlyxynq3vud87hxsfv3u8kwdcaq0xvhqa'
+        }
+      };
+    }
+    if (method === 'getaddressinfo') return { ismine: true, solvable: true, iswatchonly: false };
     if (method === 'walletprocesspsbt') return { complete: true, psbt: 'signed-psbt' };
     if (method === 'finalizepsbt') return { complete: true, hex: '020000000001' };
     if (method === 'decoderawtransaction') {
@@ -129,10 +140,56 @@ async function run() {
 
     assert(result.ok, result.error);
     assertEq(result.status, 'finalized');
+    assert(result.preflight.ok, 'preflight should pass');
     assertEq(result.broadcast.attempted, false);
     assertEq(result.decodedTx.txid, 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
     assert(calls.some((call) => call.method === 'walletprocesspsbt' && call.wallet === 'tl-wallet'), 'wallet signer call missing');
     assert(!calls.some((call) => call.method === 'sendrawtransaction'), 'should not broadcast');
+  });
+
+  await test('preflights the committed input before signing', async () => {
+    const calls = [];
+    const result = await preflightTradeLayerSendRpcSweep(sampleSweepPlan(), {
+      rpc: mockRpc(calls),
+      wallet: 'tl-wallet'
+    });
+
+    assert(result.ok, 'preflight should pass');
+    assert(calls.some((call) => call.method === 'gettxout'), 'gettxout check missing');
+    assert(calls.some((call) => call.method === 'getaddressinfo' && call.wallet === 'tl-wallet'), 'wallet address check missing');
+  });
+
+  await test('stops before signing if the input is spent or unknown', async () => {
+    const calls = [];
+    const result = await executeTradeLayerSendRpcSweep(sampleSweepPlan(), {
+      rpc: mockRpc(calls, {
+        gettxout: () => null
+      }),
+      wallet: 'tl-wallet'
+    });
+
+    assert(!result.ok, 'spent input should fail');
+    assertEq(result.status, 'preflight_failed');
+    assert(result.preflight.failedChecks.includes('input_unspent'), 'input_unspent should fail');
+    assert(!calls.some((call) => call.method === 'createpsbt'), 'should not create PSBT after failed preflight');
+  });
+
+  await test('stops before signing if the on-chain value differs from the commitment', async () => {
+    const result = await executeTradeLayerSendRpcSweep(sampleSweepPlan(), {
+      rpc: mockRpc([], {
+        gettxout: () => ({
+          value: 0.002,
+          scriptPubKey: {
+            address: 'tltc1qn06nctkv2sm8wdjx5fe2x0zluxlyxynq3vud87hxsfv3u8kwdcaq0xvhqa'
+          }
+        })
+      }),
+      wallet: 'tl-wallet'
+    });
+
+    assert(!result.ok, 'value mismatch should fail');
+    assertEq(result.status, 'preflight_failed');
+    assert(result.preflight.failedChecks.includes('input_value_matches_commitment'), 'value check should fail');
   });
 
   await test('broadcasts only when requested', async () => {

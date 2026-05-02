@@ -244,6 +244,7 @@ module.exports = {
   TRADELAYER_SEND_DEFAULT_POLICY: tradeLayerSendPolicy.DEFAULT_POLICY,
   buildTradeLayerSendProductionPolicy: tradeLayerSendPolicy.buildTradeLayerSendProductionPolicy,
   verifyTradeLayerSendProductionPolicy: tradeLayerSendPolicy.verifyTradeLayerSendProductionPolicy,
+  preflightTradeLayerSendRpcSweep: tradeLayerSendRpcSweep.preflightTradeLayerSendRpcSweep,
   executeTradeLayerSendRpcSweep: tradeLayerSendRpcSweep.executeTradeLayerSendRpcSweep,
   attachTradeLayerSendRpcSweepToPlan: tradeLayerSendRpcSweep.attachRpcSweepToSweepPlan,
   resolvePipelineOptions: m1Pipeline.resolvePipelineOptions,

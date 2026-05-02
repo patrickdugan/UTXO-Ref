@@ -91,9 +91,138 @@ function normalizeRpcOptions(options = {}) {
     wallet: options.wallet || null,
     broadcast: !!options.broadcast,
     testMempoolAccept: options.testMempoolAccept !== false,
+    preflight: options.preflight !== false,
+    requireWalletSigner: options.requireWalletSigner !== false,
     sighashType: options.sighashType || 'ALL',
     bip32derivs: options.bip32derivs !== false,
     walletEndpointForFinalize: !!options.walletEndpointForFinalize
+  };
+}
+
+function coinValueToSats(value, fieldName) {
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value)) throw new Error(`${fieldName} must be finite`);
+    return BigInt(Math.round(value * 100000000));
+  }
+  const text = String(value);
+  if (!/^\d+(\.\d{1,8})?$/.test(text)) throw new Error(`${fieldName} must be a coin amount`);
+  const [whole, fraction = ''] = text.split('.');
+  return BigInt(whole) * 100000000n + BigInt((fraction + '00000000').slice(0, 8));
+}
+
+function inputSatsFromSweepPlan(sweepPlan) {
+  const value = sweepPlan?.input?.sats;
+  if (typeof value === 'bigint') return value;
+  if (typeof value === 'number') {
+    if (!Number.isSafeInteger(value)) throw new Error('sweepPlan.input.sats must be a safe integer');
+    return BigInt(value);
+  }
+  if (typeof value === 'string' && /^\d+$/.test(value)) return BigInt(value);
+  throw new Error('sweepPlan.input.sats must be an integer sat amount');
+}
+
+async function preflightTradeLayerSendRpcSweep(sweepPlan, options = {}) {
+  if (!sweepPlan || typeof sweepPlan !== 'object') {
+    throw new Error('sweepPlan must be an object');
+  }
+
+  const rpc = options.rpc || rpcFactory({
+    rpcUrl: options.rpcUrl,
+    rpcUser: options.rpcUser,
+    rpcPass: options.rpcPass
+  });
+  const rpcOptions = normalizeRpcOptions(options);
+  const checks = [];
+
+  function addCheck(name, ok, details = {}) {
+    checks.push({ name, ok: !!ok, details });
+  }
+
+  let chainInfo = null;
+  try {
+    chainInfo = await rpc('getblockchaininfo');
+    addCheck('chain_rpc_available', true, {
+      chain: chainInfo.chain || null,
+      blocks: chainInfo.blocks ?? null
+    });
+  } catch (err) {
+    addCheck('chain_rpc_available', false, { reason: String(err.message || err) });
+    return {
+      kind: 'tradelayer_send_rpc_sweep_preflight',
+      ok: false,
+      checks,
+      failedChecks: checks.filter((check) => !check.ok).map((check) => check.name)
+    };
+  }
+
+  const input = sweepPlan.input || {};
+  const expectedSats = inputSatsFromSweepPlan(sweepPlan);
+  let txout = null;
+  try {
+    txout = await rpc('gettxout', [input.txid, Number(input.vout), true]);
+    addCheck('input_unspent', !!txout, {
+      txid: input.txid,
+      vout: Number(input.vout)
+    });
+  } catch (err) {
+    addCheck('input_unspent', false, {
+      txid: input.txid,
+      vout: Number(input.vout),
+      reason: String(err.message || err)
+    });
+  }
+
+  if (txout) {
+    const actualSats = coinValueToSats(txout.value, 'gettxout.value');
+    addCheck('input_value_matches_commitment', actualSats === expectedSats, {
+      expectedSats: expectedSats.toString(),
+      actualSats: actualSats.toString()
+    });
+    if (txout.scriptPubKey?.address && input.address) {
+      addCheck('input_address_matches_chain', txout.scriptPubKey.address === input.address, {
+        expectedAddress: input.address,
+        actualAddress: txout.scriptPubKey.address
+      });
+    }
+  }
+
+  if (input.address && rpcOptions.wallet) {
+    try {
+      const addressInfo = await rpc('getaddressinfo', [input.address], rpcOptions.wallet);
+      const walletCanSign = Boolean(addressInfo.ismine || addressInfo.solvable);
+      addCheck('wallet_can_sign_input_address', !rpcOptions.requireWalletSigner || walletCanSign, {
+        address: input.address,
+        wallet: rpcOptions.wallet,
+        ismine: !!addressInfo.ismine,
+        solvable: !!addressInfo.solvable,
+        iswatchonly: !!addressInfo.iswatchonly
+      });
+    } catch (err) {
+      addCheck('wallet_can_sign_input_address', !rpcOptions.requireWalletSigner, {
+        address: input.address,
+        wallet: rpcOptions.wallet,
+        reason: String(err.message || err)
+      });
+    }
+  } else if (rpcOptions.requireWalletSigner) {
+    addCheck('wallet_can_sign_input_address', false, {
+      reason: 'sweep plan has no input address or no wallet was configured'
+    });
+  }
+
+  const failedChecks = checks.filter((check) => !check.ok).map((check) => check.name);
+  return {
+    kind: 'tradelayer_send_rpc_sweep_preflight',
+    ok: failedChecks.length === 0,
+    chain: chainInfo
+      ? {
+        chain: chainInfo.chain || null,
+        blocks: chainInfo.blocks ?? null,
+        headers: chainInfo.headers ?? null
+      }
+      : null,
+    checks,
+    failedChecks
   };
 }
 
@@ -109,6 +238,7 @@ async function executeTradeLayerSendRpcSweep(sweepPlan, options = {}) {
   });
   const rpcOptions = normalizeRpcOptions(options);
   const steps = [];
+  let preflight = null;
 
   function recordStep(name, params, result) {
     steps.push({
@@ -120,6 +250,37 @@ async function executeTradeLayerSendRpcSweep(sweepPlan, options = {}) {
   }
 
   try {
+    if (rpcOptions.preflight) {
+      preflight = await preflightTradeLayerSendRpcSweep(sweepPlan, {
+        ...options,
+        rpc,
+        wallet: rpcOptions.wallet,
+        requireWalletSigner: rpcOptions.requireWalletSigner
+      });
+      steps.push({
+        name: 'preflight',
+        ok: preflight.ok,
+        result: {
+          failedChecks: preflight.failedChecks
+        }
+      });
+      if (!preflight.ok) {
+        return {
+          kind: 'tradelayer_send_rpc_sweep',
+          status: 'preflight_failed',
+          ok: false,
+          preflight,
+          broadcast: { attempted: false, sent: false, txid: null },
+          signedPsbt: null,
+          finalHex: null,
+          decodedTx: null,
+          mempoolAccept: null,
+          steps,
+          error: `sweep preflight failed: ${preflight.failedChecks.join(', ')}`
+        };
+      }
+    }
+
     const psbtParams = createPsbtParams(sweepPlan);
     const unsignedPsbt = await rpc('createpsbt', psbtParams);
     recordStep('createpsbt', psbtParams, { psbt: unsignedPsbt });
@@ -149,6 +310,7 @@ async function executeTradeLayerSendRpcSweep(sweepPlan, options = {}) {
         kind: 'tradelayer_send_rpc_sweep',
         status: 'incomplete',
         ok: false,
+        preflight,
         broadcast: { attempted: false, sent: false, txid: null },
         signedPsbt: processed.psbt || null,
         finalHex: finalized.hex || null,
@@ -201,6 +363,7 @@ async function executeTradeLayerSendRpcSweep(sweepPlan, options = {}) {
       kind: 'tradelayer_send_rpc_sweep',
       status: broadcast.sent ? 'broadcast' : 'finalized',
       ok: true,
+      preflight,
       broadcast,
       signedPsbt: processed.psbt || null,
       finalHex: finalized.hex,
@@ -224,6 +387,7 @@ async function executeTradeLayerSendRpcSweep(sweepPlan, options = {}) {
       kind: 'tradelayer_send_rpc_sweep',
       status: 'failed',
       ok: false,
+      preflight,
       broadcast: {
         attempted: rpcOptions.broadcast,
         sent: false,
@@ -262,6 +426,7 @@ module.exports = {
   encodeBasicAuth,
   rpcFactory,
   createPsbtParams,
+  preflightTradeLayerSendRpcSweep,
   executeTradeLayerSendRpcSweep,
   attachRpcSweepToSweepPlan
 };
