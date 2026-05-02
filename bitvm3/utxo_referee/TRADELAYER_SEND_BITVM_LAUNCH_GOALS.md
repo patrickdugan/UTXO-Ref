@@ -64,10 +64,13 @@ and later attach a real sweep txid or signed PSBT.
   once the live sweep signer/broadcaster is attached.
 
 5. Wallet-facing flow object
-- Expose a compact flow model for UI:
+- Status: compact wallet flow model implemented.
+- It exposes the four UI stages:
   TL send -> state oracle -> DLC mapping -> BitVM/UTXORef sweep.
-- Make clear when the recipient is a normal address versus a DLC funding output.
-- Surface hashes, expected outputs, verifier status, and live txid/PSBT status.
+- It labels destination kind as normal address, DLC funding output, or refund
+  remainder, and surfaces hashes, expected outputs, verifier status, and live
+  txid/PSBT status.
+- The e2e artifact now includes `walletFlow` and `walletFlowVerification`.
 
 6. Production policy checks
 - Add challenge window policy, fee caps, dust limits, registry freshness, and

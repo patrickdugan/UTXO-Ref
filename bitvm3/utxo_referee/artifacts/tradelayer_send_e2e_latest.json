@@ -1,6 +1,6 @@
 {
   "kind": "tradelayer_send_bitvm_e2e",
-  "createdAt": "2026-05-02T00:10:14.932Z",
+  "createdAt": "2026-05-02T00:13:55.446Z",
   "network": "litecoin-testnet",
   "selectedSend": {
     "id": "live-send",
@@ -466,6 +466,148 @@
     "bundleHash": "37ca6d73e338a467ad9b5f3179dc9aa860bf4a51fd4e0dad83e249867ca35690",
     "challengeableCount": 7
   },
+  "walletFlow": {
+    "kind": "tradelayer_send_wallet_flow_v1",
+    "network": "litecoin-testnet",
+    "selectedSend": {
+      "id": "live-send",
+      "txid": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "hash": "5a41f83d2e783f3a74c01239d1cbc396ecac07b46fa2d92c4dcbf1b53da65709"
+    },
+    "hashes": {
+      "stateOracleHash": "c1a461ff7ff1d3a74fed3bc3f39decf6dcf621cff4894bd140607ab8c73390ce",
+      "selectedSendHash": "5a41f83d2e783f3a74c01239d1cbc396ecac07b46fa2d92c4dcbf1b53da65709",
+      "dlcFunderRegistryHash": "e2057a8fb6fcfd3da569c56dec6978e416c4ec3f9595df7875b0f90052509986",
+      "routePlanHash": "0fd3fe90391ea6b4958238f5642fe50f27b627d78efff85673b5773e570b20a2",
+      "withdrawalRootHex": "fc1d5bace84265ee2cf3295a15270e9b9a2241837349634a99ed82bcf682f4e4",
+      "commitmentHashHex": "1f327b20e84381e3158454e88e1ab95ba860c267bb04d0965e6998625d8f274d",
+      "fraudChallengeRoot": "5eebc3c8abff7740b70e0472c59e4fd071895191580d4081610953ecbefa0a56",
+      "fraudChallengeBundleHash": "37ca6d73e338a467ad9b5f3179dc9aa860bf4a51fd4e0dad83e249867ca35690"
+    },
+    "amounts": {
+      "depositSats": "100000",
+      "sendBps": 2500,
+      "sendSats": "25000",
+      "feeSats": "1000",
+      "residualSats": "74000"
+    },
+    "destination": {
+      "kind": "dlc-funding-output",
+      "tradeLayerRecipient": "tltc1qkz0vft2fc4nk0u9fx4k9yk4th7zherna3zxh22",
+      "resolvedSweepAddress": "tltc1qldtqy3y0rasay8dqz6kc2nxx6zfs9e9j4veqcz",
+      "matchedDlcRef": "dlc-live-77",
+      "explanation": "TradeLayer recipient is a DLC funder; sweep routes to the registered DLC funding output."
+    },
+    "outputs": [
+      {
+        "role": "send-to-dlc-funding-output",
+        "destinationKind": "dlc-funding-output",
+        "address": "tltc1qldtqy3y0rasay8dqz6kc2nxx6zfs9e9j4veqcz",
+        "sats": "25000",
+        "amountBps": 2500,
+        "oracleAddress": "tltc1qkz0vft2fc4nk0u9fx4k9yk4th7zherna3zxh22",
+        "matchedDlcRef": "dlc-live-77"
+      },
+      {
+        "role": "refund-remainder",
+        "destinationKind": "refund-remainder",
+        "address": "tltc1qn06nctkv2sm8wdjx5fe2x0zluxlyxynq3vud87hxsfv3u8kwdcaq0xvhqa",
+        "sats": "74000",
+        "amountBps": null,
+        "oracleAddress": null,
+        "matchedDlcRef": null
+      }
+    ],
+    "live": {
+      "sweepStatus": "planned",
+      "txid": null,
+      "signedPsbtAttached": false
+    },
+    "verifier": {
+      "routeOk": true,
+      "routeReason": null,
+      "sweepOk": true,
+      "sweepReason": null,
+      "oracleSignatureRequired": false,
+      "oracleSignatureOk": false,
+      "oracleSignatureReason": "missing oracle signature"
+    },
+    "steps": [
+      {
+        "id": "tl-send",
+        "title": "TradeLayer send",
+        "status": "observed",
+        "txid": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "details": {
+          "selectedSendId": "live-send",
+          "selectedSendHash": "5a41f83d2e783f3a74c01239d1cbc396ecac07b46fa2d92c4dcbf1b53da65709",
+          "amountUnits": null
+        }
+      },
+      {
+        "id": "state-oracle",
+        "title": "State oracle",
+        "status": "unsigned",
+        "details": {
+          "stateOracleHash": "c1a461ff7ff1d3a74fed3bc3f39decf6dcf621cff4894bd140607ab8c73390ce",
+          "designatedOracleAddress": "tltc1qn06nctkv2sm8wdjx5fe2x0zluxlyxynq3vud87hxsfv3u8kwdcaq0xvhqa",
+          "signatureRequired": false,
+          "signatureOk": false,
+          "signatureReason": "missing oracle signature"
+        }
+      },
+      {
+        "id": "dlc-mapping",
+        "title": "DLC mapping",
+        "status": "mapped",
+        "details": {
+          "tradeLayerRecipient": "tltc1qkz0vft2fc4nk0u9fx4k9yk4th7zherna3zxh22",
+          "resolvedSweepAddress": "tltc1qldtqy3y0rasay8dqz6kc2nxx6zfs9e9j4veqcz",
+          "destinationKind": "dlc-funding-output",
+          "matchedDlcRef": "dlc-live-77",
+          "registryHash": "e2057a8fb6fcfd3da569c56dec6978e416c4ec3f9595df7875b0f90052509986"
+        }
+      },
+      {
+        "id": "bitvm-utxoref-sweep",
+        "title": "BitVM/UTXORef sweep",
+        "status": "planned",
+        "details": {
+          "commitmentHashHex": "1f327b20e84381e3158454e88e1ab95ba860c267bb04d0965e6998625d8f274d",
+          "withdrawalRootHex": "fc1d5bace84265ee2cf3295a15270e9b9a2241837349634a99ed82bcf682f4e4",
+          "expectedOutputs": [
+            {
+              "role": "send-to-dlc-funding-output",
+              "destinationKind": "dlc-funding-output",
+              "address": "tltc1qldtqy3y0rasay8dqz6kc2nxx6zfs9e9j4veqcz",
+              "sats": "25000",
+              "amountBps": 2500,
+              "oracleAddress": "tltc1qkz0vft2fc4nk0u9fx4k9yk4th7zherna3zxh22",
+              "matchedDlcRef": "dlc-live-77"
+            },
+            {
+              "role": "refund-remainder",
+              "destinationKind": "refund-remainder",
+              "address": "tltc1qn06nctkv2sm8wdjx5fe2x0zluxlyxynq3vud87hxsfv3u8kwdcaq0xvhqa",
+              "sats": "74000",
+              "amountBps": null,
+              "oracleAddress": null,
+              "matchedDlcRef": null
+            }
+          ],
+          "liveTxid": null,
+          "signedPsbtAttached": false
+        }
+      }
+    ],
+    "flowHash": "b9eaa8c8154f534c4d4217136a9b33fc4a1279819dde5e7d6ecffbd31666230a"
+  },
+  "walletFlowVerification": {
+    "ok": true,
+    "flowHash": "b9eaa8c8154f534c4d4217136a9b33fc4a1279819dde5e7d6ecffbd31666230a",
+    "destinationKind": "dlc-funding-output",
+    "sweepStatus": "planned"
+  },
   "verification": {
     "ok": true,
     "recomputedPlanHash": "0fd3fe90391ea6b4958238f5642fe50f27b627d78efff85673b5773e570b20a2",
@@ -498,5 +640,5 @@
       "dlcFunderRegistryHash": "e2057a8fb6fcfd3da569c56dec6978e416c4ec3f9595df7875b0f90052509986"
     }
   },
-  "artifactHash": "d3f6a83f73ae6c8742c2674449d43a68fcbdbbac12a57bbb040361263ea9b538"
+  "artifactHash": "09fb4d5054aa90bc02c44d58da43274e031a61a9e71f7c776461b3cbc7428da7"
 }

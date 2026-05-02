@@ -24,6 +24,10 @@ const {
   buildTradeLayerSendFraudChallengeBundle,
   verifyTradeLayerSendFraudChallengeBundle
 } = require('./tradelayer_send_fraud_challenges');
+const {
+  buildTradeLayerSendWalletFlow,
+  verifyTradeLayerSendWalletFlow
+} = require('./tradelayer_send_flow_model');
 
 const ARTIFACTS_DIR = path.join(__dirname, 'artifacts');
 const DEFAULT_OUT = path.join(ARTIFACTS_DIR, 'tradelayer_send_e2e_latest.json');
@@ -153,6 +157,15 @@ function buildArtifact(stateOracleBlob, cliArgs) {
   const observedSweep = verifyObservedSweepOutputs(routePlan, routePlan.outputPlan);
   const fraudChallenges = buildTradeLayerSendFraudChallengeBundle(stateOracleBlob, options);
   const fraudChallengeVerification = verifyTradeLayerSendFraudChallengeBundle(fraudChallenges);
+  const walletFlow = buildTradeLayerSendWalletFlow(stateOracleBlob, {
+    ...options,
+    liveTxid: cliArgs.txid,
+    signedPsbt: cliArgs.psbt,
+    fraudChallengeBundle: fraudChallenges,
+    sweepPlan: sweepTx,
+    observedSweep
+  });
+  const walletFlowVerification = verifyTradeLayerSendWalletFlow(walletFlow);
 
   const artifact = {
     kind: 'tradelayer_send_bitvm_e2e',
@@ -188,6 +201,8 @@ function buildArtifact(stateOracleBlob, cliArgs) {
     observedSweep,
     fraudChallenges,
     fraudChallengeVerification,
+    walletFlow,
+    walletFlowVerification,
     verification
   };
 
@@ -207,6 +222,13 @@ function buildArtifact(stateOracleBlob, cliArgs) {
       bundleHash: artifact.fraudChallenges.bundleHash
     },
     fraudChallengeVerification: artifact.fraudChallengeVerification,
+    walletFlow: {
+      flowHash: artifact.walletFlow.flowHash,
+      destination: artifact.walletFlow.destination,
+      live: artifact.walletFlow.live,
+      verifier: artifact.walletFlow.verifier
+    },
+    walletFlowVerification: artifact.walletFlowVerification,
     verification: artifact.verification
   }));
 

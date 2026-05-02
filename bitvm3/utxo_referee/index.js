@@ -60,6 +60,7 @@ const tradeLayerPnlRouteAdapter = require('./tradelayer_pnl_route_adapter');
 const tradeLayerSendOracleExtractor = require('./tradelayer_send_oracle_extractor');
 const tradeLayerSendSweepPsbt = require('./tradelayer_send_sweep_psbt');
 const tradeLayerSendFraudChallenges = require('./tradelayer_send_fraud_challenges');
+const tradeLayerSendFlowModel = require('./tradelayer_send_flow_model');
 
 module.exports = {
   // Types
@@ -236,6 +237,8 @@ module.exports = {
   TRADELAYER_SEND_FRAUD_CHALLENGE_TYPES: tradeLayerSendFraudChallenges.CHALLENGE_TYPES,
   buildTradeLayerSendFraudChallengeBundle: tradeLayerSendFraudChallenges.buildTradeLayerSendFraudChallengeBundle,
   verifyTradeLayerSendFraudChallengeBundle: tradeLayerSendFraudChallenges.verifyTradeLayerSendFraudChallengeBundle,
+  buildTradeLayerSendWalletFlow: tradeLayerSendFlowModel.buildTradeLayerSendWalletFlow,
+  verifyTradeLayerSendWalletFlow: tradeLayerSendFlowModel.verifyTradeLayerSendWalletFlow,
   resolvePipelineOptions: m1Pipeline.resolvePipelineOptions,
   buildPipelinePlan: m1Pipeline.buildPipelinePlan,
   buildPipelineSummary: m1Pipeline.buildPipelineSummary,
@@ -274,5 +277,6 @@ module.exports = {
   tradeLayerPnlRouteAdapter,
   tradeLayerSendOracleExtractor,
   tradeLayerSendSweepPsbt,
-  tradeLayerSendFraudChallenges
+  tradeLayerSendFraudChallenges,
+  tradeLayerSendFlowModel
 };
