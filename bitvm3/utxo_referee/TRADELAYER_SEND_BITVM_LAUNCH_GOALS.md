@@ -43,10 +43,13 @@ and later attach a real sweep txid or signed PSBT.
   lock the final state-root source once the wallet/parser endpoint is stable.
 
 3. Sweep PSBT construction and broadcast path
-- Convert the resolved route plan into a Bitcoin/Litecoin transaction skeleton.
-- Build a signed PSBT or finalized raw transaction from the DLC UTXO.
-- Attach the live txid after broadcast and verify observed outputs against the
-  committed payout leaves.
+- Status: deterministic sweep planner implemented.
+- It converts the resolved route plan into exact input/output/fee accounting,
+  Bitcoin Core `createrawtransaction` and `createpsbt` command templates, and an
+  observed-output verifier against the committed payout leaves.
+- The e2e artifact now includes `sweepTx` and `observedSweep` sections.
+- Remaining: feed the command template to the live wallet signer and attach the
+  broadcast txid/final PSBT in a real run.
 
 4. Fraud challenge packaging
 - Package challenge artifacts for bad send inclusion, invalid send omission,

@@ -1,6 +1,6 @@
 {
   "kind": "tradelayer_send_bitvm_e2e",
-  "createdAt": "2026-05-01T23:28:59.959Z",
+  "createdAt": "2026-05-02T00:02:52.085Z",
   "network": "litecoin-testnet",
   "selectedSend": {
     "id": "live-send",
@@ -94,30 +94,77 @@
     }
   ],
   "sweepTx": {
-    "status": "planned",
-    "inputs": [
-      {
-        "txid": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
-        "vout": 1,
-        "address": "tltc1qn06nctkv2sm8wdjx5fe2x0zluxlyxynq3vud87hxsfv3u8kwdcaq0xvhqa",
-        "sats": "100000"
-      }
-    ],
+    "kind": "tradelayer_send_sweep_plan",
+    "network": "litecoin-testnet",
+    "routePlanHash": "0fd3fe90391ea6b4958238f5642fe50f27b627d78efff85673b5773e570b20a2",
+    "input": {
+      "txid": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "vout": 1,
+      "sequence": 4294967293,
+      "address": "tltc1qn06nctkv2sm8wdjx5fe2x0zluxlyxynq3vud87hxsfv3u8kwdcaq0xvhqa",
+      "sats": "100000",
+      "coinAmount": "0.00100000"
+    },
     "outputs": [
       {
+        "role": "send-to-dlc-funding-output",
         "address": "tltc1qldtqy3y0rasay8dqz6kc2nxx6zfs9e9j4veqcz",
         "sats": "25000",
-        "role": "send-to-dlc-funding-output"
+        "coinAmount": "0.00025000"
       },
       {
+        "role": "refund-remainder",
         "address": "tltc1qn06nctkv2sm8wdjx5fe2x0zluxlyxynq3vud87hxsfv3u8kwdcaq0xvhqa",
         "sats": "74000",
-        "role": "refund-remainder"
+        "coinAmount": "0.00074000"
       }
     ],
-    "feeSats": "1000",
+    "accounting": {
+      "inputSats": "100000",
+      "outputTotalSats": "99000",
+      "feeSats": "1000",
+      "conservationHolds": true
+    },
+    "bitcoinCore": {
+      "createRawTransaction": [
+        "createrawtransaction",
+        "[{\"txid\":\"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff\",\"vout\":1,\"sequence\":4294967293}]",
+        "[{\"tltc1qldtqy3y0rasay8dqz6kc2nxx6zfs9e9j4veqcz\":\"0.00025000\"},{\"tltc1qn06nctkv2sm8wdjx5fe2x0zluxlyxynq3vud87hxsfv3u8kwdcaq0xvhqa\":\"0.00074000\"}]",
+        "0",
+        "true"
+      ],
+      "createPsbt": [
+        "createpsbt",
+        "[{\"txid\":\"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff\",\"vout\":1,\"sequence\":4294967293}]",
+        "[{\"tltc1qldtqy3y0rasay8dqz6kc2nxx6zfs9e9j4veqcz\":\"0.00025000\"},{\"tltc1qn06nctkv2sm8wdjx5fe2x0zluxlyxynq3vud87hxsfv3u8kwdcaq0xvhqa\":\"0.00074000\"}]",
+        "0",
+        "true"
+      ],
+      "walletProcessPsbt": [
+        "walletprocesspsbt",
+        "<psbt>",
+        "false"
+      ],
+      "finalizePsbt": [
+        "finalizepsbt",
+        "<signed-psbt>"
+      ],
+      "sendRawTransaction": [
+        "sendrawtransaction",
+        "<final-hex>"
+      ]
+    },
+    "status": "planned",
     "liveTxid": null,
     "signedPsbt": null
+  },
+  "observedSweep": {
+    "ok": true,
+    "reason": null,
+    "payoutTotalSats": "99000",
+    "feeSats": "1000",
+    "commitmentHashHex": "1f327b20e84381e3158454e88e1ab95ba860c267bb04d0965e6998625d8f274d",
+    "withdrawalRootHex": "fc1d5bace84265ee2cf3295a15270e9b9a2241837349634a99ed82bcf682f4e4"
   },
   "verification": {
     "ok": true,
@@ -151,5 +198,5 @@
       "dlcFunderRegistryHash": "e2057a8fb6fcfd3da569c56dec6978e416c4ec3f9595df7875b0f90052509986"
     }
   },
-  "artifactHash": "9111c1c732bc16ad893b08a9e5b053f91f8dc7b7abbc3da9ea49f904d4c51783"
+  "artifactHash": "e77ba7b28be8dc049f705deeb8858f53204bf557c00c9098b2827c8b94533d23"
 }

@@ -16,6 +16,10 @@ const {
 const {
   buildTradeLayerSendStateOracleFromConsensus
 } = require('./tradelayer_send_oracle_extractor');
+const {
+  buildTradeLayerSendSweepPlan,
+  verifyObservedSweepOutputs
+} = require('./tradelayer_send_sweep_psbt');
 
 const ARTIFACTS_DIR = path.join(__dirname, 'artifacts');
 const DEFAULT_OUT = path.join(ARTIFACTS_DIR, 'tradelayer_send_e2e_latest.json');
@@ -122,26 +126,6 @@ function outputWithScript(output, network) {
   };
 }
 
-function buildSweepTxSkeleton(routePlan) {
-  return {
-    status: 'planned',
-    inputs: [
-      {
-        txid: routePlan.dlcInput.txid,
-        vout: routePlan.dlcInput.vout,
-        address: routePlan.dlcInput.address || null,
-        sats: String(routePlan.dlcInput.sats)
-      }
-    ],
-    outputs: routePlan.outputPlan.map(output => ({
-      address: output.address,
-      sats: String(output.sats),
-      role: output.role || null
-    })),
-    feeSats: String(routePlan.feeSats || 0)
-  };
-}
-
 function buildArtifact(stateOracleBlob, cliArgs) {
   const options = {
     sendId: cliArgs.sendId,
@@ -158,6 +142,11 @@ function buildArtifact(stateOracleBlob, cliArgs) {
   const verification = verifyTradeLayerSendStateOracleRoute(stateOracleBlob, options);
   const oracleSignature = verifyTradeLayerSendOracleSignature(stateOracleBlob, options);
   const expectedSweepOutputs = routePlan.outputPlan.map(output => outputWithScript(output, routePlan.network));
+  const sweepTx = buildTradeLayerSendSweepPlan(routePlan, {
+    liveTxid: cliArgs.txid,
+    signedPsbt: cliArgs.psbt
+  });
+  const observedSweep = verifyObservedSweepOutputs(routePlan, routePlan.outputPlan);
 
   const artifact = {
     kind: 'tradelayer_send_bitvm_e2e',
@@ -189,11 +178,8 @@ function buildArtifact(stateOracleBlob, cliArgs) {
       payoutTotalSats: commitmentBundle.payoutTotalSats.toString()
     },
     expectedSweepOutputs,
-    sweepTx: {
-      ...buildSweepTxSkeleton(routePlan),
-      liveTxid: cliArgs.txid || null,
-      signedPsbt: cliArgs.psbt || null
-    },
+    sweepTx,
+    observedSweep,
     verification
   };
 
@@ -206,6 +192,7 @@ function buildArtifact(stateOracleBlob, cliArgs) {
     commitment: artifact.commitment,
     expectedSweepOutputs: artifact.expectedSweepOutputs,
     sweepTx: artifact.sweepTx,
+    observedSweep: artifact.observedSweep,
     verification: artifact.verification
   }));
 
