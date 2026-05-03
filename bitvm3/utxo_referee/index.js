@@ -69,6 +69,7 @@ const tradeLayerWithdrawalQueueReferee = require('./tradelayer_withdrawal_queue_
 const tradeLayerPerpPnlReferee = require('./tradelayer_perp_pnl_referee');
 const bitvmLiquidityLeaseReferee = require('./bitvm_liquidity_lease_referee');
 const bitvmArenaSecurityReport = require('./bitvm_arena_security_report');
+const tradeLayerBitvmStack = require('./tradelayer_bitvm_stack');
 
 module.exports = {
   // Types
@@ -255,6 +256,9 @@ module.exports = {
   preflightTradeLayerSendRpcSweep: tradeLayerSendRpcSweep.preflightTradeLayerSendRpcSweep,
   executeTradeLayerSendRpcSweep: tradeLayerSendRpcSweep.executeTradeLayerSendRpcSweep,
   attachTradeLayerSendRpcSweepToPlan: tradeLayerSendRpcSweep.attachRpcSweepToSweepPlan,
+  normalizeTradeLayerDecodedTxOutputs: tradeLayerSendRpcSweep.normalizeDecodedTxOutputs,
+  computeTradeLayerDecodedTxOutputHash: tradeLayerSendRpcSweep.computeDecodedTxOutputHash,
+  buildTradeLayerFinalSpendBinding: tradeLayerSendRpcSweep.buildFinalSpendBinding,
   buildTradeLayerSendWatchtowerReport: tradeLayerSendWatchtower.buildTradeLayerSendWatchtowerReport,
   verifyTradeLayerSendWatchtowerReport: tradeLayerSendWatchtower.verifyTradeLayerSendWatchtowerReport,
   buildTradeLayerStateCheckpoint: tradeLayerStateCheckpointReferee.buildTradeLayerStateCheckpoint,
@@ -275,6 +279,10 @@ module.exports = {
   verifyBitvmLiquidityLeaseChallenge: bitvmLiquidityLeaseReferee.verifyBitvmLiquidityLeaseChallenge,
   buildBitvmArenaSecurityReport: bitvmArenaSecurityReport.buildBitvmArenaSecurityReport,
   verifyBitvmArenaSecurityReport: bitvmArenaSecurityReport.verifyBitvmArenaSecurityReport,
+  buildTradeLayerBitvmStackBundle: tradeLayerBitvmStack.buildTradeLayerBitvmStackBundle,
+  verifyTradeLayerBitvmStackBundle: tradeLayerBitvmStack.verifyTradeLayerBitvmStackBundle,
+  buildTradeLayerDashboardView: tradeLayerBitvmStack.buildDashboardView,
+  tradeLayerDashboardJsonSchema: tradeLayerBitvmStack.dashboardJsonSchema,
   resolvePipelineOptions: m1Pipeline.resolvePipelineOptions,
   buildPipelinePlan: m1Pipeline.buildPipelinePlan,
   buildPipelineSummary: m1Pipeline.buildPipelineSummary,
@@ -322,5 +330,6 @@ module.exports = {
   tradeLayerWithdrawalQueueReferee,
   tradeLayerPerpPnlReferee,
   bitvmLiquidityLeaseReferee,
-  bitvmArenaSecurityReport
+  bitvmArenaSecurityReport,
+  tradeLayerBitvmStack
 };

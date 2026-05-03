@@ -2,6 +2,8 @@ const http = require('http');
 const https = require('https');
 const { URL } = require('url');
 const {
+  stableStringify,
+  sha256Hex,
   verifyTradeLayerSendRouteTranscript
 } = require('./tradelayer_pnl_route_adapter');
 
@@ -124,6 +126,41 @@ function inputSatsFromSweepPlan(sweepPlan) {
   }
   if (typeof value === 'string' && /^\d+$/.test(value)) return BigInt(value);
   throw new Error('sweepPlan.input.sats must be an integer sat amount');
+}
+
+function normalizeDecodedTxOutputs(decodedTx) {
+  const vout = Array.isArray(decodedTx?.vout) ? decodedTx.vout : [];
+  return vout.map((output, index) => ({
+    n: output.n ?? index,
+    value: output.value ?? null,
+    scriptPubKeyHex: output.scriptPubKey?.hex || null,
+    address: output.scriptPubKey?.address || null,
+    addresses: output.scriptPubKey?.addresses || null,
+    type: output.scriptPubKey?.type || null
+  }));
+}
+
+function computeDecodedTxOutputHash(decodedTx) {
+  return sha256Hex(stableStringify({
+    kind: 'decoded_tx_output_vector_v1',
+    outputs: normalizeDecodedTxOutputs(decodedTx)
+  }));
+}
+
+function buildFinalSpendBinding(sweepPlan, decodedTx) {
+  const finalTxOutputHash = computeDecodedTxOutputHash(decodedTx);
+  const core = {
+    kind: 'tradelayer_send_final_spend_binding_v1',
+    routeTranscriptHash: sweepPlan.routeTranscriptHash || sweepPlan.routeTranscript?.hash || null,
+    finalTxOutputHash,
+    txid: decodedTx.txid || null,
+    wtxid: decodedTx.hash || null
+  };
+  return {
+    kind: 'tradelayer_send_final_spend_binding',
+    bindingHash: sha256Hex(core),
+    core
+  };
 }
 
 async function preflightTradeLayerSendRpcSweep(sweepPlan, options = {}) {
@@ -351,10 +388,12 @@ async function executeTradeLayerSendRpcSweep(sweepPlan, options = {}) {
     }
 
     const decodedTx = await rpc('decoderawtransaction', [finalized.hex]);
+    const finalSpendBinding = buildFinalSpendBinding(sweepPlan, decodedTx);
     recordStep('decoderawtransaction', ['<final-hex>'], {
       txid: decodedTx.txid || null,
       hash: decodedTx.hash || null,
-      vsize: decodedTx.vsize || null
+      vsize: decodedTx.vsize || null,
+      finalTxOutputHash: finalSpendBinding.core.finalTxOutputHash
     });
 
     let mempoolAccept = null;
@@ -394,6 +433,8 @@ async function executeTradeLayerSendRpcSweep(sweepPlan, options = {}) {
       ok: true,
       preflight,
       routeTranscriptHash: sweepPlan.routeTranscriptHash || sweepPlan.routeTranscript?.hash || null,
+      finalTxOutputHash: finalSpendBinding.core.finalTxOutputHash,
+      finalSpendBinding,
       broadcast,
       signedPsbt: processed.psbt || null,
       finalHex: finalized.hex,
@@ -401,7 +442,8 @@ async function executeTradeLayerSendRpcSweep(sweepPlan, options = {}) {
         txid: decodedTx.txid || null,
         wtxid: decodedTx.hash || null,
         vsize: decodedTx.vsize || null,
-        locktime: decodedTx.locktime ?? null
+        locktime: decodedTx.locktime ?? null,
+        finalTxOutputHash: finalSpendBinding.core.finalTxOutputHash
       },
       mempoolAccept,
       steps,
@@ -447,6 +489,8 @@ function attachRpcSweepToSweepPlan(sweepPlan, rpcSweep) {
     status: rpcSweep.broadcast?.sent ? 'broadcast' : 'attached',
     rpcStatus: rpcSweep.status,
     routeTranscriptHash: rpcSweep.routeTranscriptHash || sweepPlan.routeTranscriptHash || null,
+    finalTxOutputHash: rpcSweep.finalTxOutputHash || sweepPlan.finalTxOutputHash || null,
+    finalSpendBinding: rpcSweep.finalSpendBinding || sweepPlan.finalSpendBinding || null,
     liveTxid: rpcSweep.broadcast?.txid || rpcSweep.decodedTx?.txid || sweepPlan.liveTxid || null,
     signedPsbt: rpcSweep.signedPsbt || sweepPlan.signedPsbt || null,
     finalHex: rpcSweep.finalHex || null
@@ -457,6 +501,9 @@ module.exports = {
   encodeBasicAuth,
   rpcFactory,
   createPsbtParams,
+  normalizeDecodedTxOutputs,
+  computeDecodedTxOutputHash,
+  buildFinalSpendBinding,
   preflightTradeLayerSendRpcSweep,
   executeTradeLayerSendRpcSweep,
   attachRpcSweepToSweepPlan

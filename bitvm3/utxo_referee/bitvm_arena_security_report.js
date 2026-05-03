@@ -41,12 +41,17 @@ function buildBitvmArenaSecurityReport(input = {}) {
       commit: 'e380fda',
       title: 'Add TradeLayer BitVM watchtower spine',
       control: 'watchtower report pauses cooperative sweep and emits challenge bundle on drift'
+    },
+    {
+      commit: null,
+      title: 'Bind finalized sweep outputs after decode',
+      control: 'decoded final transaction output vector hash is bound to the route transcript before wallet handoff'
     }
   ];
   const residualRisks = input.residualRisks || [
     'The prototype state oracle still assumes an external TradeLayer parser has computed valid state.',
     'BitVM challenge objects are deterministic protocol skeletons, not full Bitcoin Script circuits yet.',
-    'Live wallet signing still needs final PSBT/final-tx output hashing once the transaction is decoded.'
+    'Live wallet signing still depends on node RPC availability and operator key management.'
   ];
   const improvement = {
     attackReduction: Number(before.successfulAttacks || 0) - Number(after.successfulAttacks || 0),

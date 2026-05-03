@@ -7,13 +7,16 @@ const {
 } = require('./tradelayer_send_oracle_extractor');
 const {
   buildTradeLayerSendIntentFromStateOracle,
-  buildTradeLayerSendRoutePlan
+  buildTradeLayerSendRoutePlan,
+  sha256Hex,
+  stableStringify
 } = require('./tradelayer_pnl_route_adapter');
 const {
   buildTradeLayerSendSweepPlan
 } = require('./tradelayer_send_sweep_psbt');
 const {
   createPsbtParams,
+  computeDecodedTxOutputHash,
   preflightTradeLayerSendRpcSweep,
   executeTradeLayerSendRpcSweep,
   attachRpcSweepToSweepPlan
@@ -114,7 +117,27 @@ function mockRpc(calls, overrides = {}) {
         txid: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
         hash: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
         vsize: 123,
-        locktime: 0
+        locktime: 0,
+        vout: [
+          {
+            n: 0,
+            value: 0.00025,
+            scriptPubKey: {
+              hex: '0014fb5602448f1f61d21da016ad854cc6d09302e4b2',
+              address: 'tltc1qldtqy3y0rasay8dqz6kc2nxx6zfs9e9j4veqcz',
+              type: 'witness_v0_keyhash'
+            }
+          },
+          {
+            n: 1,
+            value: 0.00074,
+            scriptPubKey: {
+              hex: '00149bf53c2ecc5436773646a273433c5fe1be431260',
+              address: 'tltc1qn06nctkv2sm8wdjx5fe2x0zluxlyxynq3vud87hxsfv3u8kwdcaq0xvhqa',
+              type: 'witness_v0_keyhash'
+            }
+          }
+        ]
       };
     }
     if (method === 'testmempoolaccept') return [{ allowed: true }];
@@ -148,6 +171,9 @@ async function run() {
     assertEq(result.status, 'finalized');
     assert(result.preflight.ok, 'preflight should pass');
     assertEq(result.routeTranscriptHash, sampleSweepPlan().routeTranscriptHash);
+    assert(result.finalTxOutputHash.length === 64, 'final tx output hash should be present');
+    assert(result.finalSpendBinding.bindingHash.length === 64, 'final spend binding should be present');
+    assertEq(result.finalSpendBinding.core.routeTranscriptHash, result.routeTranscriptHash);
     assertEq(result.broadcast.attempted, false);
     assertEq(result.decodedTx.txid, 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
     assert(calls.some((call) => call.method === 'walletprocesspsbt' && call.wallet === 'tl-wallet'), 'wallet signer call missing');
@@ -268,6 +294,38 @@ async function run() {
     assertEq(attached.liveTxid, 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
     assertEq(attached.signedPsbt, 'signed-psbt');
     assertEq(attached.finalHex, '020000000001');
+    assertEq(attached.finalTxOutputHash, result.finalTxOutputHash);
+    assertEq(attached.finalSpendBinding.bindingHash, result.finalSpendBinding.bindingHash);
+  });
+
+  await test('hashes decoded final transaction outputs deterministically', () => {
+    const decoded = {
+      vout: [
+        {
+          n: 0,
+          value: 0.00025,
+          scriptPubKey: {
+            hex: '0014aa',
+            address: 'tltc1qdemo',
+            type: 'witness_v0_keyhash'
+          }
+        }
+      ]
+    };
+    const expected = sha256Hex(stableStringify({
+      kind: 'decoded_tx_output_vector_v1',
+      outputs: [
+        {
+          n: 0,
+          value: 0.00025,
+          scriptPubKeyHex: '0014aa',
+          address: 'tltc1qdemo',
+          addresses: null,
+          type: 'witness_v0_keyhash'
+        }
+      ]
+    }));
+    assertEq(computeDecodedTxOutputHash(decoded), expected);
   });
 
   if (failed > 0) {
