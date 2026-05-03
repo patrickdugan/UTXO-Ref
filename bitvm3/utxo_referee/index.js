@@ -70,6 +70,7 @@ const tradeLayerPerpPnlReferee = require('./tradelayer_perp_pnl_referee');
 const bitvmLiquidityLeaseReferee = require('./bitvm_liquidity_lease_referee');
 const bitvmArenaSecurityReport = require('./bitvm_arena_security_report');
 const tradeLayerBitvmStack = require('./tradelayer_bitvm_stack');
+const tradeLayerUtxoRefLivePath = require('./tradelayer_utxoref_live_path');
 
 module.exports = {
   // Types
@@ -283,6 +284,10 @@ module.exports = {
   verifyTradeLayerBitvmStackBundle: tradeLayerBitvmStack.verifyTradeLayerBitvmStackBundle,
   buildTradeLayerDashboardView: tradeLayerBitvmStack.buildDashboardView,
   tradeLayerDashboardJsonSchema: tradeLayerBitvmStack.dashboardJsonSchema,
+  buildTradeLayerUtxoRefDecodedFinalTx: tradeLayerUtxoRefLivePath.buildDecodedFinalTxFromSweepPlan,
+  buildTradeLayerUtxoRefFinalOutputChallenge: tradeLayerUtxoRefLivePath.buildFinalOutputChallenge,
+  buildTradeLayerUtxoRefLivePathEvidence: tradeLayerUtxoRefLivePath.buildUtxoRefLivePathEvidence,
+  verifyTradeLayerUtxoRefLivePathEvidence: tradeLayerUtxoRefLivePath.verifyUtxoRefLivePathEvidence,
   resolvePipelineOptions: m1Pipeline.resolvePipelineOptions,
   buildPipelinePlan: m1Pipeline.buildPipelinePlan,
   buildPipelineSummary: m1Pipeline.buildPipelineSummary,
@@ -331,5 +336,6 @@ module.exports = {
   tradeLayerPerpPnlReferee,
   bitvmLiquidityLeaseReferee,
   bitvmArenaSecurityReport,
-  tradeLayerBitvmStack
+  tradeLayerBitvmStack,
+  tradeLayerUtxoRefLivePath
 };
