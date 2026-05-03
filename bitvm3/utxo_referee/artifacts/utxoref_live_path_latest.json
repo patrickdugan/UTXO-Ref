@@ -1,6 +1,6 @@
 {
   "kind": "utxoref_live_path_evidence",
-  "evidenceHash": "118d2010a8f4d60adc27d1edd815ea117be2e74b1f541f2e564f3657707f718b",
+  "evidenceHash": "1052c3368bd47ef72f9eb18db7936a55b4d761ad75ce9b43da009bf3d2a910d3",
   "core": {
     "kind": "utxoref_live_path_evidence_v1",
     "network": "litecoin-testnet",
@@ -18,11 +18,13 @@
     "withdrawalRootHex": "fc1d5bace84265ee2cf3295a15270e9b9a2241837349634a99ed82bcf682f4e4",
     "finalTxOutputHash": "363bc988d896f0238a97b7f01b356ba4d40d61947f9fa8e3a64d94ff578b231d",
     "finalSpendBindingHash": "16ea421fbce3e6855b969b58234b303761e08986db31deda31f59d8f83698a3f",
+    "finalOutputReviewHash": "37dd441d5030d2a29511e029f7567c9d1dba0526809ab5faf8777ceb189caae7",
+    "finalOutputReviewOk": true,
     "finalTxid": "caea1f7e465196e6c9c9b85ba4a2088d547ffdc0f41803a7799660e09e377187",
     "finalWtxid": "709e292e188dc3e0da075074643a95fb8c454268c20190c6c3cc6fb3c0a8d281",
     "fraudBundleHash": "43dc573cbd3cbf99d5fd3a89ffacac647ac84c723de5c22028bc43d6cfc16fbd",
     "checkpointFraudProofHash": "5f06cfa4e2cd973af987f21ad5a797e9664eaaa9f370a6a47ae3d2c56908253c",
-    "finalOutputChallengeHash": "d9c9ae09fc434c47da90b180517abd743e692a23791050286056f484fd746ae6",
+    "finalOutputChallengeHash": "a3387735558d829c51119bce75b1d85e83d1fdf28f64aca9762e2e3a956a95f2",
     "challengeableCount": 14
   },
   "stack": {
@@ -1453,6 +1455,60 @@
       "wtxid": "709e292e188dc3e0da075074643a95fb8c454268c20190c6c3cc6fb3c0a8d281"
     }
   },
+  "finalOutputReview": {
+    "kind": "utxoref_live_path_final_output_review",
+    "ok": true,
+    "reviewHash": "37dd441d5030d2a29511e029f7567c9d1dba0526809ab5faf8777ceb189caae7",
+    "mismatchCodes": [],
+    "core": {
+      "kind": "utxoref_live_path_final_output_review_v1",
+      "routeTranscriptHash": "80c7e112c60277d8b94bc5ee873a19ae3a3cceccc524767bae770bb29d85af65",
+      "finalTxOutputHash": "363bc988d896f0238a97b7f01b356ba4d40d61947f9fa8e3a64d94ff578b231d",
+      "txid": "caea1f7e465196e6c9c9b85ba4a2088d547ffdc0f41803a7799660e09e377187",
+      "wtxid": "709e292e188dc3e0da075074643a95fb8c454268c20190c6c3cc6fb3c0a8d281",
+      "expectedInput": {
+        "txid": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "vout": 1
+      },
+      "observedInput": {
+        "txid": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "vout": 1
+      },
+      "expectedOutputs": [
+        {
+          "n": 0,
+          "role": "send-to-dlc-funding-output",
+          "address": "tltc1qldtqy3y0rasay8dqz6kc2nxx6zfs9e9j4veqcz",
+          "sats": "25000",
+          "scriptPubKeyHex": "0014fb5602448f1f61d21da016ad854cc6d09302e4b2"
+        },
+        {
+          "n": 1,
+          "role": "refund-remainder",
+          "address": "tltc1qn06nctkv2sm8wdjx5fe2x0zluxlyxynq3vud87hxsfv3u8kwdcaq0xvhqa",
+          "sats": "74000",
+          "scriptPubKeyHex": "00209bf53c2ecc5436773646a272a33c5fe1be4312608b38d3fae682591e1ece6e3a"
+        }
+      ],
+      "observedOutputs": [
+        {
+          "n": 0,
+          "address": "tltc1qldtqy3y0rasay8dqz6kc2nxx6zfs9e9j4veqcz",
+          "sats": "25000",
+          "scriptPubKeyHex": "0014fb5602448f1f61d21da016ad854cc6d09302e4b2",
+          "type": "witness_v0_keyhash"
+        },
+        {
+          "n": 1,
+          "address": "tltc1qn06nctkv2sm8wdjx5fe2x0zluxlyxynq3vud87hxsfv3u8kwdcaq0xvhqa",
+          "sats": "74000",
+          "scriptPubKeyHex": "00209bf53c2ecc5436773646a272a33c5fe1be4312608b38d3fae682591e1ece6e3a",
+          "type": "witness_v0_scripthash"
+        }
+      ],
+      "mismatches": []
+    }
+  },
   "finalRouteTranscript": {
     "kind": "tradelayer_send_route_transcript_v1",
     "hash": "1c60c061559ed785164541307ac00e4b293ee5c85e466fbbf6a23641d93d0cf3",
@@ -1494,7 +1550,7 @@
   },
   "finalOutputChallenge": {
     "kind": "utxoref_live_path_final_output_challenge",
-    "challengeHash": "d9c9ae09fc434c47da90b180517abd743e692a23791050286056f484fd746ae6",
+    "challengeHash": "a3387735558d829c51119bce75b1d85e83d1fdf28f64aca9762e2e3a956a95f2",
     "challengeable": true,
     "core": {
       "kind": "utxoref_live_path_final_output_challenge_v1",
@@ -1502,11 +1558,14 @@
       "routeTranscriptHash": "80c7e112c60277d8b94bc5ee873a19ae3a3cceccc524767bae770bb29d85af65",
       "expected": {
         "finalTxOutputHash": "363bc988d896f0238a97b7f01b356ba4d40d61947f9fa8e3a64d94ff578b231d",
+        "finalOutputReviewHash": "37dd441d5030d2a29511e029f7567c9d1dba0526809ab5faf8777ceb189caae7",
+        "finalOutputReviewOk": true,
         "txid": "caea1f7e465196e6c9c9b85ba4a2088d547ffdc0f41803a7799660e09e377187",
         "wtxid": "709e292e188dc3e0da075074643a95fb8c454268c20190c6c3cc6fb3c0a8d281"
       },
       "claimed": {
-        "finalTxOutputHash": "0000000000000000000000000000000000000000000000000000000000000000"
+        "finalTxOutputHash": "0000000000000000000000000000000000000000000000000000000000000000",
+        "finalOutputReviewOk": false
       },
       "challengeable": true,
       "remedy": "reject signer handoff and route to final-output mismatch challenge"
@@ -1531,7 +1590,7 @@
     {
       "step": "final_outputs",
       "status": "bound",
-      "check": "363bc988d896f0238a97b7f01b356ba4d40d61947f9fa8e3a64d94ff578b231d"
+      "check": "37dd441d5030d2a29511e029f7567c9d1dba0526809ab5faf8777ceb189caae7"
     },
     {
       "step": "dashboard",
@@ -1542,7 +1601,7 @@
   "liveSwapPoints": {
     "consensusInput": "replace sample consensus input with TradeLayer parser output",
     "decodedFinalTx": "replace deterministic decodedFinalTx with Core decoderawtransaction output",
-    "signerPolicy": "show finalTxOutputHash and routeTranscriptHash before broadcast",
+    "signerPolicy": "show finalTxOutputHash, finalOutputReviewHash, and routeTranscriptHash before broadcast",
     "dashboard": "display txids and hashes from evidence.core only after verification"
   }
 }

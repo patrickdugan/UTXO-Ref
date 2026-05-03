@@ -1,6 +1,6 @@
 # UTXORef Live Path Evidence
 
-Created: 2026-05-03T05:18:22.242Z
+Created: 2026-05-03T05:23:24.345Z
 Network: litecoin-testnet
 Verification: ok
 
@@ -14,6 +14,7 @@ Verification: ok
 - Final route transcript hash: 1c60c061559ed785164541307ac00e4b293ee5c85e466fbbf6a23641d93d0cf3
 - Withdrawal root: fc1d5bace84265ee2cf3295a15270e9b9a2241837349634a99ed82bcf682f4e4
 - Final tx output hash: 363bc988d896f0238a97b7f01b356ba4d40d61947f9fa8e3a64d94ff578b231d
+- Final output review: 37dd441d5030d2a29511e029f7567c9d1dba0526809ab5faf8777ceb189caae7
 - Final spend binding: 16ea421fbce3e6855b969b58234b303761e08986db31deda31f59d8f83698a3f
 - Stack hash: 39c88b5dd329d45446220dbd404431390664386a26381f5997eea7190a23a405
 - Dashboard view hash: 4351fb39d6d191ba86e38e04d8a63044a75414b55bf167962fb95437be603e3d
@@ -22,20 +23,24 @@ Verification: ok
 
 - Send fraud bundle: 43dc573cbd3cbf99d5fd3a89ffacac647ac84c723de5c22028bc43d6cfc16fbd
 - Checkpoint fraud proof: 5f06cfa4e2cd973af987f21ad5a797e9664eaaa9f370a6a47ae3d2c56908253c
-- Final output challenge: d9c9ae09fc434c47da90b180517abd743e692a23791050286056f484fd746ae6
+- Final output challenge: a3387735558d829c51119bce75b1d85e83d1fdf28f64aca9762e2e3a956a95f2
 - Challengeable count: 14
+
+## Final Output Review
+
+- ok
 
 ## Operator Checklist
 
 - funding_input: ready_for_rpc (gettxout ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff 1)
 - state_oracle: bound (c1a461ff7ff1d3a74fed3bc3f39decf6dcf621cff4894bd140607ab8c73390ce)
 - route_transcript: bound (80c7e112c60277d8b94bc5ee873a19ae3a3cceccc524767bae770bb29d85af65)
-- final_outputs: bound (363bc988d896f0238a97b7f01b356ba4d40d61947f9fa8e3a64d94ff578b231d)
+- final_outputs: bound (37dd441d5030d2a29511e029f7567c9d1dba0526809ab5faf8777ceb189caae7)
 - dashboard: ready (4351fb39d6d191ba86e38e04d8a63044a75414b55bf167962fb95437be603e3d)
 
 ## Live Swap Points
 
 - Consensus input: replace sample consensus input with TradeLayer parser output
 - Decoded final tx: replace deterministic decodedFinalTx with Core decoderawtransaction output
-- Signer policy: show finalTxOutputHash and routeTranscriptHash before broadcast
+- Signer policy: show finalTxOutputHash, finalOutputReviewHash, and routeTranscriptHash before broadcast
 - Dashboard: display txids and hashes from evidence.core only after verification

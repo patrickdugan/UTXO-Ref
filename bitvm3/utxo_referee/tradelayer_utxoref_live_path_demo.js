@@ -4,8 +4,12 @@ const fs = require('fs');
 const path = require('path');
 const {
   buildUtxoRefLivePathEvidence,
+  loadDecodedFinalTxFromRpc,
   verifyUtxoRefLivePathEvidence
 } = require('./tradelayer_utxoref_live_path');
+const {
+  resolveChainEnv
+} = require('./m1_chain_env');
 
 const ARTIFACTS_DIR = path.join(__dirname, 'artifacts');
 const DEFAULT_JSON_OUT = path.join(ARTIFACTS_DIR, 'utxoref_live_path_latest.json');
@@ -18,6 +22,11 @@ function usage() {
     'Options:',
     '  --input <path>             TradeLayer consensus/history JSON. Uses built-in sample if omitted.',
     '  --decoded-final-tx <path>  Core decoderawtransaction JSON for the final sweep.',
+    '  --final-hex <hex>          Decode this final transaction hex through Core RPC.',
+    '  --final-txid <txid>        Load and decode this final transaction through Core RPC.',
+    '  --rpc-url <url>            Override BITVM/LTC/BTC RPC URL.',
+    '  --rpc-user <user>          Override BITVM/LTC/BTC RPC user.',
+    '  --rpc-pass <pass>          Override BITVM/LTC/BTC RPC password.',
     '  --out <path>               JSON artifact output path.',
     '  --md <path>                Markdown summary output path.',
     '  --send-id <id>             Select send record by id.',
@@ -62,6 +71,9 @@ function markdownSummary(evidence, verification) {
   const checklist = evidence.operatorChecklist
     .map((item) => `- ${item.step}: ${item.status} (${item.check})`)
     .join('\n');
+  const reviewText = evidence.finalOutputReview.ok
+    ? '- ok'
+    : evidence.finalOutputReview.core.mismatches.map((item) => `- ${item.code}`).join('\n');
   return [
     '# UTXORef Live Path Evidence',
     '',
@@ -79,6 +91,7 @@ function markdownSummary(evidence, verification) {
     `- Final route transcript hash: ${evidence.core.finalRouteTranscriptHash}`,
     `- Withdrawal root: ${evidence.core.withdrawalRootHex}`,
     `- Final tx output hash: ${evidence.core.finalTxOutputHash}`,
+    `- Final output review: ${evidence.core.finalOutputReviewHash}`,
     `- Final spend binding: ${evidence.core.finalSpendBindingHash}`,
     `- Stack hash: ${evidence.core.stackHash}`,
     `- Dashboard view hash: ${evidence.core.dashboardViewHash}`,
@@ -89,6 +102,10 @@ function markdownSummary(evidence, verification) {
     `- Checkpoint fraud proof: ${evidence.core.checkpointFraudProofHash}`,
     `- Final output challenge: ${evidence.core.finalOutputChallengeHash}`,
     `- Challengeable count: ${evidence.core.challengeableCount}`,
+    '',
+    '## Final Output Review',
+    '',
+    reviewText,
     '',
     '## Operator Checklist',
     '',
@@ -113,8 +130,21 @@ async function main() {
 
   const outPath = path.resolve(args.out || DEFAULT_JSON_OUT);
   const mdPath = path.resolve(args.md || DEFAULT_MD_OUT);
+  if (args.decodedFinalTx && (args.finalHex || args.finalTxid)) {
+    throw new Error('Use either --decoded-final-tx or --final-hex/--final-txid, not both');
+  }
   const consensusInput = args.input ? readJson(path.resolve(args.input)) : undefined;
-  const decodedFinalTx = args.decodedFinalTx ? readJson(path.resolve(args.decodedFinalTx)) : undefined;
+  let decodedFinalTx = args.decodedFinalTx ? readJson(path.resolve(args.decodedFinalTx)) : undefined;
+  if (!decodedFinalTx && (args.finalHex || args.finalTxid)) {
+    const chainEnv = resolveChainEnv();
+    decodedFinalTx = await loadDecodedFinalTxFromRpc({
+      finalHex: args.finalHex,
+      finalTxid: args.finalTxid,
+      rpcUrl: args.rpcUrl || chainEnv.rpcUrl,
+      rpcUser: args.rpcUser || chainEnv.rpcUser,
+      rpcPass: args.rpcPass || chainEnv.rpcPass
+    });
+  }
   const evidence = buildUtxoRefLivePathEvidence({
     consensusInput,
     decodedFinalTx,
@@ -133,6 +163,7 @@ async function main() {
   console.log(`verification=${verification.ok ? 'ok' : verification.reason}`);
   console.log(`evidenceHash=${evidence.evidenceHash}`);
   console.log(`finalTxOutputHash=${evidence.core.finalTxOutputHash}`);
+  console.log(`finalOutputReview=${evidence.finalOutputReview.ok ? 'ok' : evidence.finalOutputReview.mismatchCodes.join(',')}`);
 
   if (!verification.ok) process.exitCode = 1;
 }

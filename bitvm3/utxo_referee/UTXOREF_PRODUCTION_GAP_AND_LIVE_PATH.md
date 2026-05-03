@@ -75,5 +75,8 @@ The demo is deterministic today. The intended live swap points are:
 
 - replace `SAMPLE_CONSENSUS_INPUT` with parser output
 - replace the synthetic decoded transaction with `decoderawtransaction`
+- or pass `--final-hex` / `--final-txid` so the demo asks Core RPC to decode it
+- require the final output review to match every planned sweep output by value
+  and script before signer/dashboard acceptance
 - attach the resulting final txid to the dashboard
 - broadcast only after wallet policy verifies the final output hash
