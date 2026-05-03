@@ -99,6 +99,9 @@ test('builds a four-step wallet flow for a DLC-mapped send', () => {
   assertEq(flow.destination.kind, 'dlc-funding-output');
   assertEq(flow.destination.matchedDlcRef, 'dlc-live-77');
   assertEq(flow.hashes.fraudChallengeRoot, fraudChallenges.challengeRoot);
+  assertEq(flow.hashes.routeTranscriptHash, flow.routeTranscript.hash);
+  assertEq(flow.routeTranscript.core.stateOracleHash, flow.hashes.stateOracleHash);
+  assertEq(flow.routeTranscript.core.withdrawalRootHex, flow.hashes.withdrawalRootHex);
   assert(flow.flowHash.length === 64, 'flow hash should be present');
 });
 
@@ -143,6 +146,21 @@ test('detects flow tampering', () => {
   const result = verifyTradeLayerSendWalletFlow(tampered);
   assert(!result.ok, 'tampered flow should fail');
   assert(String(result.reason).includes('flow hash mismatch'), 'expected hash mismatch');
+});
+
+test('detects route transcript tampering inside the wallet flow', () => {
+  const stateOracle = buildTradeLayerSendStateOracleFromConsensus(CONSENSUS_INPUT, {
+    selectedSendId: 'live-send'
+  });
+  const flow = buildTradeLayerSendWalletFlow(stateOracle, {
+    sendId: 'live-send'
+  });
+  const tampered = clone(flow);
+  tampered.routeTranscript.core.outputPlanHash = '00'.repeat(32);
+
+  const result = verifyTradeLayerSendWalletFlow(tampered);
+  assert(!result.ok, 'tampered route transcript should fail');
+  assert(String(result.reason).includes('route transcript hash mismatch'), 'expected route transcript hash mismatch');
 });
 
 if (failed > 0) {

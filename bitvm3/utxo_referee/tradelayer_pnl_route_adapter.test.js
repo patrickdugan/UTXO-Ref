@@ -10,6 +10,8 @@ const {
 const {
   addressToScriptPubKey,
   computeTradeLayerPlanHash,
+  buildTradeLayerSendRouteTranscript,
+  verifyTradeLayerSendRouteTranscript,
   buildTradeLayerSendOracleCommitment,
   buildTradeLayerSendOracleSigningPayload,
   verifyTradeLayerSendOracleSignature,
@@ -208,6 +210,34 @@ test('builds a send route that maps a TL recipient funder to its DLC output', ()
   assertEq(routePlan.resolvedDestinationAddress, 'tltc1qldtqy3y0rasay8dqz6kc2nxx6zfs9e9j4veqcz');
   assertEq(routePlan.outputPlan[0].role, 'send-to-dlc-funding-output');
   assertEq(routePlan.outputPlan[0].matchedDlcRef, 'dlc-next-epoch-42');
+});
+
+test('builds a canonical send route transcript over oracle, registry, route, and UTXORef roots', () => {
+  const intent = buildTradeLayerSendIntentFromStateOracle(SEND_STATE_ORACLE);
+  const routePlan = buildTradeLayerSendRoutePlan(intent);
+  const transcript = buildTradeLayerSendRouteTranscript(routePlan);
+  const result = verifyTradeLayerSendRouteTranscript(transcript, routePlan);
+
+  assert(result.ok, result.reason);
+  assertEq(transcript.hash.length, 64);
+  assertEq(transcript.core.stateOracleHash, intent.envelope.stateOracleHash);
+  assertEq(transcript.core.selectedSendHash, intent.envelope.selectedSendHash);
+  assertEq(transcript.core.dlcFunderRegistryHash, intent.envelope.dlcFunderRegistryHash);
+  assertEq(transcript.core.routePlanHash, routePlan.planHash);
+  assertEq(transcript.core.withdrawalRootHex.length, 64);
+  assertEq(transcript.core.outputPlanHash.length, 64);
+});
+
+test('rejects a route transcript whose output plan was rebound after review', () => {
+  const intent = buildTradeLayerSendIntentFromStateOracle(SEND_STATE_ORACLE);
+  const routePlan = buildTradeLayerSendRoutePlan(intent);
+  const transcript = buildTradeLayerSendRouteTranscript(routePlan);
+  const rebound = clone(routePlan);
+  rebound.outputPlan[0].address = rebound.oracleAddress;
+  const result = verifyTradeLayerSendRouteTranscript(transcript, rebound, { skipPlanHash: true });
+
+  assert(!result.ok, 'rebound route should fail transcript verification');
+  assert(String(result.reason).includes('does not match route plan'), 'expected route transcript mismatch');
 });
 
 test('verifies a percent-of-deposit send route including refund remainder', () => {

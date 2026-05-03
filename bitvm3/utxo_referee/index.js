@@ -224,6 +224,8 @@ module.exports = {
   verifyLightningTradeLayerOracleDlcBundle: lightningTradeLayerOracleDlc.verifyLightningTradeLayerOracleDlcBundle,
   tradeLayerAddressToScriptPubKey: tradeLayerPnlRouteAdapter.addressToScriptPubKey,
   computeTradeLayerPnlPlanHash: tradeLayerPnlRouteAdapter.computeTradeLayerPlanHash,
+  buildTradeLayerSendRouteTranscript: tradeLayerPnlRouteAdapter.buildTradeLayerSendRouteTranscript,
+  verifyTradeLayerSendRouteTranscript: tradeLayerPnlRouteAdapter.verifyTradeLayerSendRouteTranscript,
   buildTradeLayerPnlCommitment: tradeLayerPnlRouteAdapter.buildTradeLayerPnlCommitment,
   verifyTradeLayerPnlRoutePlan: tradeLayerPnlRouteAdapter.verifyTradeLayerPnlRoutePlan,
   buildTradeLayerSendOracleCommitment: tradeLayerPnlRouteAdapter.buildTradeLayerSendOracleCommitment,

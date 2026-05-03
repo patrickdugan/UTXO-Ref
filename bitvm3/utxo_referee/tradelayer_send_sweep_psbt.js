@@ -1,4 +1,5 @@
 const {
+  buildTradeLayerSendRouteTranscript,
   verifyTradeLayerPnlRoutePlan
 } = require('./tradelayer_pnl_route_adapter');
 
@@ -70,11 +71,14 @@ function buildTradeLayerSendSweepPlan(routePlan, options = {}) {
   const locktime = Number(options.locktime || 0);
   const replaceable = options.replaceable !== undefined ? !!options.replaceable : true;
   const coreOutputs = buildCoreOutputs(outputs);
+  const routeTranscript = options.routeTranscript || buildTradeLayerSendRouteTranscript(routePlan);
 
   return {
     kind: 'tradelayer_send_sweep_plan',
     network: routePlan.network || 'litecoin-testnet',
     routePlanHash: routePlan.planHash || null,
+    routeTranscriptHash: routeTranscript.hash,
+    routeTranscript,
     input: {
       ...input,
       address: routePlan.dlcInput.address || null,

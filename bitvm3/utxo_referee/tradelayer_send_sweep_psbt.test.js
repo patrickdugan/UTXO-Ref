@@ -98,6 +98,8 @@ test('builds a deterministic sweep plan and Core RPC templates', () => {
   assert(plan.accounting.conservationHolds, 'conservation should hold');
   assertEq(plan.outputs[0].sats, '25000');
   assertEq(plan.outputs[1].sats, '74000');
+  assertEq(plan.routeTranscriptHash, plan.routeTranscript.hash);
+  assertEq(plan.routeTranscript.core.routePlanHash, plan.routePlanHash);
   assertEq(plan.bitcoinCore.createRawTransaction[0], 'createrawtransaction');
   assertEq(plan.bitcoinCore.createPsbt[0], 'createpsbt');
 });

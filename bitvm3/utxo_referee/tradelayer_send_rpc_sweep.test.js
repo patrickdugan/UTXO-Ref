@@ -42,6 +42,10 @@ function assertEq(actual, expected, message) {
   if (actual !== expected) throw new Error(message || `expected ${expected}, got ${actual}`);
 }
 
+function clone(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
 const CONSENSUS_INPUT = {
   chain: 'litecoin-testnet',
   epochId: '77',
@@ -123,12 +127,14 @@ async function run() {
   console.log('\n=== TradeLayer Send RPC Sweep Tests ===\n');
 
   await test('extracts createpsbt params from the deterministic sweep plan', () => {
-    const params = createPsbtParams(sampleSweepPlan());
+    const sweepPlan = sampleSweepPlan();
+    const params = createPsbtParams(sweepPlan);
     assertEq(params[0][0].vout, 1);
     assertEq(params[1][0].tltc1qldtqy3y0rasay8dqz6kc2nxx6zfs9e9j4veqcz, '0.00025000');
     assertEq(params[1][1].tltc1qn06nctkv2sm8wdjx5fe2x0zluxlyxynq3vud87hxsfv3u8kwdcaq0xvhqa, '0.00074000');
     assertEq(params[2], 0);
     assertEq(params[3], true);
+    assertEq(sweepPlan.routeTranscriptHash, sweepPlan.routeTranscript.hash);
   });
 
   await test('signs and finalizes without broadcasting by default', async () => {
@@ -141,6 +147,7 @@ async function run() {
     assert(result.ok, result.error);
     assertEq(result.status, 'finalized');
     assert(result.preflight.ok, 'preflight should pass');
+    assertEq(result.routeTranscriptHash, sampleSweepPlan().routeTranscriptHash);
     assertEq(result.broadcast.attempted, false);
     assertEq(result.decodedTx.txid, 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
     assert(calls.some((call) => call.method === 'walletprocesspsbt' && call.wallet === 'tl-wallet'), 'wallet signer call missing');
@@ -155,8 +162,38 @@ async function run() {
     });
 
     assert(result.ok, 'preflight should pass');
+    assert(!result.failedChecks.includes('route_transcript_bound'), 'route transcript should be bound');
     assert(calls.some((call) => call.method === 'gettxout'), 'gettxout check missing');
     assert(calls.some((call) => call.method === 'getaddressinfo' && call.wallet === 'tl-wallet'), 'wallet address check missing');
+  });
+
+  await test('stops before signing if the expected route transcript hash differs', async () => {
+    const calls = [];
+    const result = await executeTradeLayerSendRpcSweep(sampleSweepPlan(), {
+      rpc: mockRpc(calls),
+      wallet: 'tl-wallet',
+      expectedRouteTranscriptHash: '00'.repeat(32)
+    });
+
+    assert(!result.ok, 'route transcript mismatch should fail');
+    assertEq(result.status, 'preflight_failed');
+    assert(result.preflight.failedChecks.includes('route_transcript_bound'), 'route_transcript_bound should fail');
+    assert(!calls.some((call) => call.method === 'createpsbt'), 'should not create PSBT after transcript mismatch');
+  });
+
+  await test('stops before signing if the embedded route transcript core is tampered', async () => {
+    const calls = [];
+    const sweepPlan = clone(sampleSweepPlan());
+    sweepPlan.routeTranscript.core.outputPlanHash = '00'.repeat(32);
+    const result = await executeTradeLayerSendRpcSweep(sweepPlan, {
+      rpc: mockRpc(calls),
+      wallet: 'tl-wallet'
+    });
+
+    assert(!result.ok, 'embedded transcript tampering should fail');
+    assertEq(result.status, 'preflight_failed');
+    assert(result.preflight.failedChecks.includes('route_transcript_bound'), 'route_transcript_bound should fail');
+    assert(!calls.some((call) => call.method === 'createpsbt'), 'should not create PSBT after embedded transcript tampering');
   });
 
   await test('stops before signing if the input is spent or unknown', async () => {

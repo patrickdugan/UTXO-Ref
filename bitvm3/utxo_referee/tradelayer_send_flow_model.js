@@ -6,6 +6,8 @@ const {
   buildTradeLayerSendIntentFromStateOracle,
   buildTradeLayerSendRoutePlan,
   buildTradeLayerPnlCommitment,
+  buildTradeLayerSendRouteTranscript,
+  verifyTradeLayerSendRouteTranscript,
   verifyTradeLayerSendStateOracleRoute
 } = require('./tradelayer_pnl_route_adapter');
 const {
@@ -59,10 +61,17 @@ function buildTradeLayerSendWalletFlow(stateOracleBlob, options = {}) {
   const sendIntent = buildTradeLayerSendIntentFromStateOracle(stateOracleBlob, selectOptions);
   const routePlan = buildTradeLayerSendRoutePlan(sendIntent, selectOptions);
   const commitmentBundle = buildTradeLayerPnlCommitment(routePlan);
+  const routeTranscript = options.routeTranscript || buildTradeLayerSendRouteTranscript(routePlan, {
+    commitmentBundle
+  });
+  const routeTranscriptVerification = verifyTradeLayerSendRouteTranscript(routeTranscript, routePlan, {
+    commitmentBundle
+  });
   const routeVerification = verifyTradeLayerSendStateOracleRoute(stateOracleBlob, selectOptions);
   const sweepPlan = options.sweepPlan || buildTradeLayerSendSweepPlan(routePlan, {
     liveTxid: options.liveTxid,
-    signedPsbt: options.signedPsbt
+    signedPsbt: options.signedPsbt,
+    routeTranscript
   });
   const observedSweep = options.observedSweep || verifyObservedSweepOutputs(
     routePlan,
@@ -86,9 +95,11 @@ function buildTradeLayerSendWalletFlow(stateOracleBlob, options = {}) {
       routePlanHash: routePlan.planHash || null,
       withdrawalRootHex: commitmentBundle.withdrawalRootHex,
       commitmentHashHex: commitmentBundle.commitmentHashHex,
+      routeTranscriptHash: routeTranscript.hash,
       fraudChallengeRoot: options.fraudChallengeBundle?.challengeRoot || null,
       fraudChallengeBundleHash: options.fraudChallengeBundle?.bundleHash || null
     },
+    routeTranscript,
     amounts: {
       depositSats: String(routePlan.dlcInput.sats),
       sendBps: routePlan.sendBps,
@@ -114,6 +125,8 @@ function buildTradeLayerSendWalletFlow(stateOracleBlob, options = {}) {
     verifier: {
       routeOk: routeVerification.ok,
       routeReason: routeVerification.reason || null,
+      routeTranscriptOk: routeTranscriptVerification.ok,
+      routeTranscriptReason: routeTranscriptVerification.reason || null,
       sweepOk: observedSweep.ok,
       sweepReason: observedSweep.reason || null,
       oracleSignatureRequired: !!selectOptions.requireOracleSignature,
@@ -168,6 +181,7 @@ function buildTradeLayerSendWalletFlow(stateOracleBlob, options = {}) {
       details: {
         commitmentHashHex: commitmentBundle.commitmentHashHex,
         withdrawalRootHex: commitmentBundle.withdrawalRootHex,
+        routeTranscriptHash: routeTranscript.hash,
         expectedOutputs: outputs,
         liveTxid: sweepPlan.liveTxid || null,
         signedPsbtAttached: Boolean(sweepPlan.signedPsbt)
@@ -195,8 +209,15 @@ function verifyTradeLayerSendWalletFlow(flow) {
       return { ok: false, reason: `step ${i} must be ${expectedStepIds[i]}` };
     }
   }
-  if (!flow.hashes?.stateOracleHash || !flow.hashes?.dlcFunderRegistryHash || !flow.hashes?.commitmentHashHex) {
+  if (!flow.hashes?.stateOracleHash || !flow.hashes?.dlcFunderRegistryHash || !flow.hashes?.commitmentHashHex || !flow.hashes?.routeTranscriptHash) {
     return { ok: false, reason: 'flow hashes are incomplete' };
+  }
+  const transcriptCheck = verifyTradeLayerSendRouteTranscript(flow.routeTranscript);
+  if (!transcriptCheck.ok) {
+    return { ok: false, reason: transcriptCheck.reason, recomputedRouteTranscriptHash: transcriptCheck.recomputedHash };
+  }
+  if (flow.routeTranscript.hash !== flow.hashes.routeTranscriptHash) {
+    return { ok: false, reason: 'flow route transcript hash mismatch' };
   }
   if (!flow.destination?.kind || !flow.destination?.resolvedSweepAddress) {
     return { ok: false, reason: 'flow destination is incomplete' };
@@ -204,8 +225,8 @@ function verifyTradeLayerSendWalletFlow(flow) {
   if (!Array.isArray(flow.outputs) || !flow.outputs.length) {
     return { ok: false, reason: 'flow outputs are missing' };
   }
-  if (!flow.verifier?.routeOk || !flow.verifier?.sweepOk) {
-    return { ok: false, reason: flow.verifier?.routeReason || flow.verifier?.sweepReason || 'flow verifier is not ok' };
+  if (!flow.verifier?.routeOk || !flow.verifier?.routeTranscriptOk || !flow.verifier?.sweepOk) {
+    return { ok: false, reason: flow.verifier?.routeReason || flow.verifier?.routeTranscriptReason || flow.verifier?.sweepReason || 'flow verifier is not ok' };
   }
 
   const flowCore = {
@@ -213,6 +234,7 @@ function verifyTradeLayerSendWalletFlow(flow) {
     network: flow.network,
     selectedSend: flow.selectedSend,
     hashes: flow.hashes,
+    routeTranscript: flow.routeTranscript,
     amounts: flow.amounts,
     destination: flow.destination,
     outputs: flow.outputs,

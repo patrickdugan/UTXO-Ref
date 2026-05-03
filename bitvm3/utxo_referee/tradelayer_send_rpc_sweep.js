@@ -1,6 +1,9 @@
 const http = require('http');
 const https = require('https');
 const { URL } = require('url');
+const {
+  verifyTradeLayerSendRouteTranscript
+} = require('./tradelayer_pnl_route_adapter');
 
 function encodeBasicAuth(user, pass) {
   return `Basic ${Buffer.from(`${user}:${pass}`).toString('base64')}`;
@@ -95,7 +98,9 @@ function normalizeRpcOptions(options = {}) {
     requireWalletSigner: options.requireWalletSigner !== false,
     sighashType: options.sighashType || 'ALL',
     bip32derivs: options.bip32derivs !== false,
-    walletEndpointForFinalize: !!options.walletEndpointForFinalize
+    walletEndpointForFinalize: !!options.walletEndpointForFinalize,
+    requireRouteTranscript: options.requireRouteTranscript !== false,
+    expectedRouteTranscriptHash: options.expectedRouteTranscriptHash || options.routeTranscriptHash || null
   };
 }
 
@@ -154,6 +159,28 @@ async function preflightTradeLayerSendRpcSweep(sweepPlan, options = {}) {
       failedChecks: checks.filter((check) => !check.ok).map((check) => check.name)
     };
   }
+
+  const declaredRouteTranscriptHash = sweepPlan.routeTranscriptHash || sweepPlan.routeTranscript?.hash || null;
+  const embeddedRouteTranscriptHash = sweepPlan.routeTranscript?.hash || null;
+  const embeddedRouteTranscriptCheck = sweepPlan.routeTranscript
+    ? verifyTradeLayerSendRouteTranscript(sweepPlan.routeTranscript)
+    : { ok: true };
+  const expectedRouteTranscriptHash = rpcOptions.expectedRouteTranscriptHash || declaredRouteTranscriptHash;
+  const routeTranscriptBound = Boolean(
+    expectedRouteTranscriptHash
+    && declaredRouteTranscriptHash
+    && declaredRouteTranscriptHash === expectedRouteTranscriptHash
+    && (!embeddedRouteTranscriptHash || embeddedRouteTranscriptHash === declaredRouteTranscriptHash)
+    && embeddedRouteTranscriptCheck.ok
+  );
+  addCheck('route_transcript_bound', !rpcOptions.requireRouteTranscript || routeTranscriptBound, {
+    expectedRouteTranscriptHash,
+    declaredRouteTranscriptHash,
+    embeddedRouteTranscriptHash,
+    embeddedRouteTranscriptOk: embeddedRouteTranscriptCheck.ok,
+    embeddedRouteTranscriptReason: embeddedRouteTranscriptCheck.reason || null,
+    required: rpcOptions.requireRouteTranscript
+  });
 
   const input = sweepPlan.input || {};
   const expectedSats = inputSatsFromSweepPlan(sweepPlan);
@@ -255,7 +282,9 @@ async function executeTradeLayerSendRpcSweep(sweepPlan, options = {}) {
         ...options,
         rpc,
         wallet: rpcOptions.wallet,
-        requireWalletSigner: rpcOptions.requireWalletSigner
+        requireWalletSigner: rpcOptions.requireWalletSigner,
+        requireRouteTranscript: rpcOptions.requireRouteTranscript,
+        expectedRouteTranscriptHash: rpcOptions.expectedRouteTranscriptHash
       });
       steps.push({
         name: 'preflight',
@@ -364,6 +393,7 @@ async function executeTradeLayerSendRpcSweep(sweepPlan, options = {}) {
       status: broadcast.sent ? 'broadcast' : 'finalized',
       ok: true,
       preflight,
+      routeTranscriptHash: sweepPlan.routeTranscriptHash || sweepPlan.routeTranscript?.hash || null,
       broadcast,
       signedPsbt: processed.psbt || null,
       finalHex: finalized.hex,
@@ -416,6 +446,7 @@ function attachRpcSweepToSweepPlan(sweepPlan, rpcSweep) {
     ...sweepPlan,
     status: rpcSweep.broadcast?.sent ? 'broadcast' : 'attached',
     rpcStatus: rpcSweep.status,
+    routeTranscriptHash: rpcSweep.routeTranscriptHash || sweepPlan.routeTranscriptHash || null,
     liveTxid: rpcSweep.broadcast?.txid || rpcSweep.decodedTx?.txid || sweepPlan.liveTxid || null,
     signedPsbt: rpcSweep.signedPsbt || sweepPlan.signedPsbt || null,
     finalHex: rpcSweep.finalHex || null

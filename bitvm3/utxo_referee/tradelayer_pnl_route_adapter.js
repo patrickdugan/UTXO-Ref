@@ -242,6 +242,98 @@ function computeTradeLayerPlanHash(routePlan) {
   });
 }
 
+function normalizeTranscriptOutputs(outputPlan) {
+  return normalizeOutputPlan(outputPlan).map((output) => ({
+    role: output.role || null,
+    address: output.address || null,
+    scriptPubKey: output.scriptPubKey || null,
+    sats: output.sats.toString(),
+    amountBps: output.amountBps ?? null,
+    oracleAddress: output.oracleAddress || null,
+    matchedDlcRef: output.matchedDlcRef || null
+  }));
+}
+
+function buildTradeLayerSendRouteTranscript(routePlan, options = {}) {
+  if (!routePlan || typeof routePlan !== 'object') throw new Error('routePlan must be an object');
+  if (routePlan.route && routePlan.route !== 'send') {
+    throw new Error(`route transcript requires a send route, got ${routePlan.route}`);
+  }
+
+  const commitmentBundle = options.commitmentBundle || buildTradeLayerPnlCommitment(routePlan, options);
+  const routePlanHash = routePlan.planHash || computeTradeLayerPlanHash(routePlan);
+  const outputs = normalizeTranscriptOutputs(routePlan.outputPlan || []);
+  const core = {
+    kind: 'tradelayer_send_route_transcript_v1',
+    network: inferNetwork(routePlan, options),
+    route: 'send',
+    stateOracleHash: routePlan.envelope?.stateOracleHash || routePlan.payloadHash || null,
+    selectedSendHash: routePlan.envelope?.selectedSendHash || null,
+    dlcFunderRegistryHash: routePlan.envelope?.dlcFunderRegistryHash || null,
+    routePlanHash,
+    withdrawalRootHex: commitmentBundle.withdrawalRootHex,
+    commitmentHashHex: commitmentBundle.commitmentHashHex,
+    fundingInputHash: sha256Hex({
+      txid: routePlan.dlcInput?.txid || null,
+      vout: routePlan.dlcInput?.vout ?? null,
+      address: routePlan.dlcInput?.address || null,
+      sats: routePlan.dlcInput?.sats !== undefined ? String(routePlan.dlcInput.sats) : null
+    }),
+    outputPlanHash: sha256Hex(outputs),
+    outputs,
+    signedPsbtOutputHash: options.signedPsbtOutputHash || null,
+    finalTxOutputHash: options.finalTxOutputHash || null
+  };
+  return {
+    kind: core.kind,
+    hash: sha256Hex(core),
+    core
+  };
+}
+
+function verifyTradeLayerSendRouteTranscript(transcript, routePlan, options = {}) {
+  if (!transcript || typeof transcript !== 'object') {
+    return { ok: false, reason: 'route transcript must be an object' };
+  }
+  if (!transcript.hash || !transcript.core) {
+    return { ok: false, reason: 'route transcript requires hash and core' };
+  }
+
+  const recomputedHash = sha256Hex(transcript.core);
+  if (recomputedHash !== transcript.hash) {
+    return { ok: false, reason: 'route transcript hash mismatch', recomputedHash };
+  }
+
+  const required = [
+    'stateOracleHash',
+    'selectedSendHash',
+    'dlcFunderRegistryHash',
+    'routePlanHash',
+    'withdrawalRootHex',
+    'commitmentHashHex',
+    'fundingInputHash',
+    'outputPlanHash'
+  ];
+  const missing = required.filter((field) => !transcript.core[field]);
+  if (missing.length) {
+    return { ok: false, reason: `route transcript missing fields: ${missing.join(', ')}` };
+  }
+
+  if (routePlan) {
+    const expected = buildTradeLayerSendRouteTranscript(routePlan, options);
+    if (expected.hash !== transcript.hash) {
+      return {
+        ok: false,
+        reason: 'route transcript does not match route plan',
+        expectedHash: expected.hash,
+        actualHash: transcript.hash
+      };
+    }
+  }
+
+  return { ok: true, hash: transcript.hash };
+}
+
 function normalizeObjectList(value, fieldName) {
   if (!value) return [];
   if (Array.isArray(value)) return value;
@@ -865,6 +957,7 @@ function verifyTradeLayerSendStateOracleRoute(stateOracleBlob, options = {}) {
     selectedSendId: oracleCommitment.selectedSendId,
     selectedSendTxid: oracleCommitment.selectedSendTxid,
     planHash: routePlan.planHash,
+    routeTranscriptHash: buildTradeLayerSendRouteTranscript(routePlan).hash,
     oracleSignature
   };
 }
@@ -875,6 +968,8 @@ module.exports = {
   sha256Hex,
   addressToScriptPubKey,
   computeTradeLayerPlanHash,
+  buildTradeLayerSendRouteTranscript,
+  verifyTradeLayerSendRouteTranscript,
   buildTradeLayerSendOracleCommitment,
   buildTradeLayerSendOracleSigningPayload,
   verifyTradeLayerSendOracleSignature,
