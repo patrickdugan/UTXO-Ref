@@ -4,17 +4,24 @@ const {
   buildTradeLayerSendOracleCommitment,
   buildTradeLayerSendIntentFromStateOracle,
   buildTradeLayerSendRoutePlan,
-  buildTradeLayerPnlCommitment
+  buildTradeLayerPnlCommitment,
+  buildTradeLayerSendRouteTranscript
 } = require('./tradelayer_pnl_route_adapter');
 
 const CHALLENGE_TYPES = [
+  'invalid_tx_type',
+  'malformed_payload',
+  'wrong_sender_balance',
   'bad_send_inclusion',
   'invalid_send_omission',
   'bad_dlc_funder_mapping',
   'bad_ratio_arithmetic',
+  'wrong_utxoref_output',
   'wrong_destination',
   'wrong_fee',
-  'wrong_refund_remainder'
+  'wrong_refund_remainder',
+  'stale_oracle_snapshot',
+  'wrong_payout_root'
 ];
 
 function cloneJson(value) {
@@ -53,6 +60,11 @@ function resolveSkippedInvalidSend(stateOracleBlob, options = {}) {
   return skipped.find((entry) => /invalid|insufficient|rejected|failed|consensus/i.test(String(entry.reason || ''))) || null;
 }
 
+function resolveSkippedByReason(stateOracleBlob, pattern) {
+  const skipped = stateOracleBlob?.source?.skipped || [];
+  return skipped.find((entry) => pattern.test(String(entry.reason || ''))) || null;
+}
+
 function wrongDestinationFor(routePlan) {
   const expected = routePlan.resolvedDestinationAddress;
   const oracleAddress = routePlan.oracleAddress;
@@ -67,6 +79,7 @@ function wrongDestinationFor(routePlan) {
 
 function buildBinding(stateOracleBlob, routePlan, commitmentBundle, options = {}) {
   const oracleCommitment = buildTradeLayerSendOracleCommitment(stateOracleBlob, options);
+  const routeTranscript = buildTradeLayerSendRouteTranscript(routePlan, { commitmentBundle });
   return {
     oracleBlobHash: oracleCommitment.oracleBlobHash,
     selectedSendHash: oracleCommitment.sendRecordHash,
@@ -74,6 +87,7 @@ function buildBinding(stateOracleBlob, routePlan, commitmentBundle, options = {}
     selectedSendId: oracleCommitment.selectedSendId,
     selectedSendTxid: oracleCommitment.selectedSendTxid,
     routePlanHash: routePlan.planHash || null,
+    routeTranscriptHash: routeTranscript.hash,
     withdrawalRootHex: commitmentBundle.withdrawalRootHex,
     commitmentHashHex: commitmentBundle.commitmentHashHex
   };
@@ -84,6 +98,12 @@ function evaluateChallengeCore(core) {
   const claimed = core.claimed || {};
 
   switch (core.challengeType) {
+    case 'invalid_tx_type':
+      return Number(claimed.txType) !== 2 || Boolean(claimed.rejectReason);
+    case 'malformed_payload':
+      return claimed.payloadValid === false || Boolean(claimed.parseError);
+    case 'wrong_sender_balance':
+      return BigInt(toSatsText(claimed.requiredUnits, 'claimed.requiredUnits')) > BigInt(toSatsText(claimed.availableUnits, 'claimed.availableUnits'));
     case 'bad_send_inclusion':
       return claimed.sourceValid === false || Boolean(claimed.consensusRejectReason);
     case 'invalid_send_omission':
@@ -96,6 +116,10 @@ function evaluateChallengeCore(core) {
     case 'bad_ratio_arithmetic':
       return String(claimed.sendBps) !== String(expected.sendBps)
         || toSatsText(claimed.sendSats, 'claimed.sendSats') !== toSatsText(expected.sendSats, 'expected.sendSats');
+    case 'wrong_utxoref_output':
+      return claimed.inputHash !== expected.inputHash
+        || claimed.routeTranscriptHash !== expected.routeTranscriptHash
+        || claimed.outputPlanHash !== expected.outputPlanHash;
     case 'wrong_destination':
       return claimed.output?.address !== expected.output?.address
         || toSatsText(claimed.output?.sats, 'claimed.output.sats') !== toSatsText(expected.output?.sats, 'expected.output.sats');
@@ -109,6 +133,11 @@ function evaluateChallengeCore(core) {
           || claimed.output.address !== expected.output.address
           || toSatsText(claimed.output.sats, 'claimed.output.sats') !== toSatsText(expected.output.sats, 'expected.output.sats')
         );
+    case 'stale_oracle_snapshot':
+      return Number(claimed.snapshotAgeBlocks) > Number(expected.maxSnapshotAgeBlocks);
+    case 'wrong_payout_root':
+      return claimed.withdrawalRootHex !== expected.withdrawalRootHex
+        || claimed.commitmentHashHex !== expected.commitmentHashHex;
     default:
       return false;
   }
@@ -149,16 +178,71 @@ function buildChallengeEntries(stateOracleBlob, routePlan, binding, options = {}
   const sendOutput = findOutput(routePlan, 'send-to-dlc-funding-output') || findOutput(routePlan, 'send-destination');
   const refundOutput = findOutput(routePlan, 'refund-remainder');
   const badSend = resolveSkippedInvalidSend(stateOracleBlob, options);
+  const invalidType = resolveSkippedByReason(stateOracleBlob, /not tx type|wrong tx type|invalid tx type/i);
+  const malformed = resolveSkippedByReason(stateOracleBlob, /not an object|missing|malformed|parse/i);
   const wrongDestination = wrongDestinationFor(routePlan);
   const sendSats = toSatsText(routePlan.sendSats, 'routePlan.sendSats');
   const feeSats = toSatsText(routePlan.feeSats || 0, 'routePlan.feeSats');
   const residualSats = toSatsText(routePlan.residualSats || 0, 'routePlan.residualSats');
+  const depositSats = toSatsText(routePlan.dlcInput.sats, 'routePlan.dlcInput.sats');
   const wrongFeeSats = (BigInt(feeSats) + 1n).toString();
   const wrongRefundSats = refundOutput ? (BigInt(refundOutput.sats) + 1n).toString() : '1';
   const wrongSendBps = routePlan.sendBps === 10000 ? 9999 : routePlan.sendBps + 1;
   const wrongSendSats = (BigInt(sendSats) + 1n).toString();
+  const routeTranscript = buildTradeLayerSendRouteTranscript(routePlan);
+  const currentHeight = Number(options.currentHeight ?? (Number(stateOracleBlob.snapshotHeight || 0) + Number(options.maxSnapshotAgeBlocks || 144) + 1));
+  const snapshotHeight = Number(stateOracleBlob.snapshotHeight || 0);
+  const maxSnapshotAgeBlocks = Number(options.maxSnapshotAgeBlocks || 144);
 
   return [
+    makeChallenge(
+      'invalid_tx_type',
+      binding,
+      {
+        rule: 'TradeLayer send route may only use tx type 2 send records',
+        txType: 2
+      },
+      {
+        txType: invalidType?.txType ?? invalidType?.source?.txType ?? null,
+        txid: invalidType?.txid || null,
+        rejectReason: invalidType?.reason || 'not tx type 2 send'
+      },
+      {
+        source: invalidType ? 'stateOracleBlob.source.skipped' : 'template'
+      }
+    ),
+    makeChallenge(
+      'malformed_payload',
+      binding,
+      {
+        rule: 'TradeLayer send payload must parse into a sender, recipient, property id, and amount'
+      },
+      {
+        payloadValid: false,
+        txid: malformed?.txid || null,
+        parseError: malformed?.reason || 'malformed or incomplete TradeLayer send payload'
+      },
+      {
+        source: malformed ? 'stateOracleBlob.source.skipped' : 'template'
+      }
+    ),
+    makeChallenge(
+      'wrong_sender_balance',
+      binding,
+      {
+        rule: 'sender token balance must cover the selected send amount',
+        selectedSendHash: binding.selectedSendHash
+      },
+      {
+        senderAddress: routePlan.dlcInput.address || null,
+        availableUnits: '0',
+        requiredUnits: '1',
+        rejectReason: badSend?.reason || 'insufficient balance proof'
+      },
+      {
+        source: badSend ? 'stateOracleBlob.source.skipped' : 'template'
+      }
+    ),
     makeChallenge(
       'bad_send_inclusion',
       binding,
@@ -235,6 +319,30 @@ function buildChallengeEntries(stateOracleBlob, routePlan, binding, options = {}
       }
     ),
     makeChallenge(
+      'wrong_utxoref_output',
+      binding,
+      {
+        inputHash: routeTranscript.core.fundingInputHash,
+        routeTranscriptHash: routeTranscript.hash,
+        outputPlanHash: routeTranscript.core.outputPlanHash,
+        withdrawalRootHex: routeTranscript.core.withdrawalRootHex
+      },
+      {
+        inputHash: sha256Hex({
+          txid: routePlan.dlcInput.txid,
+          vout: routePlan.dlcInput.vout,
+          address: wrongDestination,
+          sats: depositSats
+        }),
+        routeTranscriptHash: routeTranscript.hash,
+        outputPlanHash: routeTranscript.core.outputPlanHash,
+        withdrawalRootHex: routeTranscript.core.withdrawalRootHex
+      },
+      {
+        source: 'UTXORef funding input and route transcript'
+      }
+    ),
+    makeChallenge(
       'wrong_destination',
       binding,
       {
@@ -287,6 +395,38 @@ function buildChallengeEntries(stateOracleBlob, routePlan, binding, options = {}
       },
       {
         formula: 'refundSats = depositSats - sendSats - feeSats'
+      }
+    ),
+    makeChallenge(
+      'stale_oracle_snapshot',
+      binding,
+      {
+        snapshotHeight,
+        currentHeight,
+        maxSnapshotAgeBlocks
+      },
+      {
+        snapshotHeight,
+        currentHeight,
+        snapshotAgeBlocks: Math.max(0, currentHeight - snapshotHeight)
+      },
+      {
+        source: 'state oracle freshness policy'
+      }
+    ),
+    makeChallenge(
+      'wrong_payout_root',
+      binding,
+      {
+        withdrawalRootHex: routeTranscript.core.withdrawalRootHex,
+        commitmentHashHex: routeTranscript.core.commitmentHashHex
+      },
+      {
+        withdrawalRootHex: '00'.repeat(32),
+        commitmentHashHex: routeTranscript.core.commitmentHashHex
+      },
+      {
+        source: 'UTXORef payout root'
       }
     )
   ];

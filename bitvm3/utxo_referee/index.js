@@ -63,6 +63,7 @@ const tradeLayerSendFraudChallenges = require('./tradelayer_send_fraud_challenge
 const tradeLayerSendFlowModel = require('./tradelayer_send_flow_model');
 const tradeLayerSendPolicy = require('./tradelayer_send_policy');
 const tradeLayerSendRpcSweep = require('./tradelayer_send_rpc_sweep');
+const tradeLayerSendWatchtower = require('./tradelayer_send_watchtower');
 
 module.exports = {
   // Types
@@ -249,6 +250,8 @@ module.exports = {
   preflightTradeLayerSendRpcSweep: tradeLayerSendRpcSweep.preflightTradeLayerSendRpcSweep,
   executeTradeLayerSendRpcSweep: tradeLayerSendRpcSweep.executeTradeLayerSendRpcSweep,
   attachTradeLayerSendRpcSweepToPlan: tradeLayerSendRpcSweep.attachRpcSweepToSweepPlan,
+  buildTradeLayerSendWatchtowerReport: tradeLayerSendWatchtower.buildTradeLayerSendWatchtowerReport,
+  verifyTradeLayerSendWatchtowerReport: tradeLayerSendWatchtower.verifyTradeLayerSendWatchtowerReport,
   resolvePipelineOptions: m1Pipeline.resolvePipelineOptions,
   buildPipelinePlan: m1Pipeline.buildPipelinePlan,
   buildPipelineSummary: m1Pipeline.buildPipelineSummary,
@@ -290,5 +293,6 @@ module.exports = {
   tradeLayerSendFraudChallenges,
   tradeLayerSendFlowModel,
   tradeLayerSendPolicy,
-  tradeLayerSendRpcSweep
+  tradeLayerSendRpcSweep,
+  tradeLayerSendWatchtower
 };

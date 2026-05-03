@@ -37,6 +37,10 @@ const {
   executeTradeLayerSendRpcSweep,
   attachRpcSweepToSweepPlan
 } = require('./tradelayer_send_rpc_sweep');
+const {
+  buildTradeLayerSendWatchtowerReport,
+  verifyTradeLayerSendWatchtowerReport
+} = require('./tradelayer_send_watchtower');
 
 const ARTIFACTS_DIR = path.join(__dirname, 'artifacts');
 const DEFAULT_OUT = path.join(ARTIFACTS_DIR, 'tradelayer_send_e2e_latest.json');
@@ -225,6 +229,13 @@ function artifactHashInput(artifact) {
       failedChecks: artifact.productionPolicy.failedChecks
     },
     productionPolicyVerification: artifact.productionPolicyVerification,
+    watchtowerReport: {
+      reportHash: artifact.watchtowerReport.reportHash,
+      ok: artifact.watchtowerReport.ok,
+      action: artifact.watchtowerReport.action,
+      alertCodes: artifact.watchtowerReport.alerts.map((alert) => alert.code)
+    },
+    watchtowerVerification: artifact.watchtowerVerification,
     verification: artifact.verification
   };
 }
@@ -267,6 +278,15 @@ function buildArtifact(stateOracleBlob, cliArgs) {
     requireOracleSignature: cliArgs.requireOracleSignature
   });
   const productionPolicyVerification = verifyTradeLayerSendProductionPolicy(productionPolicy);
+  const watchtowerReport = buildTradeLayerSendWatchtowerReport({
+    stateOracleBlob,
+    routePlan,
+    sweepPlan: sweepTx,
+    fraudChallenges,
+    walletFlow,
+    productionPolicy
+  }, options);
+  const watchtowerVerification = verifyTradeLayerSendWatchtowerReport(watchtowerReport);
 
   const artifact = {
     kind: 'tradelayer_send_bitvm_e2e',
@@ -307,6 +327,8 @@ function buildArtifact(stateOracleBlob, cliArgs) {
     walletFlowVerification,
     productionPolicy,
     productionPolicyVerification,
+    watchtowerReport,
+    watchtowerVerification,
     verification
   };
 
@@ -350,6 +372,15 @@ async function attachRpcSweepIfRequested(artifact, stateOracleBlob, cliArgs) {
     observedSweep: artifact.observedSweep
   });
   artifact.walletFlowVerification = verifyTradeLayerSendWalletFlow(artifact.walletFlow);
+  artifact.watchtowerReport = buildTradeLayerSendWatchtowerReport({
+    stateOracleBlob,
+    routePlan: artifact.routePlan,
+    sweepPlan: artifact.sweepTx,
+    fraudChallenges: artifact.fraudChallenges,
+    walletFlow: artifact.walletFlow,
+    productionPolicy: artifact.productionPolicy
+  }, options);
+  artifact.watchtowerVerification = verifyTradeLayerSendWatchtowerReport(artifact.watchtowerReport);
 
   return refreshArtifactHash(artifact);
 }

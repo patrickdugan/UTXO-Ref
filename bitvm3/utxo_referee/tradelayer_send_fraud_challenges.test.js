@@ -72,6 +72,13 @@ const CONSENSUS_INPUT = {
       reason: 'insufficient balance'
     },
     {
+      txType: 3,
+      id: 'not-send',
+      txid: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+      valid: true,
+      reason: 'not tx type 2 send'
+    },
+    {
       txType: 2,
       id: 'live-send',
       txid: 'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc',
@@ -95,9 +102,10 @@ test('builds one challenge for every send-route fraud surface', () => {
     sendId: 'live-send'
   });
 
-  assertEq(bundle.challenges.length, 7);
+  assertEq(bundle.challenges.length, 13);
   assert(bundle.binding.oracleBlobHash.length === 64, 'oracle hash should be present');
   assert(bundle.binding.dlcFunderRegistryHash.length === 64, 'registry hash should be present');
+  assert(bundle.binding.routeTranscriptHash.length === 64, 'route transcript hash should be present');
   assert(bundle.challengeRoot.length === 64, 'challenge root should be present');
   assert(bundle.bundleHash.length === 64, 'bundle hash should be present');
 });
@@ -127,6 +135,7 @@ test('binds every challenge to the same oracle and registry hashes', () => {
     assertEq(challenge.challengeCore.binding.oracleBlobHash, bundle.binding.oracleBlobHash);
     assertEq(challenge.challengeCore.binding.dlcFunderRegistryHash, bundle.binding.dlcFunderRegistryHash);
     assertEq(challenge.challengeCore.binding.routePlanHash, bundle.binding.routePlanHash);
+    assertEq(challenge.challengeCore.binding.routeTranscriptHash, bundle.binding.routeTranscriptHash);
   }
 });
 
