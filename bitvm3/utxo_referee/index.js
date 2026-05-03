@@ -64,6 +64,11 @@ const tradeLayerSendFlowModel = require('./tradelayer_send_flow_model');
 const tradeLayerSendPolicy = require('./tradelayer_send_policy');
 const tradeLayerSendRpcSweep = require('./tradelayer_send_rpc_sweep');
 const tradeLayerSendWatchtower = require('./tradelayer_send_watchtower');
+const tradeLayerStateCheckpointReferee = require('./tradelayer_state_checkpoint_referee');
+const tradeLayerWithdrawalQueueReferee = require('./tradelayer_withdrawal_queue_referee');
+const tradeLayerPerpPnlReferee = require('./tradelayer_perp_pnl_referee');
+const bitvmLiquidityLeaseReferee = require('./bitvm_liquidity_lease_referee');
+const bitvmArenaSecurityReport = require('./bitvm_arena_security_report');
 
 module.exports = {
   // Types
@@ -252,6 +257,24 @@ module.exports = {
   attachTradeLayerSendRpcSweepToPlan: tradeLayerSendRpcSweep.attachRpcSweepToSweepPlan,
   buildTradeLayerSendWatchtowerReport: tradeLayerSendWatchtower.buildTradeLayerSendWatchtowerReport,
   verifyTradeLayerSendWatchtowerReport: tradeLayerSendWatchtower.verifyTradeLayerSendWatchtowerReport,
+  buildTradeLayerStateCheckpoint: tradeLayerStateCheckpointReferee.buildTradeLayerStateCheckpoint,
+  verifyTradeLayerStateCheckpoint: tradeLayerStateCheckpointReferee.verifyTradeLayerStateCheckpoint,
+  buildTradeLayerCheckpointFraudProof: tradeLayerStateCheckpointReferee.buildTradeLayerCheckpointFraudProof,
+  verifyTradeLayerCheckpointFraudProof: tradeLayerStateCheckpointReferee.verifyTradeLayerCheckpointFraudProof,
+  buildTradeLayerWithdrawalQueue: tradeLayerWithdrawalQueueReferee.buildTradeLayerWithdrawalQueue,
+  verifyTradeLayerWithdrawalQueue: tradeLayerWithdrawalQueueReferee.verifyTradeLayerWithdrawalQueue,
+  buildTradeLayerWithdrawalQueueChallenge: tradeLayerWithdrawalQueueReferee.buildTradeLayerWithdrawalQueueChallenge,
+  verifyTradeLayerWithdrawalQueueChallenge: tradeLayerWithdrawalQueueReferee.verifyTradeLayerWithdrawalQueueChallenge,
+  buildTradeLayerPerpPnlSettlement: tradeLayerPerpPnlReferee.buildTradeLayerPerpPnlSettlement,
+  verifyTradeLayerPerpPnlSettlement: tradeLayerPerpPnlReferee.verifyTradeLayerPerpPnlSettlement,
+  buildTradeLayerPerpPnlChallenge: tradeLayerPerpPnlReferee.buildTradeLayerPerpPnlChallenge,
+  verifyTradeLayerPerpPnlChallenge: tradeLayerPerpPnlReferee.verifyTradeLayerPerpPnlChallenge,
+  buildBitvmLiquidityLease: bitvmLiquidityLeaseReferee.buildBitvmLiquidityLease,
+  verifyBitvmLiquidityLease: bitvmLiquidityLeaseReferee.verifyBitvmLiquidityLease,
+  buildBitvmLiquidityLeaseChallenge: bitvmLiquidityLeaseReferee.buildBitvmLiquidityLeaseChallenge,
+  verifyBitvmLiquidityLeaseChallenge: bitvmLiquidityLeaseReferee.verifyBitvmLiquidityLeaseChallenge,
+  buildBitvmArenaSecurityReport: bitvmArenaSecurityReport.buildBitvmArenaSecurityReport,
+  verifyBitvmArenaSecurityReport: bitvmArenaSecurityReport.verifyBitvmArenaSecurityReport,
   resolvePipelineOptions: m1Pipeline.resolvePipelineOptions,
   buildPipelinePlan: m1Pipeline.buildPipelinePlan,
   buildPipelineSummary: m1Pipeline.buildPipelineSummary,
@@ -294,5 +317,10 @@ module.exports = {
   tradeLayerSendFlowModel,
   tradeLayerSendPolicy,
   tradeLayerSendRpcSweep,
-  tradeLayerSendWatchtower
+  tradeLayerSendWatchtower,
+  tradeLayerStateCheckpointReferee,
+  tradeLayerWithdrawalQueueReferee,
+  tradeLayerPerpPnlReferee,
+  bitvmLiquidityLeaseReferee,
+  bitvmArenaSecurityReport
 };
