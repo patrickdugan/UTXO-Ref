@@ -53,6 +53,7 @@ const lightningWalletIntegration = require('./lightning_wallet_integration');
 const lightningTaprootAssetsStablecoin = require('./lightning_taproot_assets_stablecoin');
 const lightningArkLiquidityGraft = require('./lightning_ark_liquidity_graft');
 const shinigamiVirtualCetArk = require('./shinigami_virtual_cet_ark');
+const aspBitvmReserveBond = require('./asp_bitvm_reserve_bond');
 const arkDlcSettlement = require('./ark_dlc_settlement');
 const arkLiquidityGraftManager = require('./ark_liquidity_graft_manager');
 const lnbtcTlusdLiquidityPatch = require('./lnbtc_tlusd_liquidity_patch');
@@ -197,6 +198,15 @@ module.exports = {
   buildShinigamiFraudCases: shinigamiVirtualCetArk.buildShinigamiFraudCases,
   buildShinigamiDashboardProof: shinigamiVirtualCetArk.buildShinigamiDashboardProof,
   writeShinigamiVirtualCetBundle: shinigamiVirtualCetArk.writeShinigamiVirtualCetBundle,
+  buildAspReserveBond: aspBitvmReserveBond.buildAspReserveBond,
+  buildAspObligationSet: aspBitvmReserveBond.buildAspObligationSet,
+  buildAspMisbehaviorClaim: aspBitvmReserveBond.buildAspMisbehaviorClaim,
+  buildAspReserveZkReceipt: aspBitvmReserveBond.buildAspReserveZkReceipt,
+  buildBitvmReserveChallenge: aspBitvmReserveBond.buildBitvmReserveChallenge,
+  buildAspBitvmReserveBundle: aspBitvmReserveBond.buildAspBitvmReserveBundle,
+  verifyAspBitvmReserveBundle: aspBitvmReserveBond.verifyAspBitvmReserveBundle,
+  buildAspReserveDashboardProof: aspBitvmReserveBond.buildAspReserveDashboardProof,
+  writeAspBitvmReserveBundle: aspBitvmReserveBond.writeAspBitvmReserveBundle,
   buildArkDlcContract: arkDlcSettlement.buildArkDlcContract,
   buildVirtualCetSet: arkDlcSettlement.buildVirtualCetSet,
   buildArkDlcSettlement: arkDlcSettlement.buildArkDlcSettlement,
@@ -328,6 +338,7 @@ module.exports = {
   lightningTaprootAssetsStablecoin,
   lightningArkLiquidityGraft,
   shinigamiVirtualCetArk,
+  aspBitvmReserveBond,
   arkDlcSettlement,
   arkLiquidityGraftManager,
   lnbtcTlusdLiquidityPatch,

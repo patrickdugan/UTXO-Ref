@@ -1444,6 +1444,65 @@ th {
   margin-top: 8px;
 }
 
+.asp-reserve-panel {
+  border-left: 5px solid var(--red);
+}
+
+.asp-reserve {
+  display: grid;
+  gap: 12px;
+}
+
+.reserve-flow,
+.reserve-grid,
+.reserve-obligations {
+  display: grid;
+  gap: 8px;
+}
+
+.reserve-flow {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.reserve-grid {
+  grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
+}
+
+.reserve-card,
+.reserve-obligation {
+  border: 1px solid var(--line);
+  background: #fbfdfc;
+  padding: 10px;
+  min-width: 0;
+}
+
+.reserve-card > strong,
+.reserve-obligation strong,
+.reserve-obligation span,
+.reserve-obligation small,
+.reserve-obligation code {
+  display: block;
+}
+
+.reserve-card > strong {
+  margin-bottom: 8px;
+}
+
+.reserve-obligation {
+  border-left: 4px solid var(--green);
+}
+
+.reserve-obligation.active {
+  border-left-color: var(--red);
+  background: #fffafa;
+}
+
+.reserve-obligation code {
+  margin-top: 6px;
+  color: var(--green-dark);
+  overflow-wrap: anywhere;
+}
+
 .status.local {
   background: var(--blue);
 }
@@ -1512,6 +1571,8 @@ dialog::backdrop {
   .shinigami-hero-grid,
   .shinigami-flow-cards,
   .fraud-matrix,
+  .reserve-flow,
+  .reserve-grid,
   .metric-grid,
   .metric-grid.wide {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1557,6 +1618,8 @@ dialog::backdrop {
   .shinigami-hero-grid,
   .shinigami-flow-cards,
   .fraud-matrix,
+  .reserve-flow,
+  .reserve-grid,
   .metric-grid,
   .metric-grid.wide,
   .control-grid,

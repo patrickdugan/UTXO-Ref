@@ -21,5 +21,13 @@ assert.ok(projection.publicInputs.includes('ark_leaf_root'));
 assert.ok(projection.publicInputs.includes('payout_root'));
 assert.ok(projection.fraudMatrix.some(item => item.id === 'stale-oracle'));
 assert.ok(projection.fraudMatrix.some(item => item.id === 'asp-route-mismatch'));
+assert.equal(proof.reserveProof.kind, 'asp_bitvm_reserve_dashboard_proof');
+assert.equal(proof.reserveProof.verification.ok, true);
+assert.equal(projection.reserveBond.summary.reserveAmountSats, '1000000');
+assert.equal(projection.reserveBond.summary.selectedViolation, 'delivered_below_signed_minimum');
+assert.equal(projection.reserveBond.summary.claimedSlashSats, '60000');
+assert.equal(projection.reserveBond.summary.slashable, true);
+assert.equal(projection.reserveBond.obligations.length, 4);
+assert.ok(projection.reserveBond.publicInputs.includes('reserve_outpoint'));
 
 console.log('wallet-dashboard-vercel shinigami proof ok');

@@ -21,6 +21,71 @@ function loadUtxoRefShinigami() {
   return null;
 }
 
+function loadUtxoRefAspReserve() {
+  const candidates = [
+    path.resolve(__dirname, '..', '..', '..', 'bitvm3', 'utxo_referee', 'asp_bitvm_reserve_bond'),
+    path.resolve(process.cwd(), '..', '..', 'bitvm3', 'utxo_referee', 'asp_bitvm_reserve_bond')
+  ];
+
+  for (const candidate of candidates) {
+    try {
+      return require(candidate);
+    } catch (err) {
+      if (err.code !== 'MODULE_NOT_FOUND') throw err;
+    }
+  }
+  return null;
+}
+
+function fallbackReserveProjection() {
+  const reserveId = sha256Hex('dashboard-fallback-asp-reserve');
+  const obligationRoot = sha256Hex('dashboard-fallback-obligation-root');
+  const claimId = sha256Hex('dashboard-fallback-reserve-claim');
+  const challengeId = sha256Hex('dashboard-fallback-reserve-challenge');
+  return {
+    title: 'ASP BitVM Reserve',
+    headline: 'The ASP posts a Bitcoin reserve bond; Shinigami compresses misbehavior proofs; BitVM decides the slash path.',
+    summary: {
+      reserveId,
+      reserveOutpoint: `${sha256Hex('fallback-reserve-outpoint')}:0`,
+      aspId: 'ark-asp-shinigami-demo',
+      reserveAmountSats: '1000000',
+      obligationCount: 4,
+      obligationRoot,
+      selectedViolation: 'delivered_below_signed_minimum',
+      claimedSlashSats: '60000',
+      challengeId,
+      receiptId: sha256Hex('dashboard-fallback-reserve-receipt'),
+      slashable: true
+    },
+    flow: [
+      { id: 'reserve-lock', label: 'Reserve lock', detail: 'ASP locks a Taproot reserve spendable by cooperative refund or BitVM slash leaf.', commitment: reserveId },
+      { id: 'signed-obligations', label: 'Signed obligations', detail: 'Ark roots, LN liquidity promises, virtual CET payout, and exit availability share one obligation root.', commitment: obligationRoot },
+      { id: 'zk-fraud-call', label: 'ZK fraud call', detail: 'A compact public claim names the violated obligation and claimed slash amount.', commitment: claimId },
+      { id: 'bitvm-slash', label: 'BitVM slash', detail: 'The challenge path pays harmed users and watcher bounty from the reserve.', commitment: challengeId }
+    ],
+    obligations: [
+      { type: 'ark-vtxo-root', subjectId: 'ark-round-shinigami-virtual-cet-1', promisedState: 'root', observedState: 'root', inferredViolation: 'none', maxLossSats: '0' },
+      { type: 'ln-liquidity-delivery', subjectId: 'ln-route-graft-batch-1', promisedState: '250000', observedState: '190000', inferredViolation: 'delivered_below_signed_minimum', maxLossSats: '60000' },
+      { type: 'virtual-cet-settlement', subjectId: 'virtual-cet', promisedState: 'payout-root', observedState: 'payout-root', inferredViolation: 'none', maxLossSats: '100000' },
+      { type: 'exit-availability', subjectId: 'exit-window', promisedState: 'exit-within-144-blocks', observedState: 'exit-within-144-blocks', inferredViolation: 'none', maxLossSats: '100000' }
+    ],
+    proofStatement: {
+      claimId,
+      receiptId: sha256Hex('dashboard-fallback-reserve-receipt'),
+      publicInputRoot: sha256Hex('dashboard-fallback-reserve-public-input'),
+      witnessDigest: sha256Hex('dashboard-fallback-reserve-witness'),
+      zkProgram: 'shinigami_asp_reserve_fraud_claim_v1',
+      claimedSlashSats: '60000',
+      beneficiarySats: '57000',
+      watcherBountySats: '3000',
+      aspRefundSats: '940000'
+    },
+    publicInputs: ['reserve_outpoint', 'obligation_root', 'obligation_id', 'public_input_root', 'claimed_slash_sats'],
+    caveats: ['The reserve is externally locked Bitcoin collateral, not an ASP database balance.']
+  };
+}
+
 function fallbackProjection() {
   const bundleId = sha256Hex('dashboard-fallback-shinigami-bundle');
   const claimId = sha256Hex('dashboard-fallback-shinigami-claim');
@@ -101,12 +166,13 @@ function fallbackProjection() {
         slashable: true
       })),
       publicInputs: ['contract_commitment_id', 'oracle_outcome_hash', 'ark_leaf_root', 'selected_leaf_hash', 'payout_root', 'amount_sats'],
-      caveats: ['Deterministic receipt only: this is not a live STWO proof yet.']
+      caveats: ['Deterministic receipt only: this is not a live STWO proof yet.'],
+      reserveBond: fallbackReserveProjection()
     }
   };
 }
 
-function compactProof(proof) {
+function compactProof(proof, reserveProof = null) {
   return {
     kind: proof.kind,
     generatedAt: proof.generatedAt,
@@ -115,7 +181,19 @@ function compactProof(proof) {
     bundleId: proof.bundleId,
     claimId: proof.claimId,
     receiptId: proof.receiptId,
-    projection: proof.projection,
+    projection: {
+      ...proof.projection,
+      reserveBond: reserveProof ? reserveProof.projection : fallbackReserveProjection()
+    },
+    reserveProof: reserveProof && {
+      kind: reserveProof.kind,
+      source: reserveProof.source,
+      verification: reserveProof.verification,
+      bundleId: reserveProof.bundleId,
+      reserveId: reserveProof.reserveId,
+      claimId: reserveProof.claimId,
+      challengeId: reserveProof.challengeId
+    },
     bundleCore: proof.bundle && proof.bundle.bundleCore
   };
 }
@@ -123,11 +201,19 @@ function compactProof(proof) {
 function buildDashboardShinigamiProof() {
   const helper = loadUtxoRefShinigami();
   if (!helper) return fallbackProjection();
+  const reserveHelper = loadUtxoRefAspReserve();
+  const reserveProof = reserveHelper
+    ? reserveHelper.buildAspReserveDashboardProof({
+        outcomeCount: 17,
+        generatedAt: '2026-05-05T00:00:00.000Z'
+      })
+    : null;
   return compactProof(
     helper.buildShinigamiDashboardProof({
       outcomeCount: 17,
       generatedAt: '2026-05-05T00:00:00.000Z'
-    })
+    }),
+    reserveProof
   );
 }
 

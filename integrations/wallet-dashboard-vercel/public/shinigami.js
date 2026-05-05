@@ -138,6 +138,60 @@ function renderFraudMatrix(projection) {
   `).join('');
 }
 
+function renderAspReserve(projection) {
+  const reserve = projection.reserveBond;
+  if (!reserve) return;
+  const summary = reserve.summary;
+  const proof = reserve.proofStatement;
+  const flowCards = reserve.flow.map((item, index) => `
+    <article class="shinigami-flow-card">
+      <span>${index + 1}</span>
+      <strong>${escapeHtml(item.label)}</strong>
+      <small>${escapeHtml(item.detail)}</small>
+      <code>${escapeHtml(short(item.commitment))}</code>
+    </article>
+  `).join('');
+  const obligationRows = reserve.obligations.map(item => `
+    <div class="reserve-obligation ${item.inferredViolation === 'none' ? '' : 'active'}">
+      <strong>${escapeHtml(item.type)}</strong>
+      <span>${escapeHtml(item.subjectId)}</span>
+      <small>${escapeHtml(short(item.promisedState))} -> ${escapeHtml(short(item.observedState))}</small>
+      <code>${escapeHtml(item.inferredViolation)}</code>
+    </div>
+  `).join('');
+
+  $('aspReserveBond').innerHTML = `
+    <div class="shinigami-hero-grid">
+      ${[
+        metric('Reserve', sats(summary.reserveAmountSats), escapeHtml(short(summary.reserveOutpoint))),
+        metric('Obligations', summary.obligationCount.toLocaleString(), escapeHtml(short(summary.obligationRoot))),
+        metric('Slash claim', sats(summary.claimedSlashSats), escapeHtml(summary.selectedViolation)),
+        metric('Challenge', summary.slashable ? 'slashable' : 'watch', escapeHtml(short(summary.challengeId)))
+      ].join('')}
+    </div>
+    <div class="reserve-flow">${flowCards}</div>
+    <div class="reserve-grid">
+      <div class="reserve-card">
+        <strong>Signed Obligation Set</strong>
+        <div class="reserve-obligations">${obligationRows}</div>
+      </div>
+      <div class="reserve-card">
+        <strong>Reserve Spend Result</strong>
+        <div class="detail-list">
+          ${[
+            detailRow('Claim id', `<code>${escapeHtml(short(proof.claimId))}</code>`),
+            detailRow('Receipt id', `<code>${escapeHtml(short(proof.receiptId))}</code>`),
+            detailRow('ZK program', `<code>${escapeHtml(proof.zkProgram)}</code>`),
+            detailRow('Beneficiary', sats(proof.beneficiarySats)),
+            detailRow('Watcher bounty', sats(proof.watcherBountySats)),
+            detailRow('ASP refund', sats(proof.aspRefundSats))
+          ].join('')}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 function renderInputs(projection) {
   $('shinigamiInputs').innerHTML = projection.publicInputs.map(codeRow).join('');
   $('shinigamiCaveats').innerHTML = projection.caveats.map(item => `<div class="readout-item"><span>${escapeHtml(item)}</span></div>`).join('');
@@ -150,6 +204,7 @@ function render(proof) {
   renderProofStatement(proof.projection);
   renderCompression(proof.projection);
   renderFraudMatrix(proof.projection);
+  renderAspReserve(proof.projection);
   renderInputs(proof.projection);
 }
 

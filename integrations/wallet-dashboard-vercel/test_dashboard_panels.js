@@ -141,11 +141,13 @@ async function main() {
       'shinigamiProofStatement',
       'shinigamiCompression',
       'shinigamiFraudMatrix',
+      'aspReserveBond',
       'shinigamiInputs'
     ]) {
       assertMount(shinigamiHtml, id);
     }
     assert.match(shinigamiScript, /renderFraudMatrix/, 'missing fraud matrix renderer');
+    assert.match(shinigamiScript, /renderAspReserve/, 'missing ASP reserve renderer');
     assert.match(shinigamiScript, /\/api\/shinigami-proof/, 'missing Shinigami proof endpoint fetch');
     assert.equal(shinigamiProof.kind, 'shinigami_virtual_cet_dashboard_proof');
     assert.equal(shinigamiProof.verification.ok, true);
@@ -154,6 +156,11 @@ async function main() {
     assert.equal(shinigamiProof.projection.flow.length, 4);
     assert.equal(shinigamiProof.projection.compression.onchainCetTxidsPublished, 0);
     assert.ok(shinigamiProof.projection.fraudMatrix.some(item => item.id === 'asp-route-mismatch'), 'missing ASP route fraud case');
+    assert.equal(shinigamiProof.reserveProof.verification.ok, true);
+    assert.equal(shinigamiProof.projection.reserveBond.summary.selectedViolation, 'delivered_below_signed_minimum');
+    assert.equal(shinigamiProof.projection.reserveBond.summary.claimedSlashSats, '60000');
+    assert.equal(shinigamiProof.projection.reserveBond.summary.slashable, true);
+    assert.equal(shinigamiProof.projection.reserveBond.obligations.length, 4);
   });
 
   console.log(`panel data smoke test ok: ${BASE_URL}`);
