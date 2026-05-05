@@ -1,0 +1,2841 @@
+{
+  "kind": "shinigami_virtual_cet_dashboard_proof",
+  "generatedAt": "2026-05-05T00:00:00.000Z",
+  "source": "utxoref-shinigami-virtual-cet-ark",
+  "verification": {
+    "ok": true
+  },
+  "bundleId": "fbfd874251a91cf2523b7c560e294282082ba65fbb534a76551fa778305518ba",
+  "claimId": "750dfac481a6c15f4f194a71b4c253d9f69a956ec3f5d8d168aeefb31a9ee87b",
+  "receiptId": "c0bd85d21680425bf074257067a5706bc12fd4cb8d2e7ff61a239969ebc8c5d0",
+  "projection": {
+    "title": "Shinigami Virtual CETs",
+    "headline": "Ark carries the CET fanout as virtual leaves; Shinigami proves the selected leaf and payout root.",
+    "summary": {
+      "contractId": "shinigami-ark-dlc-btcusd-1",
+      "bundleId": "fbfd874251a91cf2523b7c560e294282082ba65fbb534a76551fa778305518ba",
+      "oracleEventId": "btc-usd-shinigami-expiry-1",
+      "arkRoundId": "ark-round-shinigami-virtual-cet-1",
+      "virtualCetCount": 17,
+      "materializedCetCount": 0,
+      "selectedOutcomeId": "btc_usd_at_entry",
+      "proofStatus": "accepted-scaffold"
+    },
+    "flow": [
+      {
+        "id": "dlc-outcomes",
+        "label": "DLC outcome grid",
+        "detail": "17 possible CET outcomes are committed by hash.",
+        "commitment": "aecf65945ba884e209b37116603e9ddfcb60de4bba1cef0326e9b9c7ff52c23c"
+      },
+      {
+        "id": "ark-virtual-leaves",
+        "label": "Ark virtual leaves",
+        "detail": "Each outcome becomes a VTXO leaf instead of an on-chain CET transaction.",
+        "commitment": "29fb5abf448011e29953be786467aac70c2584807fa113820b2720eaf8a67fdb"
+      },
+      {
+        "id": "shinigami-claim",
+        "label": "Shinigami claim",
+        "detail": "The public claim binds oracle outcome, selected leaf, payout root, and Ark round.",
+        "commitment": "750dfac481a6c15f4f194a71b4c253d9f69a956ec3f5d8d168aeefb31a9ee87b"
+      },
+      {
+        "id": "bitvm-challenge",
+        "label": "BitVM/UTXORef challenge",
+        "detail": "Fraud cases decide whether the ASP exits cooperatively or gets slashed.",
+        "commitment": "c0bd85d21680425bf074257067a5706bc12fd4cb8d2e7ff61a239969ebc8c5d0"
+      }
+    ],
+    "proofStatement": {
+      "contractId": "shinigami-ark-dlc-btcusd-1",
+      "oracleEventId": "btc-usd-shinigami-expiry-1",
+      "arkRoundId": "ark-round-shinigami-virtual-cet-1",
+      "oracleOutcomeHash": "8c6b77d36862e23e53adb497a5d63710adbec2c16058e52e7b39e96303c5cf45",
+      "selectedLeafHash": "599653358aaaa136fd35b3899e026618e00a53052594e69550f2e9a3a08f7a3c",
+      "arkLeafRoot": "29fb5abf448011e29953be786467aac70c2584807fa113820b2720eaf8a67fdb",
+      "selectedVirtualCetId": "fcce200f2f650ede93d95642aa3bf54aad94d16f0624f013182c404c698a29cd",
+      "payoutRoot": "cff6d85cd4e3529f2f2943e476fb5e687b8c03e5c1abb65833c6b2c65037831d",
+      "claimId": "750dfac481a6c15f4f194a71b4c253d9f69a956ec3f5d8d168aeefb31a9ee87b",
+      "receiptId": "c0bd85d21680425bf074257067a5706bc12fd4cb8d2e7ff61a239969ebc8c5d0",
+      "amountSats": "100000",
+      "exitDelayBlocks": 144,
+      "materializedCetCount": 0
+    },
+    "compression": {
+      "virtualCetCount": 17,
+      "arkLeafCount": 17,
+      "materializedCetCount": 0,
+      "selectedOutcomeId": "btc_usd_at_entry",
+      "avoidedOnchainCetTxids": 17,
+      "onchainCetTxidsPublished": 0,
+      "proofReceiptStatus": "accepted-scaffold"
+    },
+    "fraudMatrix": [
+      {
+        "id": "wrong-outcome",
+        "label": "Wrong oracle outcome",
+        "challengeViolation": "selected_outcome_not_oracle_attested",
+        "publicInputs": [
+          "oracle_outcome_hash",
+          "selected_leaf_hash"
+        ],
+        "witnessCounterexample": "published oracle attestation hashes to another outcome",
+        "bitvmRemedy": "reject Ark transition and route to ASP forfeit path",
+        "slashable": true
+      },
+      {
+        "id": "wrong-payout",
+        "label": "Wrong payout root",
+        "challengeViolation": "payout_root_does_not_match_selected_leaf",
+        "publicInputs": [
+          "selected_leaf_hash",
+          "payout_root",
+          "amount_sats"
+        ],
+        "witnessCounterexample": "selected virtual CET leaf recomputes a different payout root",
+        "bitvmRemedy": "slash the signer that advanced the bad payout root",
+        "slashable": true
+      },
+      {
+        "id": "omitted-leaf",
+        "label": "Omitted Ark leaf",
+        "challengeViolation": "ark_leaf_root_omits_committed_virtual_cet",
+        "publicInputs": [
+          "virtual_cet_set_id",
+          "ark_leaf_root"
+        ],
+        "witnessCounterexample": "committed virtual CET id is missing from the Ark VTXO leaf layer",
+        "bitvmRemedy": "force exit using the committed DLC outcome set",
+        "slashable": true
+      },
+      {
+        "id": "stale-oracle",
+        "label": "Stale oracle claim",
+        "challengeViolation": "oracle_attestation_age_exceeds_policy",
+        "publicInputs": [
+          "oracle_attestation_age_blocks",
+          "max_oracle_age_blocks"
+        ],
+        "witnessCounterexample": "attestation age exceeds the DLC policy window",
+        "bitvmRemedy": "pause settlement and require a fresh oracle publication",
+        "slashable": true
+      },
+      {
+        "id": "bad-membership",
+        "label": "Bad membership proof",
+        "challengeViolation": "selected_leaf_not_in_ark_root",
+        "publicInputs": [
+          "ark_leaf_root",
+          "selected_leaf_hash"
+        ],
+        "witnessCounterexample": "Merkle path or leaf fold does not reach the committed Ark root",
+        "bitvmRemedy": "open BitVM challenge over the leaf membership circuit",
+        "slashable": true
+      },
+      {
+        "id": "asp-route-mismatch",
+        "label": "ASP route mismatch",
+        "challengeViolation": "asp_transition_not_selected_virtual_cet",
+        "publicInputs": [
+          "ark_round_id",
+          "selected_virtual_cet_id"
+        ],
+        "witnessCounterexample": "ASP advanced a VTXO transition for a different virtual CET",
+        "bitvmRemedy": "slash ASP bond or force unilateral VTXO exit",
+        "slashable": true
+      }
+    ],
+    "publicInputs": [
+      "contract_commitment_id",
+      "oracle_outcome_hash",
+      "ark_leaf_root",
+      "selected_leaf_hash",
+      "payout_root",
+      "amount_sats"
+    ],
+    "caveats": [
+      "Deterministic receipt only: this is not a live STWO proof yet.",
+      "The Ark ASP signatures, VTXO tree proof, and real Shinigami verifier are still integration targets.",
+      "The BitVM side checks the public commitments and fraud cases, not full TradeLayer consensus."
+    ]
+  },
+  "bundle": {
+    "kind": "shinigami_ark_virtual_cet_bundle",
+    "bundleId": "fbfd874251a91cf2523b7c560e294282082ba65fbb534a76551fa778305518ba",
+    "bundleCore": {
+      "version": 1,
+      "protocol": "shinigami_ark_virtual_cet_bundle",
+      "contractId": "shinigami-ark-dlc-btcusd-1",
+      "contractCommitmentId": "4ce2f70789ab440c7cb972d5b830fcdd6dde8e162cb2e3a8e151e92895d99024",
+      "oracleEventId": "btc-usd-shinigami-expiry-1",
+      "arkRoundId": "ark-round-shinigami-virtual-cet-1",
+      "virtualCetSetId": "ba0c53477b37d438ffff70e48c17f987e1133d4f2c56ed3c07aa7efaf23dcd31",
+      "arkLeafRoot": "29fb5abf448011e29953be786467aac70c2584807fa113820b2720eaf8a67fdb",
+      "selectedVirtualCetId": "fcce200f2f650ede93d95642aa3bf54aad94d16f0624f013182c404c698a29cd",
+      "selectedLeafHash": "599653358aaaa136fd35b3899e026618e00a53052594e69550f2e9a3a08f7a3c",
+      "payoutRoot": "cff6d85cd4e3529f2f2943e476fb5e687b8c03e5c1abb65833c6b2c65037831d",
+      "claimId": "750dfac481a6c15f4f194a71b4c253d9f69a956ec3f5d8d168aeefb31a9ee87b",
+      "receiptId": "c0bd85d21680425bf074257067a5706bc12fd4cb8d2e7ff61a239969ebc8c5d0",
+      "materializedCetCount": 0
+    },
+    "contractId": "shinigami-ark-dlc-btcusd-1",
+    "oracleEventId": "btc-usd-shinigami-expiry-1",
+    "arkRoundId": "ark-round-shinigami-virtual-cet-1",
+    "selectedVirtualCetId": "fcce200f2f650ede93d95642aa3bf54aad94d16f0624f013182c404c698a29cd",
+    "selectedLeafHash": "599653358aaaa136fd35b3899e026618e00a53052594e69550f2e9a3a08f7a3c",
+    "arkLeafRoot": "29fb5abf448011e29953be786467aac70c2584807fa113820b2720eaf8a67fdb",
+    "payoutRoot": "cff6d85cd4e3529f2f2943e476fb5e687b8c03e5c1abb65833c6b2c65037831d",
+    "exitDelayBlocks": 144,
+    "contract": {
+      "kind": "ark_dlc_contract_commitment",
+      "contractCommitmentId": "4ce2f70789ab440c7cb972d5b830fcdd6dde8e162cb2e3a8e151e92895d99024",
+      "contractCore": {
+        "version": 1,
+        "protocol": "ark_dlc_virtual_cet_contract",
+        "contractId": "shinigami-ark-dlc-btcusd-1",
+        "aspId": "ark-asp-shinigami-demo",
+        "templateId": "ark-dlc-template-ark-asp-shinigami-demo",
+        "arkRoundId": "ark-round-shinigami-virtual-cet-1",
+        "oracleEventId": "btc-usd-shinigami-expiry-1",
+        "oraclePubkeyHex": "3a8a923dd603b36fa250a238340afb2fa0341fc1b8e8a721c8fe868d87547852",
+        "offerParty": {
+          "name": "offer",
+          "arkAddress": "ark1-offer",
+          "collateralSats": "50000"
+        },
+        "acceptParty": {
+          "name": "accept",
+          "arkAddress": "ark1-accept",
+          "collateralSats": "50000"
+        },
+        "totalCollateralSats": "100000",
+        "outcomeCount": 17,
+        "outcomesRoot": "aecf65945ba884e209b37116603e9ddfcb60de4bba1cef0326e9b9c7ff52c23c"
+      },
+      "outcomes": [
+        {
+          "outcomeId": "btc_usd_down_2000",
+          "oracleValue": "BTCUSD=63000",
+          "offerPayoutSats": "100000",
+          "acceptPayoutSats": "0"
+        },
+        {
+          "outcomeId": "btc_usd_down_1750",
+          "oracleValue": "BTCUSD=63250",
+          "offerPayoutSats": "93750",
+          "acceptPayoutSats": "6250"
+        },
+        {
+          "outcomeId": "btc_usd_down_1500",
+          "oracleValue": "BTCUSD=63500",
+          "offerPayoutSats": "87500",
+          "acceptPayoutSats": "12500"
+        },
+        {
+          "outcomeId": "btc_usd_down_1250",
+          "oracleValue": "BTCUSD=63750",
+          "offerPayoutSats": "81250",
+          "acceptPayoutSats": "18750"
+        },
+        {
+          "outcomeId": "btc_usd_down_1000",
+          "oracleValue": "BTCUSD=64000",
+          "offerPayoutSats": "75000",
+          "acceptPayoutSats": "25000"
+        },
+        {
+          "outcomeId": "btc_usd_down_750",
+          "oracleValue": "BTCUSD=64250",
+          "offerPayoutSats": "68750",
+          "acceptPayoutSats": "31250"
+        },
+        {
+          "outcomeId": "btc_usd_down_500",
+          "oracleValue": "BTCUSD=64500",
+          "offerPayoutSats": "62500",
+          "acceptPayoutSats": "37500"
+        },
+        {
+          "outcomeId": "btc_usd_down_250",
+          "oracleValue": "BTCUSD=64750",
+          "offerPayoutSats": "56250",
+          "acceptPayoutSats": "43750"
+        },
+        {
+          "outcomeId": "btc_usd_at_entry",
+          "oracleValue": "BTCUSD=65000",
+          "offerPayoutSats": "50000",
+          "acceptPayoutSats": "50000"
+        },
+        {
+          "outcomeId": "btc_usd_up_250",
+          "oracleValue": "BTCUSD=65250",
+          "offerPayoutSats": "43750",
+          "acceptPayoutSats": "56250"
+        },
+        {
+          "outcomeId": "btc_usd_up_500",
+          "oracleValue": "BTCUSD=65500",
+          "offerPayoutSats": "37500",
+          "acceptPayoutSats": "62500"
+        },
+        {
+          "outcomeId": "btc_usd_up_750",
+          "oracleValue": "BTCUSD=65750",
+          "offerPayoutSats": "31250",
+          "acceptPayoutSats": "68750"
+        },
+        {
+          "outcomeId": "btc_usd_up_1000",
+          "oracleValue": "BTCUSD=66000",
+          "offerPayoutSats": "25000",
+          "acceptPayoutSats": "75000"
+        },
+        {
+          "outcomeId": "btc_usd_up_1250",
+          "oracleValue": "BTCUSD=66250",
+          "offerPayoutSats": "18750",
+          "acceptPayoutSats": "81250"
+        },
+        {
+          "outcomeId": "btc_usd_up_1500",
+          "oracleValue": "BTCUSD=66500",
+          "offerPayoutSats": "12500",
+          "acceptPayoutSats": "87500"
+        },
+        {
+          "outcomeId": "btc_usd_up_1750",
+          "oracleValue": "BTCUSD=66750",
+          "offerPayoutSats": "6250",
+          "acceptPayoutSats": "93750"
+        },
+        {
+          "outcomeId": "btc_usd_up_2000",
+          "oracleValue": "BTCUSD=67000",
+          "offerPayoutSats": "0",
+          "acceptPayoutSats": "100000"
+        }
+      ]
+    },
+    "virtualCetSet": {
+      "kind": "ark_virtual_cet_set",
+      "virtualCetSetId": "ba0c53477b37d438ffff70e48c17f987e1133d4f2c56ed3c07aa7efaf23dcd31",
+      "virtualCetSetCore": {
+        "version": 1,
+        "contractCommitmentId": "4ce2f70789ab440c7cb972d5b830fcdd6dde8e162cb2e3a8e151e92895d99024",
+        "virtualCetIds": [
+          "c34123b3d85a8981bb6ac4ed41d14aae758415f2ed611ca5240c1693bd175ab1",
+          "f90113e9e5f005ac9e3d369018b5a59ad870abb2316633257a0e70d64d31037c",
+          "489858cc31f948da35b33710f21fec07be25609dbbc3fb3d8acdb3d3ecc76448",
+          "702163675b99e8b97ba2347ba3de670ce5b82f87e024e844be4f0c832ddbb56a",
+          "f68173e08766d1f68c0a75416a4883fed0a4ab3a48d0ffb2ece0e5687e25da04",
+          "106efb751054678758e3b16cb5294fd763dd5f537a56b5c48e7b95d1d5a24236",
+          "3502410296d2bffa68adb7342098cc3df694f5d3983705385e800f91bf06c7c3",
+          "99ba563932c3fb863b00da5620e82e39df8885f269e0210526dc074ddf109aee",
+          "fcce200f2f650ede93d95642aa3bf54aad94d16f0624f013182c404c698a29cd",
+          "77b157d0f125f5018a4ca9fb44967d47a8be367884c44eb3718175a45811be10",
+          "226ecbc9a4fdd1bc8e15e18ce8b9c1ffd99977b8ca65cb76a9f303c4ea3ced49",
+          "50fb916c193b72991a70670f7f9b946dfc8c19bf6a64cf7263c1f8cd8be6c8c2",
+          "a41ec22206e2289e991d0fd10bdb183c939b76cf54708bc18ac217818bb83fd5",
+          "7f3e96c194adaac00e59050d88f380fda127f77b9190070488419a2f5acb3782",
+          "6351c6f15d77220999358dfafc870fcde2c297eae206a5cb3997090e44702e04",
+          "f93b7d0bfed1ebf6063fb8ee4749b38cfb5cacee9ea13f0dfdbdcaefe958e14a",
+          "30dc8a3867ba8910882e2f1e571bc5f2bd4e5f32af8c35d88bc8144ba1dba621"
+        ],
+        "noOnchainCet": true
+      },
+      "virtualCets": [
+        {
+          "kind": "ark_virtual_cet",
+          "virtualCetId": "c34123b3d85a8981bb6ac4ed41d14aae758415f2ed611ca5240c1693bd175ab1",
+          "cetCore": {
+            "version": 1,
+            "protocol": "ark_virtual_cet",
+            "contractCommitmentId": "4ce2f70789ab440c7cb972d5b830fcdd6dde8e162cb2e3a8e151e92895d99024",
+            "index": 0,
+            "outcomeId": "btc_usd_down_2000",
+            "oracleValue": "BTCUSD=63000",
+            "offerPayoutSats": "100000",
+            "acceptPayoutSats": "0",
+            "arkRoundId": "ark-round-shinigami-virtual-cet-1",
+            "aspId": "ark-asp-shinigami-demo",
+            "noOnchainCet": true
+          },
+          "arkTransitionId": "b843ef7db4ac2b2cd48102a78c42711fd962bebc8943570f07efbc94bd5adc96",
+          "hypotheticalOnchainCetTxid": "93f791f6db3e280750c9f7e7e4cfb5b16039276c3c2ef4c3f2867269509d2689"
+        },
+        {
+          "kind": "ark_virtual_cet",
+          "virtualCetId": "f90113e9e5f005ac9e3d369018b5a59ad870abb2316633257a0e70d64d31037c",
+          "cetCore": {
+            "version": 1,
+            "protocol": "ark_virtual_cet",
+            "contractCommitmentId": "4ce2f70789ab440c7cb972d5b830fcdd6dde8e162cb2e3a8e151e92895d99024",
+            "index": 1,
+            "outcomeId": "btc_usd_down_1750",
+            "oracleValue": "BTCUSD=63250",
+            "offerPayoutSats": "93750",
+            "acceptPayoutSats": "6250",
+            "arkRoundId": "ark-round-shinigami-virtual-cet-1",
+            "aspId": "ark-asp-shinigami-demo",
+            "noOnchainCet": true
+          },
+          "arkTransitionId": "90f39543fcbde3c5a5243f6fa2424e69ec143cb3cfecd095a0c44851c20db5d7",
+          "hypotheticalOnchainCetTxid": "2d45feb8cb0f27d47f859670fe614aa178bfb648b07f6fe0b4d2406dadd476e0"
+        },
+        {
+          "kind": "ark_virtual_cet",
+          "virtualCetId": "489858cc31f948da35b33710f21fec07be25609dbbc3fb3d8acdb3d3ecc76448",
+          "cetCore": {
+            "version": 1,
+            "protocol": "ark_virtual_cet",
+            "contractCommitmentId": "4ce2f70789ab440c7cb972d5b830fcdd6dde8e162cb2e3a8e151e92895d99024",
+            "index": 2,
+            "outcomeId": "btc_usd_down_1500",
+            "oracleValue": "BTCUSD=63500",
+            "offerPayoutSats": "87500",
+            "acceptPayoutSats": "12500",
+            "arkRoundId": "ark-round-shinigami-virtual-cet-1",
+            "aspId": "ark-asp-shinigami-demo",
+            "noOnchainCet": true
+          },
+          "arkTransitionId": "12f123132ae3f85708156a88497a75e023d7e9f29459d7711854f7596e5bab3e",
+          "hypotheticalOnchainCetTxid": "26d4c5c174fb9c05072655230c2e9de202c8c913ab00152602ae27cf76b5e5d3"
+        },
+        {
+          "kind": "ark_virtual_cet",
+          "virtualCetId": "702163675b99e8b97ba2347ba3de670ce5b82f87e024e844be4f0c832ddbb56a",
+          "cetCore": {
+            "version": 1,
+            "protocol": "ark_virtual_cet",
+            "contractCommitmentId": "4ce2f70789ab440c7cb972d5b830fcdd6dde8e162cb2e3a8e151e92895d99024",
+            "index": 3,
+            "outcomeId": "btc_usd_down_1250",
+            "oracleValue": "BTCUSD=63750",
+            "offerPayoutSats": "81250",
+            "acceptPayoutSats": "18750",
+            "arkRoundId": "ark-round-shinigami-virtual-cet-1",
+            "aspId": "ark-asp-shinigami-demo",
+            "noOnchainCet": true
+          },
+          "arkTransitionId": "a80903e84d3d4c240146d16dbe2162410091df43cff1f23ea6a2be30ca763a6c",
+          "hypotheticalOnchainCetTxid": "0661af006fb41df207430bac8ade26bd8fa04783ff42e6d969fb4f1e8855a39c"
+        },
+        {
+          "kind": "ark_virtual_cet",
+          "virtualCetId": "f68173e08766d1f68c0a75416a4883fed0a4ab3a48d0ffb2ece0e5687e25da04",
+          "cetCore": {
+            "version": 1,
+            "protocol": "ark_virtual_cet",
+            "contractCommitmentId": "4ce2f70789ab440c7cb972d5b830fcdd6dde8e162cb2e3a8e151e92895d99024",
+            "index": 4,
+            "outcomeId": "btc_usd_down_1000",
+            "oracleValue": "BTCUSD=64000",
+            "offerPayoutSats": "75000",
+            "acceptPayoutSats": "25000",
+            "arkRoundId": "ark-round-shinigami-virtual-cet-1",
+            "aspId": "ark-asp-shinigami-demo",
+            "noOnchainCet": true
+          },
+          "arkTransitionId": "97d3e41991bb902a659a221bfe32c8966a233809aa2ac2be2734698adb5bccba",
+          "hypotheticalOnchainCetTxid": "e8e7b576ffedfb85fcf5bf05d1cc29ff589c85906896ffa93f2b60714acc9fb9"
+        },
+        {
+          "kind": "ark_virtual_cet",
+          "virtualCetId": "106efb751054678758e3b16cb5294fd763dd5f537a56b5c48e7b95d1d5a24236",
+          "cetCore": {
+            "version": 1,
+            "protocol": "ark_virtual_cet",
+            "contractCommitmentId": "4ce2f70789ab440c7cb972d5b830fcdd6dde8e162cb2e3a8e151e92895d99024",
+            "index": 5,
+            "outcomeId": "btc_usd_down_750",
+            "oracleValue": "BTCUSD=64250",
+            "offerPayoutSats": "68750",
+            "acceptPayoutSats": "31250",
+            "arkRoundId": "ark-round-shinigami-virtual-cet-1",
+            "aspId": "ark-asp-shinigami-demo",
+            "noOnchainCet": true
+          },
+          "arkTransitionId": "5e1385893488cbe1708b590a03c35246b3346c553553fecffe1139c207687a0c",
+          "hypotheticalOnchainCetTxid": "418982f9b5648d9eea1363ee6709765ab96aea938fd3c2229b7fa1564c968a36"
+        },
+        {
+          "kind": "ark_virtual_cet",
+          "virtualCetId": "3502410296d2bffa68adb7342098cc3df694f5d3983705385e800f91bf06c7c3",
+          "cetCore": {
+            "version": 1,
+            "protocol": "ark_virtual_cet",
+            "contractCommitmentId": "4ce2f70789ab440c7cb972d5b830fcdd6dde8e162cb2e3a8e151e92895d99024",
+            "index": 6,
+            "outcomeId": "btc_usd_down_500",
+            "oracleValue": "BTCUSD=64500",
+            "offerPayoutSats": "62500",
+            "acceptPayoutSats": "37500",
+            "arkRoundId": "ark-round-shinigami-virtual-cet-1",
+            "aspId": "ark-asp-shinigami-demo",
+            "noOnchainCet": true
+          },
+          "arkTransitionId": "70b2edbbb15c3b2aeb193bace20ceb9c3a5d915a2cb4f8a6f0256769244ea5b5",
+          "hypotheticalOnchainCetTxid": "d9c23091ca9005f632e3a61959e0d3e3e457f0a5e32e8e8eb44ec4ac869a3ca4"
+        },
+        {
+          "kind": "ark_virtual_cet",
+          "virtualCetId": "99ba563932c3fb863b00da5620e82e39df8885f269e0210526dc074ddf109aee",
+          "cetCore": {
+            "version": 1,
+            "protocol": "ark_virtual_cet",
+            "contractCommitmentId": "4ce2f70789ab440c7cb972d5b830fcdd6dde8e162cb2e3a8e151e92895d99024",
+            "index": 7,
+            "outcomeId": "btc_usd_down_250",
+            "oracleValue": "BTCUSD=64750",
+            "offerPayoutSats": "56250",
+            "acceptPayoutSats": "43750",
+            "arkRoundId": "ark-round-shinigami-virtual-cet-1",
+            "aspId": "ark-asp-shinigami-demo",
+            "noOnchainCet": true
+          },
+          "arkTransitionId": "dc779158dc80608d95f2134c9a110ae364b4071d73f3e56407274a52aba5d5a7",
+          "hypotheticalOnchainCetTxid": "4e4233450e533c621dad3e262a6fa889b572798a39dd513c11d35bb33d6e79b4"
+        },
+        {
+          "kind": "ark_virtual_cet",
+          "virtualCetId": "fcce200f2f650ede93d95642aa3bf54aad94d16f0624f013182c404c698a29cd",
+          "cetCore": {
+            "version": 1,
+            "protocol": "ark_virtual_cet",
+            "contractCommitmentId": "4ce2f70789ab440c7cb972d5b830fcdd6dde8e162cb2e3a8e151e92895d99024",
+            "index": 8,
+            "outcomeId": "btc_usd_at_entry",
+            "oracleValue": "BTCUSD=65000",
+            "offerPayoutSats": "50000",
+            "acceptPayoutSats": "50000",
+            "arkRoundId": "ark-round-shinigami-virtual-cet-1",
+            "aspId": "ark-asp-shinigami-demo",
+            "noOnchainCet": true
+          },
+          "arkTransitionId": "da6418713c7d2869d266b4864698f802e1cd3e6a946055a0b337de485b1ed36d",
+          "hypotheticalOnchainCetTxid": "94641bdc5c1bfbf19b0264e65849c5e84ab4fb6ed77d37debef5ba54cc26e8b6"
+        },
+        {
+          "kind": "ark_virtual_cet",
+          "virtualCetId": "77b157d0f125f5018a4ca9fb44967d47a8be367884c44eb3718175a45811be10",
+          "cetCore": {
+            "version": 1,
+            "protocol": "ark_virtual_cet",
+            "contractCommitmentId": "4ce2f70789ab440c7cb972d5b830fcdd6dde8e162cb2e3a8e151e92895d99024",
+            "index": 9,
+            "outcomeId": "btc_usd_up_250",
+            "oracleValue": "BTCUSD=65250",
+            "offerPayoutSats": "43750",
+            "acceptPayoutSats": "56250",
+            "arkRoundId": "ark-round-shinigami-virtual-cet-1",
+            "aspId": "ark-asp-shinigami-demo",
+            "noOnchainCet": true
+          },
+          "arkTransitionId": "2f164830e716a7f525e969c4ef486001d7f165c5fe4565df4c0910fcc1b6b972",
+          "hypotheticalOnchainCetTxid": "898d94c2dee9bdb67f72fe7dc13c5a33d4b55a46960949794328541357794fd7"
+        },
+        {
+          "kind": "ark_virtual_cet",
+          "virtualCetId": "226ecbc9a4fdd1bc8e15e18ce8b9c1ffd99977b8ca65cb76a9f303c4ea3ced49",
+          "cetCore": {
+            "version": 1,
+            "protocol": "ark_virtual_cet",
+            "contractCommitmentId": "4ce2f70789ab440c7cb972d5b830fcdd6dde8e162cb2e3a8e151e92895d99024",
+            "index": 10,
+            "outcomeId": "btc_usd_up_500",
+            "oracleValue": "BTCUSD=65500",
+            "offerPayoutSats": "37500",
+            "acceptPayoutSats": "62500",
+            "arkRoundId": "ark-round-shinigami-virtual-cet-1",
+            "aspId": "ark-asp-shinigami-demo",
+            "noOnchainCet": true
+          },
+          "arkTransitionId": "b8adc876ed29a00da85b80e0c6b2d3fb50e0788f88624859af6f51a388813aa5",
+          "hypotheticalOnchainCetTxid": "16d3925bcd21263717b7434f00456af978f6664f3beb05ee9ff6388e8b2ae4dc"
+        },
+        {
+          "kind": "ark_virtual_cet",
+          "virtualCetId": "50fb916c193b72991a70670f7f9b946dfc8c19bf6a64cf7263c1f8cd8be6c8c2",
+          "cetCore": {
+            "version": 1,
+            "protocol": "ark_virtual_cet",
+            "contractCommitmentId": "4ce2f70789ab440c7cb972d5b830fcdd6dde8e162cb2e3a8e151e92895d99024",
+            "index": 11,
+            "outcomeId": "btc_usd_up_750",
+            "oracleValue": "BTCUSD=65750",
+            "offerPayoutSats": "31250",
+            "acceptPayoutSats": "68750",
+            "arkRoundId": "ark-round-shinigami-virtual-cet-1",
+            "aspId": "ark-asp-shinigami-demo",
+            "noOnchainCet": true
+          },
+          "arkTransitionId": "6d89799106e5283d3f84b05d4156d9bee0d514eab11437fe8cbd966e1fa51517",
+          "hypotheticalOnchainCetTxid": "e969d6b5a3a4885cc1f9817b0a83ecc254b754dfd0cedcb4c6a3e520a0eda1cd"
+        },
+        {
+          "kind": "ark_virtual_cet",
+          "virtualCetId": "a41ec22206e2289e991d0fd10bdb183c939b76cf54708bc18ac217818bb83fd5",
+          "cetCore": {
+            "version": 1,
+            "protocol": "ark_virtual_cet",
+            "contractCommitmentId": "4ce2f70789ab440c7cb972d5b830fcdd6dde8e162cb2e3a8e151e92895d99024",
+            "index": 12,
+            "outcomeId": "btc_usd_up_1000",
+            "oracleValue": "BTCUSD=66000",
+            "offerPayoutSats": "25000",
+            "acceptPayoutSats": "75000",
+            "arkRoundId": "ark-round-shinigami-virtual-cet-1",
+            "aspId": "ark-asp-shinigami-demo",
+            "noOnchainCet": true
+          },
+          "arkTransitionId": "ee989442a12856b1258d1444ab2dd853b96d59df9594752468ea11a329948cdb",
+          "hypotheticalOnchainCetTxid": "98224113a73049650d57c1d487c7227fdb9359c58bef8933b0409b1380a48d43"
+        },
+        {
+          "kind": "ark_virtual_cet",
+          "virtualCetId": "7f3e96c194adaac00e59050d88f380fda127f77b9190070488419a2f5acb3782",
+          "cetCore": {
+            "version": 1,
+            "protocol": "ark_virtual_cet",
+            "contractCommitmentId": "4ce2f70789ab440c7cb972d5b830fcdd6dde8e162cb2e3a8e151e92895d99024",
+            "index": 13,
+            "outcomeId": "btc_usd_up_1250",
+            "oracleValue": "BTCUSD=66250",
+            "offerPayoutSats": "18750",
+            "acceptPayoutSats": "81250",
+            "arkRoundId": "ark-round-shinigami-virtual-cet-1",
+            "aspId": "ark-asp-shinigami-demo",
+            "noOnchainCet": true
+          },
+          "arkTransitionId": "16b8f988c0348873efefc2a2657f54b295d6223a8f64a6fe8bb31e0bbcf79a47",
+          "hypotheticalOnchainCetTxid": "a3df64f54bd25be9f09a168955803751dfda9fb21ac6c17f428cf9b1a612de6b"
+        },
+        {
+          "kind": "ark_virtual_cet",
+          "virtualCetId": "6351c6f15d77220999358dfafc870fcde2c297eae206a5cb3997090e44702e04",
+          "cetCore": {
+            "version": 1,
+            "protocol": "ark_virtual_cet",
+            "contractCommitmentId": "4ce2f70789ab440c7cb972d5b830fcdd6dde8e162cb2e3a8e151e92895d99024",
+            "index": 14,
+            "outcomeId": "btc_usd_up_1500",
+            "oracleValue": "BTCUSD=66500",
+            "offerPayoutSats": "12500",
+            "acceptPayoutSats": "87500",
+            "arkRoundId": "ark-round-shinigami-virtual-cet-1",
+            "aspId": "ark-asp-shinigami-demo",
+            "noOnchainCet": true
+          },
+          "arkTransitionId": "98ed17e2826c9abae1060322462b46341b3ec796d978a6856d47021038c8ace4",
+          "hypotheticalOnchainCetTxid": "ef501f53e7eb2eea8ec1e286c63c7c9232ed0ca458f039d9528ad3df8997494d"
+        },
+        {
+          "kind": "ark_virtual_cet",
+          "virtualCetId": "f93b7d0bfed1ebf6063fb8ee4749b38cfb5cacee9ea13f0dfdbdcaefe958e14a",
+          "cetCore": {
+            "version": 1,
+            "protocol": "ark_virtual_cet",
+            "contractCommitmentId": "4ce2f70789ab440c7cb972d5b830fcdd6dde8e162cb2e3a8e151e92895d99024",
+            "index": 15,
+            "outcomeId": "btc_usd_up_1750",
+            "oracleValue": "BTCUSD=66750",
+            "offerPayoutSats": "6250",
+            "acceptPayoutSats": "93750",
+            "arkRoundId": "ark-round-shinigami-virtual-cet-1",
+            "aspId": "ark-asp-shinigami-demo",
+            "noOnchainCet": true
+          },
+          "arkTransitionId": "5f87e57fd8a982b3bef2552f61ba0a973bc839583f07ced822b1d80210c46af7",
+          "hypotheticalOnchainCetTxid": "cef3924a81198942c79531c650fab3a72b5343ab501c1b5d45435844e9dfd72d"
+        },
+        {
+          "kind": "ark_virtual_cet",
+          "virtualCetId": "30dc8a3867ba8910882e2f1e571bc5f2bd4e5f32af8c35d88bc8144ba1dba621",
+          "cetCore": {
+            "version": 1,
+            "protocol": "ark_virtual_cet",
+            "contractCommitmentId": "4ce2f70789ab440c7cb972d5b830fcdd6dde8e162cb2e3a8e151e92895d99024",
+            "index": 16,
+            "outcomeId": "btc_usd_up_2000",
+            "oracleValue": "BTCUSD=67000",
+            "offerPayoutSats": "0",
+            "acceptPayoutSats": "100000",
+            "arkRoundId": "ark-round-shinigami-virtual-cet-1",
+            "aspId": "ark-asp-shinigami-demo",
+            "noOnchainCet": true
+          },
+          "arkTransitionId": "f433b899384aac8608a98bf406e26c557be91e32e3cbf2c89c5fe6e98397230d",
+          "hypotheticalOnchainCetTxid": "25b94cdb44d9cec80f4170b6f9318f36cd2a5f7fb6dd9d21e8c00fc72d43b3ae"
+        }
+      ]
+    },
+    "selectedOutcome": {
+      "outcomeId": "btc_usd_at_entry",
+      "oracleValue": "BTCUSD=65000",
+      "offerPayoutSats": "50000",
+      "acceptPayoutSats": "50000"
+    },
+    "selectedVirtualCet": {
+      "kind": "ark_virtual_cet",
+      "virtualCetId": "fcce200f2f650ede93d95642aa3bf54aad94d16f0624f013182c404c698a29cd",
+      "cetCore": {
+        "version": 1,
+        "protocol": "ark_virtual_cet",
+        "contractCommitmentId": "4ce2f70789ab440c7cb972d5b830fcdd6dde8e162cb2e3a8e151e92895d99024",
+        "index": 8,
+        "outcomeId": "btc_usd_at_entry",
+        "oracleValue": "BTCUSD=65000",
+        "offerPayoutSats": "50000",
+        "acceptPayoutSats": "50000",
+        "arkRoundId": "ark-round-shinigami-virtual-cet-1",
+        "aspId": "ark-asp-shinigami-demo",
+        "noOnchainCet": true
+      },
+      "arkTransitionId": "da6418713c7d2869d266b4864698f802e1cd3e6a946055a0b337de485b1ed36d",
+      "hypotheticalOnchainCetTxid": "94641bdc5c1bfbf19b0264e65849c5e84ab4fb6ed77d37debef5ba54cc26e8b6"
+    },
+    "arkLeafLayer": {
+      "kind": "ark_virtual_cet_leaf_layer",
+      "arkLeafRoot": "29fb5abf448011e29953be786467aac70c2584807fa113820b2720eaf8a67fdb",
+      "layerCore": {
+        "version": 1,
+        "protocol": "ark_virtual_cet_leaf_layer",
+        "contractCommitmentId": "4ce2f70789ab440c7cb972d5b830fcdd6dde8e162cb2e3a8e151e92895d99024",
+        "virtualCetSetId": "ba0c53477b37d438ffff70e48c17f987e1133d4f2c56ed3c07aa7efaf23dcd31",
+        "leafHashes": [
+          "0653b3239fe7a952df86ba1055c6a7f54c18bde8142c92ea2e889364d9baaac9",
+          "3b6f63a89c1d3e7c1a62741491dc4ca5e7f83acdf779420fb810b80d5bedb72d",
+          "9f08fc14364102bc37a2f829e481298ad9e505ff64c76c9ec6408b3b4967fa7c",
+          "da8234f43e1e2737b45b812958c81e94c32784bdf9c1b90d785b7df1055095c5",
+          "76a18a53fc81e64bb2c1dec8151251fda9605d98d40ad334ccf49dfa4f7d5263",
+          "e960627904fb2e2f3b2e604e8de9ceab997e53f906b1b3dd612fc41846cb059a",
+          "6b1154ed1c59e7a606c6d424863231ad640f5362fde6b01827c8bef327489402",
+          "a6a7558c494df204ee3d09fa241d60457fba4b4d35b37a94246e92fb68b179ff",
+          "599653358aaaa136fd35b3899e026618e00a53052594e69550f2e9a3a08f7a3c",
+          "ed34a15728c6c1bff47ac116fd00d88c994cd5ac2dc07a1cb5daa32a28b9cb66",
+          "adcf5dce73111e0d749c9a87f25fcb83812d881bebd617d15f827b787215d905",
+          "d3a09f3b18d63ab13e6e8356ed08c7ae69ba64ab3cb5955a563bbf345f835ff0",
+          "b4e6100108abfe6bf52764460ed3f723de24b18f99a810ecf413c63a448a9b67",
+          "eac68051c50d25e1f90ae06da709cdc7d40b0699eabba14c0e5a1fb21c032630",
+          "fe74b16a103b6114ec412c3ea6dd2faadcb557039c31e4cd8bf3e3d9282b337b",
+          "fcf89338a8ad9bfce3147a4b893a8933ecc943389d07e4e95cdc63519561f48a",
+          "f423f88254aaa717cf2ec636103bafa80b95a7dca173ab713a4a0f84649290e3"
+        ]
+      },
+      "leaves": [
+        {
+          "kind": "ark_vtxo_virtual_cet_leaf",
+          "leafHash": "0653b3239fe7a952df86ba1055c6a7f54c18bde8142c92ea2e889364d9baaac9",
+          "leafCore": {
+            "version": 1,
+            "protocol": "ark_vtxo_virtual_cet_leaf",
+            "index": 0,
+            "contractCommitmentId": "4ce2f70789ab440c7cb972d5b830fcdd6dde8e162cb2e3a8e151e92895d99024",
+            "virtualCetSetId": "ba0c53477b37d438ffff70e48c17f987e1133d4f2c56ed3c07aa7efaf23dcd31",
+            "virtualCetId": "c34123b3d85a8981bb6ac4ed41d14aae758415f2ed611ca5240c1693bd175ab1",
+            "arkRoundId": "ark-round-shinigami-virtual-cet-1",
+            "aspId": "ark-asp-shinigami-demo",
+            "outcomeId": "btc_usd_down_2000",
+            "oracleValue": "BTCUSD=63000",
+            "offerPayoutSats": "100000",
+            "acceptPayoutSats": "0",
+            "materializedCetTxid": null,
+            "carriesVtxoOnly": true
+          }
+        },
+        {
+          "kind": "ark_vtxo_virtual_cet_leaf",
+          "leafHash": "3b6f63a89c1d3e7c1a62741491dc4ca5e7f83acdf779420fb810b80d5bedb72d",
+          "leafCore": {
+            "version": 1,
+            "protocol": "ark_vtxo_virtual_cet_leaf",
+            "index": 1,
+            "contractCommitmentId": "4ce2f70789ab440c7cb972d5b830fcdd6dde8e162cb2e3a8e151e92895d99024",
+            "virtualCetSetId": "ba0c53477b37d438ffff70e48c17f987e1133d4f2c56ed3c07aa7efaf23dcd31",
+            "virtualCetId": "f90113e9e5f005ac9e3d369018b5a59ad870abb2316633257a0e70d64d31037c",
+            "arkRoundId": "ark-round-shinigami-virtual-cet-1",
+            "aspId": "ark-asp-shinigami-demo",
+            "outcomeId": "btc_usd_down_1750",
+            "oracleValue": "BTCUSD=63250",
+            "offerPayoutSats": "93750",
+            "acceptPayoutSats": "6250",
+            "materializedCetTxid": null,
+            "carriesVtxoOnly": true
+          }
+        },
+        {
+          "kind": "ark_vtxo_virtual_cet_leaf",
+          "leafHash": "9f08fc14364102bc37a2f829e481298ad9e505ff64c76c9ec6408b3b4967fa7c",
+          "leafCore": {
+            "version": 1,
+            "protocol": "ark_vtxo_virtual_cet_leaf",
+            "index": 2,
+            "contractCommitmentId": "4ce2f70789ab440c7cb972d5b830fcdd6dde8e162cb2e3a8e151e92895d99024",
+            "virtualCetSetId": "ba0c53477b37d438ffff70e48c17f987e1133d4f2c56ed3c07aa7efaf23dcd31",
+            "virtualCetId": "489858cc31f948da35b33710f21fec07be25609dbbc3fb3d8acdb3d3ecc76448",
+            "arkRoundId": "ark-round-shinigami-virtual-cet-1",
+            "aspId": "ark-asp-shinigami-demo",
+            "outcomeId": "btc_usd_down_1500",
+            "oracleValue": "BTCUSD=63500",
+            "offerPayoutSats": "87500",
+            "acceptPayoutSats": "12500",
+            "materializedCetTxid": null,
+            "carriesVtxoOnly": true
+          }
+        },
+        {
+          "kind": "ark_vtxo_virtual_cet_leaf",
+          "leafHash": "da8234f43e1e2737b45b812958c81e94c32784bdf9c1b90d785b7df1055095c5",
+          "leafCore": {
+            "version": 1,
+            "protocol": "ark_vtxo_virtual_cet_leaf",
+            "index": 3,
+            "contractCommitmentId": "4ce2f70789ab440c7cb972d5b830fcdd6dde8e162cb2e3a8e151e92895d99024",
+            "virtualCetSetId": "ba0c53477b37d438ffff70e48c17f987e1133d4f2c56ed3c07aa7efaf23dcd31",
+            "virtualCetId": "702163675b99e8b97ba2347ba3de670ce5b82f87e024e844be4f0c832ddbb56a",
+            "arkRoundId": "ark-round-shinigami-virtual-cet-1",
+            "aspId": "ark-asp-shinigami-demo",
+            "outcomeId": "btc_usd_down_1250",
+            "oracleValue": "BTCUSD=63750",
+            "offerPayoutSats": "81250",
+            "acceptPayoutSats": "18750",
+            "materializedCetTxid": null,
+            "carriesVtxoOnly": true
+          }
+        },
+        {
+          "kind": "ark_vtxo_virtual_cet_leaf",
+          "leafHash": "76a18a53fc81e64bb2c1dec8151251fda9605d98d40ad334ccf49dfa4f7d5263",
+          "leafCore": {
+            "version": 1,
+            "protocol": "ark_vtxo_virtual_cet_leaf",
+            "index": 4,
+            "contractCommitmentId": "4ce2f70789ab440c7cb972d5b830fcdd6dde8e162cb2e3a8e151e92895d99024",
+            "virtualCetSetId": "ba0c53477b37d438ffff70e48c17f987e1133d4f2c56ed3c07aa7efaf23dcd31",
+            "virtualCetId": "f68173e08766d1f68c0a75416a4883fed0a4ab3a48d0ffb2ece0e5687e25da04",
+            "arkRoundId": "ark-round-shinigami-virtual-cet-1",
+            "aspId": "ark-asp-shinigami-demo",
+            "outcomeId": "btc_usd_down_1000",
+            "oracleValue": "BTCUSD=64000",
+            "offerPayoutSats": "75000",
+            "acceptPayoutSats": "25000",
+            "materializedCetTxid": null,
+            "carriesVtxoOnly": true
+          }
+        },
+        {
+          "kind": "ark_vtxo_virtual_cet_leaf",
+          "leafHash": "e960627904fb2e2f3b2e604e8de9ceab997e53f906b1b3dd612fc41846cb059a",
+          "leafCore": {
+            "version": 1,
+            "protocol": "ark_vtxo_virtual_cet_leaf",
+            "index": 5,
+            "contractCommitmentId": "4ce2f70789ab440c7cb972d5b830fcdd6dde8e162cb2e3a8e151e92895d99024",
+            "virtualCetSetId": "ba0c53477b37d438ffff70e48c17f987e1133d4f2c56ed3c07aa7efaf23dcd31",
+            "virtualCetId": "106efb751054678758e3b16cb5294fd763dd5f537a56b5c48e7b95d1d5a24236",
+            "arkRoundId": "ark-round-shinigami-virtual-cet-1",
+            "aspId": "ark-asp-shinigami-demo",
+            "outcomeId": "btc_usd_down_750",
+            "oracleValue": "BTCUSD=64250",
+            "offerPayoutSats": "68750",
+            "acceptPayoutSats": "31250",
+            "materializedCetTxid": null,
+            "carriesVtxoOnly": true
+          }
+        },
+        {
+          "kind": "ark_vtxo_virtual_cet_leaf",
+          "leafHash": "6b1154ed1c59e7a606c6d424863231ad640f5362fde6b01827c8bef327489402",
+          "leafCore": {
+            "version": 1,
+            "protocol": "ark_vtxo_virtual_cet_leaf",
+            "index": 6,
+            "contractCommitmentId": "4ce2f70789ab440c7cb972d5b830fcdd6dde8e162cb2e3a8e151e92895d99024",
+            "virtualCetSetId": "ba0c53477b37d438ffff70e48c17f987e1133d4f2c56ed3c07aa7efaf23dcd31",
+            "virtualCetId": "3502410296d2bffa68adb7342098cc3df694f5d3983705385e800f91bf06c7c3",
+            "arkRoundId": "ark-round-shinigami-virtual-cet-1",
+            "aspId": "ark-asp-shinigami-demo",
+            "outcomeId": "btc_usd_down_500",
+            "oracleValue": "BTCUSD=64500",
+            "offerPayoutSats": "62500",
+            "acceptPayoutSats": "37500",
+            "materializedCetTxid": null,
+            "carriesVtxoOnly": true
+          }
+        },
+        {
+          "kind": "ark_vtxo_virtual_cet_leaf",
+          "leafHash": "a6a7558c494df204ee3d09fa241d60457fba4b4d35b37a94246e92fb68b179ff",
+          "leafCore": {
+            "version": 1,
+            "protocol": "ark_vtxo_virtual_cet_leaf",
+            "index": 7,
+            "contractCommitmentId": "4ce2f70789ab440c7cb972d5b830fcdd6dde8e162cb2e3a8e151e92895d99024",
+            "virtualCetSetId": "ba0c53477b37d438ffff70e48c17f987e1133d4f2c56ed3c07aa7efaf23dcd31",
+            "virtualCetId": "99ba563932c3fb863b00da5620e82e39df8885f269e0210526dc074ddf109aee",
+            "arkRoundId": "ark-round-shinigami-virtual-cet-1",
+            "aspId": "ark-asp-shinigami-demo",
+            "outcomeId": "btc_usd_down_250",
+            "oracleValue": "BTCUSD=64750",
+            "offerPayoutSats": "56250",
+            "acceptPayoutSats": "43750",
+            "materializedCetTxid": null,
+            "carriesVtxoOnly": true
+          }
+        },
+        {
+          "kind": "ark_vtxo_virtual_cet_leaf",
+          "leafHash": "599653358aaaa136fd35b3899e026618e00a53052594e69550f2e9a3a08f7a3c",
+          "leafCore": {
+            "version": 1,
+            "protocol": "ark_vtxo_virtual_cet_leaf",
+            "index": 8,
+            "contractCommitmentId": "4ce2f70789ab440c7cb972d5b830fcdd6dde8e162cb2e3a8e151e92895d99024",
+            "virtualCetSetId": "ba0c53477b37d438ffff70e48c17f987e1133d4f2c56ed3c07aa7efaf23dcd31",
+            "virtualCetId": "fcce200f2f650ede93d95642aa3bf54aad94d16f0624f013182c404c698a29cd",
+            "arkRoundId": "ark-round-shinigami-virtual-cet-1",
+            "aspId": "ark-asp-shinigami-demo",
+            "outcomeId": "btc_usd_at_entry",
+            "oracleValue": "BTCUSD=65000",
+            "offerPayoutSats": "50000",
+            "acceptPayoutSats": "50000",
+            "materializedCetTxid": null,
+            "carriesVtxoOnly": true
+          }
+        },
+        {
+          "kind": "ark_vtxo_virtual_cet_leaf",
+          "leafHash": "ed34a15728c6c1bff47ac116fd00d88c994cd5ac2dc07a1cb5daa32a28b9cb66",
+          "leafCore": {
+            "version": 1,
+            "protocol": "ark_vtxo_virtual_cet_leaf",
+            "index": 9,
+            "contractCommitmentId": "4ce2f70789ab440c7cb972d5b830fcdd6dde8e162cb2e3a8e151e92895d99024",
+            "virtualCetSetId": "ba0c53477b37d438ffff70e48c17f987e1133d4f2c56ed3c07aa7efaf23dcd31",
+            "virtualCetId": "77b157d0f125f5018a4ca9fb44967d47a8be367884c44eb3718175a45811be10",
+            "arkRoundId": "ark-round-shinigami-virtual-cet-1",
+            "aspId": "ark-asp-shinigami-demo",
+            "outcomeId": "btc_usd_up_250",
+            "oracleValue": "BTCUSD=65250",
+            "offerPayoutSats": "43750",
+            "acceptPayoutSats": "56250",
+            "materializedCetTxid": null,
+            "carriesVtxoOnly": true
+          }
+        },
+        {
+          "kind": "ark_vtxo_virtual_cet_leaf",
+          "leafHash": "adcf5dce73111e0d749c9a87f25fcb83812d881bebd617d15f827b787215d905",
+          "leafCore": {
+            "version": 1,
+            "protocol": "ark_vtxo_virtual_cet_leaf",
+            "index": 10,
+            "contractCommitmentId": "4ce2f70789ab440c7cb972d5b830fcdd6dde8e162cb2e3a8e151e92895d99024",
+            "virtualCetSetId": "ba0c53477b37d438ffff70e48c17f987e1133d4f2c56ed3c07aa7efaf23dcd31",
+            "virtualCetId": "226ecbc9a4fdd1bc8e15e18ce8b9c1ffd99977b8ca65cb76a9f303c4ea3ced49",
+            "arkRoundId": "ark-round-shinigami-virtual-cet-1",
+            "aspId": "ark-asp-shinigami-demo",
+            "outcomeId": "btc_usd_up_500",
+            "oracleValue": "BTCUSD=65500",
+            "offerPayoutSats": "37500",
+            "acceptPayoutSats": "62500",
+            "materializedCetTxid": null,
+            "carriesVtxoOnly": true
+          }
+        },
+        {
+          "kind": "ark_vtxo_virtual_cet_leaf",
+          "leafHash": "d3a09f3b18d63ab13e6e8356ed08c7ae69ba64ab3cb5955a563bbf345f835ff0",
+          "leafCore": {
+            "version": 1,
+            "protocol": "ark_vtxo_virtual_cet_leaf",
+            "index": 11,
+            "contractCommitmentId": "4ce2f70789ab440c7cb972d5b830fcdd6dde8e162cb2e3a8e151e92895d99024",
+            "virtualCetSetId": "ba0c53477b37d438ffff70e48c17f987e1133d4f2c56ed3c07aa7efaf23dcd31",
+            "virtualCetId": "50fb916c193b72991a70670f7f9b946dfc8c19bf6a64cf7263c1f8cd8be6c8c2",
+            "arkRoundId": "ark-round-shinigami-virtual-cet-1",
+            "aspId": "ark-asp-shinigami-demo",
+            "outcomeId": "btc_usd_up_750",
+            "oracleValue": "BTCUSD=65750",
+            "offerPayoutSats": "31250",
+            "acceptPayoutSats": "68750",
+            "materializedCetTxid": null,
+            "carriesVtxoOnly": true
+          }
+        },
+        {
+          "kind": "ark_vtxo_virtual_cet_leaf",
+          "leafHash": "b4e6100108abfe6bf52764460ed3f723de24b18f99a810ecf413c63a448a9b67",
+          "leafCore": {
+            "version": 1,
+            "protocol": "ark_vtxo_virtual_cet_leaf",
+            "index": 12,
+            "contractCommitmentId": "4ce2f70789ab440c7cb972d5b830fcdd6dde8e162cb2e3a8e151e92895d99024",
+            "virtualCetSetId": "ba0c53477b37d438ffff70e48c17f987e1133d4f2c56ed3c07aa7efaf23dcd31",
+            "virtualCetId": "a41ec22206e2289e991d0fd10bdb183c939b76cf54708bc18ac217818bb83fd5",
+            "arkRoundId": "ark-round-shinigami-virtual-cet-1",
+            "aspId": "ark-asp-shinigami-demo",
+            "outcomeId": "btc_usd_up_1000",
+            "oracleValue": "BTCUSD=66000",
+            "offerPayoutSats": "25000",
+            "acceptPayoutSats": "75000",
+            "materializedCetTxid": null,
+            "carriesVtxoOnly": true
+          }
+        },
+        {
+          "kind": "ark_vtxo_virtual_cet_leaf",
+          "leafHash": "eac68051c50d25e1f90ae06da709cdc7d40b0699eabba14c0e5a1fb21c032630",
+          "leafCore": {
+            "version": 1,
+            "protocol": "ark_vtxo_virtual_cet_leaf",
+            "index": 13,
+            "contractCommitmentId": "4ce2f70789ab440c7cb972d5b830fcdd6dde8e162cb2e3a8e151e92895d99024",
+            "virtualCetSetId": "ba0c53477b37d438ffff70e48c17f987e1133d4f2c56ed3c07aa7efaf23dcd31",
+            "virtualCetId": "7f3e96c194adaac00e59050d88f380fda127f77b9190070488419a2f5acb3782",
+            "arkRoundId": "ark-round-shinigami-virtual-cet-1",
+            "aspId": "ark-asp-shinigami-demo",
+            "outcomeId": "btc_usd_up_1250",
+            "oracleValue": "BTCUSD=66250",
+            "offerPayoutSats": "18750",
+            "acceptPayoutSats": "81250",
+            "materializedCetTxid": null,
+            "carriesVtxoOnly": true
+          }
+        },
+        {
+          "kind": "ark_vtxo_virtual_cet_leaf",
+          "leafHash": "fe74b16a103b6114ec412c3ea6dd2faadcb557039c31e4cd8bf3e3d9282b337b",
+          "leafCore": {
+            "version": 1,
+            "protocol": "ark_vtxo_virtual_cet_leaf",
+            "index": 14,
+            "contractCommitmentId": "4ce2f70789ab440c7cb972d5b830fcdd6dde8e162cb2e3a8e151e92895d99024",
+            "virtualCetSetId": "ba0c53477b37d438ffff70e48c17f987e1133d4f2c56ed3c07aa7efaf23dcd31",
+            "virtualCetId": "6351c6f15d77220999358dfafc870fcde2c297eae206a5cb3997090e44702e04",
+            "arkRoundId": "ark-round-shinigami-virtual-cet-1",
+            "aspId": "ark-asp-shinigami-demo",
+            "outcomeId": "btc_usd_up_1500",
+            "oracleValue": "BTCUSD=66500",
+            "offerPayoutSats": "12500",
+            "acceptPayoutSats": "87500",
+            "materializedCetTxid": null,
+            "carriesVtxoOnly": true
+          }
+        },
+        {
+          "kind": "ark_vtxo_virtual_cet_leaf",
+          "leafHash": "fcf89338a8ad9bfce3147a4b893a8933ecc943389d07e4e95cdc63519561f48a",
+          "leafCore": {
+            "version": 1,
+            "protocol": "ark_vtxo_virtual_cet_leaf",
+            "index": 15,
+            "contractCommitmentId": "4ce2f70789ab440c7cb972d5b830fcdd6dde8e162cb2e3a8e151e92895d99024",
+            "virtualCetSetId": "ba0c53477b37d438ffff70e48c17f987e1133d4f2c56ed3c07aa7efaf23dcd31",
+            "virtualCetId": "f93b7d0bfed1ebf6063fb8ee4749b38cfb5cacee9ea13f0dfdbdcaefe958e14a",
+            "arkRoundId": "ark-round-shinigami-virtual-cet-1",
+            "aspId": "ark-asp-shinigami-demo",
+            "outcomeId": "btc_usd_up_1750",
+            "oracleValue": "BTCUSD=66750",
+            "offerPayoutSats": "6250",
+            "acceptPayoutSats": "93750",
+            "materializedCetTxid": null,
+            "carriesVtxoOnly": true
+          }
+        },
+        {
+          "kind": "ark_vtxo_virtual_cet_leaf",
+          "leafHash": "f423f88254aaa717cf2ec636103bafa80b95a7dca173ab713a4a0f84649290e3",
+          "leafCore": {
+            "version": 1,
+            "protocol": "ark_vtxo_virtual_cet_leaf",
+            "index": 16,
+            "contractCommitmentId": "4ce2f70789ab440c7cb972d5b830fcdd6dde8e162cb2e3a8e151e92895d99024",
+            "virtualCetSetId": "ba0c53477b37d438ffff70e48c17f987e1133d4f2c56ed3c07aa7efaf23dcd31",
+            "virtualCetId": "30dc8a3867ba8910882e2f1e571bc5f2bd4e5f32af8c35d88bc8144ba1dba621",
+            "arkRoundId": "ark-round-shinigami-virtual-cet-1",
+            "aspId": "ark-asp-shinigami-demo",
+            "outcomeId": "btc_usd_up_2000",
+            "oracleValue": "BTCUSD=67000",
+            "offerPayoutSats": "0",
+            "acceptPayoutSats": "100000",
+            "materializedCetTxid": null,
+            "carriesVtxoOnly": true
+          }
+        }
+      ]
+    },
+    "settlementEvidence": {
+      "kind": "ark_dlc_settlement_evidence",
+      "settlementId": "736483a1bf26b251fa5f5c15dba5b51462d50bf065815d094c7d1969f01ecfc5",
+      "settlementCore": {
+        "version": 1,
+        "protocol": "ark_dlc_virtual_cet_settlement",
+        "contractCommitmentId": "4ce2f70789ab440c7cb972d5b830fcdd6dde8e162cb2e3a8e151e92895d99024",
+        "virtualCetSetId": "ba0c53477b37d438ffff70e48c17f987e1133d4f2c56ed3c07aa7efaf23dcd31",
+        "selectedVirtualCetId": "fcce200f2f650ede93d95642aa3bf54aad94d16f0624f013182c404c698a29cd",
+        "oracleEventId": "btc-usd-shinigami-expiry-1",
+        "oracleOutcomeId": "btc_usd_at_entry",
+        "oracleAttestationHex": "67a9d917fa613aa2bb2fa54f6de6f831188dce0979e88156486481d7deb788e1",
+        "aspId": "ark-asp-shinigami-demo",
+        "arkRoundId": "ark-round-shinigami-virtual-cet-1",
+        "arkTransitionId": "da6418713c7d2869d266b4864698f802e1cd3e6a946055a0b337de485b1ed36d",
+        "payouts": {
+          "offer": {
+            "arkAddress": "ark1-offer",
+            "amountSats": "50000"
+          },
+          "accept": {
+            "arkAddress": "ark1-accept",
+            "amountSats": "50000"
+          }
+        },
+        "noOnchainCetBroadcast": true,
+        "avoidedOnchainCetTxid": "94641bdc5c1bfbf19b0264e65849c5e84ab4fb6ed77d37debef5ba54cc26e8b6"
+      },
+      "selectedCet": {
+        "kind": "ark_virtual_cet",
+        "virtualCetId": "fcce200f2f650ede93d95642aa3bf54aad94d16f0624f013182c404c698a29cd",
+        "cetCore": {
+          "version": 1,
+          "protocol": "ark_virtual_cet",
+          "contractCommitmentId": "4ce2f70789ab440c7cb972d5b830fcdd6dde8e162cb2e3a8e151e92895d99024",
+          "index": 8,
+          "outcomeId": "btc_usd_at_entry",
+          "oracleValue": "BTCUSD=65000",
+          "offerPayoutSats": "50000",
+          "acceptPayoutSats": "50000",
+          "arkRoundId": "ark-round-shinigami-virtual-cet-1",
+          "aspId": "ark-asp-shinigami-demo",
+          "noOnchainCet": true
+        },
+        "arkTransitionId": "da6418713c7d2869d266b4864698f802e1cd3e6a946055a0b337de485b1ed36d",
+        "hypotheticalOnchainCetTxid": "94641bdc5c1bfbf19b0264e65849c5e84ab4fb6ed77d37debef5ba54cc26e8b6"
+      },
+      "checks": {
+        "selectedCetInCommittedSet": true,
+        "attestationBindsOutcome": true,
+        "payoutSumPreservesCollateral": true,
+        "arkTransitionPresent": true,
+        "noOnchainCetBroadcast": true
+      }
+    },
+    "payoutCore": {
+      "version": 1,
+      "protocol": "shinigami_virtual_cet_payout_root",
+      "contractCommitmentId": "4ce2f70789ab440c7cb972d5b830fcdd6dde8e162cb2e3a8e151e92895d99024",
+      "selectedVirtualCetId": "fcce200f2f650ede93d95642aa3bf54aad94d16f0624f013182c404c698a29cd",
+      "selectedOutcomeId": "btc_usd_at_entry",
+      "oracleValue": "BTCUSD=65000",
+      "totalCollateralSats": "100000",
+      "payouts": {
+        "offer": {
+          "arkAddress": "ark1-offer",
+          "amountSats": "50000"
+        },
+        "accept": {
+          "arkAddress": "ark1-accept",
+          "amountSats": "50000"
+        }
+      },
+      "materializedCetCount": 0,
+      "arkVtxoSettlementOnly": true
+    },
+    "oracleAttestationHex": "67a9d917fa613aa2bb2fa54f6de6f831188dce0979e88156486481d7deb788e1",
+    "oracleAttestationAgeBlocks": 3,
+    "maxOracleAgeBlocks": 144,
+    "zkClaim": {
+      "kind": "shinigami_ark_virtual_cet_claim",
+      "claimId": "750dfac481a6c15f4f194a71b4c253d9f69a956ec3f5d8d168aeefb31a9ee87b",
+      "claimCore": {
+        "version": 1,
+        "protocol": "shinigami_ark_virtual_cet_claim",
+        "contractId": "shinigami-ark-dlc-btcusd-1",
+        "contractCommitmentId": "4ce2f70789ab440c7cb972d5b830fcdd6dde8e162cb2e3a8e151e92895d99024",
+        "oracleEventId": "btc-usd-shinigami-expiry-1",
+        "selectedOutcomeId": "btc_usd_at_entry",
+        "oracleOutcomeHash": "8c6b77d36862e23e53adb497a5d63710adbec2c16058e52e7b39e96303c5cf45",
+        "oracleAttestationHex": "67a9d917fa613aa2bb2fa54f6de6f831188dce0979e88156486481d7deb788e1",
+        "oracleAttestationAgeBlocks": 3,
+        "maxOracleAgeBlocks": 144,
+        "arkRoundId": "ark-round-shinigami-virtual-cet-1",
+        "virtualCetSetId": "ba0c53477b37d438ffff70e48c17f987e1133d4f2c56ed3c07aa7efaf23dcd31",
+        "arkLeafRoot": "29fb5abf448011e29953be786467aac70c2584807fa113820b2720eaf8a67fdb",
+        "selectedLeafHash": "599653358aaaa136fd35b3899e026618e00a53052594e69550f2e9a3a08f7a3c",
+        "selectedVirtualCetId": "fcce200f2f650ede93d95642aa3bf54aad94d16f0624f013182c404c698a29cd",
+        "payoutRoot": "cff6d85cd4e3529f2f2943e476fb5e687b8c03e5c1abb65833c6b2c65037831d",
+        "amountSats": "100000",
+        "materializedCetCount": 0,
+        "proofStatement": "The selected oracle outcome is a member of the committed Ark virtual-CET leaf set, and its payout root preserves DLC collateral without broadcasting an on-chain CET."
+      },
+      "publicInputs": [
+        "contract_commitment_id",
+        "oracle_outcome_hash",
+        "ark_leaf_root",
+        "selected_leaf_hash",
+        "payout_root",
+        "amount_sats"
+      ],
+      "cairoProgram": "ark_shinigami_virtual_cet_membership_v1"
+    },
+    "proofReceipt": {
+      "kind": "deterministic_shinigami_virtual_cet_receipt",
+      "receiptId": "c0bd85d21680425bf074257067a5706bc12fd4cb8d2e7ff61a239969ebc8c5d0",
+      "receiptCore": {
+        "version": 1,
+        "protocol": "deterministic_shinigami_virtual_cet_receipt",
+        "proofSystem": "shinigami-stwo-placeholder",
+        "verifier": "utxoref-local-deterministic-harness",
+        "status": "accepted-scaffold",
+        "claimId": "750dfac481a6c15f4f194a71b4c253d9f69a956ec3f5d8d168aeefb31a9ee87b",
+        "claimDigest": "750dfac481a6c15f4f194a71b4c253d9f69a956ec3f5d8d168aeefb31a9ee87b",
+        "proofTranscriptRoot": "851481e0618d938a894307de0f441dc0096bcf3f952cfbf27d31ad86b6cabf2f",
+        "proverExitCode": 0,
+        "verifierExitCode": 0
+      }
+    },
+    "taprootProofManifest": {
+      "kind": "ark_taproot_miniscript_proof_manifest",
+      "manifestId": "e1e7258690399c4d3ef3da6f5351d46af905893eea5caffd7f4a2c820288e654",
+      "manifestCore": {
+        "version": 1,
+        "protocol": "ark_taproot_miniscript_proof_manifest",
+        "networkPolicy": "bitcoin_taproot_policy_commitment",
+        "proofBoundary": "offchain_shinigami_stark_or_utxoref_governor",
+        "aspId": "ark-asp-shinigami-demo",
+        "templateId": "ark-dlc-template-ark-asp-shinigami-demo",
+        "arkRoundId": "ark-round-shinigami-virtual-cet-1",
+        "connectorOutpoint": "dcd3b09cf8fcf8fc1fb3275a50bde344a92de908f913b06fdbea965854263fd1:0",
+        "vtxoCommitmentId": "4c59482024281e1bd1590b1b7e4c5e1b1bda6f573f78a9592c6d0eafd78aa53f",
+        "internalKeyHex": "be981900258f0ca5a0c48890cdffe292cd444a96125688cfb4ba27d213f7f900",
+        "taprootOutputKey": "9750f177cd346dc6c9a4fa2eb4ccd24b2d2c905dafa168c22cb6bdde553c0aa3",
+        "selectedLeafRole": "dlc_virtual_cet_settlement",
+        "selectedTapLeafHash": "968824d21ba56ac1b798e73ab461e7b8871b6b83ddb631bfcc51c17601f2db9e",
+        "selectedTaprootPathCommitment": "7468d38ef4db1ca19f9acff78f914cd5ec30c4b36d9a7ecd736a0d86e76e23aa",
+        "selectedTaprootPathDepth": 3,
+        "taprootPathAlgorithm": "ark_tapbranch_v1_structural_sha256",
+        "miniscriptPolicyHash": "1c0d762af3ca28aa23c680378d2da52f93df8334f59bee0f9425be2b6c2a9390",
+        "taprootLeafRoot": "c67b3361c8a85087deb69a4fb9276d9671b4b0b3726b0fa11518d4b4ae593b2c",
+        "virtualCetSetId": "ba0c53477b37d438ffff70e48c17f987e1133d4f2c56ed3c07aa7efaf23dcd31",
+        "selectedVirtualCetId": "fcce200f2f650ede93d95642aa3bf54aad94d16f0624f013182c404c698a29cd",
+        "oracleOutcomeHash": "8c6b77d36862e23e53adb497a5d63710adbec2c16058e52e7b39e96303c5cf45",
+        "utxorefPolicyId": null,
+        "settlementRoot": "cff6d85cd4e3529f2f2943e476fb5e687b8c03e5c1abb65833c6b2c65037831d",
+        "amountSats": "100000",
+        "challengeWindowBlocks": 144,
+        "proofPackageId": "daf8d9bb8838172503f574d1028cea2bcc8dd5f1cd4a75a4b9b8c71822c08b56",
+        "publicInputDigest": "810305dcf49b4940ad10072ccea8828c367ea07b464c62c945f41799e5155d9a"
+      },
+      "taprootLeaves": [
+        {
+          "role": "cooperative_round",
+          "tapLeafHash": "4691c1d9644b78e2c3433c9487a925747708c55e9a4d1bb5599f42628b73224c",
+          "leafCore": {
+            "version": 1,
+            "role": "cooperative_round",
+            "scriptFamily": "taproot_miniscript_policy_shape",
+            "policyExpression": "and_v(v:pk(22a027ac9b17588c7ea59a67e2a23b37f08ef7347d88acc1519c27958f1409d3),pk(3bc38fa764a8f369cf08a629837bfb0d9ddb360622ce647e4d0a5bcab412229a))",
+            "requiredSigners": [
+              "asp",
+              "owner"
+            ],
+            "relativeTimelockBlocks": 0,
+            "stateBindingFields": [
+              "vtxoCommitmentId",
+              "arkRoundId",
+              "connectorOutpoint"
+            ],
+            "notes": "Cooperative Ark round refresh or spend path."
+          }
+        },
+        {
+          "role": "owner_csv_exit",
+          "tapLeafHash": "6e1f2643eb32ddd2be8c61434610158124acecf9e74b7843c0bbdf0565f51536",
+          "leafCore": {
+            "version": 1,
+            "role": "owner_csv_exit",
+            "scriptFamily": "taproot_miniscript_policy_shape",
+            "policyExpression": "and_v(v:older(144),pk(3bc38fa764a8f369cf08a629837bfb0d9ddb360622ce647e4d0a5bcab412229a))",
+            "requiredSigners": [
+              "owner"
+            ],
+            "relativeTimelockBlocks": 144,
+            "stateBindingFields": [
+              "vtxoCommitmentId",
+              "arkRoundId"
+            ],
+            "notes": "Owner unilateral exit after the Ark exit delay."
+          }
+        },
+        {
+          "role": "asp_forfeit_guard",
+          "tapLeafHash": "cf7cc44ac7b4436a100c4bd810f6c89cc008eed282e6f980078287117d1cf91d",
+          "leafCore": {
+            "version": 1,
+            "role": "asp_forfeit_guard",
+            "scriptFamily": "taproot_miniscript_policy_shape",
+            "policyExpression": "and_v(v:older(2000),pk(22a027ac9b17588c7ea59a67e2a23b37f08ef7347d88acc1519c27958f1409d3))",
+            "requiredSigners": [
+              "asp"
+            ],
+            "relativeTimelockBlocks": 2000,
+            "stateBindingFields": [
+              "vtxoCommitmentId",
+              "utxorefPolicyId"
+            ],
+            "notes": "ASP forfeit or slash guard committed for UTXORef challenge routing."
+          }
+        },
+        {
+          "role": "dlc_virtual_cet_settlement",
+          "tapLeafHash": "968824d21ba56ac1b798e73ab461e7b8871b6b83ddb631bfcc51c17601f2db9e",
+          "leafCore": {
+            "version": 1,
+            "role": "dlc_virtual_cet_settlement",
+            "scriptFamily": "taproot_miniscript_policy_shape",
+            "policyExpression": "and_v(v:pk(22a027ac9b17588c7ea59a67e2a23b37f08ef7347d88acc1519c27958f1409d3),and_v(pk(f9f08bc6af2aca06386aa343a4cb6952b6e257bf7a8533bbd1324f305024b52f),sha256(fcce200f2f650ede93d95642aa3bf54aad94d16f0624f013182c404c698a29cd)))",
+            "requiredSigners": [
+              "asp",
+              "oracle"
+            ],
+            "relativeTimelockBlocks": 0,
+            "stateBindingFields": [
+              "virtualCetSetId",
+              "selectedVirtualCetId",
+              "oracleOutcomeHash"
+            ],
+            "notes": "Virtual CET settlement path; the hashlock binds the oracle-selected Ark transition."
+          }
+        },
+        {
+          "role": "utxoref_challenge_publication",
+          "tapLeafHash": "7d4eaa52b72b3884b7a058a098b278cb8acb7373a88492797155141e5fd426a6",
+          "leafCore": {
+            "version": 1,
+            "role": "utxoref_challenge_publication",
+            "scriptFamily": "taproot_miniscript_policy_shape",
+            "policyExpression": "and_v(v:pk(a36dc37df5b0363880c1c41970885ba007a0fc026739cbd9a45346e936f5836c),sha256(cff6d85cd4e3529f2f2943e476fb5e687b8c03e5c1abb65833c6b2c65037831d))",
+            "requiredSigners": [
+              "utxoref_challenger"
+            ],
+            "relativeTimelockBlocks": 0,
+            "stateBindingFields": [
+              "utxorefPolicyId",
+              "settlementRoot",
+              "challengeWindowBlocks"
+            ],
+            "notes": "Challenge publication path for UTXORef/BitVM governor evidence."
+          }
+        }
+      ],
+      "selectedTaprootPath": {
+        "algorithm": "ark_tapbranch_v1_structural_sha256",
+        "maxDepth": 3,
+        "selectedLeafRole": "dlc_virtual_cet_settlement",
+        "selectedTapLeafHash": "968824d21ba56ac1b798e73ab461e7b8871b6b83ddb631bfcc51c17601f2db9e",
+        "taprootLeafRoot": "c67b3361c8a85087deb69a4fb9276d9671b4b0b3726b0fa11518d4b4ae593b2c",
+        "pathDepth": 3,
+        "path": [
+          {
+            "level": 0,
+            "siblingSide": "left",
+            "siblingNodeKind": "leaf",
+            "siblingRole": "asp_forfeit_guard",
+            "siblingHash": "cf7cc44ac7b4436a100c4bd810f6c89cc008eed282e6f980078287117d1cf91d"
+          },
+          {
+            "level": 1,
+            "siblingSide": "left",
+            "siblingNodeKind": "branch",
+            "siblingRole": null,
+            "siblingHash": "6165e773811d1256a5a164146365283856965213dead345d0eff0b596fbaf276"
+          },
+          {
+            "level": 2,
+            "siblingSide": "right",
+            "siblingNodeKind": "leaf",
+            "siblingRole": "utxoref_challenge_publication",
+            "siblingHash": "7d4eaa52b72b3884b7a058a098b278cb8acb7373a88492797155141e5fd426a6"
+          }
+        ],
+        "pathCommitment": "7468d38ef4db1ca19f9acff78f914cd5ec30c4b36d9a7ecd736a0d86e76e23aa"
+      },
+      "publicInputs": {
+        "taprootOutputKey": "9750f177cd346dc6c9a4fa2eb4ccd24b2d2c905dafa168c22cb6bdde553c0aa3",
+        "taprootLeafRoot": "c67b3361c8a85087deb69a4fb9276d9671b4b0b3726b0fa11518d4b4ae593b2c",
+        "selectedTapLeafHash": "968824d21ba56ac1b798e73ab461e7b8871b6b83ddb631bfcc51c17601f2db9e",
+        "selectedTaprootPathCommitment": "7468d38ef4db1ca19f9acff78f914cd5ec30c4b36d9a7ecd736a0d86e76e23aa",
+        "miniscriptPolicyHash": "1c0d762af3ca28aa23c680378d2da52f93df8334f59bee0f9425be2b6c2a9390",
+        "arkRoundId": "ark-round-shinigami-virtual-cet-1",
+        "vtxoCommitmentId": "4c59482024281e1bd1590b1b7e4c5e1b1bda6f573f78a9592c6d0eafd78aa53f",
+        "virtualCetSetId": "ba0c53477b37d438ffff70e48c17f987e1133d4f2c56ed3c07aa7efaf23dcd31",
+        "selectedVirtualCetId": "fcce200f2f650ede93d95642aa3bf54aad94d16f0624f013182c404c698a29cd",
+        "oracleOutcomeHash": "8c6b77d36862e23e53adb497a5d63710adbec2c16058e52e7b39e96303c5cf45",
+        "utxorefPolicyId": null,
+        "settlementRoot": "cff6d85cd4e3529f2f2943e476fb5e687b8c03e5c1abb65833c6b2c65037831d",
+        "amountSats": "100000"
+      },
+      "proofPackage": {
+        "kind": "ark_taproot_miniscript_proof_package",
+        "proofPackageId": "daf8d9bb8838172503f574d1028cea2bcc8dd5f1cd4a75a4b9b8c71822c08b56",
+        "proofPackageCore": {
+          "version": 1,
+          "proofSystem": "shinigami_cairo_stark_manifest",
+          "proverStatus": "manifest_only",
+          "programId": "ark-shinigami-miniscript-v1",
+          "programHash": "5ad4db1382e4debe2b6408fe1ccdfd411d1d5de22f1997e0054feacc9e8f42ad",
+          "executionTraceRoot": "ccd074806b9dcd051f08fd57e576f59c39dd111b3d154d134099a062d497608a",
+          "proofRoot": "f0b4e5f8c47b5d184d165aae3819a8e8bc8ef59ef35c8f12625ff160ec769218",
+          "publicInputDigest": "810305dcf49b4940ad10072ccea8828c367ea07b464c62c945f41799e5155d9a"
+        }
+      },
+      "checks": {
+        "selectedLeafPresent": true,
+        "taprootLeafRootMatched": true,
+        "selectedTaprootPathCommitmentMatched": true,
+        "selectedTaprootPathDepthWithinBounds": true,
+        "miniscriptPolicyHashMatched": true,
+        "publicInputDigestMatched": true,
+        "proofPackageBindsPublicInputs": true,
+        "selectedDlcLeafHasVirtualCet": true
+      },
+      "caveats": [
+        "This commits Taproot/Miniscript policy shape and a deterministic selected-leaf branch path; it does not compile descriptors or verify Bitcoin consensus scripts.",
+        "The proof package is manifest-only until the Shinigami/Stwo prover replaces proofRoot and executionTraceRoot with real outputs.",
+        "Bitcoin enforces the Taproot spend path; UTXORef/BitVM/governor logic consumes this proof manifest off-chain or in its challenge rail."
+      ]
+    },
+    "arkZkMiniscriptClaim": {
+      "kind": "ark_zk_miniscript_claim",
+      "claimId": "4b511a083dfd43e51f560ed7bb4d7f9354a15f7f19a4ebd44b3d58a8e7be50d9",
+      "claimCore": {
+        "version": 1,
+        "protocol": "ark_zk_miniscript_manifest_binding_claim",
+        "manifestId": "e1e7258690399c4d3ef3da6f5351d46af905893eea5caffd7f4a2c820288e654",
+        "taprootRoot": "c67b3361c8a85087deb69a4fb9276d9671b4b0b3726b0fa11518d4b4ae593b2c",
+        "selectedLeafHash": "968824d21ba56ac1b798e73ab461e7b8871b6b83ddb631bfcc51c17601f2db9e",
+        "selectedLeafRole": "dlc_virtual_cet_settlement",
+        "selectedLeafRoleCode": 4,
+        "taprootPathCommitment": "7468d38ef4db1ca19f9acff78f914cd5ec30c4b36d9a7ecd736a0d86e76e23aa",
+        "taprootPathDepth": 3,
+        "taprootPathFold": "0xd6c9bd8261fecd0fab70e158fab0091fdddfb",
+        "taprootPathSiblings": [
+          {
+            "siblingHash": "cf7cc44ac7b4436a100c4bd810f6c89cc008eed282e6f980078287117d1cf91d",
+            "siblingSide": "left",
+            "siblingSideCode": 1
+          },
+          {
+            "siblingHash": "6165e773811d1256a5a164146365283856965213dead345d0eff0b596fbaf276",
+            "siblingSide": "left",
+            "siblingSideCode": 1
+          },
+          {
+            "siblingHash": "7d4eaa52b72b3884b7a058a098b278cb8acb7373a88492797155141e5fd426a6",
+            "siblingSide": "right",
+            "siblingSideCode": 0
+          }
+        ],
+        "settlementHash": "cff6d85cd4e3529f2f2943e476fb5e687b8c03e5c1abb65833c6b2c65037831d",
+        "amountSats": "100000",
+        "exitDelay": 144,
+        "bindingCommitment": "0x38e80435739b72016aa95fc04b866f78b27aeac378",
+        "cairoInput": [
+          "0xe1e7258690399c4d3ef3da6f5351d46a",
+          "0xf905893eea5caffd7f4a2c820288e654",
+          "0xc67b3361c8a85087deb69a4fb9276d96",
+          "0x71b4b0b3726b0fa11518d4b4ae593b2c",
+          "0x968824d21ba56ac1b798e73ab461e7b8",
+          "0x871b6b83ddb631bfcc51c17601f2db9e",
+          "0x4",
+          "0x7468d38ef4db1ca19f9acff78f914cd5",
+          "0xec30c4b36d9a7ecd736a0d86e76e23aa",
+          "0xd6c9bd8261fecd0fab70e158fab0091fdddfb",
+          "0x3",
+          "0xcf7cc44ac7b4436a100c4bd810f6c89c",
+          "0xc008eed282e6f980078287117d1cf91d",
+          "0x1",
+          "0x6165e773811d1256a5a1641463652838",
+          "0x56965213dead345d0eff0b596fbaf276",
+          "0x1",
+          "0x7d4eaa52b72b3884b7a058a098b278cb",
+          "0x8acb7373a88492797155141e5fd426a6",
+          "0x0",
+          "0xcff6d85cd4e3529f2f2943e476fb5e68",
+          "0x7b8c03e5c1abb65833c6b2c65037831d",
+          "0x186a0",
+          "0x90",
+          "0x38e80435739b72016aa95fc04b866f78b27aeac378"
+        ]
+      },
+      "cairoInput": [
+        "0xe1e7258690399c4d3ef3da6f5351d46a",
+        "0xf905893eea5caffd7f4a2c820288e654",
+        "0xc67b3361c8a85087deb69a4fb9276d96",
+        "0x71b4b0b3726b0fa11518d4b4ae593b2c",
+        "0x968824d21ba56ac1b798e73ab461e7b8",
+        "0x871b6b83ddb631bfcc51c17601f2db9e",
+        "0x4",
+        "0x7468d38ef4db1ca19f9acff78f914cd5",
+        "0xec30c4b36d9a7ecd736a0d86e76e23aa",
+        "0xd6c9bd8261fecd0fab70e158fab0091fdddfb",
+        "0x3",
+        "0xcf7cc44ac7b4436a100c4bd810f6c89c",
+        "0xc008eed282e6f980078287117d1cf91d",
+        "0x1",
+        "0x6165e773811d1256a5a1641463652838",
+        "0x56965213dead345d0eff0b596fbaf276",
+        "0x1",
+        "0x7d4eaa52b72b3884b7a058a098b278cb",
+        "0x8acb7373a88492797155141e5fd426a6",
+        "0x0",
+        "0xcff6d85cd4e3529f2f2943e476fb5e68",
+        "0x7b8c03e5c1abb65833c6b2c65037831d",
+        "0x186a0",
+        "0x90",
+        "0x38e80435739b72016aa95fc04b866f78b27aeac378"
+      ],
+      "sourceManifest": {
+        "kind": "ark_taproot_miniscript_proof_manifest",
+        "manifestId": "e1e7258690399c4d3ef3da6f5351d46af905893eea5caffd7f4a2c820288e654",
+        "manifestCore": {
+          "version": 1,
+          "protocol": "ark_taproot_miniscript_proof_manifest",
+          "networkPolicy": "bitcoin_taproot_policy_commitment",
+          "proofBoundary": "offchain_shinigami_stark_or_utxoref_governor",
+          "aspId": "ark-asp-shinigami-demo",
+          "templateId": "ark-dlc-template-ark-asp-shinigami-demo",
+          "arkRoundId": "ark-round-shinigami-virtual-cet-1",
+          "connectorOutpoint": "dcd3b09cf8fcf8fc1fb3275a50bde344a92de908f913b06fdbea965854263fd1:0",
+          "vtxoCommitmentId": "4c59482024281e1bd1590b1b7e4c5e1b1bda6f573f78a9592c6d0eafd78aa53f",
+          "internalKeyHex": "be981900258f0ca5a0c48890cdffe292cd444a96125688cfb4ba27d213f7f900",
+          "taprootOutputKey": "9750f177cd346dc6c9a4fa2eb4ccd24b2d2c905dafa168c22cb6bdde553c0aa3",
+          "selectedLeafRole": "dlc_virtual_cet_settlement",
+          "selectedTapLeafHash": "968824d21ba56ac1b798e73ab461e7b8871b6b83ddb631bfcc51c17601f2db9e",
+          "selectedTaprootPathCommitment": "7468d38ef4db1ca19f9acff78f914cd5ec30c4b36d9a7ecd736a0d86e76e23aa",
+          "selectedTaprootPathDepth": 3,
+          "taprootPathAlgorithm": "ark_tapbranch_v1_structural_sha256",
+          "miniscriptPolicyHash": "1c0d762af3ca28aa23c680378d2da52f93df8334f59bee0f9425be2b6c2a9390",
+          "taprootLeafRoot": "c67b3361c8a85087deb69a4fb9276d9671b4b0b3726b0fa11518d4b4ae593b2c",
+          "virtualCetSetId": "ba0c53477b37d438ffff70e48c17f987e1133d4f2c56ed3c07aa7efaf23dcd31",
+          "selectedVirtualCetId": "fcce200f2f650ede93d95642aa3bf54aad94d16f0624f013182c404c698a29cd",
+          "oracleOutcomeHash": "8c6b77d36862e23e53adb497a5d63710adbec2c16058e52e7b39e96303c5cf45",
+          "utxorefPolicyId": null,
+          "settlementRoot": "cff6d85cd4e3529f2f2943e476fb5e687b8c03e5c1abb65833c6b2c65037831d",
+          "amountSats": "100000",
+          "challengeWindowBlocks": 144,
+          "proofPackageId": "daf8d9bb8838172503f574d1028cea2bcc8dd5f1cd4a75a4b9b8c71822c08b56",
+          "publicInputDigest": "810305dcf49b4940ad10072ccea8828c367ea07b464c62c945f41799e5155d9a"
+        },
+        "taprootLeaves": [
+          {
+            "role": "cooperative_round",
+            "tapLeafHash": "4691c1d9644b78e2c3433c9487a925747708c55e9a4d1bb5599f42628b73224c",
+            "leafCore": {
+              "version": 1,
+              "role": "cooperative_round",
+              "scriptFamily": "taproot_miniscript_policy_shape",
+              "policyExpression": "and_v(v:pk(22a027ac9b17588c7ea59a67e2a23b37f08ef7347d88acc1519c27958f1409d3),pk(3bc38fa764a8f369cf08a629837bfb0d9ddb360622ce647e4d0a5bcab412229a))",
+              "requiredSigners": [
+                "asp",
+                "owner"
+              ],
+              "relativeTimelockBlocks": 0,
+              "stateBindingFields": [
+                "vtxoCommitmentId",
+                "arkRoundId",
+                "connectorOutpoint"
+              ],
+              "notes": "Cooperative Ark round refresh or spend path."
+            }
+          },
+          {
+            "role": "owner_csv_exit",
+            "tapLeafHash": "6e1f2643eb32ddd2be8c61434610158124acecf9e74b7843c0bbdf0565f51536",
+            "leafCore": {
+              "version": 1,
+              "role": "owner_csv_exit",
+              "scriptFamily": "taproot_miniscript_policy_shape",
+              "policyExpression": "and_v(v:older(144),pk(3bc38fa764a8f369cf08a629837bfb0d9ddb360622ce647e4d0a5bcab412229a))",
+              "requiredSigners": [
+                "owner"
+              ],
+              "relativeTimelockBlocks": 144,
+              "stateBindingFields": [
+                "vtxoCommitmentId",
+                "arkRoundId"
+              ],
+              "notes": "Owner unilateral exit after the Ark exit delay."
+            }
+          },
+          {
+            "role": "asp_forfeit_guard",
+            "tapLeafHash": "cf7cc44ac7b4436a100c4bd810f6c89cc008eed282e6f980078287117d1cf91d",
+            "leafCore": {
+              "version": 1,
+              "role": "asp_forfeit_guard",
+              "scriptFamily": "taproot_miniscript_policy_shape",
+              "policyExpression": "and_v(v:older(2000),pk(22a027ac9b17588c7ea59a67e2a23b37f08ef7347d88acc1519c27958f1409d3))",
+              "requiredSigners": [
+                "asp"
+              ],
+              "relativeTimelockBlocks": 2000,
+              "stateBindingFields": [
+                "vtxoCommitmentId",
+                "utxorefPolicyId"
+              ],
+              "notes": "ASP forfeit or slash guard committed for UTXORef challenge routing."
+            }
+          },
+          {
+            "role": "dlc_virtual_cet_settlement",
+            "tapLeafHash": "968824d21ba56ac1b798e73ab461e7b8871b6b83ddb631bfcc51c17601f2db9e",
+            "leafCore": {
+              "version": 1,
+              "role": "dlc_virtual_cet_settlement",
+              "scriptFamily": "taproot_miniscript_policy_shape",
+              "policyExpression": "and_v(v:pk(22a027ac9b17588c7ea59a67e2a23b37f08ef7347d88acc1519c27958f1409d3),and_v(pk(f9f08bc6af2aca06386aa343a4cb6952b6e257bf7a8533bbd1324f305024b52f),sha256(fcce200f2f650ede93d95642aa3bf54aad94d16f0624f013182c404c698a29cd)))",
+              "requiredSigners": [
+                "asp",
+                "oracle"
+              ],
+              "relativeTimelockBlocks": 0,
+              "stateBindingFields": [
+                "virtualCetSetId",
+                "selectedVirtualCetId",
+                "oracleOutcomeHash"
+              ],
+              "notes": "Virtual CET settlement path; the hashlock binds the oracle-selected Ark transition."
+            }
+          },
+          {
+            "role": "utxoref_challenge_publication",
+            "tapLeafHash": "7d4eaa52b72b3884b7a058a098b278cb8acb7373a88492797155141e5fd426a6",
+            "leafCore": {
+              "version": 1,
+              "role": "utxoref_challenge_publication",
+              "scriptFamily": "taproot_miniscript_policy_shape",
+              "policyExpression": "and_v(v:pk(a36dc37df5b0363880c1c41970885ba007a0fc026739cbd9a45346e936f5836c),sha256(cff6d85cd4e3529f2f2943e476fb5e687b8c03e5c1abb65833c6b2c65037831d))",
+              "requiredSigners": [
+                "utxoref_challenger"
+              ],
+              "relativeTimelockBlocks": 0,
+              "stateBindingFields": [
+                "utxorefPolicyId",
+                "settlementRoot",
+                "challengeWindowBlocks"
+              ],
+              "notes": "Challenge publication path for UTXORef/BitVM governor evidence."
+            }
+          }
+        ],
+        "selectedTaprootPath": {
+          "algorithm": "ark_tapbranch_v1_structural_sha256",
+          "maxDepth": 3,
+          "selectedLeafRole": "dlc_virtual_cet_settlement",
+          "selectedTapLeafHash": "968824d21ba56ac1b798e73ab461e7b8871b6b83ddb631bfcc51c17601f2db9e",
+          "taprootLeafRoot": "c67b3361c8a85087deb69a4fb9276d9671b4b0b3726b0fa11518d4b4ae593b2c",
+          "pathDepth": 3,
+          "path": [
+            {
+              "level": 0,
+              "siblingSide": "left",
+              "siblingNodeKind": "leaf",
+              "siblingRole": "asp_forfeit_guard",
+              "siblingHash": "cf7cc44ac7b4436a100c4bd810f6c89cc008eed282e6f980078287117d1cf91d"
+            },
+            {
+              "level": 1,
+              "siblingSide": "left",
+              "siblingNodeKind": "branch",
+              "siblingRole": null,
+              "siblingHash": "6165e773811d1256a5a164146365283856965213dead345d0eff0b596fbaf276"
+            },
+            {
+              "level": 2,
+              "siblingSide": "right",
+              "siblingNodeKind": "leaf",
+              "siblingRole": "utxoref_challenge_publication",
+              "siblingHash": "7d4eaa52b72b3884b7a058a098b278cb8acb7373a88492797155141e5fd426a6"
+            }
+          ],
+          "pathCommitment": "7468d38ef4db1ca19f9acff78f914cd5ec30c4b36d9a7ecd736a0d86e76e23aa"
+        },
+        "publicInputs": {
+          "taprootOutputKey": "9750f177cd346dc6c9a4fa2eb4ccd24b2d2c905dafa168c22cb6bdde553c0aa3",
+          "taprootLeafRoot": "c67b3361c8a85087deb69a4fb9276d9671b4b0b3726b0fa11518d4b4ae593b2c",
+          "selectedTapLeafHash": "968824d21ba56ac1b798e73ab461e7b8871b6b83ddb631bfcc51c17601f2db9e",
+          "selectedTaprootPathCommitment": "7468d38ef4db1ca19f9acff78f914cd5ec30c4b36d9a7ecd736a0d86e76e23aa",
+          "miniscriptPolicyHash": "1c0d762af3ca28aa23c680378d2da52f93df8334f59bee0f9425be2b6c2a9390",
+          "arkRoundId": "ark-round-shinigami-virtual-cet-1",
+          "vtxoCommitmentId": "4c59482024281e1bd1590b1b7e4c5e1b1bda6f573f78a9592c6d0eafd78aa53f",
+          "virtualCetSetId": "ba0c53477b37d438ffff70e48c17f987e1133d4f2c56ed3c07aa7efaf23dcd31",
+          "selectedVirtualCetId": "fcce200f2f650ede93d95642aa3bf54aad94d16f0624f013182c404c698a29cd",
+          "oracleOutcomeHash": "8c6b77d36862e23e53adb497a5d63710adbec2c16058e52e7b39e96303c5cf45",
+          "utxorefPolicyId": null,
+          "settlementRoot": "cff6d85cd4e3529f2f2943e476fb5e687b8c03e5c1abb65833c6b2c65037831d",
+          "amountSats": "100000"
+        },
+        "proofPackage": {
+          "kind": "ark_taproot_miniscript_proof_package",
+          "proofPackageId": "daf8d9bb8838172503f574d1028cea2bcc8dd5f1cd4a75a4b9b8c71822c08b56",
+          "proofPackageCore": {
+            "version": 1,
+            "proofSystem": "shinigami_cairo_stark_manifest",
+            "proverStatus": "manifest_only",
+            "programId": "ark-shinigami-miniscript-v1",
+            "programHash": "5ad4db1382e4debe2b6408fe1ccdfd411d1d5de22f1997e0054feacc9e8f42ad",
+            "executionTraceRoot": "ccd074806b9dcd051f08fd57e576f59c39dd111b3d154d134099a062d497608a",
+            "proofRoot": "f0b4e5f8c47b5d184d165aae3819a8e8bc8ef59ef35c8f12625ff160ec769218",
+            "publicInputDigest": "810305dcf49b4940ad10072ccea8828c367ea07b464c62c945f41799e5155d9a"
+          }
+        },
+        "checks": {
+          "selectedLeafPresent": true,
+          "taprootLeafRootMatched": true,
+          "selectedTaprootPathCommitmentMatched": true,
+          "selectedTaprootPathDepthWithinBounds": true,
+          "miniscriptPolicyHashMatched": true,
+          "publicInputDigestMatched": true,
+          "proofPackageBindsPublicInputs": true,
+          "selectedDlcLeafHasVirtualCet": true
+        },
+        "caveats": [
+          "This commits Taproot/Miniscript policy shape and a deterministic selected-leaf branch path; it does not compile descriptors or verify Bitcoin consensus scripts.",
+          "The proof package is manifest-only until the Shinigami/Stwo prover replaces proofRoot and executionTraceRoot with real outputs.",
+          "Bitcoin enforces the Taproot spend path; UTXORef/BitVM/governor logic consumes this proof manifest off-chain or in its challenge rail."
+        ]
+      }
+    },
+    "shinigamiProofPublication": {
+      "kind": "shinigami_bitvm_proof_publication_bundle",
+      "bundleId": "9c88edbb45939ab3479eae686ecf9153e7b1fffabb11cddd70ad5b28d21208ff",
+      "bundleCore": {
+        "programStateId": "a77f5c877ece5fecbe733142e358b4d0c31bfbc0749cdb93d3ae70a7898a220b",
+        "publicationId": "b3394addcad76c6b027a9492d5f2fbd7b38429c062076c8f1dad921301d1dd0f",
+        "taprootProofManifestId": "e1e7258690399c4d3ef3da6f5351d46af905893eea5caffd7f4a2c820288e654",
+        "jurassicMechanismRefId": "4993b5e924b6fc28f8dcb2ced97fc1bf184cd94da50df21baf81e90591f06742",
+        "verifierHandleId": "25f5f28b0b7d44948171fcd353018a9d1a5ce155fe7f7fdfbe3de2afb131069d",
+        "receiptId": "a70fdbe90e8f79b6e64f2e351fa249f770dea589ef57585afe169cc10f9aa333",
+        "challengeId": "d0ae35de1f92e7ff2e78203fef0b3963185f95ed25a53558d6a51c6df74824a1"
+      },
+      "programState": {
+        "kind": "shinigami_program_state",
+        "stateId": "a77f5c877ece5fecbe733142e358b4d0c31bfbc0749cdb93d3ae70a7898a220b",
+        "stateCore": {
+          "version": 1,
+          "protocol": "shinigami_style_proof_publication",
+          "programId": "shinigami-virtual-cet:shinigami-ark-dlc-btcusd-1",
+          "vmProfile": "bitvm-script-verifier-scaffold",
+          "inputStateRoot": "29fb5abf448011e29953be786467aac70c2584807fa113820b2720eaf8a67fdb",
+          "outputStateRoot": "cff6d85cd4e3529f2f2943e476fb5e687b8c03e5c1abb65833c6b2c65037831d",
+          "verifierSetRoot": "4ba1f0fb765355c61226e2099e4ccd8e6adba55ccc1b9ab36c1f98ba5ab13ea8",
+          "taprootProofManifestId": "e1e7258690399c4d3ef3da6f5351d46af905893eea5caffd7f4a2c820288e654",
+          "taprootSelectedLeafHash": "968824d21ba56ac1b798e73ab461e7b8871b6b83ddb631bfcc51c17601f2db9e",
+          "miniscriptPolicyHash": "1c0d762af3ca28aa23c680378d2da52f93df8334f59bee0f9425be2b6c2a9390",
+          "claimAmountSats": "100000",
+          "challengeWindowBlocks": 144
+        },
+        "taprootProofManifest": {
+          "kind": "ark_taproot_miniscript_proof_manifest",
+          "manifestId": "e1e7258690399c4d3ef3da6f5351d46af905893eea5caffd7f4a2c820288e654",
+          "manifestCore": {
+            "version": 1,
+            "protocol": "ark_taproot_miniscript_proof_manifest",
+            "networkPolicy": "bitcoin_taproot_policy_commitment",
+            "proofBoundary": "offchain_shinigami_stark_or_utxoref_governor",
+            "aspId": "ark-asp-shinigami-demo",
+            "templateId": "ark-dlc-template-ark-asp-shinigami-demo",
+            "arkRoundId": "ark-round-shinigami-virtual-cet-1",
+            "connectorOutpoint": "dcd3b09cf8fcf8fc1fb3275a50bde344a92de908f913b06fdbea965854263fd1:0",
+            "vtxoCommitmentId": "4c59482024281e1bd1590b1b7e4c5e1b1bda6f573f78a9592c6d0eafd78aa53f",
+            "internalKeyHex": "be981900258f0ca5a0c48890cdffe292cd444a96125688cfb4ba27d213f7f900",
+            "taprootOutputKey": "9750f177cd346dc6c9a4fa2eb4ccd24b2d2c905dafa168c22cb6bdde553c0aa3",
+            "selectedLeafRole": "dlc_virtual_cet_settlement",
+            "selectedTapLeafHash": "968824d21ba56ac1b798e73ab461e7b8871b6b83ddb631bfcc51c17601f2db9e",
+            "selectedTaprootPathCommitment": "7468d38ef4db1ca19f9acff78f914cd5ec30c4b36d9a7ecd736a0d86e76e23aa",
+            "selectedTaprootPathDepth": 3,
+            "taprootPathAlgorithm": "ark_tapbranch_v1_structural_sha256",
+            "miniscriptPolicyHash": "1c0d762af3ca28aa23c680378d2da52f93df8334f59bee0f9425be2b6c2a9390",
+            "taprootLeafRoot": "c67b3361c8a85087deb69a4fb9276d9671b4b0b3726b0fa11518d4b4ae593b2c",
+            "virtualCetSetId": "ba0c53477b37d438ffff70e48c17f987e1133d4f2c56ed3c07aa7efaf23dcd31",
+            "selectedVirtualCetId": "fcce200f2f650ede93d95642aa3bf54aad94d16f0624f013182c404c698a29cd",
+            "oracleOutcomeHash": "8c6b77d36862e23e53adb497a5d63710adbec2c16058e52e7b39e96303c5cf45",
+            "utxorefPolicyId": null,
+            "settlementRoot": "cff6d85cd4e3529f2f2943e476fb5e687b8c03e5c1abb65833c6b2c65037831d",
+            "amountSats": "100000",
+            "challengeWindowBlocks": 144,
+            "proofPackageId": "daf8d9bb8838172503f574d1028cea2bcc8dd5f1cd4a75a4b9b8c71822c08b56",
+            "publicInputDigest": "810305dcf49b4940ad10072ccea8828c367ea07b464c62c945f41799e5155d9a"
+          },
+          "taprootLeaves": [
+            {
+              "role": "cooperative_round",
+              "tapLeafHash": "4691c1d9644b78e2c3433c9487a925747708c55e9a4d1bb5599f42628b73224c",
+              "leafCore": {
+                "version": 1,
+                "role": "cooperative_round",
+                "scriptFamily": "taproot_miniscript_policy_shape",
+                "policyExpression": "and_v(v:pk(22a027ac9b17588c7ea59a67e2a23b37f08ef7347d88acc1519c27958f1409d3),pk(3bc38fa764a8f369cf08a629837bfb0d9ddb360622ce647e4d0a5bcab412229a))",
+                "requiredSigners": [
+                  "asp",
+                  "owner"
+                ],
+                "relativeTimelockBlocks": 0,
+                "stateBindingFields": [
+                  "vtxoCommitmentId",
+                  "arkRoundId",
+                  "connectorOutpoint"
+                ],
+                "notes": "Cooperative Ark round refresh or spend path."
+              }
+            },
+            {
+              "role": "owner_csv_exit",
+              "tapLeafHash": "6e1f2643eb32ddd2be8c61434610158124acecf9e74b7843c0bbdf0565f51536",
+              "leafCore": {
+                "version": 1,
+                "role": "owner_csv_exit",
+                "scriptFamily": "taproot_miniscript_policy_shape",
+                "policyExpression": "and_v(v:older(144),pk(3bc38fa764a8f369cf08a629837bfb0d9ddb360622ce647e4d0a5bcab412229a))",
+                "requiredSigners": [
+                  "owner"
+                ],
+                "relativeTimelockBlocks": 144,
+                "stateBindingFields": [
+                  "vtxoCommitmentId",
+                  "arkRoundId"
+                ],
+                "notes": "Owner unilateral exit after the Ark exit delay."
+              }
+            },
+            {
+              "role": "asp_forfeit_guard",
+              "tapLeafHash": "cf7cc44ac7b4436a100c4bd810f6c89cc008eed282e6f980078287117d1cf91d",
+              "leafCore": {
+                "version": 1,
+                "role": "asp_forfeit_guard",
+                "scriptFamily": "taproot_miniscript_policy_shape",
+                "policyExpression": "and_v(v:older(2000),pk(22a027ac9b17588c7ea59a67e2a23b37f08ef7347d88acc1519c27958f1409d3))",
+                "requiredSigners": [
+                  "asp"
+                ],
+                "relativeTimelockBlocks": 2000,
+                "stateBindingFields": [
+                  "vtxoCommitmentId",
+                  "utxorefPolicyId"
+                ],
+                "notes": "ASP forfeit or slash guard committed for UTXORef challenge routing."
+              }
+            },
+            {
+              "role": "dlc_virtual_cet_settlement",
+              "tapLeafHash": "968824d21ba56ac1b798e73ab461e7b8871b6b83ddb631bfcc51c17601f2db9e",
+              "leafCore": {
+                "version": 1,
+                "role": "dlc_virtual_cet_settlement",
+                "scriptFamily": "taproot_miniscript_policy_shape",
+                "policyExpression": "and_v(v:pk(22a027ac9b17588c7ea59a67e2a23b37f08ef7347d88acc1519c27958f1409d3),and_v(pk(f9f08bc6af2aca06386aa343a4cb6952b6e257bf7a8533bbd1324f305024b52f),sha256(fcce200f2f650ede93d95642aa3bf54aad94d16f0624f013182c404c698a29cd)))",
+                "requiredSigners": [
+                  "asp",
+                  "oracle"
+                ],
+                "relativeTimelockBlocks": 0,
+                "stateBindingFields": [
+                  "virtualCetSetId",
+                  "selectedVirtualCetId",
+                  "oracleOutcomeHash"
+                ],
+                "notes": "Virtual CET settlement path; the hashlock binds the oracle-selected Ark transition."
+              }
+            },
+            {
+              "role": "utxoref_challenge_publication",
+              "tapLeafHash": "7d4eaa52b72b3884b7a058a098b278cb8acb7373a88492797155141e5fd426a6",
+              "leafCore": {
+                "version": 1,
+                "role": "utxoref_challenge_publication",
+                "scriptFamily": "taproot_miniscript_policy_shape",
+                "policyExpression": "and_v(v:pk(a36dc37df5b0363880c1c41970885ba007a0fc026739cbd9a45346e936f5836c),sha256(cff6d85cd4e3529f2f2943e476fb5e687b8c03e5c1abb65833c6b2c65037831d))",
+                "requiredSigners": [
+                  "utxoref_challenger"
+                ],
+                "relativeTimelockBlocks": 0,
+                "stateBindingFields": [
+                  "utxorefPolicyId",
+                  "settlementRoot",
+                  "challengeWindowBlocks"
+                ],
+                "notes": "Challenge publication path for UTXORef/BitVM governor evidence."
+              }
+            }
+          ],
+          "selectedTaprootPath": {
+            "algorithm": "ark_tapbranch_v1_structural_sha256",
+            "maxDepth": 3,
+            "selectedLeafRole": "dlc_virtual_cet_settlement",
+            "selectedTapLeafHash": "968824d21ba56ac1b798e73ab461e7b8871b6b83ddb631bfcc51c17601f2db9e",
+            "taprootLeafRoot": "c67b3361c8a85087deb69a4fb9276d9671b4b0b3726b0fa11518d4b4ae593b2c",
+            "pathDepth": 3,
+            "path": [
+              {
+                "level": 0,
+                "siblingSide": "left",
+                "siblingNodeKind": "leaf",
+                "siblingRole": "asp_forfeit_guard",
+                "siblingHash": "cf7cc44ac7b4436a100c4bd810f6c89cc008eed282e6f980078287117d1cf91d"
+              },
+              {
+                "level": 1,
+                "siblingSide": "left",
+                "siblingNodeKind": "branch",
+                "siblingRole": null,
+                "siblingHash": "6165e773811d1256a5a164146365283856965213dead345d0eff0b596fbaf276"
+              },
+              {
+                "level": 2,
+                "siblingSide": "right",
+                "siblingNodeKind": "leaf",
+                "siblingRole": "utxoref_challenge_publication",
+                "siblingHash": "7d4eaa52b72b3884b7a058a098b278cb8acb7373a88492797155141e5fd426a6"
+              }
+            ],
+            "pathCommitment": "7468d38ef4db1ca19f9acff78f914cd5ec30c4b36d9a7ecd736a0d86e76e23aa"
+          },
+          "publicInputs": {
+            "taprootOutputKey": "9750f177cd346dc6c9a4fa2eb4ccd24b2d2c905dafa168c22cb6bdde553c0aa3",
+            "taprootLeafRoot": "c67b3361c8a85087deb69a4fb9276d9671b4b0b3726b0fa11518d4b4ae593b2c",
+            "selectedTapLeafHash": "968824d21ba56ac1b798e73ab461e7b8871b6b83ddb631bfcc51c17601f2db9e",
+            "selectedTaprootPathCommitment": "7468d38ef4db1ca19f9acff78f914cd5ec30c4b36d9a7ecd736a0d86e76e23aa",
+            "miniscriptPolicyHash": "1c0d762af3ca28aa23c680378d2da52f93df8334f59bee0f9425be2b6c2a9390",
+            "arkRoundId": "ark-round-shinigami-virtual-cet-1",
+            "vtxoCommitmentId": "4c59482024281e1bd1590b1b7e4c5e1b1bda6f573f78a9592c6d0eafd78aa53f",
+            "virtualCetSetId": "ba0c53477b37d438ffff70e48c17f987e1133d4f2c56ed3c07aa7efaf23dcd31",
+            "selectedVirtualCetId": "fcce200f2f650ede93d95642aa3bf54aad94d16f0624f013182c404c698a29cd",
+            "oracleOutcomeHash": "8c6b77d36862e23e53adb497a5d63710adbec2c16058e52e7b39e96303c5cf45",
+            "utxorefPolicyId": null,
+            "settlementRoot": "cff6d85cd4e3529f2f2943e476fb5e687b8c03e5c1abb65833c6b2c65037831d",
+            "amountSats": "100000"
+          },
+          "proofPackage": {
+            "kind": "ark_taproot_miniscript_proof_package",
+            "proofPackageId": "daf8d9bb8838172503f574d1028cea2bcc8dd5f1cd4a75a4b9b8c71822c08b56",
+            "proofPackageCore": {
+              "version": 1,
+              "proofSystem": "shinigami_cairo_stark_manifest",
+              "proverStatus": "manifest_only",
+              "programId": "ark-shinigami-miniscript-v1",
+              "programHash": "5ad4db1382e4debe2b6408fe1ccdfd411d1d5de22f1997e0054feacc9e8f42ad",
+              "executionTraceRoot": "ccd074806b9dcd051f08fd57e576f59c39dd111b3d154d134099a062d497608a",
+              "proofRoot": "f0b4e5f8c47b5d184d165aae3819a8e8bc8ef59ef35c8f12625ff160ec769218",
+              "publicInputDigest": "810305dcf49b4940ad10072ccea8828c367ea07b464c62c945f41799e5155d9a"
+            }
+          },
+          "checks": {
+            "selectedLeafPresent": true,
+            "taprootLeafRootMatched": true,
+            "selectedTaprootPathCommitmentMatched": true,
+            "selectedTaprootPathDepthWithinBounds": true,
+            "miniscriptPolicyHashMatched": true,
+            "publicInputDigestMatched": true,
+            "proofPackageBindsPublicInputs": true,
+            "selectedDlcLeafHasVirtualCet": true
+          },
+          "caveats": [
+            "This commits Taproot/Miniscript policy shape and a deterministic selected-leaf branch path; it does not compile descriptors or verify Bitcoin consensus scripts.",
+            "The proof package is manifest-only until the Shinigami/Stwo prover replaces proofRoot and executionTraceRoot with real outputs.",
+            "Bitcoin enforces the Taproot spend path; UTXORef/BitVM/governor logic consumes this proof manifest off-chain or in its challenge rail."
+          ]
+        }
+      },
+      "taprootProofManifest": {
+        "kind": "ark_taproot_miniscript_proof_manifest",
+        "manifestId": "e1e7258690399c4d3ef3da6f5351d46af905893eea5caffd7f4a2c820288e654",
+        "manifestCore": {
+          "version": 1,
+          "protocol": "ark_taproot_miniscript_proof_manifest",
+          "networkPolicy": "bitcoin_taproot_policy_commitment",
+          "proofBoundary": "offchain_shinigami_stark_or_utxoref_governor",
+          "aspId": "ark-asp-shinigami-demo",
+          "templateId": "ark-dlc-template-ark-asp-shinigami-demo",
+          "arkRoundId": "ark-round-shinigami-virtual-cet-1",
+          "connectorOutpoint": "dcd3b09cf8fcf8fc1fb3275a50bde344a92de908f913b06fdbea965854263fd1:0",
+          "vtxoCommitmentId": "4c59482024281e1bd1590b1b7e4c5e1b1bda6f573f78a9592c6d0eafd78aa53f",
+          "internalKeyHex": "be981900258f0ca5a0c48890cdffe292cd444a96125688cfb4ba27d213f7f900",
+          "taprootOutputKey": "9750f177cd346dc6c9a4fa2eb4ccd24b2d2c905dafa168c22cb6bdde553c0aa3",
+          "selectedLeafRole": "dlc_virtual_cet_settlement",
+          "selectedTapLeafHash": "968824d21ba56ac1b798e73ab461e7b8871b6b83ddb631bfcc51c17601f2db9e",
+          "selectedTaprootPathCommitment": "7468d38ef4db1ca19f9acff78f914cd5ec30c4b36d9a7ecd736a0d86e76e23aa",
+          "selectedTaprootPathDepth": 3,
+          "taprootPathAlgorithm": "ark_tapbranch_v1_structural_sha256",
+          "miniscriptPolicyHash": "1c0d762af3ca28aa23c680378d2da52f93df8334f59bee0f9425be2b6c2a9390",
+          "taprootLeafRoot": "c67b3361c8a85087deb69a4fb9276d9671b4b0b3726b0fa11518d4b4ae593b2c",
+          "virtualCetSetId": "ba0c53477b37d438ffff70e48c17f987e1133d4f2c56ed3c07aa7efaf23dcd31",
+          "selectedVirtualCetId": "fcce200f2f650ede93d95642aa3bf54aad94d16f0624f013182c404c698a29cd",
+          "oracleOutcomeHash": "8c6b77d36862e23e53adb497a5d63710adbec2c16058e52e7b39e96303c5cf45",
+          "utxorefPolicyId": null,
+          "settlementRoot": "cff6d85cd4e3529f2f2943e476fb5e687b8c03e5c1abb65833c6b2c65037831d",
+          "amountSats": "100000",
+          "challengeWindowBlocks": 144,
+          "proofPackageId": "daf8d9bb8838172503f574d1028cea2bcc8dd5f1cd4a75a4b9b8c71822c08b56",
+          "publicInputDigest": "810305dcf49b4940ad10072ccea8828c367ea07b464c62c945f41799e5155d9a"
+        },
+        "taprootLeaves": [
+          {
+            "role": "cooperative_round",
+            "tapLeafHash": "4691c1d9644b78e2c3433c9487a925747708c55e9a4d1bb5599f42628b73224c",
+            "leafCore": {
+              "version": 1,
+              "role": "cooperative_round",
+              "scriptFamily": "taproot_miniscript_policy_shape",
+              "policyExpression": "and_v(v:pk(22a027ac9b17588c7ea59a67e2a23b37f08ef7347d88acc1519c27958f1409d3),pk(3bc38fa764a8f369cf08a629837bfb0d9ddb360622ce647e4d0a5bcab412229a))",
+              "requiredSigners": [
+                "asp",
+                "owner"
+              ],
+              "relativeTimelockBlocks": 0,
+              "stateBindingFields": [
+                "vtxoCommitmentId",
+                "arkRoundId",
+                "connectorOutpoint"
+              ],
+              "notes": "Cooperative Ark round refresh or spend path."
+            }
+          },
+          {
+            "role": "owner_csv_exit",
+            "tapLeafHash": "6e1f2643eb32ddd2be8c61434610158124acecf9e74b7843c0bbdf0565f51536",
+            "leafCore": {
+              "version": 1,
+              "role": "owner_csv_exit",
+              "scriptFamily": "taproot_miniscript_policy_shape",
+              "policyExpression": "and_v(v:older(144),pk(3bc38fa764a8f369cf08a629837bfb0d9ddb360622ce647e4d0a5bcab412229a))",
+              "requiredSigners": [
+                "owner"
+              ],
+              "relativeTimelockBlocks": 144,
+              "stateBindingFields": [
+                "vtxoCommitmentId",
+                "arkRoundId"
+              ],
+              "notes": "Owner unilateral exit after the Ark exit delay."
+            }
+          },
+          {
+            "role": "asp_forfeit_guard",
+            "tapLeafHash": "cf7cc44ac7b4436a100c4bd810f6c89cc008eed282e6f980078287117d1cf91d",
+            "leafCore": {
+              "version": 1,
+              "role": "asp_forfeit_guard",
+              "scriptFamily": "taproot_miniscript_policy_shape",
+              "policyExpression": "and_v(v:older(2000),pk(22a027ac9b17588c7ea59a67e2a23b37f08ef7347d88acc1519c27958f1409d3))",
+              "requiredSigners": [
+                "asp"
+              ],
+              "relativeTimelockBlocks": 2000,
+              "stateBindingFields": [
+                "vtxoCommitmentId",
+                "utxorefPolicyId"
+              ],
+              "notes": "ASP forfeit or slash guard committed for UTXORef challenge routing."
+            }
+          },
+          {
+            "role": "dlc_virtual_cet_settlement",
+            "tapLeafHash": "968824d21ba56ac1b798e73ab461e7b8871b6b83ddb631bfcc51c17601f2db9e",
+            "leafCore": {
+              "version": 1,
+              "role": "dlc_virtual_cet_settlement",
+              "scriptFamily": "taproot_miniscript_policy_shape",
+              "policyExpression": "and_v(v:pk(22a027ac9b17588c7ea59a67e2a23b37f08ef7347d88acc1519c27958f1409d3),and_v(pk(f9f08bc6af2aca06386aa343a4cb6952b6e257bf7a8533bbd1324f305024b52f),sha256(fcce200f2f650ede93d95642aa3bf54aad94d16f0624f013182c404c698a29cd)))",
+              "requiredSigners": [
+                "asp",
+                "oracle"
+              ],
+              "relativeTimelockBlocks": 0,
+              "stateBindingFields": [
+                "virtualCetSetId",
+                "selectedVirtualCetId",
+                "oracleOutcomeHash"
+              ],
+              "notes": "Virtual CET settlement path; the hashlock binds the oracle-selected Ark transition."
+            }
+          },
+          {
+            "role": "utxoref_challenge_publication",
+            "tapLeafHash": "7d4eaa52b72b3884b7a058a098b278cb8acb7373a88492797155141e5fd426a6",
+            "leafCore": {
+              "version": 1,
+              "role": "utxoref_challenge_publication",
+              "scriptFamily": "taproot_miniscript_policy_shape",
+              "policyExpression": "and_v(v:pk(a36dc37df5b0363880c1c41970885ba007a0fc026739cbd9a45346e936f5836c),sha256(cff6d85cd4e3529f2f2943e476fb5e687b8c03e5c1abb65833c6b2c65037831d))",
+              "requiredSigners": [
+                "utxoref_challenger"
+              ],
+              "relativeTimelockBlocks": 0,
+              "stateBindingFields": [
+                "utxorefPolicyId",
+                "settlementRoot",
+                "challengeWindowBlocks"
+              ],
+              "notes": "Challenge publication path for UTXORef/BitVM governor evidence."
+            }
+          }
+        ],
+        "selectedTaprootPath": {
+          "algorithm": "ark_tapbranch_v1_structural_sha256",
+          "maxDepth": 3,
+          "selectedLeafRole": "dlc_virtual_cet_settlement",
+          "selectedTapLeafHash": "968824d21ba56ac1b798e73ab461e7b8871b6b83ddb631bfcc51c17601f2db9e",
+          "taprootLeafRoot": "c67b3361c8a85087deb69a4fb9276d9671b4b0b3726b0fa11518d4b4ae593b2c",
+          "pathDepth": 3,
+          "path": [
+            {
+              "level": 0,
+              "siblingSide": "left",
+              "siblingNodeKind": "leaf",
+              "siblingRole": "asp_forfeit_guard",
+              "siblingHash": "cf7cc44ac7b4436a100c4bd810f6c89cc008eed282e6f980078287117d1cf91d"
+            },
+            {
+              "level": 1,
+              "siblingSide": "left",
+              "siblingNodeKind": "branch",
+              "siblingRole": null,
+              "siblingHash": "6165e773811d1256a5a164146365283856965213dead345d0eff0b596fbaf276"
+            },
+            {
+              "level": 2,
+              "siblingSide": "right",
+              "siblingNodeKind": "leaf",
+              "siblingRole": "utxoref_challenge_publication",
+              "siblingHash": "7d4eaa52b72b3884b7a058a098b278cb8acb7373a88492797155141e5fd426a6"
+            }
+          ],
+          "pathCommitment": "7468d38ef4db1ca19f9acff78f914cd5ec30c4b36d9a7ecd736a0d86e76e23aa"
+        },
+        "publicInputs": {
+          "taprootOutputKey": "9750f177cd346dc6c9a4fa2eb4ccd24b2d2c905dafa168c22cb6bdde553c0aa3",
+          "taprootLeafRoot": "c67b3361c8a85087deb69a4fb9276d9671b4b0b3726b0fa11518d4b4ae593b2c",
+          "selectedTapLeafHash": "968824d21ba56ac1b798e73ab461e7b8871b6b83ddb631bfcc51c17601f2db9e",
+          "selectedTaprootPathCommitment": "7468d38ef4db1ca19f9acff78f914cd5ec30c4b36d9a7ecd736a0d86e76e23aa",
+          "miniscriptPolicyHash": "1c0d762af3ca28aa23c680378d2da52f93df8334f59bee0f9425be2b6c2a9390",
+          "arkRoundId": "ark-round-shinigami-virtual-cet-1",
+          "vtxoCommitmentId": "4c59482024281e1bd1590b1b7e4c5e1b1bda6f573f78a9592c6d0eafd78aa53f",
+          "virtualCetSetId": "ba0c53477b37d438ffff70e48c17f987e1133d4f2c56ed3c07aa7efaf23dcd31",
+          "selectedVirtualCetId": "fcce200f2f650ede93d95642aa3bf54aad94d16f0624f013182c404c698a29cd",
+          "oracleOutcomeHash": "8c6b77d36862e23e53adb497a5d63710adbec2c16058e52e7b39e96303c5cf45",
+          "utxorefPolicyId": null,
+          "settlementRoot": "cff6d85cd4e3529f2f2943e476fb5e687b8c03e5c1abb65833c6b2c65037831d",
+          "amountSats": "100000"
+        },
+        "proofPackage": {
+          "kind": "ark_taproot_miniscript_proof_package",
+          "proofPackageId": "daf8d9bb8838172503f574d1028cea2bcc8dd5f1cd4a75a4b9b8c71822c08b56",
+          "proofPackageCore": {
+            "version": 1,
+            "proofSystem": "shinigami_cairo_stark_manifest",
+            "proverStatus": "manifest_only",
+            "programId": "ark-shinigami-miniscript-v1",
+            "programHash": "5ad4db1382e4debe2b6408fe1ccdfd411d1d5de22f1997e0054feacc9e8f42ad",
+            "executionTraceRoot": "ccd074806b9dcd051f08fd57e576f59c39dd111b3d154d134099a062d497608a",
+            "proofRoot": "f0b4e5f8c47b5d184d165aae3819a8e8bc8ef59ef35c8f12625ff160ec769218",
+            "publicInputDigest": "810305dcf49b4940ad10072ccea8828c367ea07b464c62c945f41799e5155d9a"
+          }
+        },
+        "checks": {
+          "selectedLeafPresent": true,
+          "taprootLeafRootMatched": true,
+          "selectedTaprootPathCommitmentMatched": true,
+          "selectedTaprootPathDepthWithinBounds": true,
+          "miniscriptPolicyHashMatched": true,
+          "publicInputDigestMatched": true,
+          "proofPackageBindsPublicInputs": true,
+          "selectedDlcLeafHasVirtualCet": true
+        },
+        "caveats": [
+          "This commits Taproot/Miniscript policy shape and a deterministic selected-leaf branch path; it does not compile descriptors or verify Bitcoin consensus scripts.",
+          "The proof package is manifest-only until the Shinigami/Stwo prover replaces proofRoot and executionTraceRoot with real outputs.",
+          "Bitcoin enforces the Taproot spend path; UTXORef/BitVM/governor logic consumes this proof manifest off-chain or in its challenge rail."
+        ]
+      },
+      "publication": {
+        "kind": "shinigami_proof_publication",
+        "publicationId": "b3394addcad76c6b027a9492d5f2fbd7b38429c062076c8f1dad921301d1dd0f",
+        "publicationCore": {
+          "version": 1,
+          "programStateId": "a77f5c877ece5fecbe733142e358b4d0c31bfbc0749cdb93d3ae70a7898a220b",
+          "taprootProofManifestId": "e1e7258690399c4d3ef3da6f5351d46af905893eea5caffd7f4a2c820288e654",
+          "taprootProofPackageId": "daf8d9bb8838172503f574d1028cea2bcc8dd5f1cd4a75a4b9b8c71822c08b56",
+          "miniscriptPolicyHash": "1c0d762af3ca28aa23c680378d2da52f93df8334f59bee0f9425be2b6c2a9390",
+          "taprootSelectedLeafHash": "968824d21ba56ac1b798e73ab461e7b8871b6b83ddb631bfcc51c17601f2db9e",
+          "proofRoot": "6891d0303a0972c722578cf6d24c098c2f7a0cf2dca7833208f6d75a410144e3",
+          "executionTraceRoot": "929d77bc4f052e34c7553ca2d511244b1e2ea9d4c58b9cd164bc0963ac23cdf4",
+          "proofPackageRole": "execution-trace-attestation",
+          "jurassicMechanismRefId": "4993b5e924b6fc28f8dcb2ced97fc1bf184cd94da50df21baf81e90591f06742",
+          "transcriptSwitchboardId": "67330715123bf7c75b40e3511482cc13cca73d488db024c552018dd69b3127d5",
+          "proofTranscriptDigest": "c8f8e5901a3f0dd428475439ea77a6f9b6c0e87589a95120f03692ad6c543da3",
+          "verifierHandleId": "25f5f28b0b7d44948171fcd353018a9d1a5ce155fe7f7fdfbe3de2afb131069d",
+          "carrierCommitmentId": "fa10688e1c3b5006b7ecc2977f37b5b6bc81a1ea1fed6783a86d4d2b023c9cd8",
+          "publicationCover": "ordinary settlement batch proof sidecar",
+          "status": "scaffold_only"
+        },
+        "taprootProofManifest": {
+          "kind": "ark_taproot_miniscript_proof_manifest",
+          "manifestId": "e1e7258690399c4d3ef3da6f5351d46af905893eea5caffd7f4a2c820288e654",
+          "manifestCore": {
+            "version": 1,
+            "protocol": "ark_taproot_miniscript_proof_manifest",
+            "networkPolicy": "bitcoin_taproot_policy_commitment",
+            "proofBoundary": "offchain_shinigami_stark_or_utxoref_governor",
+            "aspId": "ark-asp-shinigami-demo",
+            "templateId": "ark-dlc-template-ark-asp-shinigami-demo",
+            "arkRoundId": "ark-round-shinigami-virtual-cet-1",
+            "connectorOutpoint": "dcd3b09cf8fcf8fc1fb3275a50bde344a92de908f913b06fdbea965854263fd1:0",
+            "vtxoCommitmentId": "4c59482024281e1bd1590b1b7e4c5e1b1bda6f573f78a9592c6d0eafd78aa53f",
+            "internalKeyHex": "be981900258f0ca5a0c48890cdffe292cd444a96125688cfb4ba27d213f7f900",
+            "taprootOutputKey": "9750f177cd346dc6c9a4fa2eb4ccd24b2d2c905dafa168c22cb6bdde553c0aa3",
+            "selectedLeafRole": "dlc_virtual_cet_settlement",
+            "selectedTapLeafHash": "968824d21ba56ac1b798e73ab461e7b8871b6b83ddb631bfcc51c17601f2db9e",
+            "selectedTaprootPathCommitment": "7468d38ef4db1ca19f9acff78f914cd5ec30c4b36d9a7ecd736a0d86e76e23aa",
+            "selectedTaprootPathDepth": 3,
+            "taprootPathAlgorithm": "ark_tapbranch_v1_structural_sha256",
+            "miniscriptPolicyHash": "1c0d762af3ca28aa23c680378d2da52f93df8334f59bee0f9425be2b6c2a9390",
+            "taprootLeafRoot": "c67b3361c8a85087deb69a4fb9276d9671b4b0b3726b0fa11518d4b4ae593b2c",
+            "virtualCetSetId": "ba0c53477b37d438ffff70e48c17f987e1133d4f2c56ed3c07aa7efaf23dcd31",
+            "selectedVirtualCetId": "fcce200f2f650ede93d95642aa3bf54aad94d16f0624f013182c404c698a29cd",
+            "oracleOutcomeHash": "8c6b77d36862e23e53adb497a5d63710adbec2c16058e52e7b39e96303c5cf45",
+            "utxorefPolicyId": null,
+            "settlementRoot": "cff6d85cd4e3529f2f2943e476fb5e687b8c03e5c1abb65833c6b2c65037831d",
+            "amountSats": "100000",
+            "challengeWindowBlocks": 144,
+            "proofPackageId": "daf8d9bb8838172503f574d1028cea2bcc8dd5f1cd4a75a4b9b8c71822c08b56",
+            "publicInputDigest": "810305dcf49b4940ad10072ccea8828c367ea07b464c62c945f41799e5155d9a"
+          },
+          "taprootLeaves": [
+            {
+              "role": "cooperative_round",
+              "tapLeafHash": "4691c1d9644b78e2c3433c9487a925747708c55e9a4d1bb5599f42628b73224c",
+              "leafCore": {
+                "version": 1,
+                "role": "cooperative_round",
+                "scriptFamily": "taproot_miniscript_policy_shape",
+                "policyExpression": "and_v(v:pk(22a027ac9b17588c7ea59a67e2a23b37f08ef7347d88acc1519c27958f1409d3),pk(3bc38fa764a8f369cf08a629837bfb0d9ddb360622ce647e4d0a5bcab412229a))",
+                "requiredSigners": [
+                  "asp",
+                  "owner"
+                ],
+                "relativeTimelockBlocks": 0,
+                "stateBindingFields": [
+                  "vtxoCommitmentId",
+                  "arkRoundId",
+                  "connectorOutpoint"
+                ],
+                "notes": "Cooperative Ark round refresh or spend path."
+              }
+            },
+            {
+              "role": "owner_csv_exit",
+              "tapLeafHash": "6e1f2643eb32ddd2be8c61434610158124acecf9e74b7843c0bbdf0565f51536",
+              "leafCore": {
+                "version": 1,
+                "role": "owner_csv_exit",
+                "scriptFamily": "taproot_miniscript_policy_shape",
+                "policyExpression": "and_v(v:older(144),pk(3bc38fa764a8f369cf08a629837bfb0d9ddb360622ce647e4d0a5bcab412229a))",
+                "requiredSigners": [
+                  "owner"
+                ],
+                "relativeTimelockBlocks": 144,
+                "stateBindingFields": [
+                  "vtxoCommitmentId",
+                  "arkRoundId"
+                ],
+                "notes": "Owner unilateral exit after the Ark exit delay."
+              }
+            },
+            {
+              "role": "asp_forfeit_guard",
+              "tapLeafHash": "cf7cc44ac7b4436a100c4bd810f6c89cc008eed282e6f980078287117d1cf91d",
+              "leafCore": {
+                "version": 1,
+                "role": "asp_forfeit_guard",
+                "scriptFamily": "taproot_miniscript_policy_shape",
+                "policyExpression": "and_v(v:older(2000),pk(22a027ac9b17588c7ea59a67e2a23b37f08ef7347d88acc1519c27958f1409d3))",
+                "requiredSigners": [
+                  "asp"
+                ],
+                "relativeTimelockBlocks": 2000,
+                "stateBindingFields": [
+                  "vtxoCommitmentId",
+                  "utxorefPolicyId"
+                ],
+                "notes": "ASP forfeit or slash guard committed for UTXORef challenge routing."
+              }
+            },
+            {
+              "role": "dlc_virtual_cet_settlement",
+              "tapLeafHash": "968824d21ba56ac1b798e73ab461e7b8871b6b83ddb631bfcc51c17601f2db9e",
+              "leafCore": {
+                "version": 1,
+                "role": "dlc_virtual_cet_settlement",
+                "scriptFamily": "taproot_miniscript_policy_shape",
+                "policyExpression": "and_v(v:pk(22a027ac9b17588c7ea59a67e2a23b37f08ef7347d88acc1519c27958f1409d3),and_v(pk(f9f08bc6af2aca06386aa343a4cb6952b6e257bf7a8533bbd1324f305024b52f),sha256(fcce200f2f650ede93d95642aa3bf54aad94d16f0624f013182c404c698a29cd)))",
+                "requiredSigners": [
+                  "asp",
+                  "oracle"
+                ],
+                "relativeTimelockBlocks": 0,
+                "stateBindingFields": [
+                  "virtualCetSetId",
+                  "selectedVirtualCetId",
+                  "oracleOutcomeHash"
+                ],
+                "notes": "Virtual CET settlement path; the hashlock binds the oracle-selected Ark transition."
+              }
+            },
+            {
+              "role": "utxoref_challenge_publication",
+              "tapLeafHash": "7d4eaa52b72b3884b7a058a098b278cb8acb7373a88492797155141e5fd426a6",
+              "leafCore": {
+                "version": 1,
+                "role": "utxoref_challenge_publication",
+                "scriptFamily": "taproot_miniscript_policy_shape",
+                "policyExpression": "and_v(v:pk(a36dc37df5b0363880c1c41970885ba007a0fc026739cbd9a45346e936f5836c),sha256(cff6d85cd4e3529f2f2943e476fb5e687b8c03e5c1abb65833c6b2c65037831d))",
+                "requiredSigners": [
+                  "utxoref_challenger"
+                ],
+                "relativeTimelockBlocks": 0,
+                "stateBindingFields": [
+                  "utxorefPolicyId",
+                  "settlementRoot",
+                  "challengeWindowBlocks"
+                ],
+                "notes": "Challenge publication path for UTXORef/BitVM governor evidence."
+              }
+            }
+          ],
+          "selectedTaprootPath": {
+            "algorithm": "ark_tapbranch_v1_structural_sha256",
+            "maxDepth": 3,
+            "selectedLeafRole": "dlc_virtual_cet_settlement",
+            "selectedTapLeafHash": "968824d21ba56ac1b798e73ab461e7b8871b6b83ddb631bfcc51c17601f2db9e",
+            "taprootLeafRoot": "c67b3361c8a85087deb69a4fb9276d9671b4b0b3726b0fa11518d4b4ae593b2c",
+            "pathDepth": 3,
+            "path": [
+              {
+                "level": 0,
+                "siblingSide": "left",
+                "siblingNodeKind": "leaf",
+                "siblingRole": "asp_forfeit_guard",
+                "siblingHash": "cf7cc44ac7b4436a100c4bd810f6c89cc008eed282e6f980078287117d1cf91d"
+              },
+              {
+                "level": 1,
+                "siblingSide": "left",
+                "siblingNodeKind": "branch",
+                "siblingRole": null,
+                "siblingHash": "6165e773811d1256a5a164146365283856965213dead345d0eff0b596fbaf276"
+              },
+              {
+                "level": 2,
+                "siblingSide": "right",
+                "siblingNodeKind": "leaf",
+                "siblingRole": "utxoref_challenge_publication",
+                "siblingHash": "7d4eaa52b72b3884b7a058a098b278cb8acb7373a88492797155141e5fd426a6"
+              }
+            ],
+            "pathCommitment": "7468d38ef4db1ca19f9acff78f914cd5ec30c4b36d9a7ecd736a0d86e76e23aa"
+          },
+          "publicInputs": {
+            "taprootOutputKey": "9750f177cd346dc6c9a4fa2eb4ccd24b2d2c905dafa168c22cb6bdde553c0aa3",
+            "taprootLeafRoot": "c67b3361c8a85087deb69a4fb9276d9671b4b0b3726b0fa11518d4b4ae593b2c",
+            "selectedTapLeafHash": "968824d21ba56ac1b798e73ab461e7b8871b6b83ddb631bfcc51c17601f2db9e",
+            "selectedTaprootPathCommitment": "7468d38ef4db1ca19f9acff78f914cd5ec30c4b36d9a7ecd736a0d86e76e23aa",
+            "miniscriptPolicyHash": "1c0d762af3ca28aa23c680378d2da52f93df8334f59bee0f9425be2b6c2a9390",
+            "arkRoundId": "ark-round-shinigami-virtual-cet-1",
+            "vtxoCommitmentId": "4c59482024281e1bd1590b1b7e4c5e1b1bda6f573f78a9592c6d0eafd78aa53f",
+            "virtualCetSetId": "ba0c53477b37d438ffff70e48c17f987e1133d4f2c56ed3c07aa7efaf23dcd31",
+            "selectedVirtualCetId": "fcce200f2f650ede93d95642aa3bf54aad94d16f0624f013182c404c698a29cd",
+            "oracleOutcomeHash": "8c6b77d36862e23e53adb497a5d63710adbec2c16058e52e7b39e96303c5cf45",
+            "utxorefPolicyId": null,
+            "settlementRoot": "cff6d85cd4e3529f2f2943e476fb5e687b8c03e5c1abb65833c6b2c65037831d",
+            "amountSats": "100000"
+          },
+          "proofPackage": {
+            "kind": "ark_taproot_miniscript_proof_package",
+            "proofPackageId": "daf8d9bb8838172503f574d1028cea2bcc8dd5f1cd4a75a4b9b8c71822c08b56",
+            "proofPackageCore": {
+              "version": 1,
+              "proofSystem": "shinigami_cairo_stark_manifest",
+              "proverStatus": "manifest_only",
+              "programId": "ark-shinigami-miniscript-v1",
+              "programHash": "5ad4db1382e4debe2b6408fe1ccdfd411d1d5de22f1997e0054feacc9e8f42ad",
+              "executionTraceRoot": "ccd074806b9dcd051f08fd57e576f59c39dd111b3d154d134099a062d497608a",
+              "proofRoot": "f0b4e5f8c47b5d184d165aae3819a8e8bc8ef59ef35c8f12625ff160ec769218",
+              "publicInputDigest": "810305dcf49b4940ad10072ccea8828c367ea07b464c62c945f41799e5155d9a"
+            }
+          },
+          "checks": {
+            "selectedLeafPresent": true,
+            "taprootLeafRootMatched": true,
+            "selectedTaprootPathCommitmentMatched": true,
+            "selectedTaprootPathDepthWithinBounds": true,
+            "miniscriptPolicyHashMatched": true,
+            "publicInputDigestMatched": true,
+            "proofPackageBindsPublicInputs": true,
+            "selectedDlcLeafHasVirtualCet": true
+          },
+          "caveats": [
+            "This commits Taproot/Miniscript policy shape and a deterministic selected-leaf branch path; it does not compile descriptors or verify Bitcoin consensus scripts.",
+            "The proof package is manifest-only until the Shinigami/Stwo prover replaces proofRoot and executionTraceRoot with real outputs.",
+            "Bitcoin enforces the Taproot spend path; UTXORef/BitVM/governor logic consumes this proof manifest off-chain or in its challenge rail."
+          ]
+        },
+        "jurassicMechanisms": {
+          "kind": "jurassic_bitvm_mechanism_refs",
+          "refId": "4993b5e924b6fc28f8dcb2ced97fc1bf184cd94da50df21baf81e90591f06742",
+          "version": 1,
+          "target": "shinigami",
+          "semanticStateHash": "7583a8ef5e478f173c331c1d64c4a33d5f0e2b97f932c0c06c587068471af5a7",
+          "planId": "shinigami_proof_publication_switchboard",
+          "transcriptVariantIds": [
+            "shinigami_execution_trace"
+          ],
+          "transcriptDigests": [
+            "c8f8e5901a3f0dd428475439ea77a6f9b6c0e87589a95120f03692ad6c543da3"
+          ],
+          "publicHandleIds": [
+            "25f5f28b0b7d44948171fcd353018a9d1a5ce155fe7f7fdfbe3de2afb131069d",
+            "dd47b28920547b7ecbaf5192ce43ccafaffe28826a5db25ba21f92217181cb2d"
+          ],
+          "carrierCommitmentIds": [
+            "fa10688e1c3b5006b7ecc2977f37b5b6bc81a1ea1fed6783a86d4d2b023c9cd8"
+          ],
+          "transcriptSwitchboardId": "67330715123bf7c75b40e3511482cc13cca73d488db024c552018dd69b3127d5",
+          "primaryTranscriptDigest": "c8f8e5901a3f0dd428475439ea77a6f9b6c0e87589a95120f03692ad6c543da3",
+          "primaryPublicHandleId": "25f5f28b0b7d44948171fcd353018a9d1a5ce155fe7f7fdfbe3de2afb131069d",
+          "primaryCarrierCommitmentId": "fa10688e1c3b5006b7ecc2977f37b5b6bc81a1ea1fed6783a86d4d2b023c9cd8",
+          "status": "scaffold_only",
+          "rejectionTripwireDigest": "0000000000000000000000000000000000000000000000000000000000000001"
+        }
+      },
+      "verifierReceipt": {
+        "kind": "shinigami_verifier_receipt",
+        "receiptId": "a70fdbe90e8f79b6e64f2e351fa249f770dea589ef57585afe169cc10f9aa333",
+        "receiptCore": {
+          "version": 1,
+          "programStateId": "a77f5c877ece5fecbe733142e358b4d0c31bfbc0749cdb93d3ae70a7898a220b",
+          "publicationId": "b3394addcad76c6b027a9492d5f2fbd7b38429c062076c8f1dad921301d1dd0f",
+          "taprootProofManifestId": "e1e7258690399c4d3ef3da6f5351d46af905893eea5caffd7f4a2c820288e654",
+          "verifierId": "shinigami-verifier-demo",
+          "verifierHandleId": "25f5f28b0b7d44948171fcd353018a9d1a5ce155fe7f7fdfbe3de2afb131069d",
+          "observedProofRoot": "6891d0303a0972c722578cf6d24c098c2f7a0cf2dca7833208f6d75a410144e3",
+          "observedExecutionTraceRoot": "929d77bc4f052e34c7553ca2d511244b1e2ea9d4c58b9cd164bc0963ac23cdf4",
+          "accepted": true
+        },
+        "checks": {
+          "proofRootMatched": true,
+          "executionTraceRootMatched": true,
+          "verifierHandleMatched": true,
+          "taprootProofManifestMatched": true,
+          "accepted": true
+        }
+      },
+      "challenge": {
+        "kind": "shinigami_proof_challenge",
+        "challengeId": "d0ae35de1f92e7ff2e78203fef0b3963185f95ed25a53558d6a51c6df74824a1",
+        "challengeCore": {
+          "version": 1,
+          "programStateId": "a77f5c877ece5fecbe733142e358b4d0c31bfbc0749cdb93d3ae70a7898a220b",
+          "publicationId": "b3394addcad76c6b027a9492d5f2fbd7b38429c062076c8f1dad921301d1dd0f",
+          "taprootProofManifestId": "e1e7258690399c4d3ef3da6f5351d46af905893eea5caffd7f4a2c820288e654",
+          "verifierHandleId": "25f5f28b0b7d44948171fcd353018a9d1a5ce155fe7f7fdfbe3de2afb131069d",
+          "observedProofRoot": "f9ec12dc8b0270819038cbbec919b706f85cce79c9e703d912b461cdb66e969f",
+          "observedExecutionTraceRoot": "929d77bc4f052e34c7553ca2d511244b1e2ea9d4c58b9cd164bc0963ac23cdf4",
+          "violations": [
+            "proof_root_mismatch"
+          ]
+        },
+        "slashable": true
+      },
+      "thesis": "Use Jurassic transcript and namespace mechanics to make proof-carrying execution publications searchable, retryable, and challengeable without binding the repo to a production verifier yet.",
+      "caveats": [
+        "This is a local proof-publication scaffold, not a production Shinigami verifier.",
+        "Production needs the real script verifier, proof format, verifier set, and on-chain publication rules.",
+        "The Jurassic mechanism refs are search and routing handles; they are not consensus assumptions."
+      ]
+    },
+    "aspChallenge": {
+      "kind": "ark_dlc_asp_governor_challenge",
+      "challengeId": "b0780a4ef90161c6f15f2013a9fe41f519206997a86511ee2b2e0de044f916de",
+      "challengeCore": {
+        "version": 1,
+        "protocol": "ark_dlc_asp_governor_challenge",
+        "contractCommitmentId": "4ce2f70789ab440c7cb972d5b830fcdd6dde8e162cb2e3a8e151e92895d99024",
+        "virtualCetSetId": "ba0c53477b37d438ffff70e48c17f987e1133d4f2c56ed3c07aa7efaf23dcd31",
+        "honestSettlementId": "736483a1bf26b251fa5f5c15dba5b51462d50bf065815d094c7d1969f01ecfc5",
+        "oracleOutcomeId": "btc_usd_at_entry",
+        "aspSettledOutcomeId": "btc_usd_down_2000",
+        "aspSettledVirtualCetId": "c34123b3d85a8981bb6ac4ed41d14aae758415f2ed611ca5240c1693bd175ab1",
+        "missingExitPath": false,
+        "missingForfeitPath": true,
+        "violations": [
+          "asp_settled_wrong_oracle_outcome",
+          "missing_asp_forfeit_path"
+        ]
+      },
+      "slashable": true,
+      "remedy": "BitVM/UTXORef challenge proves the ASP signed or routed a transition outside the oracle-selected virtual CET, enabling bond slash or forced exit."
+    },
+    "thesis": "Ark virtualizes the DLC CET fanout; Shinigami proves the selected virtual leaf and payout root; BitVM/UTXORef governs fraud exits and ASP misrouting.",
+    "caveats": [
+      "Deterministic proof receipt only; production still needs a real Shinigami/STWO proof.",
+      "Ark VTXO signatures and ASP accounting are modeled as public commitments.",
+      "BitVM verifies the compressed public claim and fraud cases, not every off-chain implementation detail."
+    ],
+    "fraudCases": [
+      {
+        "id": "wrong-outcome",
+        "label": "Wrong oracle outcome",
+        "challengeViolation": "selected_outcome_not_oracle_attested",
+        "publicInputs": [
+          "oracle_outcome_hash",
+          "selected_leaf_hash"
+        ],
+        "witnessCounterexample": "published oracle attestation hashes to another outcome",
+        "bitvmRemedy": "reject Ark transition and route to ASP forfeit path",
+        "caseId": "3ad49672810f620cc3e03970858c30cfb15a8b28a5c98a1454f49d4e0ad1fecd",
+        "caseCore": {
+          "version": 1,
+          "protocol": "shinigami_virtual_cet_fraud_case",
+          "contractCommitmentId": "4ce2f70789ab440c7cb972d5b830fcdd6dde8e162cb2e3a8e151e92895d99024",
+          "virtualCetSetId": "ba0c53477b37d438ffff70e48c17f987e1133d4f2c56ed3c07aa7efaf23dcd31",
+          "claimId": "750dfac481a6c15f4f194a71b4c253d9f69a956ec3f5d8d168aeefb31a9ee87b",
+          "receiptId": "c0bd85d21680425bf074257067a5706bc12fd4cb8d2e7ff61a239969ebc8c5d0",
+          "id": "wrong-outcome",
+          "label": "Wrong oracle outcome",
+          "challengeViolation": "selected_outcome_not_oracle_attested",
+          "publicInputs": [
+            "oracle_outcome_hash",
+            "selected_leaf_hash"
+          ],
+          "witnessCounterexample": "published oracle attestation hashes to another outcome",
+          "bitvmRemedy": "reject Ark transition and route to ASP forfeit path",
+          "slashable": true
+        },
+        "slashable": true
+      },
+      {
+        "id": "wrong-payout",
+        "label": "Wrong payout root",
+        "challengeViolation": "payout_root_does_not_match_selected_leaf",
+        "publicInputs": [
+          "selected_leaf_hash",
+          "payout_root",
+          "amount_sats"
+        ],
+        "witnessCounterexample": "selected virtual CET leaf recomputes a different payout root",
+        "bitvmRemedy": "slash the signer that advanced the bad payout root",
+        "caseId": "2fc4c06eb9f6183c6868c689d6408aacf6717b7110ee8da1d8621762246bb903",
+        "caseCore": {
+          "version": 1,
+          "protocol": "shinigami_virtual_cet_fraud_case",
+          "contractCommitmentId": "4ce2f70789ab440c7cb972d5b830fcdd6dde8e162cb2e3a8e151e92895d99024",
+          "virtualCetSetId": "ba0c53477b37d438ffff70e48c17f987e1133d4f2c56ed3c07aa7efaf23dcd31",
+          "claimId": "750dfac481a6c15f4f194a71b4c253d9f69a956ec3f5d8d168aeefb31a9ee87b",
+          "receiptId": "c0bd85d21680425bf074257067a5706bc12fd4cb8d2e7ff61a239969ebc8c5d0",
+          "id": "wrong-payout",
+          "label": "Wrong payout root",
+          "challengeViolation": "payout_root_does_not_match_selected_leaf",
+          "publicInputs": [
+            "selected_leaf_hash",
+            "payout_root",
+            "amount_sats"
+          ],
+          "witnessCounterexample": "selected virtual CET leaf recomputes a different payout root",
+          "bitvmRemedy": "slash the signer that advanced the bad payout root",
+          "slashable": true
+        },
+        "slashable": true
+      },
+      {
+        "id": "omitted-leaf",
+        "label": "Omitted Ark leaf",
+        "challengeViolation": "ark_leaf_root_omits_committed_virtual_cet",
+        "publicInputs": [
+          "virtual_cet_set_id",
+          "ark_leaf_root"
+        ],
+        "witnessCounterexample": "committed virtual CET id is missing from the Ark VTXO leaf layer",
+        "bitvmRemedy": "force exit using the committed DLC outcome set",
+        "caseId": "d11f5122568a32cf6ec9b798810f0b50fa22b6080f047677ea48c8591953dc6d",
+        "caseCore": {
+          "version": 1,
+          "protocol": "shinigami_virtual_cet_fraud_case",
+          "contractCommitmentId": "4ce2f70789ab440c7cb972d5b830fcdd6dde8e162cb2e3a8e151e92895d99024",
+          "virtualCetSetId": "ba0c53477b37d438ffff70e48c17f987e1133d4f2c56ed3c07aa7efaf23dcd31",
+          "claimId": "750dfac481a6c15f4f194a71b4c253d9f69a956ec3f5d8d168aeefb31a9ee87b",
+          "receiptId": "c0bd85d21680425bf074257067a5706bc12fd4cb8d2e7ff61a239969ebc8c5d0",
+          "id": "omitted-leaf",
+          "label": "Omitted Ark leaf",
+          "challengeViolation": "ark_leaf_root_omits_committed_virtual_cet",
+          "publicInputs": [
+            "virtual_cet_set_id",
+            "ark_leaf_root"
+          ],
+          "witnessCounterexample": "committed virtual CET id is missing from the Ark VTXO leaf layer",
+          "bitvmRemedy": "force exit using the committed DLC outcome set",
+          "slashable": true
+        },
+        "slashable": true
+      },
+      {
+        "id": "stale-oracle",
+        "label": "Stale oracle claim",
+        "challengeViolation": "oracle_attestation_age_exceeds_policy",
+        "publicInputs": [
+          "oracle_attestation_age_blocks",
+          "max_oracle_age_blocks"
+        ],
+        "witnessCounterexample": "attestation age exceeds the DLC policy window",
+        "bitvmRemedy": "pause settlement and require a fresh oracle publication",
+        "caseId": "3ff16ab153a788f1fca81fa78e2a877bc9c2a2dbd4e6d21c50a662c4e9fe5d2e",
+        "caseCore": {
+          "version": 1,
+          "protocol": "shinigami_virtual_cet_fraud_case",
+          "contractCommitmentId": "4ce2f70789ab440c7cb972d5b830fcdd6dde8e162cb2e3a8e151e92895d99024",
+          "virtualCetSetId": "ba0c53477b37d438ffff70e48c17f987e1133d4f2c56ed3c07aa7efaf23dcd31",
+          "claimId": "750dfac481a6c15f4f194a71b4c253d9f69a956ec3f5d8d168aeefb31a9ee87b",
+          "receiptId": "c0bd85d21680425bf074257067a5706bc12fd4cb8d2e7ff61a239969ebc8c5d0",
+          "id": "stale-oracle",
+          "label": "Stale oracle claim",
+          "challengeViolation": "oracle_attestation_age_exceeds_policy",
+          "publicInputs": [
+            "oracle_attestation_age_blocks",
+            "max_oracle_age_blocks"
+          ],
+          "witnessCounterexample": "attestation age exceeds the DLC policy window",
+          "bitvmRemedy": "pause settlement and require a fresh oracle publication",
+          "slashable": true
+        },
+        "slashable": true
+      },
+      {
+        "id": "bad-membership",
+        "label": "Bad membership proof",
+        "challengeViolation": "selected_leaf_not_in_ark_root",
+        "publicInputs": [
+          "ark_leaf_root",
+          "selected_leaf_hash"
+        ],
+        "witnessCounterexample": "Merkle path or leaf fold does not reach the committed Ark root",
+        "bitvmRemedy": "open BitVM challenge over the leaf membership circuit",
+        "caseId": "45cebf17837a73846ee851f63c4eaea34050a4b5d6c99e43091727ec9e2ea2bf",
+        "caseCore": {
+          "version": 1,
+          "protocol": "shinigami_virtual_cet_fraud_case",
+          "contractCommitmentId": "4ce2f70789ab440c7cb972d5b830fcdd6dde8e162cb2e3a8e151e92895d99024",
+          "virtualCetSetId": "ba0c53477b37d438ffff70e48c17f987e1133d4f2c56ed3c07aa7efaf23dcd31",
+          "claimId": "750dfac481a6c15f4f194a71b4c253d9f69a956ec3f5d8d168aeefb31a9ee87b",
+          "receiptId": "c0bd85d21680425bf074257067a5706bc12fd4cb8d2e7ff61a239969ebc8c5d0",
+          "id": "bad-membership",
+          "label": "Bad membership proof",
+          "challengeViolation": "selected_leaf_not_in_ark_root",
+          "publicInputs": [
+            "ark_leaf_root",
+            "selected_leaf_hash"
+          ],
+          "witnessCounterexample": "Merkle path or leaf fold does not reach the committed Ark root",
+          "bitvmRemedy": "open BitVM challenge over the leaf membership circuit",
+          "slashable": true
+        },
+        "slashable": true
+      },
+      {
+        "id": "asp-route-mismatch",
+        "label": "ASP route mismatch",
+        "challengeViolation": "asp_transition_not_selected_virtual_cet",
+        "publicInputs": [
+          "ark_round_id",
+          "selected_virtual_cet_id"
+        ],
+        "witnessCounterexample": "ASP advanced a VTXO transition for a different virtual CET",
+        "bitvmRemedy": "slash ASP bond or force unilateral VTXO exit",
+        "caseId": "ec59b9d99df98f6439db721fb440d1c2e9a1583201df9e6002a007535fd7a219",
+        "caseCore": {
+          "version": 1,
+          "protocol": "shinigami_virtual_cet_fraud_case",
+          "contractCommitmentId": "4ce2f70789ab440c7cb972d5b830fcdd6dde8e162cb2e3a8e151e92895d99024",
+          "virtualCetSetId": "ba0c53477b37d438ffff70e48c17f987e1133d4f2c56ed3c07aa7efaf23dcd31",
+          "claimId": "750dfac481a6c15f4f194a71b4c253d9f69a956ec3f5d8d168aeefb31a9ee87b",
+          "receiptId": "c0bd85d21680425bf074257067a5706bc12fd4cb8d2e7ff61a239969ebc8c5d0",
+          "id": "asp-route-mismatch",
+          "label": "ASP route mismatch",
+          "challengeViolation": "asp_transition_not_selected_virtual_cet",
+          "publicInputs": [
+            "ark_round_id",
+            "selected_virtual_cet_id"
+          ],
+          "witnessCounterexample": "ASP advanced a VTXO transition for a different virtual CET",
+          "bitvmRemedy": "slash ASP bond or force unilateral VTXO exit",
+          "slashable": true
+        },
+        "slashable": true
+      }
+    ],
+    "dashboardProjection": {
+      "title": "Shinigami Virtual CETs",
+      "headline": "Ark carries the CET fanout as virtual leaves; Shinigami proves the selected leaf and payout root.",
+      "summary": {
+        "contractId": "shinigami-ark-dlc-btcusd-1",
+        "bundleId": "fbfd874251a91cf2523b7c560e294282082ba65fbb534a76551fa778305518ba",
+        "oracleEventId": "btc-usd-shinigami-expiry-1",
+        "arkRoundId": "ark-round-shinigami-virtual-cet-1",
+        "virtualCetCount": 17,
+        "materializedCetCount": 0,
+        "selectedOutcomeId": "btc_usd_at_entry",
+        "proofStatus": "accepted-scaffold"
+      },
+      "flow": [
+        {
+          "id": "dlc-outcomes",
+          "label": "DLC outcome grid",
+          "detail": "17 possible CET outcomes are committed by hash.",
+          "commitment": "aecf65945ba884e209b37116603e9ddfcb60de4bba1cef0326e9b9c7ff52c23c"
+        },
+        {
+          "id": "ark-virtual-leaves",
+          "label": "Ark virtual leaves",
+          "detail": "Each outcome becomes a VTXO leaf instead of an on-chain CET transaction.",
+          "commitment": "29fb5abf448011e29953be786467aac70c2584807fa113820b2720eaf8a67fdb"
+        },
+        {
+          "id": "shinigami-claim",
+          "label": "Shinigami claim",
+          "detail": "The public claim binds oracle outcome, selected leaf, payout root, and Ark round.",
+          "commitment": "750dfac481a6c15f4f194a71b4c253d9f69a956ec3f5d8d168aeefb31a9ee87b"
+        },
+        {
+          "id": "bitvm-challenge",
+          "label": "BitVM/UTXORef challenge",
+          "detail": "Fraud cases decide whether the ASP exits cooperatively or gets slashed.",
+          "commitment": "c0bd85d21680425bf074257067a5706bc12fd4cb8d2e7ff61a239969ebc8c5d0"
+        }
+      ],
+      "proofStatement": {
+        "contractId": "shinigami-ark-dlc-btcusd-1",
+        "oracleEventId": "btc-usd-shinigami-expiry-1",
+        "arkRoundId": "ark-round-shinigami-virtual-cet-1",
+        "oracleOutcomeHash": "8c6b77d36862e23e53adb497a5d63710adbec2c16058e52e7b39e96303c5cf45",
+        "selectedLeafHash": "599653358aaaa136fd35b3899e026618e00a53052594e69550f2e9a3a08f7a3c",
+        "arkLeafRoot": "29fb5abf448011e29953be786467aac70c2584807fa113820b2720eaf8a67fdb",
+        "selectedVirtualCetId": "fcce200f2f650ede93d95642aa3bf54aad94d16f0624f013182c404c698a29cd",
+        "payoutRoot": "cff6d85cd4e3529f2f2943e476fb5e687b8c03e5c1abb65833c6b2c65037831d",
+        "claimId": "750dfac481a6c15f4f194a71b4c253d9f69a956ec3f5d8d168aeefb31a9ee87b",
+        "receiptId": "c0bd85d21680425bf074257067a5706bc12fd4cb8d2e7ff61a239969ebc8c5d0",
+        "amountSats": "100000",
+        "exitDelayBlocks": 144,
+        "materializedCetCount": 0
+      },
+      "compression": {
+        "virtualCetCount": 17,
+        "arkLeafCount": 17,
+        "materializedCetCount": 0,
+        "selectedOutcomeId": "btc_usd_at_entry",
+        "avoidedOnchainCetTxids": 17,
+        "onchainCetTxidsPublished": 0,
+        "proofReceiptStatus": "accepted-scaffold"
+      },
+      "fraudMatrix": [
+        {
+          "id": "wrong-outcome",
+          "label": "Wrong oracle outcome",
+          "challengeViolation": "selected_outcome_not_oracle_attested",
+          "publicInputs": [
+            "oracle_outcome_hash",
+            "selected_leaf_hash"
+          ],
+          "witnessCounterexample": "published oracle attestation hashes to another outcome",
+          "bitvmRemedy": "reject Ark transition and route to ASP forfeit path",
+          "slashable": true
+        },
+        {
+          "id": "wrong-payout",
+          "label": "Wrong payout root",
+          "challengeViolation": "payout_root_does_not_match_selected_leaf",
+          "publicInputs": [
+            "selected_leaf_hash",
+            "payout_root",
+            "amount_sats"
+          ],
+          "witnessCounterexample": "selected virtual CET leaf recomputes a different payout root",
+          "bitvmRemedy": "slash the signer that advanced the bad payout root",
+          "slashable": true
+        },
+        {
+          "id": "omitted-leaf",
+          "label": "Omitted Ark leaf",
+          "challengeViolation": "ark_leaf_root_omits_committed_virtual_cet",
+          "publicInputs": [
+            "virtual_cet_set_id",
+            "ark_leaf_root"
+          ],
+          "witnessCounterexample": "committed virtual CET id is missing from the Ark VTXO leaf layer",
+          "bitvmRemedy": "force exit using the committed DLC outcome set",
+          "slashable": true
+        },
+        {
+          "id": "stale-oracle",
+          "label": "Stale oracle claim",
+          "challengeViolation": "oracle_attestation_age_exceeds_policy",
+          "publicInputs": [
+            "oracle_attestation_age_blocks",
+            "max_oracle_age_blocks"
+          ],
+          "witnessCounterexample": "attestation age exceeds the DLC policy window",
+          "bitvmRemedy": "pause settlement and require a fresh oracle publication",
+          "slashable": true
+        },
+        {
+          "id": "bad-membership",
+          "label": "Bad membership proof",
+          "challengeViolation": "selected_leaf_not_in_ark_root",
+          "publicInputs": [
+            "ark_leaf_root",
+            "selected_leaf_hash"
+          ],
+          "witnessCounterexample": "Merkle path or leaf fold does not reach the committed Ark root",
+          "bitvmRemedy": "open BitVM challenge over the leaf membership circuit",
+          "slashable": true
+        },
+        {
+          "id": "asp-route-mismatch",
+          "label": "ASP route mismatch",
+          "challengeViolation": "asp_transition_not_selected_virtual_cet",
+          "publicInputs": [
+            "ark_round_id",
+            "selected_virtual_cet_id"
+          ],
+          "witnessCounterexample": "ASP advanced a VTXO transition for a different virtual CET",
+          "bitvmRemedy": "slash ASP bond or force unilateral VTXO exit",
+          "slashable": true
+        }
+      ],
+      "publicInputs": [
+        "contract_commitment_id",
+        "oracle_outcome_hash",
+        "ark_leaf_root",
+        "selected_leaf_hash",
+        "payout_root",
+        "amount_sats"
+      ],
+      "caveats": [
+        "Deterministic receipt only: this is not a live STWO proof yet.",
+        "The Ark ASP signatures, VTXO tree proof, and real Shinigami verifier are still integration targets.",
+        "The BitVM side checks the public commitments and fraud cases, not full TradeLayer consensus."
+      ]
+    }
+  }
+}

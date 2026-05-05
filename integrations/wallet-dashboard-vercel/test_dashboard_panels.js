@@ -28,12 +28,15 @@ function runPanel(name, check) {
 }
 
 async function main() {
-  const [html, script, walletView, testnetProof, funding] = await Promise.all([
+  const [html, script, walletView, testnetProof, funding, shinigamiHtml, shinigamiScript, shinigamiProof] = await Promise.all([
     getText('/dashboard'),
     getText('/dashboard.js'),
     getJson('/v1/lnbtc-tlusd-liquidity-patch/wallet-view'),
     getJson('/v1/wallet-demo/bitcoin-testnet-proof'),
-    getText('/funding')
+    getText('/funding'),
+    getText('/shinigami'),
+    getText('/shinigami.js'),
+    getJson('/v1/wallet-demo/shinigami-proof')
   ]);
 
   runPanel('Proof Frame', () => {
@@ -41,6 +44,7 @@ async function main() {
     assert.match(html, /BTC-Only TradeLayer Oracle DLC/, 'missing new DLC subsection');
     assert.match(html, /Bitcoin Testnet Transaction Chain/, 'missing tx chain');
     assert.match(html, /BitVM Router Circuit/, 'missing BitVM circuit');
+    assert.match(html, /href="\/shinigami"/, 'missing Shinigami subtab link');
     for (const id of [
       'useCaseGrid',
       'pureBtcRouteDemo',
@@ -127,6 +131,29 @@ async function main() {
     assert.match(funding, /UTXORef Spiral Brief/, 'missing funding title');
     assert.match(funding, />Milestones</, 'missing milestones section');
     assert.doesNotMatch(funding, /Grant Milestones/, 'funding brief should use neutral milestone wording');
+  });
+
+  runPanel('Shinigami Subtab', () => {
+    assert.match(shinigamiHtml, /Shinigami Virtual CETs/, 'missing Shinigami title');
+    for (const id of [
+      'shinigamiHero',
+      'shinigamiFlow',
+      'shinigamiProofStatement',
+      'shinigamiCompression',
+      'shinigamiFraudMatrix',
+      'shinigamiInputs'
+    ]) {
+      assertMount(shinigamiHtml, id);
+    }
+    assert.match(shinigamiScript, /renderFraudMatrix/, 'missing fraud matrix renderer');
+    assert.match(shinigamiScript, /\/api\/shinigami-proof/, 'missing Shinigami proof endpoint fetch');
+    assert.equal(shinigamiProof.kind, 'shinigami_virtual_cet_dashboard_proof');
+    assert.equal(shinigamiProof.verification.ok, true);
+    assert.equal(shinigamiProof.projection.summary.virtualCetCount, 17);
+    assert.equal(shinigamiProof.projection.summary.materializedCetCount, 0);
+    assert.equal(shinigamiProof.projection.flow.length, 4);
+    assert.equal(shinigamiProof.projection.compression.onchainCetTxidsPublished, 0);
+    assert.ok(shinigamiProof.projection.fraudMatrix.some(item => item.id === 'asp-route-mismatch'), 'missing ASP route fraud case');
   });
 
   console.log(`panel data smoke test ok: ${BASE_URL}`);

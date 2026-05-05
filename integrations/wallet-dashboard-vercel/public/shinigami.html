@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Shinigami Virtual CETs</title>
+    <meta name="dashboard-commit" content="main" />
+    <link rel="stylesheet" href="/dashboard.css" />
+  </head>
+  <body>
+    <div class="app-shell shinigami-shell">
+      <header class="topbar">
+        <div>
+          <h1>Shinigami Virtual CETs</h1>
+          <p id="shinigamiSubtitle">Loading Ark virtual-CET proof</p>
+        </div>
+        <div class="top-actions">
+          <span id="shinigamiSource" class="badge">source</span>
+          <span id="shinigamiStatus" class="badge good">status</span>
+          <button id="shinigamiRefresh" type="button">Refresh</button>
+          <a class="button-link" href="/dashboard">Main flow</a>
+        </div>
+      </header>
+
+      <main>
+        <section class="panel shinigami-hero">
+          <div class="section-title">
+            <h2>Virtual CET Compression</h2>
+            <span class="source-badge proof">/shinigami</span>
+          </div>
+          <div id="shinigamiHero" class="shinigami-hero-grid"></div>
+        </section>
+
+        <section class="panel">
+          <div class="section-title">
+            <h2>Flow Diagram</h2>
+            <span class="source-badge derived">Ark + ZK + BitVM</span>
+          </div>
+          <div id="shinigamiFlow" class="shinigami-flow"></div>
+        </section>
+
+        <section class="grid-two shinigami-grid">
+          <div class="panel">
+            <div class="section-title">
+              <h2>Proof Statement</h2>
+              <span class="source-badge proof">public inputs</span>
+            </div>
+            <div id="shinigamiProofStatement" class="detail-list"></div>
+          </div>
+          <div class="panel">
+            <div class="section-title">
+              <h2>Compression Panel</h2>
+              <span class="source-badge live">deterministic</span>
+            </div>
+            <div id="shinigamiCompression" class="metric-grid"></div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="section-title">
+            <h2>Fraud Matrix</h2>
+            <span class="source-badge proof">challengeable</span>
+          </div>
+          <div id="shinigamiFraudMatrix" class="fraud-matrix"></div>
+        </section>
+
+        <section class="panel">
+          <div class="section-title">
+            <h2>Verifier Inputs</h2>
+            <span class="source-badge planned">scaffold</span>
+          </div>
+          <div id="shinigamiInputs" class="script-template"></div>
+          <div id="shinigamiCaveats" class="caveat-grid"></div>
+        </section>
+      </main>
+    </div>
+    <script src="/shinigami.js"></script>
+  </body>
+</html>

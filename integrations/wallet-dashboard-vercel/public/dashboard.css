@@ -1298,6 +1298,152 @@ th {
   min-width: 92px;
 }
 
+.shinigami-shell .topbar {
+  border-bottom-color: #cbd5e1;
+}
+
+.shinigami-hero {
+  border-left: 5px solid var(--steel);
+}
+
+.shinigami-hero-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.shinigami-flow {
+  display: grid;
+  gap: 12px;
+}
+
+.shinigami-svg {
+  width: 100%;
+  min-height: 260px;
+  background: #f8fbfa;
+  border: 1px solid var(--line);
+}
+
+.shinigami-wire {
+  fill: none;
+  stroke: var(--steel);
+  stroke-width: 3;
+}
+
+.shinigami-wire.secondary {
+  stroke: var(--amber);
+  stroke-dasharray: 7 7;
+  stroke-width: 2;
+}
+
+.shinigami-svg-node rect {
+  fill: #ffffff;
+  stroke: var(--line);
+  stroke-width: 2;
+}
+
+.shinigami-svg-node.dlc-outcomes rect {
+  stroke: var(--blue);
+}
+
+.shinigami-svg-node.ark-virtual-leaves rect {
+  stroke: var(--amber);
+}
+
+.shinigami-svg-node.shinigami-claim rect {
+  stroke: var(--green);
+}
+
+.shinigami-svg-node.bitvm-challenge rect {
+  stroke: var(--red);
+}
+
+.shinigami-svg-node text,
+.shinigami-caption {
+  fill: var(--ink);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.shinigami-svg-node text + text {
+  fill: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.shinigami-caption {
+  text-anchor: middle;
+  fill: var(--muted);
+}
+
+.shinigami-flow-cards,
+.fraud-matrix,
+.caveat-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.shinigami-flow-cards {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.shinigami-flow-card,
+.fraud-card {
+  border: 1px solid var(--line);
+  background: #fbfdfc;
+  padding: 10px;
+  min-width: 0;
+}
+
+.shinigami-flow-card span {
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 8px;
+  background: var(--ink);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.shinigami-flow-card strong,
+.shinigami-flow-card small,
+.shinigami-flow-card code,
+.fraud-card strong,
+.fraud-card code,
+.fraud-card small,
+.fraud-card p {
+  display: block;
+}
+
+.shinigami-flow-card code,
+.fraud-card code {
+  margin-top: 8px;
+  color: var(--green-dark);
+  overflow-wrap: anywhere;
+}
+
+.fraud-matrix {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.fraud-card {
+  border-top: 4px solid var(--red);
+}
+
+.fraud-card-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.fraud-card p {
+  margin-top: 8px;
+}
+
 .status.local {
   background: var(--blue);
 }
@@ -1363,6 +1509,9 @@ dialog::backdrop {
   .use-case-grid,
   .pure-demo-flow,
   .pure-demo-head,
+  .shinigami-hero-grid,
+  .shinigami-flow-cards,
+  .fraud-matrix,
   .metric-grid,
   .metric-grid.wide {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1405,6 +1554,9 @@ dialog::backdrop {
   .use-case-evidence,
   .pure-demo-flow,
   .pure-demo-head,
+  .shinigami-hero-grid,
+  .shinigami-flow-cards,
+  .fraud-matrix,
   .metric-grid,
   .metric-grid.wide,
   .control-grid,

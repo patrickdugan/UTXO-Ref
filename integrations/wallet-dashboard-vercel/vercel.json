@@ -10,6 +10,10 @@
       "destination": "/funding.html"
     },
     {
+      "source": "/shinigami",
+      "destination": "/shinigami.html"
+    },
+    {
       "source": "/v1/wallet-demo/stress-dashboard",
       "destination": "/api/stress-dashboard"
     },
@@ -24,6 +28,10 @@
     {
       "source": "/v1/wallet-demo/bitcoin-testnet-proof",
       "destination": "/api/bitcoin-testnet-proof"
+    },
+    {
+      "source": "/v1/wallet-demo/shinigami-proof",
+      "destination": "/api/shinigami-proof"
     },
     {
       "source": "/v1/lnbtc-tlusd-liquidity-patch/wallet-view",
