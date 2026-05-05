@@ -3,24 +3,45 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const {
+  paymentHashFromPreimageHex,
+  payInvoiceViaLndRest
+} = require('./lndRestClient');
 const { buildWalletDemoConfig, verifyWalletDemoConfig } = require('../wallet-demo/walletBackendProfiles');
 const { buildStressDashboard, verifyStressDashboard } = require('../wallet-demo/stressDashboard');
 const { buildAdapterFeed } = require('../wallet-dashboard-vercel/api/adapterFeed');
+const {
+  buildDlcSubswapFundingRequest,
+  verifyDlcSubswapFundingRequest,
+  buildDlcSubswapFundingWalletView
+} = require('../../bitvm3/utxo_referee/utxoref_dlc_subswap_funding');
+const {
+  buildBitvmChannelRouterBundle,
+  verifyBitvmChannelRouterBundle,
+  verifyBitvmChannelRouterPlan
+} = require('../../bitvm3/utxo_referee/bitvm_channel_router');
 
 const repoRoot = path.join(__dirname, '..', '..');
 const artifactDir = path.join(repoRoot, 'bitvm3', 'utxo_referee', 'artifacts');
 const leasePath = path.join(artifactDir, 'lightning_liquidity_lease_latest.json');
 const subswapPath = path.join(artifactDir, 'lightning_subswap_dlc_latest.json');
+const dlcPath = path.join(artifactDir, 'lightning_tradelayer_oracle_dlc_latest.json');
+const dlcSubswapFundingPath = path.join(artifactDir, 'utxoref_dlc_subswap_funding_latest.json');
 const stablecoinPath = path.join(artifactDir, 'lightning_taproot_assets_stablecoin_latest.json');
 const arkGraftPath = path.join(artifactDir, 'lightning_ark_liquidity_graft_latest.json');
 const arkGovernorBenchPath = path.join(artifactDir, 'ark_liquidity_governor_bench_latest.json');
 const arkDlcSettlementPath = path.join(artifactDir, 'ark_dlc_settlement_latest.json');
 const arkLiquidityGraftManagerPath = path.join(artifactDir, 'ark_liquidity_graft_manager_latest.json');
 const lnbtcTlusdLiquidityPatchPath = path.join(artifactDir, 'lnbtc_tlusd_liquidity_patch_latest.json');
+const bitvmChannelRouterPath = path.join(artifactDir, 'bitvm_channel_router_latest.json');
 const walletDemoDir = path.join(repoRoot, 'integrations', 'wallet-demo');
 
 function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+}
+
+function readJsonIfExists(filePath) {
+  return fs.existsSync(filePath) ? readJson(filePath) : null;
 }
 
 function artifactStatus(name, filePath, summarize) {
@@ -48,6 +69,13 @@ function walletDemoStatus() {
     stakedTlUsdUnits: patch.stake.stakeCore.stakedTlUsdUnits,
     assignedInboundSats: patch.mandate.manager.allocation.totals.assignedInboundSats,
     slashableAssignments: patch.mandate.manager.allocation.totals.slashableAssignments
+  }));
+  const routerArtifact = artifactStatus('bitvm_channel_router', bitvmChannelRouterPath, router => ({
+    ok: Boolean(router.verification && router.verification.ok),
+    routerId: router.plan.routerId,
+    targetAmountSats: router.walletView.targetAmountSats,
+    assignedSats: router.walletView.assignedSats,
+    selectedShards: router.walletView.selectedChannels.length
   }));
   const profile = config.activeProfile;
   const lnd = profile.lnd
@@ -86,7 +114,8 @@ function walletDemoStatus() {
     },
     lnd,
     artifacts: {
-      lnbtcTlusdLiquidityPatch: patchArtifact
+      lnbtcTlusdLiquidityPatch: patchArtifact,
+      bitvmChannelRouter: routerArtifact
     },
     readiness: {
       walletViewReady: patchArtifact.exists && Boolean(patchArtifact.summary && patchArtifact.summary.ok),
@@ -313,6 +342,172 @@ function arkDlcSettlementWalletView(arkDlc) {
       { id: 'prepare_asp_challenge', label: 'Prepare ASP challenge' }
     ]
   };
+}
+
+function hasLiveDlcSubswapOverrides(overrides = {}) {
+  return [
+    'requestedCollateralSats',
+    'swapFeeSats',
+    'refundBlocks',
+    'invoice',
+    'paymentHashHex',
+    'preimageHex',
+    'refundAddress',
+    'timeoutBlock',
+    'epochId'
+  ].some(key => overrides[key] !== undefined && overrides[key] !== null && overrides[key] !== '');
+}
+
+function dlcSubswapOverridesFromBody(body = {}) {
+  return {
+    walletNodeId: body.walletNodeId,
+    requestedCollateralSats: body.requestedCollateralSats || body.collateralSats,
+    swapFeeSats: body.swapFeeSats || body.feeSats,
+    refundBlocks: body.refundBlocks || body.refundTimeoutBlocks,
+    invoice: body.invoice || body.bolt11,
+    paymentHashHex: body.paymentHashHex,
+    preimageHex: body.preimageHex,
+    refundAddress: body.refundAddress,
+    timeoutBlock: body.timeoutBlock,
+    epochId: body.epochId
+  };
+}
+
+function latestDlcSubswapFundingRequest(overrides = {}) {
+  if (fs.existsSync(dlcSubswapFundingPath) && !Object.keys(overrides).length) {
+    const bundle = readJson(dlcSubswapFundingPath);
+    return bundle.request;
+  }
+  const useFixtureProof = !hasLiveDlcSubswapOverrides(overrides);
+  return buildDlcSubswapFundingRequest({
+    dlcBundle: readJson(dlcPath),
+    subswapProof: useFixtureProof && fs.existsSync(subswapPath) ? readJson(subswapPath) : null,
+    options: overrides
+  });
+}
+
+function satsToBtcString(sats) {
+  const n = BigInt(sats);
+  const whole = n / 100000000n;
+  const frac = (n % 100000000n).toString().padStart(8, '0');
+  return `${whole}.${frac}`;
+}
+
+function compactId(value, prefix, length = 8) {
+  const cleaned = String(value || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  return `${prefix}${cleaned.slice(0, length) || '0'}`;
+}
+
+function paymentProofFromExecution(request) {
+  const proof = request && request.executionProof;
+  if (!proof || !proof.paymentPreimageHex) return null;
+  return {
+    kind: 'utxoref_dlc_subswap_lnd_payment_proof',
+    status: 'paid',
+    paymentHashHex: proof.paymentHashHex,
+    paymentPreimageHex: proof.paymentPreimageHex,
+    source: 'executionProof'
+  };
+}
+
+function verifyPaymentProofForRequest(request, paymentProof) {
+  if (!request || !request.requestCore || !request.requestCore.submarineSwap) {
+    return { ok: false, reason: 'missing DLC submarine-swap request' };
+  }
+  const expectedHash = String(request.requestCore.submarineSwap.paymentHashHex || '').toLowerCase();
+  const preimageHex = String(paymentProof && paymentProof.paymentPreimageHex || '').toLowerCase();
+  if (!/^[0-9a-f]{64}$/.test(preimageHex)) {
+    return { ok: false, reason: 'missing payment preimage' };
+  }
+  const derivedHash = paymentHashFromPreimageHex(preimageHex);
+  if (derivedHash !== expectedHash) {
+    return { ok: false, reason: 'payment preimage does not match request payment hash' };
+  }
+  const proofHash = String(paymentProof.paymentHashHex || '').toLowerCase();
+  if (proofHash && proofHash !== expectedHash) {
+    return { ok: false, reason: 'payment proof hash does not match request payment hash' };
+  }
+  return { ok: true, paymentHashHex: expectedHash };
+}
+
+function buildTlbtcMintIntent({ request, paymentProof, recipientAddress, fromAddress, overrides = {} }) {
+  const requestVerification = verifyDlcSubswapFundingRequest(request);
+  if (!requestVerification.ok) {
+    return { ok: false, reason: requestVerification.reason, requestVerification };
+  }
+  const effectivePaymentProof = paymentProof || paymentProofFromExecution(request);
+  const paymentVerification = verifyPaymentProofForRequest(request, effectivePaymentProof);
+  if (!paymentVerification.ok) {
+    return { ok: false, reason: paymentVerification.reason, requestVerification, paymentVerification };
+  }
+  const core = request.requestCore;
+  const recipient = String(recipientAddress || '').trim();
+  if (!recipient) throw new Error('recipientAddress is required for tlBTC mint intent');
+  const requestedCollateralSats = core.submarineSwap.requestedCollateralSats;
+  const amountGranted = satsToBtcString(requestedCollateralSats);
+  const propertyId = Number(overrides.propertyId || process.env.TL_TLBTC_PROPERTY_ID || 1);
+  const dlcTemplateId = String(
+    overrides.dlcTemplateId ||
+      process.env.TL_DLC_TEMPLATE_ID ||
+      compactId(core.targetDlc.contractCommitmentId || core.targetBindingHash, 'tpl')
+  );
+  const dlcContractId = String(overrides.dlcContractId || process.env.TL_DLC_CONTRACT_ID || '');
+  const settlementState = String(overrides.settlementState || process.env.TL_DLC_SETTLEMENT_STATE || 'FUNDED').toUpperCase();
+  const dlcHash = String(overrides.dlcHash || process.env.TL_DLC_HASH || core.targetBindingHash);
+  const grantFromAddress = String(fromAddress || process.env.TL_PROCEDURAL_ADMIN_ADDRESS || recipient);
+  const params = {
+    fromAddress: grantFromAddress,
+    propertyId,
+    amountGranted,
+    addressToGrantTo: recipient,
+    redeemAddress: recipient,
+    dlcTemplateId,
+    dlcContractId,
+    settlementState,
+    dlcHash,
+    requestId: request.requestId,
+    targetBindingHash: core.targetBindingHash,
+    paymentHashHex: paymentVerification.paymentHashHex
+  };
+
+  return {
+    kind: 'tradelayer_tlbtc_mint_intent',
+    ok: true,
+    requestId: request.requestId,
+    requestedCollateralSats,
+    requestVerification,
+    paymentVerification,
+    tradeLayer: {
+      method: 'tl_createGrantManagedTokenTransaction',
+      params
+    }
+  };
+}
+
+function latestBitvmChannelRouterBundle(overrides = {}) {
+  if (fs.existsSync(bitvmChannelRouterPath) && !Object.keys(overrides).length) {
+    return readJson(bitvmChannelRouterPath);
+  }
+  return buildBitvmChannelRouterBundle({
+    sources: {
+      liquidityLease: readJsonIfExists(leasePath),
+      arkManager: readJsonIfExists(arkLiquidityGraftManagerPath),
+      tlusdPatch: readJsonIfExists(lnbtcTlusdLiquidityPatchPath),
+      dlcSubswapFunding: readJsonIfExists(dlcSubswapFundingPath)
+    },
+    routeIntent: overrides.routeIntent || {
+      intentId: 'bitvm-router-sidecar-quote',
+      amountSats: overrides.amountSats || '120000',
+      maxFeePpm: Number(overrides.maxFeePpm || 1200),
+      maxCltvDelta: Number(overrides.maxCltvDelta || 45),
+      destinationNodeId: overrides.destinationNodeId || 'ldk-router-destination-regtest'
+    },
+    policy: overrides.policy || {
+      excludeSlashable: overrides.excludeSlashable !== false,
+      allowFundingFallback: Boolean(overrides.allowFundingFallback),
+      minShardSats: overrides.minShardSats || '1000'
+    }
+  });
 }
 
 function arkLiquidityGraftManagerWalletView(manager) {
@@ -574,6 +769,14 @@ async function handle(req, res) {
       return sendJson(res, 200, lnbtcTlusdLiquidityPatchWalletView(readJson(lnbtcTlusdLiquidityPatchPath)));
     }
 
+    if (req.method === 'GET' && req.url === '/v1/bitvm-channel-router/latest') {
+      return sendJson(res, 200, latestBitvmChannelRouterBundle());
+    }
+
+    if (req.method === 'GET' && req.url === '/v1/bitvm-channel-router/wallet-view') {
+      return sendJson(res, 200, latestBitvmChannelRouterBundle().walletView);
+    }
+
     if (req.method === 'GET' && req.url === '/v1/ark-dlc-settlement/latest') {
       return sendJson(res, 200, readJson(arkDlcSettlementPath));
     }
@@ -582,8 +785,92 @@ async function handle(req, res) {
       return sendJson(res, 200, arkDlcSettlementWalletView(readJson(arkDlcSettlementPath)));
     }
 
+    if (req.method === 'GET' && req.url === '/v1/dlc-subswap-funding/latest') {
+      return sendJson(res, 200, fs.existsSync(dlcSubswapFundingPath)
+        ? readJson(dlcSubswapFundingPath)
+        : { kind: 'utxoref_dlc_subswap_funding_bundle', request: latestDlcSubswapFundingRequest() });
+    }
+
+    if (req.method === 'GET' && req.url === '/v1/dlc-subswap-funding/wallet-view') {
+      return sendJson(res, 200, buildDlcSubswapFundingWalletView(latestDlcSubswapFundingRequest()));
+    }
+
     if (req.method === 'GET' && req.url === '/v1/liquidity-lease/subswap-proof') {
       return sendJson(res, 200, readJson(subswapPath));
+    }
+
+    if (req.method === 'POST' && req.url === '/v1/dlc-subswap-funding/quote') {
+      const body = await readBody(req);
+      const request = latestDlcSubswapFundingRequest(dlcSubswapOverridesFromBody(body));
+      return sendJson(res, 200, {
+        request,
+        walletView: buildDlcSubswapFundingWalletView(request)
+      });
+    }
+
+    if (req.method === 'POST' && req.url === '/v1/dlc-subswap-funding/pay') {
+      const body = await readBody(req);
+      const request = body.request || latestDlcSubswapFundingRequest(dlcSubswapOverridesFromBody(body));
+      const verification = verifyDlcSubswapFundingRequest(request);
+      if (!verification.ok) {
+        return sendJson(res, 400, { ok: false, reason: verification.reason, verification });
+      }
+      const core = request.requestCore;
+      const paymentProof = await payInvoiceViaLndRest({
+        invoice: core.submarineSwap.invoice,
+        feeLimitSats: body.feeLimitSats || body.maxFeeSats || process.env.UTXOREF_LND_MAX_FEE_SATS || core.submarineSwap.swapFeeSats,
+        timeoutSeconds: body.timeoutSeconds || 60,
+        paymentHashHex: core.submarineSwap.paymentHashHex
+      });
+      const paymentVerification = verifyPaymentProofForRequest(request, paymentProof);
+      return sendJson(res, paymentVerification.ok ? 200 : 502, {
+        ok: paymentVerification.ok,
+        request,
+        paymentProof: {
+          ...paymentProof,
+          requestId: request.requestId
+        },
+        paymentVerification,
+        walletView: buildDlcSubswapFundingWalletView(request)
+      });
+    }
+
+    if (req.method === 'POST' && req.url === '/v1/dlc-subswap-funding/tlbtc-mint-intent') {
+      const body = await readBody(req);
+      const request = body.request || latestDlcSubswapFundingRequest();
+      const intent = buildTlbtcMintIntent({
+        request,
+        paymentProof: body.paymentProof,
+        recipientAddress: body.recipientAddress || body.address || body.redeemAddress,
+        fromAddress: body.fromAddress || body.adminAddress,
+        overrides: {
+          propertyId: body.propertyId,
+          dlcTemplateId: body.dlcTemplateId,
+          dlcContractId: body.dlcContractId,
+          settlementState: body.settlementState,
+          dlcHash: body.dlcHash
+        }
+      });
+      return sendJson(res, intent.ok ? 200 : 400, intent);
+    }
+
+    if (req.method === 'POST' && req.url === '/v1/bitvm-channel-router/quote') {
+      const body = await readBody(req);
+      const bundle = latestBitvmChannelRouterBundle({
+        routeIntent: body.routeIntent || {
+          intentId: body.intentId,
+          amountSats: body.amountSats,
+          maxFeePpm: body.maxFeePpm,
+          maxCltvDelta: body.maxCltvDelta,
+          destinationNodeId: body.destinationNodeId
+        },
+        policy: body.policy || {
+          excludeSlashable: body.excludeSlashable !== false,
+          allowFundingFallback: Boolean(body.allowFundingFallback),
+          minShardSats: body.minShardSats
+        }
+      });
+      return sendJson(res, 200, bundle);
     }
 
     if (req.method === 'POST' && req.url === '/v1/liquidity-lease/quote') {
@@ -735,6 +1022,20 @@ async function handle(req, res) {
       });
     }
 
+    if (req.method === 'POST' && req.url === '/v1/bitvm-channel-router/verify') {
+      const body = await readBody(req);
+      if (body.plan) {
+        return sendJson(res, 200, verifyBitvmChannelRouterPlan(body.plan));
+      }
+      return sendJson(res, 200, verifyBitvmChannelRouterBundle(body.bundle || latestBitvmChannelRouterBundle()));
+    }
+
+    if (req.method === 'POST' && req.url === '/v1/dlc-subswap-funding/verify') {
+      const body = await readBody(req);
+      const request = body.request || latestDlcSubswapFundingRequest();
+      return sendJson(res, 200, verifyDlcSubswapFundingRequest(request));
+    }
+
     if (req.method === 'POST' && req.url === '/v1/ark-dlc-settlement/challenge') {
       const arkDlc = readJson(arkDlcSettlementPath);
       return sendJson(res, 200, {
@@ -769,6 +1070,10 @@ module.exports = {
   arkDlcSettlementWalletView,
   arkLiquidityGraftManagerWalletView,
   lnbtcTlusdLiquidityPatchWalletView,
+  latestDlcSubswapFundingRequest,
+  latestBitvmChannelRouterBundle,
+  buildTlbtcMintIntent,
+  verifyPaymentProofForRequest,
   walletDemoStatus,
   handle,
   server
