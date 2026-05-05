@@ -161,6 +161,10 @@ async function main() {
     assert.equal(shinigamiProof.projection.reserveBond.summary.claimedSlashSats, '60000');
     assert.equal(shinigamiProof.projection.reserveBond.summary.slashable, true);
     assert.equal(shinigamiProof.projection.reserveBond.obligations.length, 4);
+    assert.equal(shinigamiProof.projection.reserveBond.disputeSimulation.contestedStepIndex, 8);
+    assert.equal(shinigamiProof.projection.reserveBond.disputeSimulation.openedStep.scriptCheck, '190000 250000 OP_LESSTHAN');
+    assert.ok(shinigamiProof.projection.reserveBond.disputeSimulation.receipts.some(receipt => receipt.stage === 'opened-step-checked'), 'missing opened-step receipt');
+    assert.ok(shinigamiProof.projection.reserveBond.disputeSimulation.receipts.some(receipt => receipt.stage === 'reserve-slash-authorized'), 'missing slash receipt');
   });
 
   console.log(`panel data smoke test ok: ${BASE_URL}`);

@@ -5,7 +5,7 @@
   "verification": {
     "ok": true
   },
-  "bundleId": "ee7c3b69504b8cb6757a5b60c2b6f272f2e0b9c97a76abf25ce2c6e23f052dbe",
+  "bundleId": "d8a46c9e368ddc93a68ee5c92c8cee03e59e0e13e60a58bbc6340b0ce413ed15",
   "reserveId": "e5186dd50fc221414b6998eb618b4ea6067ba4e657dd238ee6b114eab677db94",
   "claimId": "8d50c59c519e35fe79277e0aef185e6dbb29bc1f4ae735ed8ad86eeed16b209b",
   "challengeId": "0c2125c6365bb33118170260c258e0cdb7c050aef135b94137bc4bccaf2d6042",
@@ -100,6 +100,153 @@
       "watcherBountySats": "3000",
       "aspRefundSats": "940000"
     },
+    "disputeSimulation": {
+      "simulationId": "d104752ccc49ed457b9b157cc7228fc73484e8b27567bb4bcbbd266cd66f12e9",
+      "traceRoot": "431dcf97dafcab21737ffd1e8470ceedf6e2c003b99f0cd505acad8e403e59ac",
+      "stepCount": 16,
+      "contestedViolation": "delivered_below_signed_minimum",
+      "contestedStepIndex": 8,
+      "contestedOpcode": "compare-delivery-shortfall",
+      "aspCounterclaim": "observed_sats >= promised_sats; no slash should be paid",
+      "openedStep": {
+        "scriptCheck": "190000 250000 OP_LESSTHAN",
+        "inputs": {
+          "observedSats": "190000",
+          "promisedSats": "250000"
+        },
+        "output": {
+          "violation": true,
+          "violationName": "delivered_below_signed_minimum"
+        },
+        "winner": "challenger"
+      },
+      "bisectionRounds": [
+        {
+          "round": 1,
+          "range": "0-15",
+          "midpoint": 7,
+          "selectedRange": "8-15",
+          "receiptId": "891b855d616e2b11c6b63892b308e8e98817504dbc3c38b29a1f8cc6fb2bdfcd"
+        },
+        {
+          "round": 2,
+          "range": "8-15",
+          "midpoint": 11,
+          "selectedRange": "8-11",
+          "receiptId": "0484aea15101a0d15fdffff5f84bc369043fe99d7cac091152d95b5b5c205588"
+        },
+        {
+          "round": 3,
+          "range": "8-11",
+          "midpoint": 9,
+          "selectedRange": "8-9",
+          "receiptId": "11325fb457f92997bcfaba5aac23effbe284a789111fddafa2c5d693a68f171e"
+        },
+        {
+          "round": 4,
+          "range": "8-9",
+          "midpoint": 8,
+          "selectedRange": "8-8",
+          "receiptId": "f4e6d7edd6309cee752edca9387ea9c9c40435ab3a81439bdf138447705a58dd"
+        }
+      ],
+      "receipts": [
+        {
+          "stage": "zk-claim-published",
+          "receiptId": "4a1949aa2af2d5a02154824b3e84c02f2a266703f78aa3e796169e4d37abee75",
+          "binds": {
+            "claimId": "8d50c59c519e35fe79277e0aef185e6dbb29bc1f4ae735ed8ad86eeed16b209b",
+            "publicInputRoot": "098806ea5d28e9e2bb32b3a7fdd2eae7fff9cd61156ef282914cabd1836ee56c"
+          },
+          "result": "fraud claim is visible to the reserve challenge path"
+        },
+        {
+          "stage": "verifier-trace-committed",
+          "receiptId": "ab23b53f1c535594f46a5c438b2ff4a600c2b14cd969bfe85b88f52554c6b24f",
+          "binds": {
+            "traceRoot": "431dcf97dafcab21737ffd1e8470ceedf6e2c003b99f0cd505acad8e403e59ac",
+            "stepCount": 16
+          },
+          "result": "challenger commits the claimed ZK-verifier execution trace"
+        },
+        {
+          "stage": "asp-dispute-opened",
+          "receiptId": "611a0caea2cfec82d16eecbc47fd05e7f91c57441b4c9fc710e9d3eb501529cc",
+          "binds": {
+            "violation": "delivered_below_signed_minimum",
+            "aspCounterclaim": "observed_sats >= promised_sats; no slash should be paid"
+          },
+          "result": "ASP contests the verifier result instead of accepting the slash"
+        },
+        {
+          "stage": "bisection-round-1",
+          "receiptId": "891b855d616e2b11c6b63892b308e8e98817504dbc3c38b29a1f8cc6fb2bdfcd",
+          "binds": {
+            "range": "0-15",
+            "midpoint": 7,
+            "selectedRange": "8-15"
+          },
+          "result": "range narrows toward the disputed verifier step"
+        },
+        {
+          "stage": "bisection-round-2",
+          "receiptId": "0484aea15101a0d15fdffff5f84bc369043fe99d7cac091152d95b5b5c205588",
+          "binds": {
+            "range": "8-15",
+            "midpoint": 11,
+            "selectedRange": "8-11"
+          },
+          "result": "range narrows toward the disputed verifier step"
+        },
+        {
+          "stage": "bisection-round-3",
+          "receiptId": "11325fb457f92997bcfaba5aac23effbe284a789111fddafa2c5d693a68f171e",
+          "binds": {
+            "range": "8-11",
+            "midpoint": 9,
+            "selectedRange": "8-9"
+          },
+          "result": "range narrows toward the disputed verifier step"
+        },
+        {
+          "stage": "bisection-round-4",
+          "receiptId": "f4e6d7edd6309cee752edca9387ea9c9c40435ab3a81439bdf138447705a58dd",
+          "binds": {
+            "range": "8-9",
+            "midpoint": 8,
+            "selectedRange": "8-8"
+          },
+          "result": "range narrows toward the disputed verifier step"
+        },
+        {
+          "stage": "opened-step-checked",
+          "receiptId": "aa0936824f6b6a9da7c438162ca74f298c34a30462f42bd03e9be25660e84f4b",
+          "binds": {
+            "contestedStepIndex": 8,
+            "contestedOpcode": "compare-delivery-shortfall",
+            "scriptCheck": "190000 250000 OP_LESSTHAN"
+          },
+          "result": "opened step proves underdelivery"
+        },
+        {
+          "stage": "reserve-slash-authorized",
+          "receiptId": "bbaca7bd33be6d9c406c6ecf4df26b2b2f0264618fe870e47fc577f8da5e08ac",
+          "binds": {
+            "challengeId": "0c2125c6365bb33118170260c258e0cdb7c050aef135b94137bc4bccaf2d6042",
+            "claimedSlashSats": "60000",
+            "disbursement": {
+              "beneficiaryScript": "tr(user-recovery-aggregate-key)",
+              "beneficiarySats": "57000",
+              "watcherBountyScript": "tr(watcher-bounty-key)",
+              "watcherBountySats": "3000",
+              "aspRefundScript": "eaa7181635448602377dd17b360b51ecadab0babe4c4b0b0f6958a80f88bed62",
+              "aspRefundSats": "940000"
+            }
+          },
+          "result": "reserve slash path wins after the verifier step is opened"
+        }
+      ]
+    },
     "publicInputs": [
       "reserve_outpoint",
       "obligation_root",
@@ -115,7 +262,7 @@
   },
   "bundle": {
     "kind": "asp_bitvm_reserve_bundle",
-    "bundleId": "ee7c3b69504b8cb6757a5b60c2b6f272f2e0b9c97a76abf25ce2c6e23f052dbe",
+    "bundleId": "d8a46c9e368ddc93a68ee5c92c8cee03e59e0e13e60a58bbc6340b0ce413ed15",
     "bundleCore": {
       "version": 1,
       "protocol": "asp_bitvm_reserve_bundle",
@@ -124,7 +271,9 @@
       "obligationRoot": "86561a60d7f48032cc40199950a1a7bd1bb374461cf5178c73506cb88ef7cbab",
       "claimId": "8d50c59c519e35fe79277e0aef185e6dbb29bc1f4ae735ed8ad86eeed16b209b",
       "receiptId": "c247c7d0e24659c31853d67d93a0c227356a7f898aedcae9d1e6c005ea1e4848",
-      "challengeId": "0c2125c6365bb33118170260c258e0cdb7c050aef135b94137bc4bccaf2d6042"
+      "challengeId": "0c2125c6365bb33118170260c258e0cdb7c050aef135b94137bc4bccaf2d6042",
+      "verifierTraceRoot": "431dcf97dafcab21737ffd1e8470ceedf6e2c003b99f0cd505acad8e403e59ac",
+      "disputeSimulationId": "d104752ccc49ed457b9b157cc7228fc73484e8b27567bb4bcbbd266cd66f12e9"
     },
     "reserve": {
       "kind": "asp_bitvm_reserve_bond",
@@ -3014,6 +3163,845 @@
       },
       "slashable": true
     },
+    "verifierTrace": {
+      "kind": "bitvm_zk_verifier_trace",
+      "traceRoot": "431dcf97dafcab21737ffd1e8470ceedf6e2c003b99f0cd505acad8e403e59ac",
+      "traceCore": {
+        "version": 1,
+        "protocol": "bitvm_zk_verifier_trace",
+        "claimId": "8d50c59c519e35fe79277e0aef185e6dbb29bc1f4ae735ed8ad86eeed16b209b",
+        "receiptId": "c247c7d0e24659c31853d67d93a0c227356a7f898aedcae9d1e6c005ea1e4848",
+        "obligationId": "f4eefd813022622dd20e303df296a613a61dd2cd5aec2a4440f3ad8de36d9e55",
+        "stepCount": 16,
+        "finalStepHash": "3c0ec8f2f490eea7db990639b1ba291c65d263cbdb64754dda5b6b0cf7654952",
+        "stepHashes": [
+          "44eda701a1c81a3d37785f8da55e303987062a50639614f62301ccd53b4f8876",
+          "4c0029bc8009b53a63402eabf882d1f935e1690563d35aab35d8992ca4be7476",
+          "2d84bc5da6cd0f2e9fe260b353b50f322b94f127edbc2312aa29d531bd31e7a4",
+          "4bb92e702af6359f057e05530848b1d2a2af9daa69256677cd5f167c502dbbd8",
+          "d770a354c28eb9113fb7ad4ed70bd38d6ede96fc51e1525da79a42b1b2b0d99f",
+          "c35adfa0b620cf5c85e6698aee7c4dc2e0302b250a7f50d7e02dd6d898a33f3d",
+          "0be5d1da0835b8b5de08179f6c169ecb1d6e02d02de00f0092609a569afe0de9",
+          "692de9b1ccdba813b48b3269189766bbf74be829e7a14b53ace41196b02e4bca",
+          "2b0318d27d677e391a6832690a64af499931f40b33faef6134c4bd6ef038a29c",
+          "e682ad9af735ecaa55dd2967fdd79b1a90aa43131ce0db397f917a9c9df279f8",
+          "c7c3485255957824f2d0e71ab38dcf857b9dcaeb9e2e2b932b20dc334e1b642a",
+          "f7047f59b56797041243e851b74c592790d0a2987d5f0dc4e7ff41329cf26c36",
+          "e4cfa2382f9e505d0c17fce4ee480ec505ec188a426a8fc6944deba72c176070",
+          "96b6d4343d3a9582124fce6053757677f1f5fb9f736647205a3d12ce84639407",
+          "83a382c0a6bf9df298a79a840da08b5f0f8b58a739e1ececaee09d6d5f552d90",
+          "3c0ec8f2f490eea7db990639b1ba291c65d263cbdb64754dda5b6b0cf7654952"
+        ]
+      },
+      "steps": [
+        {
+          "kind": "bitvm_zk_verifier_trace_step",
+          "stepHash": "44eda701a1c81a3d37785f8da55e303987062a50639614f62301ccd53b4f8876",
+          "stepCore": {
+            "version": 1,
+            "protocol": "bitvm_zk_verifier_trace_step",
+            "index": 0,
+            "opcode": "load-public-inputs",
+            "inputs": {
+              "claimId": "8d50c59c519e35fe79277e0aef185e6dbb29bc1f4ae735ed8ad86eeed16b209b"
+            },
+            "output": {
+              "publicInputRoot": "098806ea5d28e9e2bb32b3a7fdd2eae7fff9cd61156ef282914cabd1836ee56c"
+            },
+            "prevHash": "0000000000000000000000000000000000000000000000000000000000000000"
+          }
+        },
+        {
+          "kind": "bitvm_zk_verifier_trace_step",
+          "stepHash": "4c0029bc8009b53a63402eabf882d1f935e1690563d35aab35d8992ca4be7476",
+          "stepCore": {
+            "version": 1,
+            "protocol": "bitvm_zk_verifier_trace_step",
+            "index": 1,
+            "opcode": "bind-reserve-outpoint",
+            "inputs": {
+              "reserveOutpoint": "86c22e718a67263c7909bd342f3c0fc3c27abe20075006164295b5a1e4a93ae4:0"
+            },
+            "output": {
+              "reserveId": "e5186dd50fc221414b6998eb618b4ea6067ba4e657dd238ee6b114eab677db94"
+            },
+            "prevHash": "44eda701a1c81a3d37785f8da55e303987062a50639614f62301ccd53b4f8876"
+          }
+        },
+        {
+          "kind": "bitvm_zk_verifier_trace_step",
+          "stepHash": "2d84bc5da6cd0f2e9fe260b353b50f322b94f127edbc2312aa29d531bd31e7a4",
+          "stepCore": {
+            "version": 1,
+            "protocol": "bitvm_zk_verifier_trace_step",
+            "index": 2,
+            "opcode": "bind-obligation-root",
+            "inputs": {
+              "obligationRoot": "86561a60d7f48032cc40199950a1a7bd1bb374461cf5178c73506cb88ef7cbab"
+            },
+            "output": {
+              "obligationCount": 4
+            },
+            "prevHash": "4c0029bc8009b53a63402eabf882d1f935e1690563d35aab35d8992ca4be7476"
+          }
+        },
+        {
+          "kind": "bitvm_zk_verifier_trace_step",
+          "stepHash": "4bb92e702af6359f057e05530848b1d2a2af9daa69256677cd5f167c502dbbd8",
+          "stepCore": {
+            "version": 1,
+            "protocol": "bitvm_zk_verifier_trace_step",
+            "index": 3,
+            "opcode": "select-obligation",
+            "inputs": {
+              "obligationId": "f4eefd813022622dd20e303df296a613a61dd2cd5aec2a4440f3ad8de36d9e55"
+            },
+            "output": {
+              "obligationType": "ln-liquidity-delivery"
+            },
+            "prevHash": "2d84bc5da6cd0f2e9fe260b353b50f322b94f127edbc2312aa29d531bd31e7a4"
+          }
+        },
+        {
+          "kind": "bitvm_zk_verifier_trace_step",
+          "stepHash": "d770a354c28eb9113fb7ad4ed70bd38d6ede96fc51e1525da79a42b1b2b0d99f",
+          "stepCore": {
+            "version": 1,
+            "protocol": "bitvm_zk_verifier_trace_step",
+            "index": 4,
+            "opcode": "verify-asp-signature",
+            "inputs": {
+              "aspSignature": "e7996e53a6dfb9fdac81123655dca078bf9175fbb4037d382447b57ffcd54bb0"
+            },
+            "output": {
+              "matched": true
+            },
+            "prevHash": "4bb92e702af6359f057e05530848b1d2a2af9daa69256677cd5f167c502dbbd8"
+          }
+        },
+        {
+          "kind": "bitvm_zk_verifier_trace_step",
+          "stepHash": "c35adfa0b620cf5c85e6698aee7c4dc2e0302b250a7f50d7e02dd6d898a33f3d",
+          "stepCore": {
+            "version": 1,
+            "protocol": "bitvm_zk_verifier_trace_step",
+            "index": 5,
+            "opcode": "decode-liquidity-obligation",
+            "inputs": {
+              "obligationType": "ln-liquidity-delivery"
+            },
+            "output": {
+              "comparator": "observed_sats < promised_sats"
+            },
+            "prevHash": "d770a354c28eb9113fb7ad4ed70bd38d6ede96fc51e1525da79a42b1b2b0d99f"
+          }
+        },
+        {
+          "kind": "bitvm_zk_verifier_trace_step",
+          "stepHash": "0be5d1da0835b8b5de08179f6c169ecb1d6e02d02de00f0092609a569afe0de9",
+          "stepCore": {
+            "version": 1,
+            "protocol": "bitvm_zk_verifier_trace_step",
+            "index": 6,
+            "opcode": "load-promised-sats",
+            "inputs": {
+              "promisedState": "250000"
+            },
+            "output": {
+              "promisedSats": "250000",
+              "promisedState": "250000"
+            },
+            "prevHash": "c35adfa0b620cf5c85e6698aee7c4dc2e0302b250a7f50d7e02dd6d898a33f3d"
+          }
+        },
+        {
+          "kind": "bitvm_zk_verifier_trace_step",
+          "stepHash": "692de9b1ccdba813b48b3269189766bbf74be829e7a14b53ace41196b02e4bca",
+          "stepCore": {
+            "version": 1,
+            "protocol": "bitvm_zk_verifier_trace_step",
+            "index": 7,
+            "opcode": "load-observed-sats",
+            "inputs": {
+              "observedState": "190000"
+            },
+            "output": {
+              "observedSats": "190000",
+              "observedState": "190000"
+            },
+            "prevHash": "0be5d1da0835b8b5de08179f6c169ecb1d6e02d02de00f0092609a569afe0de9"
+          }
+        },
+        {
+          "kind": "bitvm_zk_verifier_trace_step",
+          "stepHash": "2b0318d27d677e391a6832690a64af499931f40b33faef6134c4bd6ef038a29c",
+          "stepCore": {
+            "version": 1,
+            "protocol": "bitvm_zk_verifier_trace_step",
+            "index": 8,
+            "opcode": "compare-delivery-shortfall",
+            "inputs": {
+              "observedSats": "190000",
+              "promisedSats": "250000"
+            },
+            "output": {
+              "violation": true,
+              "violationName": "delivered_below_signed_minimum"
+            },
+            "prevHash": "692de9b1ccdba813b48b3269189766bbf74be829e7a14b53ace41196b02e4bca"
+          }
+        },
+        {
+          "kind": "bitvm_zk_verifier_trace_step",
+          "stepHash": "e682ad9af735ecaa55dd2967fdd79b1a90aa43131ce0db397f917a9c9df279f8",
+          "stepCore": {
+            "version": 1,
+            "protocol": "bitvm_zk_verifier_trace_step",
+            "index": 9,
+            "opcode": "compute-shortfall",
+            "inputs": {
+              "promisedSats": "250000",
+              "observedSats": "190000",
+              "maxLossSats": "60000"
+            },
+            "output": {
+              "shortfallSats": "60000"
+            },
+            "prevHash": "2b0318d27d677e391a6832690a64af499931f40b33faef6134c4bd6ef038a29c"
+          }
+        },
+        {
+          "kind": "bitvm_zk_verifier_trace_step",
+          "stepHash": "c7c3485255957824f2d0e71ab38dcf857b9dcaeb9e2e2b932b20dc334e1b642a",
+          "stepCore": {
+            "version": 1,
+            "protocol": "bitvm_zk_verifier_trace_step",
+            "index": 10,
+            "opcode": "cap-slash-by-reserve",
+            "inputs": {
+              "shortfallSats": "60000",
+              "reserveAmountSats": "1000000"
+            },
+            "output": {
+              "claimedSlashSats": "60000"
+            },
+            "prevHash": "e682ad9af735ecaa55dd2967fdd79b1a90aa43131ce0db397f917a9c9df279f8"
+          }
+        },
+        {
+          "kind": "bitvm_zk_verifier_trace_step",
+          "stepHash": "f7047f59b56797041243e851b74c592790d0a2987d5f0dc4e7ff41329cf26c36",
+          "stepCore": {
+            "version": 1,
+            "protocol": "bitvm_zk_verifier_trace_step",
+            "index": 11,
+            "opcode": "compute-watcher-bounty",
+            "inputs": {
+              "claimedSlashSats": "60000",
+              "watcherBountyBps": 500
+            },
+            "output": {
+              "watcherBountySats": "3000"
+            },
+            "prevHash": "c7c3485255957824f2d0e71ab38dcf857b9dcaeb9e2e2b932b20dc334e1b642a"
+          }
+        },
+        {
+          "kind": "bitvm_zk_verifier_trace_step",
+          "stepHash": "e4cfa2382f9e505d0c17fce4ee480ec505ec188a426a8fc6944deba72c176070",
+          "stepCore": {
+            "version": 1,
+            "protocol": "bitvm_zk_verifier_trace_step",
+            "index": 12,
+            "opcode": "compute-beneficiary-payout",
+            "inputs": {
+              "claimedSlashSats": "60000",
+              "watcherBountySats": "3000"
+            },
+            "output": {
+              "beneficiarySats": "57000"
+            },
+            "prevHash": "f7047f59b56797041243e851b74c592790d0a2987d5f0dc4e7ff41329cf26c36"
+          }
+        },
+        {
+          "kind": "bitvm_zk_verifier_trace_step",
+          "stepHash": "96b6d4343d3a9582124fce6053757677f1f5fb9f736647205a3d12ce84639407",
+          "stepCore": {
+            "version": 1,
+            "protocol": "bitvm_zk_verifier_trace_step",
+            "index": 13,
+            "opcode": "compute-asp-refund",
+            "inputs": {
+              "reserveAmountSats": "1000000",
+              "claimedSlashSats": "60000"
+            },
+            "output": {
+              "aspRefundSats": "940000"
+            },
+            "prevHash": "e4cfa2382f9e505d0c17fce4ee480ec505ec188a426a8fc6944deba72c176070"
+          }
+        },
+        {
+          "kind": "bitvm_zk_verifier_trace_step",
+          "stepHash": "83a382c0a6bf9df298a79a840da08b5f0f8b58a739e1ececaee09d6d5f552d90",
+          "stepCore": {
+            "version": 1,
+            "protocol": "bitvm_zk_verifier_trace_step",
+            "index": 14,
+            "opcode": "bind-receipt-transcript",
+            "inputs": {
+              "receiptId": "c247c7d0e24659c31853d67d93a0c227356a7f898aedcae9d1e6c005ea1e4848"
+            },
+            "output": {
+              "proofTranscriptRoot": "201b935062698a25f5aed09fd59f38e315e4c09607385ce73f1d6faf00abfccc"
+            },
+            "prevHash": "96b6d4343d3a9582124fce6053757677f1f5fb9f736647205a3d12ce84639407"
+          }
+        },
+        {
+          "kind": "bitvm_zk_verifier_trace_step",
+          "stepHash": "3c0ec8f2f490eea7db990639b1ba291c65d263cbdb64754dda5b6b0cf7654952",
+          "stepCore": {
+            "version": 1,
+            "protocol": "bitvm_zk_verifier_trace_step",
+            "index": 15,
+            "opcode": "accept-verifier-result",
+            "inputs": {
+              "claimId": "8d50c59c519e35fe79277e0aef185e6dbb29bc1f4ae735ed8ad86eeed16b209b",
+              "receiptId": "c247c7d0e24659c31853d67d93a0c227356a7f898aedcae9d1e6c005ea1e4848"
+            },
+            "output": {
+              "accepted": true,
+              "slashable": true
+            },
+            "prevHash": "83a382c0a6bf9df298a79a840da08b5f0f8b58a739e1ececaee09d6d5f552d90"
+          }
+        }
+      ]
+    },
+    "disputeSimulation": {
+      "kind": "bitvm_zk_verifier_dispute_simulation",
+      "simulationId": "d104752ccc49ed457b9b157cc7228fc73484e8b27567bb4bcbbd266cd66f12e9",
+      "simulationCore": {
+        "version": 1,
+        "protocol": "bitvm_zk_verifier_dispute_simulation",
+        "claimId": "8d50c59c519e35fe79277e0aef185e6dbb29bc1f4ae735ed8ad86eeed16b209b",
+        "traceRoot": "431dcf97dafcab21737ffd1e8470ceedf6e2c003b99f0cd505acad8e403e59ac",
+        "challengeId": "0c2125c6365bb33118170260c258e0cdb7c050aef135b94137bc4bccaf2d6042",
+        "contestedViolation": "delivered_below_signed_minimum",
+        "contestedStepIndex": 8,
+        "openedStepId": "aa0936824f6b6a9da7c438162ca74f298c34a30462f42bd03e9be25660e84f4b",
+        "receiptIds": [
+          "4a1949aa2af2d5a02154824b3e84c02f2a266703f78aa3e796169e4d37abee75",
+          "ab23b53f1c535594f46a5c438b2ff4a600c2b14cd969bfe85b88f52554c6b24f",
+          "611a0caea2cfec82d16eecbc47fd05e7f91c57441b4c9fc710e9d3eb501529cc",
+          "891b855d616e2b11c6b63892b308e8e98817504dbc3c38b29a1f8cc6fb2bdfcd",
+          "0484aea15101a0d15fdffff5f84bc369043fe99d7cac091152d95b5b5c205588",
+          "11325fb457f92997bcfaba5aac23effbe284a789111fddafa2c5d693a68f171e",
+          "f4e6d7edd6309cee752edca9387ea9c9c40435ab3a81439bdf138447705a58dd",
+          "aa0936824f6b6a9da7c438162ca74f298c34a30462f42bd03e9be25660e84f4b",
+          "bbaca7bd33be6d9c406c6ecf4df26b2b2f0264618fe870e47fc577f8da5e08ac"
+        ]
+      },
+      "trace": {
+        "kind": "bitvm_zk_verifier_trace",
+        "traceRoot": "431dcf97dafcab21737ffd1e8470ceedf6e2c003b99f0cd505acad8e403e59ac",
+        "traceCore": {
+          "version": 1,
+          "protocol": "bitvm_zk_verifier_trace",
+          "claimId": "8d50c59c519e35fe79277e0aef185e6dbb29bc1f4ae735ed8ad86eeed16b209b",
+          "receiptId": "c247c7d0e24659c31853d67d93a0c227356a7f898aedcae9d1e6c005ea1e4848",
+          "obligationId": "f4eefd813022622dd20e303df296a613a61dd2cd5aec2a4440f3ad8de36d9e55",
+          "stepCount": 16,
+          "finalStepHash": "3c0ec8f2f490eea7db990639b1ba291c65d263cbdb64754dda5b6b0cf7654952",
+          "stepHashes": [
+            "44eda701a1c81a3d37785f8da55e303987062a50639614f62301ccd53b4f8876",
+            "4c0029bc8009b53a63402eabf882d1f935e1690563d35aab35d8992ca4be7476",
+            "2d84bc5da6cd0f2e9fe260b353b50f322b94f127edbc2312aa29d531bd31e7a4",
+            "4bb92e702af6359f057e05530848b1d2a2af9daa69256677cd5f167c502dbbd8",
+            "d770a354c28eb9113fb7ad4ed70bd38d6ede96fc51e1525da79a42b1b2b0d99f",
+            "c35adfa0b620cf5c85e6698aee7c4dc2e0302b250a7f50d7e02dd6d898a33f3d",
+            "0be5d1da0835b8b5de08179f6c169ecb1d6e02d02de00f0092609a569afe0de9",
+            "692de9b1ccdba813b48b3269189766bbf74be829e7a14b53ace41196b02e4bca",
+            "2b0318d27d677e391a6832690a64af499931f40b33faef6134c4bd6ef038a29c",
+            "e682ad9af735ecaa55dd2967fdd79b1a90aa43131ce0db397f917a9c9df279f8",
+            "c7c3485255957824f2d0e71ab38dcf857b9dcaeb9e2e2b932b20dc334e1b642a",
+            "f7047f59b56797041243e851b74c592790d0a2987d5f0dc4e7ff41329cf26c36",
+            "e4cfa2382f9e505d0c17fce4ee480ec505ec188a426a8fc6944deba72c176070",
+            "96b6d4343d3a9582124fce6053757677f1f5fb9f736647205a3d12ce84639407",
+            "83a382c0a6bf9df298a79a840da08b5f0f8b58a739e1ececaee09d6d5f552d90",
+            "3c0ec8f2f490eea7db990639b1ba291c65d263cbdb64754dda5b6b0cf7654952"
+          ]
+        },
+        "steps": [
+          {
+            "kind": "bitvm_zk_verifier_trace_step",
+            "stepHash": "44eda701a1c81a3d37785f8da55e303987062a50639614f62301ccd53b4f8876",
+            "stepCore": {
+              "version": 1,
+              "protocol": "bitvm_zk_verifier_trace_step",
+              "index": 0,
+              "opcode": "load-public-inputs",
+              "inputs": {
+                "claimId": "8d50c59c519e35fe79277e0aef185e6dbb29bc1f4ae735ed8ad86eeed16b209b"
+              },
+              "output": {
+                "publicInputRoot": "098806ea5d28e9e2bb32b3a7fdd2eae7fff9cd61156ef282914cabd1836ee56c"
+              },
+              "prevHash": "0000000000000000000000000000000000000000000000000000000000000000"
+            }
+          },
+          {
+            "kind": "bitvm_zk_verifier_trace_step",
+            "stepHash": "4c0029bc8009b53a63402eabf882d1f935e1690563d35aab35d8992ca4be7476",
+            "stepCore": {
+              "version": 1,
+              "protocol": "bitvm_zk_verifier_trace_step",
+              "index": 1,
+              "opcode": "bind-reserve-outpoint",
+              "inputs": {
+                "reserveOutpoint": "86c22e718a67263c7909bd342f3c0fc3c27abe20075006164295b5a1e4a93ae4:0"
+              },
+              "output": {
+                "reserveId": "e5186dd50fc221414b6998eb618b4ea6067ba4e657dd238ee6b114eab677db94"
+              },
+              "prevHash": "44eda701a1c81a3d37785f8da55e303987062a50639614f62301ccd53b4f8876"
+            }
+          },
+          {
+            "kind": "bitvm_zk_verifier_trace_step",
+            "stepHash": "2d84bc5da6cd0f2e9fe260b353b50f322b94f127edbc2312aa29d531bd31e7a4",
+            "stepCore": {
+              "version": 1,
+              "protocol": "bitvm_zk_verifier_trace_step",
+              "index": 2,
+              "opcode": "bind-obligation-root",
+              "inputs": {
+                "obligationRoot": "86561a60d7f48032cc40199950a1a7bd1bb374461cf5178c73506cb88ef7cbab"
+              },
+              "output": {
+                "obligationCount": 4
+              },
+              "prevHash": "4c0029bc8009b53a63402eabf882d1f935e1690563d35aab35d8992ca4be7476"
+            }
+          },
+          {
+            "kind": "bitvm_zk_verifier_trace_step",
+            "stepHash": "4bb92e702af6359f057e05530848b1d2a2af9daa69256677cd5f167c502dbbd8",
+            "stepCore": {
+              "version": 1,
+              "protocol": "bitvm_zk_verifier_trace_step",
+              "index": 3,
+              "opcode": "select-obligation",
+              "inputs": {
+                "obligationId": "f4eefd813022622dd20e303df296a613a61dd2cd5aec2a4440f3ad8de36d9e55"
+              },
+              "output": {
+                "obligationType": "ln-liquidity-delivery"
+              },
+              "prevHash": "2d84bc5da6cd0f2e9fe260b353b50f322b94f127edbc2312aa29d531bd31e7a4"
+            }
+          },
+          {
+            "kind": "bitvm_zk_verifier_trace_step",
+            "stepHash": "d770a354c28eb9113fb7ad4ed70bd38d6ede96fc51e1525da79a42b1b2b0d99f",
+            "stepCore": {
+              "version": 1,
+              "protocol": "bitvm_zk_verifier_trace_step",
+              "index": 4,
+              "opcode": "verify-asp-signature",
+              "inputs": {
+                "aspSignature": "e7996e53a6dfb9fdac81123655dca078bf9175fbb4037d382447b57ffcd54bb0"
+              },
+              "output": {
+                "matched": true
+              },
+              "prevHash": "4bb92e702af6359f057e05530848b1d2a2af9daa69256677cd5f167c502dbbd8"
+            }
+          },
+          {
+            "kind": "bitvm_zk_verifier_trace_step",
+            "stepHash": "c35adfa0b620cf5c85e6698aee7c4dc2e0302b250a7f50d7e02dd6d898a33f3d",
+            "stepCore": {
+              "version": 1,
+              "protocol": "bitvm_zk_verifier_trace_step",
+              "index": 5,
+              "opcode": "decode-liquidity-obligation",
+              "inputs": {
+                "obligationType": "ln-liquidity-delivery"
+              },
+              "output": {
+                "comparator": "observed_sats < promised_sats"
+              },
+              "prevHash": "d770a354c28eb9113fb7ad4ed70bd38d6ede96fc51e1525da79a42b1b2b0d99f"
+            }
+          },
+          {
+            "kind": "bitvm_zk_verifier_trace_step",
+            "stepHash": "0be5d1da0835b8b5de08179f6c169ecb1d6e02d02de00f0092609a569afe0de9",
+            "stepCore": {
+              "version": 1,
+              "protocol": "bitvm_zk_verifier_trace_step",
+              "index": 6,
+              "opcode": "load-promised-sats",
+              "inputs": {
+                "promisedState": "250000"
+              },
+              "output": {
+                "promisedSats": "250000",
+                "promisedState": "250000"
+              },
+              "prevHash": "c35adfa0b620cf5c85e6698aee7c4dc2e0302b250a7f50d7e02dd6d898a33f3d"
+            }
+          },
+          {
+            "kind": "bitvm_zk_verifier_trace_step",
+            "stepHash": "692de9b1ccdba813b48b3269189766bbf74be829e7a14b53ace41196b02e4bca",
+            "stepCore": {
+              "version": 1,
+              "protocol": "bitvm_zk_verifier_trace_step",
+              "index": 7,
+              "opcode": "load-observed-sats",
+              "inputs": {
+                "observedState": "190000"
+              },
+              "output": {
+                "observedSats": "190000",
+                "observedState": "190000"
+              },
+              "prevHash": "0be5d1da0835b8b5de08179f6c169ecb1d6e02d02de00f0092609a569afe0de9"
+            }
+          },
+          {
+            "kind": "bitvm_zk_verifier_trace_step",
+            "stepHash": "2b0318d27d677e391a6832690a64af499931f40b33faef6134c4bd6ef038a29c",
+            "stepCore": {
+              "version": 1,
+              "protocol": "bitvm_zk_verifier_trace_step",
+              "index": 8,
+              "opcode": "compare-delivery-shortfall",
+              "inputs": {
+                "observedSats": "190000",
+                "promisedSats": "250000"
+              },
+              "output": {
+                "violation": true,
+                "violationName": "delivered_below_signed_minimum"
+              },
+              "prevHash": "692de9b1ccdba813b48b3269189766bbf74be829e7a14b53ace41196b02e4bca"
+            }
+          },
+          {
+            "kind": "bitvm_zk_verifier_trace_step",
+            "stepHash": "e682ad9af735ecaa55dd2967fdd79b1a90aa43131ce0db397f917a9c9df279f8",
+            "stepCore": {
+              "version": 1,
+              "protocol": "bitvm_zk_verifier_trace_step",
+              "index": 9,
+              "opcode": "compute-shortfall",
+              "inputs": {
+                "promisedSats": "250000",
+                "observedSats": "190000",
+                "maxLossSats": "60000"
+              },
+              "output": {
+                "shortfallSats": "60000"
+              },
+              "prevHash": "2b0318d27d677e391a6832690a64af499931f40b33faef6134c4bd6ef038a29c"
+            }
+          },
+          {
+            "kind": "bitvm_zk_verifier_trace_step",
+            "stepHash": "c7c3485255957824f2d0e71ab38dcf857b9dcaeb9e2e2b932b20dc334e1b642a",
+            "stepCore": {
+              "version": 1,
+              "protocol": "bitvm_zk_verifier_trace_step",
+              "index": 10,
+              "opcode": "cap-slash-by-reserve",
+              "inputs": {
+                "shortfallSats": "60000",
+                "reserveAmountSats": "1000000"
+              },
+              "output": {
+                "claimedSlashSats": "60000"
+              },
+              "prevHash": "e682ad9af735ecaa55dd2967fdd79b1a90aa43131ce0db397f917a9c9df279f8"
+            }
+          },
+          {
+            "kind": "bitvm_zk_verifier_trace_step",
+            "stepHash": "f7047f59b56797041243e851b74c592790d0a2987d5f0dc4e7ff41329cf26c36",
+            "stepCore": {
+              "version": 1,
+              "protocol": "bitvm_zk_verifier_trace_step",
+              "index": 11,
+              "opcode": "compute-watcher-bounty",
+              "inputs": {
+                "claimedSlashSats": "60000",
+                "watcherBountyBps": 500
+              },
+              "output": {
+                "watcherBountySats": "3000"
+              },
+              "prevHash": "c7c3485255957824f2d0e71ab38dcf857b9dcaeb9e2e2b932b20dc334e1b642a"
+            }
+          },
+          {
+            "kind": "bitvm_zk_verifier_trace_step",
+            "stepHash": "e4cfa2382f9e505d0c17fce4ee480ec505ec188a426a8fc6944deba72c176070",
+            "stepCore": {
+              "version": 1,
+              "protocol": "bitvm_zk_verifier_trace_step",
+              "index": 12,
+              "opcode": "compute-beneficiary-payout",
+              "inputs": {
+                "claimedSlashSats": "60000",
+                "watcherBountySats": "3000"
+              },
+              "output": {
+                "beneficiarySats": "57000"
+              },
+              "prevHash": "f7047f59b56797041243e851b74c592790d0a2987d5f0dc4e7ff41329cf26c36"
+            }
+          },
+          {
+            "kind": "bitvm_zk_verifier_trace_step",
+            "stepHash": "96b6d4343d3a9582124fce6053757677f1f5fb9f736647205a3d12ce84639407",
+            "stepCore": {
+              "version": 1,
+              "protocol": "bitvm_zk_verifier_trace_step",
+              "index": 13,
+              "opcode": "compute-asp-refund",
+              "inputs": {
+                "reserveAmountSats": "1000000",
+                "claimedSlashSats": "60000"
+              },
+              "output": {
+                "aspRefundSats": "940000"
+              },
+              "prevHash": "e4cfa2382f9e505d0c17fce4ee480ec505ec188a426a8fc6944deba72c176070"
+            }
+          },
+          {
+            "kind": "bitvm_zk_verifier_trace_step",
+            "stepHash": "83a382c0a6bf9df298a79a840da08b5f0f8b58a739e1ececaee09d6d5f552d90",
+            "stepCore": {
+              "version": 1,
+              "protocol": "bitvm_zk_verifier_trace_step",
+              "index": 14,
+              "opcode": "bind-receipt-transcript",
+              "inputs": {
+                "receiptId": "c247c7d0e24659c31853d67d93a0c227356a7f898aedcae9d1e6c005ea1e4848"
+              },
+              "output": {
+                "proofTranscriptRoot": "201b935062698a25f5aed09fd59f38e315e4c09607385ce73f1d6faf00abfccc"
+              },
+              "prevHash": "96b6d4343d3a9582124fce6053757677f1f5fb9f736647205a3d12ce84639407"
+            }
+          },
+          {
+            "kind": "bitvm_zk_verifier_trace_step",
+            "stepHash": "3c0ec8f2f490eea7db990639b1ba291c65d263cbdb64754dda5b6b0cf7654952",
+            "stepCore": {
+              "version": 1,
+              "protocol": "bitvm_zk_verifier_trace_step",
+              "index": 15,
+              "opcode": "accept-verifier-result",
+              "inputs": {
+                "claimId": "8d50c59c519e35fe79277e0aef185e6dbb29bc1f4ae735ed8ad86eeed16b209b",
+                "receiptId": "c247c7d0e24659c31853d67d93a0c227356a7f898aedcae9d1e6c005ea1e4848"
+              },
+              "output": {
+                "accepted": true,
+                "slashable": true
+              },
+              "prevHash": "83a382c0a6bf9df298a79a840da08b5f0f8b58a739e1ececaee09d6d5f552d90"
+            }
+          }
+        ]
+      },
+      "bisectionRounds": [
+        {
+          "kind": "bitvm_bisection_round",
+          "roundId": "891b855d616e2b11c6b63892b308e8e98817504dbc3c38b29a1f8cc6fb2bdfcd",
+          "roundCore": {
+            "version": 1,
+            "protocol": "bitvm_bisection_round",
+            "round": 1,
+            "low": 0,
+            "high": 15,
+            "midpoint": 7,
+            "midpointHash": "692de9b1ccdba813b48b3269189766bbf74be829e7a14b53ace41196b02e4bca",
+            "selectedLow": 8,
+            "selectedHigh": 15
+          }
+        },
+        {
+          "kind": "bitvm_bisection_round",
+          "roundId": "0484aea15101a0d15fdffff5f84bc369043fe99d7cac091152d95b5b5c205588",
+          "roundCore": {
+            "version": 1,
+            "protocol": "bitvm_bisection_round",
+            "round": 2,
+            "low": 8,
+            "high": 15,
+            "midpoint": 11,
+            "midpointHash": "f7047f59b56797041243e851b74c592790d0a2987d5f0dc4e7ff41329cf26c36",
+            "selectedLow": 8,
+            "selectedHigh": 11
+          }
+        },
+        {
+          "kind": "bitvm_bisection_round",
+          "roundId": "11325fb457f92997bcfaba5aac23effbe284a789111fddafa2c5d693a68f171e",
+          "roundCore": {
+            "version": 1,
+            "protocol": "bitvm_bisection_round",
+            "round": 3,
+            "low": 8,
+            "high": 11,
+            "midpoint": 9,
+            "midpointHash": "e682ad9af735ecaa55dd2967fdd79b1a90aa43131ce0db397f917a9c9df279f8",
+            "selectedLow": 8,
+            "selectedHigh": 9
+          }
+        },
+        {
+          "kind": "bitvm_bisection_round",
+          "roundId": "f4e6d7edd6309cee752edca9387ea9c9c40435ab3a81439bdf138447705a58dd",
+          "roundCore": {
+            "version": 1,
+            "protocol": "bitvm_bisection_round",
+            "round": 4,
+            "low": 8,
+            "high": 9,
+            "midpoint": 8,
+            "midpointHash": "2b0318d27d677e391a6832690a64af499931f40b33faef6134c4bd6ef038a29c",
+            "selectedLow": 8,
+            "selectedHigh": 8
+          }
+        }
+      ],
+      "openedStep": {
+        "kind": "bitvm_opened_verifier_step",
+        "openedStepId": "aa0936824f6b6a9da7c438162ca74f298c34a30462f42bd03e9be25660e84f4b",
+        "openedStepCore": {
+          "version": 1,
+          "protocol": "bitvm_opened_verifier_step",
+          "traceRoot": "431dcf97dafcab21737ffd1e8470ceedf6e2c003b99f0cd505acad8e403e59ac",
+          "contestedStepIndex": 8,
+          "contestedOpcode": "compare-delivery-shortfall",
+          "contestedInputs": {
+            "observedSats": "190000",
+            "promisedSats": "250000"
+          },
+          "contestedOutput": {
+            "violation": true,
+            "violationName": "delivered_below_signed_minimum"
+          },
+          "scriptCheck": "190000 250000 OP_LESSTHAN",
+          "aspCounterclaim": "observed_sats >= promised_sats; no slash should be paid",
+          "winner": "challenger"
+        }
+      },
+      "receipts": [
+        {
+          "stage": "zk-claim-published",
+          "receiptId": "4a1949aa2af2d5a02154824b3e84c02f2a266703f78aa3e796169e4d37abee75",
+          "binds": {
+            "claimId": "8d50c59c519e35fe79277e0aef185e6dbb29bc1f4ae735ed8ad86eeed16b209b",
+            "publicInputRoot": "098806ea5d28e9e2bb32b3a7fdd2eae7fff9cd61156ef282914cabd1836ee56c"
+          },
+          "result": "fraud claim is visible to the reserve challenge path"
+        },
+        {
+          "stage": "verifier-trace-committed",
+          "receiptId": "ab23b53f1c535594f46a5c438b2ff4a600c2b14cd969bfe85b88f52554c6b24f",
+          "binds": {
+            "traceRoot": "431dcf97dafcab21737ffd1e8470ceedf6e2c003b99f0cd505acad8e403e59ac",
+            "stepCount": 16
+          },
+          "result": "challenger commits the claimed ZK-verifier execution trace"
+        },
+        {
+          "stage": "asp-dispute-opened",
+          "receiptId": "611a0caea2cfec82d16eecbc47fd05e7f91c57441b4c9fc710e9d3eb501529cc",
+          "binds": {
+            "violation": "delivered_below_signed_minimum",
+            "aspCounterclaim": "observed_sats >= promised_sats; no slash should be paid"
+          },
+          "result": "ASP contests the verifier result instead of accepting the slash"
+        },
+        {
+          "stage": "bisection-round-1",
+          "receiptId": "891b855d616e2b11c6b63892b308e8e98817504dbc3c38b29a1f8cc6fb2bdfcd",
+          "binds": {
+            "range": "0-15",
+            "midpoint": 7,
+            "selectedRange": "8-15"
+          },
+          "result": "range narrows toward the disputed verifier step"
+        },
+        {
+          "stage": "bisection-round-2",
+          "receiptId": "0484aea15101a0d15fdffff5f84bc369043fe99d7cac091152d95b5b5c205588",
+          "binds": {
+            "range": "8-15",
+            "midpoint": 11,
+            "selectedRange": "8-11"
+          },
+          "result": "range narrows toward the disputed verifier step"
+        },
+        {
+          "stage": "bisection-round-3",
+          "receiptId": "11325fb457f92997bcfaba5aac23effbe284a789111fddafa2c5d693a68f171e",
+          "binds": {
+            "range": "8-11",
+            "midpoint": 9,
+            "selectedRange": "8-9"
+          },
+          "result": "range narrows toward the disputed verifier step"
+        },
+        {
+          "stage": "bisection-round-4",
+          "receiptId": "f4e6d7edd6309cee752edca9387ea9c9c40435ab3a81439bdf138447705a58dd",
+          "binds": {
+            "range": "8-9",
+            "midpoint": 8,
+            "selectedRange": "8-8"
+          },
+          "result": "range narrows toward the disputed verifier step"
+        },
+        {
+          "stage": "opened-step-checked",
+          "receiptId": "aa0936824f6b6a9da7c438162ca74f298c34a30462f42bd03e9be25660e84f4b",
+          "binds": {
+            "contestedStepIndex": 8,
+            "contestedOpcode": "compare-delivery-shortfall",
+            "scriptCheck": "190000 250000 OP_LESSTHAN"
+          },
+          "result": "opened step proves underdelivery"
+        },
+        {
+          "stage": "reserve-slash-authorized",
+          "receiptId": "bbaca7bd33be6d9c406c6ecf4df26b2b2f0264618fe870e47fc577f8da5e08ac",
+          "binds": {
+            "challengeId": "0c2125c6365bb33118170260c258e0cdb7c050aef135b94137bc4bccaf2d6042",
+            "claimedSlashSats": "60000",
+            "disbursement": {
+              "beneficiaryScript": "tr(user-recovery-aggregate-key)",
+              "beneficiarySats": "57000",
+              "watcherBountyScript": "tr(watcher-bounty-key)",
+              "watcherBountySats": "3000",
+              "aspRefundScript": "eaa7181635448602377dd17b360b51ecadab0babe4c4b0b0f6958a80f88bed62",
+              "aspRefundSats": "940000"
+            }
+          },
+          "result": "reserve slash path wins after the verifier step is opened"
+        }
+      ]
+    },
     "thesis": "Post an ASP reserve bond once, then use ZK-compressed fraud claims and BitVM challenge paths to enforce Ark, Lightning, DLC, and exit obligations.",
     "caveats": [
       "Prototype only: not a deployable covenant or production BitVM verifier.",
@@ -3110,6 +4098,153 @@
         "beneficiarySats": "57000",
         "watcherBountySats": "3000",
         "aspRefundSats": "940000"
+      },
+      "disputeSimulation": {
+        "simulationId": "d104752ccc49ed457b9b157cc7228fc73484e8b27567bb4bcbbd266cd66f12e9",
+        "traceRoot": "431dcf97dafcab21737ffd1e8470ceedf6e2c003b99f0cd505acad8e403e59ac",
+        "stepCount": 16,
+        "contestedViolation": "delivered_below_signed_minimum",
+        "contestedStepIndex": 8,
+        "contestedOpcode": "compare-delivery-shortfall",
+        "aspCounterclaim": "observed_sats >= promised_sats; no slash should be paid",
+        "openedStep": {
+          "scriptCheck": "190000 250000 OP_LESSTHAN",
+          "inputs": {
+            "observedSats": "190000",
+            "promisedSats": "250000"
+          },
+          "output": {
+            "violation": true,
+            "violationName": "delivered_below_signed_minimum"
+          },
+          "winner": "challenger"
+        },
+        "bisectionRounds": [
+          {
+            "round": 1,
+            "range": "0-15",
+            "midpoint": 7,
+            "selectedRange": "8-15",
+            "receiptId": "891b855d616e2b11c6b63892b308e8e98817504dbc3c38b29a1f8cc6fb2bdfcd"
+          },
+          {
+            "round": 2,
+            "range": "8-15",
+            "midpoint": 11,
+            "selectedRange": "8-11",
+            "receiptId": "0484aea15101a0d15fdffff5f84bc369043fe99d7cac091152d95b5b5c205588"
+          },
+          {
+            "round": 3,
+            "range": "8-11",
+            "midpoint": 9,
+            "selectedRange": "8-9",
+            "receiptId": "11325fb457f92997bcfaba5aac23effbe284a789111fddafa2c5d693a68f171e"
+          },
+          {
+            "round": 4,
+            "range": "8-9",
+            "midpoint": 8,
+            "selectedRange": "8-8",
+            "receiptId": "f4e6d7edd6309cee752edca9387ea9c9c40435ab3a81439bdf138447705a58dd"
+          }
+        ],
+        "receipts": [
+          {
+            "stage": "zk-claim-published",
+            "receiptId": "4a1949aa2af2d5a02154824b3e84c02f2a266703f78aa3e796169e4d37abee75",
+            "binds": {
+              "claimId": "8d50c59c519e35fe79277e0aef185e6dbb29bc1f4ae735ed8ad86eeed16b209b",
+              "publicInputRoot": "098806ea5d28e9e2bb32b3a7fdd2eae7fff9cd61156ef282914cabd1836ee56c"
+            },
+            "result": "fraud claim is visible to the reserve challenge path"
+          },
+          {
+            "stage": "verifier-trace-committed",
+            "receiptId": "ab23b53f1c535594f46a5c438b2ff4a600c2b14cd969bfe85b88f52554c6b24f",
+            "binds": {
+              "traceRoot": "431dcf97dafcab21737ffd1e8470ceedf6e2c003b99f0cd505acad8e403e59ac",
+              "stepCount": 16
+            },
+            "result": "challenger commits the claimed ZK-verifier execution trace"
+          },
+          {
+            "stage": "asp-dispute-opened",
+            "receiptId": "611a0caea2cfec82d16eecbc47fd05e7f91c57441b4c9fc710e9d3eb501529cc",
+            "binds": {
+              "violation": "delivered_below_signed_minimum",
+              "aspCounterclaim": "observed_sats >= promised_sats; no slash should be paid"
+            },
+            "result": "ASP contests the verifier result instead of accepting the slash"
+          },
+          {
+            "stage": "bisection-round-1",
+            "receiptId": "891b855d616e2b11c6b63892b308e8e98817504dbc3c38b29a1f8cc6fb2bdfcd",
+            "binds": {
+              "range": "0-15",
+              "midpoint": 7,
+              "selectedRange": "8-15"
+            },
+            "result": "range narrows toward the disputed verifier step"
+          },
+          {
+            "stage": "bisection-round-2",
+            "receiptId": "0484aea15101a0d15fdffff5f84bc369043fe99d7cac091152d95b5b5c205588",
+            "binds": {
+              "range": "8-15",
+              "midpoint": 11,
+              "selectedRange": "8-11"
+            },
+            "result": "range narrows toward the disputed verifier step"
+          },
+          {
+            "stage": "bisection-round-3",
+            "receiptId": "11325fb457f92997bcfaba5aac23effbe284a789111fddafa2c5d693a68f171e",
+            "binds": {
+              "range": "8-11",
+              "midpoint": 9,
+              "selectedRange": "8-9"
+            },
+            "result": "range narrows toward the disputed verifier step"
+          },
+          {
+            "stage": "bisection-round-4",
+            "receiptId": "f4e6d7edd6309cee752edca9387ea9c9c40435ab3a81439bdf138447705a58dd",
+            "binds": {
+              "range": "8-9",
+              "midpoint": 8,
+              "selectedRange": "8-8"
+            },
+            "result": "range narrows toward the disputed verifier step"
+          },
+          {
+            "stage": "opened-step-checked",
+            "receiptId": "aa0936824f6b6a9da7c438162ca74f298c34a30462f42bd03e9be25660e84f4b",
+            "binds": {
+              "contestedStepIndex": 8,
+              "contestedOpcode": "compare-delivery-shortfall",
+              "scriptCheck": "190000 250000 OP_LESSTHAN"
+            },
+            "result": "opened step proves underdelivery"
+          },
+          {
+            "stage": "reserve-slash-authorized",
+            "receiptId": "bbaca7bd33be6d9c406c6ecf4df26b2b2f0264618fe870e47fc577f8da5e08ac",
+            "binds": {
+              "challengeId": "0c2125c6365bb33118170260c258e0cdb7c050aef135b94137bc4bccaf2d6042",
+              "claimedSlashSats": "60000",
+              "disbursement": {
+                "beneficiaryScript": "tr(user-recovery-aggregate-key)",
+                "beneficiarySats": "57000",
+                "watcherBountyScript": "tr(watcher-bounty-key)",
+                "watcherBountySats": "3000",
+                "aspRefundScript": "eaa7181635448602377dd17b360b51ecadab0babe4c4b0b0f6958a80f88bed62",
+                "aspRefundSats": "940000"
+              }
+            },
+            "result": "reserve slash path wins after the verifier step is opened"
+          }
+        ]
       },
       "publicInputs": [
         "reserve_outpoint",

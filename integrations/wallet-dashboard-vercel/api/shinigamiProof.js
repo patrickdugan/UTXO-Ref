@@ -81,6 +81,34 @@ function fallbackReserveProjection() {
       watcherBountySats: '3000',
       aspRefundSats: '940000'
     },
+    disputeSimulation: {
+      simulationId: sha256Hex('dashboard-fallback-dispute-simulation'),
+      traceRoot: sha256Hex('dashboard-fallback-verifier-trace'),
+      stepCount: 16,
+      contestedViolation: 'delivered_below_signed_minimum',
+      contestedStepIndex: 8,
+      contestedOpcode: 'compare-delivery-shortfall',
+      aspCounterclaim: 'observed_sats >= promised_sats; no slash should be paid',
+      openedStep: {
+        scriptCheck: '190000 250000 OP_LESSTHAN',
+        inputs: { observedSats: '190000', promisedSats: '250000' },
+        output: { violation: true, violationName: 'delivered_below_signed_minimum' },
+        winner: 'challenger'
+      },
+      bisectionRounds: [
+        { round: 1, range: '0-15', midpoint: 7, selectedRange: '8-15', receiptId: sha256Hex('fallback-bisect-1') },
+        { round: 2, range: '8-15', midpoint: 11, selectedRange: '8-11', receiptId: sha256Hex('fallback-bisect-2') },
+        { round: 3, range: '8-11', midpoint: 9, selectedRange: '8-9', receiptId: sha256Hex('fallback-bisect-3') },
+        { round: 4, range: '8-9', midpoint: 8, selectedRange: '8-8', receiptId: sha256Hex('fallback-bisect-4') }
+      ],
+      receipts: [
+        { stage: 'zk-claim-published', receiptId: sha256Hex('fallback-claim-receipt'), result: 'fraud claim is visible to the reserve challenge path' },
+        { stage: 'verifier-trace-committed', receiptId: sha256Hex('fallback-trace-receipt'), result: 'challenger commits the claimed ZK-verifier execution trace' },
+        { stage: 'asp-dispute-opened', receiptId: sha256Hex('fallback-dispute-receipt'), result: 'ASP contests the verifier result instead of accepting the slash' },
+        { stage: 'opened-step-checked', receiptId: sha256Hex('fallback-opened-step-receipt'), result: 'opened step proves underdelivery' },
+        { stage: 'reserve-slash-authorized', receiptId: sha256Hex('fallback-slash-receipt'), result: 'reserve slash path wins after the verifier step is opened' }
+      ]
+    },
     publicInputs: ['reserve_outpoint', 'obligation_root', 'obligation_id', 'public_input_root', 'claimed_slash_sats'],
     caveats: ['The reserve is externally locked Bitcoin collateral, not an ASP database balance.']
   };

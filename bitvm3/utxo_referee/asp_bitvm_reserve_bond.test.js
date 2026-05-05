@@ -3,7 +3,8 @@
 const {
   buildAspBitvmReserveBundle,
   verifyAspBitvmReserveBundle,
-  buildAspReserveDashboardProof
+  buildAspReserveDashboardProof,
+  verifyBitvmVerifierDisputeSimulation
 } = require('./asp_bitvm_reserve_bond');
 
 let passed = 0;
@@ -60,6 +61,37 @@ test('dashboard projection explains reserve lock, obligations, ZK call, and slas
   assert(projection.publicInputs.includes('reserve_outpoint'), 'missing reserve public input');
 });
 
+test('BitVM verifier dispute isolates the liquidity comparison step', () => {
+  const bundle = buildAspBitvmReserveBundle({
+    promisedInboundSats: 250000n,
+    deliveredInboundSats: 190000n
+  });
+  const simulation = bundle.disputeSimulation;
+  const result = verifyBitvmVerifierDisputeSimulation(simulation, bundle);
+
+  assert(result.ok, result.reason || 'simulation should verify');
+  assert(simulation.simulationCore.contestedViolation === 'delivered_below_signed_minimum', 'wrong contested violation');
+  assert(simulation.simulationCore.contestedStepIndex === 8, 'wrong contested step');
+  assert(simulation.openedStep.openedStepCore.contestedOpcode === 'compare-delivery-shortfall', 'wrong opcode');
+  assert(simulation.openedStep.openedStepCore.scriptCheck === '190000 250000 OP_LESSTHAN', 'wrong script check');
+  assert(simulation.openedStep.openedStepCore.winner === 'challenger', 'wrong winner');
+  assert(simulation.bisectionRounds.length === 4, 'unexpected bisection depth');
+});
+
+test('BitVM verifier dispute emits process receipts', () => {
+  const proof = buildAspReserveDashboardProof();
+  const dispute = proof.projection.disputeSimulation;
+
+  assert(dispute.receipts.length >= 9, 'missing receipts');
+  assert(dispute.receipts[0].stage === 'zk-claim-published', 'missing claim publication receipt');
+  assert(dispute.receipts.some(receipt => receipt.stage === 'verifier-trace-committed'), 'missing trace receipt');
+  assert(dispute.receipts.some(receipt => receipt.stage === 'asp-dispute-opened'), 'missing ASP dispute receipt');
+  assert(dispute.receipts.some(receipt => receipt.stage === 'opened-step-checked'), 'missing opened step receipt');
+  assert(dispute.receipts.some(receipt => receipt.stage === 'reserve-slash-authorized'), 'missing slash receipt');
+  assert(dispute.openedStep.output.violation === true, 'opened step should prove violation');
+  assert(dispute.openedStep.output.violationName === 'delivered_below_signed_minimum', 'wrong opened step violation');
+});
+
 test('virtual CET payout root mismatch can select the reserve slash path', () => {
   const bundle = buildAspBitvmReserveBundle({
     obligationType: 'virtual-cet-settlement',
@@ -112,6 +144,40 @@ test('verification fails when claim exceeds reserve amount', () => {
 
   const result = verifyAspBitvmReserveBundle(bundle);
   assert(!result.ok, 'oversized slash should fail');
+});
+
+test('verification fails when the opened verifier step is tampered', () => {
+  const bundle = clone(buildAspBitvmReserveBundle());
+  bundle.disputeSimulation.openedStep.openedStepCore.contestedOutput.violation = false;
+  bundle.disputeSimulation.openedStep.openedStepId = require('crypto')
+    .createHash('sha256')
+    .update(require('./m1_spec').canonicalStringify(bundle.disputeSimulation.openedStep.openedStepCore))
+    .digest('hex');
+  bundle.disputeSimulation.simulationCore.openedStepId = bundle.disputeSimulation.openedStep.openedStepId;
+  bundle.disputeSimulation.simulationId = require('crypto')
+    .createHash('sha256')
+    .update(require('./m1_spec').canonicalStringify(bundle.disputeSimulation.simulationCore))
+    .digest('hex');
+
+  const result = verifyAspBitvmReserveBundle(bundle);
+  assert(!result.ok, 'tampered opened step should fail');
+});
+
+test('verification fails when the opened verifier script check is tampered', () => {
+  const bundle = clone(buildAspBitvmReserveBundle());
+  bundle.disputeSimulation.openedStep.openedStepCore.scriptCheck = '250000 190000 OP_LESSTHAN';
+  bundle.disputeSimulation.openedStep.openedStepId = require('crypto')
+    .createHash('sha256')
+    .update(require('./m1_spec').canonicalStringify(bundle.disputeSimulation.openedStep.openedStepCore))
+    .digest('hex');
+  bundle.disputeSimulation.simulationCore.openedStepId = bundle.disputeSimulation.openedStep.openedStepId;
+  bundle.disputeSimulation.simulationId = require('crypto')
+    .createHash('sha256')
+    .update(require('./m1_spec').canonicalStringify(bundle.disputeSimulation.simulationCore))
+    .digest('hex');
+
+  const result = verifyAspBitvmReserveBundle(bundle);
+  assert(!result.ok, 'tampered script check should fail');
 });
 
 if (failed) {

@@ -29,5 +29,12 @@ assert.equal(projection.reserveBond.summary.claimedSlashSats, '60000');
 assert.equal(projection.reserveBond.summary.slashable, true);
 assert.equal(projection.reserveBond.obligations.length, 4);
 assert.ok(projection.reserveBond.publicInputs.includes('reserve_outpoint'));
+assert.equal(projection.reserveBond.disputeSimulation.contestedViolation, 'delivered_below_signed_minimum');
+assert.equal(projection.reserveBond.disputeSimulation.contestedStepIndex, 8);
+assert.equal(projection.reserveBond.disputeSimulation.contestedOpcode, 'compare-delivery-shortfall');
+assert.equal(projection.reserveBond.disputeSimulation.openedStep.scriptCheck, '190000 250000 OP_LESSTHAN');
+assert.equal(projection.reserveBond.disputeSimulation.openedStep.winner, 'challenger');
+assert.ok(projection.reserveBond.disputeSimulation.receipts.some(receipt => receipt.stage === 'opened-step-checked'));
+assert.ok(projection.reserveBond.disputeSimulation.receipts.some(receipt => receipt.stage === 'reserve-slash-authorized'));
 
 console.log('wallet-dashboard-vercel shinigami proof ok');

@@ -297,6 +297,332 @@ function buildAspReserveZkReceipt(claim, options = {}) {
   };
 }
 
+function buildVerifierTraceStep(index, opcode, inputs, output, prevHash = '0'.repeat(64)) {
+  const stepCore = {
+    version: 1,
+    protocol: 'bitvm_zk_verifier_trace_step',
+    index,
+    opcode,
+    inputs,
+    output,
+    prevHash
+  };
+  return {
+    kind: 'bitvm_zk_verifier_trace_step',
+    stepHash: hashCanonical(stepCore),
+    stepCore
+  };
+}
+
+function buildBitvmZkVerifierTrace(options = {}) {
+  const reserve = options.reserve || buildAspReserveBond(options);
+  const shinigamiBundle = options.shinigamiBundle || buildShinigamiVirtualCetBundle(options);
+  const obligationSet = options.obligationSet || buildAspObligationSet({ ...options, reserve, shinigamiBundle });
+  const misbehaviorClaim =
+    options.misbehaviorClaim || buildAspMisbehaviorClaim({ ...options, reserve, shinigamiBundle, obligationSet });
+  const zkReceipt = options.zkReceipt || buildAspReserveZkReceipt(misbehaviorClaim, options);
+  const selected =
+    misbehaviorClaim.selectedObligation ||
+    obligationSet.obligations.find(item => item.obligationId === misbehaviorClaim.claimCore.obligationId);
+  if (!selected) throw new Error('selected obligation is required for verifier trace');
+
+  const isLiquidity = selected.obligationCore.obligationType === 'ln-liquidity-delivery';
+  const promised = isLiquidity ? BigInt(selected.obligationCore.promisedState) : 0n;
+  const observed = isLiquidity ? BigInt(selected.obligationCore.observedState) : 0n;
+  const shortfall = promised > observed ? promised - observed : 0n;
+  const violationName = inferViolation(selected);
+  const violationProved = violationName !== 'none';
+  const reserveAmount = BigInt(reserve.reserveCore.reserveAmountSats);
+  const claimedSlash = BigInt(misbehaviorClaim.claimCore.claimedSlashSats);
+  const watcherBounty = (claimedSlash * BigInt(reserve.reserveCore.watcherBountyBps)) / 10000n;
+  const beneficiary = claimedSlash > watcherBounty ? claimedSlash - watcherBounty : 0n;
+  const aspRefund = reserveAmount > claimedSlash ? reserveAmount - claimedSlash : 0n;
+  const rawSteps = [
+    ['load-public-inputs', { claimId: misbehaviorClaim.claimId }, { publicInputRoot: misbehaviorClaim.claimCore.publicInputRoot }],
+    ['bind-reserve-outpoint', { reserveOutpoint: reserve.reserveCore.reserveOutpoint }, { reserveId: reserve.reserveId }],
+    ['bind-obligation-root', { obligationRoot: obligationSet.obligationRoot }, { obligationCount: obligationSet.obligations.length }],
+    ['select-obligation', { obligationId: selected.obligationId }, { obligationType: selected.obligationCore.obligationType }],
+    ['verify-asp-signature', { aspSignature: selected.aspSignature }, { matched: true }],
+    ['decode-liquidity-obligation', { obligationType: selected.obligationCore.obligationType }, { comparator: isLiquidity ? 'observed_sats < promised_sats' : 'observed_state != promised_state' }],
+    ['load-promised-sats', { promisedState: selected.obligationCore.promisedState }, { promisedSats: promised.toString(), promisedState: selected.obligationCore.promisedState }],
+    ['load-observed-sats', { observedState: selected.obligationCore.observedState }, { observedSats: observed.toString(), observedState: selected.obligationCore.observedState }],
+    [
+      isLiquidity ? 'compare-delivery-shortfall' : 'compare-obligation-state',
+      isLiquidity
+        ? { observedSats: observed.toString(), promisedSats: promised.toString() }
+        : { observedState: selected.obligationCore.observedState, promisedState: selected.obligationCore.promisedState },
+      { violation: violationProved, violationName }
+    ],
+    ['compute-shortfall', { promisedSats: promised.toString(), observedSats: observed.toString(), maxLossSats: selected.obligationCore.maxLossSats }, { shortfallSats: (isLiquidity ? shortfall : claimedSlash).toString() }],
+    ['cap-slash-by-reserve', { shortfallSats: shortfall.toString(), reserveAmountSats: reserveAmount.toString() }, { claimedSlashSats: claimedSlash.toString() }],
+    ['compute-watcher-bounty', { claimedSlashSats: claimedSlash.toString(), watcherBountyBps: reserve.reserveCore.watcherBountyBps }, { watcherBountySats: watcherBounty.toString() }],
+    ['compute-beneficiary-payout', { claimedSlashSats: claimedSlash.toString(), watcherBountySats: watcherBounty.toString() }, { beneficiarySats: beneficiary.toString() }],
+    ['compute-asp-refund', { reserveAmountSats: reserveAmount.toString(), claimedSlashSats: claimedSlash.toString() }, { aspRefundSats: aspRefund.toString() }],
+    ['bind-receipt-transcript', { receiptId: zkReceipt.receiptId }, { proofTranscriptRoot: zkReceipt.receiptCore.proofTranscriptRoot }],
+    ['accept-verifier-result', { claimId: misbehaviorClaim.claimId, receiptId: zkReceipt.receiptId }, { accepted: true, slashable: claimedSlash > 0n }]
+  ];
+
+  let prevHash = '0'.repeat(64);
+  const steps = rawSteps.map(([opcode, inputs, output], index) => {
+    const step = buildVerifierTraceStep(index, opcode, inputs, output, prevHash);
+    prevHash = step.stepHash;
+    return step;
+  });
+  const traceCore = {
+    version: 1,
+    protocol: 'bitvm_zk_verifier_trace',
+    claimId: misbehaviorClaim.claimId,
+    receiptId: zkReceipt.receiptId,
+    obligationId: selected.obligationId,
+    stepCount: steps.length,
+    finalStepHash: steps[steps.length - 1].stepHash,
+    stepHashes: steps.map(step => step.stepHash)
+  };
+  return {
+    kind: 'bitvm_zk_verifier_trace',
+    traceRoot: hashCanonical(traceCore),
+    traceCore,
+    steps
+  };
+}
+
+function buildBisectionRounds(trace, contestedStepIndex) {
+  const rounds = [];
+  let low = 0;
+  let high = trace.steps.length - 1;
+  while (low < high) {
+    const midpoint = Math.floor((low + high) / 2);
+    const selectedLow = contestedStepIndex <= midpoint ? low : midpoint + 1;
+    const selectedHigh = contestedStepIndex <= midpoint ? midpoint : high;
+    const roundCore = {
+      version: 1,
+      protocol: 'bitvm_bisection_round',
+      round: rounds.length + 1,
+      low,
+      high,
+      midpoint,
+      midpointHash: trace.steps[midpoint].stepHash,
+      selectedLow,
+      selectedHigh
+    };
+    rounds.push({
+      kind: 'bitvm_bisection_round',
+      roundId: hashCanonical(roundCore),
+      roundCore
+    });
+    low = selectedLow;
+    high = selectedHigh;
+  }
+  return rounds;
+}
+
+function buildBitvmVerifierDisputeSimulation(options = {}) {
+  const reserve = options.reserve || buildAspReserveBond(options);
+  const shinigamiBundle = options.shinigamiBundle || buildShinigamiVirtualCetBundle(options);
+  const obligationSet = options.obligationSet || buildAspObligationSet({ ...options, reserve, shinigamiBundle });
+  const misbehaviorClaim =
+    options.misbehaviorClaim || buildAspMisbehaviorClaim({ ...options, reserve, shinigamiBundle, obligationSet });
+  const zkReceipt = options.zkReceipt || buildAspReserveZkReceipt(misbehaviorClaim, options);
+  const bitvmChallenge =
+    options.bitvmChallenge ||
+    buildBitvmReserveChallenge({ ...options, reserve, shinigamiBundle, obligationSet, misbehaviorClaim, zkReceipt });
+  const trace =
+    options.trace || buildBitvmZkVerifierTrace({ ...options, reserve, shinigamiBundle, obligationSet, misbehaviorClaim, zkReceipt });
+  const contestedStepIndex = Number(options.contestedStepIndex ?? 8);
+  const contestedStep = trace.steps[contestedStepIndex];
+  if (!contestedStep) throw new Error(`unknown contested step ${contestedStepIndex}`);
+  const bisectionRounds = buildBisectionRounds(trace, contestedStepIndex);
+  const aspCounterclaim = options.aspCounterclaim || 'observed_sats >= promised_sats; no slash should be paid';
+  const openedStepCore = {
+    version: 1,
+    protocol: 'bitvm_opened_verifier_step',
+    traceRoot: trace.traceRoot,
+    contestedStepIndex,
+    contestedOpcode: contestedStep.stepCore.opcode,
+    contestedInputs: contestedStep.stepCore.inputs,
+    contestedOutput: contestedStep.stepCore.output,
+    scriptCheck:
+      contestedStep.stepCore.opcode === 'compare-delivery-shortfall'
+        ? `${contestedStep.stepCore.inputs.observedSats} ${contestedStep.stepCore.inputs.promisedSats} OP_LESSTHAN`
+        : 'single verifier step equality check',
+    aspCounterclaim,
+    winner: contestedStep.stepCore.output.violation === true ? 'challenger' : 'asp'
+  };
+  const openedStep = {
+    kind: 'bitvm_opened_verifier_step',
+    openedStepId: hashCanonical(openedStepCore),
+    openedStepCore
+  };
+  const receipts = [
+    {
+      stage: 'zk-claim-published',
+      receiptId: hashCanonical({ stage: 'zk-claim-published', claimId: misbehaviorClaim.claimId }),
+      binds: { claimId: misbehaviorClaim.claimId, publicInputRoot: misbehaviorClaim.claimCore.publicInputRoot },
+      result: 'fraud claim is visible to the reserve challenge path'
+    },
+    {
+      stage: 'verifier-trace-committed',
+      receiptId: hashCanonical({ stage: 'verifier-trace-committed', traceRoot: trace.traceRoot }),
+      binds: { traceRoot: trace.traceRoot, stepCount: trace.steps.length },
+      result: 'challenger commits the claimed ZK-verifier execution trace'
+    },
+    {
+      stage: 'asp-dispute-opened',
+      receiptId: hashCanonical({ stage: 'asp-dispute-opened', claimId: misbehaviorClaim.claimId, aspCounterclaim }),
+      binds: { violation: misbehaviorClaim.claimCore.violation, aspCounterclaim },
+      result: 'ASP contests the verifier result instead of accepting the slash'
+    },
+    ...bisectionRounds.map(round => ({
+      stage: `bisection-round-${round.roundCore.round}`,
+      receiptId: round.roundId,
+      binds: {
+        range: `${round.roundCore.low}-${round.roundCore.high}`,
+        midpoint: round.roundCore.midpoint,
+        selectedRange: `${round.roundCore.selectedLow}-${round.roundCore.selectedHigh}`
+      },
+      result: 'range narrows toward the disputed verifier step'
+    })),
+    {
+      stage: 'opened-step-checked',
+      receiptId: openedStep.openedStepId,
+      binds: {
+        contestedStepIndex,
+        contestedOpcode: openedStepCore.contestedOpcode,
+        scriptCheck: openedStepCore.scriptCheck
+      },
+      result: openedStepCore.winner === 'challenger' ? 'opened step proves underdelivery' : 'opened step defeats challenge'
+    },
+    {
+      stage: 'reserve-slash-authorized',
+      receiptId: hashCanonical({
+        stage: 'reserve-slash-authorized',
+        challengeId: bitvmChallenge.challengeId,
+        disbursement: bitvmChallenge.challengeCore.disbursement
+      }),
+      binds: {
+        challengeId: bitvmChallenge.challengeId,
+        claimedSlashSats: bitvmChallenge.challengeCore.claimedSlashSats,
+        disbursement: bitvmChallenge.challengeCore.disbursement
+      },
+      result: 'reserve slash path wins after the verifier step is opened'
+    }
+  ];
+  const simulationCore = {
+    version: 1,
+    protocol: 'bitvm_zk_verifier_dispute_simulation',
+    claimId: misbehaviorClaim.claimId,
+    traceRoot: trace.traceRoot,
+    challengeId: bitvmChallenge.challengeId,
+    contestedViolation: misbehaviorClaim.claimCore.violation,
+    contestedStepIndex,
+    openedStepId: openedStep.openedStepId,
+    receiptIds: receipts.map(receipt => receipt.receiptId)
+  };
+
+  return {
+    kind: 'bitvm_zk_verifier_dispute_simulation',
+    simulationId: hashCanonical(simulationCore),
+    simulationCore,
+    trace,
+    bisectionRounds,
+    openedStep,
+    receipts
+  };
+}
+
+function verifyBitvmZkVerifierTrace(trace) {
+  if (!trace || trace.kind !== 'bitvm_zk_verifier_trace') {
+    return { ok: false, reason: 'wrong trace kind' };
+  }
+  let prevHash = '0'.repeat(64);
+  const stepHashes = [];
+  for (const step of trace.steps) {
+    if (step.stepCore.prevHash !== prevHash) return { ok: false, reason: `bad prev hash at step ${step.stepCore.index}` };
+    if (step.stepHash !== hashCanonical(step.stepCore)) return { ok: false, reason: `step hash mismatch at ${step.stepCore.index}` };
+    prevHash = step.stepHash;
+    stepHashes.push(step.stepHash);
+  }
+  if (trace.traceCore.stepCount !== trace.steps.length) return { ok: false, reason: 'trace step count mismatch' };
+  if (trace.traceCore.finalStepHash !== trace.steps[trace.steps.length - 1].stepHash) {
+    return { ok: false, reason: 'trace final step mismatch' };
+  }
+  if (canonicalStringify(trace.traceCore.stepHashes) !== canonicalStringify(stepHashes)) {
+    return { ok: false, reason: 'trace step hash list mismatch' };
+  }
+  if (trace.traceRoot !== hashCanonical(trace.traceCore)) return { ok: false, reason: 'trace root mismatch' };
+  return { ok: true };
+}
+
+function verifyBitvmVerifierDisputeSimulation(simulation, bundle) {
+  if (!simulation || simulation.kind !== 'bitvm_zk_verifier_dispute_simulation') {
+    return { ok: false, reason: 'wrong simulation kind' };
+  }
+  const traceCheck = verifyBitvmZkVerifierTrace(simulation.trace);
+  if (!traceCheck.ok) return traceCheck;
+  if (simulation.simulationId !== hashCanonical(simulation.simulationCore)) {
+    return { ok: false, reason: 'simulation id mismatch' };
+  }
+  if (bundle && simulation.simulationCore.claimId !== bundle.misbehaviorClaim.claimId) {
+    return { ok: false, reason: 'simulation claim mismatch' };
+  }
+  const contestedStep = simulation.trace.steps[simulation.simulationCore.contestedStepIndex];
+  if (!contestedStep) return { ok: false, reason: 'missing contested step' };
+  if (!simulation.openedStep || simulation.openedStep.kind !== 'bitvm_opened_verifier_step') {
+    return { ok: false, reason: 'wrong opened step kind' };
+  }
+  const openedCore = simulation.openedStep.openedStepCore;
+  if (simulation.openedStep.openedStepId !== hashCanonical(openedCore)) {
+    return { ok: false, reason: 'opened step id mismatch' };
+  }
+  if (openedCore.traceRoot !== simulation.trace.traceRoot) {
+    return { ok: false, reason: 'opened step trace root mismatch' };
+  }
+  if (openedCore.contestedStepIndex !== simulation.simulationCore.contestedStepIndex) {
+    return { ok: false, reason: 'opened step index mismatch' };
+  }
+  if (openedCore.contestedOpcode !== contestedStep.stepCore.opcode) {
+    return { ok: false, reason: 'opened step opcode mismatch' };
+  }
+  if (canonicalStringify(openedCore.contestedInputs) !== canonicalStringify(contestedStep.stepCore.inputs)) {
+    return { ok: false, reason: 'opened step input mismatch' };
+  }
+  if (canonicalStringify(openedCore.contestedOutput) !== canonicalStringify(contestedStep.stepCore.output)) {
+    return { ok: false, reason: 'opened step output mismatch' };
+  }
+  if (openedCore.contestedOpcode === 'compare-delivery-shortfall') {
+    const expectedScript = `${openedCore.contestedInputs.observedSats} ${openedCore.contestedInputs.promisedSats} OP_LESSTHAN`;
+    if (openedCore.scriptCheck !== expectedScript) {
+      return { ok: false, reason: 'opened step script check mismatch' };
+    }
+  }
+  if (openedCore.contestedOutput.violation !== true) {
+    return { ok: false, reason: 'opened step does not prove violation' };
+  }
+  const lastRound = simulation.bisectionRounds[simulation.bisectionRounds.length - 1];
+  if (
+    !lastRound ||
+    lastRound.roundCore.selectedLow !== simulation.simulationCore.contestedStepIndex ||
+    lastRound.roundCore.selectedHigh !== simulation.simulationCore.contestedStepIndex
+  ) {
+    return { ok: false, reason: 'bisection did not isolate contested step' };
+  }
+  for (const round of simulation.bisectionRounds) {
+    if (round.roundId !== hashCanonical(round.roundCore)) {
+      return { ok: false, reason: `bisection round ${round.roundCore.round} id mismatch` };
+    }
+  }
+  if (simulation.receipts.map(receipt => receipt.receiptId).join('|') !== simulation.simulationCore.receiptIds.join('|')) {
+    return { ok: false, reason: 'receipt list mismatch' };
+  }
+  if (!simulation.receipts.some(receipt => receipt.stage === 'opened-step-checked')) {
+    return { ok: false, reason: 'missing opened-step receipt' };
+  }
+  if (!simulation.receipts.some(receipt => receipt.stage === 'reserve-slash-authorized')) {
+    return { ok: false, reason: 'missing reserve-slash receipt' };
+  }
+  return { ok: true };
+}
+
 function buildBitvmReserveChallenge(options = {}) {
   const reserve = options.reserve || buildAspReserveBond(options);
   const shinigamiBundle = options.shinigamiBundle || buildShinigamiVirtualCetBundle(options);
@@ -411,6 +737,34 @@ function buildAspReserveDashboardProjection(bundle) {
       watcherBountySats: challenge.disbursement.watcherBountySats,
       aspRefundSats: challenge.disbursement.aspRefundSats
     },
+    disputeSimulation: {
+      simulationId: bundle.disputeSimulation.simulationId,
+      traceRoot: bundle.disputeSimulation.trace.traceRoot,
+      stepCount: bundle.disputeSimulation.trace.steps.length,
+      contestedViolation: bundle.disputeSimulation.simulationCore.contestedViolation,
+      contestedStepIndex: bundle.disputeSimulation.simulationCore.contestedStepIndex,
+      contestedOpcode: bundle.disputeSimulation.openedStep.openedStepCore.contestedOpcode,
+      aspCounterclaim: bundle.disputeSimulation.openedStep.openedStepCore.aspCounterclaim,
+      openedStep: {
+        scriptCheck: bundle.disputeSimulation.openedStep.openedStepCore.scriptCheck,
+        inputs: bundle.disputeSimulation.openedStep.openedStepCore.contestedInputs,
+        output: bundle.disputeSimulation.openedStep.openedStepCore.contestedOutput,
+        winner: bundle.disputeSimulation.openedStep.openedStepCore.winner
+      },
+      bisectionRounds: bundle.disputeSimulation.bisectionRounds.map(round => ({
+        round: round.roundCore.round,
+        range: `${round.roundCore.low}-${round.roundCore.high}`,
+        midpoint: round.roundCore.midpoint,
+        selectedRange: `${round.roundCore.selectedLow}-${round.roundCore.selectedHigh}`,
+        receiptId: round.roundId
+      })),
+      receipts: bundle.disputeSimulation.receipts.map(receipt => ({
+        stage: receipt.stage,
+        receiptId: receipt.receiptId,
+        binds: receipt.binds,
+        result: receipt.result
+      }))
+    },
     publicInputs: bundle.misbehaviorClaim.publicInputs,
     caveats: [
       'This is a reserve-bond evidence harness, not a production Bitcoin covenant.',
@@ -447,6 +801,24 @@ function buildAspBitvmReserveBundle(options = {}) {
     misbehaviorClaim,
     zkReceipt
   });
+  const verifierTrace = buildBitvmZkVerifierTrace({
+    ...options,
+    reserve,
+    shinigamiBundle,
+    obligationSet,
+    misbehaviorClaim,
+    zkReceipt
+  });
+  const disputeSimulation = buildBitvmVerifierDisputeSimulation({
+    ...options,
+    reserve,
+    shinigamiBundle,
+    obligationSet,
+    misbehaviorClaim,
+    zkReceipt,
+    bitvmChallenge,
+    trace: verifierTrace
+  });
   const bundleCore = {
     version: 1,
     protocol: 'asp_bitvm_reserve_bundle',
@@ -455,7 +827,9 @@ function buildAspBitvmReserveBundle(options = {}) {
     obligationRoot: obligationSet.obligationRoot,
     claimId: misbehaviorClaim.claimId,
     receiptId: zkReceipt.receiptId,
-    challengeId: bitvmChallenge.challengeId
+    challengeId: bitvmChallenge.challengeId,
+    verifierTraceRoot: verifierTrace.traceRoot,
+    disputeSimulationId: disputeSimulation.simulationId
   };
   const bundle = {
     kind: 'asp_bitvm_reserve_bundle',
@@ -467,6 +841,8 @@ function buildAspBitvmReserveBundle(options = {}) {
     misbehaviorClaim,
     zkReceipt,
     bitvmChallenge,
+    verifierTrace,
+    disputeSimulation,
     thesis:
       'Post an ASP reserve bond once, then use ZK-compressed fraud claims and BitVM challenge paths to enforce Ark, Lightning, DLC, and exit obligations.',
     caveats: [
@@ -537,6 +913,10 @@ function verifyAspBitvmReserveBundle(bundle) {
   }
   if (bundle.bitvmChallenge.challengeCore.claimId !== bundle.misbehaviorClaim.claimId) {
     return { ok: false, reason: 'BitVM challenge does not bind claim' };
+  }
+  const disputeVerification = verifyBitvmVerifierDisputeSimulation(bundle.disputeSimulation, bundle);
+  if (!disputeVerification.ok) {
+    return { ok: false, reason: `BitVM verifier dispute failed: ${disputeVerification.reason}` };
   }
   const d = bundle.bitvmChallenge.challengeCore.disbursement;
   if (BigInt(d.beneficiarySats) + BigInt(d.watcherBountySats) + BigInt(d.aspRefundSats) !== reserveAmount) {
@@ -610,6 +990,10 @@ module.exports = {
   buildAspMisbehaviorClaim,
   buildAspReserveZkReceipt,
   buildBitvmReserveChallenge,
+  buildBitvmZkVerifierTrace,
+  buildBitvmVerifierDisputeSimulation,
+  verifyBitvmZkVerifierTrace,
+  verifyBitvmVerifierDisputeSimulation,
   buildAspBitvmReserveBundle,
   verifyAspBitvmReserveBundle,
   buildAspReserveDashboardProof,

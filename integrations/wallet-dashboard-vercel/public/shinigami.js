@@ -143,6 +143,7 @@ function renderAspReserve(projection) {
   if (!reserve) return;
   const summary = reserve.summary;
   const proof = reserve.proofStatement;
+  const dispute = reserve.disputeSimulation;
   const flowCards = reserve.flow.map((item, index) => `
     <article class="shinigami-flow-card">
       <span>${index + 1}</span>
@@ -159,6 +160,13 @@ function renderAspReserve(projection) {
       <code>${escapeHtml(item.inferredViolation)}</code>
     </div>
   `).join('');
+  const disputeRows = dispute ? dispute.receipts.map(receipt => `
+    <div class="challenge-receipt">
+      <strong>${escapeHtml(receipt.stage)}</strong>
+      <code>${escapeHtml(short(receipt.receiptId))}</code>
+      <small>${escapeHtml(receipt.result)}</small>
+    </div>
+  `).join('') : '';
 
   $('aspReserveBond').innerHTML = `
     <div class="shinigami-hero-grid">
@@ -189,6 +197,27 @@ function renderAspReserve(projection) {
         </div>
       </div>
     </div>
+    ${dispute ? `
+      <div class="reserve-grid challenge-grid">
+        <div class="reserve-card">
+          <strong>Contested Verifier Step</strong>
+          <div class="detail-list">
+            ${[
+              detailRow('Violation', `<code>${escapeHtml(dispute.contestedViolation)}</code>`),
+              detailRow('Trace root', `<code>${escapeHtml(short(dispute.traceRoot))}</code>`),
+              detailRow('Step', `${dispute.contestedStepIndex} / ${escapeHtml(dispute.contestedOpcode)}`),
+              detailRow('ASP counterclaim', `<code>${escapeHtml(dispute.aspCounterclaim)}</code>`),
+              detailRow('Script check', `<code>${escapeHtml(dispute.openedStep.scriptCheck)}</code>`),
+              detailRow('Winner', escapeHtml(dispute.openedStep.winner))
+            ].join('')}
+          </div>
+        </div>
+        <div class="reserve-card">
+          <strong>Challenge Receipts</strong>
+          <div class="challenge-receipts">${disputeRows}</div>
+        </div>
+      </div>
+    ` : ''}
   `;
 }
 

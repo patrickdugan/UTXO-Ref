@@ -1455,7 +1455,8 @@ th {
 
 .reserve-flow,
 .reserve-grid,
-.reserve-obligations {
+.reserve-obligations,
+.challenge-receipts {
   display: grid;
   gap: 8px;
 }
@@ -1469,7 +1470,8 @@ th {
 }
 
 .reserve-card,
-.reserve-obligation {
+.reserve-obligation,
+.challenge-receipt {
   border: 1px solid var(--line);
   background: #fbfdfc;
   padding: 10px;
@@ -1480,7 +1482,10 @@ th {
 .reserve-obligation strong,
 .reserve-obligation span,
 .reserve-obligation small,
-.reserve-obligation code {
+.reserve-obligation code,
+.challenge-receipt strong,
+.challenge-receipt code,
+.challenge-receipt small {
   display: block;
 }
 
@@ -1499,6 +1504,20 @@ th {
 
 .reserve-obligation code {
   margin-top: 6px;
+  color: var(--green-dark);
+  overflow-wrap: anywhere;
+}
+
+.challenge-grid {
+  align-items: start;
+}
+
+.challenge-receipt {
+  border-left: 4px solid var(--blue);
+}
+
+.challenge-receipt code {
+  margin-top: 5px;
   color: var(--green-dark);
   overflow-wrap: anywhere;
 }
