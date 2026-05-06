@@ -67,6 +67,16 @@ test('duplicate deposit is rejected', () => {
   assert(threw, 'expected duplicate deposit rejection');
 });
 
+test('deposit rollback removes previously credited balance', () => {
+  const ledger = new ReceiptLedger();
+  ledger.applyDeposit({ depositId: 'd1', accountId: 'alice', amountSats: 11n });
+
+  const rolledBack = ledger.rollbackDeposit('d1', { reason: 'reorg' });
+  assertEq(rolledBack.rolledBackSats, 11n);
+  assertEq(ledger.balanceOf('alice'), 0n);
+  assertEq(ledger.getDeterministicSnapshot().rolledBackDepositIds[0], 'd1');
+});
+
 test('redemption burns and enforces balance', () => {
   const ledger = new ReceiptLedger();
   ledger.applyDeposit({ depositId: 'd1', accountId: 'alice', amountSats: 5000n });
@@ -141,4 +151,3 @@ console.log('-----------------------------------\n');
 if (failed > 0) {
   process.exit(1);
 }
-

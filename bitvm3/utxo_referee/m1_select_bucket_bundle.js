@@ -16,6 +16,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { buildOracleDeltaPublication } = require('./m1_oracle_delta_publication');
+const { withCommittedRouting, assertCommittedRouting } = require('./m1_routing_commitments');
 
 const ARTIFACTS_DIR = path.join(__dirname, 'artifacts');
 const CET_PATH = path.join(ARTIFACTS_DIR, 'm1_cet_skeletons_latest.json');
@@ -114,7 +115,7 @@ function run() {
       dustCarrySats: settlement.dustCarrySats || null
     },
     selectedPath: selectingByPath
-      ? {
+      ? withCommittedRouting({
           pathId: selectedPath.pathId || PATH_NAME,
           kind: selectedPath.kind,
           winnerRole: selectedPath.winnerRole || null,
@@ -140,8 +141,8 @@ function run() {
           dustCarrySats: selectedPath.dustCarrySats || (selectedPath.payouts ? selectedPath.payouts.dustCarrySats || null : null),
           rolloverCollateralSats: selectedPath.rolloverCollateralSats || (selectedPath.payouts ? selectedPath.payouts.rolloverCollateralSats || null : null),
           defaultOnExpiry: PATH_NAME === 'roll' ? true : !!selectedPath.defaultOnExpiry
-        }
-      : {
+        })
+      : withCommittedRouting({
           pathId: selectedCet.pathId || `bucket-${BUCKET}`,
           kind: selectedCet.kind || 'settlement',
           winnerRole: selectedCet.winnerRole || selectedCet.recipientRole || null,
@@ -159,7 +160,7 @@ function run() {
           payoutSats: selectedCet.payoutSats || null,
           residualSats: selectedCet.residualSats || null,
           dustCarrySats: selectedCet.dustCarrySats || null
-        },
+        }),
     oracleBinding: {
       eventId: oracle.oracle.eventId,
       quorumId: oracle.oracle.quorumId,
@@ -196,6 +197,8 @@ function run() {
       }
     }
   };
+
+  bundle.selectedPath.committedRouting = assertCommittedRouting(bundle.selectedPath, `selected path ${bundle.selectedPath.pathId}`);
 
   bundle.deltaPublication = buildOracleDeltaPublication({
     oracleBinding: bundle.oracleBinding,

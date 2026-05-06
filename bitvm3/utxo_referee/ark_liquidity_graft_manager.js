@@ -17,6 +17,10 @@ const {
   buildArkGraftChallengeEvidence,
   buildArkGraftCostModel
 } = require('./lightning_ark_liquidity_graft');
+const {
+  buildArkTaprootMiniscriptProofManifest,
+  verifyArkTaprootMiniscriptProofManifest
+} = require('./ark_taproot_miniscript_proof_manifest');
 
 const HEX_32_RE = /^[0-9a-f]{64}$/i;
 
@@ -268,10 +272,20 @@ function allocateArkGrafts(options = {}) {
       paymentHashHex: route.paymentHashHex
     });
     const observation = observationMap.get(route.routeId);
+    const taprootProofManifest = buildArkTaprootMiniscriptProofManifest({
+      ...options,
+      template,
+      vtxo,
+      selectedLeafRole: options.selectedLeafRole || 'cooperative_round',
+      amountSats: route.requestedInboundSats,
+      settlementRoot: sha256Hex(`ark-manager-settlement:${quote.quoteId}:${route.routeId}`),
+      utxorefPolicyId: policy.policyId
+    });
     const settlementEvidence = buildArkGraftSettlementEvidence({
       template,
       vtxo,
       quote,
+      taprootProofManifest,
       liquidityLease: options.liquidityLease,
       htlcProof: options.htlcProof || {},
       deliveredInboundSats: observation.deliveredInboundSats,
@@ -283,6 +297,7 @@ function allocateArkGrafts(options = {}) {
     const settlementOk = Object.values(settlementEvidence.checks).every(Boolean);
     const challengeEvidence = buildArkGraftChallengeEvidence({
       quote,
+      taprootProofManifest,
       deliveredInboundSats: observation.deliveredInboundSats,
       observedFeePpm: observation.observedFeePpm,
       observedCltvDelta: observation.observedCltvDelta,
@@ -301,6 +316,7 @@ function allocateArkGrafts(options = {}) {
       edgeNodeId: route.edgeNodeId,
       vtxoCommitmentId: vtxo.vtxoCommitmentId,
       quoteId: quote.quoteId,
+      taprootProofManifestId: taprootProofManifest.manifestId,
       settlementId: settlementEvidence.settlementId,
       challengeId: challengeEvidence.challengeId,
       promisedInboundSats: route.requestedInboundSats,
@@ -317,6 +333,7 @@ function allocateArkGrafts(options = {}) {
       route: publicRoute,
       vtxo,
       quote,
+      taprootProofManifest,
       settlementEvidence,
       challengeEvidence
     });
@@ -478,6 +495,22 @@ function verifyArkLiquidityGraftManagerBundle(bundle) {
   for (const assignment of bundle.allocation.assignments) {
     if (assignment.assignmentId !== hashCanonical(assignment.assignmentCore)) {
       return { ok: false, reason: `assignment id mismatch: ${assignment.assignmentCore.routeId}` };
+    }
+    if (!assignment.taprootProofManifest) {
+      return { ok: false, reason: `missing taproot proof manifest: ${assignment.assignmentCore.routeId}` };
+    }
+    const taprootVerification = verifyArkTaprootMiniscriptProofManifest(assignment.taprootProofManifest);
+    if (!taprootVerification.ok) {
+      return {
+        ok: false,
+        reason: `taproot proof manifest failed for ${assignment.assignmentCore.routeId}: ${taprootVerification.reason}`
+      };
+    }
+    if (assignment.assignmentCore.taprootProofManifestId !== assignment.taprootProofManifest.manifestId) {
+      return { ok: false, reason: `taproot proof manifest id mismatch: ${assignment.assignmentCore.routeId}` };
+    }
+    if (assignment.taprootProofManifest.manifestCore.utxorefPolicyId !== bundle.policy.policyId) {
+      return { ok: false, reason: `taproot proof manifest policy mismatch: ${assignment.assignmentCore.routeId}` };
     }
     if (usedVtxos.has(assignment.vtxo.vtxoCommitmentId)) {
       return { ok: false, reason: `duplicate vtxo assignment: ${assignment.vtxo.vtxoCommitmentId}` };

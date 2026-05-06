@@ -6,6 +6,7 @@
  */
 
 const { toTransitionWitness } = require('./m1_transition_circuit');
+const { assertCommittedRouting } = require('./m1_routing_commitments');
 
 const VALID_ROUTES = new Set(['flat', 'pnl', 'settle-loss', 'settle-gain', 'roll']);
 
@@ -38,6 +39,7 @@ function buildTransitionStateFromChallengeBundle(challengeBundle, overrides = {}
   const route = normalizeRoute(challengeBundle.selectedPathId || challengeBundle.selectedPath.pathId);
   const fundingOutpoint = challengeBundle.binding.fundingOutpoint || {};
   const selectedPath = challengeBundle.selectedPath || {};
+  const committedRouting = assertCommittedRouting(selectedPath, `challenge bundle selected path ${route}`);
 
   const collateralSats = overrides.collateralSats !== undefined
     ? BigInt(overrides.collateralSats)
@@ -88,14 +90,14 @@ function buildTransitionStateFromChallengeBundle(challengeBundle, overrides = {}
     refundSats,
     rolloverCollateralSats,
     dustCarrySats,
-    winnerRole: selectedPath.winnerRole ?? selectedPath.recipientRole ?? null,
-    winnerAddress: selectedPath.winnerAddress ?? null,
-    refundRole: selectedPath.refundRole ?? null,
-    refundAddress: selectedPath.refundAddress ?? null,
-    feeRole: selectedPath.feeRole ?? null,
-    feeAddress: selectedPath.feeAddress ?? null,
-    dustRole: selectedPath.dustRole ?? null,
-    dustAddress: selectedPath.dustAddress ?? null,
+    winnerRole: committedRouting.winnerRole ?? selectedPath.recipientRole ?? null,
+    winnerAddress: committedRouting.winnerAddress,
+    refundRole: committedRouting.refundRole,
+    refundAddress: committedRouting.refundAddress,
+    feeRole: committedRouting.feeRole,
+    feeAddress: committedRouting.feeAddress,
+    dustRole: committedRouting.dustRole,
+    dustAddress: committedRouting.dustAddress,
     challengeWindowStart: BigInt(overrides.challengeWindowStart ?? 0n),
     challengeWindowLength: BigInt(overrides.challengeWindowLength ?? 0n),
     challengeWindowEnd: BigInt(overrides.challengeWindowEnd ?? 0n),

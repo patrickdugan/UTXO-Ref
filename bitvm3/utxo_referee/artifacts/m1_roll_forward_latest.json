@@ -1,25 +1,25 @@
 {
   "kind": "m1_roll_forward",
-  "createdAt": "2026-04-04T00:45:40.038Z",
+  "createdAt": "2026-04-25T18:15:06.701Z",
   "sourceArtifacts": {
     "draftPath": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\m1_dlc_draft_latest.json",
     "fundedPath": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\m1_funding_psbt_latest.json",
     "finalizedPath": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\m1_funding_finalized_latest.json",
-    "draftHash": "26580e4aa213bf3a83f727a4e82a25c54fae67352db8fde77a2743b617494efa",
-    "fundedHash": "061a4bedcad0da3c43ab57731ac02153425ec7bb1074fe4d8c9c50f86c4e7475",
-    "finalizedHash": "54ff8a32668cb02b203f4d1d856348b0b63abb2b74388d98173461494377e18d"
+    "draftHash": "ae8a03b060a79ed2967f87372419efc1ee760cd2bd69c29ab96ccbaeb8cb4e8e",
+    "fundedHash": "27b991421a96a9e4fc695e2e38fcaa3ee6c0f23dfcd06440f1732e336a6eb775",
+    "finalizedHash": "b5714625e543f691c479cf6515038b5256f725705391dc371609354d00eaec67"
   },
   "currentEpoch": {
     "epochId": "1",
-    "fundingTxid": "fc27a1a61622ee53e80dbf01c313101294c98a7319287d76b897cbf48604c32e",
+    "fundingTxid": "2edb992eade4f6fa7c3f9849a7f4390e839522f9b07d7b4e08ee33550a4eb2fe",
     "fundingVout": 0,
-    "rollLocktime": 4658048,
+    "rollLocktime": 4685346,
     "dustCarrySats": "0",
-    "rolloverCollateralSats": "783735"
+    "rolloverCollateralSats": "153900"
   },
   "nextEpoch": {
     "epochId": "2",
-    "inheritedCollateralSats": "783735",
+    "inheritedCollateralSats": "153900",
     "inheritedDustCarrySats": "0",
     "defaultAction": "roll"
   },
@@ -31,5 +31,5 @@
     ],
     "routerSemantics": "non-interactive expiry defaults to roll-forward"
   },
-  "artifactHash": "99db96f1d08dce99d71bf6e38684dd1fe33ce7cde455a23d0100147b76f507fe"
+  "artifactHash": "f7bba0974648860789ada32be10f1eafb9cc6ea50ae963ca54058959b78b3495"
 }

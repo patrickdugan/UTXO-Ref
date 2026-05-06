@@ -50,6 +50,10 @@ const {
   buildBitvmArenaSecurityReport,
   verifyBitvmArenaSecurityReport
 } = require('./bitvm_arena_security_report');
+const {
+  buildHalalCapitalTradeLayerTokenPlan,
+  verifyHalalCapitalTradeLayerTokenPlan
+} = require('./halal_capital_tradelayer_tokens');
 
 const DASHBOARD_SCHEMA_VERSION = 'bitvm_tradelayer_dashboard_v1';
 
@@ -103,6 +107,7 @@ function stackHashInput(bundle) {
     perpSettlementHash: bundle.perpPnl.settlementHash,
     liquidityLeaseHash: bundle.liquidityLease.leaseHash,
     arenaReportHash: bundle.arenaSecurity.reportHash,
+    halalCapitalTokenPlanHash: bundle.halalCapitalTokenPlan?.planId || null,
     dashboardViewHash: bundle.dashboard.viewHash
   };
 }
@@ -133,17 +138,34 @@ function buildDashboardView(bundleCore) {
     withdrawalQueue: bundleCore.withdrawalQueue.queueHash,
     perpSettlement: bundleCore.perpPnl.settlementHash,
     liquidityLease: bundleCore.liquidityLease.leaseHash,
-    arenaReport: bundleCore.arenaSecurity.reportHash
+    arenaReport: bundleCore.arenaSecurity.reportHash,
+    halalCapitalTokenPlan: bundleCore.halalCapitalTokenPlan?.planId || null
   };
+  const capitalPlan = bundleCore.halalCapitalTokenPlan || null;
   const viewCore = {
     schema: DASHBOARD_SCHEMA_VERSION,
     status: alerts.length ? 'needs_attention' : 'ready',
     hashes,
+    capital: capitalPlan
+      ? {
+          principalUnits: capitalPlan.planCore.totalPrincipalUnits,
+          serviceRevenueUnits: capitalPlan.planCore.totalServiceRevenueUnits,
+          tokenSpecCount: capitalPlan.tokenSpecs.length,
+          propertyRows: capitalPlan.balanceRows.map((row) => ({
+            propertyId: row.propertyId,
+            symbol: row.symbol,
+            principalSupplyUnits: row.principalSupplyUnits,
+            accruedServiceRevenueUnits: row.accruedServiceRevenueUnits,
+            activeCommitmentCount: row.activeCommitmentCount
+          }))
+        }
+      : null,
     actions: [
       bundleCore.watchtower.action,
       bundleCore.productionPolicy.walletAction,
-      bundleCore.liquidityLease.enforcement.successPath
-    ],
+      bundleCore.liquidityLease.enforcement.successPath,
+      capitalPlan ? 'display property-scoped capital receipts and separate service-revenue accruals' : null
+    ].filter(Boolean),
     alerts: alerts.map((alert) => ({
       code: alert.code,
       severity: alert.severity,
@@ -249,6 +271,7 @@ function buildTradeLayerBitvmStackBundle(input = {}) {
     }
   });
   const arenaSecurity = buildBitvmArenaSecurityReport();
+  const halalCapitalTokenPlan = input.halalCapitalTokenPlan || buildHalalCapitalTradeLayerTokenPlan();
   const hashes = {
     stateOracleHash: oracleCommitment.oracleBlobHash,
     selectedSendHash: oracleCommitment.sendRecordHash,
@@ -256,7 +279,8 @@ function buildTradeLayerBitvmStackBundle(input = {}) {
     routePlanHash: routePlan.planHash,
     routeTranscriptHash: sweepPlan.routeTranscriptHash,
     withdrawalRootHex: commitmentBundle.withdrawalRootHex,
-    commitmentHashHex: commitmentBundle.commitmentHashHex
+    commitmentHashHex: commitmentBundle.commitmentHashHex,
+    halalCapitalTokenPlanHash: halalCapitalTokenPlan.planId
   };
   const bundleCore = {
     kind: 'bitvm_tradelayer_stack_bundle_v1',
@@ -282,7 +306,8 @@ function buildTradeLayerBitvmStackBundle(input = {}) {
     withdrawalQueue,
     perpPnl,
     liquidityLease,
-    arenaSecurity
+    arenaSecurity,
+    halalCapitalTokenPlan
   };
   const dashboard = buildDashboardView(bundleCore);
   const bundle = {
@@ -309,7 +334,10 @@ function verifyTradeLayerBitvmStackBundle(bundle) {
     ['withdrawalQueue', verifyTradeLayerWithdrawalQueue(bundle.withdrawalQueue)],
     ['perpPnl', verifyTradeLayerPerpPnlSettlement(bundle.perpPnl)],
     ['liquidityLease', verifyBitvmLiquidityLease(bundle.liquidityLease)],
-    ['arenaSecurity', verifyBitvmArenaSecurityReport(bundle.arenaSecurity)]
+    ['arenaSecurity', verifyBitvmArenaSecurityReport(bundle.arenaSecurity)],
+    ['halalCapitalTokenPlan', bundle.halalCapitalTokenPlan
+      ? verifyHalalCapitalTradeLayerTokenPlan(bundle.halalCapitalTokenPlan)
+      : { ok: true }]
   ];
   const failed = checks.filter(([, result]) => !result.ok);
   if (failed.length) {
@@ -342,6 +370,7 @@ function dashboardJsonSchema() {
     requiredFields: [
       'status',
       'hashes',
+      'capital',
       'actions',
       'alerts',
       'challengeable',

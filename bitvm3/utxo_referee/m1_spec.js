@@ -11,6 +11,7 @@
 
 const crypto = require('crypto');
 const { PayoutLeaf, CommitmentPackage } = require('./types');
+const { getChainProfile } = require('./m1_chain_env');
 
 const U64_MAX = (1n << 64n) - 1n;
 
@@ -53,48 +54,56 @@ const SETTLEMENT_PATH_SCHEMA_FIELDS = Object.freeze([
   'defaultOnExpiry'
 ]);
 
-const RECEIPT_DLC_TEMPLATE_V1 = Object.freeze({
-  templateId: 'dlc-receipt-ltc-testnet-v1',
-  version: 1,
-  chain: {
-    network: 'litecoin-testnet',
-    amountUnit: 'sats'
-  },
-  receiptToken: {
-    symbol: 'rLTC-SAT',
-    offChainOnly: true,
-    backingUnit: 'sats',
-    mintRatioNumerator: 1,
-    mintRatioDenominator: 1,
-    burnRedeemsBacking: true
-  },
-  depositContract: {
-    type: 'dlc-deposit',
-    witnessPolicy: ['p2wpkh', 'p2tr'],
-    minConfirmations: 1
-  },
-  settlement: {
-    epochCadence: 'weekly',
-    fastRollCadence: 'event-driven',
-    pathModel: 'binary-settlement',
-    amountComputation: 'bounded-loss-carry-forward',
-    payoutRatioBps: 5000,
-    activePaths: ['flat', 'pnl'],
-    timeoutPath: 'roll',
-    deltaPublicationTransport: 'op_return',
-    deltaPublicationMapsTo: 'adaptorSignatureSlots',
-    challengeWindowLength: 0n,
-    dustCarryField: 'dustCarrySats',
-    feeField: 'feeSats',
-    refundField: 'refundSats',
-    carryForwardField: 'rolloverCollateralSats',
-    realizedPnlField: 'realizedPnlBps',
-    bucketCapField: 'bucketCapBps',
-    payoutLeafSchema: PAYOUT_LEAF_SCHEMA_FIELDS.slice(),
-    commitmentSchema: COMMITMENT_PACKAGE_SCHEMA_FIELDS.slice(),
-    settlementPathSchema: SETTLEMENT_PATH_SCHEMA_FIELDS.slice()
-  }
-});
+function buildReceiptDlcTemplate(chainId = 'litecoin-testnet') {
+  const profile = getChainProfile(chainId);
+
+  return Object.freeze({
+    templateId: profile.templateId,
+    version: 1,
+    chain: {
+      network: profile.chainId,
+      family: profile.family,
+      ticker: profile.ticker,
+      amountUnit: 'sats'
+    },
+    receiptToken: {
+      symbol: profile.receiptSymbol,
+      offChainOnly: true,
+      backingUnit: 'sats',
+      mintRatioNumerator: 1,
+      mintRatioDenominator: 1,
+      burnRedeemsBacking: true
+    },
+    depositContract: {
+      type: 'dlc-deposit',
+      witnessPolicy: ['p2wpkh', 'p2tr'],
+      minConfirmations: profile.depositMinConfirmations
+    },
+    settlement: {
+      epochCadence: 'weekly',
+      fastRollCadence: 'event-driven',
+      pathModel: 'binary-settlement',
+      amountComputation: 'bounded-loss-carry-forward',
+      payoutRatioBps: 5000,
+      activePaths: ['flat', 'pnl'],
+      timeoutPath: 'roll',
+      deltaPublicationTransport: 'op_return',
+      deltaPublicationMapsTo: 'adaptorSignatureSlots',
+      challengeWindowLength: 0n,
+      dustCarryField: 'dustCarrySats',
+      feeField: 'feeSats',
+      refundField: 'refundSats',
+      carryForwardField: 'rolloverCollateralSats',
+      realizedPnlField: 'realizedPnlBps',
+      bucketCapField: 'bucketCapBps',
+      payoutLeafSchema: PAYOUT_LEAF_SCHEMA_FIELDS.slice(),
+      commitmentSchema: COMMITMENT_PACKAGE_SCHEMA_FIELDS.slice(),
+      settlementPathSchema: SETTLEMENT_PATH_SCHEMA_FIELDS.slice()
+    }
+  });
+}
+
+const RECEIPT_DLC_TEMPLATE_V1 = Object.freeze(buildReceiptDlcTemplate('litecoin-testnet'));
 
 function toBigInt(value, fieldName) {
   try {
@@ -166,6 +175,7 @@ module.exports = {
   COMMITMENT_PACKAGE_SCHEMA_FIELDS,
   SETTLEMENT_PATH_SCHEMA_FIELDS,
   RECEIPT_DLC_TEMPLATE_V1,
+  buildReceiptDlcTemplate,
   normalizeEpochId,
   normalizeAmountSats,
   validatePayoutLeafRecord,

@@ -1,0 +1,11 @@
+{
+  "name": "civkit-runtime",
+  "private": true,
+  "version": "0.1.0",
+  "description": "CivKit runtime support modules",
+  "license": "MIT",
+  "dependencies": {
+    "classic-level": "1.4.1",
+    "pg": "8.11.5"
+  }
+}

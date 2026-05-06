@@ -1,0 +1,150 @@
+{
+  "kind": "utxoref_dlc_subswap_funding_bundle",
+  "createdAt": "2026-05-04T12:08:47.797Z",
+  "request": {
+    "kind": "utxoref_dlc_subswap_funding_request",
+    "requestId": "062c77fe892d7c32e93922942e22c569667ab3493ea58fc26bda90dc2161dd3f",
+    "requestCore": {
+      "version": 1,
+      "protocol": "utxoref_dlc_submarine_swap_funding",
+      "walletNodeId": "zeus-wallet-demo-node",
+      "network": "bitcoin-testnet4",
+      "targetDlc": {
+        "contractId": "ln-tl-oracle-dlc-1",
+        "bundleId": "cb8584a6f2cf016ff11af65c019052932ac749aba00dc5b0de0d8aba3cf05b41",
+        "contractCommitmentId": "934250a8ae80785bd4b6e8e29269514f13ab5d8486b582f6cdd4a6495fb7edd2",
+        "organizerId": "d5f2a5da32d0b0f930ae98beb19dc701e7b9da2ad37e9b7b573ea5fce2aaced8",
+        "settlementId": "00111de38b8ba37d31a6720f789f3d861c2620da623a826155c031e4374ce4c6"
+      },
+      "submarineSwap": {
+        "mode": "ln_invoice_to_p2wsh_claim",
+        "paymentHashHex": "79cdbfa62ea28e4177514f55ae3f5d6e7dbdd780254a6aeff6428270cd5d1d3f",
+        "invoice": "lnbcrt500u1p576dhzsp5mqycc08q080s69xp97stdlvt7sg485xgp6tsks429q6mfafe65jspp508xmlf3w528yza63fa26u06ade7mm4uqy49x4mlkg2p8pn2ar5lsdzg2429sn6jv4nzqum4vfkkzunfdejjqumhv9czq6tww3hjqsnfw3ty6t6yf3pjqen4dejxjmn8xqyjw5qcqp29qxpqysgq49sss87d7hjlf5ksj7uy4ndm459paxprpvte6u2hv4rm06pu7944l3j6fp5w9m4r8sfw85f4m2uy833u5dynu0s8qer25ctm88a3x2cqwunnk9",
+        "invoiceAmountSats": "50000",
+        "requestedCollateralSats": "49000",
+        "swapFeeSats": "1000",
+        "refundBlocks": 6,
+        "claimRule": "UTXORef claims the swap HTLC with the Lightning preimage and pays the DLC funding output.",
+        "refundRule": "If the invoice is not paid or the claim path fails, the HTLC refund branch returns the swap funding output after timeout."
+      },
+      "dlcFundingOutput": {
+        "kind": "bitvm_dlc_funding_output_commitment",
+        "payload": {
+          "version": 1,
+          "epochId": "1",
+          "dlcId": "subswap-dlc-1777153762725",
+          "bitvmCommitmentRoot": "4a23f966153c14fc683a6550a3187d4d5a04665aa1729096d53315b0e426b04b",
+          "collateralSats": "49000",
+          "refundAddress": "bcrt1qh54r22hcxtqvquv7mjw4962cvkqzejte7rqv05",
+          "timeoutBlock": 263
+        },
+        "commitmentHash": "2ae94a2a96423191e3a47dd93dfe715f5f2a53b9657b2482d34ab47a9dbbe5b7"
+      },
+      "jurassicMotifs": {
+        "transcriptAliases": [
+          "subswap_invoice_request",
+          "dlc_funding_claim"
+        ],
+        "namespaceHandle": "dlc-subswap-ln-tl-oracle-dlc-1-79cdbfa62ea2",
+        "carrierHints": [
+          "ln_invoice",
+          "p2wsh_htlc",
+          "dlc_funding_output"
+        ]
+      },
+      "targetBindingHash": "72294ea469ad0973e24cfd984a38eb5dcefc618e35b40c3b95af29f374128835"
+    },
+    "executionProof": {
+      "kind": "utxoref_subswap_execution_proof",
+      "swapFundingTxid": "c563776fe8a6d86e7e185529d7e78e43e4066c7221589c8f688b3b63a7939ad6",
+      "swapFundingVout": 0,
+      "claimTxid": "fd3e97d30b39c04dea7748cd5a7e8b057bf9e0f7656a6be7d9733c413828be43",
+      "claimWtxid": "7ec7d7b1cfc863839e73e60000be77e1be4d3ab1834b411a39a791c2bd4b1809",
+      "refundTxid": "74d382592edba0efd1967827ba6bafe9e0d638ed4b8e925401cf308ee2a9dc68",
+      "dlcOutputVout": 0,
+      "dlcOutputAmountSats": "49000",
+      "dlcCommitmentHash": "2ae94a2a96423191e3a47dd93dfe715f5f2a53b9657b2482d34ab47a9dbbe5b7",
+      "paymentHashHex": "79cdbfa62ea28e4177514f55ae3f5d6e7dbdd780254a6aeff6428270cd5d1d3f",
+      "paymentPreimageHex": "7dddd7c50c3cb35c735afeedb34c2b2562f9df785d6c01f3ad3846e01d1d288e",
+      "checks": {
+        "paymentHashMatchesRequest": true,
+        "preimageMatchesPaymentHash": true,
+        "claimPaysDlcFundingOutput": true,
+        "dlcOutputCommitsFundingHash": true,
+        "successBroadcasted": true,
+        "refundBranchAvailable": true
+      }
+    },
+    "walletActions": [
+      {
+        "id": "request_quote",
+        "label": "Request UTXORef submarine swap quote"
+      },
+      {
+        "id": "pay_invoice",
+        "label": "Pay funding invoice from LN wallet"
+      },
+      {
+        "id": "watch_claim_tx",
+        "label": "Watch HTLC claim into DLC funding output"
+      },
+      {
+        "id": "verify_dlc_funding",
+        "label": "Verify DLC funding proof"
+      }
+    ],
+    "explanation": "The wallet funds a DLC by paying a Lightning invoice. UTXORef uses the revealed preimage to claim a P2WSH submarine-swap output into the DLC funding output, while the request binds the swap to the DLC contract commitment and BitVM organizer."
+  },
+  "walletView": {
+    "kind": "wallet_dlc_subswap_funding_view",
+    "status": "verified",
+    "title": "UTXORef DLC Submarine Swap Funding",
+    "subtitle": "49000 sats into ln-tl-oracle-dlc-1",
+    "requestId": "062c77fe892d7c32e93922942e22c569667ab3493ea58fc26bda90dc2161dd3f",
+    "targetContractCommitmentId": "934250a8ae80785bd4b6e8e29269514f13ab5d8486b582f6cdd4a6495fb7edd2",
+    "namespaceHandle": "dlc-subswap-ln-tl-oracle-dlc-1-79cdbfa62ea2",
+    "invoice": "lnbcrt500u1p576dhzsp5mqycc08q080s69xp97stdlvt7sg485xgp6tsks429q6mfafe65jspp508xmlf3w528yza63fa26u06ade7mm4uqy49x4mlkg2p8pn2ar5lsdzg2429sn6jv4nzqum4vfkkzunfdejjqumhv9czq6tww3hjqsnfw3ty6t6yf3pjqen4dejxjmn8xqyjw5qcqp29qxpqysgq49sss87d7hjlf5ksj7uy4ndm459paxprpvte6u2hv4rm06pu7944l3j6fp5w9m4r8sfw85f4m2uy833u5dynu0s8qer25ctm88a3x2cqwunnk9",
+    "invoiceAmountSats": "50000",
+    "requestedCollateralSats": "49000",
+    "paymentHashHex": "79cdbfa62ea28e4177514f55ae3f5d6e7dbdd780254a6aeff6428270cd5d1d3f",
+    "fundingCommitmentHash": "2ae94a2a96423191e3a47dd93dfe715f5f2a53b9657b2482d34ab47a9dbbe5b7",
+    "targetBindingHash": "72294ea469ad0973e24cfd984a38eb5dcefc618e35b40c3b95af29f374128835",
+    "execution": {
+      "swapFundingTxid": "c563776fe8a6d86e7e185529d7e78e43e4066c7221589c8f688b3b63a7939ad6",
+      "claimTxid": "fd3e97d30b39c04dea7748cd5a7e8b057bf9e0f7656a6be7d9733c413828be43",
+      "refundTxid": "74d382592edba0efd1967827ba6bafe9e0d638ed4b8e925401cf308ee2a9dc68",
+      "checks": {
+        "paymentHashMatchesRequest": true,
+        "preimageMatchesPaymentHash": true,
+        "claimPaysDlcFundingOutput": true,
+        "dlcOutputCommitsFundingHash": true,
+        "successBroadcasted": true,
+        "refundBranchAvailable": true
+      }
+    },
+    "actions": [
+      {
+        "id": "request_quote",
+        "label": "Request UTXORef submarine swap quote"
+      },
+      {
+        "id": "pay_invoice",
+        "label": "Pay funding invoice from LN wallet"
+      },
+      {
+        "id": "watch_claim_tx",
+        "label": "Watch HTLC claim into DLC funding output"
+      },
+      {
+        "id": "verify_dlc_funding",
+        "label": "Verify DLC funding proof"
+      }
+    ],
+    "verification": {
+      "ok": true
+    }
+  },
+  "verification": {
+    "ok": true
+  }
+}

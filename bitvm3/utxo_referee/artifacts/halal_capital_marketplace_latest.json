@@ -1,0 +1,1390 @@
+{
+  "kind": "halal_capital_marketplace_snapshot",
+  "snapshotId": "268c376b614075e1ae041cc8c3a95a0897cc627fbdd3ea69f4b7ab120b4ad9e9",
+  "snapshotCore": {
+    "version": 1,
+    "roadmapArtifact": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\halal_capital_roadmap_latest.json",
+    "registryId": "4b8d7d8c4d6342d4778f351fb7f0bfa8dadae903c727f0acc8c9f7fe4406c323",
+    "commitmentIds": [
+      "b698b31e28e8339287b3c2db8f7ebb1706f405ab2779057fe76c25dc3fae035c",
+      "8d740ded2f338ef7265f9986b0557b46355e3e2563543d63d0c117ff698d9859",
+      "618729c6c453d461581d5cc4ffd6d19f5111ab597664e8f3973c1c70d1aabac0",
+      "7a3b1ff6943f412416805372fec753829b5d24dbe97af5c2ac129ba1393751dd",
+      "ea8744e86190bb15647ada2954fc8d615204988bb9465f93b703b71e74025d16",
+      "d8a7d41f876134576441298daa56611b419f6446affd22bd2b0ca068f10d2b9f",
+      "c9054a7fa808785209a1940eac1b53220b4ecd77c1711ebb9ebbd497352fa52f"
+    ],
+    "revenueEventIds": [
+      "9d2eb167fe399f9425227d6a09f8f2a5e1479be6a6547dc72d9f36d84bbfe5e2",
+      "7011b9ff1890f6dd21203cb5a82ef9c41f36f700b567abcff74e194191431013",
+      "f4727bf57c97af6cf49de2f53413951fc0255f0ef18e0acccfaae84d17d8383b",
+      "49710a3b14609a51509b6ba67189a76dc5a9a36c23c57df9111137d9b3715449",
+      "f745fa1a9e1e960de9736274570138fd73dc81d1abdf80066e8053d322f767ed",
+      "a7c73b9232ae882bb6398c96d205a0b06f20fc0863fa4e793c2af2d8586b4bcd",
+      "7c1c36eac59b6f40c69e37708d887ae46e814e8e33f06579d947fa896205b776"
+    ],
+    "observerIndexId": "5bfd2b0c67391236330a70de4f09799c10db74b571191d4f0eeccd73e3437559",
+    "totalActiveCapitalSats": "12250000",
+    "totalServiceRevenueSats": "28000",
+    "exclusivityOk": true,
+    "roleTransitionOk": true
+  },
+  "registry": {
+    "kind": "halal_capital_template_registry",
+    "registryId": "4b8d7d8c4d6342d4778f351fb7f0bfa8dadae903c727f0acc8c9f7fe4406c323",
+    "registryCore": {
+      "version": 1,
+      "principle": "one sat, one role, one active commitment",
+      "propertyIdRule": "one propertyId equals one capital mechanic plus one enforcement template",
+      "templates": [
+        {
+          "propertyId": 1101,
+          "symbol": "HLN-LEASE",
+          "templateId": "ln-channel-lease-no-rehypo-v1",
+          "templateHash": "8ec59cda74a137006413d32bf0b1e8114a12c582d5e026a27b2d717a74c29241",
+          "capitalRole": "lightning_channel_lease",
+          "targetProtocol": "lightning"
+        },
+        {
+          "propertyId": 1102,
+          "symbol": "HLN-ROUTE",
+          "templateId": "ln-routing-reserve-no-rehypo-v1",
+          "templateHash": "764f37777156fbeab809b3171fa6fbb4257f1f4e8ce2856bea4d67d08d82277b",
+          "capitalRole": "lightning_routing_reserve",
+          "targetProtocol": "lightning"
+        },
+        {
+          "propertyId": 2101,
+          "symbol": "HTAP-RFQ",
+          "templateId": "taproot-assets-edge-rfq-no-rehypo-v1",
+          "templateHash": "71a9a636543168c423a5fc2c73831880834390666dedfc747cbdc671ccd28241",
+          "capitalRole": "taproot_assets_edge_rfq_reserve",
+          "targetProtocol": "taproot_assets"
+        },
+        {
+          "propertyId": 3101,
+          "symbol": "HARK-LIQ",
+          "templateId": "ark-round-liquidity-graft-no-rehypo-v1",
+          "templateHash": "d3522cc96e5ee32b26e1a942af4ea309f465adb85f28dd55f58eb278a5a2ccf1",
+          "capitalRole": "ark_round_liquidity_graft",
+          "targetProtocol": "ark"
+        },
+        {
+          "propertyId": 4101,
+          "symbol": "HTL-DLCM",
+          "templateId": "tradelayer-dlc-margin-reserve-no-rehypo-v1",
+          "templateHash": "d95d1c280cf00594bec3917b8f040aff5bb86882289a88f7ec89c645ee9a985d",
+          "capitalRole": "tradelayer_dlc_margin_reserve",
+          "targetProtocol": "shinigami"
+        },
+        {
+          "propertyId": 5101,
+          "symbol": "HWT-BOND",
+          "templateId": "watchtower-bond-no-rehypo-v1",
+          "templateHash": "c3d68cca0be68f07729b7c99bb6bbded5c4ae961f2e116ace40c54c80a017b34",
+          "capitalRole": "watchtower_bond",
+          "targetProtocol": "lightning"
+        },
+        {
+          "propertyId": 6101,
+          "symbol": "HPROOF",
+          "templateId": "proof-publication-bond-no-rehypo-v1",
+          "templateHash": "f54c6b5de95e3d3a4df0626fc506159c772a1e6fa4bc4fbe446b086e023b3046",
+          "capitalRole": "proof_publication_bond",
+          "targetProtocol": "shinigami"
+        }
+      ]
+    },
+    "templates": [
+      {
+        "kind": "halal_capital_property_template",
+        "templateHash": "8ec59cda74a137006413d32bf0b1e8114a12c582d5e026a27b2d717a74c29241",
+        "version": 1,
+        "propertyId": 1101,
+        "symbol": "HLN-LEASE",
+        "templateId": "ln-channel-lease-no-rehypo-v1",
+        "targetProtocol": "lightning",
+        "capitalRole": "lightning_channel_lease",
+        "productSurface": "capital-stakable Lightning channel lease",
+        "serviceRevenue": "fixed-duration inbound liquidity lease and routing-quality fee",
+        "backingAsset": "BTC",
+        "accounting": {
+          "exclusiveCommitment": true,
+          "oneSatOneRole": true,
+          "burnBeforeReissue": true,
+          "rehypothecationAllowed": false,
+          "guaranteedApyAllowed": false,
+          "hiddenLeverageAllowed": false
+        },
+        "enforcement": {
+          "fundingOutpointScope": "global_unique_active_commitment",
+          "receiptFungibility": "same_property_id_only",
+          "roleTransition": "retire_or_burn_old_receipt_before_new_property_issue",
+          "verifier": "UTXORef plus TradeLayer property-template registry"
+        },
+        "jurassicApplication": {
+          "kind": "jurassic_bitvm_mechanism_refs",
+          "refId": "b5029803fcafb98222f9ba979ddc82568dc07df58481fb6e1b44471f628f29ca",
+          "version": 1,
+          "target": "lightning",
+          "semanticStateHash": "3732bbbd8e35d7575805220bcfc0a8a4fc167b782f6128e1b9082d4bf51edc01",
+          "planId": "ln_ptlc_retry_watchtower_switchboard",
+          "transcriptVariantIds": [
+            "ln_ptlc_success_retry_a",
+            "ln_ptlc_success_retry_b",
+            "ln_timeout_challenge_split"
+          ],
+          "transcriptDigests": [
+            "c7997d307c39de6ad65e235bbf141a7a7e29b61dab03a8a4d877fe7599f1670d",
+            "c7997d307c39de6ad65e235bbf141a7a7e29b61dab03a8a4d877fe7599f1670d",
+            "419ece47005bac91c68c3145b6720b6266aa37646c9d7169c27278e0b5282595"
+          ],
+          "publicHandleIds": [
+            "243ef3105038a4e723b5c92e9a0a6a41365bcb07a3167120f05dc29d9ad11921",
+            "f60e1e111e8084d5bfa1ce17ea54789e91a226e86ee7460441bb0b09a8599ce4"
+          ],
+          "carrierCommitmentIds": [
+            "8a061d33caf391d806063c957f21661ae508fb04b33c160fd034d56d576aa7f6",
+            "a1626740e991dc3c7b9c2b020ec5e2094d19bc958cb27c2bbac9806879f1b092"
+          ],
+          "transcriptSwitchboardId": "3d4606b268b000d704f1023f2dd68f79785cb7de850c8bcaa1061627dbe2202a",
+          "primaryTranscriptDigest": "c7997d307c39de6ad65e235bbf141a7a7e29b61dab03a8a4d877fe7599f1670d",
+          "primaryPublicHandleId": "243ef3105038a4e723b5c92e9a0a6a41365bcb07a3167120f05dc29d9ad11921",
+          "primaryCarrierCommitmentId": "8a061d33caf391d806063c957f21661ae508fb04b33c160fd034d56d576aa7f6",
+          "status": "prototype_ready",
+          "rejectionTripwireDigest": "0000000000000000000000000000000000000000000000000000000000000001"
+        }
+      },
+      {
+        "kind": "halal_capital_property_template",
+        "templateHash": "764f37777156fbeab809b3171fa6fbb4257f1f4e8ce2856bea4d67d08d82277b",
+        "version": 1,
+        "propertyId": 1102,
+        "symbol": "HLN-ROUTE",
+        "templateId": "ln-routing-reserve-no-rehypo-v1",
+        "targetProtocol": "lightning",
+        "capitalRole": "lightning_routing_reserve",
+        "productSurface": "active Lightning routing reserve",
+        "serviceRevenue": "routing fees and route availability premiums",
+        "backingAsset": "BTC",
+        "accounting": {
+          "exclusiveCommitment": true,
+          "oneSatOneRole": true,
+          "burnBeforeReissue": true,
+          "rehypothecationAllowed": false,
+          "guaranteedApyAllowed": false,
+          "hiddenLeverageAllowed": false
+        },
+        "enforcement": {
+          "fundingOutpointScope": "global_unique_active_commitment",
+          "receiptFungibility": "same_property_id_only",
+          "roleTransition": "retire_or_burn_old_receipt_before_new_property_issue",
+          "verifier": "UTXORef plus TradeLayer property-template registry"
+        },
+        "jurassicApplication": {
+          "kind": "jurassic_bitvm_mechanism_refs",
+          "refId": "36a824918d392bdecf2f5e8426c87df6dc122c6c28dad04ddcdb5868c56e219a",
+          "version": 1,
+          "target": "lightning",
+          "semanticStateHash": "07d18b4e7abc4adb201aa669d868062646bfb2b350ca1d75deb323e19a8ef474",
+          "planId": "ln_ptlc_retry_watchtower_switchboard",
+          "transcriptVariantIds": [
+            "ln_ptlc_success_retry_a",
+            "ln_ptlc_success_retry_b",
+            "ln_timeout_challenge_split"
+          ],
+          "transcriptDigests": [
+            "47f554eedb49b5a31203fc76178e4a01eefc3bce3ce7eca7ded6c799bbe5cd9a",
+            "47f554eedb49b5a31203fc76178e4a01eefc3bce3ce7eca7ded6c799bbe5cd9a",
+            "1a12b9d1dc66610199c127bb01189a221073c6abf277750affd34ec65b6f9c3c"
+          ],
+          "publicHandleIds": [
+            "26020889e5f11731d29cb89c70f64f8162a8416d82e107d7c6c34a0df8ac5ec1",
+            "78036a52924f426338c386effb61caeeae1deeb4bf6bf81cac59aa44a8d8bb07"
+          ],
+          "carrierCommitmentIds": [
+            "ab4047389bd8f5bd0718d367d5b9b58e41700ee89710d83f877181f3d7db0fb7",
+            "033df07f23079d2b8dc7d07e70a1f08808923735eba9804083b46a48862f51d9"
+          ],
+          "transcriptSwitchboardId": "483e388789bf4afa6a3767875ae54f7cf33d1eef9ba04bedf83df778a3ada260",
+          "primaryTranscriptDigest": "47f554eedb49b5a31203fc76178e4a01eefc3bce3ce7eca7ded6c799bbe5cd9a",
+          "primaryPublicHandleId": "26020889e5f11731d29cb89c70f64f8162a8416d82e107d7c6c34a0df8ac5ec1",
+          "primaryCarrierCommitmentId": "ab4047389bd8f5bd0718d367d5b9b58e41700ee89710d83f877181f3d7db0fb7",
+          "status": "prototype_ready",
+          "rejectionTripwireDigest": "0000000000000000000000000000000000000000000000000000000000000001"
+        }
+      },
+      {
+        "kind": "halal_capital_property_template",
+        "templateHash": "71a9a636543168c423a5fc2c73831880834390666dedfc747cbdc671ccd28241",
+        "version": 1,
+        "propertyId": 2101,
+        "symbol": "HTAP-RFQ",
+        "templateId": "taproot-assets-edge-rfq-no-rehypo-v1",
+        "targetProtocol": "taproot_assets",
+        "capitalRole": "taproot_assets_edge_rfq_reserve",
+        "productSurface": "Taproot Assets Edge liquidity reserve",
+        "serviceRevenue": "Edge-node RFQ spread and proof-anchor service fee",
+        "backingAsset": "BTC",
+        "accounting": {
+          "exclusiveCommitment": true,
+          "oneSatOneRole": true,
+          "burnBeforeReissue": true,
+          "rehypothecationAllowed": false,
+          "guaranteedApyAllowed": false,
+          "hiddenLeverageAllowed": false
+        },
+        "enforcement": {
+          "fundingOutpointScope": "global_unique_active_commitment",
+          "receiptFungibility": "same_property_id_only",
+          "roleTransition": "retire_or_burn_old_receipt_before_new_property_issue",
+          "verifier": "UTXORef plus TradeLayer property-template registry"
+        },
+        "jurassicApplication": {
+          "kind": "jurassic_bitvm_mechanism_refs",
+          "refId": "559d92e69f60fe1b36c95f0254eb71b0e3ca09b6ea53833b9e5dc50282375325",
+          "version": 1,
+          "target": "taproot_assets",
+          "semanticStateHash": "a79653849bd3c48fba2cb422452331692eb6583782797b5fb2a2d562883ec5e3",
+          "planId": "tap_asset_proof_anchor_switchboard",
+          "transcriptVariantIds": [
+            "tap_asset_proof_delta"
+          ],
+          "transcriptDigests": [
+            "ef7184fc090432edc90b2b085c67e8386c433d8eb279b77e7d8a3bb3553144eb"
+          ],
+          "publicHandleIds": [
+            "965758e48329d4137063817c23139af03831cc3882a939b86d28baeb66ed60e7",
+            "dfb1b98de6c164afdf7029476ce9496e447810b1b0e67506868f56ffca780e63"
+          ],
+          "carrierCommitmentIds": [
+            "f3014b0bbf83f99d88aa130dd502dc9915278cee672d546ca55c416483847152"
+          ],
+          "transcriptSwitchboardId": "ba2f56bbd9b8e9c620487eaad3eca4041c6b044aee524263785c910d3a776b6d",
+          "primaryTranscriptDigest": "ef7184fc090432edc90b2b085c67e8386c433d8eb279b77e7d8a3bb3553144eb",
+          "primaryPublicHandleId": "965758e48329d4137063817c23139af03831cc3882a939b86d28baeb66ed60e7",
+          "primaryCarrierCommitmentId": "f3014b0bbf83f99d88aa130dd502dc9915278cee672d546ca55c416483847152",
+          "status": "prototype_ready",
+          "rejectionTripwireDigest": "0000000000000000000000000000000000000000000000000000000000000001"
+        }
+      },
+      {
+        "kind": "halal_capital_property_template",
+        "templateHash": "d3522cc96e5ee32b26e1a942af4ea309f465adb85f28dd55f58eb278a5a2ccf1",
+        "version": 1,
+        "propertyId": 3101,
+        "symbol": "HARK-LIQ",
+        "templateId": "ark-round-liquidity-graft-no-rehypo-v1",
+        "targetProtocol": "ark",
+        "capitalRole": "ark_round_liquidity_graft",
+        "productSurface": "Ark round liquidity graft",
+        "serviceRevenue": "short-duration round liquidity and VTXO exit insurance premium",
+        "backingAsset": "BTC",
+        "accounting": {
+          "exclusiveCommitment": true,
+          "oneSatOneRole": true,
+          "burnBeforeReissue": true,
+          "rehypothecationAllowed": false,
+          "guaranteedApyAllowed": false,
+          "hiddenLeverageAllowed": false
+        },
+        "enforcement": {
+          "fundingOutpointScope": "global_unique_active_commitment",
+          "receiptFungibility": "same_property_id_only",
+          "roleTransition": "retire_or_burn_old_receipt_before_new_property_issue",
+          "verifier": "UTXORef plus TradeLayer property-template registry"
+        },
+        "jurassicApplication": {
+          "kind": "jurassic_bitvm_mechanism_refs",
+          "refId": "640de33e979892b01078b8ce6e4301a850509d1833af0598135f3b941d36afd1",
+          "version": 1,
+          "target": "ark",
+          "semanticStateHash": "75d8d6bff32fce8eec4928ad137841cc7bca3d5eb53c459ac8dc7d5845b60627",
+          "planId": "ark_round_exit_namespace_market",
+          "transcriptVariantIds": [
+            "ark_round_exit_attestation"
+          ],
+          "transcriptDigests": [
+            "fb06d95b7d97213bdc38d5451cc7c42177128d874016caf3e9c1ab99d18f89cc"
+          ],
+          "publicHandleIds": [
+            "3dbb7a597598086954ea009a841ab4d897bdc7b58ade301cef525e799883ccc5",
+            "9ef5f9b87419c98bcb38fc91336c93a16b35a8738e492cb94ac5a15784a1c088"
+          ],
+          "carrierCommitmentIds": [
+            "1949d6450df43fe6e298c4bbbd0393bb79f0160aaf8c5789786ee772120486fc"
+          ],
+          "transcriptSwitchboardId": "9cb0da1540b25ba63c96420adb9a799ad42051275b13fd366eae817ad8af4f81",
+          "primaryTranscriptDigest": "fb06d95b7d97213bdc38d5451cc7c42177128d874016caf3e9c1ab99d18f89cc",
+          "primaryPublicHandleId": "3dbb7a597598086954ea009a841ab4d897bdc7b58ade301cef525e799883ccc5",
+          "primaryCarrierCommitmentId": "1949d6450df43fe6e298c4bbbd0393bb79f0160aaf8c5789786ee772120486fc",
+          "status": "prototype_ready",
+          "rejectionTripwireDigest": "0000000000000000000000000000000000000000000000000000000000000001"
+        }
+      },
+      {
+        "kind": "halal_capital_property_template",
+        "templateHash": "d95d1c280cf00594bec3917b8f040aff5bb86882289a88f7ec89c645ee9a985d",
+        "version": 1,
+        "propertyId": 4101,
+        "symbol": "HTL-DLCM",
+        "templateId": "tradelayer-dlc-margin-reserve-no-rehypo-v1",
+        "targetProtocol": "shinigami",
+        "capitalRole": "tradelayer_dlc_margin_reserve",
+        "productSurface": "TradeLayer derivatives margin reserve",
+        "serviceRevenue": "DLC margin reservation, bounded PnL settlement, and liquidation service fee",
+        "backingAsset": "BTC",
+        "accounting": {
+          "exclusiveCommitment": true,
+          "oneSatOneRole": true,
+          "burnBeforeReissue": true,
+          "rehypothecationAllowed": false,
+          "guaranteedApyAllowed": false,
+          "hiddenLeverageAllowed": false
+        },
+        "enforcement": {
+          "fundingOutpointScope": "global_unique_active_commitment",
+          "receiptFungibility": "same_property_id_only",
+          "roleTransition": "retire_or_burn_old_receipt_before_new_property_issue",
+          "verifier": "UTXORef plus TradeLayer property-template registry"
+        },
+        "jurassicApplication": {
+          "kind": "jurassic_bitvm_mechanism_refs",
+          "refId": "7cb35f97b959287edce921b9e4ff3098e82dff40adb5d4886d63b9e24f898871",
+          "version": 1,
+          "target": "shinigami",
+          "semanticStateHash": "f5cde7c02f72273a0566589efb480fcc2b448db422fff290a0a4fe095e0e8f8f",
+          "planId": "shinigami_proof_publication_switchboard",
+          "transcriptVariantIds": [
+            "shinigami_execution_trace"
+          ],
+          "transcriptDigests": [
+            "144aa170186a6d6c0e46826baaaa877f5ec4633dae4cf87377d693177e88fdff"
+          ],
+          "publicHandleIds": [
+            "815647309c26d17f49d02f6ac636a105684160e0bffa347d4870cbd41bc3ad03",
+            "c5a0e1a48a449754270fb4a62df4729df018304426e627d78999a3ea5ca7d774"
+          ],
+          "carrierCommitmentIds": [
+            "fb438852b805b7c556191812a0f4bad74ef92a1ba18a95909c22ff2a87a396a9"
+          ],
+          "transcriptSwitchboardId": "c8ca996d3780c64d70a40397edb052fabaf021268b89a226b6965c01008def4d",
+          "primaryTranscriptDigest": "144aa170186a6d6c0e46826baaaa877f5ec4633dae4cf87377d693177e88fdff",
+          "primaryPublicHandleId": "815647309c26d17f49d02f6ac636a105684160e0bffa347d4870cbd41bc3ad03",
+          "primaryCarrierCommitmentId": "fb438852b805b7c556191812a0f4bad74ef92a1ba18a95909c22ff2a87a396a9",
+          "status": "scaffold_only",
+          "rejectionTripwireDigest": "0000000000000000000000000000000000000000000000000000000000000001"
+        }
+      },
+      {
+        "kind": "halal_capital_property_template",
+        "templateHash": "c3d68cca0be68f07729b7c99bb6bbded5c4ae961f2e116ace40c54c80a017b34",
+        "version": 1,
+        "propertyId": 5101,
+        "symbol": "HWT-BOND",
+        "templateId": "watchtower-bond-no-rehypo-v1",
+        "targetProtocol": "lightning",
+        "capitalRole": "watchtower_bond",
+        "productSurface": "watchtower and challenger bond",
+        "serviceRevenue": "challenge bounty, alert monitoring fee, and fraud-proof service fee",
+        "backingAsset": "BTC",
+        "accounting": {
+          "exclusiveCommitment": true,
+          "oneSatOneRole": true,
+          "burnBeforeReissue": true,
+          "rehypothecationAllowed": false,
+          "guaranteedApyAllowed": false,
+          "hiddenLeverageAllowed": false
+        },
+        "enforcement": {
+          "fundingOutpointScope": "global_unique_active_commitment",
+          "receiptFungibility": "same_property_id_only",
+          "roleTransition": "retire_or_burn_old_receipt_before_new_property_issue",
+          "verifier": "UTXORef plus TradeLayer property-template registry"
+        },
+        "jurassicApplication": {
+          "kind": "jurassic_bitvm_mechanism_refs",
+          "refId": "c10cdf81504ae7d6ccf8e1ca5532ee4719fe9f249fec400ce4fd2e5bb18f5935",
+          "version": 1,
+          "target": "lightning",
+          "semanticStateHash": "958ca512302000836a6f269eb8f9b90a31e54179382fe46c1715c04fc045731a",
+          "planId": "ln_ptlc_retry_watchtower_switchboard",
+          "transcriptVariantIds": [
+            "ln_ptlc_success_retry_a",
+            "ln_ptlc_success_retry_b",
+            "ln_timeout_challenge_split"
+          ],
+          "transcriptDigests": [
+            "57660a3620a90ddb64da9d0de8b7c3d112fd73aca7acc84122cdf9e1e6a1b689",
+            "57660a3620a90ddb64da9d0de8b7c3d112fd73aca7acc84122cdf9e1e6a1b689",
+            "797fd41bbbb555e632bd1761b530ae126ff57425c0514afb01194bf8daad0e97"
+          ],
+          "publicHandleIds": [
+            "67839a4df6b906509a2af74a0dcccca6bff2d66c458272442e283c9340241620",
+            "6dc9f59fa2f060482af0bde3db0aa61f2f40050d707c6adffd29d57b9b866a8d"
+          ],
+          "carrierCommitmentIds": [
+            "384a55ab395a8c802e51775260061f06b2c1cd4384f5a6f65590712a77e1eef4",
+            "e11fc6e46ec4e0b4ea1a6935d2f1d1679bef87257de618d22122218214b32d78"
+          ],
+          "transcriptSwitchboardId": "784402136807bf89e23309f16cf9e33f2bf416859227f5ee5eebc46630a4d39a",
+          "primaryTranscriptDigest": "57660a3620a90ddb64da9d0de8b7c3d112fd73aca7acc84122cdf9e1e6a1b689",
+          "primaryPublicHandleId": "67839a4df6b906509a2af74a0dcccca6bff2d66c458272442e283c9340241620",
+          "primaryCarrierCommitmentId": "384a55ab395a8c802e51775260061f06b2c1cd4384f5a6f65590712a77e1eef4",
+          "status": "prototype_ready",
+          "rejectionTripwireDigest": "0000000000000000000000000000000000000000000000000000000000000001"
+        }
+      },
+      {
+        "kind": "halal_capital_property_template",
+        "templateHash": "f54c6b5de95e3d3a4df0626fc506159c772a1e6fa4bc4fbe446b086e023b3046",
+        "version": 1,
+        "propertyId": 6101,
+        "symbol": "HPROOF",
+        "templateId": "proof-publication-bond-no-rehypo-v1",
+        "targetProtocol": "shinigami",
+        "capitalRole": "proof_publication_bond",
+        "productSurface": "proof-carrying execution publication bond",
+        "serviceRevenue": "proof publication, verifier receipt, and challenge-routing fee",
+        "backingAsset": "BTC",
+        "accounting": {
+          "exclusiveCommitment": true,
+          "oneSatOneRole": true,
+          "burnBeforeReissue": true,
+          "rehypothecationAllowed": false,
+          "guaranteedApyAllowed": false,
+          "hiddenLeverageAllowed": false
+        },
+        "enforcement": {
+          "fundingOutpointScope": "global_unique_active_commitment",
+          "receiptFungibility": "same_property_id_only",
+          "roleTransition": "retire_or_burn_old_receipt_before_new_property_issue",
+          "verifier": "UTXORef plus TradeLayer property-template registry"
+        },
+        "jurassicApplication": {
+          "kind": "jurassic_bitvm_mechanism_refs",
+          "refId": "721c604ed432b88d2dd19126ce9241f9468ce2b34ff8005bcf643b71267f7535",
+          "version": 1,
+          "target": "shinigami",
+          "semanticStateHash": "67a96d259001bbf2fbf5742f308fc291b6399c849cb36dfac2bdeeca2d425993",
+          "planId": "shinigami_proof_publication_switchboard",
+          "transcriptVariantIds": [
+            "shinigami_execution_trace"
+          ],
+          "transcriptDigests": [
+            "49dda7038148bec199134a4ba2e57a27a764d673f3c22861fec705f2569377a2"
+          ],
+          "publicHandleIds": [
+            "8b5077343648ae66d3de4f4fce7279663971e674d55db1d51ce428d2bd5fa64a",
+            "981a5d58b1609193e6e89115bd6ff9529131ba0add0b90265e6b980e264c31dd"
+          ],
+          "carrierCommitmentIds": [
+            "4bd90df82bbb75e0fdc14e1799a1387bfac652a3e0d44957026ebeef7b7fa766"
+          ],
+          "transcriptSwitchboardId": "89ab9313a9223fc07ae956c9c67714f551f8981cf5df911295ec6312578aa3e1",
+          "primaryTranscriptDigest": "49dda7038148bec199134a4ba2e57a27a764d673f3c22861fec705f2569377a2",
+          "primaryPublicHandleId": "8b5077343648ae66d3de4f4fce7279663971e674d55db1d51ce428d2bd5fa64a",
+          "primaryCarrierCommitmentId": "4bd90df82bbb75e0fdc14e1799a1387bfac652a3e0d44957026ebeef7b7fa766",
+          "status": "scaffold_only",
+          "rejectionTripwireDigest": "0000000000000000000000000000000000000000000000000000000000000001"
+        }
+      }
+    ]
+  },
+  "commitments": [
+    {
+      "kind": "halal_capital_commitment",
+      "commitmentId": "b698b31e28e8339287b3c2db8f7ebb1706f405ab2779057fe76c25dc3fae035c",
+      "commitmentCore": {
+        "version": 1,
+        "propertyId": 1101,
+        "templateId": "ln-channel-lease-no-rehypo-v1",
+        "templateHash": "8ec59cda74a137006413d32bf0b1e8114a12c582d5e026a27b2d717a74c29241",
+        "holderId": "holder-1",
+        "operatorId": "operator-hln-lease",
+        "fundingOutpoint": "8d57b33cf97269a0ce1afd5621374b91d2314141ec366dd44592ac51d9c6e354:1",
+        "amountSats": "1000000",
+        "activeRole": "lightning_channel_lease",
+        "status": "active",
+        "exclusiveCommitment": true,
+        "jurassicMechanismRefId": "b5029803fcafb98222f9ba979ddc82568dc07df58481fb6e1b44471f628f29ca",
+        "publicHandleId": "243ef3105038a4e723b5c92e9a0a6a41365bcb07a3167120f05dc29d9ad11921",
+        "carrierCommitmentId": "8a061d33caf391d806063c957f21661ae508fb04b33c160fd034d56d576aa7f6"
+      },
+      "template": {
+        "kind": "halal_capital_property_template",
+        "templateHash": "8ec59cda74a137006413d32bf0b1e8114a12c582d5e026a27b2d717a74c29241",
+        "version": 1,
+        "propertyId": 1101,
+        "symbol": "HLN-LEASE",
+        "templateId": "ln-channel-lease-no-rehypo-v1",
+        "targetProtocol": "lightning",
+        "capitalRole": "lightning_channel_lease",
+        "productSurface": "capital-stakable Lightning channel lease",
+        "serviceRevenue": "fixed-duration inbound liquidity lease and routing-quality fee",
+        "backingAsset": "BTC",
+        "accounting": {
+          "exclusiveCommitment": true,
+          "oneSatOneRole": true,
+          "burnBeforeReissue": true,
+          "rehypothecationAllowed": false,
+          "guaranteedApyAllowed": false,
+          "hiddenLeverageAllowed": false
+        },
+        "enforcement": {
+          "fundingOutpointScope": "global_unique_active_commitment",
+          "receiptFungibility": "same_property_id_only",
+          "roleTransition": "retire_or_burn_old_receipt_before_new_property_issue",
+          "verifier": "UTXORef plus TradeLayer property-template registry"
+        },
+        "jurassicApplication": {
+          "kind": "jurassic_bitvm_mechanism_refs",
+          "refId": "b5029803fcafb98222f9ba979ddc82568dc07df58481fb6e1b44471f628f29ca",
+          "version": 1,
+          "target": "lightning",
+          "semanticStateHash": "3732bbbd8e35d7575805220bcfc0a8a4fc167b782f6128e1b9082d4bf51edc01",
+          "planId": "ln_ptlc_retry_watchtower_switchboard",
+          "transcriptVariantIds": [
+            "ln_ptlc_success_retry_a",
+            "ln_ptlc_success_retry_b",
+            "ln_timeout_challenge_split"
+          ],
+          "transcriptDigests": [
+            "c7997d307c39de6ad65e235bbf141a7a7e29b61dab03a8a4d877fe7599f1670d",
+            "c7997d307c39de6ad65e235bbf141a7a7e29b61dab03a8a4d877fe7599f1670d",
+            "419ece47005bac91c68c3145b6720b6266aa37646c9d7169c27278e0b5282595"
+          ],
+          "publicHandleIds": [
+            "243ef3105038a4e723b5c92e9a0a6a41365bcb07a3167120f05dc29d9ad11921",
+            "f60e1e111e8084d5bfa1ce17ea54789e91a226e86ee7460441bb0b09a8599ce4"
+          ],
+          "carrierCommitmentIds": [
+            "8a061d33caf391d806063c957f21661ae508fb04b33c160fd034d56d576aa7f6",
+            "a1626740e991dc3c7b9c2b020ec5e2094d19bc958cb27c2bbac9806879f1b092"
+          ],
+          "transcriptSwitchboardId": "3d4606b268b000d704f1023f2dd68f79785cb7de850c8bcaa1061627dbe2202a",
+          "primaryTranscriptDigest": "c7997d307c39de6ad65e235bbf141a7a7e29b61dab03a8a4d877fe7599f1670d",
+          "primaryPublicHandleId": "243ef3105038a4e723b5c92e9a0a6a41365bcb07a3167120f05dc29d9ad11921",
+          "primaryCarrierCommitmentId": "8a061d33caf391d806063c957f21661ae508fb04b33c160fd034d56d576aa7f6",
+          "status": "prototype_ready",
+          "rejectionTripwireDigest": "0000000000000000000000000000000000000000000000000000000000000001"
+        }
+      }
+    },
+    {
+      "kind": "halal_capital_commitment",
+      "commitmentId": "8d740ded2f338ef7265f9986b0557b46355e3e2563543d63d0c117ff698d9859",
+      "commitmentCore": {
+        "version": 1,
+        "propertyId": 1102,
+        "templateId": "ln-routing-reserve-no-rehypo-v1",
+        "templateHash": "764f37777156fbeab809b3171fa6fbb4257f1f4e8ce2856bea4d67d08d82277b",
+        "holderId": "holder-2",
+        "operatorId": "operator-hln-route",
+        "fundingOutpoint": "b594f56b9c83ff8d30d232637d2c3ed23005ead2e32b5bae9b50bbed7be685a5:0",
+        "amountSats": "1250000",
+        "activeRole": "lightning_routing_reserve",
+        "status": "active",
+        "exclusiveCommitment": true,
+        "jurassicMechanismRefId": "36a824918d392bdecf2f5e8426c87df6dc122c6c28dad04ddcdb5868c56e219a",
+        "publicHandleId": "26020889e5f11731d29cb89c70f64f8162a8416d82e107d7c6c34a0df8ac5ec1",
+        "carrierCommitmentId": "ab4047389bd8f5bd0718d367d5b9b58e41700ee89710d83f877181f3d7db0fb7"
+      },
+      "template": {
+        "kind": "halal_capital_property_template",
+        "templateHash": "764f37777156fbeab809b3171fa6fbb4257f1f4e8ce2856bea4d67d08d82277b",
+        "version": 1,
+        "propertyId": 1102,
+        "symbol": "HLN-ROUTE",
+        "templateId": "ln-routing-reserve-no-rehypo-v1",
+        "targetProtocol": "lightning",
+        "capitalRole": "lightning_routing_reserve",
+        "productSurface": "active Lightning routing reserve",
+        "serviceRevenue": "routing fees and route availability premiums",
+        "backingAsset": "BTC",
+        "accounting": {
+          "exclusiveCommitment": true,
+          "oneSatOneRole": true,
+          "burnBeforeReissue": true,
+          "rehypothecationAllowed": false,
+          "guaranteedApyAllowed": false,
+          "hiddenLeverageAllowed": false
+        },
+        "enforcement": {
+          "fundingOutpointScope": "global_unique_active_commitment",
+          "receiptFungibility": "same_property_id_only",
+          "roleTransition": "retire_or_burn_old_receipt_before_new_property_issue",
+          "verifier": "UTXORef plus TradeLayer property-template registry"
+        },
+        "jurassicApplication": {
+          "kind": "jurassic_bitvm_mechanism_refs",
+          "refId": "36a824918d392bdecf2f5e8426c87df6dc122c6c28dad04ddcdb5868c56e219a",
+          "version": 1,
+          "target": "lightning",
+          "semanticStateHash": "07d18b4e7abc4adb201aa669d868062646bfb2b350ca1d75deb323e19a8ef474",
+          "planId": "ln_ptlc_retry_watchtower_switchboard",
+          "transcriptVariantIds": [
+            "ln_ptlc_success_retry_a",
+            "ln_ptlc_success_retry_b",
+            "ln_timeout_challenge_split"
+          ],
+          "transcriptDigests": [
+            "47f554eedb49b5a31203fc76178e4a01eefc3bce3ce7eca7ded6c799bbe5cd9a",
+            "47f554eedb49b5a31203fc76178e4a01eefc3bce3ce7eca7ded6c799bbe5cd9a",
+            "1a12b9d1dc66610199c127bb01189a221073c6abf277750affd34ec65b6f9c3c"
+          ],
+          "publicHandleIds": [
+            "26020889e5f11731d29cb89c70f64f8162a8416d82e107d7c6c34a0df8ac5ec1",
+            "78036a52924f426338c386effb61caeeae1deeb4bf6bf81cac59aa44a8d8bb07"
+          ],
+          "carrierCommitmentIds": [
+            "ab4047389bd8f5bd0718d367d5b9b58e41700ee89710d83f877181f3d7db0fb7",
+            "033df07f23079d2b8dc7d07e70a1f08808923735eba9804083b46a48862f51d9"
+          ],
+          "transcriptSwitchboardId": "483e388789bf4afa6a3767875ae54f7cf33d1eef9ba04bedf83df778a3ada260",
+          "primaryTranscriptDigest": "47f554eedb49b5a31203fc76178e4a01eefc3bce3ce7eca7ded6c799bbe5cd9a",
+          "primaryPublicHandleId": "26020889e5f11731d29cb89c70f64f8162a8416d82e107d7c6c34a0df8ac5ec1",
+          "primaryCarrierCommitmentId": "ab4047389bd8f5bd0718d367d5b9b58e41700ee89710d83f877181f3d7db0fb7",
+          "status": "prototype_ready",
+          "rejectionTripwireDigest": "0000000000000000000000000000000000000000000000000000000000000001"
+        }
+      }
+    },
+    {
+      "kind": "halal_capital_commitment",
+      "commitmentId": "618729c6c453d461581d5cc4ffd6d19f5111ab597664e8f3973c1c70d1aabac0",
+      "commitmentCore": {
+        "version": 1,
+        "propertyId": 2101,
+        "templateId": "taproot-assets-edge-rfq-no-rehypo-v1",
+        "templateHash": "71a9a636543168c423a5fc2c73831880834390666dedfc747cbdc671ccd28241",
+        "holderId": "holder-3",
+        "operatorId": "operator-htap-rfq",
+        "fundingOutpoint": "7effdcc7874417021db176e822ba7b847337ef8d59848c27dcd0a98927b7f9b4:1",
+        "amountSats": "1500000",
+        "activeRole": "taproot_assets_edge_rfq_reserve",
+        "status": "active",
+        "exclusiveCommitment": true,
+        "jurassicMechanismRefId": "559d92e69f60fe1b36c95f0254eb71b0e3ca09b6ea53833b9e5dc50282375325",
+        "publicHandleId": "965758e48329d4137063817c23139af03831cc3882a939b86d28baeb66ed60e7",
+        "carrierCommitmentId": "f3014b0bbf83f99d88aa130dd502dc9915278cee672d546ca55c416483847152"
+      },
+      "template": {
+        "kind": "halal_capital_property_template",
+        "templateHash": "71a9a636543168c423a5fc2c73831880834390666dedfc747cbdc671ccd28241",
+        "version": 1,
+        "propertyId": 2101,
+        "symbol": "HTAP-RFQ",
+        "templateId": "taproot-assets-edge-rfq-no-rehypo-v1",
+        "targetProtocol": "taproot_assets",
+        "capitalRole": "taproot_assets_edge_rfq_reserve",
+        "productSurface": "Taproot Assets Edge liquidity reserve",
+        "serviceRevenue": "Edge-node RFQ spread and proof-anchor service fee",
+        "backingAsset": "BTC",
+        "accounting": {
+          "exclusiveCommitment": true,
+          "oneSatOneRole": true,
+          "burnBeforeReissue": true,
+          "rehypothecationAllowed": false,
+          "guaranteedApyAllowed": false,
+          "hiddenLeverageAllowed": false
+        },
+        "enforcement": {
+          "fundingOutpointScope": "global_unique_active_commitment",
+          "receiptFungibility": "same_property_id_only",
+          "roleTransition": "retire_or_burn_old_receipt_before_new_property_issue",
+          "verifier": "UTXORef plus TradeLayer property-template registry"
+        },
+        "jurassicApplication": {
+          "kind": "jurassic_bitvm_mechanism_refs",
+          "refId": "559d92e69f60fe1b36c95f0254eb71b0e3ca09b6ea53833b9e5dc50282375325",
+          "version": 1,
+          "target": "taproot_assets",
+          "semanticStateHash": "a79653849bd3c48fba2cb422452331692eb6583782797b5fb2a2d562883ec5e3",
+          "planId": "tap_asset_proof_anchor_switchboard",
+          "transcriptVariantIds": [
+            "tap_asset_proof_delta"
+          ],
+          "transcriptDigests": [
+            "ef7184fc090432edc90b2b085c67e8386c433d8eb279b77e7d8a3bb3553144eb"
+          ],
+          "publicHandleIds": [
+            "965758e48329d4137063817c23139af03831cc3882a939b86d28baeb66ed60e7",
+            "dfb1b98de6c164afdf7029476ce9496e447810b1b0e67506868f56ffca780e63"
+          ],
+          "carrierCommitmentIds": [
+            "f3014b0bbf83f99d88aa130dd502dc9915278cee672d546ca55c416483847152"
+          ],
+          "transcriptSwitchboardId": "ba2f56bbd9b8e9c620487eaad3eca4041c6b044aee524263785c910d3a776b6d",
+          "primaryTranscriptDigest": "ef7184fc090432edc90b2b085c67e8386c433d8eb279b77e7d8a3bb3553144eb",
+          "primaryPublicHandleId": "965758e48329d4137063817c23139af03831cc3882a939b86d28baeb66ed60e7",
+          "primaryCarrierCommitmentId": "f3014b0bbf83f99d88aa130dd502dc9915278cee672d546ca55c416483847152",
+          "status": "prototype_ready",
+          "rejectionTripwireDigest": "0000000000000000000000000000000000000000000000000000000000000001"
+        }
+      }
+    },
+    {
+      "kind": "halal_capital_commitment",
+      "commitmentId": "7a3b1ff6943f412416805372fec753829b5d24dbe97af5c2ac129ba1393751dd",
+      "commitmentCore": {
+        "version": 1,
+        "propertyId": 3101,
+        "templateId": "ark-round-liquidity-graft-no-rehypo-v1",
+        "templateHash": "d3522cc96e5ee32b26e1a942af4ea309f465adb85f28dd55f58eb278a5a2ccf1",
+        "holderId": "holder-4",
+        "operatorId": "operator-hark-liq",
+        "fundingOutpoint": "8c5e35d7ed948f7d012d59f91b791d3dc26e65684ddd181c5a984bd99d637508:0",
+        "amountSats": "1750000",
+        "activeRole": "ark_round_liquidity_graft",
+        "status": "active",
+        "exclusiveCommitment": true,
+        "jurassicMechanismRefId": "640de33e979892b01078b8ce6e4301a850509d1833af0598135f3b941d36afd1",
+        "publicHandleId": "3dbb7a597598086954ea009a841ab4d897bdc7b58ade301cef525e799883ccc5",
+        "carrierCommitmentId": "1949d6450df43fe6e298c4bbbd0393bb79f0160aaf8c5789786ee772120486fc"
+      },
+      "template": {
+        "kind": "halal_capital_property_template",
+        "templateHash": "d3522cc96e5ee32b26e1a942af4ea309f465adb85f28dd55f58eb278a5a2ccf1",
+        "version": 1,
+        "propertyId": 3101,
+        "symbol": "HARK-LIQ",
+        "templateId": "ark-round-liquidity-graft-no-rehypo-v1",
+        "targetProtocol": "ark",
+        "capitalRole": "ark_round_liquidity_graft",
+        "productSurface": "Ark round liquidity graft",
+        "serviceRevenue": "short-duration round liquidity and VTXO exit insurance premium",
+        "backingAsset": "BTC",
+        "accounting": {
+          "exclusiveCommitment": true,
+          "oneSatOneRole": true,
+          "burnBeforeReissue": true,
+          "rehypothecationAllowed": false,
+          "guaranteedApyAllowed": false,
+          "hiddenLeverageAllowed": false
+        },
+        "enforcement": {
+          "fundingOutpointScope": "global_unique_active_commitment",
+          "receiptFungibility": "same_property_id_only",
+          "roleTransition": "retire_or_burn_old_receipt_before_new_property_issue",
+          "verifier": "UTXORef plus TradeLayer property-template registry"
+        },
+        "jurassicApplication": {
+          "kind": "jurassic_bitvm_mechanism_refs",
+          "refId": "640de33e979892b01078b8ce6e4301a850509d1833af0598135f3b941d36afd1",
+          "version": 1,
+          "target": "ark",
+          "semanticStateHash": "75d8d6bff32fce8eec4928ad137841cc7bca3d5eb53c459ac8dc7d5845b60627",
+          "planId": "ark_round_exit_namespace_market",
+          "transcriptVariantIds": [
+            "ark_round_exit_attestation"
+          ],
+          "transcriptDigests": [
+            "fb06d95b7d97213bdc38d5451cc7c42177128d874016caf3e9c1ab99d18f89cc"
+          ],
+          "publicHandleIds": [
+            "3dbb7a597598086954ea009a841ab4d897bdc7b58ade301cef525e799883ccc5",
+            "9ef5f9b87419c98bcb38fc91336c93a16b35a8738e492cb94ac5a15784a1c088"
+          ],
+          "carrierCommitmentIds": [
+            "1949d6450df43fe6e298c4bbbd0393bb79f0160aaf8c5789786ee772120486fc"
+          ],
+          "transcriptSwitchboardId": "9cb0da1540b25ba63c96420adb9a799ad42051275b13fd366eae817ad8af4f81",
+          "primaryTranscriptDigest": "fb06d95b7d97213bdc38d5451cc7c42177128d874016caf3e9c1ab99d18f89cc",
+          "primaryPublicHandleId": "3dbb7a597598086954ea009a841ab4d897bdc7b58ade301cef525e799883ccc5",
+          "primaryCarrierCommitmentId": "1949d6450df43fe6e298c4bbbd0393bb79f0160aaf8c5789786ee772120486fc",
+          "status": "prototype_ready",
+          "rejectionTripwireDigest": "0000000000000000000000000000000000000000000000000000000000000001"
+        }
+      }
+    },
+    {
+      "kind": "halal_capital_commitment",
+      "commitmentId": "ea8744e86190bb15647ada2954fc8d615204988bb9465f93b703b71e74025d16",
+      "commitmentCore": {
+        "version": 1,
+        "propertyId": 4101,
+        "templateId": "tradelayer-dlc-margin-reserve-no-rehypo-v1",
+        "templateHash": "d95d1c280cf00594bec3917b8f040aff5bb86882289a88f7ec89c645ee9a985d",
+        "holderId": "holder-5",
+        "operatorId": "operator-htl-dlcm",
+        "fundingOutpoint": "f405067b411c5f89f9cc7ab6ca6a329d2d0f943b1b3cfb083040a89a1f8605f6:1",
+        "amountSats": "2000000",
+        "activeRole": "tradelayer_dlc_margin_reserve",
+        "status": "active",
+        "exclusiveCommitment": true,
+        "jurassicMechanismRefId": "7cb35f97b959287edce921b9e4ff3098e82dff40adb5d4886d63b9e24f898871",
+        "publicHandleId": "815647309c26d17f49d02f6ac636a105684160e0bffa347d4870cbd41bc3ad03",
+        "carrierCommitmentId": "fb438852b805b7c556191812a0f4bad74ef92a1ba18a95909c22ff2a87a396a9"
+      },
+      "template": {
+        "kind": "halal_capital_property_template",
+        "templateHash": "d95d1c280cf00594bec3917b8f040aff5bb86882289a88f7ec89c645ee9a985d",
+        "version": 1,
+        "propertyId": 4101,
+        "symbol": "HTL-DLCM",
+        "templateId": "tradelayer-dlc-margin-reserve-no-rehypo-v1",
+        "targetProtocol": "shinigami",
+        "capitalRole": "tradelayer_dlc_margin_reserve",
+        "productSurface": "TradeLayer derivatives margin reserve",
+        "serviceRevenue": "DLC margin reservation, bounded PnL settlement, and liquidation service fee",
+        "backingAsset": "BTC",
+        "accounting": {
+          "exclusiveCommitment": true,
+          "oneSatOneRole": true,
+          "burnBeforeReissue": true,
+          "rehypothecationAllowed": false,
+          "guaranteedApyAllowed": false,
+          "hiddenLeverageAllowed": false
+        },
+        "enforcement": {
+          "fundingOutpointScope": "global_unique_active_commitment",
+          "receiptFungibility": "same_property_id_only",
+          "roleTransition": "retire_or_burn_old_receipt_before_new_property_issue",
+          "verifier": "UTXORef plus TradeLayer property-template registry"
+        },
+        "jurassicApplication": {
+          "kind": "jurassic_bitvm_mechanism_refs",
+          "refId": "7cb35f97b959287edce921b9e4ff3098e82dff40adb5d4886d63b9e24f898871",
+          "version": 1,
+          "target": "shinigami",
+          "semanticStateHash": "f5cde7c02f72273a0566589efb480fcc2b448db422fff290a0a4fe095e0e8f8f",
+          "planId": "shinigami_proof_publication_switchboard",
+          "transcriptVariantIds": [
+            "shinigami_execution_trace"
+          ],
+          "transcriptDigests": [
+            "144aa170186a6d6c0e46826baaaa877f5ec4633dae4cf87377d693177e88fdff"
+          ],
+          "publicHandleIds": [
+            "815647309c26d17f49d02f6ac636a105684160e0bffa347d4870cbd41bc3ad03",
+            "c5a0e1a48a449754270fb4a62df4729df018304426e627d78999a3ea5ca7d774"
+          ],
+          "carrierCommitmentIds": [
+            "fb438852b805b7c556191812a0f4bad74ef92a1ba18a95909c22ff2a87a396a9"
+          ],
+          "transcriptSwitchboardId": "c8ca996d3780c64d70a40397edb052fabaf021268b89a226b6965c01008def4d",
+          "primaryTranscriptDigest": "144aa170186a6d6c0e46826baaaa877f5ec4633dae4cf87377d693177e88fdff",
+          "primaryPublicHandleId": "815647309c26d17f49d02f6ac636a105684160e0bffa347d4870cbd41bc3ad03",
+          "primaryCarrierCommitmentId": "fb438852b805b7c556191812a0f4bad74ef92a1ba18a95909c22ff2a87a396a9",
+          "status": "scaffold_only",
+          "rejectionTripwireDigest": "0000000000000000000000000000000000000000000000000000000000000001"
+        }
+      }
+    },
+    {
+      "kind": "halal_capital_commitment",
+      "commitmentId": "d8a7d41f876134576441298daa56611b419f6446affd22bd2b0ca068f10d2b9f",
+      "commitmentCore": {
+        "version": 1,
+        "propertyId": 5101,
+        "templateId": "watchtower-bond-no-rehypo-v1",
+        "templateHash": "c3d68cca0be68f07729b7c99bb6bbded5c4ae961f2e116ace40c54c80a017b34",
+        "holderId": "holder-6",
+        "operatorId": "operator-hwt-bond",
+        "fundingOutpoint": "bc9be7dd5f28eb33acf9e443f5b9bb3e907e7be9866abc4f7caabdb675b16e86:0",
+        "amountSats": "2250000",
+        "activeRole": "watchtower_bond",
+        "status": "active",
+        "exclusiveCommitment": true,
+        "jurassicMechanismRefId": "c10cdf81504ae7d6ccf8e1ca5532ee4719fe9f249fec400ce4fd2e5bb18f5935",
+        "publicHandleId": "67839a4df6b906509a2af74a0dcccca6bff2d66c458272442e283c9340241620",
+        "carrierCommitmentId": "384a55ab395a8c802e51775260061f06b2c1cd4384f5a6f65590712a77e1eef4"
+      },
+      "template": {
+        "kind": "halal_capital_property_template",
+        "templateHash": "c3d68cca0be68f07729b7c99bb6bbded5c4ae961f2e116ace40c54c80a017b34",
+        "version": 1,
+        "propertyId": 5101,
+        "symbol": "HWT-BOND",
+        "templateId": "watchtower-bond-no-rehypo-v1",
+        "targetProtocol": "lightning",
+        "capitalRole": "watchtower_bond",
+        "productSurface": "watchtower and challenger bond",
+        "serviceRevenue": "challenge bounty, alert monitoring fee, and fraud-proof service fee",
+        "backingAsset": "BTC",
+        "accounting": {
+          "exclusiveCommitment": true,
+          "oneSatOneRole": true,
+          "burnBeforeReissue": true,
+          "rehypothecationAllowed": false,
+          "guaranteedApyAllowed": false,
+          "hiddenLeverageAllowed": false
+        },
+        "enforcement": {
+          "fundingOutpointScope": "global_unique_active_commitment",
+          "receiptFungibility": "same_property_id_only",
+          "roleTransition": "retire_or_burn_old_receipt_before_new_property_issue",
+          "verifier": "UTXORef plus TradeLayer property-template registry"
+        },
+        "jurassicApplication": {
+          "kind": "jurassic_bitvm_mechanism_refs",
+          "refId": "c10cdf81504ae7d6ccf8e1ca5532ee4719fe9f249fec400ce4fd2e5bb18f5935",
+          "version": 1,
+          "target": "lightning",
+          "semanticStateHash": "958ca512302000836a6f269eb8f9b90a31e54179382fe46c1715c04fc045731a",
+          "planId": "ln_ptlc_retry_watchtower_switchboard",
+          "transcriptVariantIds": [
+            "ln_ptlc_success_retry_a",
+            "ln_ptlc_success_retry_b",
+            "ln_timeout_challenge_split"
+          ],
+          "transcriptDigests": [
+            "57660a3620a90ddb64da9d0de8b7c3d112fd73aca7acc84122cdf9e1e6a1b689",
+            "57660a3620a90ddb64da9d0de8b7c3d112fd73aca7acc84122cdf9e1e6a1b689",
+            "797fd41bbbb555e632bd1761b530ae126ff57425c0514afb01194bf8daad0e97"
+          ],
+          "publicHandleIds": [
+            "67839a4df6b906509a2af74a0dcccca6bff2d66c458272442e283c9340241620",
+            "6dc9f59fa2f060482af0bde3db0aa61f2f40050d707c6adffd29d57b9b866a8d"
+          ],
+          "carrierCommitmentIds": [
+            "384a55ab395a8c802e51775260061f06b2c1cd4384f5a6f65590712a77e1eef4",
+            "e11fc6e46ec4e0b4ea1a6935d2f1d1679bef87257de618d22122218214b32d78"
+          ],
+          "transcriptSwitchboardId": "784402136807bf89e23309f16cf9e33f2bf416859227f5ee5eebc46630a4d39a",
+          "primaryTranscriptDigest": "57660a3620a90ddb64da9d0de8b7c3d112fd73aca7acc84122cdf9e1e6a1b689",
+          "primaryPublicHandleId": "67839a4df6b906509a2af74a0dcccca6bff2d66c458272442e283c9340241620",
+          "primaryCarrierCommitmentId": "384a55ab395a8c802e51775260061f06b2c1cd4384f5a6f65590712a77e1eef4",
+          "status": "prototype_ready",
+          "rejectionTripwireDigest": "0000000000000000000000000000000000000000000000000000000000000001"
+        }
+      }
+    },
+    {
+      "kind": "halal_capital_commitment",
+      "commitmentId": "c9054a7fa808785209a1940eac1b53220b4ecd77c1711ebb9ebbd497352fa52f",
+      "commitmentCore": {
+        "version": 1,
+        "propertyId": 6101,
+        "templateId": "proof-publication-bond-no-rehypo-v1",
+        "templateHash": "f54c6b5de95e3d3a4df0626fc506159c772a1e6fa4bc4fbe446b086e023b3046",
+        "holderId": "holder-7",
+        "operatorId": "operator-hproof",
+        "fundingOutpoint": "01e5939db2c9bf4c3f35ba367e206e19e0acc33f90ba26a78b8230beb0ac4b83:1",
+        "amountSats": "2500000",
+        "activeRole": "proof_publication_bond",
+        "status": "active",
+        "exclusiveCommitment": true,
+        "jurassicMechanismRefId": "721c604ed432b88d2dd19126ce9241f9468ce2b34ff8005bcf643b71267f7535",
+        "publicHandleId": "8b5077343648ae66d3de4f4fce7279663971e674d55db1d51ce428d2bd5fa64a",
+        "carrierCommitmentId": "4bd90df82bbb75e0fdc14e1799a1387bfac652a3e0d44957026ebeef7b7fa766"
+      },
+      "template": {
+        "kind": "halal_capital_property_template",
+        "templateHash": "f54c6b5de95e3d3a4df0626fc506159c772a1e6fa4bc4fbe446b086e023b3046",
+        "version": 1,
+        "propertyId": 6101,
+        "symbol": "HPROOF",
+        "templateId": "proof-publication-bond-no-rehypo-v1",
+        "targetProtocol": "shinigami",
+        "capitalRole": "proof_publication_bond",
+        "productSurface": "proof-carrying execution publication bond",
+        "serviceRevenue": "proof publication, verifier receipt, and challenge-routing fee",
+        "backingAsset": "BTC",
+        "accounting": {
+          "exclusiveCommitment": true,
+          "oneSatOneRole": true,
+          "burnBeforeReissue": true,
+          "rehypothecationAllowed": false,
+          "guaranteedApyAllowed": false,
+          "hiddenLeverageAllowed": false
+        },
+        "enforcement": {
+          "fundingOutpointScope": "global_unique_active_commitment",
+          "receiptFungibility": "same_property_id_only",
+          "roleTransition": "retire_or_burn_old_receipt_before_new_property_issue",
+          "verifier": "UTXORef plus TradeLayer property-template registry"
+        },
+        "jurassicApplication": {
+          "kind": "jurassic_bitvm_mechanism_refs",
+          "refId": "721c604ed432b88d2dd19126ce9241f9468ce2b34ff8005bcf643b71267f7535",
+          "version": 1,
+          "target": "shinigami",
+          "semanticStateHash": "67a96d259001bbf2fbf5742f308fc291b6399c849cb36dfac2bdeeca2d425993",
+          "planId": "shinigami_proof_publication_switchboard",
+          "transcriptVariantIds": [
+            "shinigami_execution_trace"
+          ],
+          "transcriptDigests": [
+            "49dda7038148bec199134a4ba2e57a27a764d673f3c22861fec705f2569377a2"
+          ],
+          "publicHandleIds": [
+            "8b5077343648ae66d3de4f4fce7279663971e674d55db1d51ce428d2bd5fa64a",
+            "981a5d58b1609193e6e89115bd6ff9529131ba0add0b90265e6b980e264c31dd"
+          ],
+          "carrierCommitmentIds": [
+            "4bd90df82bbb75e0fdc14e1799a1387bfac652a3e0d44957026ebeef7b7fa766"
+          ],
+          "transcriptSwitchboardId": "89ab9313a9223fc07ae956c9c67714f551f8981cf5df911295ec6312578aa3e1",
+          "primaryTranscriptDigest": "49dda7038148bec199134a4ba2e57a27a764d673f3c22861fec705f2569377a2",
+          "primaryPublicHandleId": "8b5077343648ae66d3de4f4fce7279663971e674d55db1d51ce428d2bd5fa64a",
+          "primaryCarrierCommitmentId": "4bd90df82bbb75e0fdc14e1799a1387bfac652a3e0d44957026ebeef7b7fa766",
+          "status": "scaffold_only",
+          "rejectionTripwireDigest": "0000000000000000000000000000000000000000000000000000000000000001"
+        }
+      }
+    }
+  ],
+  "exclusivity": {
+    "ok": true,
+    "activeCommitmentCount": 7
+  },
+  "revenueEvents": [
+    {
+      "kind": "halal_capital_service_revenue_event",
+      "eventId": "9d2eb167fe399f9425227d6a09f8f2a5e1479be6a6547dc72d9f36d84bbfe5e2",
+      "eventCore": {
+        "version": 1,
+        "propertyId": 1101,
+        "commitmentId": "b698b31e28e8339287b3c2db8f7ebb1706f405ab2779057fe76c25dc3fae035c",
+        "templateId": "ln-channel-lease-no-rehypo-v1",
+        "activeRole": "lightning_channel_lease",
+        "revenueSats": "1000",
+        "revenueSource": "fixed-duration inbound liquidity lease and routing-quality fee",
+        "servicePeriod": "demo-period-1",
+        "sourceTxid": "c3e672e544133690056dabf7848e878bc1abfc6f5d4b0f3daefb991ce314281b"
+      }
+    },
+    {
+      "kind": "halal_capital_service_revenue_event",
+      "eventId": "7011b9ff1890f6dd21203cb5a82ef9c41f36f700b567abcff74e194191431013",
+      "eventCore": {
+        "version": 1,
+        "propertyId": 1102,
+        "commitmentId": "8d740ded2f338ef7265f9986b0557b46355e3e2563543d63d0c117ff698d9859",
+        "templateId": "ln-routing-reserve-no-rehypo-v1",
+        "activeRole": "lightning_routing_reserve",
+        "revenueSats": "2000",
+        "revenueSource": "routing fees and route availability premiums",
+        "servicePeriod": "demo-period-1",
+        "sourceTxid": "eea5276d31281efe44c87fbd75e3f6fdc20d7bc49638c489b460a33f9f391f99"
+      }
+    },
+    {
+      "kind": "halal_capital_service_revenue_event",
+      "eventId": "f4727bf57c97af6cf49de2f53413951fc0255f0ef18e0acccfaae84d17d8383b",
+      "eventCore": {
+        "version": 1,
+        "propertyId": 2101,
+        "commitmentId": "618729c6c453d461581d5cc4ffd6d19f5111ab597664e8f3973c1c70d1aabac0",
+        "templateId": "taproot-assets-edge-rfq-no-rehypo-v1",
+        "activeRole": "taproot_assets_edge_rfq_reserve",
+        "revenueSats": "3000",
+        "revenueSource": "Edge-node RFQ spread and proof-anchor service fee",
+        "servicePeriod": "demo-period-1",
+        "sourceTxid": "f1c4db035859beac461b6c89af16b503f397831316ae9d58da6d9386434cfcf2"
+      }
+    },
+    {
+      "kind": "halal_capital_service_revenue_event",
+      "eventId": "49710a3b14609a51509b6ba67189a76dc5a9a36c23c57df9111137d9b3715449",
+      "eventCore": {
+        "version": 1,
+        "propertyId": 3101,
+        "commitmentId": "7a3b1ff6943f412416805372fec753829b5d24dbe97af5c2ac129ba1393751dd",
+        "templateId": "ark-round-liquidity-graft-no-rehypo-v1",
+        "activeRole": "ark_round_liquidity_graft",
+        "revenueSats": "4000",
+        "revenueSource": "short-duration round liquidity and VTXO exit insurance premium",
+        "servicePeriod": "demo-period-1",
+        "sourceTxid": "b3191222ab0e9cdad7c21c4c29b8d5546775c39fe7cd15b0758724da01a0cedf"
+      }
+    },
+    {
+      "kind": "halal_capital_service_revenue_event",
+      "eventId": "f745fa1a9e1e960de9736274570138fd73dc81d1abdf80066e8053d322f767ed",
+      "eventCore": {
+        "version": 1,
+        "propertyId": 4101,
+        "commitmentId": "ea8744e86190bb15647ada2954fc8d615204988bb9465f93b703b71e74025d16",
+        "templateId": "tradelayer-dlc-margin-reserve-no-rehypo-v1",
+        "activeRole": "tradelayer_dlc_margin_reserve",
+        "revenueSats": "5000",
+        "revenueSource": "DLC margin reservation, bounded PnL settlement, and liquidation service fee",
+        "servicePeriod": "demo-period-1",
+        "sourceTxid": "da69ddcf0f31e599e8c02c1388f0823dc98f698d8f20cd67fbcc16ff01ce0de3"
+      }
+    },
+    {
+      "kind": "halal_capital_service_revenue_event",
+      "eventId": "a7c73b9232ae882bb6398c96d205a0b06f20fc0863fa4e793c2af2d8586b4bcd",
+      "eventCore": {
+        "version": 1,
+        "propertyId": 5101,
+        "commitmentId": "d8a7d41f876134576441298daa56611b419f6446affd22bd2b0ca068f10d2b9f",
+        "templateId": "watchtower-bond-no-rehypo-v1",
+        "activeRole": "watchtower_bond",
+        "revenueSats": "6000",
+        "revenueSource": "challenge bounty, alert monitoring fee, and fraud-proof service fee",
+        "servicePeriod": "demo-period-1",
+        "sourceTxid": "87fea702987b183c29f51acf2e349b8744672e305db48633d871dbcc1ef0a54c"
+      }
+    },
+    {
+      "kind": "halal_capital_service_revenue_event",
+      "eventId": "7c1c36eac59b6f40c69e37708d887ae46e814e8e33f06579d947fa896205b776",
+      "eventCore": {
+        "version": 1,
+        "propertyId": 6101,
+        "commitmentId": "c9054a7fa808785209a1940eac1b53220b4ecd77c1711ebb9ebbd497352fa52f",
+        "templateId": "proof-publication-bond-no-rehypo-v1",
+        "activeRole": "proof_publication_bond",
+        "revenueSats": "7000",
+        "revenueSource": "proof publication, verifier receipt, and challenge-routing fee",
+        "servicePeriod": "demo-period-1",
+        "sourceTxid": "2a284e68eea02eed76623fc80fb6a2587eeba46dfb8fcc6327b6ff004ae7c7d7"
+      }
+    }
+  ],
+  "observerIndex": {
+    "kind": "halal_capital_observer_index",
+    "indexId": "5bfd2b0c67391236330a70de4f09799c10db74b571191d4f0eeccd73e3437559",
+    "byPropertyId": {
+      "1101": [
+        {
+          "commitmentId": "b698b31e28e8339287b3c2db8f7ebb1706f405ab2779057fe76c25dc3fae035c",
+          "propertyId": 1101,
+          "templateId": "ln-channel-lease-no-rehypo-v1",
+          "activeRole": "lightning_channel_lease",
+          "amountSats": "1000000"
+        }
+      ],
+      "1102": [
+        {
+          "commitmentId": "8d740ded2f338ef7265f9986b0557b46355e3e2563543d63d0c117ff698d9859",
+          "propertyId": 1102,
+          "templateId": "ln-routing-reserve-no-rehypo-v1",
+          "activeRole": "lightning_routing_reserve",
+          "amountSats": "1250000"
+        }
+      ],
+      "2101": [
+        {
+          "commitmentId": "618729c6c453d461581d5cc4ffd6d19f5111ab597664e8f3973c1c70d1aabac0",
+          "propertyId": 2101,
+          "templateId": "taproot-assets-edge-rfq-no-rehypo-v1",
+          "activeRole": "taproot_assets_edge_rfq_reserve",
+          "amountSats": "1500000"
+        }
+      ],
+      "3101": [
+        {
+          "commitmentId": "7a3b1ff6943f412416805372fec753829b5d24dbe97af5c2ac129ba1393751dd",
+          "propertyId": 3101,
+          "templateId": "ark-round-liquidity-graft-no-rehypo-v1",
+          "activeRole": "ark_round_liquidity_graft",
+          "amountSats": "1750000"
+        }
+      ],
+      "4101": [
+        {
+          "commitmentId": "ea8744e86190bb15647ada2954fc8d615204988bb9465f93b703b71e74025d16",
+          "propertyId": 4101,
+          "templateId": "tradelayer-dlc-margin-reserve-no-rehypo-v1",
+          "activeRole": "tradelayer_dlc_margin_reserve",
+          "amountSats": "2000000"
+        }
+      ],
+      "5101": [
+        {
+          "commitmentId": "d8a7d41f876134576441298daa56611b419f6446affd22bd2b0ca068f10d2b9f",
+          "propertyId": 5101,
+          "templateId": "watchtower-bond-no-rehypo-v1",
+          "activeRole": "watchtower_bond",
+          "amountSats": "2250000"
+        }
+      ],
+      "6101": [
+        {
+          "commitmentId": "c9054a7fa808785209a1940eac1b53220b4ecd77c1711ebb9ebbd497352fa52f",
+          "propertyId": 6101,
+          "templateId": "proof-publication-bond-no-rehypo-v1",
+          "activeRole": "proof_publication_bond",
+          "amountSats": "2500000"
+        }
+      ]
+    },
+    "byPublicHandleId": {
+      "243ef3105038a4e723b5c92e9a0a6a41365bcb07a3167120f05dc29d9ad11921": {
+        "commitmentId": "b698b31e28e8339287b3c2db8f7ebb1706f405ab2779057fe76c25dc3fae035c",
+        "propertyId": 1101,
+        "templateId": "ln-channel-lease-no-rehypo-v1",
+        "activeRole": "lightning_channel_lease",
+        "amountSats": "1000000"
+      },
+      "26020889e5f11731d29cb89c70f64f8162a8416d82e107d7c6c34a0df8ac5ec1": {
+        "commitmentId": "8d740ded2f338ef7265f9986b0557b46355e3e2563543d63d0c117ff698d9859",
+        "propertyId": 1102,
+        "templateId": "ln-routing-reserve-no-rehypo-v1",
+        "activeRole": "lightning_routing_reserve",
+        "amountSats": "1250000"
+      },
+      "965758e48329d4137063817c23139af03831cc3882a939b86d28baeb66ed60e7": {
+        "commitmentId": "618729c6c453d461581d5cc4ffd6d19f5111ab597664e8f3973c1c70d1aabac0",
+        "propertyId": 2101,
+        "templateId": "taproot-assets-edge-rfq-no-rehypo-v1",
+        "activeRole": "taproot_assets_edge_rfq_reserve",
+        "amountSats": "1500000"
+      },
+      "3dbb7a597598086954ea009a841ab4d897bdc7b58ade301cef525e799883ccc5": {
+        "commitmentId": "7a3b1ff6943f412416805372fec753829b5d24dbe97af5c2ac129ba1393751dd",
+        "propertyId": 3101,
+        "templateId": "ark-round-liquidity-graft-no-rehypo-v1",
+        "activeRole": "ark_round_liquidity_graft",
+        "amountSats": "1750000"
+      },
+      "815647309c26d17f49d02f6ac636a105684160e0bffa347d4870cbd41bc3ad03": {
+        "commitmentId": "ea8744e86190bb15647ada2954fc8d615204988bb9465f93b703b71e74025d16",
+        "propertyId": 4101,
+        "templateId": "tradelayer-dlc-margin-reserve-no-rehypo-v1",
+        "activeRole": "tradelayer_dlc_margin_reserve",
+        "amountSats": "2000000"
+      },
+      "67839a4df6b906509a2af74a0dcccca6bff2d66c458272442e283c9340241620": {
+        "commitmentId": "d8a7d41f876134576441298daa56611b419f6446affd22bd2b0ca068f10d2b9f",
+        "propertyId": 5101,
+        "templateId": "watchtower-bond-no-rehypo-v1",
+        "activeRole": "watchtower_bond",
+        "amountSats": "2250000"
+      },
+      "8b5077343648ae66d3de4f4fce7279663971e674d55db1d51ce428d2bd5fa64a": {
+        "commitmentId": "c9054a7fa808785209a1940eac1b53220b4ecd77c1711ebb9ebbd497352fa52f",
+        "propertyId": 6101,
+        "templateId": "proof-publication-bond-no-rehypo-v1",
+        "activeRole": "proof_publication_bond",
+        "amountSats": "2500000"
+      }
+    },
+    "byCarrierCommitmentId": {
+      "8a061d33caf391d806063c957f21661ae508fb04b33c160fd034d56d576aa7f6": {
+        "commitmentId": "b698b31e28e8339287b3c2db8f7ebb1706f405ab2779057fe76c25dc3fae035c",
+        "propertyId": 1101,
+        "templateId": "ln-channel-lease-no-rehypo-v1",
+        "activeRole": "lightning_channel_lease",
+        "amountSats": "1000000"
+      },
+      "ab4047389bd8f5bd0718d367d5b9b58e41700ee89710d83f877181f3d7db0fb7": {
+        "commitmentId": "8d740ded2f338ef7265f9986b0557b46355e3e2563543d63d0c117ff698d9859",
+        "propertyId": 1102,
+        "templateId": "ln-routing-reserve-no-rehypo-v1",
+        "activeRole": "lightning_routing_reserve",
+        "amountSats": "1250000"
+      },
+      "f3014b0bbf83f99d88aa130dd502dc9915278cee672d546ca55c416483847152": {
+        "commitmentId": "618729c6c453d461581d5cc4ffd6d19f5111ab597664e8f3973c1c70d1aabac0",
+        "propertyId": 2101,
+        "templateId": "taproot-assets-edge-rfq-no-rehypo-v1",
+        "activeRole": "taproot_assets_edge_rfq_reserve",
+        "amountSats": "1500000"
+      },
+      "1949d6450df43fe6e298c4bbbd0393bb79f0160aaf8c5789786ee772120486fc": {
+        "commitmentId": "7a3b1ff6943f412416805372fec753829b5d24dbe97af5c2ac129ba1393751dd",
+        "propertyId": 3101,
+        "templateId": "ark-round-liquidity-graft-no-rehypo-v1",
+        "activeRole": "ark_round_liquidity_graft",
+        "amountSats": "1750000"
+      },
+      "fb438852b805b7c556191812a0f4bad74ef92a1ba18a95909c22ff2a87a396a9": {
+        "commitmentId": "ea8744e86190bb15647ada2954fc8d615204988bb9465f93b703b71e74025d16",
+        "propertyId": 4101,
+        "templateId": "tradelayer-dlc-margin-reserve-no-rehypo-v1",
+        "activeRole": "tradelayer_dlc_margin_reserve",
+        "amountSats": "2000000"
+      },
+      "384a55ab395a8c802e51775260061f06b2c1cd4384f5a6f65590712a77e1eef4": {
+        "commitmentId": "d8a7d41f876134576441298daa56611b419f6446affd22bd2b0ca068f10d2b9f",
+        "propertyId": 5101,
+        "templateId": "watchtower-bond-no-rehypo-v1",
+        "activeRole": "watchtower_bond",
+        "amountSats": "2250000"
+      },
+      "4bd90df82bbb75e0fdc14e1799a1387bfac652a3e0d44957026ebeef7b7fa766": {
+        "commitmentId": "c9054a7fa808785209a1940eac1b53220b4ecd77c1711ebb9ebbd497352fa52f",
+        "propertyId": 6101,
+        "templateId": "proof-publication-bond-no-rehypo-v1",
+        "activeRole": "proof_publication_bond",
+        "amountSats": "2500000"
+      }
+    }
+  },
+  "roleTransitionDemo": {
+    "retiredCommitmentId": "b698b31e28e8339287b3c2db8f7ebb1706f405ab2779057fe76c25dc3fae035c",
+    "transition": {
+      "kind": "halal_capital_role_transition",
+      "transitionId": "927c8df2d1cd7da43b29a1c8ca6ef9d9bd6ee3e154fbc84a0164c7eed01176d5",
+      "transitionCore": {
+        "version": 1,
+        "fromCommitmentId": "b698b31e28e8339287b3c2db8f7ebb1706f405ab2779057fe76c25dc3fae035c",
+        "fromPropertyId": 1101,
+        "fromTemplateId": "ln-channel-lease-no-rehypo-v1",
+        "toPropertyId": 3101,
+        "toTemplateId": "ark-round-liquidity-graft-no-rehypo-v1",
+        "fundingOutpoint": "8d57b33cf97269a0ce1afd5621374b91d2314141ec366dd44592ac51d9c6e354:1",
+        "amountSats": "1000000",
+        "burnReceiptId": "burn:b698b31e28e8339287b3c2db8f7ebb1706f405ab2779057fe76c25dc3fae035c",
+        "reissueReceiptId": "reissue:b698b31e28e8339287b3c2db8f7ebb1706f405ab2779057fe76c25dc3fae035c:3101",
+        "requiresOldCommitmentStatus": "retired",
+        "burnBeforeReissue": true,
+        "rehypothecationAllowed": false
+      },
+      "toTemplate": {
+        "kind": "halal_capital_property_template",
+        "templateHash": "d3522cc96e5ee32b26e1a942af4ea309f465adb85f28dd55f58eb278a5a2ccf1",
+        "version": 1,
+        "propertyId": 3101,
+        "symbol": "HARK-LIQ",
+        "templateId": "ark-round-liquidity-graft-no-rehypo-v1",
+        "targetProtocol": "ark",
+        "capitalRole": "ark_round_liquidity_graft",
+        "productSurface": "Ark round liquidity graft",
+        "serviceRevenue": "short-duration round liquidity and VTXO exit insurance premium",
+        "backingAsset": "BTC",
+        "accounting": {
+          "exclusiveCommitment": true,
+          "oneSatOneRole": true,
+          "burnBeforeReissue": true,
+          "rehypothecationAllowed": false,
+          "guaranteedApyAllowed": false,
+          "hiddenLeverageAllowed": false
+        },
+        "enforcement": {
+          "fundingOutpointScope": "global_unique_active_commitment",
+          "receiptFungibility": "same_property_id_only",
+          "roleTransition": "retire_or_burn_old_receipt_before_new_property_issue",
+          "verifier": "UTXORef plus TradeLayer property-template registry"
+        },
+        "jurassicApplication": {
+          "kind": "jurassic_bitvm_mechanism_refs",
+          "refId": "640de33e979892b01078b8ce6e4301a850509d1833af0598135f3b941d36afd1",
+          "version": 1,
+          "target": "ark",
+          "semanticStateHash": "75d8d6bff32fce8eec4928ad137841cc7bca3d5eb53c459ac8dc7d5845b60627",
+          "planId": "ark_round_exit_namespace_market",
+          "transcriptVariantIds": [
+            "ark_round_exit_attestation"
+          ],
+          "transcriptDigests": [
+            "fb06d95b7d97213bdc38d5451cc7c42177128d874016caf3e9c1ab99d18f89cc"
+          ],
+          "publicHandleIds": [
+            "3dbb7a597598086954ea009a841ab4d897bdc7b58ade301cef525e799883ccc5",
+            "9ef5f9b87419c98bcb38fc91336c93a16b35a8738e492cb94ac5a15784a1c088"
+          ],
+          "carrierCommitmentIds": [
+            "1949d6450df43fe6e298c4bbbd0393bb79f0160aaf8c5789786ee772120486fc"
+          ],
+          "transcriptSwitchboardId": "9cb0da1540b25ba63c96420adb9a799ad42051275b13fd366eae817ad8af4f81",
+          "primaryTranscriptDigest": "fb06d95b7d97213bdc38d5451cc7c42177128d874016caf3e9c1ab99d18f89cc",
+          "primaryPublicHandleId": "3dbb7a597598086954ea009a841ab4d897bdc7b58ade301cef525e799883ccc5",
+          "primaryCarrierCommitmentId": "1949d6450df43fe6e298c4bbbd0393bb79f0160aaf8c5789786ee772120486fc",
+          "status": "prototype_ready",
+          "rejectionTripwireDigest": "0000000000000000000000000000000000000000000000000000000000000001"
+        }
+      }
+    },
+    "verification": {
+      "ok": true
+    }
+  }
+}

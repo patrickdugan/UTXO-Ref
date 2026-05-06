@@ -10,6 +10,7 @@
  */
 
 const crypto = require('crypto');
+const { assertCommittedRouting, withCommittedRouting } = require('./m1_routing_commitments');
 
 function sha256Hex(data) {
   return crypto.createHash('sha256').update(data).digest('hex');
@@ -92,11 +93,13 @@ function buildOracleDeltaPublication({
   }
 
   const oracleMapId = oracleBinding.oracleMapId || deriveOracleMapId(oracleBinding);
-  const pathId = String(selectedPath.pathId || selectedPath.kind || 'unknown');
+  const normalizedPath = withCommittedRouting(selectedPath);
+  const committedRouting = assertCommittedRouting(normalizedPath, 'oracle delta selectedPath');
+  const pathId = String(normalizedPath.pathId || normalizedPath.kind || 'unknown');
   const resolvedDeltaSats = deltaSats !== undefined
     ? toBigInt(deltaSats, 'deltaSats')
     : toBigInt(
-        selectedPath.deltaSats ?? selectedPath.residualSats ?? selectedPath.rolloverCollateralSats ?? 0n,
+        normalizedPath.deltaSats ?? normalizedPath.residualSats ?? normalizedPath.rolloverCollateralSats ?? 0n,
         'selectedPath.deltaSats'
       );
   const nextContractId = nextContractHint?.contractId
@@ -108,11 +111,11 @@ function buildOracleDeltaPublication({
     });
 
   const adaptorSignaturePlaceholder =
-    selectedPath.adaptorSignaturePlaceholder
+    normalizedPath.adaptorSignaturePlaceholder
     || oracleBinding.adaptorSignaturePlaceholder
     || null;
   const adaptorPointPlaceholder =
-    selectedPath.adaptorPointPlaceholder
+    normalizedPath.adaptorPointPlaceholder
     || oracleBinding.adaptorPointPlaceholder
     || null;
 
@@ -143,10 +146,11 @@ function buildOracleDeltaPublication({
     adaptorMapping: {
       adaptorSignaturePlaceholder,
       adaptorPointPlaceholder,
-      cetTxid: selectedPath.txid || null,
-      messageDigestHex: selectedPath.messageDigestHex || null,
+      cetTxid: normalizedPath.txid || null,
+      messageDigestHex: normalizedPath.messageDigestHex || null,
       selectedPathId: pathId
     },
+    committedRouting,
     rollTrigger: {
       kind: 'event-driven-roll',
       canRoll: true,
@@ -191,7 +195,10 @@ function buildFastRollHandoff({
     },
     selectedPath: selectedPath || challengeBundle.selectedPath,
     bundleHash: bundleHash || challengeBundle.bundleHash || null,
-    deltaSats
+    deltaSats,
+    nextContractHint: challengeBundle.deltaPublication?.rollTrigger?.nextContractId
+      ? { contractId: challengeBundle.deltaPublication.rollTrigger.nextContractId }
+      : null
   });
 
   return {
@@ -206,7 +213,8 @@ function buildFastRollHandoff({
       cadence: 'event-driven',
       trigger: publication.rollTrigger.activation,
       route: 'roll',
-      adapterSignatureSlot: publication.adaptorMapping.adaptorSignaturePlaceholder
+      adapterSignatureSlot: publication.adaptorMapping.adaptorSignaturePlaceholder,
+      committedRouting: publication.committedRouting
     }
   };
 }

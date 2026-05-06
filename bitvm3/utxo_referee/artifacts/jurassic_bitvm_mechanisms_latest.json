@@ -1,0 +1,404 @@
+{
+  "kind": "jurassic_bitvm_mechanism_catalog",
+  "createdAt": "2026-05-03T14:14:52.546Z",
+  "core": {
+    "semanticStatement": {
+      "version": 1,
+      "family": "jurassic_bitvm_mechanism_core",
+      "contractId": "utxoref-jurassic-bitvm-demo",
+      "applicationIntent": "prove one overlay state through multiple BitVM-visible publication and challenge surfaces",
+      "route": "cooperative_or_challengeable_release",
+      "amountSats": "250000",
+      "settlementEpoch": "m1-jurassic-demo",
+      "challengeWindowBlocks": 144,
+      "targetProtocols": [
+        "lightning",
+        "taproot_assets",
+        "ark",
+        "shinigami"
+      ]
+    },
+    "semanticStateHash": "2f5b68d957e657655125d9617b8f8b478d13559db5cae6b7dab22d9c1f0706ce",
+    "targetProtocols": [
+      "lightning",
+      "taproot_assets",
+      "ark",
+      "shinigami"
+    ]
+  },
+  "mechanisms": {
+    "transcriptSwitchboard": {
+      "mechanism": "transcript_switchboard",
+      "motif": "transcript_multiplicity",
+      "thesis": "Let a BitVM claim accept multiple proof-package transcripts while keeping one semantic state hash, with constant-one collapse treated as a rejection guard.",
+      "variants": [
+        {
+          "mechanismId": "ln_ptlc_success_retry_a",
+          "target": "lightning",
+          "packageClass": "ln-ptlc-success-retry",
+          "transcriptRole": "success preimage package",
+          "bitvmUse": "retry-equivalent PTLC/adaptor success proof for the same BitVM claim",
+          "action": "accept",
+          "semanticStateHash": "2f5b68d957e657655125d9617b8f8b478d13559db5cae6b7dab22d9c1f0706ce",
+          "transcriptDigest": "6ffbd8dcdddb74c1a7b797f69682708adbf0fe573647524644f84df3d3d20cee",
+          "preservesSemanticState": true,
+          "rejected": false
+        },
+        {
+          "mechanismId": "ln_ptlc_success_retry_b",
+          "target": "lightning",
+          "packageClass": "ln-ptlc-success-retry",
+          "transcriptRole": "success preimage package",
+          "bitvmUse": "second retry-equivalent success proof that aliases with retry_a",
+          "action": "accept",
+          "semanticStateHash": "2f5b68d957e657655125d9617b8f8b478d13559db5cae6b7dab22d9c1f0706ce",
+          "transcriptDigest": "6ffbd8dcdddb74c1a7b797f69682708adbf0fe573647524644f84df3d3d20cee",
+          "preservesSemanticState": true,
+          "rejected": false
+        },
+        {
+          "mechanismId": "ln_timeout_challenge_split",
+          "target": "lightning",
+          "packageClass": "ln-timeout-branch-split",
+          "transcriptRole": "timeout challenge package",
+          "bitvmUse": "distinct branch package for timeout or failed-liquidity challenge",
+          "action": "accept",
+          "semanticStateHash": "2f5b68d957e657655125d9617b8f8b478d13559db5cae6b7dab22d9c1f0706ce",
+          "transcriptDigest": "94ce821b5b1262f7bbadf0eea8c57b9e1aad9a0784b4e293d16c2bc3ef086016",
+          "preservesSemanticState": true,
+          "rejected": false
+        },
+        {
+          "mechanismId": "tap_asset_proof_delta",
+          "target": "taproot_assets",
+          "packageClass": "tap-proof-delta",
+          "transcriptRole": "asset proof relay package",
+          "bitvmUse": "asset proof wrapper over the same BitVM settlement state",
+          "action": "accept",
+          "semanticStateHash": "2f5b68d957e657655125d9617b8f8b478d13559db5cae6b7dab22d9c1f0706ce",
+          "transcriptDigest": "d42c911f11c697c488e13f0a08bb7c8be717be6297443948d32aa4f0cfa415c5",
+          "preservesSemanticState": true,
+          "rejected": false
+        },
+        {
+          "mechanismId": "ark_round_exit_attestation",
+          "target": "ark",
+          "packageClass": "ark-round-exit-attestation",
+          "transcriptRole": "round exit package",
+          "bitvmUse": "round-exit transcript that feeds a challengeable release path",
+          "action": "accept",
+          "semanticStateHash": "2f5b68d957e657655125d9617b8f8b478d13559db5cae6b7dab22d9c1f0706ce",
+          "transcriptDigest": "3ce02d4b17edf82dd1874601fcd8469a9d795dac061b6bf72694527e9b8ccc7e",
+          "preservesSemanticState": true,
+          "rejected": false
+        },
+        {
+          "mechanismId": "shinigami_execution_trace",
+          "target": "shinigami",
+          "packageClass": "shinigami-execution-trace",
+          "transcriptRole": "proof-carrying execution package",
+          "bitvmUse": "execution trace attestation over the same semantic BitVM claim",
+          "action": "scaffold_only",
+          "semanticStateHash": "2f5b68d957e657655125d9617b8f8b478d13559db5cae6b7dab22d9c1f0706ce",
+          "transcriptDigest": "2aa00f591f1e8e812d0b68587908555113e9f598c0216d6ce0317a7b709b774d",
+          "preservesSemanticState": true,
+          "rejected": false
+        },
+        {
+          "mechanismId": "constant_one_tripwire",
+          "target": "all",
+          "packageClass": "sighash-single-constant-one-tripwire",
+          "transcriptRole": "hazard detector",
+          "bitvmUse": "reject digest-collapse candidates before they can become claim ids",
+          "action": "reject",
+          "semanticStateHash": "2f5b68d957e657655125d9617b8f8b478d13559db5cae6b7dab22d9c1f0706ce",
+          "transcriptDigest": "0000000000000000000000000000000000000000000000000000000000000001",
+          "preservesSemanticState": true,
+          "rejected": true
+        }
+      ],
+      "summary": {
+        "variantCount": 7,
+        "acceptedVariantCount": 6,
+        "rejectedVariantCount": 1,
+        "retryAliasDigest": "6ffbd8dcdddb74c1a7b797f69682708adbf0fe573647524644f84df3d3d20cee",
+        "primaryBranchSplit": "ln_timeout_challenge_split",
+        "tripwireDigest": "0000000000000000000000000000000000000000000000000000000000000001"
+      }
+    },
+    "namespaceRelayMatrix": {
+      "mechanism": "namespace_relay_matrix",
+      "motif": "identifier_bifurcation",
+      "thesis": "Let protocol-specific public handles rotate while one BitVM semantic state hash remains stable.",
+      "variants": [
+        {
+          "target": "lightning",
+          "handleRole": "rendezvous_or_route_handle",
+          "label": "ln-blinded-route-window",
+          "scaffold": "lightning_integration.js / lightning_liquidity_lease.js",
+          "semanticStateHash": "2f5b68d957e657655125d9617b8f8b478d13559db5cae6b7dab22d9c1f0706ce",
+          "publicHandleId": "bc4a53eb193ca5c6c1299728d9d84e5dfdfb4e099c72bba605009bfbc032058d",
+          "preservesSemanticState": true
+        },
+        {
+          "target": "lightning",
+          "handleRole": "watchtower_session",
+          "label": "ln-watchtower-alert-window",
+          "scaffold": "tradeLayerSendWatchtower / lightning watchtower prototypes",
+          "semanticStateHash": "2f5b68d957e657655125d9617b8f8b478d13559db5cae6b7dab22d9c1f0706ce",
+          "publicHandleId": "9aa7b2d47cb8640ec037305523fe88af2b15bde03cdb08c4eef01f8e66b0ef28",
+          "preservesSemanticState": true
+        },
+        {
+          "target": "taproot_assets",
+          "handleRole": "proof_anchor",
+          "label": "tap-proof-anchor-v1",
+          "scaffold": "lightning_taproot_assets_stablecoin.js",
+          "semanticStateHash": "2f5b68d957e657655125d9617b8f8b478d13559db5cae6b7dab22d9c1f0706ce",
+          "publicHandleId": "1f6b25b2bb64a7da2e8c6f7c420396a8ef19fdb1de2846ceb47b6649cd1e990a",
+          "preservesSemanticState": true
+        },
+        {
+          "target": "taproot_assets",
+          "handleRole": "universe_sync_namespace",
+          "label": "tap-universe-shadow-v1",
+          "scaffold": "lightning_taproot_assets_stablecoin.js",
+          "semanticStateHash": "2f5b68d957e657655125d9617b8f8b478d13559db5cae6b7dab22d9c1f0706ce",
+          "publicHandleId": "cf22a82152f19b4b2d1997f44ab8d0b90e9ba1e1eb57d0ec91daf1a7439d2a46",
+          "preservesSemanticState": true
+        },
+        {
+          "target": "ark",
+          "handleRole": "round_or_vtxo_claim",
+          "label": "ark-round-claim-v1",
+          "scaffold": "lightning_ark_liquidity_graft.js / ark_dlc_settlement.js",
+          "semanticStateHash": "2f5b68d957e657655125d9617b8f8b478d13559db5cae6b7dab22d9c1f0706ce",
+          "publicHandleId": "28c3c25728884cb4d3735109b98761452346caf9083fd7973f875683f4b74524",
+          "preservesSemanticState": true
+        },
+        {
+          "target": "ark",
+          "handleRole": "offboard_exit_namespace",
+          "label": "ark-exit-window-v1",
+          "scaffold": "ark_liquidity_graft_manager.js",
+          "semanticStateHash": "2f5b68d957e657655125d9617b8f8b478d13559db5cae6b7dab22d9c1f0706ce",
+          "publicHandleId": "754e91178d6cdfeffbea7d9d086e2ca7b3d816bcc6f035d133f5c6ca7cb50c18",
+          "preservesSemanticState": true
+        },
+        {
+          "target": "shinigami",
+          "handleRole": "verifier_session",
+          "label": "shinigami-verifier-session-v1",
+          "scaffold": "jurassic_bitvm_mechanisms.js scaffold only",
+          "semanticStateHash": "2f5b68d957e657655125d9617b8f8b478d13559db5cae6b7dab22d9c1f0706ce",
+          "publicHandleId": "2a5da6d63803169cf0ebd5505fb5e06a61873e8e13c1abe415c636d94d58d42b",
+          "preservesSemanticState": true
+        },
+        {
+          "target": "shinigami",
+          "handleRole": "proof_blob_reference",
+          "label": "shinigami-proof-blob-v1",
+          "scaffold": "oracle sidecar / execution proof scaffold",
+          "semanticStateHash": "2f5b68d957e657655125d9617b8f8b478d13559db5cae6b7dab22d9c1f0706ce",
+          "publicHandleId": "bff0519d7648f0ca1deb652016fb130ebebf25010c8ec4a94d867a3429464a86",
+          "preservesSemanticState": true
+        }
+      ],
+      "summary": {
+        "variantCount": 8,
+        "uniqueHandleCount": 8,
+        "targetsCovered": [
+          "lightning",
+          "taproot_assets",
+          "ark",
+          "shinigami"
+        ]
+      }
+    },
+    "carrierShadowRoutes": {
+      "mechanism": "carrier_shadow_routes",
+      "motif": "carrier_camouflage",
+      "thesis": "Publish BitVM-relevant proof hints through ordinary protocol topologies instead of explicit one-off marker transactions.",
+      "variants": [
+        {
+          "target": "lightning",
+          "carrierRouteId": "ln_watchtower_sweep_shadow",
+          "ordinaryTopology": "watchtower sweep or wallet-maintenance consolidation",
+          "publicationKind": "alert proof sidecar",
+          "nearestPrototype": "tradelayer_send_watchtower.js / lightning_liquidity_lease.js",
+          "verifier": "watchtower checks transcript digest and channel/splice commitment",
+          "semanticStateHash": "2f5b68d957e657655125d9617b8f8b478d13559db5cae6b7dab22d9c1f0706ce",
+          "carrierCommitmentId": "d170b0516a3353f5d76872f80c4edd1d7a89af26ca4681e76105eb134823ae03",
+          "expectedPolicyFit": "prototype_ready",
+          "preservesSemanticState": true
+        },
+        {
+          "target": "lightning",
+          "carrierRouteId": "ln_splice_shadow",
+          "ordinaryTopology": "splice-in or channel open maintenance transaction",
+          "publicationKind": "liquidity lease status sidecar",
+          "nearestPrototype": "lightning_wallet_integration.js",
+          "verifier": "wallet checks lease offer id and funding commitment",
+          "semanticStateHash": "2f5b68d957e657655125d9617b8f8b478d13559db5cae6b7dab22d9c1f0706ce",
+          "carrierCommitmentId": "0c98d8fe552d65ad6401125eb576a584751fc1aa4eeb9b667e808e88b3e4df6b",
+          "expectedPolicyFit": "prototype_ready",
+          "preservesSemanticState": true
+        },
+        {
+          "target": "taproot_assets",
+          "carrierRouteId": "tap_asset_distribution_shadow",
+          "ordinaryTopology": "asset proof anchor batch or issuance distribution",
+          "publicationKind": "asset proof delta sidecar",
+          "nearestPrototype": "lightning_taproot_assets_stablecoin.js",
+          "verifier": "asset proof verifier checks proof id and RFQ quote id",
+          "semanticStateHash": "2f5b68d957e657655125d9617b8f8b478d13559db5cae6b7dab22d9c1f0706ce",
+          "carrierCommitmentId": "04f2c4d1d5ae17c9f0efe34873a3f3be9d4f40844bb65e6500fd26662d55083f",
+          "expectedPolicyFit": "prototype_ready",
+          "preservesSemanticState": true
+        },
+        {
+          "target": "ark",
+          "carrierRouteId": "ark_round_batch_shadow",
+          "ordinaryTopology": "round batch, refresh batch, or offboard settlement",
+          "publicationKind": "round exit evidence sidecar",
+          "nearestPrototype": "lightning_ark_liquidity_graft.js",
+          "verifier": "ASP/LSP observer checks round id, VTXO commitment, and exit path",
+          "semanticStateHash": "2f5b68d957e657655125d9617b8f8b478d13559db5cae6b7dab22d9c1f0706ce",
+          "carrierCommitmentId": "c6ae2aa8bac2a58363d7dd3ab6d12cc946fa865a12069b62e102161be3cae639",
+          "expectedPolicyFit": "prototype_ready",
+          "preservesSemanticState": true
+        },
+        {
+          "target": "shinigami",
+          "carrierRouteId": "shinigami_proof_publication_shadow",
+          "ordinaryTopology": "proof publication folded into ordinary settlement batch",
+          "publicationKind": "execution trace or verifier receipt sidecar",
+          "nearestPrototype": "new scaffold from oracle-sidecar or hybrid dispute mesh",
+          "verifier": "script verifier checks execution trace handle and semantic state hash",
+          "semanticStateHash": "2f5b68d957e657655125d9617b8f8b478d13559db5cae6b7dab22d9c1f0706ce",
+          "carrierCommitmentId": "5523af0717d62606c43a94a2c7998374059dfa3b6451e496e39f474729c292ea",
+          "expectedPolicyFit": "scaffold_only",
+          "preservesSemanticState": true
+        }
+      ],
+      "summary": {
+        "variantCount": 5,
+        "targetsCovered": [
+          "lightning",
+          "taproot_assets",
+          "ark",
+          "shinigami"
+        ],
+        "scaffoldOnlyCount": 1
+      }
+    }
+  },
+  "composedPlans": [
+    {
+      "planId": "ln_ptlc_retry_watchtower_switchboard",
+      "target": "lightning",
+      "appliesTo": [
+        "lightning_liquidity_lease.js",
+        "lightning_wallet_integration.js",
+        "tradelayer_send_watchtower.js"
+      ],
+      "mechanism": "A Lightning lease can expose retry-equivalent success proofs, a distinct timeout challenge proof, rotating watchtower handles, and sweep-shaped publication cover.",
+      "firstBuild": "extend lightning liquidity lease evidence with transcriptSwitchboardId and publicHandleId fields",
+      "status": "prototype_ready",
+      "semanticStateHash": "2f5b68d957e657655125d9617b8f8b478d13559db5cae6b7dab22d9c1f0706ce",
+      "transcriptVariantIds": [
+        "ln_ptlc_success_retry_a",
+        "ln_ptlc_success_retry_b",
+        "ln_timeout_challenge_split",
+        "constant_one_tripwire"
+      ],
+      "namespaceVariantIds": [
+        "bc4a53eb193ca5c6c1299728d9d84e5dfdfb4e099c72bba605009bfbc032058d",
+        "9aa7b2d47cb8640ec037305523fe88af2b15bde03cdb08c4eef01f8e66b0ef28"
+      ],
+      "carrierRouteIds": [
+        "ln_watchtower_sweep_shadow",
+        "ln_splice_shadow"
+      ]
+    },
+    {
+      "planId": "tap_asset_proof_anchor_switchboard",
+      "target": "taproot_assets",
+      "appliesTo": [
+        "lightning_taproot_assets_stablecoin.js",
+        "lightning_tradelayer_oracle_dlc.js"
+      ],
+      "mechanism": "A Taproot Assets RFQ can keep one asset transfer claim while rotating proof anchors and wrapping the proof in alternative relay packages.",
+      "firstBuild": "add proof-anchor namespace ids to the stablecoin RFQ quote and challenge evidence",
+      "status": "prototype_ready",
+      "semanticStateHash": "2f5b68d957e657655125d9617b8f8b478d13559db5cae6b7dab22d9c1f0706ce",
+      "transcriptVariantIds": [
+        "tap_asset_proof_delta",
+        "constant_one_tripwire"
+      ],
+      "namespaceVariantIds": [
+        "1f6b25b2bb64a7da2e8c6f7c420396a8ef19fdb1de2846ceb47b6649cd1e990a",
+        "cf22a82152f19b4b2d1997f44ab8d0b90e9ba1e1eb57d0ec91daf1a7439d2a46"
+      ],
+      "carrierRouteIds": [
+        "tap_asset_distribution_shadow"
+      ]
+    },
+    {
+      "planId": "ark_round_exit_namespace_market",
+      "target": "ark",
+      "appliesTo": [
+        "lightning_ark_liquidity_graft.js",
+        "ark_dlc_settlement.js",
+        "ark_liquidity_graft_manager.js"
+      ],
+      "mechanism": "An Ark round can advertise multiple public claim handles over one VTXO commitment and route exit evidence through round-batch cover.",
+      "firstBuild": "add namespace relay ids to Ark quote, settlement evidence, and challenge evidence",
+      "status": "prototype_ready",
+      "semanticStateHash": "2f5b68d957e657655125d9617b8f8b478d13559db5cae6b7dab22d9c1f0706ce",
+      "transcriptVariantIds": [
+        "ark_round_exit_attestation",
+        "constant_one_tripwire"
+      ],
+      "namespaceVariantIds": [
+        "28c3c25728884cb4d3735109b98761452346caf9083fd7973f875683f4b74524",
+        "754e91178d6cdfeffbea7d9d086e2ca7b3d816bcc6f035d133f5c6ca7cb50c18"
+      ],
+      "carrierRouteIds": [
+        "ark_round_batch_shadow"
+      ]
+    },
+    {
+      "planId": "shinigami_proof_publication_switchboard",
+      "target": "shinigami",
+      "appliesTo": [
+        "new proof-carrying execution scaffold",
+        "jurassic_bitvm_mechanisms.js",
+        "oracle sidecar builders"
+      ],
+      "mechanism": "A proof-carrying execution surface can expose alternative proof packages and verifier handles while keeping one semantic program state.",
+      "firstBuild": "model proof publication and verifier receipt as a repo-local application mesh before binding it to any external Shinigami implementation",
+      "status": "scaffold_only",
+      "semanticStateHash": "2f5b68d957e657655125d9617b8f8b478d13559db5cae6b7dab22d9c1f0706ce",
+      "transcriptVariantIds": [
+        "shinigami_execution_trace",
+        "constant_one_tripwire"
+      ],
+      "namespaceVariantIds": [
+        "2a5da6d63803169cf0ebd5505fb5e06a61873e8e13c1abe415c636d94d58d42b",
+        "bff0519d7648f0ca1deb652016fb130ebebf25010c8ec4a94d867a3429464a86"
+      ],
+      "carrierRouteIds": [
+        "shinigami_proof_publication_shadow"
+      ]
+    }
+  ],
+  "recommendations": [
+    "Prototype Lightning first by adding transcriptSwitchboardId and publicHandleId to liquidity-lease evidence bundles.",
+    "Prototype Taproot Assets next by letting RFQ proof anchors rotate while quote and asset proof semantics stay fixed.",
+    "Prototype Ark by attaching namespace relay ids to round, VTXO, and exit evidence objects.",
+    "Keep Shinigami scoped as a proof-carrying execution scaffold until a dedicated local verifier harness exists.",
+    "Reject any candidate mechanism that promotes 0000000000000000000000000000000000000000000000000000000000000001 into a funding, claim, or challenge id."
+  ],
+  "artifactHash": "5127486b324d376730f6dc7ac84f6a6f9ebaba2d2e1594c3e6e91a853f13a97e"
+}

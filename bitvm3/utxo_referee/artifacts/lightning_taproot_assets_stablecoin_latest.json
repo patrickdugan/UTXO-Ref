@@ -1,0 +1,124 @@
+{
+  "kind": "taproot_assets_lightning_stablecoin_bitvm_bundle",
+  "bundleId": "448902824b2b401d894f02a77528488d6fd01c85aa7686cc67cd87e04ae06474",
+  "bundleCore": {
+    "assetDescriptorId": "40055cbff414e2b10ec426fd447d26b9b9f0d3f7ec2effd428d9c2edf6204f3b",
+    "assetProofId": "f1401b7ba39a640244f04c6cf442fc577836df46dcc5c0a71961aa42c135da28",
+    "quoteId": "5f51ebc11f33c12028f25f7086871dc1ce5fd49e0edb8945b1da255ed2b7f4af",
+    "settlementId": "3515540d48862243d873155cbfb7d8d9e5178228749b8116b1f6b066662a29bf",
+    "challengeId": "79f5cdc1ae6af9b61537caf20c7602e533af79a43460610a4c2d80c19a43408f"
+  },
+  "asset": {
+    "kind": "taproot_asset_stablecoin_descriptor",
+    "descriptorId": "40055cbff414e2b10ec426fd447d26b9b9f0d3f7ec2effd428d9c2edf6204f3b",
+    "descriptorCore": {
+      "protocol": "taproot_assets",
+      "ticker": "USDSIM",
+      "decimalDisplay": 6,
+      "assetId": "c0e97dcfe12b443e3a46f415c1a80fffdc5e9f4a2e83d2f098cc72e10fe1abe3",
+      "genesisPoint": "9f8b49a62ee446919657b21dd77686873972571c16807f8e8293d2393a2cdaff:0",
+      "groupKey": "452a75c0ef84cbf578dd534fcb83fdb042834452d09690417c409242486b5423",
+      "issuer": "regtest-stablecoin-issuer"
+    }
+  },
+  "assetProof": {
+    "kind": "taproot_asset_proof_commitment",
+    "proofId": "f1401b7ba39a640244f04c6cf442fc577836df46dcc5c0a71961aa42c135da28",
+    "proofCore": {
+      "version": 1,
+      "assetId": "c0e97dcfe12b443e3a46f415c1a80fffdc5e9f4a2e83d2f098cc72e10fe1abe3",
+      "amountUnits": "25000000",
+      "anchorOutpoint": "184300f44017c20a5a7c6ff0ae2e83411d3e5b7f479f5c9878a72ac4c8231330:1",
+      "scriptKey": "b97a951814846d82298347d2f51a285b82a32f2be24256ccf73fdf9b8d7b2ec7",
+      "universeHost": "regtest-universe.local",
+      "universeRoot": "cd95007a0c95d9c16401418585b49b4ce18fa06e04c2fc2b4ea087830faa33fd",
+      "proofRoot": "7107ec917760c92bf65a86c871b65a64dcf319a0159f27d53fbe72420aa8bba6",
+      "proofTransport": "tapd_exported_proof_or_universe_proof"
+    }
+  },
+  "rfqQuote": {
+    "kind": "taproot_asset_lightning_rfq_quote",
+    "quoteId": "5f51ebc11f33c12028f25f7086871dc1ce5fd49e0edb8945b1da255ed2b7f4af",
+    "quoteCore": {
+      "version": 1,
+      "protocol": "taproot_assets_rfq_over_bolt08",
+      "assetId": "c0e97dcfe12b443e3a46f415c1a80fffdc5e9f4a2e83d2f098cc72e10fe1abe3",
+      "assetTicker": "USDSIM",
+      "clientNodeId": "tap-client-regtest",
+      "edgeNodeId": "tap-edge-node-regtest",
+      "assetAmountUnits": "25000000",
+      "btcRouteSats": "49000",
+      "maxSpreadPpm": 5000,
+      "quotedSpreadPpm": 3000,
+      "maxRoutingFeePpm": 1200,
+      "quotedRoutingFeePpm": 900,
+      "expiryBlock": 300,
+      "paymentHashHex": "79cdbfa62ea28e4177514f55ae3f5d6e7dbdd780254a6aeff6428270cd5d1d3f"
+    },
+    "commitment": {
+      "assetProofId": "f1401b7ba39a640244f04c6cf442fc577836df46dcc5c0a71961aa42c135da28",
+      "obligation": "Edge node swaps the Taproot Asset amount into a BTC Lightning payment under the quoted spread and routing fee limits."
+    }
+  },
+  "settlementEvidence": {
+    "kind": "taproot_asset_lightning_stablecoin_settlement_evidence",
+    "settlementId": "3515540d48862243d873155cbfb7d8d9e5178228749b8116b1f6b066662a29bf",
+    "settlementCore": {
+      "version": 1,
+      "quoteId": "5f51ebc11f33c12028f25f7086871dc1ce5fd49e0edb8945b1da255ed2b7f4af",
+      "assetProofId": "f1401b7ba39a640244f04c6cf442fc577836df46dcc5c0a71961aa42c135da28",
+      "liquidityLeaseBundleId": "6b1278ad5dc15bf6d73f9d0ad40642581c13bd2f5f20926300c32a919dc7624b",
+      "deliveredBtcSats": "49000",
+      "observedSpreadPpm": 3000,
+      "observedRoutingFeePpm": 900,
+      "observedBlock": 200,
+      "paymentHashHex": "79cdbfa62ea28e4177514f55ae3f5d6e7dbdd780254a6aeff6428270cd5d1d3f",
+      "preimageHashHex": "79cdbfa62ea28e4177514f55ae3f5d6e7dbdd780254a6aeff6428270cd5d1d3f",
+      "lnClaimTxid": "fd3e97d30b39c04dea7748cd5a7e8b057bf9e0f7656a6be7d9733c413828be43",
+      "channelOrSpliceOutpoint": "fd3e97d30b39c04dea7748cd5a7e8b057bf9e0f7656a6be7d9733c413828be43:0"
+    },
+    "checks": {
+      "assetProofMatchesQuote": true,
+      "deliveredAmountMet": true,
+      "spreadCeilingMet": true,
+      "routingFeeCeilingMet": true,
+      "paymentHashMatched": true,
+      "quoteNotExpired": true,
+      "bitvmLeaseVerified": true
+    }
+  },
+  "challengeEvidence": {
+    "kind": "taproot_asset_lightning_stablecoin_challenge",
+    "challengeId": "79f5cdc1ae6af9b61537caf20c7602e533af79a43460610a4c2d80c19a43408f",
+    "challengeCore": {
+      "version": 1,
+      "quoteId": "5f51ebc11f33c12028f25f7086871dc1ce5fd49e0edb8945b1da255ed2b7f4af",
+      "observedAssetId": "c0e97dcfe12b443e3a46f415c1a80fffdc5e9f4a2e83d2f098cc72e10fe1abe3",
+      "deliveredBtcSats": "0",
+      "observedSpreadPpm": 9000,
+      "observedRoutingFeePpm": 2500,
+      "observedBlock": 301,
+      "violations": [
+        "btc_route_amount_shortfall",
+        "spread_ppm_above_quote",
+        "routing_fee_ppm_above_quote",
+        "quote_expired_before_settlement"
+      ]
+    },
+    "slashable": true
+  },
+  "thesis": "Use BitVM/DLC commitments to make a Taproot Assets Edge-node RFQ and Lightning liquidity promise externally auditable and challengeable.",
+  "caveats": [
+    "The stablecoin issuer remains a separate trust assumption.",
+    "This validates evidence shape and commitments; production would verify tapd proofs and litd RFQ messages directly.",
+    "The edge node still performs the asset/BTC conversion; ordinary BTC Lightning routers do not need asset awareness."
+  ],
+  "references": [
+    "https://docs.lightning.engineering/the-lightning-network/taproot-assets/taproot-assets-protocol",
+    "https://docs.lightning.engineering/the-lightning-network/taproot-assets/edge-nodes",
+    "https://docs.lightning.engineering/lightning-network-tools/taproot-assets/rfq"
+  ],
+  "verification": {
+    "ok": true
+  }
+}

@@ -12,7 +12,9 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const {
-  verifySettlementRouting
+  verifySettlementRouting,
+  normalizeRoutingCommitments,
+  assertCommittedRouting
 } = require('./index');
 
 const ARTIFACTS_DIR = path.join(__dirname, 'artifacts');
@@ -59,6 +61,7 @@ function validateDraftPaths(draft) {
     : [];
 
   return settlementPaths.map((pathRecord) => {
+    const committedRouting = assertCommittedRouting(pathRecord, `draft path ${pathRecord.pathId}`);
     const result = verifySettlementRouting({
       route: pathRecord.pathId,
       collateralSats,
@@ -70,31 +73,26 @@ function validateDraftPaths(draft) {
       outputs: [
         {
           role: 'winner-sweep',
-          address: pathRecord.winnerAddress || null,
+          address: committedRouting.winnerAddress,
           amountSats: pathRecord.actualPayoutSats ?? pathRecord.payoutSats ?? 0
         },
         {
           role: 'refund-remainder',
-          address: pathRecord.refundAddress || null,
+          address: committedRouting.refundAddress,
           amountSats: pathRecord.refundSats ?? pathRecord.residualSats ?? 0
         },
         {
           role: 'fee',
-          address: pathRecord.feeAddress || null,
+          address: committedRouting.feeAddress,
           amountSats: pathRecord.feeSats ?? 0
         },
         {
           role: 'dust-carry',
-          address: pathRecord.dustAddress || null,
+          address: committedRouting.dustAddress,
           amountSats: pathRecord.dustCarrySats ?? 0
         }
       ]
-    }, {
-      winnerAddress: pathRecord.winnerAddress || null,
-      refundAddress: pathRecord.refundAddress || null,
-      feeAddress: pathRecord.feeAddress || null,
-      dustAddress: pathRecord.dustAddress || null
-    });
+    }, committedRouting);
 
     return {
       pathId: pathRecord.pathId,
@@ -112,30 +110,34 @@ function validateExpiryArtifact(witnessArtifact, expiryArtifact) {
     || expiryArtifact?.deltas?.settlementBreakdown
     || {};
 
+  const committedRouting = assertCommittedRouting(
+    normalizeRoutingCommitments(expiryArtifact?.routingCommitments || state),
+    'expiry artifact routing commitments'
+  );
   const result = verifySettlementRouting(state, {
     outputs: [
       {
         role: 'winner-sweep',
-        address: expiryArtifact?.routingCommitments?.winnerAddress || null,
+        address: committedRouting.winnerAddress,
         amountSats: settlement.winnerSweepSats ?? expiryArtifact?.redemption?.amountSats ?? 0
       },
       {
         role: 'refund-remainder',
-        address: expiryArtifact?.routingCommitments?.refundAddress || null,
+        address: committedRouting.refundAddress,
         amountSats: settlement.refundSats ?? settlement.residualSats ?? expiryArtifact?.redemption?.remainingBalanceSats ?? 0
       },
       {
         role: 'fee',
-        address: expiryArtifact?.routingCommitments?.feeAddress || null,
+        address: committedRouting.feeAddress,
         amountSats: settlement.feeSats ?? 0
       },
       {
         role: 'dust-carry',
-        address: expiryArtifact?.routingCommitments?.dustAddress || null,
+        address: committedRouting.dustAddress,
         amountSats: settlement.dustCarrySats ?? 0
       }
     ]
-  });
+  }, committedRouting);
 
   const validated = assertOk(result, 'expiry artifact');
   if ((settlement.settlementKind || null) !== validated.expected.settlementKind) {
@@ -150,30 +152,34 @@ function validateTimeoutProof(witnessArtifact, timeoutProof) {
     route: witnessArtifact?.route || witnessArtifact?.witness?.route || 'roll',
     ...(witnessArtifact?.witness?.transitionState || {})
   };
+  const committedRouting = assertCommittedRouting(
+    normalizeRoutingCommitments(timeoutProof?.committedRouting || {}),
+    'timeout proof routing commitments'
+  );
   const result = verifySettlementRouting(state, {
     outputs: [
       {
         role: 'winner-sweep',
-        address: timeoutProof?.committedRouting?.winnerAddress || timeoutProof?.recipient?.address || null,
+        address: committedRouting.winnerAddress,
         amountSats: timeoutProof?.timeoutSpend?.recipientSats ?? 0
       },
       {
         role: 'refund-remainder',
-        address: timeoutProof?.committedRouting?.refundAddress || timeoutProof?.residual?.address || null,
+        address: committedRouting.refundAddress,
         amountSats: timeoutProof?.timeoutSpend?.residualSats ?? 0
       },
       {
+        role: 'fee',
+        address: committedRouting.feeAddress,
+        amountSats: timeoutProof?.timeoutSpend?.feeSats ?? 0
+      },
+      {
         role: 'dust-carry',
-        address: timeoutProof?.committedRouting?.dustAddress || null,
+        address: committedRouting.dustAddress,
         amountSats: timeoutProof?.timeoutSpend?.dustCarrySats ?? 0
       }
     ]
-  }, {
-    winnerAddress: timeoutProof?.committedRouting?.winnerAddress || timeoutProof?.recipient?.address || null,
-    refundAddress: timeoutProof?.committedRouting?.refundAddress || timeoutProof?.residual?.address || null,
-    feeAddress: timeoutProof?.committedRouting?.feeAddress || null,
-    dustAddress: timeoutProof?.committedRouting?.dustAddress || null
-  });
+  }, committedRouting);
 
   return assertOk(result, 'timeout proof');
 }

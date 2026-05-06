@@ -49,7 +49,9 @@ class ReceiptLedger {
       depositId,
       accountId,
       amountSats,
-      chainTxRef: event.chainTxRef || null
+      chainTxRef: event.chainTxRef || null,
+      status: 'credited',
+      rollbackReason: null
     });
 
     return {
@@ -95,6 +97,35 @@ class ReceiptLedger {
     };
   }
 
+  rollbackDeposit(depositId, options = {}) {
+    const id = ensureNonEmptyString(depositId, 'depositId');
+    const deposit = this.depositEvents.get(id);
+    if (!deposit) {
+      throw new Error(`unknown depositId: ${id}`);
+    }
+    if (deposit.status === 'rolled_back') {
+      throw new Error(`depositId already rolled back: ${id}`);
+    }
+
+    const prev = this.balances.get(deposit.accountId) || 0n;
+    if (prev < deposit.amountSats) {
+      throw new Error(
+        `cannot roll back deposit ${id}: account ${deposit.accountId} has ${prev}, need ${deposit.amountSats}`
+      );
+    }
+
+    const next = prev - deposit.amountSats;
+    this.balances.set(deposit.accountId, next);
+    deposit.status = 'rolled_back';
+    deposit.rollbackReason = options.reason || null;
+
+    return {
+      rolledBackSats: deposit.amountSats,
+      accountId: deposit.accountId,
+      balanceSats: next
+    };
+  }
+
   balanceOf(accountId) {
     return this.balances.get(accountId) || 0n;
   }
@@ -127,6 +158,10 @@ class ReceiptLedger {
         balanceSats: r.balanceSats.toString()
       })),
       depositIds: Array.from(this.depositEvents.keys()).sort(),
+      rolledBackDepositIds: Array.from(this.depositEvents.values())
+        .filter(event => event.status === 'rolled_back')
+        .map(event => event.depositId)
+        .sort(),
       redemptionIds: Array.from(this.redemptionEvents.keys()).sort()
     };
   }
@@ -166,4 +201,3 @@ class ReceiptLedger {
 module.exports = {
   ReceiptLedger
 };
-

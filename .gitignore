@@ -1,2 +1,21 @@
 codex-chat-sessions/
 desktop.ini
+
+# Local dependency installs
+node_modules/
+**/node_modules/
+
+# Runtime logs and local sidecar output
+*.log
+integrations/lightning-liquidity-lease-sidecar/*.log
+handoff.md
+
+# External repos checked out beside prototypes
+node-dlc/
+
+# Local test databases / throwaway control-plane state
+civkit/control_plane/artifacts/test_*/
+civkit/nostr_agent/artifacts/test_*/
+
+# Scratch stress-test dump with unresolved placeholders
+tests/stress_test_bitvm.js

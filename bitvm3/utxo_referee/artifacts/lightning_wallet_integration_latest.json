@@ -1,0 +1,56 @@
+{
+  "kind": "lightning_wallet_liquidity_lease_integration_manifest",
+  "manifestId": "8bb7d5e3a6945f653f946b39b75a0f9315b26fef5d657385d9051907e0d9e5cd",
+  "manifestCore": {
+    "leaseBundleId": "6b1278ad5dc15bf6d73f9d0ad40642581c13bd2f5f20926300c32a919dc7624b",
+    "offerId": "c2f2ebe0c4b1e4eb29c66e5f42e97151d9d58f54af02f1c28d93ffdd763c8467",
+    "walletStatus": "verified",
+    "ldkProto": "integrations/ldk-server/liquidity_lease.proto",
+    "zeusScreen": "integrations/zeus/LiquidityLeaseScreen.tsx",
+    "sidecar": "integrations/lightning-liquidity-lease-sidecar/server.js"
+  },
+  "walletView": {
+    "kind": "wallet_liquidity_lease_view",
+    "status": "verified",
+    "title": "Inbound Liquidity Lease",
+    "amountSats": "49000",
+    "maxFeePpm": 1000,
+    "maxCltvDelta": 40,
+    "penaltySats": "5000",
+    "paymentHashHex": "79cdbfa62ea28e4177514f55ae3f5d6e7dbdd780254a6aeff6428270cd5d1d3f",
+    "channelOutpoint": "fd3e97d30b39c04dea7748cd5a7e8b057bf9e0f7656a6be7d9733c413828be43:0",
+    "fundingCommitmentHash": "2ae94a2a96423191e3a47dd93dfe715f5f2a53b9657b2482d34ab47a9dbbe5b7",
+    "htlcClaimTxid": "fd3e97d30b39c04dea7748cd5a7e8b057bf9e0f7656a6be7d9733c413828be43",
+    "htlcRefundTxid": "74d382592edba0efd1967827ba6bafe9e0d638ed4b8e925401cf308ee2a9dc68"
+  },
+  "ldkServer": {
+    "target": "lightningdevkit/ldk-server",
+    "integrationMode": "sidecar first, then native gRPC service",
+    "protoFile": "integrations/ldk-server/liquidity_lease.proto",
+    "methods": [
+      "QuoteLiquidityLease",
+      "GetLiquidityLease",
+      "VerifyLiquidityLease",
+      "PrepareLiquidityLeaseChallenge"
+    ]
+  },
+  "zeus": {
+    "target": "ZeusLN/zeus",
+    "integrationMode": "React Native screen consuming sidecar REST API",
+    "screenFile": "integrations/zeus/LiquidityLeaseScreen.tsx",
+    "clientFile": "integrations/zeus/liquidityLeaseClient.ts"
+  },
+  "lightningLabs": {
+    "target": "lightninglabs/pool or lightning-terminal",
+    "integrationMode": "Pool-style lease proof adapter",
+    "mapping": {
+      "promisedInboundSats": "lease amount",
+      "leaseBlocks": "lease duration",
+      "penaltySats": "failure bond",
+      "channelOutpoint": "delivered channel/splice evidence"
+    }
+  },
+  "verification": {
+    "ok": true
+  }
+}

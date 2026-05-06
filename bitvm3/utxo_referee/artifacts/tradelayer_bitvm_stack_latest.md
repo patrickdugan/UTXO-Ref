@@ -1,6 +1,6 @@
 # TradeLayer BitVM Stack Demo
 
-Created: 2026-05-03T05:07:06.774Z
+Created: 2026-05-03T19:55:46.507Z
 Network: litecoin-testnet
 Verification: ok
 
@@ -11,7 +11,7 @@ Verification: ok
 - Selected send txid: cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 - Route transcript: 80c7e112c60277d8b94bc5ee873a19ae3a3cceccc524767bae770bb29d85af65
 - Sweep output root: fc1d5bace84265ee2cf3295a15270e9b9a2241837349634a99ed82bcf682f4e4
-- Final stack hash: 39c88b5dd329d45446220dbd404431390664386a26381f5997eea7190a23a405
+- Final stack hash: 3f03412eaff0ef48a14a8a795a933279b60cb873b76ed0d4d40d4db499a3749e
 
 ## BitVM Challenge Surfaces
 
@@ -21,11 +21,18 @@ Verification: ok
 - Perp PNL settlement: 3e3fb7852f4d134024eba8937715b57c0906cae5ae04c80a92f0e07519457df8
 - Liquidity lease: 7fb007c5d9aada719fc7b242ac9d5d033290e601a96e9a3109e4a3d9a9121a47
 - Arena report: f9b02c4c1d931a416d9ba2eb01488f6c55d47206d26bf12d780f125145394086
+- Halal capital token plan: 01bf16a94fe229e28b941b73d5b23b49721544dc95fab7c524147f1d4ffcc029
+
+## Capital Receipts
+
+- Principal receipt supply: 12250000
+- Service revenue accrual: 28000
+- Property templates: 7
 
 ## Dashboard Contract
 
 - Schema: bitvm_tradelayer_dashboard_v1
-- View hash: 4351fb39d6d191ba86e38e04d8a63044a75414b55bf167962fb95437be603e3d
+- View hash: 053cba4c072df1554af5fe5949f8882729a52680ff0a3bc47a65b21a33bab170
 - Status: ready
 - Next step: safe to present cooperative sweep and transcript chain
 

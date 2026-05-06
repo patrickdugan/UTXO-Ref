@@ -71,6 +71,15 @@ test('ASP challenge is slashable when ASP routes wrong outcome', () => {
     bundle.challengeEvidence.challengeCore.violations.includes('asp_settled_wrong_oracle_outcome'),
     'missing wrong-outcome violation'
   );
+  assert(
+    bundle.taprootProofManifest.manifestCore.selectedLeafRole === 'dlc_virtual_cet_settlement',
+    'wrong taproot proof leaf'
+  );
+  assert(
+    bundle.taprootProofManifest.manifestCore.selectedVirtualCetId ===
+      bundle.settlementEvidence.settlementCore.selectedVirtualCetId,
+    'taproot proof manifest should bind selected virtual CET'
+  );
   assert(verifyArkDlcSettlementBundle(bundle).ok, 'bundle should verify');
 });
 

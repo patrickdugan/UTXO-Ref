@@ -46,17 +46,29 @@ const m1ProceduralSync = require('./m1_procedural_sync');
 const m1Pipeline = require('./m1_pipeline');
 const m1ParallelUtxoIndex = require('./m1_parallel_utxo_index');
 const m1BitvmSearchManifolds = require('./m1_bitvm_search_manifolds');
+const jurassicBitvmMechanisms = require('./jurassic_bitvm_mechanisms');
+const halalCapitalTemplateRegistry = require('./halal_capital_template_registry');
+const halalCapitalMarketplaceDemo = require('./halal_capital_marketplace_demo');
+const halalCapitalTradeLayerTokens = require('./halal_capital_tradelayer_tokens');
+const halalCapitalProtocolBundles = require('./halal_capital_protocol_bundles');
+const omaniFiqhStablecoinCompliance = require('./omani_fiqh_stablecoin_compliance');
+const sukukStablecoinHalalDefi = require('./sukuk_stablecoin_halal_defi');
 const lightningIntegration = require('./lightning_integration');
 const spiralLdkValueAdd = require('./spiral_ldk_value_add');
 const lightningLiquidityLease = require('./lightning_liquidity_lease');
 const lightningWalletIntegration = require('./lightning_wallet_integration');
 const lightningTaprootAssetsStablecoin = require('./lightning_taproot_assets_stablecoin');
 const lightningArkLiquidityGraft = require('./lightning_ark_liquidity_graft');
+const arkTaprootMiniscriptProofManifest = require('./ark_taproot_miniscript_proof_manifest');
+const arkZkMiniscriptProof = require('./ark_zk_miniscript_proof');
+const lightningZkPrograms = require('./lightning_zk_programs');
+const shinigamiProofPublication = require('./shinigami_proof_publication');
 const shinigamiVirtualCetArk = require('./shinigami_virtual_cet_ark');
 const aspBitvmReserveBond = require('./asp_bitvm_reserve_bond');
 const arkDlcSettlement = require('./ark_dlc_settlement');
 const arkLiquidityGraftManager = require('./ark_liquidity_graft_manager');
 const lnbtcTlusdLiquidityPatch = require('./lnbtc_tlusd_liquidity_patch');
+const bitvmChannelRouter = require('./bitvm_channel_router');
 const lightningTradeLayerOracleDlc = require('./lightning_tradelayer_oracle_dlc');
 const tradeLayerPnlRouteAdapter = require('./tradelayer_pnl_route_adapter');
 const tradeLayerSendOracleExtractor = require('./tradelayer_send_oracle_extractor');
@@ -155,6 +167,64 @@ module.exports = {
   buildBitvmSearchManifolds: m1BitvmSearchManifolds.buildBitvmSearchManifolds,
   loadLatestBitvmSearchManifoldInputs: m1BitvmSearchManifolds.loadLatestBitvmSearchManifoldInputs,
   writeBitvmSearchManifolds: m1BitvmSearchManifolds.writeBitvmSearchManifolds,
+  JURASSIC_BITVM_TARGETS: jurassicBitvmMechanisms.TARGETS,
+  buildJurassicBitvmMechanismCore: jurassicBitvmMechanisms.buildMechanismCore,
+  buildJurassicTranscriptSwitchboard: jurassicBitvmMechanisms.buildTranscriptSwitchboard,
+  buildJurassicIdentifierRelayMatrix: jurassicBitvmMechanisms.buildIdentifierRelayMatrix,
+  buildJurassicCarrierShadowRoutes: jurassicBitvmMechanisms.buildCarrierShadowRoutes,
+  buildJurassicMechanismRefs: jurassicBitvmMechanisms.buildJurassicMechanismRefs,
+  buildJurassicBitvmMechanismCatalog: jurassicBitvmMechanisms.buildJurassicBitvmMechanismCatalog,
+  writeJurassicBitvmMechanismCatalog: jurassicBitvmMechanisms.writeJurassicBitvmMechanismCatalog,
+  HALAL_CAPITAL_PROPERTY_TEMPLATES: halalCapitalTemplateRegistry.CAPITAL_PROPERTY_TEMPLATES,
+  buildHalalCapitalTemplateRegistry: halalCapitalTemplateRegistry.buildCapitalTemplateRegistry,
+  buildHalalCapitalCommitment: halalCapitalTemplateRegistry.buildCapitalCommitment,
+  verifyHalalCapitalCommitment: halalCapitalTemplateRegistry.verifyCapitalCommitment,
+  verifyExclusiveHalalCapitalSet: halalCapitalTemplateRegistry.verifyExclusiveCapitalSet,
+  buildHalalCapitalRoleTransition: halalCapitalTemplateRegistry.buildCapitalRoleTransition,
+  verifyHalalCapitalRoleTransition: halalCapitalTemplateRegistry.verifyCapitalRoleTransition,
+  buildHalalCapitalRoadmap: halalCapitalTemplateRegistry.buildHalalCapitalRoadmap,
+  writeHalalCapitalRoadmap: halalCapitalTemplateRegistry.writeHalalCapitalRoadmap,
+  buildHalalCapitalMarketplaceSnapshot: halalCapitalMarketplaceDemo.buildHalalCapitalMarketplaceSnapshot,
+  verifyHalalCapitalMarketplaceSnapshot: halalCapitalMarketplaceDemo.verifyHalalCapitalMarketplaceSnapshot,
+  writeHalalCapitalMarketplaceSnapshot: halalCapitalMarketplaceDemo.writeHalalCapitalMarketplaceSnapshot,
+  buildHalalCapitalObserverIndex: halalCapitalMarketplaceDemo.buildObserverIndex,
+  buildHalalCapitalServiceRevenueEvent: halalCapitalMarketplaceDemo.buildServiceRevenueEvent,
+  buildHalalCapitalTradeLayerTokenPlan: halalCapitalTradeLayerTokens.buildHalalCapitalTradeLayerTokenPlan,
+  verifyHalalCapitalTradeLayerTokenPlan: halalCapitalTradeLayerTokens.verifyHalalCapitalTradeLayerTokenPlan,
+  writeHalalCapitalTradeLayerTokenPlan: halalCapitalTradeLayerTokens.writeHalalCapitalTradeLayerTokenPlan,
+  buildHalalCapitalTradeLayerTokenSpec: halalCapitalTradeLayerTokens.buildTradeLayerTokenSpec,
+  buildHalalCapitalPrincipalMintEvent: halalCapitalTradeLayerTokens.buildPrincipalMintEvent,
+  buildHalalCapitalServiceRevenueCreditEvent: halalCapitalTradeLayerTokens.buildServiceRevenueCreditEvent,
+  HALAL_CAPITAL_PROTOCOL_PROPERTY_IDS: halalCapitalProtocolBundles.PROTOCOL_PROPERTY_IDS,
+  buildHalalCapitalProtocolArtifact: halalCapitalProtocolBundles.buildProtocolArtifact,
+  verifyHalalCapitalProtocolArtifact: halalCapitalProtocolBundles.verifyProtocolArtifact,
+  buildHalalCapitalProtocolRetirementFlow: halalCapitalProtocolBundles.buildProtocolRetirementFlow,
+  verifyHalalCapitalProtocolRetirementFlow: halalCapitalProtocolBundles.verifyProtocolRetirementFlow,
+  buildHalalCapitalPropertyProtocolBundle: halalCapitalProtocolBundles.buildPropertyProtocolBundle,
+  verifyHalalCapitalPropertyProtocolBundle: halalCapitalProtocolBundles.verifyPropertyProtocolBundle,
+  buildHalalCapitalProtocolBundlePortfolio: halalCapitalProtocolBundles.buildHalalCapitalProtocolBundlePortfolio,
+  verifyHalalCapitalProtocolBundlePortfolio: halalCapitalProtocolBundles.verifyHalalCapitalProtocolBundlePortfolio,
+  writeHalalCapitalProtocolBundlePortfolio: halalCapitalProtocolBundles.writeHalalCapitalProtocolBundlePortfolio,
+  buildOmaniFiqhStablecoinComplianceChecklist: omaniFiqhStablecoinCompliance.buildOmaniFiqhStablecoinComplianceChecklist,
+  verifyOmaniFiqhStablecoinComplianceChecklist: omaniFiqhStablecoinCompliance.verifyOmaniFiqhStablecoinComplianceChecklist,
+  writeOmaniFiqhStablecoinComplianceChecklist: omaniFiqhStablecoinCompliance.writeOmaniFiqhStablecoinComplianceChecklist,
+  SUKUK_STABLECOIN_PROPERTY_ID: sukukStablecoinHalalDefi.STABLECOIN_PROPERTY_ID,
+  SUKUK_STABLECOIN_TICKER: sukukStablecoinHalalDefi.STABLECOIN_TICKER,
+  buildBankedSukukStablecoinReserve: sukukStablecoinHalalDefi.buildBankedSukukStablecoinReserve,
+  verifyBankedSukukStablecoinReserve: sukukStablecoinHalalDefi.verifyBankedSukukStablecoinReserve,
+  buildTradeLayerSukukStablecoinIssuance: sukukStablecoinHalalDefi.buildTradeLayerStablecoinIssuance,
+  verifyTradeLayerSukukStablecoinIssuance: sukukStablecoinHalalDefi.verifyTradeLayerStablecoinIssuance,
+  buildTaprootSukukStablecoinPledge: sukukStablecoinHalalDefi.buildTaprootStablecoinPledge,
+  verifyTaprootSukukStablecoinPledge: sukukStablecoinHalalDefi.verifyTaprootStablecoinPledge,
+  buildDynamicHawalaRouteQuote: sukukStablecoinHalalDefi.buildDynamicHawalaRouteQuote,
+  verifyDynamicHawalaRouteQuote: sukukStablecoinHalalDefi.verifyDynamicHawalaRouteQuote,
+  buildLightningHawalaRoutingMarket: sukukStablecoinHalalDefi.buildLightningHawalaRoutingMarket,
+  verifyLightningHawalaRoutingMarket: sukukStablecoinHalalDefi.verifyLightningHawalaRoutingMarket,
+  buildTradeLayerSukukArbMandate: sukukStablecoinHalalDefi.buildTradeLayerArbMandate,
+  verifyTradeLayerSukukArbMandate: sukukStablecoinHalalDefi.verifyTradeLayerArbMandate,
+  buildSukukStablecoinHalalDefiPortfolio: sukukStablecoinHalalDefi.buildSukukStablecoinHalalDefiPortfolio,
+  verifySukukStablecoinHalalDefiPortfolio: sukukStablecoinHalalDefi.verifySukukStablecoinHalalDefiPortfolio,
+  writeSukukStablecoinHalalDefiPortfolio: sukukStablecoinHalalDefi.writeSukukStablecoinHalalDefiPortfolio,
   deriveLightningPreimageHex: lightningIntegration.derivePreimageHex,
   deriveLightningPaymentHashHex: lightningIntegration.derivePaymentHashHex,
   makePrototypeLightningInvoice: lightningIntegration.makePrototypeInvoice,
@@ -193,6 +263,46 @@ module.exports = {
   buildArkGraftCostModel: lightningArkLiquidityGraft.buildArkGraftCostModel,
   buildArkLiquidityGraftBundle: lightningArkLiquidityGraft.buildArkLiquidityGraftBundle,
   verifyArkLiquidityGraftBundle: lightningArkLiquidityGraft.verifyArkLiquidityGraftBundle,
+  buildArkTaprootLeafSet: arkTaprootMiniscriptProofManifest.buildArkTaprootLeafSet,
+  ARK_TAPROOT_MAX_PATH_DEPTH: arkTaprootMiniscriptProofManifest.MAX_TAPROOT_PATH_DEPTH,
+  ARK_TAPROOT_PATH_ALGORITHM: arkTaprootMiniscriptProofManifest.TAPROOT_PATH_ALGORITHM,
+  buildArkTaprootMiniscriptProofManifest:
+    arkTaprootMiniscriptProofManifest.buildArkTaprootMiniscriptProofManifest,
+  verifyArkTaprootMiniscriptProofManifest:
+    arkTaprootMiniscriptProofManifest.verifyArkTaprootMiniscriptProofManifest,
+  deriveArkTaprootLeafHash: arkTaprootMiniscriptProofManifest.deriveLeafHash,
+  deriveArkTaprootBranchHash: arkTaprootMiniscriptProofManifest.deriveBranchHash,
+  deriveArkTaprootPathProof: arkTaprootMiniscriptProofManifest.deriveTaprootPathProof,
+  ARK_ZK_MINISCRIPT_ROLE_CODES: arkZkMiniscriptProof.ROLE_CODES,
+  ARK_ZK_MINISCRIPT_ROLE_ORDER: arkZkMiniscriptProof.ROLE_ORDER,
+  buildArkZkTaprootPathWitness: arkZkMiniscriptProof.buildTaprootPathWitness,
+  splitArkZkHashToU128Limbs: arkZkMiniscriptProof.hex32ToU128Limbs,
+  computeArkZkMiniscriptBinding: arkZkMiniscriptProof.computeArkZkMiniscriptBinding,
+  buildArkZkMiniscriptClaim: arkZkMiniscriptProof.buildArkZkMiniscriptClaim,
+  buildArkZkMiniscriptClaimCorpus: arkZkMiniscriptProof.buildArkZkMiniscriptClaimCorpus,
+  writeArkZkMiniscriptClaimCorpus: arkZkMiniscriptProof.writeArkZkMiniscriptClaimCorpus,
+  buildArkZkMiniscriptProofReceipt: arkZkMiniscriptProof.buildArkZkMiniscriptProofReceipt,
+  verifyArkZkMiniscriptProofReceipt: arkZkMiniscriptProof.verifyArkZkMiniscriptProofReceipt,
+  writeArkZkMiniscriptProofReceipt: arkZkMiniscriptProof.writeArkZkMiniscriptProofReceipt,
+  writeArkZkMiniscriptProofReceiptsFromSummary:
+    arkZkMiniscriptProof.writeArkZkMiniscriptProofReceiptsFromSummary,
+  buildSyntheticLightningZkReceiptRef: lightningZkPrograms.buildSyntheticZkReceiptRef,
+  buildLightningPaymentConditionProof: lightningZkPrograms.buildLightningPaymentConditionProof,
+  verifyLightningPaymentConditionProof: lightningZkPrograms.verifyLightningPaymentConditionProof,
+  buildArkZkReceiptRef: lightningZkPrograms.buildArkZkReceiptRef,
+  buildProgrammableWatchtower: lightningZkPrograms.buildProgrammableWatchtower,
+  verifyProgrammableWatchtower: lightningZkPrograms.verifyProgrammableWatchtower,
+  buildProgrammableAspPolicy: lightningZkPrograms.buildProgrammableAspPolicy,
+  verifyProgrammableAspPolicy: lightningZkPrograms.verifyProgrammableAspPolicy,
+  buildProgrammableLightningZkBundle: lightningZkPrograms.buildProgrammableLightningZkBundle,
+  verifyProgrammableLightningZkBundle: lightningZkPrograms.verifyProgrammableLightningZkBundle,
+  writeProgrammableLightningZkBundle: lightningZkPrograms.writeProgrammableLightningZkBundle,
+  buildShinigamiProgramState: shinigamiProofPublication.buildShinigamiProgramState,
+  buildShinigamiProofPublication: shinigamiProofPublication.buildShinigamiProofPublication,
+  buildShinigamiVerifierReceipt: shinigamiProofPublication.buildShinigamiVerifierReceipt,
+  buildShinigamiProofChallenge: shinigamiProofPublication.buildShinigamiProofChallenge,
+  buildShinigamiProofPublicationBundle: shinigamiProofPublication.buildShinigamiProofPublicationBundle,
+  verifyShinigamiProofPublicationBundle: shinigamiProofPublication.verifyShinigamiProofPublicationBundle,
   buildShinigamiVirtualCetBundle: shinigamiVirtualCetArk.buildShinigamiVirtualCetBundle,
   verifyShinigamiVirtualCetBundle: shinigamiVirtualCetArk.verifyShinigamiVirtualCetBundle,
   buildShinigamiFraudCases: shinigamiVirtualCetArk.buildShinigamiFraudCases,
@@ -227,6 +337,12 @@ module.exports = {
   buildLiquidityPatchMandate: lnbtcTlusdLiquidityPatch.buildLiquidityPatchMandate,
   buildLnBtcTlUsdLiquidityPatchBundle: lnbtcTlusdLiquidityPatch.buildLnBtcTlUsdLiquidityPatchBundle,
   verifyLnBtcTlUsdLiquidityPatchBundle: lnbtcTlusdLiquidityPatch.verifyLnBtcTlUsdLiquidityPatchBundle,
+  buildBitvmChannelInventory: bitvmChannelRouter.buildBitvmChannelInventory,
+  buildBitvmChannelRouterPlan: bitvmChannelRouter.buildBitvmChannelRouterPlan,
+  verifyBitvmChannelRouterPlan: bitvmChannelRouter.verifyBitvmChannelRouterPlan,
+  buildBitvmChannelRouterWalletView: bitvmChannelRouter.buildBitvmChannelRouterWalletView,
+  buildBitvmChannelRouterBundle: bitvmChannelRouter.buildBitvmChannelRouterBundle,
+  verifyBitvmChannelRouterBundle: bitvmChannelRouter.verifyBitvmChannelRouterBundle,
   TRADELAYER_ORACLE_MAX_PRICE_DEVIATION_BPS: lightningTradeLayerOracleDlc.DEFAULT_MAX_PRICE_DEVIATION_BPS,
   TRADELAYER_DEFAULT_DESIGNATED_ORACLE_ADDRESS: lightningTradeLayerOracleDlc.DEFAULT_DESIGNATED_ORACLE_ADDRESS,
   encodeTradeLayerPublishOracleData: lightningTradeLayerOracleDlc.encodeTradeLayerPublishOracleData,
@@ -331,17 +447,29 @@ module.exports = {
   m1Pipeline,
   m1ParallelUtxoIndex,
   m1BitvmSearchManifolds,
+  jurassicBitvmMechanisms,
+  halalCapitalTemplateRegistry,
+  halalCapitalMarketplaceDemo,
+  halalCapitalTradeLayerTokens,
+  halalCapitalProtocolBundles,
+  omaniFiqhStablecoinCompliance,
+  sukukStablecoinHalalDefi,
   lightningIntegration,
   spiralLdkValueAdd,
   lightningLiquidityLease,
   lightningWalletIntegration,
   lightningTaprootAssetsStablecoin,
   lightningArkLiquidityGraft,
+  arkTaprootMiniscriptProofManifest,
+  arkZkMiniscriptProof,
+  lightningZkPrograms,
+  shinigamiProofPublication,
   shinigamiVirtualCetArk,
   aspBitvmReserveBond,
   arkDlcSettlement,
   arkLiquidityGraftManager,
   lnbtcTlusdLiquidityPatch,
+  bitvmChannelRouter,
   lightningTradeLayerOracleDlc,
   tradeLayerPnlRouteAdapter,
   tradeLayerSendOracleExtractor,

@@ -1,0 +1,35 @@
+{
+  "kind": "ark_zk_miniscript_proof_receipt",
+  "receiptId": "9e8cf05d6d7d58b10265ff065de8b1339415c7cfaf482e597cfe3e657e4e1f39",
+  "receiptCore": {
+    "version": 1,
+    "protocol": "ark_zk_miniscript_proof_receipt",
+    "claimId": "283ccd1b82b5b0f5b0182b828466e04da60da30eae0410bbc5ea1b9d2d3936bd",
+    "manifestId": "3d25c067fa4e09fa2bfd23d58406b77534722cc92c17ece4dc519f39dc0f1900",
+    "selectedLeafRole": "utxoref_challenge_publication",
+    "selectedLeafRoleCode": 5,
+    "bindingCommitment": "0x15fe99ebcc64ba612041c5f693f5f5e11cad8b12",
+    "paths": {
+      "claimPath": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\ark_zk_miniscript\\ark_zk_miniscript_utxoref_challenge_publication.claim.json",
+      "inputPath": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\ark_zk_miniscript\\ark_zk_miniscript_utxoref_challenge_publication.input.json",
+      "proofPath": "D:\\cargo-target\\ark-shinigami\\proofs\\ark_zk_miniscript_utxoref_challenge_publication.proof.json",
+      "proverLogPath": "D:\\cargo-target\\ark-shinigami\\logs\\ark_zk_miniscript_utxoref_challenge_publication.proof.log",
+      "verifierLogPath": "D:\\cargo-target\\ark-shinigami\\logs\\ark_zk_miniscript_utxoref_challenge_publication.proof.verify.log"
+    },
+    "hashes": {
+      "inputSha256": "b724f21d22af7be89b740674d6d290907294c509e218e4be137fd61c6d670913",
+      "proofSha256": "14296e39d9b758e3ed566f5c2de61aa6c55e83e33af1d9bed55119bded8739dc",
+      "proverLogSha256": "f0781e0d649ee520d2f1c03672a1c7808e66c27fd540b2814132eeb8ed9060b5",
+      "verifierLogSha256": "b3f3e510848de1044251b17d538f9da593342f8e5b9782429eee85d7e770dab2"
+    },
+    "status": {
+      "proverExitCode": 0,
+      "verifierExitCode": 0
+    },
+    "remote": {
+      "host": "snacksack",
+      "rayonThreads": 2,
+      "minRemoteAvailableGb": 24
+    }
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "kind": "ark_zk_miniscript_proof_receipt",
+  "receiptId": "e7b3c9e6f984695fd31788d20ff6437d7ce9889df17d4e2ded2e65f3634ce05c",
+  "receiptCore": {
+    "version": 1,
+    "protocol": "ark_zk_miniscript_proof_receipt",
+    "claimId": "de252ed6c94d57221cf3874da2edc3a2014bc6ddb54cbaa97f1fbe2614108e11",
+    "manifestId": "572c9ed462aa894883e94f2f4494e15b100445f7176610dafbdbb86d6c707d0e",
+    "selectedLeafRole": "dlc_virtual_cet_settlement",
+    "selectedLeafRoleCode": 4,
+    "bindingCommitment": "0x30954eeff3ef6e0f0bb22ac53d9a5c672b198935d4",
+    "paths": {
+      "claimPath": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\ark_zk_miniscript\\ark_zk_miniscript_dlc_virtual_cet_settlement.claim.json",
+      "inputPath": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\ark_zk_miniscript\\ark_zk_miniscript_dlc_virtual_cet_settlement.input.json",
+      "proofPath": "D:\\cargo-target\\ark-shinigami\\proofs\\ark_zk_miniscript_dlc_virtual_cet_settlement.proof.json",
+      "proverLogPath": "D:\\cargo-target\\ark-shinigami\\logs\\ark_zk_miniscript_dlc_virtual_cet_settlement.proof.log",
+      "verifierLogPath": "D:\\cargo-target\\ark-shinigami\\logs\\ark_zk_miniscript_dlc_virtual_cet_settlement.proof.verify.log"
+    },
+    "hashes": {
+      "inputSha256": "9562a25859130a168f9b03ffc57928a573a576b94279099417f080c57ac1deb3",
+      "proofSha256": "a39afc7e1577f0f5eb6514539778845401f04b0459201029e04244e1eefdedea",
+      "proverLogSha256": "0bb77073bea56a22d0e9bcb22638022e5dbb7c812b5c9f135154f518fd984772",
+      "verifierLogSha256": "2c1a43324571fd554dd86b81c8b6efe669f95b07c44496ef7cc114b7c8890cfe"
+    },
+    "status": {
+      "proverExitCode": 0,
+      "verifierExitCode": 0
+    },
+    "remote": {
+      "host": "snacksack",
+      "rayonThreads": 2,
+      "minRemoteAvailableGb": 24
+    }
+  }
+}

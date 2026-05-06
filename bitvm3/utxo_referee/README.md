@@ -366,6 +366,30 @@ POST http://127.0.0.1:8787/v1/ark-dlc-settlement/challenge
 This is not a production Ark round implementation. Production needs ASP
 signatures, VTXO tree proofs, connector tracking, and forfeit/exit validation.
 
+## Ark Taproot / Miniscript Proof Manifest
+
+The Ark proof-manifest module commits the Taproot policy shape shared by the
+Ark, DLC, Shinigami, and UTXORef bundles:
+
+- cooperative Ark round leaf
+- owner CSV exit leaf
+- ASP forfeit guard leaf
+- DLC virtual CET settlement leaf
+- UTXORef challenge-publication leaf
+
+Build and verify the manifest directly:
+
+```bash
+node bitvm3/utxo_referee/ark_taproot_miniscript_proof_manifest.test.js
+```
+
+The manifest is a deterministic policy/proof contract, not a Bitcoin descriptor
+compiler and not a STARK verifier. Bitcoin enforces the Taproot spend path;
+UTXORef/BitVM consumes the manifest ID, selected leaf hash, Miniscript policy
+hash, and public-input digest for challenge and publication evidence. The real
+Shinigami/Stwo proof can replace the current `manifest_only` proof package
+without changing the Ark/LN/DLC bundle contract.
+
 The artifact includes a marginal cost model comparing repeated LN
 open/close/splice/rebalance operations with Ark round-share, ASP fee, expected
 exit cost, and BitVM challenge reserve. Under the demo assumptions, the Ark path

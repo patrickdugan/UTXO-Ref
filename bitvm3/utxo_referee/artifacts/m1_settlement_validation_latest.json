@@ -1,6 +1,6 @@
 {
   "kind": "m1_settlement_validation",
-  "createdAt": "2026-04-05T19:02:26.772Z",
+  "createdAt": "2026-04-08T15:04:03.437Z",
   "sourceArtifacts": {
     "draftPath": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\m1_dlc_draft_latest.json",
     "witnessPath": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\m1_challenge_witness_latest.json",
@@ -14,10 +14,10 @@
         "ok": true,
         "expected": {
           "settlementKind": "pnl-sweep",
-          "winnerSweepSats": "40000",
-          "refundRemainderSats": "760000",
+          "winnerSweepSats": "39577",
+          "refundRemainderSats": "751963",
           "feeSats": "0",
-          "collateralSats": "800000"
+          "collateralSats": "791540"
         }
       },
       {
@@ -25,10 +25,10 @@
         "ok": true,
         "expected": {
           "settlementKind": "pnl-sweep",
-          "winnerSweepSats": "40000",
-          "refundRemainderSats": "760000",
+          "winnerSweepSats": "39577",
+          "refundRemainderSats": "751963",
           "feeSats": "0",
-          "collateralSats": "800000"
+          "collateralSats": "791540"
         }
       }
     ],
@@ -36,23 +36,23 @@
       "ok": true,
       "expected": {
         "settlementKind": "timeout-refund",
-        "winnerSweepSats": "758195",
-        "refundRemainderSats": "39905",
+        "winnerSweepSats": "715863",
+        "refundRemainderSats": "37677",
         "feeSats": "0",
-        "collateralSats": "798100"
+        "collateralSats": "753540"
       }
     },
     "timeoutProof": {
       "ok": true,
       "expected": {
         "settlementKind": "timeout-refund",
-        "winnerSweepSats": "758195",
-        "refundRemainderSats": "39905",
+        "winnerSweepSats": "715863",
+        "refundRemainderSats": "37677",
         "feeSats": "0",
-        "collateralSats": "798100"
+        "collateralSats": "753540"
       }
     }
   },
   "gaps": [],
-  "validationHash": "cf759ff0f313d3fbd6d1fb2d625240c3901071586210e0d87cd9ddd58c014373"
+  "validationHash": "9ae9cd4007c58234459229659f53e44eabf28ce87b58eab4abac72b91abebb40"
 }

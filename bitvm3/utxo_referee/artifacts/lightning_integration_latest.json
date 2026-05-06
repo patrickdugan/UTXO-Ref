@@ -1,0 +1,328 @@
+{
+  "kind": "lightning_bitvm_dlc_prototype_bundle",
+  "version": 1,
+  "bundleId": "4193c647ed4c68f111b0ca6e789c345b1c383165e4e61525f3fc8aa41086a1ce",
+  "bundleCore": {
+    "positionOpenTranscriptId": "bf70aeedf66e72fc915ca551c03f996d650f39b99d187f98315cead31261b925",
+    "payoutRoot": "33404934587fcfd90459d01b8e0d9be1f8e00df2049ed98e38df317c0b63b2f0",
+    "bountyId": "7cbf9c5d5269623e323bfb3b141e4439bc287f1f7b062953e2f6368d91c28065",
+    "apiSessionId": "0b3f160c4fdae56bcefe9d6f82247d9efb7bcc986d2b79c46d98efb14ba6adde",
+    "rolloverRoot": "f207ab08edb261d1e6c84e9ed253317419d818675b24a8a798acf762c4646166"
+  },
+  "prototypes": {
+    "positionOpen": {
+      "kind": "lightning_funded_bitvm_dlc_position_open",
+      "transcriptId": "bf70aeedf66e72fc915ca551c03f996d650f39b99d187f98315cead31261b925",
+      "transcriptCore": {
+        "version": 1,
+        "userId": "alice",
+        "epochId": "1",
+        "dlcId": "dlc-1",
+        "lnAmountSats": "100750",
+        "collateralSats": "100000",
+        "swapFeeSats": "250",
+        "fundingFeeSats": "500",
+        "paymentHashHex": "16924396ca9a4634297ac7b86476e9a5e095e67218c14929db02922bf242159d",
+        "fundingOutputCommitmentHash": "3329af156c5a58fc62d2964ba2d3524862d9ff61726d2855e42c31016b28ff86"
+      },
+      "lightning": {
+        "mode": "hold-invoice-submarine-swap",
+        "invoice": "lnbc100750n1p5f6107c7bd92900da2b385cf7ba3b069",
+        "amountMsat": "100750000",
+        "paymentHashHex": "16924396ca9a4634297ac7b86476e9a5e095e67218c14929db02922bf242159d",
+        "preimageHex": "39739cb37d4c7d2859291aded8ecba3b691b41e3c426a3da4629cc09eb3c7600",
+        "settlementCondition": "funding_tx_seen_and_referee_commitment_matches"
+      },
+      "fundingOutput": {
+        "kind": "bitvm_dlc_funding_output_commitment",
+        "payload": {
+          "version": 1,
+          "epochId": "1",
+          "dlcId": "dlc-1",
+          "bitvmCommitmentRoot": "0b99ad82327380925fab3d7b4a4deafc7b5b89d659515eb4619290a1037e65c9",
+          "collateralSats": "100000",
+          "refundAddress": "tb1qrefundprototype",
+          "timeoutBlock": 900144
+        },
+        "commitmentHash": "3329af156c5a58fc62d2964ba2d3524862d9ff61726d2855e42c31016b28ff86"
+      },
+      "fundingPackage": {
+        "kind": "bitvm_dlc_funding_psbt_skeleton",
+        "inputs": [
+          {
+            "role": "swap-provider-input",
+            "amountSats": "100500",
+            "source": "submarine-swap-liquidity"
+          }
+        ],
+        "outputs": [
+          {
+            "role": "bitvm-dlc-funding",
+            "amountSats": "100000",
+            "commitmentHash": "3329af156c5a58fc62d2964ba2d3524862d9ff61726d2855e42c31016b28ff86"
+          }
+        ],
+        "feeSats": "500",
+        "swapLock": {
+          "paymentHashHex": "16924396ca9a4634297ac7b86476e9a5e095e67218c14929db02922bf242159d",
+          "successReveals": "ln_preimage_unlocks_swap_provider_claim",
+          "refundAfterBlock": 900288
+        }
+      },
+      "atomicityChecklist": {
+        "sameHashLocksLightningAndSwap": true,
+        "refundPathExists": true,
+        "fundingOutputBoundToBitvmRoot": true,
+        "feeAccountingBalances": true
+      },
+      "caveats": [
+        "Prototype invoice is deterministic test data, not a real BOLT invoice.",
+        "Production needs LDK/LND/CLN hold-invoice handling and mempool-aware refund policy."
+      ]
+    },
+    "payoutCompression": {
+      "kind": "lightning_payout_compression",
+      "epochId": "1",
+      "root": "33404934587fcfd90459d01b8e0d9be1f8e00df2049ed98e38df317c0b63b2f0",
+      "totalPayoutSats": "67000",
+      "leaves": [
+        {
+          "version": 1,
+          "epochId": "1",
+          "accountId": "alice",
+          "amountSats": "42000",
+          "paymentHashHex": "429931b01447f35ea25b529368229e5ca5fc6b9c6150bd70a76bb83b822a5ecf",
+          "fallbackScriptPubKey": "fallback-spk-0",
+          "preimageHex": "3d66a8d4c5654a9f4a4c294ee3ada6cb71956b48c7ccabdf98c99a62c4c371ab",
+          "settled": true,
+          "leafHash": "75e2c3764733f9b3c596b5928117094f4ae1b1ed11e538c431ee0b268652a86c"
+        },
+        {
+          "version": 1,
+          "epochId": "1",
+          "accountId": "bob",
+          "amountSats": "18000",
+          "paymentHashHex": "277f819bf9e2c70a610a0763b2f839a61736426b45af0b37e073f493d109b106",
+          "fallbackScriptPubKey": "fallback-spk-1",
+          "preimageHex": "6a3144d234a708ca36d568d0aff913ac81bcc81a2d6c451adc447d744bd5e2b1",
+          "settled": true,
+          "leafHash": "7dbafc08a539ba87845e785ccc63a51368306e68839de56fe83922aae9947576"
+        },
+        {
+          "version": 1,
+          "epochId": "1",
+          "accountId": "carol",
+          "amountSats": "7000",
+          "paymentHashHex": "f0e3883b9b391dfda48be57fd0fa7145190c25f79db39439b29b8625b5ae88d2",
+          "fallbackScriptPubKey": "fallback-spk-2",
+          "preimageHex": null,
+          "settled": false,
+          "leafHash": "e9e2e588bcea3e602cb9d28fd6f272df6d6e34e3992e45a60013e2c208d845ff"
+        }
+      ],
+      "settledReceipts": [
+        {
+          "accountId": "alice",
+          "amountSats": "42000",
+          "paymentHashHex": "429931b01447f35ea25b529368229e5ca5fc6b9c6150bd70a76bb83b822a5ecf",
+          "preimageHex": "3d66a8d4c5654a9f4a4c294ee3ada6cb71956b48c7ccabdf98c99a62c4c371ab",
+          "receiptHash": "542dcd34f16d7e39cbd2588db9bb6d28581f92765370c1f0fb5961fe71a56b27"
+        },
+        {
+          "accountId": "bob",
+          "amountSats": "18000",
+          "paymentHashHex": "277f819bf9e2c70a610a0763b2f839a61736426b45af0b37e073f493d109b106",
+          "preimageHex": "6a3144d234a708ca36d568d0aff913ac81bcc81a2d6c451adc447d744bd5e2b1",
+          "receiptHash": "8d6228333638bfc0b21f0bdd082e7410d0756e17027a5698d650400a1da0a3f4"
+        }
+      ],
+      "onchainFallbacks": [
+        {
+          "accountId": "carol",
+          "amountSats": "7000",
+          "fallbackScriptPubKey": "fallback-spk-2",
+          "leafHash": "e9e2e588bcea3e602cb9d28fd6f272df6d6e34e3992e45a60013e2c208d845ff"
+        }
+      ],
+      "compressionStats": {
+        "originalOnchainOutputCount": 3,
+        "requiredOnchainFallbackOutputCount": 1,
+        "lightningSettledCount": 2,
+        "avoidedOnchainOutputs": 2
+      }
+    },
+    "watchtowerBounty": {
+      "kind": "lightning_watchtower_bounty",
+      "bountyId": "7cbf9c5d5269623e323bfb3b141e4439bc287f1f7b062953e2f6368d91c28065",
+      "commitment": {
+        "challengeId": "challenge-001",
+        "challengeBundleHash": "863ea3c8137ffdf1ff9b6c4fc2b631e03e23a113d676ed9153633c836a9cdf32",
+        "witnessHash": "5c008d2a7989537986a0485383351bbdc533917b57085140baf12274935288d1",
+        "watcherNodeId": "watcher-node-01",
+        "bountySats": "5000",
+        "paymentHashHex": "ab26600d6bfb90ec0b76e312337819452d351c5a8ef005374816cbfe45b71ae4"
+      },
+      "invoice": "lnbc5000n1pc4a7e19abb63921b2d52e97c560cbd02",
+      "amountMsat": "5000000",
+      "receipt": {
+        "status": "settled",
+        "preimageHex": "4e7b6b03044e48db274f52d5be84bdaf26f60fb8b9335716a175c2e73c457799",
+        "receiptHash": "f110aa2faf51144d0771a147b19f0c7df8b72fd2a02b7a4224bf15a20550796b"
+      },
+      "verification": {
+        "preimageMatchesPaymentHash": true,
+        "witnessBoundToChallenge": true
+      }
+    },
+    "contractOpenApi": {
+      "kind": "ldk_bdk_contract_open_api_prototype",
+      "sessionId": "0b3f160c4fdae56bcefe9d6f82247d9efb7bcc986d2b79c46d98efb14ba6adde",
+      "compatibilityTarget": {
+        "lightning": "LDK Node hold-invoice or BOLT12 offer adapter",
+        "onchainWallet": "BDK PSBT signing/broadcast adapter",
+        "contractCore": "BitVM UTXO referee artifact bundle"
+      },
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/bitvm-dlc/offers",
+          "name": "create_contract_offer"
+        },
+        {
+          "method": "POST",
+          "path": "/v1/bitvm-dlc/offers/{offer_id}/lightning-quote",
+          "name": "quote_lightning_funding"
+        },
+        {
+          "method": "POST",
+          "path": "/v1/bitvm-dlc/sessions/{session_id}/payment",
+          "name": "attach_payment_attempt"
+        },
+        {
+          "method": "POST",
+          "path": "/v1/bitvm-dlc/sessions/{session_id}/funding-psbt",
+          "name": "finalize_funding_psbt"
+        },
+        {
+          "method": "POST",
+          "path": "/v1/bitvm-dlc/sessions/{session_id}/verify",
+          "name": "verify_referee_commitment"
+        }
+      ],
+      "stateMachine": [
+        "offer_created",
+        "lightning_quote_issued",
+        "hold_invoice_accepted",
+        "funding_psbt_finalized",
+        "referee_commitment_verified",
+        "contract_opened"
+      ],
+      "sampleSession": {
+        "offerId": "offer-bf70aeedf66e72fc",
+        "sessionId": "0b3f160c4fdae56bcefe9d6f82247d9efb7bcc986d2b79c46d98efb14ba6adde",
+        "positionTranscriptId": "bf70aeedf66e72fc915ca551c03f996d650f39b99d187f98315cead31261b925",
+        "paymentHashHex": "16924396ca9a4634297ac7b86476e9a5e095e67218c14929db02922bf242159d",
+        "fundingOutputCommitmentHash": "3329af156c5a58fc62d2964ba2d3524862d9ff61726d2855e42c31016b28ff86",
+        "finalState": "contract_opened"
+      },
+      "position": {
+        "kind": "lightning_funded_bitvm_dlc_position_open",
+        "transcriptId": "bf70aeedf66e72fc915ca551c03f996d650f39b99d187f98315cead31261b925",
+        "transcriptCore": {
+          "version": 1,
+          "userId": "alice",
+          "epochId": "1",
+          "dlcId": "dlc-1",
+          "lnAmountSats": "100750",
+          "collateralSats": "100000",
+          "swapFeeSats": "250",
+          "fundingFeeSats": "500",
+          "paymentHashHex": "16924396ca9a4634297ac7b86476e9a5e095e67218c14929db02922bf242159d",
+          "fundingOutputCommitmentHash": "3329af156c5a58fc62d2964ba2d3524862d9ff61726d2855e42c31016b28ff86"
+        },
+        "lightning": {
+          "mode": "hold-invoice-submarine-swap",
+          "invoice": "lnbc100750n1p5f6107c7bd92900da2b385cf7ba3b069",
+          "amountMsat": "100750000",
+          "paymentHashHex": "16924396ca9a4634297ac7b86476e9a5e095e67218c14929db02922bf242159d",
+          "preimageHex": "39739cb37d4c7d2859291aded8ecba3b691b41e3c426a3da4629cc09eb3c7600",
+          "settlementCondition": "funding_tx_seen_and_referee_commitment_matches"
+        },
+        "fundingOutput": {
+          "kind": "bitvm_dlc_funding_output_commitment",
+          "payload": {
+            "version": 1,
+            "epochId": "1",
+            "dlcId": "dlc-1",
+            "bitvmCommitmentRoot": "0b99ad82327380925fab3d7b4a4deafc7b5b89d659515eb4619290a1037e65c9",
+            "collateralSats": "100000",
+            "refundAddress": "tb1qrefundprototype",
+            "timeoutBlock": 900144
+          },
+          "commitmentHash": "3329af156c5a58fc62d2964ba2d3524862d9ff61726d2855e42c31016b28ff86"
+        },
+        "fundingPackage": {
+          "kind": "bitvm_dlc_funding_psbt_skeleton",
+          "inputs": [
+            {
+              "role": "swap-provider-input",
+              "amountSats": "100500",
+              "source": "submarine-swap-liquidity"
+            }
+          ],
+          "outputs": [
+            {
+              "role": "bitvm-dlc-funding",
+              "amountSats": "100000",
+              "commitmentHash": "3329af156c5a58fc62d2964ba2d3524862d9ff61726d2855e42c31016b28ff86"
+            }
+          ],
+          "feeSats": "500",
+          "swapLock": {
+            "paymentHashHex": "16924396ca9a4634297ac7b86476e9a5e095e67218c14929db02922bf242159d",
+            "successReveals": "ln_preimage_unlocks_swap_provider_claim",
+            "refundAfterBlock": 900288
+          }
+        },
+        "atomicityChecklist": {
+          "sameHashLocksLightningAndSwap": true,
+          "refundPathExists": true,
+          "fundingOutputBoundToBitvmRoot": true,
+          "feeAccountingBalances": true
+        },
+        "caveats": [
+          "Prototype invoice is deterministic test data, not a real BOLT invoice.",
+          "Production needs LDK/LND/CLN hold-invoice handling and mempool-aware refund policy."
+        ]
+      }
+    },
+    "rollover": {
+      "kind": "lightning_funded_rollover",
+      "previousEpochId": "1",
+      "nextEpochId": "2",
+      "previousContractId": "dlc-1",
+      "nextContractId": "dlc-2",
+      "previousCollateralSats": "75000",
+      "topUpSats": "25000",
+      "swapFeeSats": "100",
+      "nextCollateralSats": "100000",
+      "lightning": {
+        "invoice": "lnbc25100n1pa4d52cebaaec0369a7da360d9447d48b",
+        "amountMsat": "25100000",
+        "paymentHashHex": "05346e0bdbeb5380946dd9bba1b37bacce95d034baae121de4ab24c23f575b8d",
+        "preimageHex": "41f2d50d79873ea782e32b5b6e7f14e1d6626429d01331b5c27b8bf98533ab38"
+      },
+      "nextCommitment": {
+        "root": "f207ab08edb261d1e6c84e9ed253317419d818675b24a8a798acf762c4646166",
+        "route": "roll",
+        "carriesPreviousCollateral": true,
+        "includesLightningTopUp": true
+      },
+      "conservation": {
+        "expectedNextCollateralSats": "100000",
+        "actualNextCollateralSats": "100000",
+        "holds": true
+      }
+    }
+  }
+}

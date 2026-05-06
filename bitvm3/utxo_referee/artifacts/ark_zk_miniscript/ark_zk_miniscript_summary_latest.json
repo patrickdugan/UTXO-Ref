@@ -1,0 +1,61 @@
+{
+  "kind": "ark_zk_miniscript_claim_corpus_summary",
+  "corpusId": "05bc713c7c87d66d11c9d34ec0a0341553a0f01ef2a8a701c8c57d76e8c3ab66",
+  "sourceBundleId": "9a5e45216176c7fe98dd5d234538675b89b87705e03f98199e08fb4bb98eee60",
+  "createdAt": "2026-05-05T22:24:23.992Z",
+  "roles": [
+    "cooperative_round",
+    "owner_csv_exit",
+    "asp_forfeit_guard",
+    "dlc_virtual_cet_settlement",
+    "utxoref_challenge_publication"
+  ],
+  "claims": [
+    {
+      "role": "cooperative_round",
+      "claimId": "40b3577b81a5e644758c5864a6333bba33cc230b3fda3061f7fcd5b180f3ebd4",
+      "manifestId": "3f8bb38917fa7e8404f9457cb2cf2318c4244200201623575449310b933cc12b",
+      "claimPath": "D:\\Temp\\ark-zk-miniscript-G1GY83\\ark_zk_miniscript_cooperative_round.claim.json",
+      "manifestPath": "D:\\Temp\\ark-zk-miniscript-G1GY83\\ark_zk_miniscript_cooperative_round.manifest.json",
+      "inputPath": "D:\\Temp\\ark-zk-miniscript-G1GY83\\ark_zk_miniscript_cooperative_round.input.json",
+      "inputSha256": "444b439423616e3dd81a8aa6be02942c369f215aa4cf3338e1089c68954f32a8"
+    },
+    {
+      "role": "owner_csv_exit",
+      "claimId": "589f156dbccb89aab19cd2cb3fcea21bc6bf0bbc192240c883f7c0732d99d3c1",
+      "manifestId": "a2da72a8bdf8f995947aebb930f9ce13a2a9aca1364ad16f0ff44bc0cbab8b82",
+      "claimPath": "D:\\Temp\\ark-zk-miniscript-G1GY83\\ark_zk_miniscript_owner_csv_exit.claim.json",
+      "manifestPath": "D:\\Temp\\ark-zk-miniscript-G1GY83\\ark_zk_miniscript_owner_csv_exit.manifest.json",
+      "inputPath": "D:\\Temp\\ark-zk-miniscript-G1GY83\\ark_zk_miniscript_owner_csv_exit.input.json",
+      "inputSha256": "5e341808c92820f3fd78ce4ac7687658005fdd0308de9dc26d88cf9b0632be1b"
+    },
+    {
+      "role": "asp_forfeit_guard",
+      "claimId": "aeaecf93d8206db4e0a66d72e75580d0ab70a17dab6efdbfa8c57782816cbae2",
+      "manifestId": "a746fc6250b7eb708bc7431358c76b7cc9dbb2b88082cbae4518c237b3f4f3aa",
+      "claimPath": "D:\\Temp\\ark-zk-miniscript-G1GY83\\ark_zk_miniscript_asp_forfeit_guard.claim.json",
+      "manifestPath": "D:\\Temp\\ark-zk-miniscript-G1GY83\\ark_zk_miniscript_asp_forfeit_guard.manifest.json",
+      "inputPath": "D:\\Temp\\ark-zk-miniscript-G1GY83\\ark_zk_miniscript_asp_forfeit_guard.input.json",
+      "inputSha256": "d3e6d05af3ec1418c2d0932eed1c6e32e89f6205d003c7bf573f663faabec3b3"
+    },
+    {
+      "role": "dlc_virtual_cet_settlement",
+      "claimId": "de252ed6c94d57221cf3874da2edc3a2014bc6ddb54cbaa97f1fbe2614108e11",
+      "manifestId": "572c9ed462aa894883e94f2f4494e15b100445f7176610dafbdbb86d6c707d0e",
+      "claimPath": "D:\\Temp\\ark-zk-miniscript-G1GY83\\ark_zk_miniscript_dlc_virtual_cet_settlement.claim.json",
+      "manifestPath": "D:\\Temp\\ark-zk-miniscript-G1GY83\\ark_zk_miniscript_dlc_virtual_cet_settlement.manifest.json",
+      "inputPath": "D:\\Temp\\ark-zk-miniscript-G1GY83\\ark_zk_miniscript_dlc_virtual_cet_settlement.input.json",
+      "inputSha256": "9562a25859130a168f9b03ffc57928a573a576b94279099417f080c57ac1deb3"
+    },
+    {
+      "role": "utxoref_challenge_publication",
+      "claimId": "283ccd1b82b5b0f5b0182b828466e04da60da30eae0410bbc5ea1b9d2d3936bd",
+      "manifestId": "3d25c067fa4e09fa2bfd23d58406b77534722cc92c17ece4dc519f39dc0f1900",
+      "claimPath": "D:\\Temp\\ark-zk-miniscript-G1GY83\\ark_zk_miniscript_utxoref_challenge_publication.claim.json",
+      "manifestPath": "D:\\Temp\\ark-zk-miniscript-G1GY83\\ark_zk_miniscript_utxoref_challenge_publication.manifest.json",
+      "inputPath": "D:\\Temp\\ark-zk-miniscript-G1GY83\\ark_zk_miniscript_utxoref_challenge_publication.input.json",
+      "inputSha256": "b724f21d22af7be89b740674d6d290907294c509e218e4be137fd61c6d670913"
+    }
+  ],
+  "summaryId": "2e91c2be9aece10e14d190079b412c896ab9309fe7b1c8044426cb31c424cee6"
+}

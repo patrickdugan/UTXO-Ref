@@ -1,37 +1,38 @@
 {
   "kind": "m1_funding_psbt",
-  "createdAt": "2026-04-05T17:07:42.103Z",
+  "createdAt": "2026-04-25T18:11:26.732Z",
   "chain": {
+    "chainId": "litecoin-testnet",
     "network": "test",
     "rpcUrl": "http://127.0.0.1:19332"
   },
   "wallet": "tl-wallet",
   "sourceDraftPath": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\m1_dlc_draft_latest.json",
-  "sourceDraftHash": "bcb5a65aeb8f3d3d62a035500b19df70ef156968ff7eb919c5de6b07cbb480d8",
+  "sourceDraftHash": "ae8a03b060a79ed2967f87372419efc1ee760cd2bd69c29ab96ccbaeb8cb4e8e",
   "template": {
     "templateId": "dlc-receipt-ltc-testnet-v1",
-    "templateHash": "4da438441bfe9d5d329c376adf4cc5fb9be8aa95981804a9a3c7cbb4e95a651b"
+    "templateHash": "60e19d0c4f34a09a690e679230bf41a63252306e0e06a09e1b090efbcbb7b499"
   },
   "roleSet": {
-    "tag": "m1-20260405-121942",
+    "tag": "m1-20260425-141059",
     "wallet": "tl-wallet",
     "addresses": {
-      "operator": "tltc1q9c930xt6x5qjs8tyj5gsq36ktjcwa7eum9k7kg",
-      "oracle": "tltc1qq2wx8zwv585eszp85qapd08qz26gs920m7p92j",
-      "alice": "tltc1qgnk6pggf4addaadkkx652kpzayc7r8pppl47jw",
-      "bob": "tltc1qw8g3syx0275um9jur3a5ha9cpthuxf0m6rctnc",
-      "residual": "tltc1qwghcxqafwvhwj63sdetxck9uaqd9pzu255fsqw"
+      "operator": "tltc1qwtgx0c9f92ww8gtat82zpsgu4gttwx37xzsf2v",
+      "oracle": "tltc1qmqh6u982ndpp69e43ey2p4agx09mwwy53qf6qg",
+      "alice": "tltc1qyslh3amjs935nmtexvxh5dzyfg7yczmf56n8vn",
+      "bob": "tltc1qcn2tp4wr057kzpjx2vue4hcexrhlllz6k6tx4h",
+      "residual": "tltc1qm3rdyvhqynjwxpxa06m962sq6cu6jpnvncy3rp"
     },
     "pubkeys": {
-      "operator": "03f1faafa679fdae1e6a284a31dc84581d1010cbd7ba77fceb1a384e325e2e9181",
-      "oracle": "0206deaf4503f3aab0a5ccb1bb477a8e562ad1a14034efe4b251854b1acb72dcf4"
+      "operator": "028d119c7086ebb97b6cb1c3bd5c62f2f16dd955836bb7d3ba4f3b8d113cb53d11",
+      "oracle": "029ba5c788a9c97d9d56ee66e25edfe06131705f62e5193d208ed46507651a13ea"
     }
   },
   "contract": {
     "epochId": "1",
-    "eventId": "ltc-testnet-epoch-1-1775406000474",
-    "maturityHeight": 4665946,
-    "refundLocktime": 4666234,
+    "eventId": "ltc-testnet-epoch-1-1777140673550",
+    "maturityHeight": 4685058,
+    "refundLocktime": 4685346,
     "dustCarrySats": "0"
   },
   "settlement": {
@@ -42,129 +43,159 @@
         "kind": "settlement",
         "recipientRole": "alice",
         "winnerRole": "alice",
-        "winnerAddress": "tltc1qgnk6pggf4addaadkkx652kpzayc7r8pppl47jw",
+        "winnerAddress": "tltc1qyslh3amjs935nmtexvxh5dzyfg7yczmf56n8vn",
         "refundRole": "residual",
-        "refundAddress": "tltc1qwghcxqafwvhwj63sdetxck9uaqd9pzu255fsqw",
+        "refundAddress": "tltc1qm3rdyvhqynjwxpxa06m962sq6cu6jpnvncy3rp",
         "feeRole": "operator",
-        "feeAddress": "tltc1q9c930xt6x5qjs8tyj5gsq36ktjcwa7eum9k7kg",
+        "feeAddress": "tltc1qwtgx0c9f92ww8gtat82zpsgu4gttwx37xzsf2v",
         "dustRole": "alice",
-        "dustAddress": "tltc1qgnk6pggf4addaadkkx652kpzayc7r8pppl47jw",
-        "locktime": 4665946,
+        "dustAddress": "tltc1qyslh3amjs935nmtexvxh5dzyfg7yczmf56n8vn",
+        "locktime": 4685058,
         "input": {
-          "txid": "16e1e35f59268d3651da7f8d4a35a03668e77ff28d21d8aa48b4395dea210de9",
+          "txid": "2edb992eade4f6fa7c3f9849a7f4390e839522f9b07d7b4e08ee33550a4eb2fe",
           "vout": 0
         },
         "bucketCapBps": 500,
         "realizedPnlBps": 500,
         "effectivePnlBps": 500,
         "feeBps": 0,
-        "actualPayoutSats": "39905",
-        "payoutSats": "39905",
+        "actualPayoutSats": "8100",
+        "payoutSats": "8100",
         "feeSats": "0",
-        "refundSats": "758195",
-        "rolloverCollateralSats": "758195",
-        "residualSats": "758195",
+        "refundSats": "153900",
+        "rolloverCollateralSats": "153900",
+        "residualSats": "153900",
         "dustCarrySats": "0",
         "defaultOnExpiry": false,
-        "rawTxHex": "0200000001e90d21ea5d39b448aad8218df27fe76836a0354a8d7fda51368d26595fe3e1160000000000feffffff02e19b00000000000016001444eda0a109af5adef5b6b1b5455822e931e19c21b3910b0000000000160014722f8303a9732ee96a306e566c58bce81a508b8a5a324700",
-        "txid": "05efecdf3128eba915ebf8f287aec7412e7f778a5dc0e70ad1413fb02c3538d4"
+        "rawTxHex": "0200000001feb24e0a5533ee084e7b7db0f92295830e39f4a749983f7cfaf6e4ad2e99db2e0000000000feffffff02a41f000000000000160014243f78f772816349ed79330d7a34444a3c4c0b692c59020000000000160014dc46d232e024e4e304dd7eb65d2a00d639a9066c027d4700",
+        "txid": "ffd65f45f345a9f69ea832c42c34382f91ed64ebd68188e3641e9f437c277bae",
+        "committedRouting": {
+          "winnerRole": "alice",
+          "winnerAddress": "tltc1qyslh3amjs935nmtexvxh5dzyfg7yczmf56n8vn",
+          "refundRole": "residual",
+          "refundAddress": "tltc1qm3rdyvhqynjwxpxa06m962sq6cu6jpnvncy3rp",
+          "feeRole": "operator",
+          "feeAddress": "tltc1qwtgx0c9f92ww8gtat82zpsgu4gttwx37xzsf2v",
+          "dustRole": "alice",
+          "dustAddress": "tltc1qyslh3amjs935nmtexvxh5dzyfg7yczmf56n8vn"
+        }
       },
       {
         "pathId": "settle-loss",
         "kind": "settlement",
         "recipientRole": "bob",
         "winnerRole": "bob",
-        "winnerAddress": "tltc1qw8g3syx0275um9jur3a5ha9cpthuxf0m6rctnc",
+        "winnerAddress": "tltc1qcn2tp4wr057kzpjx2vue4hcexrhlllz6k6tx4h",
         "refundRole": "residual",
-        "refundAddress": "tltc1qwghcxqafwvhwj63sdetxck9uaqd9pzu255fsqw",
+        "refundAddress": "tltc1qm3rdyvhqynjwxpxa06m962sq6cu6jpnvncy3rp",
         "feeRole": "operator",
-        "feeAddress": "tltc1q9c930xt6x5qjs8tyj5gsq36ktjcwa7eum9k7kg",
+        "feeAddress": "tltc1qwtgx0c9f92ww8gtat82zpsgu4gttwx37xzsf2v",
         "dustRole": "bob",
-        "dustAddress": "tltc1qw8g3syx0275um9jur3a5ha9cpthuxf0m6rctnc",
-        "locktime": 4665946,
+        "dustAddress": "tltc1qcn2tp4wr057kzpjx2vue4hcexrhlllz6k6tx4h",
+        "locktime": 4685058,
         "input": {
-          "txid": "16e1e35f59268d3651da7f8d4a35a03668e77ff28d21d8aa48b4395dea210de9",
+          "txid": "2edb992eade4f6fa7c3f9849a7f4390e839522f9b07d7b4e08ee33550a4eb2fe",
           "vout": 0
         },
         "bucketCapBps": 500,
         "realizedPnlBps": 500,
         "effectivePnlBps": 500,
         "feeBps": 0,
-        "actualPayoutSats": "39905",
-        "payoutSats": "39905",
+        "actualPayoutSats": "8100",
+        "payoutSats": "8100",
         "feeSats": "0",
-        "refundSats": "758195",
-        "rolloverCollateralSats": "758195",
-        "residualSats": "758195",
+        "refundSats": "153900",
+        "rolloverCollateralSats": "153900",
+        "residualSats": "153900",
         "dustCarrySats": "0",
         "defaultOnExpiry": false,
-        "rawTxHex": "0200000001e90d21ea5d39b448aad8218df27fe76836a0354a8d7fda51368d26595fe3e1160000000000feffffff02e19b00000000000016001471d11810cf57a9cd965c1c7b4bf4b80aefc325fbb3910b0000000000160014722f8303a9732ee96a306e566c58bce81a508b8a5a324700",
-        "txid": "f9bc9723d504fdfd7b5179c39f06325d9632ffd6b60a83d40cafab9d1e444602"
+        "rawTxHex": "0200000001feb24e0a5533ee084e7b7db0f92295830e39f4a749983f7cfaf6e4ad2e99db2e0000000000feffffff02a41f000000000000160014c4d4b0d5c37d3d61064653399adf1930effffc5a2c59020000000000160014dc46d232e024e4e304dd7eb65d2a00d639a9066c027d4700",
+        "txid": "f4279d96d2440f688e83fbbcb09aa153901f9acb15a2edb063b44784d73e8af8",
+        "committedRouting": {
+          "winnerRole": "bob",
+          "winnerAddress": "tltc1qcn2tp4wr057kzpjx2vue4hcexrhlllz6k6tx4h",
+          "refundRole": "residual",
+          "refundAddress": "tltc1qm3rdyvhqynjwxpxa06m962sq6cu6jpnvncy3rp",
+          "feeRole": "operator",
+          "feeAddress": "tltc1qwtgx0c9f92ww8gtat82zpsgu4gttwx37xzsf2v",
+          "dustRole": "bob",
+          "dustAddress": "tltc1qcn2tp4wr057kzpjx2vue4hcexrhlllz6k6tx4h"
+        }
       }
     ],
     "roll": {
-      "locktime": 4666234,
+      "locktime": 4685346,
       "input": {
-        "txid": "16e1e35f59268d3651da7f8d4a35a03668e77ff28d21d8aa48b4395dea210de9",
+        "txid": "2edb992eade4f6fa7c3f9849a7f4390e839522f9b07d7b4e08ee33550a4eb2fe",
         "vout": 0
       },
       "payouts": {
-        "residualAddress": "tltc1qwghcxqafwvhwj63sdetxck9uaqd9pzu255fsqw",
-        "winnerAddress": "tltc1qwghcxqafwvhwj63sdetxck9uaqd9pzu255fsqw",
-        "refundAddress": "tltc1qwghcxqafwvhwj63sdetxck9uaqd9pzu255fsqw",
-        "feeAddress": "tltc1q9c930xt6x5qjs8tyj5gsq36ktjcwa7eum9k7kg",
-        "dustAddress": "tltc1qgnk6pggf4addaadkkx652kpzayc7r8pppl47jw",
-        "timeoutRemainderSats": "39905",
-        "rolloverCollateralSats": "758195",
+        "residualAddress": "tltc1qm3rdyvhqynjwxpxa06m962sq6cu6jpnvncy3rp",
+        "winnerAddress": "tltc1qm3rdyvhqynjwxpxa06m962sq6cu6jpnvncy3rp",
+        "refundAddress": "tltc1qm3rdyvhqynjwxpxa06m962sq6cu6jpnvncy3rp",
+        "feeAddress": "tltc1qwtgx0c9f92ww8gtat82zpsgu4gttwx37xzsf2v",
+        "dustAddress": "tltc1qyslh3amjs935nmtexvxh5dzyfg7yczmf56n8vn",
+        "timeoutRemainderSats": "8100",
+        "rolloverCollateralSats": "153900",
         "dustCarrySats": "0"
       },
       "winnerRole": "residual",
-      "winnerAddress": "tltc1qwghcxqafwvhwj63sdetxck9uaqd9pzu255fsqw",
+      "winnerAddress": "tltc1qm3rdyvhqynjwxpxa06m962sq6cu6jpnvncy3rp",
       "refundRole": "residual",
-      "refundAddress": "tltc1qwghcxqafwvhwj63sdetxck9uaqd9pzu255fsqw",
+      "refundAddress": "tltc1qm3rdyvhqynjwxpxa06m962sq6cu6jpnvncy3rp",
       "feeRole": "operator",
-      "feeAddress": "tltc1q9c930xt6x5qjs8tyj5gsq36ktjcwa7eum9k7kg",
+      "feeAddress": "tltc1qwtgx0c9f92ww8gtat82zpsgu4gttwx37xzsf2v",
       "dustRole": "alice",
-      "dustAddress": "tltc1qgnk6pggf4addaadkkx652kpzayc7r8pppl47jw",
-      "rawTxHex": "0200000001e90d21ea5d39b448aad8218df27fe76836a0354a8d7fda51368d26595fe3e1160000000000feffffff01b3910b0000000000160014722f8303a9732ee96a306e566c58bce81a508b8a7a334700",
-      "txid": "aa256f318bf649be94e28e3431bb18d91e9dd7d98fbb31dba80ae728cb9d4f34"
+      "dustAddress": "tltc1qyslh3amjs935nmtexvxh5dzyfg7yczmf56n8vn",
+      "rawTxHex": "0200000001feb24e0a5533ee084e7b7db0f92295830e39f4a749983f7cfaf6e4ad2e99db2e0000000000feffffff01d078020000000000160014dc46d232e024e4e304dd7eb65d2a00d639a9066c227e4700",
+      "txid": "5ca3395ceb0e80fa0b612fd7716ebbcd9027c428fd8c357f374fffc568fe61f2",
+      "committedRouting": {
+        "winnerRole": "residual",
+        "winnerAddress": "tltc1qm3rdyvhqynjwxpxa06m962sq6cu6jpnvncy3rp",
+        "refundRole": "residual",
+        "refundAddress": "tltc1qm3rdyvhqynjwxpxa06m962sq6cu6jpnvncy3rp",
+        "feeRole": "operator",
+        "feeAddress": "tltc1qwtgx0c9f92ww8gtat82zpsgu4gttwx37xzsf2v",
+        "dustRole": "alice",
+        "dustAddress": "tltc1qyslh3amjs935nmtexvxh5dzyfg7yczmf56n8vn"
+      }
     },
     "dustCarrySats": "0"
   },
   "funding": {
     "rolePubkeys": {
-      "alice": "032669ebee9998f71e3d241dcb058e5c25c5549f953085935e71490324ac554e38",
-      "bob": "02b974a8a47894418e991fb129e3fa1e9cbaba10ef4037b2b23109e20cef7a1bd0"
+      "alice": "02c4bc0436086634fe84154a418b653befbb37650cdd047b30a746e9ca0037f6ef",
+      "bob": "02dde542f58c124a520d5e9ee8e9157c6f3de14742d6474c60a41042cef24127eb"
     },
-    "fundingAddress": "tltc1q7qygnygea326qvx0avss7t2pfjy9esyr2yvuqvntkplsvnqhwgxq8h9mv5",
-    "fundingRedeemScript": "5221032669ebee9998f71e3d241dcb058e5c25c5549f953085935e71490324ac554e382102b974a8a47894418e991fb129e3fa1e9cbaba10ef4037b2b23109e20cef7a1bd052ae",
+    "fundingAddress": "tltc1q7gmk5cqdhvm7w5kyjqlud08jevdmfaknlf989xymph3ykj8pju3qvltc48",
+    "fundingRedeemScript": "522102c4bc0436086634fe84154a418b653befbb37650cdd047b30a746e9ca0037f6ef2102dde542f58c124a520d5e9ee8e9157c6f3de14742d6474c60a41042cef24127eb52ae",
     "fundingWitnessScript": null,
     "selectedInputs": [
       {
-        "txid": "cbb25096011450c5fac6f126c1e7386b93fa049b2d804fd7afd5f99664223b13",
-        "vout": 5
+        "txid": "814cc4cdc76a603a1a86dccaaa4339eb15960f5504138c67cbf16013ba79e749",
+        "vout": 0
       },
       {
-        "txid": "cbb25096011450c5fac6f126c1e7386b93fa049b2d804fd7afd5f99664223b13",
-        "vout": 3
+        "txid": "814cc4cdc76a603a1a86dccaaa4339eb15960f5504138c67cbf16013ba79e749",
+        "vout": 2
       }
     ],
-    "requestedCollateralSats": "800000",
-    "effectiveCollateralSats": "798100",
-    "feeLtc": "0.000019",
-    "feeSats": "1900",
-    "psbt": "cHNidP8BAIcCAAAAAhM7ImSW+dWv10+ALZsE+pNrOOfBJvHG+sVQFAGWULLLBQAAAAD/////EzsiZJb51a/XT4AtmwT6k2s458Em8cb6xVAUAZZQsssDAAAAAP////8BlC0MAAAAAAAiACDwCImRGexVoDDP6yEPLUFMiFzAg1EZwDJrsH8GTBdyDAAAAAAAAQDtAgAAAAEklyw2Ig2jbZLhXEVHGW3JxebrNaJX2wT9YQxj4Z6x4AAAAAAA/v///wbgkwQAAAAAABYAFAKcY4nMoemYCCegOha84BK0iBVPIKEHAAAAAAAWABQuCxeZejUBKB1klREAR1ZcsO77PMQRTQAAAAAAFgAUH0Fz+3XtYBt6N1qtgIrKFQjZIKKAGgYAAAAAABYAFHHRGBDPV6nNllwce0v0uArvwyX7IKEHAAAAAAAWABRyL4MDqXMu6WowblZsWLzoGlCLioAaBgAAAAAAFgAURO2goQmvWt71trG1RVgi6THhnCFqLkcAAQEfgBoGAAAAAAAWABRE7aChCa9a3vW2sbVFWCLpMeGcISIGAyZp6+6ZmPcePSQdywWOXCXFVJ+VMIWTXnFJAySsVU44ENTlr1QAAACAAAAAgEkAAIAAAQDtAgAAAAEklyw2Ig2jbZLhXEVHGW3JxebrNaJX2wT9YQxj4Z6x4AAAAAAA/v///wbgkwQAAAAAABYAFAKcY4nMoemYCCegOha84BK0iBVPIKEHAAAAAAAWABQuCxeZejUBKB1klREAR1ZcsO77PMQRTQAAAAAAFgAUH0Fz+3XtYBt6N1qtgIrKFQjZIKKAGgYAAAAAABYAFHHRGBDPV6nNllwce0v0uArvwyX7IKEHAAAAAAAWABRyL4MDqXMu6WowblZsWLzoGlCLioAaBgAAAAAAFgAURO2goQmvWt71trG1RVgi6THhnCFqLkcAAQEfgBoGAAAAAAAWABRx0RgQz1epzZZcHHtL9LgK78Ml+yIGArl0qKR4lEGOmR+xKeP6Hpy6uhDvQDeysjEJ4gzvehvQENTlr1QAAACAAAAAgEoAAIAAAA==",
+    "requestedCollateralSats": "200000",
+    "effectiveCollateralSats": "162000",
+    "feeLtc": "0.00038",
+    "feeSats": "38000",
+    "psbt": "cHNidP8BAIcCAAAAAknneboTYPHLZ4wTBFUPlhXrOUOqytyGGjpgasfNxEyBAAAAAAD/////Sed5uhNg8ctnjBMEVQ+WFes5Q6rK3IYaOmBqx83ETIECAAAAAP////8B0HgCAAAAAAAiACDyN2pgDbs351LEkD/GvPLLG7T20/pKcpibDeJLSOGXIgAAAAAAAQDtAgAAAAH35Vj9SGLS8Vz5WVWt3n7khr7SAr7R3JhzUeP37p5AogQAAAAA/v///waghgEAAAAAABYAFCQ/ePdygWNJ7XkzDXo0REo8TAtpoIYBAAAAAAAWABRy0GfgqSqc46F9WdQgwRyqFrcaPqCGAQAAAAAAFgAUxNSw1cN9PWEGRlM5mt8ZMO///FqghgEAAAAAABYAFNxG0jLgJOTjBN1+tl0qANY5qQZsdMcjAAAAAAAWABTPZ0BU/OD9QGjrPXOUdGhBlgzi5aCGAQAAAAAAFgAU2C+uFOqbQh0XNY5IoNeoM8u3OJQAAAAAAQEfoIYBAAAAAAAWABQkP3j3coFjSe15Mw16NERKPEwLaSIGAsS8BDYIZjT+hBVKQYtlO++7N2UM3QR7MKdG6coAN/bvENTlr1QAAACAAAAAgFUAAIAAAQDtAgAAAAH35Vj9SGLS8Vz5WVWt3n7khr7SAr7R3JhzUeP37p5AogQAAAAA/v///waghgEAAAAAABYAFCQ/ePdygWNJ7XkzDXo0REo8TAtpoIYBAAAAAAAWABRy0GfgqSqc46F9WdQgwRyqFrcaPqCGAQAAAAAAFgAUxNSw1cN9PWEGRlM5mt8ZMO///FqghgEAAAAAABYAFNxG0jLgJOTjBN1+tl0qANY5qQZsdMcjAAAAAAAWABTPZ0BU/OD9QGjrPXOUdGhBlgzi5aCGAQAAAAAAFgAU2C+uFOqbQh0XNY5IoNeoM8u3OJQAAAAAAQEfoIYBAAAAAAAWABTE1LDVw309YQZGUzma3xkw7//8WiIGAt3lQvWMEkpSDV6e6OkVfG894UdC1kdMYKQQQs7yQSfrENTlr1QAAACAAAAAgFYAAIAAAA==",
     "psbtDecodedSummary": {
-      "txid": "16e1e35f59268d3651da7f8d4a35a03668e77ff28d21d8aa48b4395dea210de9",
-      "hash": "16e1e35f59268d3651da7f8d4a35a03668e77ff28d21d8aa48b4395dea210de9",
+      "txid": "2edb992eade4f6fa7c3f9849a7f4390e839522f9b07d7b4e08ee33550a4eb2fe",
+      "hash": "2edb992eade4f6fa7c3f9849a7f4390e839522f9b07d7b4e08ee33550a4eb2fe",
       "vsize": 135,
       "locktime": 0
     },
     "fundingOutpoint": {
-      "txid": "16e1e35f59268d3651da7f8d4a35a03668e77ff28d21d8aa48b4395dea210de9",
+      "txid": "2edb992eade4f6fa7c3f9849a7f4390e839522f9b07d7b4e08ee33550a4eb2fe",
       "vout": 0,
-      "valueLtc": "0.007981",
-      "valueSats": "798100"
+      "valueLtc": "0.00162",
+      "valueSats": "162000"
     }
   }
 }

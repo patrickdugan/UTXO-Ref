@@ -10,10 +10,11 @@
  *   node bitvm3/utxo_referee/m1_dlc_sign_finalize.js
  *
  * Optional env:
- *   LTC_RPC_URL=http://127.0.0.1:19332
- *   LTC_RPC_USER=user
- *   LTC_RPC_PASS=pass
- *   LTC_WALLET=tl-wallet
+ *   BITVM_CHAIN=litecoin-mainnet|litecoin-testnet|bitcoin-mainnet|bitcoin-testnet
+ *   BITVM_RPC_URL=http://127.0.0.1:9332
+ *   BITVM_RPC_USER=user
+ *   BITVM_RPC_PASS=pass
+ *   BITVM_WALLET=tl-wallet
  *   BROADCAST_FUNDING=1
  */
 
@@ -23,11 +24,7 @@ const http = require('http');
 const https = require('https');
 const { URL } = require('url');
 const crypto = require('crypto');
-
-const RPC_URL = process.env.LTC_RPC_URL || 'http://127.0.0.1:19332';
-const RPC_USER = process.env.LTC_RPC_USER || 'user';
-const RPC_PASS = process.env.LTC_RPC_PASS || 'pass';
-const WALLET = process.env.LTC_WALLET || 'tl-wallet';
+const { resolveChainEnv } = require('./m1_chain_env');
 const BROADCAST = (process.env.BROADCAST_FUNDING || '1') !== '0';
 
 const ARTIFACTS_DIR = path.join(__dirname, 'artifacts');
@@ -103,17 +100,18 @@ function rpcFactory({ rpcUrl, rpcUser, rpcPass }) {
 async function run() {
   ensureFile(FUNDING_PSBT_PATH);
   const funding = JSON.parse(fs.readFileSync(FUNDING_PSBT_PATH, 'utf8'));
+  const chainEnv = resolveChainEnv();
   const rpc = rpcFactory({
-    rpcUrl: RPC_URL,
-    rpcUser: RPC_USER,
-    rpcPass: RPC_PASS
+    rpcUrl: chainEnv.rpcUrl,
+    rpcUser: chainEnv.rpcUser,
+    rpcPass: chainEnv.rpcPass
   });
 
   const psbt = funding.funding.psbt;
   if (!psbt) throw new Error('Funding artifact has no PSBT');
 
-  const processed = await rpc('walletprocesspsbt', [psbt, true, 'ALL', true], WALLET);
-  const finalized = await rpc('finalizepsbt', [processed.psbt, true], WALLET);
+  const processed = await rpc('walletprocesspsbt', [psbt, true, 'ALL', true], chainEnv.wallet);
+  const finalized = await rpc('finalizepsbt', [processed.psbt, true], chainEnv.wallet);
 
   if (!finalized.complete || !finalized.hex) {
     throw new Error('PSBT finalization incomplete');
@@ -132,7 +130,7 @@ async function run() {
 
   if (BROADCAST) {
     try {
-      const sentTxid = await rpc('sendrawtransaction', [finalized.hex], WALLET);
+      const sentTxid = await rpc('sendrawtransaction', [finalized.hex], chainEnv.wallet);
       broadcast.sent = true;
       broadcast.txid = sentTxid;
     } catch (e) {
@@ -152,7 +150,11 @@ async function run() {
     createdAt: new Date().toISOString(),
     sourceFundingArtifact: FUNDING_PSBT_PATH,
     sourceHash: sha256Hex(JSON.stringify(funding)),
-    wallet: WALLET,
+    chain: {
+      chainId: chainEnv.chainId,
+      rpcUrl: chainEnv.rpcUrl
+    },
+    wallet: chainEnv.wallet,
     txid,
     wtxid,
     vsize: decoded.vsize,
@@ -164,7 +166,8 @@ async function run() {
   fs.writeFileSync(OUT_PATH, JSON.stringify(out, null, 2));
 
   console.log('=== M1 Funding Finalize ===');
-  console.log(`wallet=${WALLET}`);
+  console.log(`chainId=${chainEnv.chainId}`);
+  console.log(`wallet=${chainEnv.wallet}`);
   console.log(`txid=${txid}`);
   console.log(`wtxid=${wtxid}`);
   console.log(`broadcasted=${broadcast.sent}`);
@@ -178,4 +181,3 @@ run().catch(err => {
   console.error('Finalize failed:', err.message);
   process.exit(1);
 });
-

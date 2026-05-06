@@ -1,9 +1,9 @@
 {
   "kind": "m1_bitvm_dlc_visualization",
-  "createdAt": "2026-04-05T19:06:46.080Z",
+  "createdAt": "2026-04-08T16:09:04.026Z",
   "template": {
     "templateId": "dlc-receipt-ltc-testnet-v1",
-    "templateHash": "5a57ecb55beff99ff5b523d5cdd021aef3781df8b318f9ac9e176cc7c6400151",
+    "templateHash": "60e19d0c4f34a09a690e679230bf41a63252306e0e06a09e1b090efbcbb7b499",
     "settlement": {
       "model": "bounded-loss-carry-forward",
       "bucketCapBps": 500,
@@ -27,14 +27,24 @@
           "realizedPnlBps": 500,
           "effectivePnlBps": 500,
           "feeBps": 0,
-          "actualPayoutSats": "40000",
-          "payoutSats": "40000",
+          "actualPayoutSats": "39577",
+          "payoutSats": "39577",
           "feeSats": "0",
-          "refundSats": "760000",
-          "rolloverCollateralSats": "760000",
-          "residualSats": "760000",
+          "refundSats": "751963",
+          "rolloverCollateralSats": "751963",
+          "residualSats": "751963",
           "dustCarrySats": "0",
-          "defaultOnExpiry": false
+          "defaultOnExpiry": false,
+          "committedRouting": {
+            "winnerRole": "alice",
+            "winnerAddress": "tltc1qgnk6pggf4addaadkkx652kpzayc7r8pppl47jw",
+            "refundRole": "residual",
+            "refundAddress": "tltc1qwghcxqafwvhwj63sdetxck9uaqd9pzu255fsqw",
+            "feeRole": "operator",
+            "feeAddress": "tltc1q9c930xt6x5qjs8tyj5gsq36ktjcwa7eum9k7kg",
+            "dustRole": "alice",
+            "dustAddress": "tltc1qgnk6pggf4addaadkkx652kpzayc7r8pppl47jw"
+          }
         },
         {
           "pathId": "settle-loss",
@@ -52,14 +62,24 @@
           "realizedPnlBps": 500,
           "effectivePnlBps": 500,
           "feeBps": 0,
-          "actualPayoutSats": "40000",
-          "payoutSats": "40000",
+          "actualPayoutSats": "39577",
+          "payoutSats": "39577",
           "feeSats": "0",
-          "refundSats": "760000",
-          "rolloverCollateralSats": "760000",
-          "residualSats": "760000",
+          "refundSats": "751963",
+          "rolloverCollateralSats": "751963",
+          "residualSats": "751963",
           "dustCarrySats": "0",
-          "defaultOnExpiry": false
+          "defaultOnExpiry": false,
+          "committedRouting": {
+            "winnerRole": "bob",
+            "winnerAddress": "tltc1qw8g3syx0275um9jur3a5ha9cpthuxf0m6rctnc",
+            "refundRole": "residual",
+            "refundAddress": "tltc1qwghcxqafwvhwj63sdetxck9uaqd9pzu255fsqw",
+            "feeRole": "operator",
+            "feeAddress": "tltc1q9c930xt6x5qjs8tyj5gsq36ktjcwa7eum9k7kg",
+            "dustRole": "bob",
+            "dustAddress": "tltc1qw8g3syx0275um9jur3a5ha9cpthuxf0m6rctnc"
+          }
         }
       ],
       "roll": {
@@ -74,11 +94,21 @@
         "feeAddress": "tltc1q9c930xt6x5qjs8tyj5gsq36ktjcwa7eum9k7kg",
         "dustRole": "alice",
         "dustAddress": "tltc1qgnk6pggf4addaadkkx652kpzayc7r8pppl47jw",
-        "rollLocktime": 4666236,
-        "timeoutRemainderSats": "40000",
-        "rolloverCollateralSats": "760000",
-        "residualSats": "760000",
-        "dustCarrySats": "0"
+        "rollLocktime": 4668155,
+        "timeoutRemainderSats": "39577",
+        "rolloverCollateralSats": "751963",
+        "residualSats": "751963",
+        "dustCarrySats": "0",
+        "committedRouting": {
+          "winnerRole": "residual",
+          "winnerAddress": "tltc1qwghcxqafwvhwj63sdetxck9uaqd9pzu255fsqw",
+          "refundRole": "residual",
+          "refundAddress": "tltc1qwghcxqafwvhwj63sdetxck9uaqd9pzu255fsqw",
+          "feeRole": "operator",
+          "feeAddress": "tltc1q9c930xt6x5qjs8tyj5gsq36ktjcwa7eum9k7kg",
+          "dustRole": "alice",
+          "dustAddress": "tltc1qgnk6pggf4addaadkkx652kpzayc7r8pppl47jw"
+        }
       },
       "dustCarrySats": "0"
     },
@@ -239,55 +269,98 @@
     },
     "mermaid": "graph TD\n  wallet[\"Funded LTC wallet UTXOs\"]\n  bootstrap[\"m1_dlc_bootstrap\"]\n  psbt[\"m1_dlc_psbt_cet\"]\n  sign[\"m1_dlc_sign_finalize\"]\n  funding[\"Funding UTXO / DLC vault\"]\n  oracle[\"m1_oracle_wiring\"]\n  roll[\"m1_roll_forward\"]\n  ledger[\"Receipt ledger + tally map\"]\n  transition[\"m1_transition + circuit\"]\n  referee[\"UTXO referee sweep circuit\"]\n  wallet -->|select confirmed inputs| bootstrap\n  bootstrap -->|publish draft + settlement paths| psbt\n  psbt -->|walletprocesspsbt / finalizepsbt| sign\n  sign -->|broadcast funding UTXO| funding\n  funding -->|oracle attestation binds CET path| oracle\n  funding -->|mint / burn receipt balances| ledger\n  ledger -->|epoch handoff and route selection| transition\n  transition -->|timeout branch carries forward dust/collateral| roll\n  oracle -->|attestation + payout claims| referee\n  transition -->|receipt balance root / claim root check| referee"
   },
+  "liveOps": {
+    "proceduralSync": {
+      "state": "SETTLED",
+      "contractId": "ltc-testnet-epoch-1-1775582088654",
+      "fundingTxid": "76a619590a5365bbffcb4a47328d7bb68544848828151d6378faf0a2501511f5",
+      "settlementRoute": "roll",
+      "artifactHash": "1b829d3c80b4c880e5aedd9297bfd9fae64deb6f2fffef4c4e540715a37b3ac7"
+    },
+    "pipeline": {
+      "status": "ok",
+      "mode": "replay",
+      "selectedPath": null,
+      "proceduralState": "SETTLED",
+      "parallelUtxoTxs": 5,
+      "artifactHash": "cfe94c3915d2082b64dd8588b7b8b633947d39c6875089bd2bf491159b86705b"
+    },
+    "parallelUtxoIndex": {
+      "chainId": "litecoin-testnet",
+      "fundingTxid": "76a619590a5365bbffcb4a47328d7bb68544848828151d6378faf0a2501511f5",
+      "timeoutSpendTxid": "68b228d210374d9064d5c1173cdfebc0d7d5b408a09cf2395ddcd25b2f751062",
+      "transactionCount": 5,
+      "semanticRefCount": 2,
+      "artifactHash": "3954c7d505db1721a441088fbb4eac063b58dc47a0a6cbd5daa70300efd85abc"
+    }
+  },
   "latestArtifacts": {
     "draft": {
       "path": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\m1_dlc_draft_latest.json",
       "kind": "m1_dlc_draft",
-      "createdAt": "2026-04-05T17:07:42.103Z",
-      "hash": "2759ae4d6643e9c84f16df6bb5c16579aeb6a84178e72c4b2b4d983cec0720a4"
+      "createdAt": "2026-04-07T17:14:48.653Z",
+      "hash": "d3d9900d5fb4a0d357eb45ed8cef90d80724d4e153ba87471e4ecb5b7250de08"
     },
     "fundingPsbt": {
       "path": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\m1_funding_psbt_latest.json",
       "kind": "m1_funding_psbt",
-      "createdAt": "2026-04-05T17:07:42.103Z",
-      "hash": "057e0ffee7cbef88e2279a2eb83bc8127821432cf2d72e906e6fb1c93169ea2e"
+      "createdAt": "2026-04-07T17:14:48.821Z",
+      "hash": "bd55b81628d68ca2cadf9f337a03d3e86fad3efccfadc731acfc0904b7f06608"
     },
     "finalized": {
       "path": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\m1_funding_finalized_latest.json",
       "kind": "m1_funding_finalized",
-      "createdAt": "2026-04-04T00:45:39.910Z",
-      "hash": "54ff8a32668cb02b203f4d1d856348b0b63abb2b74388d98173461494377e18d"
+      "createdAt": "2026-04-07T17:14:48.927Z",
+      "hash": "021e09d3b9fe62386de4ae296c1841baf55eb941ff0685201168957374a3c705"
     },
     "cetSkeletons": {
       "path": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\m1_cet_skeletons_latest.json",
       "kind": "m1_cet_skeletons",
-      "createdAt": "2026-04-05T17:07:42.103Z",
-      "hash": "d8582118bbeddb862ce0b6895d4ef2e209f0e2aa2760102d5daf2a532d7b123a"
+      "createdAt": "2026-04-07T17:14:48.823Z",
+      "hash": "f273bb6f3a1ab5253d6406bd6d1f1578efe5f6d6236fb73c77b04e23b304ac3f"
     },
     "oracleWiring": {
       "path": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\m1_oracle_wiring_latest.json",
       "kind": "m1_oracle_wiring",
-      "createdAt": "2026-04-05T17:07:54.954Z",
-      "hash": "5320d2352af02d8ae13c1ba8e4731a4063e0491f9f4c923a9deeedf72db951be"
+      "createdAt": "2026-04-08T16:04:09.189Z",
+      "hash": "44bf7351da7764f91ca0d8feffcdc9831f0c9d68e6164e651d9eaf8d76498b13"
     },
     "challengeBundle": {
       "path": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\m1_challenge_bundle_latest.json",
       "kind": "m1_challenge_bundle",
-      "createdAt": "2026-04-05T17:07:54.843Z",
-      "hash": "0473dfd368fab9deddc5b19f59d8ef8aa9617708f218aeb17712feddaadbd161"
+      "createdAt": "2026-04-08T16:04:09.806Z",
+      "hash": "8018b5d93c3b73e2474054913045f0f39260d5d1b6f49fb6da678431ef475707"
     },
     "challengeWitness": {
       "path": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\m1_challenge_witness_latest.json",
       "kind": "m1_challenge_witness",
-      "createdAt": "2026-04-05T17:07:54.848Z",
-      "hash": "f61e4e676ce72171a1fa69bb2fa707104c3e114c71daa06a233f981b6b9a8465"
+      "createdAt": "2026-04-08T16:04:09.818Z",
+      "hash": "caa6716b426a4912001972c4f2f80aef046e32d35522f28eb79774223191fb7c"
     },
     "rollForward": {
       "path": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\m1_roll_forward_latest.json",
       "kind": "m1_roll_forward",
-      "createdAt": "2026-04-04T00:45:40.038Z",
-      "hash": "99db96f1d08dce99d71bf6e38684dd1fe33ce7cde455a23d0100147b76f507fe"
+      "createdAt": "2026-04-08T16:04:08.760Z",
+      "hash": "d963a68b759c6b922688cb1e25c286a6923d7dc55706d04949f347c094bbdd0c"
+    },
+    "proceduralSync": {
+      "path": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\bitvm_procedural_sync_latest.json",
+      "kind": "bitvm_procedural_sync",
+      "createdAt": "2026-04-08T16:04:11.496Z",
+      "hash": "1b829d3c80b4c880e5aedd9297bfd9fae64deb6f2fffef4c4e540715a37b3ac7"
+    },
+    "parallelUtxoIndex": {
+      "path": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\m1_parallel_utxo_index_latest.json",
+      "kind": "m1_parallel_utxo_index",
+      "createdAt": "2026-04-08T16:04:11.767Z",
+      "hash": "3954c7d505db1721a441088fbb4eac063b58dc47a0a6cbd5daa70300efd85abc"
+    },
+    "pipeline": {
+      "path": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\m1_pipeline_latest.json",
+      "kind": "m1_pipeline",
+      "createdAt": "2026-04-08T16:04:11.858Z",
+      "hash": "cfe94c3915d2082b64dd8588b7b8b633947d39c6875089bd2bf491159b86705b"
     }
   },
-  "reportHash": "3c4478309d6a60d8da9ddd010b4b560b3aea3563c08bf81bdee4cc317c2fff1b"
+  "reportHash": "b1f45f232f9f4af71ffcaa0e1edd205a4a2baf5f7014726b422aeb49dc558545"
 }

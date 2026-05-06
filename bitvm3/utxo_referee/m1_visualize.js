@@ -26,6 +26,9 @@ const ARTIFACTS_DIR = path.join(__dirname, 'artifacts');
 const OUT_JSON = path.join(ARTIFACTS_DIR, 'm1_visualization_latest.json');
 const OUT_MD = path.join(ARTIFACTS_DIR, 'm1_visualization_latest.md');
 const LATEST_DRAFT_PATH = path.join(ARTIFACTS_DIR, 'm1_dlc_draft_latest.json');
+const PROCEDURAL_SYNC_PATH = path.join(ARTIFACTS_DIR, 'bitvm_procedural_sync_latest.json');
+const PIPELINE_PATH = path.join(ARTIFACTS_DIR, 'm1_pipeline_latest.json');
+const PARALLEL_UTXO_INDEX_PATH = path.join(ARTIFACTS_DIR, 'm1_parallel_utxo_index_latest.json');
 
 function sha256Hex(data) {
   return crypto.createHash('sha256').update(data).digest('hex');
@@ -82,6 +85,48 @@ function artifactMeta(filePath) {
     kind: json.kind || null,
     createdAt: json.createdAt || null,
     hash: json.artifactHash || sha256Hex(JSON.stringify(json))
+  };
+}
+
+function summarizeOperationalArtifacts() {
+  const proceduralSync = safeReadJson(PROCEDURAL_SYNC_PATH);
+  const pipeline = safeReadJson(PIPELINE_PATH);
+  const parallelUtxoIndex = safeReadJson(PARALLEL_UTXO_INDEX_PATH);
+
+  return {
+    proceduralSync: proceduralSync
+      ? {
+          state: proceduralSync.state || null,
+          contractId: proceduralSync.contractId || null,
+          fundingTxid: proceduralSync.fundingTxid || null,
+          settlementRoute: proceduralSync.settlement?.route || null,
+          artifactHash: proceduralSync.artifactHash || sha256Hex(JSON.stringify(proceduralSync))
+        }
+      : null,
+    pipeline: pipeline
+      ? {
+          status: pipeline.status || null,
+          mode: pipeline.options?.mode || null,
+          selectedPath: pipeline.options?.selectedPath || null,
+          proceduralState: pipeline.outputs?.proceduralSync?.state || null,
+          parallelUtxoTxs: pipeline.outputs?.parallelUtxoIndex?.transactionCount ?? null,
+          artifactHash: pipeline.artifactHash || sha256Hex(JSON.stringify(pipeline))
+        }
+      : null,
+    parallelUtxoIndex: parallelUtxoIndex
+      ? {
+          chainId: parallelUtxoIndex.chain?.chainId || null,
+          fundingTxid: parallelUtxoIndex.anchors?.fundingTxid || null,
+          timeoutSpendTxid: parallelUtxoIndex.anchors?.timeoutSpendTxid || null,
+          transactionCount: Array.isArray(parallelUtxoIndex.transactions)
+            ? parallelUtxoIndex.transactions.length
+            : null,
+          semanticRefCount: Array.isArray(parallelUtxoIndex.semanticRefs)
+            ? parallelUtxoIndex.semanticRefs.length
+            : null,
+          artifactHash: parallelUtxoIndex.artifactHash || sha256Hex(JSON.stringify(parallelUtxoIndex))
+        }
+      : null
   };
 }
 
@@ -167,7 +212,10 @@ function buildReport() {
     oracleWiring: artifactMeta(path.join(ARTIFACTS_DIR, 'm1_oracle_wiring_latest.json')),
     challengeBundle: artifactMeta(path.join(ARTIFACTS_DIR, 'm1_challenge_bundle_latest.json')),
     challengeWitness: artifactMeta(path.join(ARTIFACTS_DIR, 'm1_challenge_witness_latest.json')),
-    rollForward: artifactMeta(path.join(ARTIFACTS_DIR, 'm1_roll_forward_latest.json'))
+    rollForward: artifactMeta(path.join(ARTIFACTS_DIR, 'm1_roll_forward_latest.json')),
+    proceduralSync: artifactMeta(PROCEDURAL_SYNC_PATH),
+    parallelUtxoIndex: artifactMeta(PARALLEL_UTXO_INDEX_PATH),
+    pipeline: artifactMeta(PIPELINE_PATH)
   };
 
   const report = {
@@ -194,6 +242,7 @@ function buildReport() {
       graph,
       mermaid: toMermaid(graph)
     },
+    liveOps: summarizeOperationalArtifacts(),
     latestArtifacts
   };
 
@@ -259,6 +308,34 @@ function renderMarkdown(report) {
       continue;
     }
     lines.push(`- ${name}: \`${path.basename(meta.path)}\` (${meta.kind || 'unknown'}, ${meta.hash})`);
+  }
+  lines.push('');
+  lines.push('## Live Ops');
+  if (report.liveOps.proceduralSync) {
+    lines.push(`- Procedural state: \`${report.liveOps.proceduralSync.state}\``);
+    lines.push(`- Procedural contract: \`${report.liveOps.proceduralSync.contractId}\``);
+    lines.push(`- Procedural funding txid: \`${report.liveOps.proceduralSync.fundingTxid}\``);
+    lines.push(`- Procedural settlement route: \`${report.liveOps.proceduralSync.settlementRoute}\``);
+  } else {
+    lines.push('- Procedural sync: not found');
+  }
+  if (report.liveOps.pipeline) {
+    lines.push(`- Pipeline status: \`${report.liveOps.pipeline.status}\``);
+    lines.push(`- Pipeline mode: \`${report.liveOps.pipeline.mode}\``);
+    lines.push(`- Pipeline selected path: \`${report.liveOps.pipeline.selectedPath}\``);
+    lines.push(`- Pipeline procedural state: \`${report.liveOps.pipeline.proceduralState}\``);
+    lines.push(`- Pipeline parallel UTXO txs: \`${report.liveOps.pipeline.parallelUtxoTxs}\``);
+  } else {
+    lines.push('- Pipeline summary: not found');
+  }
+  if (report.liveOps.parallelUtxoIndex) {
+    lines.push(`- Parallel UTXO chain: \`${report.liveOps.parallelUtxoIndex.chainId}\``);
+    lines.push(`- Parallel UTXO funding txid: \`${report.liveOps.parallelUtxoIndex.fundingTxid}\``);
+    lines.push(`- Parallel UTXO timeout spend: \`${report.liveOps.parallelUtxoIndex.timeoutSpendTxid}\``);
+    lines.push(`- Parallel UTXO transactions: \`${report.liveOps.parallelUtxoIndex.transactionCount}\``);
+    lines.push(`- Parallel UTXO semantic refs: \`${report.liveOps.parallelUtxoIndex.semanticRefCount}\``);
+  } else {
+    lines.push('- Parallel UTXO index: not found');
   }
   return lines.join('\n');
 }

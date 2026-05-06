@@ -1,11 +1,11 @@
 # M1 BitVM / DLC Visualization
 
-- Generated: `2026-04-05T19:06:46.080Z`
-- Report hash: `3c4478309d6a60d8da9ddd010b4b560b3aea3563c08bf81bdee4cc317c2fff1b`
+- Generated: `2026-04-08T16:09:04.026Z`
+- Report hash: `b1f45f232f9f4af71ffcaa0e1edd205a4a2baf5f7014726b422aeb49dc558545`
 
 ## Template
 - Template ID: `dlc-receipt-ltc-testnet-v1`
-- Template hash: `5a57ecb55beff99ff5b523d5cdd021aef3781df8b318f9ac9e176cc7c6400151`
+- Template hash: `60e19d0c4f34a09a690e679230bf41a63252306e0e06a09e1b090efbcbb7b499`
 - Settlement model: `bounded-loss-carry-forward`
 - Active paths: `settle-gain, settle-loss`
 - Timeout path: `roll`
@@ -79,11 +79,30 @@ graph TD
 - `transition` -> `referee`: receipt balance root / claim root check
 
 ## Latest Artifacts
-- draft: `m1_dlc_draft_latest.json` (m1_dlc_draft, 2759ae4d6643e9c84f16df6bb5c16579aeb6a84178e72c4b2b4d983cec0720a4)
-- fundingPsbt: `m1_funding_psbt_latest.json` (m1_funding_psbt, 057e0ffee7cbef88e2279a2eb83bc8127821432cf2d72e906e6fb1c93169ea2e)
-- finalized: `m1_funding_finalized_latest.json` (m1_funding_finalized, 54ff8a32668cb02b203f4d1d856348b0b63abb2b74388d98173461494377e18d)
-- cetSkeletons: `m1_cet_skeletons_latest.json` (m1_cet_skeletons, d8582118bbeddb862ce0b6895d4ef2e209f0e2aa2760102d5daf2a532d7b123a)
-- oracleWiring: `m1_oracle_wiring_latest.json` (m1_oracle_wiring, 5320d2352af02d8ae13c1ba8e4731a4063e0491f9f4c923a9deeedf72db951be)
-- challengeBundle: `m1_challenge_bundle_latest.json` (m1_challenge_bundle, 0473dfd368fab9deddc5b19f59d8ef8aa9617708f218aeb17712feddaadbd161)
-- challengeWitness: `m1_challenge_witness_latest.json` (m1_challenge_witness, f61e4e676ce72171a1fa69bb2fa707104c3e114c71daa06a233f981b6b9a8465)
-- rollForward: `m1_roll_forward_latest.json` (m1_roll_forward, 99db96f1d08dce99d71bf6e38684dd1fe33ce7cde455a23d0100147b76f507fe)
+- draft: `m1_dlc_draft_latest.json` (m1_dlc_draft, d3d9900d5fb4a0d357eb45ed8cef90d80724d4e153ba87471e4ecb5b7250de08)
+- fundingPsbt: `m1_funding_psbt_latest.json` (m1_funding_psbt, bd55b81628d68ca2cadf9f337a03d3e86fad3efccfadc731acfc0904b7f06608)
+- finalized: `m1_funding_finalized_latest.json` (m1_funding_finalized, 021e09d3b9fe62386de4ae296c1841baf55eb941ff0685201168957374a3c705)
+- cetSkeletons: `m1_cet_skeletons_latest.json` (m1_cet_skeletons, f273bb6f3a1ab5253d6406bd6d1f1578efe5f6d6236fb73c77b04e23b304ac3f)
+- oracleWiring: `m1_oracle_wiring_latest.json` (m1_oracle_wiring, 44bf7351da7764f91ca0d8feffcdc9831f0c9d68e6164e651d9eaf8d76498b13)
+- challengeBundle: `m1_challenge_bundle_latest.json` (m1_challenge_bundle, 8018b5d93c3b73e2474054913045f0f39260d5d1b6f49fb6da678431ef475707)
+- challengeWitness: `m1_challenge_witness_latest.json` (m1_challenge_witness, caa6716b426a4912001972c4f2f80aef046e32d35522f28eb79774223191fb7c)
+- rollForward: `m1_roll_forward_latest.json` (m1_roll_forward, d963a68b759c6b922688cb1e25c286a6923d7dc55706d04949f347c094bbdd0c)
+- proceduralSync: `bitvm_procedural_sync_latest.json` (bitvm_procedural_sync, 1b829d3c80b4c880e5aedd9297bfd9fae64deb6f2fffef4c4e540715a37b3ac7)
+- parallelUtxoIndex: `m1_parallel_utxo_index_latest.json` (m1_parallel_utxo_index, 3954c7d505db1721a441088fbb4eac063b58dc47a0a6cbd5daa70300efd85abc)
+- pipeline: `m1_pipeline_latest.json` (m1_pipeline, cfe94c3915d2082b64dd8588b7b8b633947d39c6875089bd2bf491159b86705b)
+
+## Live Ops
+- Procedural state: `SETTLED`
+- Procedural contract: `ltc-testnet-epoch-1-1775582088654`
+- Procedural funding txid: `76a619590a5365bbffcb4a47328d7bb68544848828151d6378faf0a2501511f5`
+- Procedural settlement route: `roll`
+- Pipeline status: `ok`
+- Pipeline mode: `replay`
+- Pipeline selected path: `null`
+- Pipeline procedural state: `SETTLED`
+- Pipeline parallel UTXO txs: `5`
+- Parallel UTXO chain: `litecoin-testnet`
+- Parallel UTXO funding txid: `76a619590a5365bbffcb4a47328d7bb68544848828151d6378faf0a2501511f5`
+- Parallel UTXO timeout spend: `68b228d210374d9064d5c1173cdfebc0d7d5b408a09cf2395ddcd25b2f751062`
+- Parallel UTXO transactions: `5`
+- Parallel UTXO semantic refs: `2`

@@ -10,6 +10,10 @@
 
 const crypto = require('crypto');
 const { canonicalStringify, normalizeAmountSats } = require('./m1_spec');
+const {
+  buildArkTaprootMiniscriptProofManifest,
+  verifyArkTaprootMiniscriptProofManifest
+} = require('./ark_taproot_miniscript_proof_manifest');
 
 const HEX_32_RE = /^[0-9a-f]{64}$/i;
 
@@ -320,6 +324,22 @@ function buildArkDlcSettlementBundle(options = {}) {
   const contract = buildArkDlcContract(options);
   const virtualCetSet = buildVirtualCetSet({ contract });
   const settlementEvidence = buildArkDlcSettlement({ contract, virtualCetSet, ...options });
+  const taprootProofManifest =
+    options.taprootProofManifest ||
+    buildArkTaprootMiniscriptProofManifest({
+      ...options,
+      aspId: contract.contractCore.aspId,
+      templateId: contract.contractCore.templateId,
+      arkRoundId: contract.contractCore.arkRoundId,
+      selectedLeafRole: 'dlc_virtual_cet_settlement',
+      virtualCetSetId: virtualCetSet.virtualCetSetId,
+      selectedVirtualCetId: settlementEvidence.selectedCet.virtualCetId,
+      oracleOutcomeHash: sha256Hex(
+        `${settlementEvidence.settlementCore.oracleEventId}:${settlementEvidence.settlementCore.oracleOutcomeId}:${settlementEvidence.settlementCore.oracleAttestationHex}`
+      ),
+      settlementRoot: settlementEvidence.settlementId,
+      amountSats: contract.contractCore.totalCollateralSats
+    });
   const challengeEvidence = buildArkDlcAspChallenge({
     contract,
     virtualCetSet,
@@ -337,6 +357,7 @@ function buildArkDlcSettlementBundle(options = {}) {
     contractCommitmentId: contract.contractCommitmentId,
     virtualCetSetId: virtualCetSet.virtualCetSetId,
     settlementId: settlementEvidence.settlementId,
+    taprootProofManifestId: taprootProofManifest.manifestId,
     challengeId: challengeEvidence.challengeId,
     feeModelId: feeModel.modelId
   };
@@ -348,6 +369,7 @@ function buildArkDlcSettlementBundle(options = {}) {
     contract,
     virtualCetSet,
     settlementEvidence,
+    taprootProofManifest,
     challengeEvidence,
     feeModel,
     thesis:
@@ -372,6 +394,25 @@ function verifyArkDlcSettlementBundle(bundle) {
   }
   if (bundle.virtualCetSet.virtualCetSetId !== hashCanonical(bundle.virtualCetSet.virtualCetSetCore)) {
     return { ok: false, reason: 'virtual CET set mismatch' };
+  }
+  if (!bundle.taprootProofManifest) {
+    return { ok: false, reason: 'missing taproot proof manifest' };
+  }
+  const taprootVerification = verifyArkTaprootMiniscriptProofManifest(bundle.taprootProofManifest);
+  if (!taprootVerification.ok) {
+    return { ok: false, reason: `taproot proof manifest failed: ${taprootVerification.reason}` };
+  }
+  if (bundle.bundleCore.taprootProofManifestId !== bundle.taprootProofManifest.manifestId) {
+    return { ok: false, reason: 'taproot proof manifest id mismatch' };
+  }
+  if (bundle.taprootProofManifest.manifestCore.virtualCetSetId !== bundle.virtualCetSet.virtualCetSetId) {
+    return { ok: false, reason: 'taproot proof manifest does not bind virtual CET set' };
+  }
+  if (
+    bundle.taprootProofManifest.manifestCore.selectedVirtualCetId !==
+    bundle.settlementEvidence.settlementCore.selectedVirtualCetId
+  ) {
+    return { ok: false, reason: 'taproot proof manifest does not bind selected virtual CET' };
   }
   for (const [name, passed] of Object.entries(bundle.settlementEvidence.checks || {})) {
     if (!passed) return { ok: false, reason: `settlement evidence failed: ${name}` };

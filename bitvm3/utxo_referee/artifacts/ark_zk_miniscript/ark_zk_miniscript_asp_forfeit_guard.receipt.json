@@ -1,0 +1,35 @@
+{
+  "kind": "ark_zk_miniscript_proof_receipt",
+  "receiptId": "45cf25cad368ae31ce24a9368723a790509b416f0aebe195d8be7afff0477817",
+  "receiptCore": {
+    "version": 1,
+    "protocol": "ark_zk_miniscript_proof_receipt",
+    "claimId": "aeaecf93d8206db4e0a66d72e75580d0ab70a17dab6efdbfa8c57782816cbae2",
+    "manifestId": "a746fc6250b7eb708bc7431358c76b7cc9dbb2b88082cbae4518c237b3f4f3aa",
+    "selectedLeafRole": "asp_forfeit_guard",
+    "selectedLeafRoleCode": 3,
+    "bindingCommitment": "0x30966108d4986f3442594f477daf0864dd10c47fd1",
+    "paths": {
+      "claimPath": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\ark_zk_miniscript\\ark_zk_miniscript_asp_forfeit_guard.claim.json",
+      "inputPath": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\ark_zk_miniscript\\ark_zk_miniscript_asp_forfeit_guard.input.json",
+      "proofPath": "D:\\cargo-target\\ark-shinigami\\proofs\\ark_zk_miniscript_asp_forfeit_guard.proof.json",
+      "proverLogPath": "D:\\cargo-target\\ark-shinigami\\logs\\ark_zk_miniscript_asp_forfeit_guard.proof.log",
+      "verifierLogPath": "D:\\cargo-target\\ark-shinigami\\logs\\ark_zk_miniscript_asp_forfeit_guard.proof.verify.log"
+    },
+    "hashes": {
+      "inputSha256": "d3e6d05af3ec1418c2d0932eed1c6e32e89f6205d003c7bf573f663faabec3b3",
+      "proofSha256": "76e35d155a66dfd5d16fbec84e015ca625ab38a66624483f7365a83ecd7716f9",
+      "proverLogSha256": "11f77a6fd83aede0ad9fbc95ada6b693910623cbb6a3c5f1b46b12a2f2eadec9",
+      "verifierLogSha256": "d7ac476a2c6d581787133a1abb50f686ed777192301f219b7138bc3ba99940bf"
+    },
+    "status": {
+      "proverExitCode": 0,
+      "verifierExitCode": 0
+    },
+    "remote": {
+      "host": "snacksack",
+      "rayonThreads": 2,
+      "minRemoteAvailableGb": 24
+    }
+  }
+}

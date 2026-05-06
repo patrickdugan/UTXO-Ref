@@ -1,5 +1,5 @@
 /**
- * Milestone 1 DLC Bootstrap (Litecoin testnet)
+ * Milestone 1 DLC Bootstrap
  *
  * Builds a concrete DLC draft artifact from live wallet state:
  * - discovers latest role-address set provisioned with m1_* tooling
@@ -11,10 +11,11 @@
  *   node bitvm3/utxo_referee/m1_dlc_bootstrap.js
  *
  * Env (optional):
- *   LTC_RPC_URL=http://127.0.0.1:19332
- *   LTC_RPC_USER=user
- *   LTC_RPC_PASS=pass
- *   LTC_WALLET=tl-wallet
+ *   BITVM_CHAIN=litecoin-mainnet|litecoin-testnet|bitcoin-mainnet|bitcoin-testnet
+ *   BITVM_RPC_URL=http://127.0.0.1:9332
+ *   BITVM_RPC_USER=user
+ *   BITVM_RPC_PASS=pass
+ *   BITVM_WALLET=tl-wallet
  *   DLC_EPOCH_ID=1
  *   DLC_MATURITY_BLOCKS=1008
  *   DLC_REFUND_DELAY_BLOCKS=288
@@ -29,13 +30,10 @@ const http = require('http');
 const https = require('https');
 const { URL } = require('url');
 const crypto = require('crypto');
-const { templateHashHex, RECEIPT_DLC_TEMPLATE_V1 } = require('./m1_spec');
+const { templateHashHex, buildReceiptDlcTemplate } = require('./m1_spec');
 const { computeBoundedSettlementAmounts } = require('./m1_transition');
-
-const DEFAULT_RPC_URL = process.env.LTC_RPC_URL || 'http://127.0.0.1:19332';
-const DEFAULT_RPC_USER = process.env.LTC_RPC_USER || 'user';
-const DEFAULT_RPC_PASS = process.env.LTC_RPC_PASS || 'pass';
-const DEFAULT_WALLET = process.env.LTC_WALLET || 'tl-wallet';
+const { withCommittedRouting } = require('./m1_routing_commitments');
+const { resolveChainEnv, buildEpochEventId } = require('./m1_chain_env');
 const EPOCH_ID = BigInt(process.env.DLC_EPOCH_ID || '1');
 const MATURITY_BLOCKS = Number(process.env.DLC_MATURITY_BLOCKS || '1008');
 const REFUND_DELAY_BLOCKS = Number(process.env.DLC_REFUND_DELAY_BLOCKS || '288');
@@ -212,7 +210,7 @@ function buildBoundedSettlementPaths(collateralSats, rollLocktime, bucketCapBps,
     effectivePnlBps: bounded.effectivePnlBps,
     feeBps: bounded.feeBps,
     paths: [
-      {
+      withCommittedRouting({
         pathId: 'settle-gain',
         kind: 'settlement',
         recipientRole: 'alice',
@@ -236,8 +234,8 @@ function buildBoundedSettlementPaths(collateralSats, rollLocktime, bucketCapBps,
         residualSats: bounded.refundSats.toString(),
         dustCarrySats: bounded.dustCarrySats.toString(),
         defaultOnExpiry: false
-      },
-      {
+      }),
+      withCommittedRouting({
         pathId: 'settle-loss',
         kind: 'settlement',
         recipientRole: 'bob',
@@ -261,9 +259,9 @@ function buildBoundedSettlementPaths(collateralSats, rollLocktime, bucketCapBps,
         residualSats: bounded.refundSats.toString(),
         dustCarrySats: bounded.dustCarrySats.toString(),
         defaultOnExpiry: false
-      }
+      })
     ],
-    roll: {
+    roll: withCommittedRouting({
       pathId: 'roll',
       kind: 'timeout',
       defaultOnExpiry: true,
@@ -280,24 +278,25 @@ function buildBoundedSettlementPaths(collateralSats, rollLocktime, bucketCapBps,
       rolloverCollateralSats: bounded.rolloverCollateralSats.toString(),
       residualSats: bounded.rolloverCollateralSats.toString(),
       dustCarrySats: bounded.dustCarrySats.toString()
-    },
+    }),
     dustCarrySats: bounded.dustCarrySats.toString()
   };
 }
 
 async function run() {
+  const chainEnv = resolveChainEnv();
   const rpc = rpcFactory({
-    rpcUrl: DEFAULT_RPC_URL,
-    rpcUser: DEFAULT_RPC_USER,
-    rpcPass: DEFAULT_RPC_PASS
+    rpcUrl: chainEnv.rpcUrl,
+    rpcUser: chainEnv.rpcUser,
+    rpcPass: chainEnv.rpcPass
   });
 
   const chainInfo = await rpc('getblockchaininfo');
   const currentHeight = await rpc('getblockcount');
-  const roleSet = await pickLatestFundedRoleSet(rpc, DEFAULT_WALLET);
+  const roleSet = await pickLatestFundedRoleSet(rpc, chainEnv.wallet);
 
-  const aliceUtxo = await selectConfirmedUtxo(rpc, DEFAULT_WALLET, roleSet.addresses.alice);
-  const bobUtxo = await selectConfirmedUtxo(rpc, DEFAULT_WALLET, roleSet.addresses.bob);
+  const aliceUtxo = await selectConfirmedUtxo(rpc, chainEnv.wallet, roleSet.addresses.alice);
+  const bobUtxo = await selectConfirmedUtxo(rpc, chainEnv.wallet, roleSet.addresses.bob);
   const collateralSats = amountToSats(aliceUtxo.amount) + amountToSats(bobUtxo.amount);
 
   const maturityHeight = currentHeight + MATURITY_BLOCKS;
@@ -311,27 +310,30 @@ async function run() {
     roleSet.addresses
   );
 
-  const operatorPubkey = await getAddressPubkey(rpc, DEFAULT_WALLET, roleSet.addresses.operator);
-  const oraclePubkey = await getAddressPubkey(rpc, DEFAULT_WALLET, roleSet.addresses.oracle);
+  const operatorPubkey = await getAddressPubkey(rpc, chainEnv.wallet, roleSet.addresses.operator);
+  const oraclePubkey = await getAddressPubkey(rpc, chainEnv.wallet, roleSet.addresses.oracle);
 
   const createdAt = new Date().toISOString();
-  const eventId = `ltc-testnet-epoch-${EPOCH_ID.toString()}-${Date.now()}`;
+  const template = buildReceiptDlcTemplate(chainEnv.chainId);
+  const eventId = buildEpochEventId(chainEnv.chainId, EPOCH_ID);
 
   const draft = {
     kind: 'm1_dlc_draft',
     createdAt,
     chain: {
+      chainId: chainEnv.chainId,
+      family: chainEnv.family,
       network: chainInfo.chain,
-      rpcUrl: DEFAULT_RPC_URL,
+      rpcUrl: chainEnv.rpcUrl,
       blockHeight: currentHeight
     },
     template: {
-      templateId: RECEIPT_DLC_TEMPLATE_V1.templateId,
-      templateHash: templateHashHex(RECEIPT_DLC_TEMPLATE_V1)
+      templateId: template.templateId,
+      templateHash: templateHashHex(template)
     },
     roleSet: {
       tag: roleSet.tag,
-      wallet: DEFAULT_WALLET,
+      wallet: chainEnv.wallet,
       addresses: roleSet.addresses,
       pubkeys: {
         operator: operatorPubkey,
@@ -399,10 +401,12 @@ async function run() {
   fs.writeFileSync(latestPath, rendered);
 
   console.log('=== M1 DLC Bootstrap ===');
-  console.log(`wallet=${DEFAULT_WALLET}`);
+  console.log(`chainId=${chainEnv.chainId}`);
+  console.log(`rpcNetwork=${chainInfo.chain}`);
+  console.log(`wallet=${chainEnv.wallet}`);
   console.log(`minConfirmations=${MIN_CONFIRMATIONS}`);
   console.log(`roleSetTag=${roleSet.tag}`);
-  console.log(`chain=${chainInfo.chain} height=${currentHeight}`);
+  console.log(`chainHeight=${currentHeight}`);
   console.log(`epochId=${EPOCH_ID.toString()}`);
   console.log(`collateralSats=${collateralSats.toString()}`);
   console.log(`bucketCapBps=${BUCKET_CAP_BPS}`);

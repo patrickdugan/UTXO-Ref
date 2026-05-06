@@ -1,0 +1,781 @@
+{
+  "kind": "sukuk_stablecoin_halal_defi_portfolio",
+  "portfolioId": "59be1fd1467127a1faccbe18639fd591c1914b204de477275983e478911b7f3f",
+  "portfolioCore": {
+    "version": 1,
+    "product": "banked_sukuk_stablecoin_halal_defi_rails",
+    "reserveId": "3f9f83b76df684ccc35d31932ad7c0b411faf245b13232f4234ececdc31f5ea2",
+    "issuanceId": "600baa5fe68e811ed0a8d6150567bbbdf92ae2b4a115b6c4dc3a407af24f8e6d",
+    "stablecoinPropertyId": 9001,
+    "taprootPledgeId": "51660e78da95fccc8e99b2b82f9af24f04a6fb33928dfe7ef52c68e3106e3095",
+    "routingMarketId": "e6c958c4fe1ac857b43547ca27bce04d6960b513a7ccbd31905f819787e5af50",
+    "arbMandateId": "6a9b1af66c32089906933f1e854af08a76148a5ef5f9f9d64ae9c757d37fcfc4",
+    "issuedUnits": "5000000000",
+    "taprootLightningAllocatedUnits": "2000000000",
+    "tradeLayerArbAllocatedUnits": "1000000000",
+    "totalDefiAllocatedUnits": "3000000000",
+    "redemptionBufferUnits": "2000000000",
+    "totalServiceFeeUnits": "4552500",
+    "halalDefiRule": "stablecoin principal is banked and redeemable; DeFi fees are explicit service revenues from separate pledged mandates"
+  },
+  "reserve": {
+    "kind": "banked_sukuk_stablecoin_reserve",
+    "reserveId": "3f9f83b76df684ccc35d31932ad7c0b411faf245b13232f4234ececdc31f5ea2",
+    "reserveCore": {
+      "version": 1,
+      "stablecoinPropertyId": 9001,
+      "ticker": "SUKUSD",
+      "decimals": 6,
+      "issuerId": "oman-sukuk-stablecoin-demo-issuer",
+      "custodianBanks": [
+        "oman-islamic-bank-demo-1",
+        "oman-islamic-bank-demo-2"
+      ],
+      "mintedUnits": "5000000000",
+      "cashUnits": "1600000000",
+      "eligibleSukukUnits": "4285000000",
+      "eligibleReserveUnits": "5885000000",
+      "coverageBps": "11770",
+      "redemptionBufferUnits": "885000000",
+      "sukukHoldings": [
+        {
+          "issueId": "oman-sovereign-sukuk-demo-2029",
+          "issuer": "Sultanate of Oman demo sovereign sleeve",
+          "currency": "USD",
+          "marketValueUnits": "2200000000",
+          "liquidityHaircutBps": 700,
+          "eligibleUnits": "2046000000",
+          "maturityBucket": "1-3y",
+          "shariaBoardRef": "sharia-screen-demo-sovereign"
+        },
+        {
+          "issueId": "gcc-ifi-sukuk-demo-2028",
+          "issuer": "Islamic finance institution demo sleeve",
+          "currency": "USD",
+          "marketValueUnits": "1600000000",
+          "liquidityHaircutBps": 900,
+          "eligibleUnits": "1456000000",
+          "maturityBucket": "1-3y",
+          "shariaBoardRef": "sharia-screen-demo-ifi"
+        },
+        {
+          "issueId": "oman-project-sukuk-demo-2030",
+          "issuer": "Oman project sukuk demo sleeve",
+          "currency": "USD",
+          "marketValueUnits": "900000000",
+          "liquidityHaircutBps": 1300,
+          "eligibleUnits": "783000000",
+          "maturityBucket": "3-5y",
+          "shariaBoardRef": "sharia-screen-demo-project"
+        }
+      ],
+      "futureDiversification": {
+        "farmReitEnabledForBacking": false,
+        "farmReitRule": "future REIT sleeves require separate propertyId, appraisal, income proof, and liquidity haircut before backing credit"
+      },
+      "shariaControls": {
+        "boardRequired": true,
+        "ribaRevenueAllowed": false,
+        "principalYieldEntitlement": false,
+        "serviceFeesSeparated": true
+      }
+    }
+  },
+  "issuance": {
+    "kind": "tradelayer_banked_sukuk_stablecoin_issuance",
+    "issuanceId": "600baa5fe68e811ed0a8d6150567bbbdf92ae2b4a115b6c4dc3a407af24f8e6d",
+    "issuanceCore": {
+      "version": 1,
+      "eventType": "mint_banked_sukuk_stablecoin",
+      "propertyId": 9001,
+      "ticker": "SUKUSD",
+      "decimals": 6,
+      "issuerId": "oman-sukuk-stablecoin-demo-issuer",
+      "reserveId": "3f9f83b76df684ccc35d31932ad7c0b411faf245b13232f4234ececdc31f5ea2",
+      "amountUnits": "5000000000",
+      "holderAccountId": "stablecoin-treasury-demo",
+      "redemptionRule": "par redemption through approved Islamic bank rails, subject to compliance controls",
+      "yieldEntitlement": false,
+      "reserveRevenueClaim": false
+    },
+    "reserve": {
+      "kind": "banked_sukuk_stablecoin_reserve",
+      "reserveId": "3f9f83b76df684ccc35d31932ad7c0b411faf245b13232f4234ececdc31f5ea2",
+      "reserveCore": {
+        "version": 1,
+        "stablecoinPropertyId": 9001,
+        "ticker": "SUKUSD",
+        "decimals": 6,
+        "issuerId": "oman-sukuk-stablecoin-demo-issuer",
+        "custodianBanks": [
+          "oman-islamic-bank-demo-1",
+          "oman-islamic-bank-demo-2"
+        ],
+        "mintedUnits": "5000000000",
+        "cashUnits": "1600000000",
+        "eligibleSukukUnits": "4285000000",
+        "eligibleReserveUnits": "5885000000",
+        "coverageBps": "11770",
+        "redemptionBufferUnits": "885000000",
+        "sukukHoldings": [
+          {
+            "issueId": "oman-sovereign-sukuk-demo-2029",
+            "issuer": "Sultanate of Oman demo sovereign sleeve",
+            "currency": "USD",
+            "marketValueUnits": "2200000000",
+            "liquidityHaircutBps": 700,
+            "eligibleUnits": "2046000000",
+            "maturityBucket": "1-3y",
+            "shariaBoardRef": "sharia-screen-demo-sovereign"
+          },
+          {
+            "issueId": "gcc-ifi-sukuk-demo-2028",
+            "issuer": "Islamic finance institution demo sleeve",
+            "currency": "USD",
+            "marketValueUnits": "1600000000",
+            "liquidityHaircutBps": 900,
+            "eligibleUnits": "1456000000",
+            "maturityBucket": "1-3y",
+            "shariaBoardRef": "sharia-screen-demo-ifi"
+          },
+          {
+            "issueId": "oman-project-sukuk-demo-2030",
+            "issuer": "Oman project sukuk demo sleeve",
+            "currency": "USD",
+            "marketValueUnits": "900000000",
+            "liquidityHaircutBps": 1300,
+            "eligibleUnits": "783000000",
+            "maturityBucket": "3-5y",
+            "shariaBoardRef": "sharia-screen-demo-project"
+          }
+        ],
+        "futureDiversification": {
+          "farmReitEnabledForBacking": false,
+          "farmReitRule": "future REIT sleeves require separate propertyId, appraisal, income proof, and liquidity haircut before backing credit"
+        },
+        "shariaControls": {
+          "boardRequired": true,
+          "ribaRevenueAllowed": false,
+          "principalYieldEntitlement": false,
+          "serviceFeesSeparated": true
+        }
+      }
+    }
+  },
+  "taprootPledge": {
+    "kind": "taproot_lightning_stablecoin_pledge",
+    "pledgeId": "51660e78da95fccc8e99b2b82f9af24f04a6fb33928dfe7ef52c68e3106e3095",
+    "pledgeCore": {
+      "version": 1,
+      "pledgeId": "1b922277b1530217c38f1f6257efe9e5441c641f5ee8b3e1b552d491eed2baba",
+      "stablecoinPropertyId": 9001,
+      "issuanceId": "600baa5fe68e811ed0a8d6150567bbbdf92ae2b4a115b6c4dc3a407af24f8e6d",
+      "lockedUnits": "2000000000",
+      "lockEventId": "eb467b874a15aa1d82b3bcacee8d8f692591ebbc917c3e7faefd395f501a523b",
+      "taprootAssetBundleId": "c03872bbd6171f01c0cc48cc70fe76b557d2082f97e2fdab34caf5dbdd3e4cd9",
+      "supportingLeaseBundleId": "1f710aaa3b8a50194a58c60b3e9b3987f0d00dd8cd5655a49a3845881a2aae8b",
+      "taprootVerificationOk": true,
+      "pledgeRule": "stablecoin receipt is locked before TAP/Lightning service use; fees are separate service revenue"
+    },
+    "lockEvent": {
+      "kind": "sukuk_stablecoin_defi_event",
+      "eventId": "eb467b874a15aa1d82b3bcacee8d8f692591ebbc917c3e7faefd395f501a523b",
+      "eventCore": {
+        "version": 1,
+        "eventType": "lock_tradelayer_stablecoin_for_taproot_asset_pledge",
+        "propertyId": 9001,
+        "issuanceId": "600baa5fe68e811ed0a8d6150567bbbdf92ae2b4a115b6c4dc3a407af24f8e6d",
+        "pledgeId": "1b922277b1530217c38f1f6257efe9e5441c641f5ee8b3e1b552d491eed2baba",
+        "amountUnits": "2000000000",
+        "taprootAssetBundleId": "c03872bbd6171f01c0cc48cc70fe76b557d2082f97e2fdab34caf5dbdd3e4cd9",
+        "supportingLeaseBundleId": "1f710aaa3b8a50194a58c60b3e9b3987f0d00dd8cd5655a49a3845881a2aae8b",
+        "yieldEntitlement": false
+      }
+    },
+    "supportingLease": {
+      "kind": "bitvm_lightning_liquidity_lease_bundle",
+      "bundleId": "1f710aaa3b8a50194a58c60b3e9b3987f0d00dd8cd5655a49a3845881a2aae8b",
+      "bundleCore": {
+        "offerId": "2c6624022a4e27563a04c0b3c2eaee8c4d8a6ee9d397a473f964f26314064fa6",
+        "jurassicMechanismRefId": "721450ba2975f0995b159c5dc8620f6ee984542af6b5278c705906d926daebe8",
+        "transcriptSwitchboardId": "81f5076fc26fde39ddfa7cf52b30f914dc887fd51ad77031713cc3f8ae967023",
+        "publicHandleId": "f1a6eb625bf1b69b154a20f443b4f326d83e4bae883797e48f0e6eda34c923f3",
+        "carrierCommitmentId": "a69c5c56aead06fcb9cdc7cfb3724b8edaec7ab63efbcf793b3f5858dfc3840a",
+        "successEvidenceId": "3f8913d09c5de2f5d661c8f50d68c7857fa7dd85952fe003b7d4350ab3858157",
+        "challengeId": "77c51cdc84f1872728dad54b3f0c4968c164448344e6beb81907aed6760d57cf",
+        "htlcFundingTxid": "0ccb7f47e0f5eaa570107baaeebc0ff749f19d7b941ec102e5c985573ad4287d",
+        "dlcFundingTxid": "0ccb7f47e0f5eaa570107baaeebc0ff749f19d7b941ec102e5c985573ad4287d"
+      },
+      "offer": {
+        "kind": "bitvm_lightning_liquidity_lease_offer",
+        "terms": {
+          "version": 1,
+          "leaseId": "sukuk-ln-lease-1b922277b153",
+          "lspNodeId": "lsp-node-demo",
+          "clientNodeId": "client-node-demo",
+          "promisedInboundSats": "250000",
+          "leaseBlocks": 144,
+          "maxFeePpm": 1000,
+          "maxCltvDelta": 40,
+          "penaltySats": "25000",
+          "leasePremiumSats": "2500",
+          "paymentHashHex": "1b10394a0aa51e1ec036dbe8a1c105b4d8d96ff6e96210a0538c125a4bd82ebd",
+          "refundLocktime": 410800,
+          "jurassicMechanisms": {
+            "kind": "jurassic_bitvm_mechanism_refs",
+            "refId": "721450ba2975f0995b159c5dc8620f6ee984542af6b5278c705906d926daebe8",
+            "version": 1,
+            "target": "lightning",
+            "semanticStateHash": "47f244abb5b6de644c3dc946dd8a3347032c2bf24fe8cb8d8e832508cee2cf8d",
+            "planId": "ln_ptlc_retry_watchtower_switchboard",
+            "transcriptVariantIds": [
+              "ln_ptlc_success_retry_a",
+              "ln_ptlc_success_retry_b",
+              "ln_timeout_challenge_split"
+            ],
+            "transcriptDigests": [
+              "aa778e93fe2b25e9ad101eb32f6780f0a080a0ee9f60dda5396925e2f35e156a",
+              "aa778e93fe2b25e9ad101eb32f6780f0a080a0ee9f60dda5396925e2f35e156a",
+              "982ff7155104a25bd633cd51512d6fbc2081d455cfbdc62a6c5ebf9860e2a191"
+            ],
+            "publicHandleIds": [
+              "f1a6eb625bf1b69b154a20f443b4f326d83e4bae883797e48f0e6eda34c923f3",
+              "d25ccb5dd196d876e03843de6574f9b77c6404f47c5acce182649286d11f3cd6"
+            ],
+            "carrierCommitmentIds": [
+              "a69c5c56aead06fcb9cdc7cfb3724b8edaec7ab63efbcf793b3f5858dfc3840a",
+              "719c6e830582d841a737275edcce1e36324b99b6929a9d07212799b3ac6ea322"
+            ],
+            "transcriptSwitchboardId": "81f5076fc26fde39ddfa7cf52b30f914dc887fd51ad77031713cc3f8ae967023",
+            "primaryTranscriptDigest": "aa778e93fe2b25e9ad101eb32f6780f0a080a0ee9f60dda5396925e2f35e156a",
+            "primaryPublicHandleId": "f1a6eb625bf1b69b154a20f443b4f326d83e4bae883797e48f0e6eda34c923f3",
+            "primaryCarrierCommitmentId": "a69c5c56aead06fcb9cdc7cfb3724b8edaec7ab63efbcf793b3f5858dfc3840a",
+            "status": "prototype_ready",
+            "rejectionTripwireDigest": "0000000000000000000000000000000000000000000000000000000000000001"
+          }
+        },
+        "offerId": "2c6624022a4e27563a04c0b3c2eaee8c4d8a6ee9d397a473f964f26314064fa6",
+        "invoiceAmountMsat": "27500000",
+        "enforceableClaim": {
+          "success": "LSP earns premium only after promised channel/splice evidence binds to the lease.",
+          "failure": "Client/watchtower can claim penalty if the lease window opens without matching route evidence."
+        }
+      },
+      "successEvidence": {
+        "kind": "bitvm_lightning_liquidity_lease_success_evidence",
+        "evidenceId": "3f8913d09c5de2f5d661c8f50d68c7857fa7dd85952fe003b7d4350ab3858157",
+        "evidenceCore": {
+          "version": 1,
+          "offerId": "2c6624022a4e27563a04c0b3c2eaee8c4d8a6ee9d397a473f964f26314064fa6",
+          "jurassicMechanismRefId": "721450ba2975f0995b159c5dc8620f6ee984542af6b5278c705906d926daebe8",
+          "transcriptSwitchboardId": "81f5076fc26fde39ddfa7cf52b30f914dc887fd51ad77031713cc3f8ae967023",
+          "publicHandleId": "f1a6eb625bf1b69b154a20f443b4f326d83e4bae883797e48f0e6eda34c923f3",
+          "carrierCommitmentId": "a69c5c56aead06fcb9cdc7cfb3724b8edaec7ab63efbcf793b3f5858dfc3840a",
+          "channelOutpoint": "0ccb7f47e0f5eaa570107baaeebc0ff749f19d7b941ec102e5c985573ad4287d:0",
+          "fundingCommitmentHash": "c4ddf0fffc54ae74b17668bfa633ec9eb992d7f3d3c9a782d966f7517fd42c8e",
+          "observedInboundSats": "250000",
+          "observedFeePpm": 450,
+          "observedCltvDelta": 24,
+          "observedAtBlock": 410650,
+          "source": "channel_or_splice_state_snapshot"
+        },
+        "checks": {
+          "inboundCapacityMet": true,
+          "feeCeilingMet": true,
+          "cltvCeilingMet": true,
+          "fundingOutputBound": true
+        }
+      },
+      "challengeEvidence": {
+        "kind": "bitvm_lightning_liquidity_lease_challenge",
+        "challengeId": "77c51cdc84f1872728dad54b3f0c4968c164448344e6beb81907aed6760d57cf",
+        "challengeCore": {
+          "version": 1,
+          "offerId": "2c6624022a4e27563a04c0b3c2eaee8c4d8a6ee9d397a473f964f26314064fa6",
+          "jurassicMechanismRefId": "721450ba2975f0995b159c5dc8620f6ee984542af6b5278c705906d926daebe8",
+          "transcriptSwitchboardId": "81f5076fc26fde39ddfa7cf52b30f914dc887fd51ad77031713cc3f8ae967023",
+          "publicHandleId": "f1a6eb625bf1b69b154a20f443b4f326d83e4bae883797e48f0e6eda34c923f3",
+          "carrierCommitmentId": "a69c5c56aead06fcb9cdc7cfb3724b8edaec7ab63efbcf793b3f5858dfc3840a",
+          "channelOutpoint": null,
+          "observedInboundSats": "0",
+          "observedFeePpm": 1001,
+          "observedCltvDelta": 41,
+          "challengeBlock": 410800,
+          "violations": [
+            "insufficient_inbound_capacity",
+            "fee_ppm_above_ceiling",
+            "cltv_delta_above_ceiling",
+            "missing_channel_or_splice_outpoint"
+          ]
+        },
+        "penaltyClaim": {
+          "amountSats": "25000",
+          "reason": "insufficient_inbound_capacity,fee_ppm_above_ceiling,cltv_delta_above_ceiling,missing_channel_or_splice_outpoint"
+        },
+        "slashable": true
+      },
+      "routingUseCases": [
+        "LSP JIT inbound channel lease",
+        "splice-in liquidity lease with penalty if unavailable",
+        "route corridor capacity bond",
+        "watchtower-audited route-quality SLA"
+      ],
+      "caveats": [
+        "This proves committed lease terms and local regtest HTLC funding, not global route availability.",
+        "Production needs privacy-preserving route evidence and LDK-native channel/splice state hooks."
+      ],
+      "verification": {
+        "ok": true
+      },
+      "htlcProof": {
+        "lightning": {
+          "preimageHex": "85200bacd586a770204ff4ea1b3bbf1c86536e6c3a0c4dfff97a720a79f69c65",
+          "paymentHashHex": "1b10394a0aa51e1ec036dbe8a1c105b4d8d96ff6e96210a0538c125a4bd82ebd"
+        },
+        "dlcFunding": {
+          "claimTxid": "0ccb7f47e0f5eaa570107baaeebc0ff749f19d7b941ec102e5c985573ad4287d",
+          "outputVout": 0,
+          "commitmentHash": "c4ddf0fffc54ae74b17668bfa633ec9eb992d7f3d3c9a782d966f7517fd42c8e"
+        },
+        "swap": {
+          "fundingTxid": "0ccb7f47e0f5eaa570107baaeebc0ff749f19d7b941ec102e5c985573ad4287d",
+          "refundLocktime": 410800
+        }
+      },
+      "issuanceId": "600baa5fe68e811ed0a8d6150567bbbdf92ae2b4a115b6c4dc3a407af24f8e6d"
+    },
+    "taprootBundle": {
+      "kind": "taproot_assets_lightning_stablecoin_bitvm_bundle",
+      "bundleId": "c03872bbd6171f01c0cc48cc70fe76b557d2082f97e2fdab34caf5dbdd3e4cd9",
+      "bundleCore": {
+        "assetDescriptorId": "76a9d0ca4767b4ab8979d5ea913b5c764f37aa3c0faf551cde8b84361021eacf",
+        "assetProofId": "15ac7dc511b75e63756874a240d90ef522f872394918b271dc307354bada70c8",
+        "quoteId": "995997e4b47aa23f3bd22754f0899e13b631c484d7d4e8b20e142970d05065b3",
+        "jurassicMechanismRefId": "23bc21e1e2c0dca2cee1a3acfd36190d0ba14498fff5a4e99595083aca806ec8",
+        "proofAnchorHandleId": "5c9acb8f25502959a1ee4049c3ea5e56c986e7fde0c6b43a7baa349438185e4e",
+        "proofCarrierCommitmentId": "329cc51223b808c71cc1ec60615fd0ae3d9db227321954fcfa2095f4ed9ba13f",
+        "settlementId": "edaa5dc7f658bad27347883768360401335d342cb1e965b3237cfede8ac39964",
+        "challengeId": "7e13e5a8b20da633c7488d7baddbe19e47f663a5c922c135edf9d783d76ee5e7"
+      },
+      "asset": {
+        "kind": "taproot_asset_stablecoin_descriptor",
+        "descriptorId": "76a9d0ca4767b4ab8979d5ea913b5c764f37aa3c0faf551cde8b84361021eacf",
+        "descriptorCore": {
+          "protocol": "taproot_assets",
+          "ticker": "SUKUSD",
+          "decimalDisplay": 6,
+          "assetId": "ec151b4f9b7a03c5d414cfabae6f2f019408d0515bfd0ac0a2b22de03f789707",
+          "genesisPoint": "3c22105c91923a4257afa559f8e7a4dd458c26884891f2ae280f21e77fa218a3:0",
+          "groupKey": "5fff72b286f971a8138227fcc3d95e3aa690a3dfca6dd437f2f9667f07f41f35",
+          "issuer": "oman-sukuk-stablecoin-demo-issuer"
+        }
+      },
+      "assetProof": {
+        "kind": "taproot_asset_proof_commitment",
+        "proofId": "15ac7dc511b75e63756874a240d90ef522f872394918b271dc307354bada70c8",
+        "proofCore": {
+          "version": 1,
+          "assetId": "ec151b4f9b7a03c5d414cfabae6f2f019408d0515bfd0ac0a2b22de03f789707",
+          "amountUnits": "2000000000",
+          "anchorOutpoint": "8fe4a3ccdd72db57faefe21357dbfe5a7b87d719c6e6c531ac48f8bbc37d402b:1",
+          "scriptKey": "2abdb966b87ee676b2dfde42c9e0a12e7d556995cc96ce180507124424269246",
+          "universeHost": "regtest-universe.local",
+          "universeRoot": "df5373a0fc5166c1515a80e6c88b71a9977a416711e95f144a8a9dfa2e9ba154",
+          "proofRoot": "fe3eab0bce50c9e9ead271756d68bca3a25bcdaa4f53b67abdd5c4c90fe63c18",
+          "proofTransport": "tapd_exported_proof_or_universe_proof"
+        }
+      },
+      "rfqQuote": {
+        "kind": "taproot_asset_lightning_rfq_quote",
+        "quoteId": "995997e4b47aa23f3bd22754f0899e13b631c484d7d4e8b20e142970d05065b3",
+        "quoteCore": {
+          "version": 1,
+          "protocol": "taproot_assets_rfq_over_bolt08",
+          "assetId": "ec151b4f9b7a03c5d414cfabae6f2f019408d0515bfd0ac0a2b22de03f789707",
+          "assetTicker": "SUKUSD",
+          "clientNodeId": "tap-client-regtest",
+          "edgeNodeId": "tap-edge-node-regtest",
+          "assetAmountUnits": "2000000000",
+          "btcRouteSats": "250000",
+          "maxSpreadPpm": 5000,
+          "quotedSpreadPpm": 3000,
+          "maxRoutingFeePpm": 1200,
+          "quotedRoutingFeePpm": 900,
+          "expiryBlock": 250,
+          "paymentHashHex": "1b10394a0aa51e1ec036dbe8a1c105b4d8d96ff6e96210a0538c125a4bd82ebd",
+          "jurassicMechanisms": {
+            "kind": "jurassic_bitvm_mechanism_refs",
+            "refId": "23bc21e1e2c0dca2cee1a3acfd36190d0ba14498fff5a4e99595083aca806ec8",
+            "version": 1,
+            "target": "taproot_assets",
+            "semanticStateHash": "f0208ee6dcf2171cca45c153f69830f3b3d3053e09f664ea4543cb5aa81f3b57",
+            "planId": "tap_asset_proof_anchor_switchboard",
+            "transcriptVariantIds": [
+              "tap_asset_proof_delta"
+            ],
+            "transcriptDigests": [
+              "daa1ea2d94acfa93a9a50f469c816fef29d6dbe6dae634fad1e67331ad157d22"
+            ],
+            "publicHandleIds": [
+              "5c9acb8f25502959a1ee4049c3ea5e56c986e7fde0c6b43a7baa349438185e4e",
+              "8d6f07ecc516b52bd823893a6bef33fc06744fb7568445247e90714947e9a262"
+            ],
+            "carrierCommitmentIds": [
+              "329cc51223b808c71cc1ec60615fd0ae3d9db227321954fcfa2095f4ed9ba13f"
+            ],
+            "transcriptSwitchboardId": "4129675c33a17f00f4010f00bcb2e209084da4d8c0b111de856c4ac2b7864219",
+            "primaryTranscriptDigest": "daa1ea2d94acfa93a9a50f469c816fef29d6dbe6dae634fad1e67331ad157d22",
+            "primaryPublicHandleId": "5c9acb8f25502959a1ee4049c3ea5e56c986e7fde0c6b43a7baa349438185e4e",
+            "primaryCarrierCommitmentId": "329cc51223b808c71cc1ec60615fd0ae3d9db227321954fcfa2095f4ed9ba13f",
+            "status": "prototype_ready",
+            "rejectionTripwireDigest": "0000000000000000000000000000000000000000000000000000000000000001"
+          },
+          "proofAnchorHandleId": "5c9acb8f25502959a1ee4049c3ea5e56c986e7fde0c6b43a7baa349438185e4e",
+          "proofCarrierCommitmentId": "329cc51223b808c71cc1ec60615fd0ae3d9db227321954fcfa2095f4ed9ba13f",
+          "proofTranscriptDigest": "daa1ea2d94acfa93a9a50f469c816fef29d6dbe6dae634fad1e67331ad157d22"
+        },
+        "commitment": {
+          "assetProofId": "15ac7dc511b75e63756874a240d90ef522f872394918b271dc307354bada70c8",
+          "obligation": "Edge node swaps the Taproot Asset amount into a BTC Lightning payment under the quoted spread and routing fee limits."
+        }
+      },
+      "settlementEvidence": {
+        "kind": "taproot_asset_lightning_stablecoin_settlement_evidence",
+        "settlementId": "edaa5dc7f658bad27347883768360401335d342cb1e965b3237cfede8ac39964",
+        "settlementCore": {
+          "version": 1,
+          "quoteId": "995997e4b47aa23f3bd22754f0899e13b631c484d7d4e8b20e142970d05065b3",
+          "jurassicMechanismRefId": "23bc21e1e2c0dca2cee1a3acfd36190d0ba14498fff5a4e99595083aca806ec8",
+          "proofAnchorHandleId": "5c9acb8f25502959a1ee4049c3ea5e56c986e7fde0c6b43a7baa349438185e4e",
+          "proofCarrierCommitmentId": "329cc51223b808c71cc1ec60615fd0ae3d9db227321954fcfa2095f4ed9ba13f",
+          "proofTranscriptDigest": "daa1ea2d94acfa93a9a50f469c816fef29d6dbe6dae634fad1e67331ad157d22",
+          "assetProofId": "15ac7dc511b75e63756874a240d90ef522f872394918b271dc307354bada70c8",
+          "liquidityLeaseBundleId": "1f710aaa3b8a50194a58c60b3e9b3987f0d00dd8cd5655a49a3845881a2aae8b",
+          "deliveredBtcSats": "250000",
+          "observedSpreadPpm": 3000,
+          "observedRoutingFeePpm": 900,
+          "observedBlock": 200,
+          "paymentHashHex": "1b10394a0aa51e1ec036dbe8a1c105b4d8d96ff6e96210a0538c125a4bd82ebd",
+          "preimageHashHex": "1b10394a0aa51e1ec036dbe8a1c105b4d8d96ff6e96210a0538c125a4bd82ebd",
+          "lnClaimTxid": "0ccb7f47e0f5eaa570107baaeebc0ff749f19d7b941ec102e5c985573ad4287d",
+          "channelOrSpliceOutpoint": "0ccb7f47e0f5eaa570107baaeebc0ff749f19d7b941ec102e5c985573ad4287d:0"
+        },
+        "checks": {
+          "assetProofMatchesQuote": true,
+          "deliveredAmountMet": true,
+          "spreadCeilingMet": true,
+          "routingFeeCeilingMet": true,
+          "paymentHashMatched": true,
+          "quoteNotExpired": true,
+          "bitvmLeaseVerified": true
+        }
+      },
+      "challengeEvidence": {
+        "kind": "taproot_asset_lightning_stablecoin_challenge",
+        "challengeId": "7e13e5a8b20da633c7488d7baddbe19e47f663a5c922c135edf9d783d76ee5e7",
+        "challengeCore": {
+          "version": 1,
+          "quoteId": "995997e4b47aa23f3bd22754f0899e13b631c484d7d4e8b20e142970d05065b3",
+          "jurassicMechanismRefId": "23bc21e1e2c0dca2cee1a3acfd36190d0ba14498fff5a4e99595083aca806ec8",
+          "proofAnchorHandleId": "5c9acb8f25502959a1ee4049c3ea5e56c986e7fde0c6b43a7baa349438185e4e",
+          "proofCarrierCommitmentId": "329cc51223b808c71cc1ec60615fd0ae3d9db227321954fcfa2095f4ed9ba13f",
+          "proofTranscriptDigest": "daa1ea2d94acfa93a9a50f469c816fef29d6dbe6dae634fad1e67331ad157d22",
+          "observedAssetId": "ec151b4f9b7a03c5d414cfabae6f2f019408d0515bfd0ac0a2b22de03f789707",
+          "deliveredBtcSats": "0",
+          "observedSpreadPpm": 5001,
+          "observedRoutingFeePpm": 1201,
+          "observedBlock": 999,
+          "violations": [
+            "btc_route_amount_shortfall",
+            "spread_ppm_above_quote",
+            "routing_fee_ppm_above_quote",
+            "quote_expired_before_settlement"
+          ]
+        },
+        "slashable": true
+      },
+      "thesis": "Use BitVM/DLC commitments to make a Taproot Assets Edge-node RFQ and Lightning liquidity promise externally auditable and challengeable.",
+      "caveats": [
+        "The stablecoin issuer remains a separate trust assumption.",
+        "This validates evidence shape and commitments; production would verify tapd proofs and litd RFQ messages directly.",
+        "The edge node still performs the asset/BTC conversion; ordinary BTC Lightning routers do not need asset awareness."
+      ],
+      "references": [
+        "https://docs.lightning.engineering/the-lightning-network/taproot-assets/taproot-assets-protocol",
+        "https://docs.lightning.engineering/the-lightning-network/taproot-assets/edge-nodes",
+        "https://docs.lightning.engineering/lightning-network-tools/taproot-assets/rfq"
+      ]
+    },
+    "taprootVerification": {
+      "ok": true
+    }
+  },
+  "routingMarket": {
+    "kind": "sukuk_stablecoin_lightning_hawala_routing_market",
+    "marketId": "e6c958c4fe1ac857b43547ca27bce04d6960b513a7ccbd31905f819787e5af50",
+    "marketCore": {
+      "version": 1,
+      "marketType": "taproot_asset_lightning_hawala_routing",
+      "pledgeId": "51660e78da95fccc8e99b2b82f9af24f04a6fb33928dfe7ef52c68e3106e3095",
+      "routeQuoteIds": [
+        "a368bc451897da37232bd790b84b2bac07f496996612b7abf905c3cf27f37d11",
+        "20a40e7c678d95245f1de88357979fa957bfea7fba80fc8d6fbed7cbf0fdabc2",
+        "5b2eb4e43c02b8b70b0420574e7ed57c8bf1651d8e71eb1622935574ffd44b28"
+      ],
+      "feeCreditEventIds": [
+        "28bb8e14de37e041fe8e449521b8716c5107100feb7fd2be327587b27c3f357d",
+        "c7a0e47aa8ef628b5320838d35eeec7a31e036be9b848cf78b73cd690744c510",
+        "a712aa851cbb9ee1cdcfe1f191267eb6c2d279e4e94e7df7ff02c9af853a4c13"
+      ],
+      "routedUnits": "1400000000",
+      "serviceFeeUnits": "3072500",
+      "routingRule": "fees accrue only for quoted routing and settlement services"
+    },
+    "routeQuotes": [
+      {
+        "kind": "sukuk_stablecoin_dynamic_hawala_route_quote",
+        "quoteId": "a368bc451897da37232bd790b84b2bac07f496996612b7abf905c3cf27f37d11",
+        "quoteCore": {
+          "version": 1,
+          "quoteType": "lightning_hawala_style_service_fee",
+          "corridorId": "oman-muscat-to-uae-dubai",
+          "sourceJurisdiction": "OM",
+          "destinationJurisdiction": "AE",
+          "stablecoinPropertyId": 9001,
+          "pledgeId": "51660e78da95fccc8e99b2b82f9af24f04a6fb33928dfe7ef52c68e3106e3095",
+          "amountUnits": "650000000",
+          "baseFeeUnits": "2500",
+          "baseFeeBps": 7,
+          "demandBps": 11,
+          "complianceBps": 3,
+          "urgencyBps": 2,
+          "qualityDiscountBps": 1,
+          "feeCapBps": 45,
+          "computedFeeBps": 22,
+          "variableFeeUnits": "1430000",
+          "serviceFeeUnits": "1432500",
+          "feeCharacter": "routing_and_settlement_service_fee_not_interest",
+          "settlementRail": "Taproot Assets over Lightning with TradeLayer receipt lock"
+        }
+      },
+      {
+        "kind": "sukuk_stablecoin_dynamic_hawala_route_quote",
+        "quoteId": "20a40e7c678d95245f1de88357979fa957bfea7fba80fc8d6fbed7cbf0fdabc2",
+        "quoteCore": {
+          "version": 1,
+          "quoteType": "lightning_hawala_style_service_fee",
+          "corridorId": "oman-muscat-to-saudi-riyadh",
+          "sourceJurisdiction": "OM",
+          "destinationJurisdiction": "SA",
+          "stablecoinPropertyId": 9001,
+          "pledgeId": "51660e78da95fccc8e99b2b82f9af24f04a6fb33928dfe7ef52c68e3106e3095",
+          "amountUnits": "450000000",
+          "baseFeeUnits": "2500",
+          "baseFeeBps": 7,
+          "demandBps": 8,
+          "complianceBps": 4,
+          "urgencyBps": 1,
+          "qualityDiscountBps": 1,
+          "feeCapBps": 45,
+          "computedFeeBps": 19,
+          "variableFeeUnits": "855000",
+          "serviceFeeUnits": "857500",
+          "feeCharacter": "routing_and_settlement_service_fee_not_interest",
+          "settlementRail": "Taproot Assets over Lightning with TradeLayer receipt lock"
+        }
+      },
+      {
+        "kind": "sukuk_stablecoin_dynamic_hawala_route_quote",
+        "quoteId": "5b2eb4e43c02b8b70b0420574e7ed57c8bf1651d8e71eb1622935574ffd44b28",
+        "quoteCore": {
+          "version": 1,
+          "quoteType": "lightning_hawala_style_service_fee",
+          "corridorId": "oman-muscat-to-india-kochi",
+          "sourceJurisdiction": "OM",
+          "destinationJurisdiction": "IN",
+          "stablecoinPropertyId": 9001,
+          "pledgeId": "51660e78da95fccc8e99b2b82f9af24f04a6fb33928dfe7ef52c68e3106e3095",
+          "amountUnits": "300000000",
+          "baseFeeUnits": "2500",
+          "baseFeeBps": 7,
+          "demandBps": 13,
+          "complianceBps": 5,
+          "urgencyBps": 3,
+          "qualityDiscountBps": 2,
+          "feeCapBps": 45,
+          "computedFeeBps": 26,
+          "variableFeeUnits": "780000",
+          "serviceFeeUnits": "782500",
+          "feeCharacter": "routing_and_settlement_service_fee_not_interest",
+          "settlementRail": "Taproot Assets over Lightning with TradeLayer receipt lock"
+        }
+      }
+    ],
+    "feeCreditEvents": [
+      {
+        "kind": "sukuk_stablecoin_defi_event",
+        "eventId": "28bb8e14de37e041fe8e449521b8716c5107100feb7fd2be327587b27c3f357d",
+        "eventCore": {
+          "version": 1,
+          "eventType": "credit_lightning_hawala_service_fee",
+          "propertyId": 9001,
+          "pledgeId": "51660e78da95fccc8e99b2b82f9af24f04a6fb33928dfe7ef52c68e3106e3095",
+          "routeQuoteId": "a368bc451897da37232bd790b84b2bac07f496996612b7abf905c3cf27f37d11",
+          "corridorId": "oman-muscat-to-uae-dubai",
+          "amountUnits": "1432500",
+          "feeCharacter": "routing_and_settlement_service_fee_not_interest"
+        }
+      },
+      {
+        "kind": "sukuk_stablecoin_defi_event",
+        "eventId": "c7a0e47aa8ef628b5320838d35eeec7a31e036be9b848cf78b73cd690744c510",
+        "eventCore": {
+          "version": 1,
+          "eventType": "credit_lightning_hawala_service_fee",
+          "propertyId": 9001,
+          "pledgeId": "51660e78da95fccc8e99b2b82f9af24f04a6fb33928dfe7ef52c68e3106e3095",
+          "routeQuoteId": "20a40e7c678d95245f1de88357979fa957bfea7fba80fc8d6fbed7cbf0fdabc2",
+          "corridorId": "oman-muscat-to-saudi-riyadh",
+          "amountUnits": "857500",
+          "feeCharacter": "routing_and_settlement_service_fee_not_interest"
+        }
+      },
+      {
+        "kind": "sukuk_stablecoin_defi_event",
+        "eventId": "a712aa851cbb9ee1cdcfe1f191267eb6c2d279e4e94e7df7ff02c9af853a4c13",
+        "eventCore": {
+          "version": 1,
+          "eventType": "credit_lightning_hawala_service_fee",
+          "propertyId": 9001,
+          "pledgeId": "51660e78da95fccc8e99b2b82f9af24f04a6fb33928dfe7ef52c68e3106e3095",
+          "routeQuoteId": "5b2eb4e43c02b8b70b0420574e7ed57c8bf1651d8e71eb1622935574ffd44b28",
+          "corridorId": "oman-muscat-to-india-kochi",
+          "amountUnits": "782500",
+          "feeCharacter": "routing_and_settlement_service_fee_not_interest"
+        }
+      }
+    ]
+  },
+  "arbMandate": {
+    "kind": "sukuk_stablecoin_tradelayer_arb_mandate",
+    "mandateId": "6a9b1af66c32089906933f1e854af08a76148a5ef5f9f9d64ae9c757d37fcfc4",
+    "mandateCore": {
+      "version": 1,
+      "mandateType": "bounded_tradelayer_halal_arb",
+      "issuanceId": "600baa5fe68e811ed0a8d6150567bbbdf92ae2b4a115b6c4dc3a407af24f8e6d",
+      "stablecoinPropertyId": 9001,
+      "allocatedUnits": "1000000000",
+      "opportunityIds": [
+        "345514131665cc0289eaa08ced97d1f9dcca44444d505ab0d987577fb84ffcf1",
+        "e4c3bba97f3f6b360d9d7b026a9322c06c06b61a61ed85037f6dd69e71b01511",
+        "faec756e08ff26835fcffa072b4e516b10888db42f3df4096e88d16da0ed35b9"
+      ],
+      "revenueEventIds": [
+        "b1b63af2f6fda01f94b1f2aa6ca4609a1ae028b44d3e808570987886dd2ab524",
+        "ad05409baf318679b8dc0224ad61dee37eefd4fe7f29fb63e8d2ec1a5b604628",
+        "5c79f684dae7b615ccbb20208b9d7e42a5927dc8ced4166df9c576408405a8cb"
+      ],
+      "usedInventoryUnits": "600000000",
+      "expectedServiceProfitUnits": "1480000",
+      "constraints": {
+        "leverageAllowed": false,
+        "borrowLendAllowed": false,
+        "shortSellingAllowed": false,
+        "guaranteedReturnAllowed": false,
+        "impermissibleAssetTouchAllowed": false,
+        "principalLossPossibleAndDisclosed": true
+      }
+    },
+    "opportunities": [
+      {
+        "opportunityId": "345514131665cc0289eaa08ced97d1f9dcca44444d505ab0d987577fb84ffcf1",
+        "core": {
+          "version": 1,
+          "venueA": "tradelayer-orderbook-a",
+          "venueB": "tradelayer-orderbook-b",
+          "pair": "SUKUSD/TLUSD",
+          "amountUnits": "250000000",
+          "spreadBps": 34,
+          "executionFeeBps": 9,
+          "netSpreadBps": 25,
+          "expectedServiceProfitUnits": "625000",
+          "settlementMode": "atomic_or_precommitted_trade_settlement",
+          "impermissibleAssetTouch": false
+        }
+      },
+      {
+        "opportunityId": "e4c3bba97f3f6b360d9d7b026a9322c06c06b61a61ed85037f6dd69e71b01511",
+        "core": {
+          "version": 1,
+          "venueA": "tradelayer-rfq-edge",
+          "venueB": "taproot-assets-rfq-edge",
+          "pair": "SUKUSD/BTC",
+          "amountUnits": "200000000",
+          "spreadBps": 41,
+          "executionFeeBps": 14,
+          "netSpreadBps": 27,
+          "expectedServiceProfitUnits": "540000",
+          "settlementMode": "atomic_or_precommitted_trade_settlement",
+          "impermissibleAssetTouch": false
+        }
+      },
+      {
+        "opportunityId": "faec756e08ff26835fcffa072b4e516b10888db42f3df4096e88d16da0ed35b9",
+        "core": {
+          "version": 1,
+          "venueA": "tradelayer-vwap-window",
+          "venueB": "lightning-edge-liquidity",
+          "pair": "SUKUSD/OMRUSD",
+          "amountUnits": "150000000",
+          "spreadBps": 29,
+          "executionFeeBps": 8,
+          "netSpreadBps": 21,
+          "expectedServiceProfitUnits": "315000",
+          "settlementMode": "atomic_or_precommitted_trade_settlement",
+          "impermissibleAssetTouch": false
+        }
+      }
+    ],
+    "revenueEvents": [
+      {
+        "kind": "sukuk_stablecoin_defi_event",
+        "eventId": "b1b63af2f6fda01f94b1f2aa6ca4609a1ae028b44d3e808570987886dd2ab524",
+        "eventCore": {
+          "version": 1,
+          "eventType": "credit_tradelayer_arb_service_profit",
+          "propertyId": 9001,
+          "issuanceId": "600baa5fe68e811ed0a8d6150567bbbdf92ae2b4a115b6c4dc3a407af24f8e6d",
+          "opportunityId": "345514131665cc0289eaa08ced97d1f9dcca44444d505ab0d987577fb84ffcf1",
+          "amountUnits": "625000",
+          "feeCharacter": "trade_execution_service_profit_not_interest"
+        }
+      },
+      {
+        "kind": "sukuk_stablecoin_defi_event",
+        "eventId": "ad05409baf318679b8dc0224ad61dee37eefd4fe7f29fb63e8d2ec1a5b604628",
+        "eventCore": {
+          "version": 1,
+          "eventType": "credit_tradelayer_arb_service_profit",
+          "propertyId": 9001,
+          "issuanceId": "600baa5fe68e811ed0a8d6150567bbbdf92ae2b4a115b6c4dc3a407af24f8e6d",
+          "opportunityId": "e4c3bba97f3f6b360d9d7b026a9322c06c06b61a61ed85037f6dd69e71b01511",
+          "amountUnits": "540000",
+          "feeCharacter": "trade_execution_service_profit_not_interest"
+        }
+      },
+      {
+        "kind": "sukuk_stablecoin_defi_event",
+        "eventId": "5c79f684dae7b615ccbb20208b9d7e42a5927dc8ced4166df9c576408405a8cb",
+        "eventCore": {
+          "version": 1,
+          "eventType": "credit_tradelayer_arb_service_profit",
+          "propertyId": 9001,
+          "issuanceId": "600baa5fe68e811ed0a8d6150567bbbdf92ae2b4a115b6c4dc3a407af24f8e6d",
+          "opportunityId": "faec756e08ff26835fcffa072b4e516b10888db42f3df4096e88d16da0ed35b9",
+          "amountUnits": "315000",
+          "feeCharacter": "trade_execution_service_profit_not_interest"
+        }
+      }
+    ]
+  }
+}

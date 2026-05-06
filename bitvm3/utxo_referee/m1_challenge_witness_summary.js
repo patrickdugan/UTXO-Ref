@@ -69,6 +69,7 @@ function run() {
       settleGain: built.transitionWitness.routeSettleGain,
       roll: built.transitionWitness.routeRoll
     },
+    committedRouting: referee.normalizeRoutingCommitments(built.transitionState),
     witnessArtifactPath: fs.existsSync(WITNESS_PATH) ? WITNESS_PATH : null
   };
 

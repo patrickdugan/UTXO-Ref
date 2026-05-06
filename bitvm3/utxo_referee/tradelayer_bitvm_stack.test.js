@@ -50,6 +50,9 @@ test('builds a verifiable stack bundle for dashboard handoff', () => {
   assert(bundle.stackHash.length === 64, 'stack hash should be present');
   assert(bundle.dashboard.viewHash.length === 64, 'dashboard view hash should be present');
   assert(bundle.hashes.routeTranscriptHash === bundle.sweepPlan.routeTranscriptHash, 'sweep route transcript should be bound');
+  assert(bundle.hashes.halalCapitalTokenPlanHash === bundle.halalCapitalTokenPlan.planId, 'capital token plan should be bound');
+  assertEq(bundle.dashboard.capital.tokenSpecCount, 7);
+  assertEq(bundle.dashboard.capital.principalUnits, bundle.halalCapitalTokenPlan.planCore.totalPrincipalUnits);
 });
 
 test('exports a compact dashboard schema contract', () => {
@@ -57,6 +60,7 @@ test('exports a compact dashboard schema contract', () => {
 
   assertEq(schema.schema, 'bitvm_tradelayer_dashboard_v1');
   assert(schema.requiredFields.includes('hashes'), 'hashes should be required');
+  assert(schema.requiredFields.includes('capital'), 'capital should be required');
   assert(schema.requiredFields.includes('txids'), 'txids should be required');
 });
 
@@ -67,6 +71,8 @@ test('rebuilds dashboard view hashes deterministically', () => {
   assertEq(view.viewHash, bundle.dashboard.viewHash);
   assertEq(view.hashes.checkpoint, bundle.stateCheckpoint.checkpointHash);
   assertEq(view.hashes.liquidityLease, bundle.liquidityLease.leaseHash);
+  assertEq(view.hashes.halalCapitalTokenPlan, bundle.halalCapitalTokenPlan.planId);
+  assertEq(view.capital.serviceRevenueUnits, bundle.halalCapitalTokenPlan.planCore.totalServiceRevenueUnits);
 });
 
 test('detects stack hash tampering', () => {
@@ -76,6 +82,16 @@ test('detects stack hash tampering', () => {
   const result = verifyTradeLayerBitvmStackBundle(tampered);
 
   assert(!result.ok, 'tampered bundle should fail');
+});
+
+test('detects tampered halal capital token plan', () => {
+  const bundle = buildTradeLayerBitvmStackBundle();
+  const tampered = clone(bundle);
+  tampered.halalCapitalTokenPlan.planCore.totalPrincipalUnits = '1';
+  const result = verifyTradeLayerBitvmStackBundle(tampered);
+
+  assert(!result.ok, 'tampered token plan should fail');
+  assert(String(result.reason).includes('halalCapitalTokenPlan'), 'expected token plan failure');
 });
 
 if (failed > 0) {

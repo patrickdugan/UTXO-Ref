@@ -1,53 +1,73 @@
 {
   "kind": "m1_fast_roll",
-  "createdAt": "2026-04-04T11:08:26.878Z",
+  "createdAt": "2026-04-25T18:15:07.972Z",
   "sourceArtifacts": {
     "challengeBundlePath": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\m1_challenge_bundle_latest.json",
     "oracleWiringPath": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\m1_oracle_wiring_latest.json",
-    "challengeBundleHash": "4a1513f9d38d813a6fcd4e84e906fe77ce790b9b00c23f9be22efc52c23ef9bc",
-    "oracleWiringHash": "e09bad2d7002ae9d941fc467dd42d021e941bf10bf619922398eabc3a545d4ac"
+    "challengeBundleHash": "88421fbd5d8604ce46728409308f1004ab245937114519919111b0e98bd8a53f",
+    "oracleWiringHash": "eefe35ad4ed7fb96100b655b575607cdf2e133335c5f62ae620bae3f16376cac"
   },
   "handoff": {
     "kind": "m1_fast_roll_handoff",
-    "createdAt": "2026-04-04T11:08:26.878Z",
-    "sourceBundleHash": "4a1513f9d38d813a6fcd4e84e906fe77ce790b9b00c23f9be22efc52c23ef9bc",
-    "oracleMapId": "af7f8a551bd41acf",
+    "createdAt": "2026-04-25T18:15:07.971Z",
+    "sourceBundleHash": "88421fbd5d8604ce46728409308f1004ab245937114519919111b0e98bd8a53f",
+    "oracleMapId": "e7ef072d70835cbd",
     "publication": {
       "kind": "m1_oracle_delta_publication",
-      "publicationId": "35f158e3a9069bf0a9a18871",
-      "oracleMapId": "af7f8a551bd41acf",
-      "eventId": "m1_oracle_event_1775300895321",
+      "publicationId": "d2c8457b0d28385f27d0f828",
+      "oracleMapId": "e7ef072d70835cbd",
+      "eventId": "m1_oracle_event_1777140906856",
       "quorumId": "quorum_1of1_placeholder",
       "keyId": "oracle_key_tl_wallet_placeholder",
       "pathId": "roll",
-      "deltaSats": "783735",
-      "bundleHash": "4a1513f9d38d813a6fcd4e84e906fe77ce790b9b00c23f9be22efc52c23ef9bc",
-      "payloadText": "m1delta|af7f8a551bd41acf|roll|783735|617502748451cdbc",
-      "payloadHex": "6d3164656c74617c616637663861353531626434316163667c726f6c6c7c3738333733357c36313735303237343834353163646263",
-      "opReturnScriptHex": "6a356d3164656c74617c616637663861353531626434316163667c726f6c6c7c3738333733357c36313735303237343834353163646263",
+      "deltaSats": "153900",
+      "bundleHash": "88421fbd5d8604ce46728409308f1004ab245937114519919111b0e98bd8a53f",
+      "payloadText": "m1delta|e7ef072d70835cbd|roll|153900|df42541467139ae7",
+      "payloadHex": "6d3164656c74617c653765663037326437303833356362647c726f6c6c7c3135333930307c64663432353431343637313339616537",
+      "opReturnScriptHex": "6a356d3164656c74617c653765663037326437303833356362647c726f6c6c7c3135333930307c64663432353431343637313339616537",
       "adaptorMapping": {
         "adaptorSignaturePlaceholder": null,
         "adaptorPointPlaceholder": null,
-        "cetTxid": "d7a479421bcfa1158eb4ecd2cdff7c41a124b1746601719f4c419f6b16e413a3",
+        "cetTxid": "5ca3395ceb0e80fa0b612fd7716ebbcd9027c428fd8c357f374fffc568fe61f2",
         "messageDigestHex": null,
         "selectedPathId": "roll"
+      },
+      "committedRouting": {
+        "winnerRole": "residual",
+        "winnerAddress": "tltc1qm3rdyvhqynjwxpxa06m962sq6cu6jpnvncy3rp",
+        "refundRole": "residual",
+        "refundAddress": "tltc1qm3rdyvhqynjwxpxa06m962sq6cu6jpnvncy3rp",
+        "feeRole": "operator",
+        "feeAddress": "tltc1qwtgx0c9f92ww8gtat82zpsgu4gttwx37xzsf2v",
+        "dustRole": "alice",
+        "dustAddress": "tltc1qyslh3amjs935nmtexvxh5dzyfg7yczmf56n8vn"
       },
       "rollTrigger": {
         "kind": "event-driven-roll",
         "canRoll": true,
-        "nextContractId": "617502748451cdbc",
+        "nextContractId": "df42541467139ae7",
         "activation": "send"
       },
-      "publicationHash": "fa71ceb86d0eade47283b8e8910dca44f9a5349720e1976659d376e610998f9e"
+      "publicationHash": "aa00888e8e5c55baf37b02d882b09ff65c5cb035cee79a4b8dddb180289ff0e1"
     },
     "nextContract": {
-      "contractId": "617502748451cdbc",
-      "sourceContractId": "af7f8a551bd41acf",
+      "contractId": "df42541467139ae7",
+      "sourceContractId": "e7ef072d70835cbd",
       "cadence": "event-driven",
       "trigger": "send",
       "route": "roll",
-      "adapterSignatureSlot": null
+      "adapterSignatureSlot": null,
+      "committedRouting": {
+        "winnerRole": "residual",
+        "winnerAddress": "tltc1qm3rdyvhqynjwxpxa06m962sq6cu6jpnvncy3rp",
+        "refundRole": "residual",
+        "refundAddress": "tltc1qm3rdyvhqynjwxpxa06m962sq6cu6jpnvncy3rp",
+        "feeRole": "operator",
+        "feeAddress": "tltc1qwtgx0c9f92ww8gtat82zpsgu4gttwx37xzsf2v",
+        "dustRole": "alice",
+        "dustAddress": "tltc1qyslh3amjs935nmtexvxh5dzyfg7yczmf56n8vn"
+      }
     }
   },
-  "artifactHash": "31eb5e3b5724fdbe68f24e5ea6af2c986d29794e0447c8b435df2909dad9d8f1"
+  "artifactHash": "d6732e2fc6bfb6e5d2cb16aacfdc4c43e3ff993fe20525de10d505ed14a215e3"
 }

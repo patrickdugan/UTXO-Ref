@@ -1,40 +1,40 @@
 {
   "kind": "m1_oracle_wiring",
-  "createdAt": "2026-04-05T17:07:54.954Z",
+  "createdAt": "2026-04-25T18:15:06.858Z",
   "sourceArtifacts": {
     "fundingPsbt": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\m1_funding_psbt_latest.json",
     "cetSkeletons": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\m1_cet_skeletons_latest.json",
-    "fundingHash": "057e0ffee7cbef88e2279a2eb83bc8127821432cf2d72e906e6fb1c93169ea2e",
-    "cetHash": "d8582118bbeddb862ce0b6895d4ef2e209f0e2aa2760102d5daf2a532d7b123a"
+    "fundingHash": "27b991421a96a9e4fc695e2e38fcaa3ee6c0f23dfcd06440f1732e336a6eb775",
+    "cetHash": "b23c5adbed6e2728171a2568c93af385704532c2074c8320e291ab22e3a073c4"
   },
   "oracle": {
-    "eventId": "m1_oracle_event_1775408874953",
+    "eventId": "m1_oracle_event_1777140906856",
     "oracleKeyId": "oracle_key_tl_wallet_placeholder",
     "quorumId": "quorum_1of1_placeholder",
-    "oracleMapId": "91b6883542da74bb",
+    "oracleMapId": "e7ef072d70835cbd",
     "network": "test",
     "rpcUrl": "http://127.0.0.1:19332"
   },
   "binding": {
     "fundingOutpoint": {
-      "txid": "16e1e35f59268d3651da7f8d4a35a03668e77ff28d21d8aa48b4395dea210de9",
+      "txid": "2edb992eade4f6fa7c3f9849a7f4390e839522f9b07d7b4e08ee33550a4eb2fe",
       "vout": 0,
-      "valueLtc": "0.007981",
-      "valueSats": "798100"
+      "valueLtc": "0.00162",
+      "valueSats": "162000"
     },
-    "maturityHeight": 4665946,
-    "refundLocktime": 4666234,
+    "maturityHeight": 4685058,
+    "refundLocktime": 4685346,
     "dustCarrySats": "0"
   },
   "attestationTargets": [
     {
       "pathId": "settle-gain",
       "bucketPct": null,
-      "cetTxid": "05efecdf3128eba915ebf8f287aec7412e7f778a5dc0e70ad1413fb02c3538d4",
-      "locktime": 4665946,
+      "cetTxid": "ffd65f45f345a9f69ea832c42c34382f91ed64ebd68188e3641e9f437c277bae",
+      "locktime": 4685058,
       "message": {
-        "payload": "m1_oracle_attestation_v1|m1_oracle_event_1775408874953|16e1e35f59268d3651da7f8d4a35a03668e77ff28d21d8aa48b4395dea210de9|0|settle-gain|05efecdf3128eba915ebf8f287aec7412e7f778a5dc0e70ad1413fb02c3538d4|4665946",
-        "digestHex": "acd5c26600ebe807ed4bc7e14d8ab29a81c8ae6376c9332ae16459e1c74a8cc1"
+        "payload": "m1_oracle_attestation_v1|m1_oracle_event_1777140906856|2edb992eade4f6fa7c3f9849a7f4390e839522f9b07d7b4e08ee33550a4eb2fe|0|settle-gain|ffd65f45f345a9f69ea832c42c34382f91ed64ebd68188e3641e9f437c277bae|4685058",
+        "digestHex": "126d259db5e5902522a8226db5b53d31f7452a82473b284a7e11026958b6a5df"
       },
       "oracleNonceCommitment": "nonce_commitment_for_settle-gain",
       "oracleSignaturePlaceholder": "oracle_sig_for_settle-gain",
@@ -44,11 +44,11 @@
     {
       "pathId": "settle-loss",
       "bucketPct": null,
-      "cetTxid": "f9bc9723d504fdfd7b5179c39f06325d9632ffd6b60a83d40cafab9d1e444602",
-      "locktime": 4665946,
+      "cetTxid": "f4279d96d2440f688e83fbbcb09aa153901f9acb15a2edb063b44784d73e8af8",
+      "locktime": 4685058,
       "message": {
-        "payload": "m1_oracle_attestation_v1|m1_oracle_event_1775408874953|16e1e35f59268d3651da7f8d4a35a03668e77ff28d21d8aa48b4395dea210de9|0|settle-loss|f9bc9723d504fdfd7b5179c39f06325d9632ffd6b60a83d40cafab9d1e444602|4665946",
-        "digestHex": "0fb62dede1a5523f2106ec33c5a4091cecc2d44715fe3ef78b04e9a67889e36a"
+        "payload": "m1_oracle_attestation_v1|m1_oracle_event_1777140906856|2edb992eade4f6fa7c3f9849a7f4390e839522f9b07d7b4e08ee33550a4eb2fe|0|settle-loss|f4279d96d2440f688e83fbbcb09aa153901f9acb15a2edb063b44784d73e8af8|4685058",
+        "digestHex": "7d9475c54cdebeae559ce8e4abeb0fb16c4cf7a0e805208b634170b0efdcf24b"
       },
       "oracleNonceCommitment": "nonce_commitment_for_settle-loss",
       "oracleSignaturePlaceholder": "oracle_sig_for_settle-loss",
@@ -88,5 +88,5 @@
       "notes": "Use this bundle to redirect to arbitration path."
     }
   },
-  "artifactHash": "5320d2352af02d8ae13c1ba8e4731a4063e0491f9f4c923a9deeedf72db951be"
+  "artifactHash": "a15699c2b371ad29c5f59b01c35fc88bb7bbda9be89ae5287965246bbc8ff57d"
 }

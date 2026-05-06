@@ -19,7 +19,9 @@ const {
   ReceiptLedger,
   ReceiptTallyMap,
   buildSettlementDeltaAnnotation,
-  buildWitnessBlobWithDelta
+  buildWitnessBlobWithDelta,
+  normalizeRoutingCommitments,
+  assertCommittedRouting
 } = require('./index');
 
 const ARTIFACTS_DIR = path.join(__dirname, 'artifacts');
@@ -224,6 +226,10 @@ async function run() {
   });
 
   const witnessBlob = buildWitnessBlobWithDelta(tally, deltaAnnotation);
+  const routingCommitments = assertCommittedRouting(
+    normalizeRoutingCommitments(witnessArtifact?.witness?.transitionState || {}),
+    'expiry witness routing commitments'
+  );
 
   const artifact = {
     kind: 'm1_expiry_redemption',
@@ -251,16 +257,7 @@ async function run() {
       dustCarrySats: deltaAnnotation.settlementBreakdown.dustCarrySats,
       settlementKind: deltaAnnotation.settlementBreakdown.settlementKind
     },
-    routingCommitments: {
-      winnerRole: witnessArtifact?.witness?.transitionState?.winnerRole || null,
-      winnerAddress: witnessArtifact?.witness?.transitionState?.winnerAddress || null,
-      refundRole: witnessArtifact?.witness?.transitionState?.refundRole || null,
-      refundAddress: witnessArtifact?.witness?.transitionState?.refundAddress || null,
-      feeRole: witnessArtifact?.witness?.transitionState?.feeRole || null,
-      feeAddress: witnessArtifact?.witness?.transitionState?.feeAddress || null,
-      dustRole: witnessArtifact?.witness?.transitionState?.dustRole || null,
-      dustAddress: witnessArtifact?.witness?.transitionState?.dustAddress || null
-    },
+    routingCommitments,
     deltas: deltaAnnotation,
     settlementBreakdown: deltaAnnotation.settlementBreakdown,
     witnessBlob,

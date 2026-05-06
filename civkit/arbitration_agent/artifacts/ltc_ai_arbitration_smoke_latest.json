@@ -1,0 +1,200 @@
+{
+  "kind": "civkit_ai_arbitration_smoke",
+  "createdAt": "2026-04-05T00:24:44.895Z",
+  "chainContext": {
+    "mode": "rpc",
+    "network": "litecoin-testnet",
+    "chain": "test",
+    "height": 4664821,
+    "fundingTxid": "fc27a1a61622ee53e80dbf01c313101294c98a7319287d76b897cbf48604c32e"
+  },
+  "fundingArtifactTxid": "fc27a1a61622ee53e80dbf01c313101294c98a7319287d76b897cbf48604c32e",
+  "session": {
+    "tradeId": "926ea4bdc8dd859f8b1c0385fb4acadb7bec9ee3955a9f1eda77c6125371cfae",
+    "authorizationMode": "threshold_2_of_3",
+    "expiryBlock": "4665109",
+    "feeQuote": {
+      "platformFeeSats": "500",
+      "bookingFeeSats": "1000",
+      "resolverFeeSats": "2500"
+    }
+  },
+  "subAgentReviews": [
+    {
+      "agentId": "seller_case_agent",
+      "agentRole": "seller_case",
+      "recommendedRoute": "split",
+      "confidenceBps": 7200,
+      "releaseScoreBps": 4019,
+      "refundScoreBps": 3357,
+      "citedEvidenceIds": [
+        "funding",
+        "buyer-receipt",
+        "receipt-mismatch",
+        "seller-denial",
+        "offer-match"
+      ],
+      "notes": [
+        "chain_funding_confirmed:Funding tx fc27a1a61622ee53e80dbf01c313101294c98a7319287d76b897cbf48604c32e observed for LTC smoke",
+        "fiat_receipt_match:Buyer uploaded cash deposit slip consistent with quoted amount",
+        "receipt_mismatch:Deposit slip metadata mismatched branch reference",
+        "seller_denial:Seller denies that funds were available at collection window",
+        "payment_method_match:Trade metadata still matches listed cash deposit offer"
+      ]
+    },
+    {
+      "agentId": "buyer_safety_agent",
+      "agentRole": "buyer_safety",
+      "recommendedRoute": "split",
+      "confidenceBps": 7200,
+      "releaseScoreBps": 3215,
+      "refundScoreBps": 4197,
+      "citedEvidenceIds": [
+        "funding",
+        "buyer-receipt",
+        "receipt-mismatch",
+        "seller-denial",
+        "offer-match"
+      ],
+      "notes": [
+        "chain_funding_confirmed:Funding tx fc27a1a61622ee53e80dbf01c313101294c98a7319287d76b897cbf48604c32e observed for LTC smoke",
+        "fiat_receipt_match:Buyer uploaded cash deposit slip consistent with quoted amount",
+        "receipt_mismatch:Deposit slip metadata mismatched branch reference",
+        "seller_denial:Seller denies that funds were available at collection window",
+        "payment_method_match:Trade metadata still matches listed cash deposit offer"
+      ]
+    }
+  ],
+  "decision": {
+    "route": "split",
+    "reasonCode": "subagent_consensus_split",
+    "trustedToSign": true,
+    "confidenceBps": 7200,
+    "minSubAgentConfidenceBps": 7200,
+    "averageReleaseScoreBps": 3617,
+    "averageRefundScoreBps": 3777
+  },
+  "receipt": {
+    "receiptHashHex": "7b703d47af60ae6acc59d50aa3e304fcdbfc2a6ff460259d0691ada55347a173",
+    "arbitrationId": "926ea4bdc8dd859f8b1c0385fb4acadb7bec9ee3955a9f1eda77c6125371cfae:split",
+    "arbitratorId": "ai_arbitrator_ltc_testnet",
+    "trustedToSign": true,
+    "finalRoute": "split",
+    "finalConfidenceBps": 7200,
+    "reasonCode": "subagent_consensus_split",
+    "policyHashHex": "834f9434f6a87e325c7e5851ea0cf5d619436a31b1221a163e4c3812d3be4883",
+    "evidenceRootHex": "4800eaa8a2d1b77f9766a85d9fa167654511584cb257f9b42020974a7d1ca667",
+    "reviewsRootHex": "85d8cb8c62b3fe23d1e2cd1a1d10e4b989a537f77e1959bcd193c317dc65f222",
+    "binding": {
+      "orderHashHex": "112c6127d50beac23dc8036bc1dfcbbbdcbffe570c70edeba083d1b9073ef32d",
+      "decisionHashHex": "7b477c6a159d319c411a65e53052ecc2fd7f6c2c297a9e4138c64d4c8c4328e4",
+      "selectedCommitmentHashHex": "e8298187e1debc29de04b5c976251a807fbc17c12ca89bcea01bcb24da963fbb",
+      "settlementCommitmentHashHex": "9b3ec3c09da9bf5b075a48ca05135ecef015c849039832dc673be4745edc3531",
+      "transitionCommitmentHashHex": "e8298187e1debc29de04b5c976251a807fbc17c12ca89bcea01bcb24da963fbb",
+      "taprootAddress": "tltc1p7ps7e7yx7j5zch54qqza4t9tjd87qd5z6nc98dk0adre2rntgptqz3v0lu",
+      "txId": "d3401e2a97a82d0effa5cab2b888b81bfb7db60f6da8fbbc55d4bcd181b090a4"
+    },
+    "chainContext": {
+      "mode": "rpc",
+      "network": "litecoin-testnet",
+      "chain": "test",
+      "height": 4664821,
+      "fundingTxid": "fc27a1a61622ee53e80dbf01c313101294c98a7319287d76b897cbf48604c32e"
+    }
+  },
+  "spendPackage": {
+    "network": "litecoin-testnet",
+    "taprootAddress": "tltc1p7ps7e7yx7j5zch54qqza4t9tjd87qd5z6nc98dk0adre2rntgptqz3v0lu",
+    "selectedLeaf": "quorum_2_of_3",
+    "txId": "d3401e2a97a82d0effa5cab2b888b81bfb7db60f6da8fbbc55d4bcd181b090a4",
+    "commitmentType": "transition",
+    "binding": {
+      "settlementCommitmentHashHex": "9b3ec3c09da9bf5b075a48ca05135ecef015c849039832dc673be4745edc3531",
+      "transitionCommitmentHashHex": "e8298187e1debc29de04b5c976251a807fbc17c12ca89bcea01bcb24da963fbb",
+      "selectedCommitmentHashHex": "e8298187e1debc29de04b5c976251a807fbc17c12ca89bcea01bcb24da963fbb"
+    },
+    "witnessPlan": {
+      "authorizationPath": "quorum_2_of_3",
+      "threshold": 2,
+      "signerSet": {
+        "buyerSigned": true,
+        "sellerSigned": false,
+        "notarySigned": true
+      },
+      "signatureCount": 2,
+      "scriptSatisfiable": true,
+      "signatureSlots": [
+        {
+          "stackIndex": 0,
+          "keyField": "notaryPubkey",
+          "signerRole": "notary",
+          "signed": true,
+          "witnessPlaceholder": "notary_signature"
+        },
+        {
+          "stackIndex": 1,
+          "keyField": "refundPubkey",
+          "signerRole": "buyer",
+          "signed": true,
+          "witnessPlaceholder": "buyer_signature"
+        },
+        {
+          "stackIndex": 2,
+          "keyField": "releasePubkey",
+          "signerRole": "seller",
+          "signed": false,
+          "witnessPlaceholder": "OP_0"
+        }
+      ],
+      "witnessStack": [
+        "notary_signature",
+        "buyer_signature",
+        "OP_0"
+      ]
+    },
+    "outputs": [
+      {
+        "role": "seller",
+        "amountSats": "388458",
+        "scriptPubKeyHex": "0014da7be063123dd475bfd44db4f1c26101f5f680e7"
+      },
+      {
+        "role": "buyer",
+        "amountSats": "405642",
+        "scriptPubKeyHex": "00142b300b71f31ca92de14f411355ff06d400461a61"
+      },
+      {
+        "role": "platform_fee",
+        "amountSats": "500",
+        "scriptPubKeyHex": "001474fcc6d0584f0c0cdad5971633e518156117da6f"
+      },
+      {
+        "role": "notary_booking_fee",
+        "amountSats": "1000",
+        "scriptPubKeyHex": "0014a15e60e8fd75856680b28ab918eb7b5e34abcaf4"
+      },
+      {
+        "role": "resolver_fee",
+        "amountSats": "2500",
+        "scriptPubKeyHex": "0014a15e60e8fd75856680b28ab918eb7b5e34abcaf4"
+      }
+    ]
+  },
+  "bitvmChallenge": {
+    "route": "split",
+    "verification": {
+      "ok": true
+    },
+    "binding": {
+      "orderHashHex": "112c6127d50beac23dc8036bc1dfcbbbdcbffe570c70edeba083d1b9073ef32d",
+      "decisionHashHex": "7b477c6a159d319c411a65e53052ecc2fd7f6c2c297a9e4138c64d4c8c4328e4",
+      "settlementCommitmentHashHex": "b511b2523b7dbc30930c4b4a7c7d4e2bb875d78e289f4653fcda283ce15c5a54",
+      "transitionCommitmentHashHex": "e8298187e1debc29de04b5c976251a807fbc17c12ca89bcea01bcb24da963fbb"
+    },
+    "signerSet": {
+      "buyerSigned": true,
+      "sellerSigned": false,
+      "notarySigned": true
+    }
+  }
+}
