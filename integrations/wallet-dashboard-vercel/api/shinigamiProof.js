@@ -7,8 +7,8 @@ function sha256Hex(value) {
 
 function loadUtxoRefShinigami() {
   const candidates = [
-    path.resolve(__dirname, '..', '..', '..', 'bitvm3', 'utxo_referee', 'shinigami_virtual_cet_ark'),
-    path.resolve(process.cwd(), '..', '..', 'bitvm3', 'utxo_referee', 'shinigami_virtual_cet_ark')
+    path.resolve(__dirname, '..', '..', '..', 'bitvm3', 'utxo_referee', 'shinigami', 'shinigami_virtual_cet_ark'),
+    path.resolve(process.cwd(), '..', '..', 'bitvm3', 'utxo_referee', 'shinigami', 'shinigami_virtual_cet_ark')
   ];
 
   for (const candidate of candidates) {

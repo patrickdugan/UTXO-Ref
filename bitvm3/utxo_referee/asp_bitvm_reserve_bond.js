@@ -14,7 +14,7 @@ const { canonicalStringify, normalizeAmountSats } = require('./m1_spec');
 const {
   buildShinigamiVirtualCetBundle,
   verifyShinigamiVirtualCetBundle
-} = require('./shinigami_virtual_cet_ark');
+} = require('./shinigami/shinigami_virtual_cet_ark');
 
 const ARTIFACTS_DIR = path.join(__dirname, 'artifacts', 'asp_bitvm_reserve');
 const SUMMARY_PATH = path.join(ARTIFACTS_DIR, 'asp_bitvm_reserve_latest.json');

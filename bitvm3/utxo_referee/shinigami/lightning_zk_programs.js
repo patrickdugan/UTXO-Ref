@@ -10,20 +10,21 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
-const { canonicalStringify, normalizeAmountSats } = require('./m1_spec');
+const { canonicalStringify, normalizeAmountSats } = require('../m1_spec');
 const {
   derivePreimageHex,
   derivePaymentHashHex,
   makePrototypeInvoice
-} = require('./lightning_integration');
+} = require('../lightning_integration');
 const {
   verifyArkZkMiniscriptProofReceipt
-} = require('./ark_zk_miniscript_proof');
+} = require('../ark_zk_miniscript_proof');
 
 const HEX_32_RE = /^[0-9a-f]{64}$/i;
 const ARTIFACTS_DIR = path.join(__dirname, 'artifacts', 'lightning_zk_programs');
 const DEFAULT_ZK_RECEIPT_SUMMARY_PATH = path.join(
   __dirname,
+  '..',
   'artifacts',
   'ark_zk_miniscript',
   'ark_zk_miniscript_receipts_latest.json'

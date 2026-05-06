@@ -61,8 +61,8 @@ bitvm3\utxo_referee\artifacts\ark_zk_miniscript\ark_zk_miniscript_receipts_lates
 Programmable Lightning watchtower/ASP sidecar receipts consume that summary:
 
 ```text
-bitvm3\utxo_referee\PROGRAMMABLE_LIGHTNING_ZK.md
-bitvm3\utxo_referee\artifacts\lightning_zk_programs\programmable_lightning_zk_latest.json
+bitvm3\utxo_referee\shinigami\PROGRAMMABLE_LIGHTNING_ZK.md
+bitvm3\utxo_referee\shinigami\artifacts\lightning_zk_programs\programmable_lightning_zk_latest.json
 ```
 
 Each role has:

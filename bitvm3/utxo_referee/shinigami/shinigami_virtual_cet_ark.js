@@ -10,18 +10,18 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
-const { canonicalStringify, normalizeAmountSats } = require('./m1_spec');
+const { canonicalStringify, normalizeAmountSats } = require('../m1_spec');
 const {
   buildArkDlcContract,
   buildVirtualCetSet,
   buildArkDlcSettlement,
   buildArkDlcAspChallenge
-} = require('./ark_dlc_settlement');
+} = require('../ark_dlc_settlement');
 const {
   buildArkTaprootMiniscriptProofManifest,
   verifyArkTaprootMiniscriptProofManifest
-} = require('./ark_taproot_miniscript_proof_manifest');
-const { buildArkZkMiniscriptClaim } = require('./ark_zk_miniscript_proof');
+} = require('../ark_taproot_miniscript_proof_manifest');
+const { buildArkZkMiniscriptClaim } = require('../ark_zk_miniscript_proof');
 const {
   buildShinigamiProofPublicationBundle,
   verifyShinigamiProofPublicationBundle

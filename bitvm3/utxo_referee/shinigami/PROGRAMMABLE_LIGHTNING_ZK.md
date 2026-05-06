@@ -35,7 +35,7 @@ Lightning payment proof.
 From the UTXORef repo root:
 
 ```powershell
-node bitvm3\utxo_referee\lightning_zk_programs.js
+node bitvm3\utxo_referee\shinigami\lightning_zk_programs.js
 ```
 
 The command reads the latest Ark ZK miniscript receipt summary:
@@ -47,8 +47,8 @@ bitvm3\utxo_referee\artifacts\ark_zk_miniscript\ark_zk_miniscript_receipts_lates
 and writes:
 
 ```text
-bitvm3\utxo_referee\artifacts\lightning_zk_programs\programmable_lightning_zk_latest.json
-bitvm3\utxo_referee\artifacts\lightning_zk_programs\programmable_lightning_zk_latest.md
+bitvm3\utxo_referee\shinigami\artifacts\lightning_zk_programs\programmable_lightning_zk_latest.json
+bitvm3\utxo_referee\shinigami\artifacts\lightning_zk_programs\programmable_lightning_zk_latest.md
 ```
 
 Current generated bundle:
@@ -71,6 +71,6 @@ construction.
 ## Checks
 
 ```powershell
-node --check bitvm3\utxo_referee\lightning_zk_programs.js
-node bitvm3\utxo_referee\lightning_zk_programs.test.js
+node --check bitvm3\utxo_referee\shinigami\lightning_zk_programs.js
+node bitvm3\utxo_referee\shinigami\lightning_zk_programs.test.js
 ```

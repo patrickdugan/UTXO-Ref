@@ -7,12 +7,12 @@
  */
 
 const crypto = require('crypto');
-const { canonicalStringify, normalizeAmountSats } = require('./m1_spec');
-const { buildJurassicMechanismRefs } = require('./jurassic_bitvm_mechanisms');
+const { canonicalStringify, normalizeAmountSats } = require('../m1_spec');
+const { buildJurassicMechanismRefs } = require('../jurassic_bitvm_mechanisms');
 const {
   buildArkTaprootMiniscriptProofManifest,
   verifyArkTaprootMiniscriptProofManifest
-} = require('./ark_taproot_miniscript_proof_manifest');
+} = require('../ark_taproot_miniscript_proof_manifest');
 
 const HEX_32_RE = /^[0-9a-f]{64}$/i;
 
