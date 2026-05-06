@@ -64,6 +64,8 @@ const arkZkMiniscriptProof = require('./ark_zk_miniscript_proof');
 const lightningZkPrograms = require('./shinigami/lightning_zk_programs');
 const shinigamiProofPublication = require('./shinigami/shinigami_proof_publication');
 const shinigamiVirtualCetArk = require('./shinigami/shinigami_virtual_cet_ark');
+const shinigamiVirtualCetProofCorpus = require('./shinigami/shinigami_virtual_cet_proof_corpus');
+const dlcTokenizerSecurityComparison = require('./shinigami/dlc_tokenizer_security_comparison');
 const aspBitvmReserveBond = require('./asp_bitvm_reserve_bond');
 const arkDlcSettlement = require('./ark_dlc_settlement');
 const arkLiquidityGraftManager = require('./ark_liquidity_graft_manager');
@@ -308,6 +310,15 @@ module.exports = {
   buildShinigamiFraudCases: shinigamiVirtualCetArk.buildShinigamiFraudCases,
   buildShinigamiDashboardProof: shinigamiVirtualCetArk.buildShinigamiDashboardProof,
   writeShinigamiVirtualCetBundle: shinigamiVirtualCetArk.writeShinigamiVirtualCetBundle,
+  buildShinigamiVirtualCetCairoClaim: shinigamiVirtualCetProofCorpus.buildShinigamiVirtualCetCairoClaim,
+  buildShinigamiVirtualCetProofCorpus: shinigamiVirtualCetProofCorpus.buildShinigamiVirtualCetProofCorpus,
+  writeShinigamiVirtualCetProofCorpus: shinigamiVirtualCetProofCorpus.writeShinigamiVirtualCetProofCorpus,
+  buildShinigamiVirtualCetProofReceipt: shinigamiVirtualCetProofCorpus.buildShinigamiVirtualCetProofReceipt,
+  verifyShinigamiVirtualCetProofReceipt: shinigamiVirtualCetProofCorpus.verifyShinigamiVirtualCetProofReceipt,
+  writeShinigamiVirtualCetProofReceipts: shinigamiVirtualCetProofCorpus.writeShinigamiVirtualCetProofReceipts,
+  buildDlcTokenizerSecurityComparison: dlcTokenizerSecurityComparison.buildDlcTokenizerSecurityComparison,
+  verifyDlcTokenizerSecurityComparison: dlcTokenizerSecurityComparison.verifyDlcTokenizerSecurityComparison,
+  writeDlcTokenizerSecurityComparison: dlcTokenizerSecurityComparison.writeDlcTokenizerSecurityComparison,
   buildAspReserveBond: aspBitvmReserveBond.buildAspReserveBond,
   buildAspObligationSet: aspBitvmReserveBond.buildAspObligationSet,
   buildAspMisbehaviorClaim: aspBitvmReserveBond.buildAspMisbehaviorClaim,
@@ -465,6 +476,8 @@ module.exports = {
   lightningZkPrograms,
   shinigamiProofPublication,
   shinigamiVirtualCetArk,
+  shinigamiVirtualCetProofCorpus,
+  dlcTokenizerSecurityComparison,
   aspBitvmReserveBond,
   arkDlcSettlement,
   arkLiquidityGraftManager,

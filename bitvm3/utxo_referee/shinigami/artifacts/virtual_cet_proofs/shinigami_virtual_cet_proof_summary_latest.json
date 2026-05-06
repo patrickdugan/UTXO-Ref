@@ -1,0 +1,37 @@
+{
+  "kind": "shinigami_virtual_cet_proof_corpus_summary",
+  "corpusId": "16ae3cc62b8ba2ae89bd600994737a97f14047868032cbf550e909f67d02e984",
+  "createdAt": "2026-05-06T22:59:30.165Z",
+  "claims": [
+    {
+      "outcomeCount": 17,
+      "claimId": "c4b1dde132c5b16c8fac3e4f6fa61e6011bd03334ab58daca020fe8a03bb1324",
+      "claimPath": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\shinigami\\artifacts\\virtual_cet_proofs\\shinigami_virtual_cet_17_outcomes.claim.json",
+      "inputPath": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\shinigami\\artifacts\\virtual_cet_proofs\\shinigami_virtual_cet_17_outcomes.input.json",
+      "inputSha256": "a548277f2549329efba5412262a8b25b0cc13cc2f34b6df54d8193c73029f6cc"
+    },
+    {
+      "outcomeCount": 101,
+      "claimId": "2825d7f388d5fd60fcc680ca4ddfada223a308d3b49556c9d02d39e2df415bef",
+      "claimPath": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\shinigami\\artifacts\\virtual_cet_proofs\\shinigami_virtual_cet_101_outcomes.claim.json",
+      "inputPath": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\shinigami\\artifacts\\virtual_cet_proofs\\shinigami_virtual_cet_101_outcomes.input.json",
+      "inputSha256": "4c30f939d6b5a1f850023f47145ea296c0b8c7d57d3e32c8837c7d755f238f9b"
+    },
+    {
+      "outcomeCount": 1001,
+      "claimId": "51c0abb9dca0adb606c2c264df4577ade7c7142ee7c4e0bc7233017b05e5c97d",
+      "claimPath": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\shinigami\\artifacts\\virtual_cet_proofs\\shinigami_virtual_cet_1001_outcomes.claim.json",
+      "inputPath": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\shinigami\\artifacts\\virtual_cet_proofs\\shinigami_virtual_cet_1001_outcomes.input.json",
+      "inputSha256": "a4e0e7133a70811c53b9b22725562240dccdd867b0190b7f0b60bb640cda918d"
+    },
+    {
+      "outcomeCount": 5000,
+      "claimId": "6b5be9099325520461e8164608aa6a556dec78755ea49020b87f431794a48dda",
+      "claimPath": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\shinigami\\artifacts\\virtual_cet_proofs\\shinigami_virtual_cet_5000_outcomes.claim.json",
+      "inputPath": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\shinigami\\artifacts\\virtual_cet_proofs\\shinigami_virtual_cet_5000_outcomes.input.json",
+      "inputSha256": "f5363d67f7ce6898c1c75387ff0a74d75ce81add90d8298705a0149566280ba9"
+    }
+  ],
+  "materializedCetCount": 0,
+  "summaryId": "781047e95b5e380fc118164084642d593486ed3406b7b69dcfc118e87c4e9e15"
+}

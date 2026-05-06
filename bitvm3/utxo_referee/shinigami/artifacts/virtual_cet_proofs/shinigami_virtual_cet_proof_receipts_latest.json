@@ -1,0 +1,61 @@
+{
+  "kind": "shinigami_virtual_cet_proof_receipt_summary",
+  "sourceSummaryPath": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\shinigami\\artifacts\\virtual_cet_proofs\\shinigami_virtual_cet_proof_summary_latest.json",
+  "sourceSummaryId": "781047e95b5e380fc118164084642d593486ed3406b7b69dcfc118e87c4e9e15",
+  "createdAt": "2026-05-06T22:58:48.422Z",
+  "receipts": [
+    {
+      "outcomeCount": 17,
+      "claimId": "c4b1dde132c5b16c8fac3e4f6fa61e6011bd03334ab58daca020fe8a03bb1324",
+      "receiptId": "dbd69f94ecf07dc5aa799ac7c8c70f10915217287f473ec0666209cdbbb5fe8b",
+      "receiptPath": "bitvm3\\utxo_referee\\shinigami\\artifacts\\virtual_cet_proofs\\shinigami_virtual_cet_17_outcomes.receipt.json",
+      "proofPath": "D:\\cargo-target\\ark-shinigami\\proofs\\shinigami_virtual_cet_17_outcomes.proof.json",
+      "verified": true,
+      "metrics": {
+        "elapsedWallClock": "0:09.64",
+        "maxResidentSetKb": 12437656,
+        "userSeconds": 58.97,
+        "systemSeconds": 5.58,
+        "cpuPercent": 669
+      },
+      "proofBytes": 9307296
+    },
+    {
+      "outcomeCount": 101,
+      "claimId": "2825d7f388d5fd60fcc680ca4ddfada223a308d3b49556c9d02d39e2df415bef",
+      "receiptId": "2f5f7587c6c9476c7b4fdc75655223c2944a5881532ca14ea88de2cef046e97b",
+      "receiptPath": "bitvm3\\utxo_referee\\shinigami\\artifacts\\virtual_cet_proofs\\shinigami_virtual_cet_101_outcomes.receipt.json",
+      "proofPath": "D:\\cargo-target\\ark-shinigami\\proofs\\shinigami_virtual_cet_101_outcomes.proof.json",
+      "verified": false,
+      "metrics": {},
+      "proofBytes": null
+    },
+    {
+      "outcomeCount": 1001,
+      "claimId": "51c0abb9dca0adb606c2c264df4577ade7c7142ee7c4e0bc7233017b05e5c97d",
+      "receiptId": "0bc431c43fe5e80aa2852876c1d97015e8d2492f948edd5606b627f469af8e8a",
+      "receiptPath": "bitvm3\\utxo_referee\\shinigami\\artifacts\\virtual_cet_proofs\\shinigami_virtual_cet_1001_outcomes.receipt.json",
+      "proofPath": "D:\\cargo-target\\ark-shinigami\\proofs\\shinigami_virtual_cet_1001_outcomes.proof.json",
+      "verified": false,
+      "metrics": {},
+      "proofBytes": null
+    },
+    {
+      "outcomeCount": 5000,
+      "claimId": "6b5be9099325520461e8164608aa6a556dec78755ea49020b87f431794a48dda",
+      "receiptId": "1b62e56f2bbb29281b15a86ea5f779fe46be3addeca84081a98959a04e72d435",
+      "receiptPath": "bitvm3\\utxo_referee\\shinigami\\artifacts\\virtual_cet_proofs\\shinigami_virtual_cet_5000_outcomes.receipt.json",
+      "proofPath": "D:\\cargo-target\\ark-shinigami\\proofs\\shinigami_virtual_cet_5000_outcomes.proof.json",
+      "verified": true,
+      "metrics": {
+        "elapsedWallClock": "0:10.24",
+        "maxResidentSetKb": 12441100,
+        "userSeconds": 63.71,
+        "systemSeconds": 5.55,
+        "cpuPercent": 676
+      },
+      "proofBytes": 9347438
+    }
+  ],
+  "receiptSummaryId": "4e0459641c7fb7bd452ddd69d1c9f7777628f014cf9a42f4ef38d2f9e42b34c6"
+}
