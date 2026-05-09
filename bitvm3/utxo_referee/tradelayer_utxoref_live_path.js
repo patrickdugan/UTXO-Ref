@@ -274,6 +274,34 @@ function buildFinalOutputChallenge(bundle, finalSpendBinding, finalOutputReviewO
   };
 }
 
+function normalizeLivePathInput(input = {}) {
+  if (!input || typeof input !== 'object') throw new Error('live path input must be an object');
+  if (input.kind === 'tradelayer-send-state-oracle-v1') {
+    return {
+      ...input,
+      stateOracleBlob: input,
+      consensusInput: input.consensusInput || null,
+      sendId: input.selectedSendId || input.sendId || null
+    };
+  }
+  if (input.stateOracleBlob && input.stateOracleBlob.kind === 'tradelayer-send-state-oracle-v1') {
+    return {
+      ...input,
+      sendId: input.sendId || input.stateOracleBlob.selectedSendId || input.stateOracleBlob.sendId || null
+    };
+  }
+  if (input.consensusInput || input.decodedFinalTx || input.finalSpendBinding || input.stack) {
+    return input;
+  }
+  if (Array.isArray(input.transactions) || Array.isArray(input.txs) || Array.isArray(input.records) || Array.isArray(input.sends)) {
+    return {
+      consensusInput: input,
+      sendId: input.selectedSendId || input.sendId || null
+    };
+  }
+  return input;
+}
+
 function buildLivePathCore(bundle, finalSpendBinding, finalRouteTranscript, finalOutputReview, finalOutputChallenge) {
   return {
     kind: 'utxoref_live_path_evidence_v1',
@@ -336,14 +364,15 @@ function operatorChecklist(run) {
 }
 
 function buildUtxoRefLivePathEvidence(input = {}) {
-  const stack = input.stack || buildTradeLayerBitvmStackBundle(input);
-  const decodedFinalTx = input.decodedFinalTx || buildDecodedFinalTxFromSweepPlan(stack.sweepPlan, input.decodedFinalTxOptions);
-  const finalSpendBinding = input.finalSpendBinding || buildFinalSpendBinding(stack.sweepPlan, decodedFinalTx);
+  const normalizedInput = normalizeLivePathInput(input);
+  const stack = normalizedInput.stack || buildTradeLayerBitvmStackBundle(normalizedInput);
+  const decodedFinalTx = normalizedInput.decodedFinalTx || buildDecodedFinalTxFromSweepPlan(stack.sweepPlan, normalizedInput.decodedFinalTxOptions);
+  const finalSpendBinding = normalizedInput.finalSpendBinding || buildFinalSpendBinding(stack.sweepPlan, decodedFinalTx);
   const finalOutputReview = buildFinalOutputReview(stack.sweepPlan, decodedFinalTx);
   const finalRouteTranscript = buildTradeLayerSendRouteTranscript(stack.routePlan, {
     finalTxOutputHash: finalSpendBinding.core.finalTxOutputHash
   });
-  const finalOutputChallenge = buildFinalOutputChallenge(stack, finalSpendBinding, finalOutputReview, input.challengeOptions);
+  const finalOutputChallenge = buildFinalOutputChallenge(stack, finalSpendBinding, finalOutputReview, normalizedInput.challengeOptions);
   const core = buildLivePathCore(stack, finalSpendBinding, finalRouteTranscript, finalOutputReview, finalOutputChallenge);
   const evidence = {
     kind: 'utxoref_live_path_evidence',
@@ -461,6 +490,7 @@ module.exports = {
   buildDecodedFinalTxFromSweepPlan,
   buildFinalOutputReview,
   buildFinalOutputChallenge,
+  normalizeLivePathInput,
   buildUtxoRefLivePathEvidence,
   verifyUtxoRefLivePathEvidence
 };

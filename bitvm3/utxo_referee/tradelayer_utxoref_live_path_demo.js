@@ -5,7 +5,8 @@ const path = require('path');
 const {
   buildUtxoRefLivePathEvidence,
   loadDecodedFinalTxFromRpc,
-  verifyUtxoRefLivePathEvidence
+  verifyUtxoRefLivePathEvidence,
+  normalizeLivePathInput
 } = require('./tradelayer_utxoref_live_path');
 const {
   resolveChainEnv
@@ -20,7 +21,8 @@ function usage() {
     'Usage: node bitvm3/utxo_referee/tradelayer_utxoref_live_path_demo.js [options]',
     '',
     'Options:',
-    '  --input <path>             TradeLayer consensus/history JSON. Uses built-in sample if omitted.',
+    '  --input <path>             TradeLayer consensus/history JSON or state-oracle JSON. Uses built-in sample if omitted.',
+    '  --state-oracle <path>      Explicit state-oracle JSON blob.',
     '  --decoded-final-tx <path>  Core decoderawtransaction JSON for the final sweep.',
     '  --final-hex <hex>          Decode this final transaction hex through Core RPC.',
     '  --final-txid <txid>        Load and decode this final transaction through Core RPC.',
@@ -54,6 +56,16 @@ function parseArgs(argv) {
 
 function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+}
+
+function readLivePathInput(consensusInputPath, stateOraclePath) {
+  if (stateOraclePath) {
+    return normalizeLivePathInput({
+      stateOracleBlob: readJson(path.resolve(stateOraclePath))
+    });
+  }
+  if (!consensusInputPath) return {};
+  return normalizeLivePathInput(readJson(path.resolve(consensusInputPath)));
 }
 
 function stringifyJson(value) {
@@ -133,7 +145,7 @@ async function main() {
   if (args.decodedFinalTx && (args.finalHex || args.finalTxid)) {
     throw new Error('Use either --decoded-final-tx or --final-hex/--final-txid, not both');
   }
-  const consensusInput = args.input ? readJson(path.resolve(args.input)) : undefined;
+  const livePathInput = readLivePathInput(args.input, args.stateOracle);
   let decodedFinalTx = args.decodedFinalTx ? readJson(path.resolve(args.decodedFinalTx)) : undefined;
   if (!decodedFinalTx && (args.finalHex || args.finalTxid)) {
     const chainEnv = resolveChainEnv();
@@ -146,7 +158,7 @@ async function main() {
     });
   }
   const evidence = buildUtxoRefLivePathEvidence({
-    consensusInput,
+    ...livePathInput,
     decodedFinalTx,
     sendId: args.sendId
   });

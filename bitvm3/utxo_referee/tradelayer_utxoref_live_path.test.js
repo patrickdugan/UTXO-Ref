@@ -58,6 +58,16 @@ await test('builds verifiable live path evidence from the stack bundle', () => {
   assert(evidence.operatorChecklist.some((item) => item.step === 'final_outputs'), 'missing final output checklist item');
 });
 
+await test('accepts a top-level state oracle blob as live path input', () => {
+  const stack = buildTradeLayerBitvmStackBundle();
+  const evidence = buildUtxoRefLivePathEvidence(stack.stateOracleBlob);
+  const result = verifyUtxoRefLivePathEvidence(evidence);
+
+  assert(result.ok, result.reason);
+  assertEq(evidence.core.stateOracleHash, stack.hashes.stateOracleHash);
+  assertEq(evidence.stack.stateOracleBlob.selectedSendId, stack.stateOracleBlob.selectedSendId);
+});
+
 await test('creates deterministic decoded final transactions from sweep plans', () => {
   const stack = buildTradeLayerBitvmStackBundle();
   const decodedA = buildDecodedFinalTxFromSweepPlan(stack.sweepPlan);
