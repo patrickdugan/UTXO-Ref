@@ -87,6 +87,7 @@ const bitvmLiquidityLeaseReferee = require('./bitvm_liquidity_lease_referee');
 const bitvmArenaSecurityReport = require('./bitvm_arena_security_report');
 const tradeLayerBitvmStack = require('./tradelayer_bitvm_stack');
 const tradeLayerUtxoRefLivePath = require('./tradelayer_utxoref_live_path');
+const rbtcDlcZkSettlementAdapter = require('./rbtc_dlc_zk_settlement_adapter');
 
 module.exports = {
   // Types
@@ -433,6 +434,10 @@ module.exports = {
   buildTradeLayerUtxoRefFinalOutputChallenge: tradeLayerUtxoRefLivePath.buildFinalOutputChallenge,
   buildTradeLayerUtxoRefLivePathEvidence: tradeLayerUtxoRefLivePath.buildUtxoRefLivePathEvidence,
   verifyTradeLayerUtxoRefLivePathEvidence: tradeLayerUtxoRefLivePath.verifyUtxoRefLivePathEvidence,
+  loadRbtcDlcZkSettlementBundle: rbtcDlcZkSettlementAdapter.loadRbtcDlcZkSettlementBundle,
+  buildRbtcDlcBitvmSettlementReceipt: rbtcDlcZkSettlementAdapter.buildRbtcDlcBitvmSettlementReceipt,
+  verifyRbtcDlcBitvmSettlementReceipt: rbtcDlcZkSettlementAdapter.verifyRbtcDlcBitvmSettlementReceipt,
+  buildRbtcDlcBitvmChallenge: rbtcDlcZkSettlementAdapter.buildRbtcDlcBitvmChallenge,
   resolvePipelineOptions: m1Pipeline.resolvePipelineOptions,
   buildPipelinePlan: m1Pipeline.buildPipelinePlan,
   buildPipelineSummary: m1Pipeline.buildPipelineSummary,
@@ -498,5 +503,6 @@ module.exports = {
   bitvmLiquidityLeaseReferee,
   bitvmArenaSecurityReport,
   tradeLayerBitvmStack,
-  tradeLayerUtxoRefLivePath
+  tradeLayerUtxoRefLivePath,
+  rbtcDlcZkSettlementAdapter
 };
