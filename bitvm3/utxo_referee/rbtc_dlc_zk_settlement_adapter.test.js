@@ -5,7 +5,9 @@ const {
   loadRbtcDlcZkSettlementBundle,
   buildRbtcDlcBitvmSettlementReceipt,
   verifyRbtcDlcBitvmSettlementReceipt,
-  buildRbtcDlcBitvmChallenge
+  buildRbtcDlcBitvmChallenge,
+  buildRbtcDlcBitvmChallengeResponse,
+  verifyRbtcDlcBitvmChallengeResponse
 } = require('./rbtc_dlc_zk_settlement_adapter');
 
 let passed = 0;
@@ -58,6 +60,30 @@ test('wrong payout root selects BitVM challenge path', () => {
 
   assert(challenge.slashable, 'challenge should be slashable');
   assert(challenge.challengeCore.violation === 'wrong_payout_root', 'wrong violation');
+});
+
+test('BitVM challenge response releases escrow when TLZK state matches', () => {
+  const bundle = loadRbtcDlcZkSettlementBundle(TLZK_ARTIFACT);
+  const receipt = buildRbtcDlcBitvmSettlementReceipt(bundle);
+  const response = buildRbtcDlcBitvmChallengeResponse(receipt);
+  const result = verifyRbtcDlcBitvmChallengeResponse(response, receipt);
+
+  assert(result.ok, result.reason || 'response should verify');
+  assert(response.responseCore.decision === 'release_escrow', 'should authorize release');
+  assert(response.responseCore.openedStep.result === true, 'opened equality step should pass');
+  assert(response.responseCore.bitvmSpendPath === 'cooperative_dlc_escrow_release', 'wrong spend path');
+});
+
+test('BitVM challenge response enters dispute path on payout root mismatch', () => {
+  const bundle = loadRbtcDlcZkSettlementBundle(TLZK_ARTIFACT);
+  const receipt = buildRbtcDlcBitvmSettlementReceipt(bundle);
+  const response = buildRbtcDlcBitvmChallengeResponse(receipt, { observedPayoutRoot: '0'.repeat(64) });
+  const result = verifyRbtcDlcBitvmChallengeResponse(response, receipt);
+
+  assert(result.ok, result.reason || 'response should verify');
+  assert(response.responseCore.decision === 'enter_challenge_path', 'should dispute');
+  assert(response.responseCore.openedStep.result === false, 'opened equality step should fail');
+  assert(response.responseCore.bitvmSpendPath === 'zk_redeem_payout_root_dispute', 'wrong dispute path');
 });
 
 test('verification rejects tampered observed payout root', () => {

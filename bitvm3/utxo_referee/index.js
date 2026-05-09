@@ -438,6 +438,8 @@ module.exports = {
   buildRbtcDlcBitvmSettlementReceipt: rbtcDlcZkSettlementAdapter.buildRbtcDlcBitvmSettlementReceipt,
   verifyRbtcDlcBitvmSettlementReceipt: rbtcDlcZkSettlementAdapter.verifyRbtcDlcBitvmSettlementReceipt,
   buildRbtcDlcBitvmChallenge: rbtcDlcZkSettlementAdapter.buildRbtcDlcBitvmChallenge,
+  buildRbtcDlcBitvmChallengeResponse: rbtcDlcZkSettlementAdapter.buildRbtcDlcBitvmChallengeResponse,
+  verifyRbtcDlcBitvmChallengeResponse: rbtcDlcZkSettlementAdapter.verifyRbtcDlcBitvmChallengeResponse,
   resolvePipelineOptions: m1Pipeline.resolvePipelineOptions,
   buildPipelinePlan: m1Pipeline.buildPipelinePlan,
   buildPipelineSummary: m1Pipeline.buildPipelineSummary,

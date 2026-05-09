@@ -73,14 +73,23 @@ function verifyRbtcDlcBitvmSettlementReceipt(receipt) {
 
 function buildRbtcDlcBitvmChallenge(receipt, options = {}) {
   const core = receipt.receiptCore || {};
-  const observedPayoutRoot = options.observedPayoutRoot || sha256Hex(`wrong:${core.tlzkClaimId}`);
+  const observedPayoutRoot = options.observedPayoutRoot || core.observedPayoutRoot || sha256Hex(`wrong:${core.tlzkClaimId}`);
   const challengeCore = {
     version: 1,
     protocol: 'utxoref_rbtc_dlc_bitvm_settlement_challenge',
     tlzkClaimId: core.tlzkClaimId,
+    tlzkReceiptId: core.tlzkReceiptId,
+    btcPayoutTxid: core.btcPayoutTxid,
+    escrowManifestId: core.escrowManifestId,
+    selectedEscrowPath: core.selectedEscrowPath,
     expectedPayoutRoot: core.expectedPayoutRoot,
     observedPayoutRoot,
-    violation: observedPayoutRoot === core.expectedPayoutRoot ? 'none' : 'wrong_payout_root'
+    violation: observedPayoutRoot === core.expectedPayoutRoot ? 'none' : 'wrong_payout_root',
+    openedState: {
+      tx12TransitionId: core.tx12TransitionId,
+      proofType: core.proofType,
+      bitvmAction: core.bitvmAction
+    }
   };
   return {
     kind: 'utxoref_rbtc_dlc_bitvm_settlement_challenge',
@@ -90,9 +99,86 @@ function buildRbtcDlcBitvmChallenge(receipt, options = {}) {
   };
 }
 
+function buildRbtcDlcBitvmChallengeResponse(receipt, options = {}) {
+  const core = receipt.receiptCore || {};
+  const observedPayoutRoot = options.observedPayoutRoot || core.observedPayoutRoot;
+  const challenge = options.challenge || buildRbtcDlcBitvmChallenge(receipt, { observedPayoutRoot });
+  const rootMatched = challenge.challengeCore.observedPayoutRoot === challenge.challengeCore.expectedPayoutRoot;
+  const receiptCheck = verifyRbtcDlcBitvmSettlementReceipt(receipt);
+  const responseCore = {
+    version: 1,
+    protocol: 'utxoref_rbtc_dlc_bitvm_challenge_response',
+    challengeId: challenge.challengeId,
+    tlzkClaimId: core.tlzkClaimId,
+    tlzkReceiptId: core.tlzkReceiptId,
+    receiptOk: receiptCheck.ok,
+    receiptRejectReason: receiptCheck.reason || null,
+    openedStep: {
+      opcode: 'OP_EQUAL',
+      left: challenge.challengeCore.observedPayoutRoot,
+      right: challenge.challengeCore.expectedPayoutRoot,
+      expression: 'observed_payout_root expected_payout_root OP_EQUAL',
+      result: rootMatched
+    },
+    decision: receiptCheck.ok && rootMatched ? 'release_escrow' : 'enter_challenge_path',
+    bitvmSpendPath: receiptCheck.ok && rootMatched
+      ? 'cooperative_dlc_escrow_release'
+      : 'zk_redeem_payout_root_dispute',
+    receipts: [
+      {
+        stage: 'tlzk-receipt-loaded',
+        ok: Boolean(core.tlzkReceiptId),
+        ref: core.tlzkReceiptId || null
+      },
+      {
+        stage: 'payout-root-opened',
+        ok: true,
+        observedPayoutRoot: challenge.challengeCore.observedPayoutRoot,
+        expectedPayoutRoot: challenge.challengeCore.expectedPayoutRoot
+      },
+      {
+        stage: rootMatched ? 'escrow-release-authorized' : 'escrow-release-blocked',
+        ok: receiptCheck.ok && rootMatched,
+        action: receiptCheck.ok && rootMatched ? 'broadcast release spend' : 'publish challenge spend'
+      }
+    ]
+  };
+  return {
+    kind: 'utxoref_rbtc_dlc_bitvm_challenge_response',
+    responseId: hashCanonical(responseCore),
+    responseCore,
+    challenge
+  };
+}
+
+function verifyRbtcDlcBitvmChallengeResponse(response, receipt) {
+  if (!response || response.kind !== 'utxoref_rbtc_dlc_bitvm_challenge_response') {
+    return { ok: false, reason: 'wrong rBTC DLC BitVM challenge response kind' };
+  }
+  if (response.responseId !== hashCanonical(response.responseCore)) {
+    return { ok: false, reason: 'response id mismatch' };
+  }
+  const rootMatched = response.responseCore.openedStep.left === response.responseCore.openedStep.right;
+  if (response.responseCore.openedStep.result !== rootMatched) {
+    return { ok: false, reason: 'opened step result mismatch' };
+  }
+  const expectedDecision = response.responseCore.receiptOk && rootMatched
+    ? 'release_escrow'
+    : 'enter_challenge_path';
+  if (response.responseCore.decision !== expectedDecision) {
+    return { ok: false, reason: 'challenge response decision mismatch' };
+  }
+  if (receipt && response.responseCore.tlzkReceiptId !== receipt.receiptCore?.tlzkReceiptId) {
+    return { ok: false, reason: 'response receipt mismatch' };
+  }
+  return { ok: true, decision: response.responseCore.decision };
+}
+
 module.exports = {
   loadRbtcDlcZkSettlementBundle,
   buildRbtcDlcBitvmSettlementReceipt,
   verifyRbtcDlcBitvmSettlementReceipt,
-  buildRbtcDlcBitvmChallenge
+  buildRbtcDlcBitvmChallenge,
+  buildRbtcDlcBitvmChallengeResponse,
+  verifyRbtcDlcBitvmChallengeResponse
 };
