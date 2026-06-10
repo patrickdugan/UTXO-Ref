@@ -107,10 +107,39 @@ Verified live against a fully synced testnet node (tip ~4,761,052):
 Captured live inputs: `artifacts/live/tl_wallet_unspent.json` (snapshot) and
 `artifacts/live/reserve_reconciliation_latest.json` (result).
 
-Still open here: turn the insolvency challenge into a concrete BitVM/script
-constraint rather than evidence only, and source a single funded DLC/UTXORef
-sweep input + final tx for the same live run so the whole deposit->withdraw
-path (not just the reserve check) runs on chain data.
+### Live sweep decode (added 2026-06-10, real Core decoderawtransaction)
+
+The final sweep tx is no longer synthetic either. Using a real funded wallet.dat
+UTXO as the DLC funding input, the route plan derives concrete outputs, a raw
+sweep tx is built with Core `createrawtransaction`, and the live-path harness
+decodes it through Core `decoderawtransaction` and reviews the decoded outputs
+against the plan:
+
+```powershell
+node bitvm3/utxo_referee/tradelayer_utxoref_live_path_demo.js `
+  --input bitvm3/utxo_referee/artifacts/live/live_consensus_input.json `
+  --final-hex <raw sweep hex> `
+  --rpc-url http://127.0.0.1:19332 --rpc-user user --rpc-pass pass `
+  --out bitvm3/utxo_referee/artifacts/live/utxoref_live_path_realtx.json `
+  --md  bitvm3/utxo_referee/artifacts/live/utxoref_live_path_realtx.md
+```
+
+Verified live (`verification=ok`, `finalOutputReview=ok`):
+- Funding outpoint: `ac2518f11bff1c6f229b9431dbc91d0f0d280dcde2b90de7e46c627a8b5dbbae:0`
+  (real, 960,560 sats).
+- Outputs: 240,140 sats to the DLC funding address (tl-wallet) + 719,420 sats
+  refund to the funding address (wallet.dat), fee 1,000.
+- `finalTxOutputHash` now comes from a genuine Core decode, not the deterministic
+  builder.
+
+This was a non-broadcast `createrawtransaction` -> `decoderawtransaction`
+round-trip (the documented live swap point). Both outputs happen to be
+wallet-owned, so a signed `sendrawtransaction` broadcast + `--final-txid` run is
+recoverable and is the next step for a confirmed on-chain txid.
+
+Still open here: broadcast the signed sweep for a confirmed txid via the
+`--final-txid`/getrawtransaction path, and turn the insolvency + final-output
+challenges into concrete BitVM/script constraints rather than evidence only.
 
 ## Work Started
 

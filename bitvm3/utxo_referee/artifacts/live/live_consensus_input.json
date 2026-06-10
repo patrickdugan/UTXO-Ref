@@ -1,0 +1,36 @@
+{
+  "chain": "litecoin-testnet",
+  "epochId": "77",
+  "snapshotHeight": 4696000,
+  "snapshotTxid": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+  "oracleAddress": "tltc1qn06nctkv2sm8wdjx5fe2x0zluxlyxynq3vud87hxsfv3u8kwdcaq0xvhqa",
+  "depositUnits": "10000",
+  "feeSats": 1000,
+  "dlcInputs": {
+    "live-send": {
+      "txid": "ac2518f11bff1c6f229b9431dbc91d0f0d280dcde2b90de7e46c627a8b5dbbae",
+      "vout": 0,
+      "address": "tltc1q2hjwxlj8muw5kq2r56ms9794zzz7st0kryffl4",
+      "sats": 960560
+    }
+  },
+  "dlcFunderRegistry": {
+    "tltc1qkz0vft2fc4nk0u9fx4k9yk4th7zherna3zxh22": {
+      "dlcRef": "dlc-live-77",
+      "dlcAddress": "tltc1qldtqy3y0rasay8dqz6kc2nxx6zfs9e9j4veqcz"
+    }
+  },
+  "transactions": [
+    {
+      "txType": 2,
+      "id": "live-send",
+      "txid": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "blockHeight": 4695999,
+      "senderAddress": "tltc1qn06nctkv2sm8wdjx5fe2x0zluxlyxynq3vud87hxsfv3u8kwdcaq0xvhqa",
+      "address": "tltc1qkz0vft2fc4nk0u9fx4k9yk4th7zherna3zxh22",
+      "propertyId": 380,
+      "amountUnits": "2500",
+      "valid": true
+    }
+  ]
+}
