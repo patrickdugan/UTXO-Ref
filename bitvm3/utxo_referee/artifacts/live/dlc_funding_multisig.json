@@ -1,0 +1,5 @@
+{
+  "address": "tltc1qe0750cxs6fclks8rgaassf58c5gg0208v6faeg9kn0ra34hzq7ssg5ugfj",
+  "redeemScript": "522102acb2481f1fc47bddf3f58add4f3b8ed2a6887862886ab330eee3c0a08a057e8b21030f69bd814a94419d9eedbb73ecfb15de9470d69be22dfe6109e1c7fc32aa728252ae",
+  "descriptor": "wsh(multi(2,02acb2481f1fc47bddf3f58add4f3b8ed2a6887862886ab330eee3c0a08a057e8b,030f69bd814a94419d9eedbb73ecfb15de9470d69be22dfe6109e1c7fc32aa7282))#sjltlt63"
+}

@@ -151,10 +151,31 @@ reserve (42 credited UTXOs) reconciled against the withdrawal cap, and a real
 funded input swept to plan-matching outputs, broadcast, and decoded back through
 Core.
 
-Still open here: turn the insolvency + final-output challenges into concrete
-BitVM/script constraints rather than evidence only; the broadcast sweep above
-sends the DLC-funding output to a wallet address rather than an actual DLC
-funding script, so the next refinement is a real DLC/BitVM output script.
+### Real DLC funding-script output (added 2026-06-10)
+
+The sweep's `send-to-dlc-funding-output` now pays an actual DLC funding script,
+not a plain wallet address. Using two live tl-wallet pubkeys, a 2-of-2 P2WSH
+funding address is built with Core `createmultisig` (the same construction as
+`m1_dlc_psbt_cet.js`), wired into the DLC-funder registry's `dlcAddress`, and
+swept to:
+
+- DLC funding address (2-of-2 P2WSH):
+  `tltc1qe0750cxs6fclks8rgaassf58c5gg0208v6faeg9kn0ra34hzq7ssg5ugfj`
+- decoded output 0 type `witness_v0_scripthash`, script
+  `0020cbfd47e0d0d271fb40e3477b082687c51087a9e76693dca0b69bc7d8d6e207a1`
+  (= `0020` + sha256(2-of-2 witnessScript)).
+- harness review against the plan: `verification=ok`, `finalOutputReview=ok`
+  (`artifacts/live/utxoref_live_path_dlc_funding.{json,md}`).
+
+Both pubkeys are wallet-owned, so the 2-of-2 is spendable via the CET/refund
+paths. This was a non-broadcast decode round-trip; locking real collateral into
+the funding output is deferred until the CET-spend path is wired so the funds
+are immediately recoverable.
+
+Still open here: spend the 2-of-2 funding output through a CET/refund path
+(the existing `m1_dlc_psbt_cet.js` skeletons) on chain, and turn the insolvency
++ final-output challenges into concrete BitVM/script constraints rather than
+evidence only.
 
 ## Work Started
 
