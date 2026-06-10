@@ -188,11 +188,31 @@ both keys (`signrawtransactionwithwallet` -> `complete: true`,
 `testmempoolaccept` allowed) before broadcast. Txids captured under
 `artifacts/live/dlc_*`.
 
-Still open here: drive the CET selection from the live-path settlement route
-(currently a single winner payout rather than the bounded settle-gain/settle-loss
-/roll split), wire a real oracle attestation/adaptor signature into the CET
-choice, and turn the insolvency + final-output challenges into concrete
-BitVM/script constraints rather than evidence only.
+### Oracle-attested, route-derived CET (added 2026-06-10)
+
+The CET is no longer a single cooperative payout. `tradelayer_dlc_cet_oracle_selection.js`
+derives concrete per-outcome CET output maps (settle-gain / settle-loss / roll)
+from the bounded settlement model, and gates which CET settles on an Ed25519
+oracle attestation that binds contractId + funding outpoint + outcomeId.
+
+Verified live (`tradelayer_dlc_cet_oracle_selection.test.js`, 5 tests, plus an
+on-chain run):
+- Fresh collateral locked: funding txid
+  `9b1d9e4806fcb50ad9b12921fab2f898a8d471e5ea4f2215734e6809ad32dc83`,
+  150,000 sats into the 2-of-2 (block 4,761,083).
+- Oracle attested `settle-loss`; `selectCetForAttestation` verified the
+  signature + outpoint binding and returned the matching outputs
+  (bob 7,500 / operator 1,500 / residual 140,000 = collateral - 1,000 fee).
+- Oracle-selected CET txid
+  `5e232095a0c01ab650214a85821bc555db58cfd73ade88b5273cb56fe198d442`,
+  signed 2-of-2, confirmed in block 4,761,083.
+- Evidence: `artifacts/live/dlc2_funding.json`,
+  `artifacts/live/dlc2_oracle_cet.json` (includes oracle pubkey + attestation).
+
+Still open here (the deeper trust-minimization layer): the attestation *selects*
+a pre-built CET rather than a secp256k1 adaptor signature that cryptographically
+enforces the outcome at the script level, and the insolvency + final-output
+challenges remain evidence objects rather than concrete BitVM/Script constraints.
 
 ## Work Started
 

@@ -84,6 +84,7 @@ const tradeLayerStateCheckpointReferee = require('./tradelayer_state_checkpoint_
 const tradeLayerWithdrawalQueueReferee = require('./tradelayer_withdrawal_queue_referee');
 const tradeLayerReserveReconciliationReferee = require('./tradelayer_reserve_reconciliation_referee');
 const tradeLayerLiveReserveAdapter = require('./tradelayer_live_reserve_adapter');
+const tradeLayerDlcCetOracleSelection = require('./tradelayer_dlc_cet_oracle_selection');
 const tradeLayerPerpPnlReferee = require('./tradelayer_perp_pnl_referee');
 const bitvmLiquidityLeaseReferee = require('./bitvm_liquidity_lease_referee');
 const bitvmArenaSecurityReport = require('./bitvm_arena_security_report');
@@ -424,6 +425,11 @@ module.exports = {
   verifyTradeLayerReserveInsolvencyChallenge: tradeLayerReserveReconciliationReferee.verifyTradeLayerReserveInsolvencyChallenge,
   buildLiveReserveFromUnspent: tradeLayerLiveReserveAdapter.buildLiveReserveFromUnspent,
   liveReserveAmountSats: tradeLayerLiveReserveAdapter.toAmountSats,
+  DLC_SETTLEMENT_OUTCOME_IDS: tradeLayerDlcCetOracleSelection.OUTCOME_IDS,
+  buildDlcSettlementOutcomes: tradeLayerDlcCetOracleSelection.buildDlcSettlementOutcomes,
+  buildDlcOracleAttestation: tradeLayerDlcCetOracleSelection.buildDlcOracleAttestation,
+  verifyDlcOracleAttestation: tradeLayerDlcCetOracleSelection.verifyDlcOracleAttestation,
+  selectCetForAttestation: tradeLayerDlcCetOracleSelection.selectCetForAttestation,
   buildTradeLayerPerpPnlSettlement: tradeLayerPerpPnlReferee.buildTradeLayerPerpPnlSettlement,
   verifyTradeLayerPerpPnlSettlement: tradeLayerPerpPnlReferee.verifyTradeLayerPerpPnlSettlement,
   buildTradeLayerPerpPnlChallenge: tradeLayerPerpPnlReferee.buildTradeLayerPerpPnlChallenge,
@@ -513,6 +519,7 @@ module.exports = {
   tradeLayerWithdrawalQueueReferee,
   tradeLayerReserveReconciliationReferee,
   tradeLayerLiveReserveAdapter,
+  tradeLayerDlcCetOracleSelection,
   tradeLayerPerpPnlReferee,
   bitvmLiquidityLeaseReferee,
   bitvmArenaSecurityReport,

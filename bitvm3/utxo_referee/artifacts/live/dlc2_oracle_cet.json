@@ -1,0 +1,35 @@
+{
+  "contractId": "dlc-live-9b1d9e48",
+  "funding": {
+    "fundingTxid": "9b1d9e4806fcb50ad9b12921fab2f898a8d471e5ea4f2215734e6809ad32dc83",
+    "fundingVout": 0,
+    "collateralSats": 150000
+  },
+  "oraclePublicKeyPem": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAbNKqba+ID8D87pN/cda/2XinNPtZexiICzHLzBpWYvA=\n-----END PUBLIC KEY-----\n",
+  "attestation": {
+    "kind": "tradelayer_dlc_oracle_attestation",
+    "contractId": "dlc-live-9b1d9e48",
+    "fundingTxid": "9b1d9e4806fcb50ad9b12921fab2f898a8d471e5ea4f2215734e6809ad32dc83",
+    "fundingVout": 0,
+    "outcomeId": "settle-loss",
+    "message": "{\"contractId\":\"dlc-live-9b1d9e48\",\"fundingTxid\":\"9b1d9e4806fcb50ad9b12921fab2f898a8d471e5ea4f2215734e6809ad32dc83\",\"fundingVout\":0,\"kind\":\"tradelayer_dlc_oracle_attestation_v1\",\"outcomeId\":\"settle-loss\"}",
+    "signature": "bcde063c726a821d556efb92df96595ec84bf19e9aaeb76d0aa32fc852e1cc2285dff8dfb2e17198965d3656d5c2de1c1fce99357065ccb432a0626bb9f2ca02"
+  },
+  "selectionHash": "cc033b539d3ea05d64e6d27c308bcf94f2d3b70ae23d4375a1ff5d9f82915ea8",
+  "selection": {
+    "kind": "tradelayer_dlc_cet_selection_v1",
+    "outcomeId": "settle-loss",
+    "winnerRole": "bob",
+    "fundingTxid": "9b1d9e4806fcb50ad9b12921fab2f898a8d471e5ea4f2215734e6809ad32dc83",
+    "fundingVout": 0,
+    "outputsSats": {
+      "tltc1qkz0vft2fc4nk0u9fx4k9yk4th7zherna3zxh22": "7500",
+      "tltc1qe006vz3uf5dsg5zjqd5x3evfuvvhangee0l99a": "1500",
+      "tltc1q2hjwxlj8muw5kq2r56ms9794zzz7st0kryffl4": "140000"
+    },
+    "totalOutSats": "149000",
+    "outcomesHash": "0986b0b1f4c3faeb69934bc271162f26ba38796c6bfa39b76f657b4dd432a7c9",
+    "attestationMessage": "{\"contractId\":\"dlc-live-9b1d9e48\",\"fundingTxid\":\"9b1d9e4806fcb50ad9b12921fab2f898a8d471e5ea4f2215734e6809ad32dc83\",\"fundingVout\":0,\"kind\":\"tradelayer_dlc_oracle_attestation_v1\",\"outcomeId\":\"settle-loss\"}"
+  },
+  "cetTxid": "5e232095a0c01ab650214a85821bc555db58cfd73ade88b5273cb56fe198d442"
+}
