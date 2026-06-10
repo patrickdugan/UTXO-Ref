@@ -167,15 +167,32 @@ swept to:
 - harness review against the plan: `verification=ok`, `finalOutputReview=ok`
   (`artifacts/live/utxoref_live_path_dlc_funding.{json,md}`).
 
-Both pubkeys are wallet-owned, so the 2-of-2 is spendable via the CET/refund
-paths. This was a non-broadcast decode round-trip; locking real collateral into
-the funding output is deferred until the CET-spend path is wired so the funds
-are immediately recoverable.
+### Full DLC lifecycle on-chain (added 2026-06-10)
 
-Still open here: spend the 2-of-2 funding output through a CET/refund path
-(the existing `m1_dlc_psbt_cet.js` skeletons) on chain, and turn the insolvency
-+ final-output challenges into concrete BitVM/script constraints rather than
-evidence only.
+The complete deposit -> fund -> settle loop now runs and confirms on LTCTEST:
+
+1. Sweep (send funds toward the DLC): txid
+   `3e8d784efab4a8b65d127267b441bfdf4a28aff7b46fa90c05f21113cfd001d7`,
+   confirmed in block 4,761,067.
+2. Funding (lock collateral into the 2-of-2): txid
+   `f2f1191b0d1a92c55b0d21d221979e97e7be741b57b720a1d070b9697ffa101a`,
+   locks 179,855 sats into the 2-of-2 P2WSH funding output, confirmed in
+   block 4,761,076.
+3. CET (settle): txid
+   `28976fd5c6d203ad81c4106c5402d68b21d8d66f4c9d61a18c10936f3876e121`,
+   spends the 2-of-2 funding output to the winner (178,855 sats, 1,000 fee),
+   confirmed in block 4,761,076.
+
+The 2-of-2 was registered with `addmultisigaddress` and the CET was signed with
+both keys (`signrawtransactionwithwallet` -> `complete: true`,
+`testmempoolaccept` allowed) before broadcast. Txids captured under
+`artifacts/live/dlc_*`.
+
+Still open here: drive the CET selection from the live-path settlement route
+(currently a single winner payout rather than the bounded settle-gain/settle-loss
+/roll split), wire a real oracle attestation/adaptor signature into the CET
+choice, and turn the insolvency + final-output challenges into concrete
+BitVM/script constraints rather than evidence only.
 
 ## Work Started
 
