@@ -19,3 +19,4 @@ civkit/nostr_agent/artifacts/test_*/
 
 # Scratch stress-test dump with unresolved placeholders
 tests/stress_test_bitvm.js
+bitvm3/utxo_referee/artifacts/live/taproot_recovery_key.hex

@@ -86,6 +86,7 @@ const tradeLayerReserveReconciliationReferee = require('./tradelayer_reserve_rec
 const tradeLayerLiveReserveAdapter = require('./tradelayer_live_reserve_adapter');
 const tradeLayerDlcCetOracleSelection = require('./tradelayer_dlc_cet_oracle_selection');
 const tradeLayerDlcAdaptorSig = require('./tradelayer_dlc_adaptor_sig');
+const tradeLayerTaproot = require('./tradelayer_taproot');
 const tradeLayerPerpPnlReferee = require('./tradelayer_perp_pnl_referee');
 const bitvmLiquidityLeaseReferee = require('./bitvm_liquidity_lease_referee');
 const bitvmArenaSecurityReport = require('./bitvm_arena_security_report');
@@ -440,6 +441,10 @@ module.exports = {
   buildDlcOracle: tradeLayerDlcAdaptorSig.buildDlcOracle,
   dlcOutcomePoint: tradeLayerDlcAdaptorSig.dlcOutcomePoint,
   dlcAttest: tradeLayerDlcAdaptorSig.dlcAttest,
+  taprootOutputKey: tradeLayerTaproot.taprootOutputKey,
+  taprootScriptPubKey: tradeLayerTaproot.taprootScriptPubKey,
+  taprootTweakSecret: tradeLayerTaproot.taprootTweakSecret,
+  bip341SighashDefault: tradeLayerTaproot.bip341SighashDefault,
   buildTradeLayerPerpPnlSettlement: tradeLayerPerpPnlReferee.buildTradeLayerPerpPnlSettlement,
   verifyTradeLayerPerpPnlSettlement: tradeLayerPerpPnlReferee.verifyTradeLayerPerpPnlSettlement,
   buildTradeLayerPerpPnlChallenge: tradeLayerPerpPnlReferee.buildTradeLayerPerpPnlChallenge,
@@ -531,6 +536,7 @@ module.exports = {
   tradeLayerLiveReserveAdapter,
   tradeLayerDlcCetOracleSelection,
   tradeLayerDlcAdaptorSig,
+  tradeLayerTaproot,
   tradeLayerPerpPnlReferee,
   bitvmLiquidityLeaseReferee,
   bitvmArenaSecurityReport,

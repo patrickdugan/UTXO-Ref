@@ -1,0 +1,17 @@
+{
+  "kind": "tradelayer_taproot_adaptor_dlc",
+  "p2trScriptPubKey": "5120ee3aba8c611044355ef462f829d9a7d0008cb4b8ab17357109626d702a069882",
+  "outputKey": "ee3aba8c611044355ef462f829d9a7d0008cb4b8ab17357109626d702a069882",
+  "fundingTxid": "276b600baf04432b4b3bec03b2fc7aefd26203d8a6e51fa48f16639c08069045",
+  "spendTxid": "ce9e727324e3467129eb3a6e306610a2be4f0e53f7957fbec098124d6d3f0366",
+  "outcomeId": "settle-loss",
+  "oraclePx": "40ed0c40b2cc14d1b83d93903dc8cc0cc74ea8d8f9a86a302ebd70bb6ad50e48",
+  "oracleRx": "0dcd71bee090a9ade8b32a287f4d7ac75f7c26169e0b52ae40cac2ba894a76e1",
+  "attestation": "904fc5f0d1659b3852c3fd90865d7da198e4c86579736ed42c9269a590f2c14d",
+  "adaptorPresigVerified": true,
+  "completedSigVerified": true,
+  "broadcast": {
+    "fundingTxid": "276b600baf04432b4b3bec03b2fc7aefd26203d8a6e51fa48f16639c08069045",
+    "spendTxid": "ce9e727324e3467129eb3a6e306610a2be4f0e53f7957fbec098124d6d3f0366"
+  }
+}

@@ -231,11 +231,35 @@ for random keys, `N*G = O`, the BIP340 pubkey for secret 3 matches the published
 vector, and an end-to-end multi-outcome DLC shows only the attested CET signature
 verifies.
 
-Still open here: drive an on-chain taproot keypath CET spend whose witness is an
-adaptor-completed BIP340 signature (needs a BIP341 sighash builder + a P2TR
-funding output), and turn the insolvency + final-output challenges into concrete
-BitVM/Script constraints. The signing math is done and validated; what remains is
-the taproot transaction plumbing and the challenge-circuit work.
+### On-chain taproot adaptor-DLC settlement (added 2026-06-10)
+
+The adaptor signature now settles on-chain. `tradelayer_taproot.js` adds the
+BIP341 keypath tweak, P2TR scriptPubKey, and `SIGHASH_DEFAULT` sighash, all
+validated against the published BIP341 wallet test vectors
+(`tradelayer_taproot.test.js`, vectors vendored as
+`bip341-wallet-test-vectors.json`). Because the tweak/sighash are vector-anchored,
+a hand-built P2TR output is safe to fund even though this node runs Litecoin Core
+0.21.2.2 (no taproot address tooling).
+
+`tradelayer_taproot_dlc_demo.js` funds a P2TR keypath output and spends it with a
+witness that is the oracle-completed adaptor signature:
+
+- Funding txid `276b600baf04432b4b3bec03b2fc7aefd26203d8a6e51fa48f16639c08069045`
+  (locks 100,000 sats into the P2TR), confirmed in block 4,761,191.
+- Spend txid `ce9e727324e3467129eb3a6e306610a2be4f0e53f7957fbec098124d6d3f0366`,
+  witness = adaptor-completed BIP340 signature, accepted by the network and
+  confirmed in block 4,761,191. The completed signature verifies against the
+  taproot output key, which is exactly what the consensus rules check.
+
+Network acceptance is the end-to-end proof that the taproot tweak, BIP341
+sighash, witness serialization, and adaptor completion are all correct.
+
+Still open: this is a single-key keypath spend (it proves an adaptor-completed
+signature settles on-chain, but the single key holder could also spend
+unilaterally). Forcing the signer to wait for the oracle needs a 2-party MuSig2
+funding key — the adaptor primitive is identical, only key/nonce aggregation is
+added. And the insolvency + final-output referee challenges are still evidence
+objects rather than BitVM/Script constraints.
 
 ## Work Started
 
