@@ -138,6 +138,8 @@ The sweep was then signed (`signrawtransactionwithwallet`) and broadcast
 - Broadcast sweep txid:
   `3e8d784efab4a8b65d127267b441bfdf4a28aff7b46fa90c05f21113cfd001d7`
   (141 vB, 1,000 sat fee, `testmempoolaccept` allowed).
+- Confirmed on-chain in block 4,761,067
+  (`28785c0e5ba1d5ce7d7deafe632c830d88b45eec8e55631028643d3b05b8d254`).
 - Re-ran the harness with `--final-txid` (the getrawtransaction path); it
   verifies (`verification=ok`, `finalOutputReview=ok`) and produces the same
   `finalTxOutputHash` (`916733...`) as the `--final-hex` round-trip, confirming
