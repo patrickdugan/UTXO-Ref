@@ -39,6 +39,10 @@ const {
   verifyTradeLayerWithdrawalQueue
 } = require('./tradelayer_withdrawal_queue_referee');
 const {
+  buildTradeLayerReserveReconciliation,
+  verifyTradeLayerReserveReconciliation
+} = require('./tradelayer_reserve_reconciliation_referee');
+const {
   buildTradeLayerPerpPnlSettlement,
   verifyTradeLayerPerpPnlSettlement
 } = require('./tradelayer_perp_pnl_referee');
@@ -104,6 +108,7 @@ function stackHashInput(bundle) {
     fraudBundleHash: bundle.fraudChallenges.bundleHash,
     watchtowerReportHash: bundle.watchtower.reportHash,
     withdrawalQueueHash: bundle.withdrawalQueue.queueHash,
+    reserveReconciliationHash: bundle.reserveReconciliation.reconciliationHash,
     perpSettlementHash: bundle.perpPnl.settlementHash,
     liquidityLeaseHash: bundle.liquidityLease.leaseHash,
     arenaReportHash: bundle.arenaSecurity.reportHash,
@@ -125,9 +130,11 @@ function buildWithdrawalRequestsFromRoute(routePlan) {
 
 function buildDashboardView(bundleCore) {
   const alerts = bundleCore.watchtower.alerts || [];
+  const solvent = bundleCore.reserveReconciliation.solvent === true;
   const challengeable = [
     ...bundleCore.fraudChallenges.challenges.filter((challenge) => challenge.challengeable).map((challenge) => challenge.challengeType),
-    bundleCore.checkpointFraudProof.challengeable ? bundleCore.checkpointFraudProof.proofType : null
+    bundleCore.checkpointFraudProof.challengeable ? bundleCore.checkpointFraudProof.proofType : null,
+    solvent ? null : 'reserve_insolvency'
   ].filter(Boolean);
   const hashes = {
     checkpoint: bundleCore.stateCheckpoint.checkpointHash,
@@ -136,6 +143,7 @@ function buildDashboardView(bundleCore) {
     registry: bundleCore.hashes.dlcFunderRegistryHash,
     routeTranscript: bundleCore.hashes.routeTranscriptHash,
     withdrawalQueue: bundleCore.withdrawalQueue.queueHash,
+    reserveReconciliation: bundleCore.reserveReconciliation.reconciliationHash,
     perpSettlement: bundleCore.perpPnl.settlementHash,
     liquidityLease: bundleCore.liquidityLease.leaseHash,
     arenaReport: bundleCore.arenaSecurity.reportHash,
@@ -144,7 +152,8 @@ function buildDashboardView(bundleCore) {
   const capitalPlan = bundleCore.halalCapitalTokenPlan || null;
   const viewCore = {
     schema: DASHBOARD_SCHEMA_VERSION,
-    status: alerts.length ? 'needs_attention' : 'ready',
+    status: (alerts.length || !solvent) ? 'needs_attention' : 'ready',
+    solvent,
     hashes,
     capital: capitalPlan
       ? {
@@ -177,9 +186,11 @@ function buildDashboardView(bundleCore) {
       fundingInput: bundleCore.routePlan.dlcInput.txid,
       liveSweep: bundleCore.sweepPlan.liveTxid || null
     },
-    nextStep: alerts.length
-      ? 'pause cooperative sweep and submit watchtower challenge bundle'
-      : 'safe to present cooperative sweep and transcript chain'
+    nextStep: !solvent
+      ? 'pause cooperative sweep: withdrawal cap exceeds credited deposit reserve'
+      : alerts.length
+        ? 'pause cooperative sweep and submit watchtower challenge bundle'
+        : 'safe to present cooperative sweep and transcript chain'
   };
   return {
     kind: 'bitvm_tradelayer_dashboard_view',
@@ -208,20 +219,6 @@ function buildTradeLayerBitvmStackBundle(input = {}) {
     sweepPlan,
     fraudChallengeBundle: fraudChallenges
   });
-  const productionPolicy = buildTradeLayerSendProductionPolicy(stateOracleBlob, {
-    ...sendOptions,
-    routePlan,
-    observedOutputs: routePlan.outputPlan,
-    currentHeight: input.currentHeight || stateOracleBlob.snapshotHeight
-  });
-  const watchtower = buildTradeLayerSendWatchtowerReport({
-    stateOracleBlob,
-    routePlan,
-    sweepPlan,
-    fraudChallenges,
-    walletFlow,
-    productionPolicy
-  }, sendOptions);
   const stateCheckpoint = buildTradeLayerStateCheckpoint({
     chain: stateOracleBlob.chain,
     epochId: stateOracleBlob.epochId,
@@ -241,6 +238,30 @@ function buildTradeLayerBitvmStackBundle(input = {}) {
     stateRoot: stateCheckpoint.core.nextStateRoot,
     requests: buildWithdrawalRequestsFromRoute(routePlan)
   });
+  // Reconcile the payable withdrawal cap against the credited deposit reserve
+  // backing this sweep (the funded DLC/UTXORef input). A live caller can pass a
+  // deposit-indexer or ledger snapshot via input.reserve instead.
+  const reserveReconciliation = buildTradeLayerReserveReconciliation({
+    network: routePlan.network,
+    queue: withdrawalQueue,
+    reserve: input.reserve || { reservedSats: routePlan.dlcInput.sats }
+  });
+  const productionPolicy = buildTradeLayerSendProductionPolicy(stateOracleBlob, {
+    ...sendOptions,
+    routePlan,
+    observedOutputs: routePlan.outputPlan,
+    currentHeight: input.currentHeight || stateOracleBlob.snapshotHeight,
+    reserveReconciliation,
+    withdrawalQueue
+  });
+  const watchtower = buildTradeLayerSendWatchtowerReport({
+    stateOracleBlob,
+    routePlan,
+    sweepPlan,
+    fraudChallenges,
+    walletFlow,
+    productionPolicy
+  }, sendOptions);
   const perpPnl = buildTradeLayerPerpPnlSettlement({
     network: routePlan.network,
     epochId: stateOracleBlob.epochId,
@@ -304,6 +325,7 @@ function buildTradeLayerBitvmStackBundle(input = {}) {
     stateCheckpoint,
     checkpointFraudProof,
     withdrawalQueue,
+    reserveReconciliation,
     perpPnl,
     liquidityLease,
     arenaSecurity,
@@ -332,6 +354,7 @@ function verifyTradeLayerBitvmStackBundle(bundle) {
     ['stateCheckpoint', verifyTradeLayerStateCheckpoint(bundle.stateCheckpoint)],
     ['checkpointFraudProof', verifyTradeLayerCheckpointFraudProof(bundle.checkpointFraudProof, bundle.stateCheckpoint)],
     ['withdrawalQueue', verifyTradeLayerWithdrawalQueue(bundle.withdrawalQueue)],
+    ['reserveReconciliation', verifyTradeLayerReserveReconciliation(bundle.reserveReconciliation, bundle.withdrawalQueue)],
     ['perpPnl', verifyTradeLayerPerpPnlSettlement(bundle.perpPnl)],
     ['liquidityLease', verifyBitvmLiquidityLease(bundle.liquidityLease)],
     ['arenaSecurity', verifyBitvmArenaSecurityReport(bundle.arenaSecurity)],
@@ -369,6 +392,7 @@ function dashboardJsonSchema() {
     schema: DASHBOARD_SCHEMA_VERSION,
     requiredFields: [
       'status',
+      'solvent',
       'hashes',
       'capital',
       'actions',

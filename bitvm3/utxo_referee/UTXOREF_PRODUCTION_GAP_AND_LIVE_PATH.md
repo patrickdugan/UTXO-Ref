@@ -61,6 +61,29 @@ This path is useful when one command can emit:
 The proof object must fail verification if any final output, route transcript,
 component hash, or challenge binding is tampered with.
 
+## Reserve Reconciliation (added 2026-06-10)
+
+The deposit side and the withdrawal side are now reconciled against each other.
+Previously the withdrawal queue committed to a cap that was just the sum of
+approved requests, with no check that the tokenized reserve could cover it.
+
+- `tradelayer_reserve_reconciliation_referee.js` enforces the peg invariant
+  `sum(payable withdrawals) <= sum(credited deposit reserve)` as a verifiable,
+  tamper-evident commitment.
+- Reserve can be supplied explicitly, derived from a `ReceiptDepositIndexer`
+  snapshot (credited deposits only), or from a `ReceiptLedger` snapshot.
+- `buildTradeLayerReserveInsolvencyChallenge` packages a challengeable proof when
+  the committed cap exceeds the proven reserve (shortfall > 0).
+- The withdrawal queue itself is now fail-closed: only `approved`/`settled`
+  statuses are payable (an unknown/pending status no longer becomes a payout),
+  and two distinct request ids producing the identical payout leaf are rejected
+  as a double-pay, while one send txid may still fan out to distinct recipients.
+
+Still open here: bind the reconciliation commitment into the stack bundle /
+live-path evidence and the production policy gate so a sweep cannot be accepted
+against an insolvent queue, and turn the insolvency challenge into a concrete
+BitVM/script constraint rather than evidence only.
+
 ## Work Started
 
 This repo now adds a live-path evidence harness:

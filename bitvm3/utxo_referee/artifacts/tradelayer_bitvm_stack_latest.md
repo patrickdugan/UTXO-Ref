@@ -1,6 +1,6 @@
 # TradeLayer BitVM Stack Demo
 
-Created: 2026-05-03T19:55:46.507Z
+Created: 2026-06-10T11:43:13.640Z
 Network: litecoin-testnet
 Verification: ok
 
@@ -11,7 +11,7 @@ Verification: ok
 - Selected send txid: cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 - Route transcript: 80c7e112c60277d8b94bc5ee873a19ae3a3cceccc524767bae770bb29d85af65
 - Sweep output root: fc1d5bace84265ee2cf3295a15270e9b9a2241837349634a99ed82bcf682f4e4
-- Final stack hash: 3f03412eaff0ef48a14a8a795a933279b60cb873b76ed0d4d40d4db499a3749e
+- Final stack hash: 33b16af2bc5db91e1ccf7058ca9681799a4e994c2f7d36e2c3a2e131ee7240e0
 
 ## BitVM Challenge Surfaces
 
@@ -32,7 +32,7 @@ Verification: ok
 ## Dashboard Contract
 
 - Schema: bitvm_tradelayer_dashboard_v1
-- View hash: 053cba4c072df1554af5fe5949f8882729a52680ff0a3bc47a65b21a33bab170
+- View hash: 453961030fb2aeb4265bf268ad95fd3feb3d1f87837fda4b054ade1ec145f882
 - Status: ready
 - Next step: safe to present cooperative sweep and transcript chain
 

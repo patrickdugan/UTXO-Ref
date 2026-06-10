@@ -35,19 +35,34 @@ function normalizeRequest(request, index) {
   };
 }
 
+// Fail-closed: only these statuses are ever swept. Anything else (pending,
+// cancelled, rejected, invalid, or an unrecognized value) is excluded from the
+// payable set so an unknown status cannot become a payout.
+const PAYABLE_STATUSES = Object.freeze(['approved', 'settled']);
+
 function queueEntries(requests) {
   if (!Array.isArray(requests) || !requests.length) throw new Error('withdrawal requests must be a non-empty array');
   const entries = requests.map(normalizeRequest);
-  const seen = new Set();
+  const seenIds = new Set();
+  const seenPayouts = new Set();
   for (const entry of entries) {
-    if (seen.has(entry.id)) throw new Error(`duplicate withdrawal request id: ${entry.id}`);
-    seen.add(entry.id);
+    if (seenIds.has(entry.id)) throw new Error(`duplicate withdrawal request id: ${entry.id}`);
+    seenIds.add(entry.id);
+    // Two distinct ids producing the identical payout leaf (same origin txid,
+    // recipient, amount, and property) would double-pay the same withdrawal.
+    // A single send txid that legitimately fans out to several recipients does
+    // not collide here, because those entries differ by address and/or amount.
+    const payoutFingerprint = `${entry.txid || ''}|${entry.address}|${entry.sats}|${entry.propertyId ?? ''}`;
+    if (seenPayouts.has(payoutFingerprint)) {
+      throw new Error(`duplicate withdrawal payout: ${entry.id} repeats ${payoutFingerprint}`);
+    }
+    seenPayouts.add(payoutFingerprint);
   }
   return entries;
 }
 
 function approvedEntries(entries) {
-  return entries.filter((entry) => !/cancel|reject|invalid/i.test(String(entry.status)));
+  return entries.filter((entry) => PAYABLE_STATUSES.includes(String(entry.status).toLowerCase()));
 }
 
 function residualScript(options, network) {
@@ -197,6 +212,7 @@ function verifyTradeLayerWithdrawalQueueChallenge(challenge, queue) {
 }
 
 module.exports = {
+  PAYABLE_STATUSES,
   buildTradeLayerWithdrawalQueue,
   verifyTradeLayerWithdrawalQueue,
   buildTradeLayerWithdrawalQueueChallenge,

@@ -10,6 +10,9 @@ const {
 const {
   verifyObservedSweepOutputs
 } = require('./tradelayer_send_sweep_psbt');
+const {
+  verifyTradeLayerReserveReconciliation
+} = require('./tradelayer_reserve_reconciliation_referee');
 
 const DEFAULT_POLICY = {
   challengeWindowBlocks: 144,
@@ -166,6 +169,26 @@ function buildTradeLayerSendProductionPolicy(stateOracleBlob, options = {}) {
       reason: oracleSignature.reason || null,
       keyId: oracleKeyId,
       payloadHash: oracleSignature.payloadHash || null
+    }));
+  }
+
+  // Reserve solvency: a sweep must not be accepted against a withdrawal queue
+  // whose committed cap exceeds the credited deposit reserve. Only enforced
+  // when a reconciliation is supplied so single-send policy checks stay valid
+  // without an epoch-level reserve view.
+  if (options.reserveReconciliation) {
+    const reconciliation = options.reserveReconciliation;
+    const reconciliationVerification = verifyTradeLayerReserveReconciliation(
+      reconciliation,
+      options.withdrawalQueue
+    );
+    checks.push(check('reserve_solvency', reconciliationVerification.ok && reconciliation.solvent === true, {
+      reason: reconciliationVerification.ok ? null : reconciliationVerification.reason,
+      solvent: reconciliation.solvent === true,
+      reconciliationHash: reconciliation.reconciliationHash || null,
+      capSats: reconciliation.core?.capSats || null,
+      reservedSats: reconciliation.core?.reservedSats || null,
+      marginSats: reconciliation.core?.marginSats || null
     }));
   }
 

@@ -95,6 +95,47 @@ test('builds challengeable omission and amount mismatch proofs', () => {
   assert(amount.challengeable, 'amount mismatch should be challengeable');
 });
 
+test('excludes non-payable statuses fail-closed (only approved/settled pay)', () => {
+  const queue = buildTradeLayerWithdrawalQueue({
+    requests: [
+      { id: 'ok-approved', txid: '11'.repeat(32), address: REQUESTS[0].address, sats: 25000, status: 'approved' },
+      { id: 'ok-settled', txid: '22'.repeat(32), address: REQUESTS[1].address, sats: 74000, status: 'settled' },
+      { id: 'no-pending', txid: '33'.repeat(32), address: REQUESTS[0].address, sats: 1000, status: 'pending' },
+      { id: 'no-unknown', txid: '44'.repeat(32), address: REQUESTS[0].address, sats: 1000, status: 'queued-maybe' },
+      { id: 'no-rejected', txid: '55'.repeat(32), address: REQUESTS[0].address, sats: 1000, status: 'rejected' }
+    ]
+  });
+  const result = verifyTradeLayerWithdrawalQueue(queue);
+  assert(result.ok, result.reason);
+  assertEq(result.payableCount, 2, 'only approved + settled should be payable');
+  assertEq(queue.queueCore.totalSats, '99000', 'unknown/pending statuses must not add to the cap');
+});
+
+test('rejects two ids producing the identical payout leaf (double-pay guard)', () => {
+  let threw = false;
+  try {
+    buildTradeLayerWithdrawalQueue({
+      requests: [
+        { id: 'wd-a', txid: 'ab'.repeat(32), address: REQUESTS[0].address, sats: 25000, propertyId: 0 },
+        { id: 'wd-b', txid: 'ab'.repeat(32), address: REQUESTS[0].address, sats: 25000, propertyId: 0 }
+      ]
+    });
+  } catch (err) {
+    threw = /duplicate withdrawal payout/.test(err.message);
+  }
+  assert(threw, 'identical payout leaf across distinct ids must be rejected');
+});
+
+test('allows one send txid to fan out to distinct recipients', () => {
+  const queue = buildTradeLayerWithdrawalQueue({
+    requests: [
+      { id: 'out-0', txid: 'cd'.repeat(32), address: REQUESTS[0].address, sats: 25000, propertyId: 0 },
+      { id: 'out-1', txid: 'cd'.repeat(32), address: REQUESTS[1].address, sats: 74000, propertyId: 0 }
+    ]
+  });
+  assertEq(verifyTradeLayerWithdrawalQueue(queue).payableCount, 2, 'shared txid with distinct outputs must be allowed');
+});
+
 if (failed > 0) {
   console.log(`\nFAIL: ${failed} failed, ${passed} passed\n`);
   process.exit(1);

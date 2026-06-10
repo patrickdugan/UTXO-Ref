@@ -1,13 +1,13 @@
 {
   "kind": "utxoref_live_path_evidence",
-  "evidenceHash": "9e9e91358a9ab0e13a07b72d2d0b6dd578d53cb5b98a89d8de82e5bef1ffb378",
+  "evidenceHash": "bf51cd12477df2689bf67679ae6ec52f08d2b6ccb587c1587f88b171a919b6d8",
   "core": {
     "kind": "utxoref_live_path_evidence_v1",
     "network": "litecoin-testnet",
     "fundingOutpoint": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff:1",
     "selectedSendTxid": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
-    "stackHash": "3f03412eaff0ef48a14a8a795a933279b60cb873b76ed0d4d40d4db499a3749e",
-    "dashboardViewHash": "053cba4c072df1554af5fe5949f8882729a52680ff0a3bc47a65b21a33bab170",
+    "stackHash": "33b16af2bc5db91e1ccf7058ca9681799a4e994c2f7d36e2c3a2e131ee7240e0",
+    "dashboardViewHash": "453961030fb2aeb4265bf268ad95fd3feb3d1f87837fda4b054ade1ec145f882",
     "stateCheckpointHash": "a157146cd3682f8aaba09fc820b96500a857e81336ee139db06637bd23c5635b",
     "stateOracleHash": "c1a461ff7ff1d3a74fed3bc3f39decf6dcf621cff4894bd140607ab8c73390ce",
     "selectedSendHash": "5a41f83d2e783f3a74c01239d1cbc396ecac07b46fa2d92c4dcbf1b53da65709",
@@ -24,7 +24,7 @@
     "finalWtxid": "709e292e188dc3e0da075074643a95fb8c454268c20190c6c3cc6fb3c0a8d281",
     "fraudBundleHash": "43dc573cbd3cbf99d5fd3a89ffacac647ac84c723de5c22028bc43d6cfc16fbd",
     "checkpointFraudProofHash": "5f06cfa4e2cd973af987f21ad5a797e9664eaaa9f370a6a47ae3d2c56908253c",
-    "finalOutputChallengeHash": "033def5548e13e6c7f5275d0b6e8d25c27b8047afab989d13973b03887ca276c",
+    "finalOutputChallengeHash": "0b134d859c710c956b67798aeb4a83f04383e8ec1da8a0d6df8e4dfcd02499e3",
     "challengeableCount": 14
   },
   "stack": {
@@ -1053,19 +1053,32 @@
             "commitmentHashHex": "1f327b20e84381e3158454e88e1ab95ba860c267bb04d0965e6998625d8f274d",
             "withdrawalRootHex": "fc1d5bace84265ee2cf3295a15270e9b9a2241837349634a99ed82bcf682f4e4"
           }
+        },
+        {
+          "name": "reserve_solvency",
+          "ok": true,
+          "severity": "block",
+          "details": {
+            "reason": null,
+            "solvent": true,
+            "reconciliationHash": "510d5bd84a351754b89d9089a650b1ab94a5a5222b23642eefa85f5992a31427",
+            "capSats": "99000",
+            "reservedSats": "100000",
+            "marginSats": "1000"
+          }
         }
       ],
       "ok": true,
       "failedChecks": [],
       "walletAction": "allow_sweep",
-      "policyHash": "32f5ce6e5bee7bddcf4019aaeb6b0e8a04535d17d1b4f4be00a8644a65182b3a"
+      "policyHash": "5dc06146d62d8582810155f73e9c643c6a87bcdb95ad0578aca10998baf284f9"
     },
     "watchtower": {
       "kind": "tradelayer_send_watchtower_report",
       "ok": true,
       "challengeRecommended": false,
       "action": "allow_cooperative_sweep",
-      "reportHash": "ba11c00fc87b1a6b0a392b13ca601dbf7bc0fad5a3be97c055a66ab14ec9bf1a",
+      "reportHash": "f4b252baeb47c9f4f4d0f74cfe4ff2dffbd7c9036d8667f167a5b48302847063",
       "reportCore": {
         "kind": "tradelayer_send_watchtower_report_v1",
         "observedAtHeight": 4696000,
@@ -1078,7 +1091,7 @@
         "fraudChallengeRoot": "0e1fc564537b8ed841f8e586f826b5a78eed8cce1815f023f20b4adbfd127f0c",
         "fraudChallengeBundleHash": "43dc573cbd3cbf99d5fd3a89ffacac647ac84c723de5c22028bc43d6cfc16fbd",
         "walletFlowHash": "41af8b0b64ca1f66daba6340f2c8e1837f25f5ebd0f137443ac52fd567e4f725",
-        "productionPolicyHash": "32f5ce6e5bee7bddcf4019aaeb6b0e8a04535d17d1b4f4be00a8644a65182b3a",
+        "productionPolicyHash": "5dc06146d62d8582810155f73e9c643c6a87bcdb95ad0578aca10998baf284f9",
         "alerts": []
       },
       "alerts": [],
@@ -1193,6 +1206,25 @@
           }
         }
       ]
+    },
+    "reserveReconciliation": {
+      "kind": "tradelayer_reserve_reconciliation",
+      "reconciliationHash": "510d5bd84a351754b89d9089a650b1ab94a5a5222b23642eefa85f5992a31427",
+      "solvent": true,
+      "core": {
+        "kind": "tradelayer_reserve_reconciliation_v1",
+        "network": "litecoin-testnet",
+        "epochId": "77",
+        "queueHash": "206ea73cb10ab75f72648bf5b3c218b9b2fc5551bd799fdb5d66ed5ad251fbfb",
+        "withdrawalRootHex": "76a1ef570ccb542551a02c80d7948e37253fbd396fcc2e8171402798a3a7f81e",
+        "capSats": "99000",
+        "payableCount": 2,
+        "reserveSourceKind": "explicit",
+        "reserveSourceHash": "46891cfe62f4322cde15e9b0b6fef20baa20014cb41e1d12a5d4f57636f558fe",
+        "reservedSats": "100000",
+        "marginSats": "1000",
+        "solvent": true
+      }
     },
     "perpPnl": {
       "kind": "tradelayer_perp_pnl_settlement",
@@ -3308,9 +3340,10 @@
     },
     "dashboard": {
       "kind": "bitvm_tradelayer_dashboard_view",
-      "viewHash": "053cba4c072df1554af5fe5949f8882729a52680ff0a3bc47a65b21a33bab170",
+      "viewHash": "453961030fb2aeb4265bf268ad95fd3feb3d1f87837fda4b054ade1ec145f882",
       "schema": "bitvm_tradelayer_dashboard_v1",
       "status": "ready",
+      "solvent": true,
       "hashes": {
         "checkpoint": "a157146cd3682f8aaba09fc820b96500a857e81336ee139db06637bd23c5635b",
         "stateOracle": "c1a461ff7ff1d3a74fed3bc3f39decf6dcf621cff4894bd140607ab8c73390ce",
@@ -3318,6 +3351,7 @@
         "registry": "e2057a8fb6fcfd3da569c56dec6978e416c4ec3f9595df7875b0f90052509986",
         "routeTranscript": "80c7e112c60277d8b94bc5ee873a19ae3a3cceccc524767bae770bb29d85af65",
         "withdrawalQueue": "206ea73cb10ab75f72648bf5b3c218b9b2fc5551bd799fdb5d66ed5ad251fbfb",
+        "reserveReconciliation": "510d5bd84a351754b89d9089a650b1ab94a5a5222b23642eefa85f5992a31427",
         "perpSettlement": "3e3fb7852f4d134024eba8937715b57c0906cae5ae04c80a92f0e07519457df8",
         "liquidityLease": "7fb007c5d9aada719fc7b242ac9d5d033290e601a96e9a3109e4a3d9a9121a47",
         "arenaReport": "f9b02c4c1d931a416d9ba2eb01488f6c55d47206d26bf12d780f125145394086",
@@ -3408,7 +3442,7 @@
       },
       "nextStep": "safe to present cooperative sweep and transcript chain"
     },
-    "stackHash": "3f03412eaff0ef48a14a8a795a933279b60cb873b76ed0d4d40d4db499a3749e"
+    "stackHash": "33b16af2bc5db91e1ccf7058ca9681799a4e994c2f7d36e2c3a2e131ee7240e0"
   },
   "decodedFinalTx": {
     "txid": "caea1f7e465196e6c9c9b85ba4a2088d547ffdc0f41803a7799660e09e377187",
@@ -3556,11 +3590,11 @@
   },
   "finalOutputChallenge": {
     "kind": "utxoref_live_path_final_output_challenge",
-    "challengeHash": "033def5548e13e6c7f5275d0b6e8d25c27b8047afab989d13973b03887ca276c",
+    "challengeHash": "0b134d859c710c956b67798aeb4a83f04383e8ec1da8a0d6df8e4dfcd02499e3",
     "challengeable": true,
     "core": {
       "kind": "utxoref_live_path_final_output_challenge_v1",
-      "stackHash": "3f03412eaff0ef48a14a8a795a933279b60cb873b76ed0d4d40d4db499a3749e",
+      "stackHash": "33b16af2bc5db91e1ccf7058ca9681799a4e994c2f7d36e2c3a2e131ee7240e0",
       "routeTranscriptHash": "80c7e112c60277d8b94bc5ee873a19ae3a3cceccc524767bae770bb29d85af65",
       "expected": {
         "finalTxOutputHash": "363bc988d896f0238a97b7f01b356ba4d40d61947f9fa8e3a64d94ff578b231d",
@@ -3601,7 +3635,7 @@
     {
       "step": "dashboard",
       "status": "ready",
-      "check": "053cba4c072df1554af5fe5949f8882729a52680ff0a3bc47a65b21a33bab170"
+      "check": "453961030fb2aeb4265bf268ad95fd3feb3d1f87837fda4b054ade1ec145f882"
     }
   ],
   "liveSwapPoints": {

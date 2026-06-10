@@ -82,6 +82,7 @@ const tradeLayerSendRpcSweep = require('./tradelayer_send_rpc_sweep');
 const tradeLayerSendWatchtower = require('./tradelayer_send_watchtower');
 const tradeLayerStateCheckpointReferee = require('./tradelayer_state_checkpoint_referee');
 const tradeLayerWithdrawalQueueReferee = require('./tradelayer_withdrawal_queue_referee');
+const tradeLayerReserveReconciliationReferee = require('./tradelayer_reserve_reconciliation_referee');
 const tradeLayerPerpPnlReferee = require('./tradelayer_perp_pnl_referee');
 const bitvmLiquidityLeaseReferee = require('./bitvm_liquidity_lease_referee');
 const bitvmArenaSecurityReport = require('./bitvm_arena_security_report');
@@ -414,6 +415,12 @@ module.exports = {
   verifyTradeLayerWithdrawalQueue: tradeLayerWithdrawalQueueReferee.verifyTradeLayerWithdrawalQueue,
   buildTradeLayerWithdrawalQueueChallenge: tradeLayerWithdrawalQueueReferee.buildTradeLayerWithdrawalQueueChallenge,
   verifyTradeLayerWithdrawalQueueChallenge: tradeLayerWithdrawalQueueReferee.verifyTradeLayerWithdrawalQueueChallenge,
+  TRADELAYER_WITHDRAWAL_PAYABLE_STATUSES: tradeLayerWithdrawalQueueReferee.PAYABLE_STATUSES,
+  reservedSatsFromDepositSnapshot: tradeLayerReserveReconciliationReferee.reservedSatsFromDepositSnapshot,
+  buildTradeLayerReserveReconciliation: tradeLayerReserveReconciliationReferee.buildTradeLayerReserveReconciliation,
+  verifyTradeLayerReserveReconciliation: tradeLayerReserveReconciliationReferee.verifyTradeLayerReserveReconciliation,
+  buildTradeLayerReserveInsolvencyChallenge: tradeLayerReserveReconciliationReferee.buildTradeLayerReserveInsolvencyChallenge,
+  verifyTradeLayerReserveInsolvencyChallenge: tradeLayerReserveReconciliationReferee.verifyTradeLayerReserveInsolvencyChallenge,
   buildTradeLayerPerpPnlSettlement: tradeLayerPerpPnlReferee.buildTradeLayerPerpPnlSettlement,
   verifyTradeLayerPerpPnlSettlement: tradeLayerPerpPnlReferee.verifyTradeLayerPerpPnlSettlement,
   buildTradeLayerPerpPnlChallenge: tradeLayerPerpPnlReferee.buildTradeLayerPerpPnlChallenge,
@@ -501,6 +508,7 @@ module.exports = {
   tradeLayerSendWatchtower,
   tradeLayerStateCheckpointReferee,
   tradeLayerWithdrawalQueueReferee,
+  tradeLayerReserveReconciliationReferee,
   tradeLayerPerpPnlReferee,
   bitvmLiquidityLeaseReferee,
   bitvmArenaSecurityReport,

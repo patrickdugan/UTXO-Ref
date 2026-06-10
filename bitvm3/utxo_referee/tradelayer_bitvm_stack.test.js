@@ -55,6 +55,28 @@ test('builds a verifiable stack bundle for dashboard handoff', () => {
   assertEq(bundle.dashboard.capital.principalUnits, bundle.halalCapitalTokenPlan.planCore.totalPrincipalUnits);
 });
 
+test('binds a solvent reserve reconciliation into the verified bundle', () => {
+  const bundle = buildTradeLayerBitvmStackBundle();
+  assert(bundle.reserveReconciliation.solvent, 'default reserve should be solvent');
+  assertEq(bundle.dashboard.solvent, true);
+  assertEq(bundle.productionPolicy.walletAction, 'allow_sweep');
+  assert(!bundle.productionPolicy.failedChecks.includes('reserve_solvency'), 'solvency check should pass');
+  assertEq(bundle.dashboard.hashes.reserveReconciliation, bundle.reserveReconciliation.reconciliationHash);
+});
+
+test('pauses the sweep when the withdrawal cap exceeds the deposit reserve', () => {
+  const bundle = buildTradeLayerBitvmStackBundle({ reserve: { reservedSats: 1 } });
+  const result = verifyTradeLayerBitvmStackBundle(bundle);
+
+  assert(result.ok, `evidence should still verify intact: ${result.reason}`);
+  assert(!bundle.reserveReconciliation.solvent, 'tiny reserve should be insolvent');
+  assertEq(bundle.dashboard.status, 'needs_attention');
+  assertEq(bundle.dashboard.solvent, false);
+  assert(bundle.dashboard.challengeable.includes('reserve_insolvency'), 'insolvency should be challengeable');
+  assertEq(bundle.productionPolicy.walletAction, 'pause_spend');
+  assert(bundle.productionPolicy.failedChecks.includes('reserve_solvency'), 'reserve_solvency should fail closed');
+});
+
 test('exports a compact dashboard schema contract', () => {
   const schema = dashboardJsonSchema();
 
