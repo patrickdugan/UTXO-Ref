@@ -85,6 +85,7 @@ const tradeLayerWithdrawalQueueReferee = require('./tradelayer_withdrawal_queue_
 const tradeLayerReserveReconciliationReferee = require('./tradelayer_reserve_reconciliation_referee');
 const tradeLayerLiveReserveAdapter = require('./tradelayer_live_reserve_adapter');
 const tradeLayerDlcCetOracleSelection = require('./tradelayer_dlc_cet_oracle_selection');
+const tradeLayerDlcAdaptorSig = require('./tradelayer_dlc_adaptor_sig');
 const tradeLayerPerpPnlReferee = require('./tradelayer_perp_pnl_referee');
 const bitvmLiquidityLeaseReferee = require('./bitvm_liquidity_lease_referee');
 const bitvmArenaSecurityReport = require('./bitvm_arena_security_report');
@@ -430,6 +431,15 @@ module.exports = {
   buildDlcOracleAttestation: tradeLayerDlcCetOracleSelection.buildDlcOracleAttestation,
   verifyDlcOracleAttestation: tradeLayerDlcCetOracleSelection.verifyDlcOracleAttestation,
   selectCetForAttestation: tradeLayerDlcCetOracleSelection.selectCetForAttestation,
+  dlcSchnorrSign: tradeLayerDlcAdaptorSig.schnorrSign,
+  dlcSchnorrVerify: tradeLayerDlcAdaptorSig.schnorrVerify,
+  dlcAdaptorSign: tradeLayerDlcAdaptorSig.adaptorSign,
+  dlcAdaptorVerify: tradeLayerDlcAdaptorSig.adaptorVerify,
+  dlcAdaptorComplete: tradeLayerDlcAdaptorSig.adaptorComplete,
+  dlcAdaptorExtract: tradeLayerDlcAdaptorSig.adaptorExtract,
+  buildDlcOracle: tradeLayerDlcAdaptorSig.buildDlcOracle,
+  dlcOutcomePoint: tradeLayerDlcAdaptorSig.dlcOutcomePoint,
+  dlcAttest: tradeLayerDlcAdaptorSig.dlcAttest,
   buildTradeLayerPerpPnlSettlement: tradeLayerPerpPnlReferee.buildTradeLayerPerpPnlSettlement,
   verifyTradeLayerPerpPnlSettlement: tradeLayerPerpPnlReferee.verifyTradeLayerPerpPnlSettlement,
   buildTradeLayerPerpPnlChallenge: tradeLayerPerpPnlReferee.buildTradeLayerPerpPnlChallenge,
@@ -520,6 +530,7 @@ module.exports = {
   tradeLayerReserveReconciliationReferee,
   tradeLayerLiveReserveAdapter,
   tradeLayerDlcCetOracleSelection,
+  tradeLayerDlcAdaptorSig,
   tradeLayerPerpPnlReferee,
   bitvmLiquidityLeaseReferee,
   bitvmArenaSecurityReport,

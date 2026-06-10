@@ -209,10 +209,33 @@ on-chain run):
 - Evidence: `artifacts/live/dlc2_funding.json`,
   `artifacts/live/dlc2_oracle_cet.json` (includes oracle pubkey + attestation).
 
-Still open here (the deeper trust-minimization layer): the attestation *selects*
-a pre-built CET rather than a secp256k1 adaptor signature that cryptographically
-enforces the outcome at the script level, and the insolvency + final-output
-challenges remain evidence objects rather than concrete BitVM/Script constraints.
+### Adaptor-signature DLC core (added 2026-06-10)
+
+The oracle attestation now *cryptographically enforces* the outcome instead of
+merely selecting a pre-built CET. `tradelayer_dlc_adaptor_sig.js` implements
+secp256k1 + BIP340 Schnorr + Schnorr adaptor signatures from scratch (the repo
+is zero-dependency):
+
+- Each party publishes an adaptor pre-signature on a CET under the outcome point
+  `T = t*G`. The pre-signature is *not* a valid signature on its own.
+- The oracle commits an x-only pubkey + nonce (`buildDlcOracle`); each outcome
+  point is computable in advance (`dlcOutcomePoint`); attesting an outcome
+  reveals the scalar `t` (`dlcAttest`) with `t*G == T`.
+- Only that scalar completes the matching CET pre-signature into a valid BIP340
+  signature (`adaptorComplete`); the scalar is also extractable
+  (`adaptorExtract`). Wrong-outcome CETs cannot be completed.
+
+Correctness is anchored hard (`tradelayer_dlc_adaptor_sig.test.js`, 9 tests):
+the scalar multiplication is cross-checked against Node's libsecp256k1 (ECDH)
+for random keys, `N*G = O`, the BIP340 pubkey for secret 3 matches the published
+vector, and an end-to-end multi-outcome DLC shows only the attested CET signature
+verifies.
+
+Still open here: drive an on-chain taproot keypath CET spend whose witness is an
+adaptor-completed BIP340 signature (needs a BIP341 sighash builder + a P2TR
+funding output), and turn the insolvency + final-output challenges into concrete
+BitVM/Script constraints. The signing math is done and validated; what remains is
+the taproot transaction plumbing and the challenge-circuit work.
 
 ## Work Started
 
