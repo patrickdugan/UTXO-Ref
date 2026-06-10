@@ -79,10 +79,38 @@ approved requests, with no check that the tokenized reserve could cover it.
   and two distinct request ids producing the identical payout leaf are rejected
   as a double-pay, while one send txid may still fan out to distinct recipients.
 
-Still open here: bind the reconciliation commitment into the stack bundle /
-live-path evidence and the production policy gate so a sweep cannot be accepted
-against an insolvent queue, and turn the insolvency challenge into a concrete
-BitVM/script constraint rather than evidence only.
+The reconciliation is now bound into the stack bundle and the production policy
+gate: the gate emits `pause_spend` on insolvency, the dashboard flips to
+`needs_attention` and lists `reserve_insolvency` as challengeable, and the
+reconciliation hash is folded into the stack hash. Evidence still verifies when
+insolvent; it is the spend gate that pauses.
+
+### Live reserve (added 2026-06-10, real LTCTEST data)
+
+The reserve is no longer a placeholder. `tradelayer_live_reserve_adapter.js`
+turns Litecoin Core `listunspent` output into a credited `ReceiptDepositIndexer`
+snapshot, which feeds the reconciliation as the `receipt-deposit-indexer`
+source. `tradelayer_live_reserve_demo.js` is a one-command driver:
+
+```powershell
+# node running: litecoind -testnet -rpcport=19332 -rpcuser=user -rpcpassword=pass -server -datadir=D:\testnetwallet
+node bitvm3/utxo_referee/tradelayer_live_reserve_demo.js `
+  --rpc-url http://127.0.0.1:19332 --rpc-user user --rpc-pass pass --wallet tl-wallet
+```
+
+Verified live against a fully synced testnet node (tip ~4,761,052):
+- `tl-wallet`: 42 real role UTXOs = 17,164,718 sats credited reserve, cap 99,000,
+  margin 17,065,718 -> solvent -> `allow_sweep`, dashboard `ready`.
+- `funding` (empty wallet): 0 sats reserve, cap 99,000, margin -99,000 ->
+  insolvent -> `pause_spend`, dashboard `needs_attention`.
+
+Captured live inputs: `artifacts/live/tl_wallet_unspent.json` (snapshot) and
+`artifacts/live/reserve_reconciliation_latest.json` (result).
+
+Still open here: turn the insolvency challenge into a concrete BitVM/script
+constraint rather than evidence only, and source a single funded DLC/UTXORef
+sweep input + final tx for the same live run so the whole deposit->withdraw
+path (not just the reserve check) runs on chain data.
 
 ## Work Started
 

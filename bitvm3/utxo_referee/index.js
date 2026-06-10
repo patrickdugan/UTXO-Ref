@@ -83,6 +83,7 @@ const tradeLayerSendWatchtower = require('./tradelayer_send_watchtower');
 const tradeLayerStateCheckpointReferee = require('./tradelayer_state_checkpoint_referee');
 const tradeLayerWithdrawalQueueReferee = require('./tradelayer_withdrawal_queue_referee');
 const tradeLayerReserveReconciliationReferee = require('./tradelayer_reserve_reconciliation_referee');
+const tradeLayerLiveReserveAdapter = require('./tradelayer_live_reserve_adapter');
 const tradeLayerPerpPnlReferee = require('./tradelayer_perp_pnl_referee');
 const bitvmLiquidityLeaseReferee = require('./bitvm_liquidity_lease_referee');
 const bitvmArenaSecurityReport = require('./bitvm_arena_security_report');
@@ -421,6 +422,8 @@ module.exports = {
   verifyTradeLayerReserveReconciliation: tradeLayerReserveReconciliationReferee.verifyTradeLayerReserveReconciliation,
   buildTradeLayerReserveInsolvencyChallenge: tradeLayerReserveReconciliationReferee.buildTradeLayerReserveInsolvencyChallenge,
   verifyTradeLayerReserveInsolvencyChallenge: tradeLayerReserveReconciliationReferee.verifyTradeLayerReserveInsolvencyChallenge,
+  buildLiveReserveFromUnspent: tradeLayerLiveReserveAdapter.buildLiveReserveFromUnspent,
+  liveReserveAmountSats: tradeLayerLiveReserveAdapter.toAmountSats,
   buildTradeLayerPerpPnlSettlement: tradeLayerPerpPnlReferee.buildTradeLayerPerpPnlSettlement,
   verifyTradeLayerPerpPnlSettlement: tradeLayerPerpPnlReferee.verifyTradeLayerPerpPnlSettlement,
   buildTradeLayerPerpPnlChallenge: tradeLayerPerpPnlReferee.buildTradeLayerPerpPnlChallenge,
@@ -509,6 +512,7 @@ module.exports = {
   tradeLayerStateCheckpointReferee,
   tradeLayerWithdrawalQueueReferee,
   tradeLayerReserveReconciliationReferee,
+  tradeLayerLiveReserveAdapter,
   tradeLayerPerpPnlReferee,
   bitvmLiquidityLeaseReferee,
   bitvmArenaSecurityReport,
