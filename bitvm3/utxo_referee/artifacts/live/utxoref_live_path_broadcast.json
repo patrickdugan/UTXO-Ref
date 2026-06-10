@@ -1,0 +1,3663 @@
+{
+  "kind": "utxoref_live_path_evidence",
+  "evidenceHash": "a82bf15a585c4be2c9218befcc285bcc72653b783d7f4f7785f9e8489beeec4f",
+  "core": {
+    "kind": "utxoref_live_path_evidence_v1",
+    "network": "litecoin-testnet",
+    "fundingOutpoint": "ac2518f11bff1c6f229b9431dbc91d0f0d280dcde2b90de7e46c627a8b5dbbae:0",
+    "selectedSendTxid": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "stackHash": "63121b5db0875db8b27d45cb83aaddc63973681645b97e42cf0fddc67714bcc6",
+    "dashboardViewHash": "aa0b67a217acd5563aebb34921a4f69c24f79daba5df4f59254a59448ef52f10",
+    "stateCheckpointHash": "a157146cd3682f8aaba09fc820b96500a857e81336ee139db06637bd23c5635b",
+    "stateOracleHash": "c1a461ff7ff1d3a74fed3bc3f39decf6dcf621cff4894bd140607ab8c73390ce",
+    "selectedSendHash": "5a41f83d2e783f3a74c01239d1cbc396ecac07b46fa2d92c4dcbf1b53da65709",
+    "dlcFunderRegistryHash": "e2057a8fb6fcfd3da569c56dec6978e416c4ec3f9595df7875b0f90052509986",
+    "routePlanHash": "e204f5a6b7a5ab4011588131aca44778429b09bcba3580b9f056b1b32a31849e",
+    "plannedRouteTranscriptHash": "4afe1288e188211c5a0659a9c0017706736b0dba5052b33765fd27b789330670",
+    "finalRouteTranscriptHash": "c92a8ed3c8b9bb16270aaec85ce9c51935cb7cbad0ccf2fe039e1176fe96371d",
+    "withdrawalRootHex": "af637696b95f847cd58d7498a058227b52c447f5ec72020d8ef0b61d3c668a1a",
+    "finalTxOutputHash": "916733d3eca4f5eb3837cf59462efefa425db716ade6691bbe5641dd41bd67c6",
+    "finalSpendBindingHash": "74b0e2de2b042b1de1dc2a1cc926ff6a451f0f0aad15113eee7fb652d4dfeac5",
+    "finalOutputReviewHash": "c1e5266c7d33785269ef133941dbe1a957da2854d8f820aae9bb544a10bb4795",
+    "finalOutputReviewOk": true,
+    "finalTxid": "3e8d784efab4a8b65d127267b441bfdf4a28aff7b46fa90c05f21113cfd001d7",
+    "finalWtxid": "c768457a484e253176e7064479d7be51effe27ac11b6ad3541ee68e9c26bd9b8",
+    "fraudBundleHash": "ef4d00e7698b7acf398dc3ca09b430d8d126f56653eff7a920222d6287761529",
+    "checkpointFraudProofHash": "5f06cfa4e2cd973af987f21ad5a797e9664eaaa9f370a6a47ae3d2c56908253c",
+    "finalOutputChallengeHash": "c34c57d5d5080d2bc3319bc16165ab089ee0be960ce3296299106b282cb58378",
+    "challengeableCount": 14
+  },
+  "stack": {
+    "kind": "bitvm_tradelayer_stack_bundle",
+    "network": "litecoin-testnet",
+    "stateOracleBlob": {
+      "kind": "tradelayer-send-state-oracle-v1",
+      "chain": "litecoin-testnet",
+      "epochId": "77",
+      "snapshotHeight": 4696000,
+      "snapshotTxid": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "oracleAddress": "tltc1qn06nctkv2sm8wdjx5fe2x0zluxlyxynq3vud87hxsfv3u8kwdcaq0xvhqa",
+      "selectedSendId": "live-send",
+      "sends": [
+        {
+          "id": "live-send",
+          "txid": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "blockHeight": 4695999,
+          "txIndex": null,
+          "fromAddress": "tltc1qn06nctkv2sm8wdjx5fe2x0zluxlyxynq3vud87hxsfv3u8kwdcaq0xvhqa",
+          "toAddress": "tltc1qkz0vft2fc4nk0u9fx4k9yk4th7zherna3zxh22",
+          "propertyId": 380,
+          "amountUnits": "2500",
+          "depositUnits": "10000",
+          "source": {
+            "txType": 2,
+            "valid": true,
+            "reason": null
+          }
+        }
+      ],
+      "dlcInputs": {
+        "live-send": {
+          "txid": "ac2518f11bff1c6f229b9431dbc91d0f0d280dcde2b90de7e46c627a8b5dbbae",
+          "vout": 0,
+          "address": "tltc1q2hjwxlj8muw5kq2r56ms9794zzz7st0kryffl4",
+          "sats": 960560
+        }
+      },
+      "feeSats": 1000,
+      "dlcFunderRegistry": {
+        "tltc1qkz0vft2fc4nk0u9fx4k9yk4th7zherna3zxh22": {
+          "dlcRef": "dlc-live-77",
+          "dlcAddress": "tltc1qldtqy3y0rasay8dqz6kc2nxx6zfs9e9j4veqcz"
+        }
+      },
+      "source": {
+        "extractor": "tradelayer-send-consensus-v1",
+        "sourceHash": "4116133f40d6c72cc2abb281ce228b846b469fd6bfa720252238ff707dcc6393",
+        "sourceRowCount": 1,
+        "validSendCount": 1,
+        "skippedCount": 0,
+        "skipped": [],
+        "stateRoot": "14172a082004f03f8840b51c59f795a84904d0e5be17fe3842bfa95ef9859455"
+      }
+    },
+    "selectedSend": {
+      "id": "live-send",
+      "txid": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+    },
+    "hashes": {
+      "stateOracleHash": "c1a461ff7ff1d3a74fed3bc3f39decf6dcf621cff4894bd140607ab8c73390ce",
+      "selectedSendHash": "5a41f83d2e783f3a74c01239d1cbc396ecac07b46fa2d92c4dcbf1b53da65709",
+      "dlcFunderRegistryHash": "e2057a8fb6fcfd3da569c56dec6978e416c4ec3f9595df7875b0f90052509986",
+      "routePlanHash": "e204f5a6b7a5ab4011588131aca44778429b09bcba3580b9f056b1b32a31849e",
+      "routeTranscriptHash": "4afe1288e188211c5a0659a9c0017706736b0dba5052b33765fd27b789330670",
+      "withdrawalRootHex": "af637696b95f847cd58d7498a058227b52c447f5ec72020d8ef0b61d3c668a1a",
+      "commitmentHashHex": "e95e845f2d3c87cd56c5bc3a6351eeebbb0c660f8be4b174f3b369f3558b167e",
+      "halalCapitalTokenPlanHash": "01bf16a94fe229e28b941b73d5b23b49721544dc95fab7c524147f1d4ffcc029"
+    },
+    "routePlan": {
+      "route": "send",
+      "network": "litecoin-testnet",
+      "revealTxid": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "payloadHash": "c1a461ff7ff1d3a74fed3bc3f39decf6dcf621cff4894bd140607ab8c73390ce",
+      "dlcInput": {
+        "txid": "ac2518f11bff1c6f229b9431dbc91d0f0d280dcde2b90de7e46c627a8b5dbbae",
+        "vout": 0,
+        "address": "tltc1q2hjwxlj8muw5kq2r56ms9794zzz7st0kryffl4",
+        "sats": "960560"
+      },
+      "sendBps": 2500,
+      "sendSats": "240140",
+      "feeSats": "1000",
+      "residualSats": "719420",
+      "oracleAddress": "tltc1qkz0vft2fc4nk0u9fx4k9yk4th7zherna3zxh22",
+      "resolvedDestinationAddress": "tltc1qldtqy3y0rasay8dqz6kc2nxx6zfs9e9j4veqcz",
+      "matchedDlcRef": "dlc-live-77",
+      "outputPlan": [
+        {
+          "role": "send-to-dlc-funding-output",
+          "address": "tltc1qldtqy3y0rasay8dqz6kc2nxx6zfs9e9j4veqcz",
+          "sats": "240140",
+          "amountBps": 2500,
+          "oracleAddress": "tltc1qkz0vft2fc4nk0u9fx4k9yk4th7zherna3zxh22",
+          "matchedDlcRef": "dlc-live-77"
+        },
+        {
+          "role": "refund-remainder",
+          "address": "tltc1q2hjwxlj8muw5kq2r56ms9794zzz7st0kryffl4",
+          "sats": "719420"
+        }
+      ],
+      "envelope": {
+        "routeType": "send",
+        "stateOracleHash": "c1a461ff7ff1d3a74fed3bc3f39decf6dcf621cff4894bd140607ab8c73390ce",
+        "selectedSendHash": "5a41f83d2e783f3a74c01239d1cbc396ecac07b46fa2d92c4dcbf1b53da65709",
+        "dlcFunderRegistryHash": "e2057a8fb6fcfd3da569c56dec6978e416c4ec3f9595df7875b0f90052509986",
+        "selectedSendId": "live-send",
+        "selectedSendTxid": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "designatedOracleAddress": "tltc1qn06nctkv2sm8wdjx5fe2x0zluxlyxynq3vud87hxsfv3u8kwdcaq0xvhqa",
+        "oracleAddress": "tltc1qkz0vft2fc4nk0u9fx4k9yk4th7zherna3zxh22",
+        "resolvedDestinationAddress": "tltc1qldtqy3y0rasay8dqz6kc2nxx6zfs9e9j4veqcz",
+        "matchedDlcRef": "dlc-live-77"
+      },
+      "planHash": "e204f5a6b7a5ab4011588131aca44778429b09bcba3580b9f056b1b32a31849e"
+    },
+    "commitment": {
+      "withdrawalRootHex": "af637696b95f847cd58d7498a058227b52c447f5ec72020d8ef0b61d3c668a1a",
+      "commitmentHashHex": "e95e845f2d3c87cd56c5bc3a6351eeebbb0c660f8be4b174f3b369f3558b167e"
+    },
+    "sweepPlan": {
+      "kind": "tradelayer_send_sweep_plan",
+      "network": "litecoin-testnet",
+      "routePlanHash": "e204f5a6b7a5ab4011588131aca44778429b09bcba3580b9f056b1b32a31849e",
+      "routeTranscriptHash": "4afe1288e188211c5a0659a9c0017706736b0dba5052b33765fd27b789330670",
+      "routeTranscript": {
+        "kind": "tradelayer_send_route_transcript_v1",
+        "hash": "4afe1288e188211c5a0659a9c0017706736b0dba5052b33765fd27b789330670",
+        "core": {
+          "kind": "tradelayer_send_route_transcript_v1",
+          "network": "litecoin-testnet",
+          "route": "send",
+          "stateOracleHash": "c1a461ff7ff1d3a74fed3bc3f39decf6dcf621cff4894bd140607ab8c73390ce",
+          "selectedSendHash": "5a41f83d2e783f3a74c01239d1cbc396ecac07b46fa2d92c4dcbf1b53da65709",
+          "dlcFunderRegistryHash": "e2057a8fb6fcfd3da569c56dec6978e416c4ec3f9595df7875b0f90052509986",
+          "routePlanHash": "e204f5a6b7a5ab4011588131aca44778429b09bcba3580b9f056b1b32a31849e",
+          "withdrawalRootHex": "af637696b95f847cd58d7498a058227b52c447f5ec72020d8ef0b61d3c668a1a",
+          "commitmentHashHex": "e95e845f2d3c87cd56c5bc3a6351eeebbb0c660f8be4b174f3b369f3558b167e",
+          "fundingInputHash": "92ce3cc6ba1ef9d74ceae95b12804b9b56530554b740d137d93c8c16c0899a13",
+          "outputPlanHash": "75c42e3b313017169f591ed50cdc08e3cd3d0b525b255f8d63fcaa1174a64160",
+          "outputs": [
+            {
+              "role": "send-to-dlc-funding-output",
+              "address": "tltc1qldtqy3y0rasay8dqz6kc2nxx6zfs9e9j4veqcz",
+              "scriptPubKey": null,
+              "sats": "240140",
+              "amountBps": 2500,
+              "oracleAddress": "tltc1qkz0vft2fc4nk0u9fx4k9yk4th7zherna3zxh22",
+              "matchedDlcRef": "dlc-live-77"
+            },
+            {
+              "role": "refund-remainder",
+              "address": "tltc1q2hjwxlj8muw5kq2r56ms9794zzz7st0kryffl4",
+              "scriptPubKey": null,
+              "sats": "719420",
+              "amountBps": null,
+              "oracleAddress": null,
+              "matchedDlcRef": null
+            }
+          ],
+          "signedPsbtOutputHash": null,
+          "finalTxOutputHash": null
+        }
+      },
+      "input": {
+        "txid": "ac2518f11bff1c6f229b9431dbc91d0f0d280dcde2b90de7e46c627a8b5dbbae",
+        "vout": 0,
+        "sequence": 4294967293,
+        "address": "tltc1q2hjwxlj8muw5kq2r56ms9794zzz7st0kryffl4",
+        "sats": "960560",
+        "coinAmount": "0.00960560"
+      },
+      "outputs": [
+        {
+          "role": "send-to-dlc-funding-output",
+          "address": "tltc1qldtqy3y0rasay8dqz6kc2nxx6zfs9e9j4veqcz",
+          "sats": "240140",
+          "coinAmount": "0.00240140"
+        },
+        {
+          "role": "refund-remainder",
+          "address": "tltc1q2hjwxlj8muw5kq2r56ms9794zzz7st0kryffl4",
+          "sats": "719420",
+          "coinAmount": "0.00719420"
+        }
+      ],
+      "accounting": {
+        "inputSats": "960560",
+        "outputTotalSats": "959560",
+        "feeSats": "1000",
+        "conservationHolds": true
+      },
+      "bitcoinCore": {
+        "createRawTransaction": [
+          "createrawtransaction",
+          "[{\"txid\":\"ac2518f11bff1c6f229b9431dbc91d0f0d280dcde2b90de7e46c627a8b5dbbae\",\"vout\":0,\"sequence\":4294967293}]",
+          "[{\"tltc1qldtqy3y0rasay8dqz6kc2nxx6zfs9e9j4veqcz\":\"0.00240140\"},{\"tltc1q2hjwxlj8muw5kq2r56ms9794zzz7st0kryffl4\":\"0.00719420\"}]",
+          "0",
+          "true"
+        ],
+        "createPsbt": [
+          "createpsbt",
+          "[{\"txid\":\"ac2518f11bff1c6f229b9431dbc91d0f0d280dcde2b90de7e46c627a8b5dbbae\",\"vout\":0,\"sequence\":4294967293}]",
+          "[{\"tltc1qldtqy3y0rasay8dqz6kc2nxx6zfs9e9j4veqcz\":\"0.00240140\"},{\"tltc1q2hjwxlj8muw5kq2r56ms9794zzz7st0kryffl4\":\"0.00719420\"}]",
+          "0",
+          "true"
+        ],
+        "walletProcessPsbt": [
+          "walletprocesspsbt",
+          "<psbt>",
+          "false"
+        ],
+        "finalizePsbt": [
+          "finalizepsbt",
+          "<signed-psbt>"
+        ],
+        "sendRawTransaction": [
+          "sendrawtransaction",
+          "<final-hex>"
+        ]
+      },
+      "status": "planned",
+      "liveTxid": null,
+      "signedPsbt": null
+    },
+    "fraudChallenges": {
+      "kind": "tradelayer_send_bitvm_fraud_challenge_bundle",
+      "binding": {
+        "oracleBlobHash": "c1a461ff7ff1d3a74fed3bc3f39decf6dcf621cff4894bd140607ab8c73390ce",
+        "selectedSendHash": "5a41f83d2e783f3a74c01239d1cbc396ecac07b46fa2d92c4dcbf1b53da65709",
+        "dlcFunderRegistryHash": "e2057a8fb6fcfd3da569c56dec6978e416c4ec3f9595df7875b0f90052509986",
+        "selectedSendId": "live-send",
+        "selectedSendTxid": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "routePlanHash": "e204f5a6b7a5ab4011588131aca44778429b09bcba3580b9f056b1b32a31849e",
+        "routeTranscriptHash": "4afe1288e188211c5a0659a9c0017706736b0dba5052b33765fd27b789330670",
+        "withdrawalRootHex": "af637696b95f847cd58d7498a058227b52c447f5ec72020d8ef0b61d3c668a1a",
+        "commitmentHashHex": "e95e845f2d3c87cd56c5bc3a6351eeebbb0c660f8be4b174f3b369f3558b167e"
+      },
+      "oracle": {
+        "stateOracleHash": "c1a461ff7ff1d3a74fed3bc3f39decf6dcf621cff4894bd140607ab8c73390ce",
+        "selectedSendHash": "5a41f83d2e783f3a74c01239d1cbc396ecac07b46fa2d92c4dcbf1b53da65709",
+        "dlcFunderRegistryHash": "e2057a8fb6fcfd3da569c56dec6978e416c4ec3f9595df7875b0f90052509986"
+      },
+      "challenges": [
+        {
+          "kind": "tradelayer_send_bitvm_fraud_challenge",
+          "challengeType": "invalid_tx_type",
+          "challengeId": "192e6eea4693b1de5cbb1a88ea7316797f34bb4eaad99e0bdc7fb2b753899104",
+          "challengeable": true,
+          "challengeCore": {
+            "kind": "tradelayer_send_bitvm_fraud_challenge_v1",
+            "challengeType": "invalid_tx_type",
+            "binding": {
+              "oracleBlobHash": "c1a461ff7ff1d3a74fed3bc3f39decf6dcf621cff4894bd140607ab8c73390ce",
+              "selectedSendHash": "5a41f83d2e783f3a74c01239d1cbc396ecac07b46fa2d92c4dcbf1b53da65709",
+              "dlcFunderRegistryHash": "e2057a8fb6fcfd3da569c56dec6978e416c4ec3f9595df7875b0f90052509986",
+              "selectedSendId": "live-send",
+              "selectedSendTxid": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+              "routePlanHash": "e204f5a6b7a5ab4011588131aca44778429b09bcba3580b9f056b1b32a31849e",
+              "routeTranscriptHash": "4afe1288e188211c5a0659a9c0017706736b0dba5052b33765fd27b789330670",
+              "withdrawalRootHex": "af637696b95f847cd58d7498a058227b52c447f5ec72020d8ef0b61d3c668a1a",
+              "commitmentHashHex": "e95e845f2d3c87cd56c5bc3a6351eeebbb0c660f8be4b174f3b369f3558b167e"
+            },
+            "expected": {
+              "rule": "TradeLayer send route may only use tx type 2 send records",
+              "txType": 2
+            },
+            "claimed": {
+              "txType": null,
+              "txid": null,
+              "rejectReason": "not tx type 2 send"
+            },
+            "evidence": {
+              "source": "template"
+            },
+            "challengeable": true,
+            "remedy": "pause cooperative sweep and route to BitVM/UTXORef fraud challenge path"
+          }
+        },
+        {
+          "kind": "tradelayer_send_bitvm_fraud_challenge",
+          "challengeType": "malformed_payload",
+          "challengeId": "69923303ca9d0b5912874b47555914bfc57eb7dc22872acfbae9302d2e0d2137",
+          "challengeable": true,
+          "challengeCore": {
+            "kind": "tradelayer_send_bitvm_fraud_challenge_v1",
+            "challengeType": "malformed_payload",
+            "binding": {
+              "oracleBlobHash": "c1a461ff7ff1d3a74fed3bc3f39decf6dcf621cff4894bd140607ab8c73390ce",
+              "selectedSendHash": "5a41f83d2e783f3a74c01239d1cbc396ecac07b46fa2d92c4dcbf1b53da65709",
+              "dlcFunderRegistryHash": "e2057a8fb6fcfd3da569c56dec6978e416c4ec3f9595df7875b0f90052509986",
+              "selectedSendId": "live-send",
+              "selectedSendTxid": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+              "routePlanHash": "e204f5a6b7a5ab4011588131aca44778429b09bcba3580b9f056b1b32a31849e",
+              "routeTranscriptHash": "4afe1288e188211c5a0659a9c0017706736b0dba5052b33765fd27b789330670",
+              "withdrawalRootHex": "af637696b95f847cd58d7498a058227b52c447f5ec72020d8ef0b61d3c668a1a",
+              "commitmentHashHex": "e95e845f2d3c87cd56c5bc3a6351eeebbb0c660f8be4b174f3b369f3558b167e"
+            },
+            "expected": {
+              "rule": "TradeLayer send payload must parse into a sender, recipient, property id, and amount"
+            },
+            "claimed": {
+              "payloadValid": false,
+              "txid": null,
+              "parseError": "malformed or incomplete TradeLayer send payload"
+            },
+            "evidence": {
+              "source": "template"
+            },
+            "challengeable": true,
+            "remedy": "pause cooperative sweep and route to BitVM/UTXORef fraud challenge path"
+          }
+        },
+        {
+          "kind": "tradelayer_send_bitvm_fraud_challenge",
+          "challengeType": "wrong_sender_balance",
+          "challengeId": "6927670099cc97ee1b4e071ccce520feed27ddcfc9a1d9758ed2d0b088c16cfb",
+          "challengeable": true,
+          "challengeCore": {
+            "kind": "tradelayer_send_bitvm_fraud_challenge_v1",
+            "challengeType": "wrong_sender_balance",
+            "binding": {
+              "oracleBlobHash": "c1a461ff7ff1d3a74fed3bc3f39decf6dcf621cff4894bd140607ab8c73390ce",
+              "selectedSendHash": "5a41f83d2e783f3a74c01239d1cbc396ecac07b46fa2d92c4dcbf1b53da65709",
+              "dlcFunderRegistryHash": "e2057a8fb6fcfd3da569c56dec6978e416c4ec3f9595df7875b0f90052509986",
+              "selectedSendId": "live-send",
+              "selectedSendTxid": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+              "routePlanHash": "e204f5a6b7a5ab4011588131aca44778429b09bcba3580b9f056b1b32a31849e",
+              "routeTranscriptHash": "4afe1288e188211c5a0659a9c0017706736b0dba5052b33765fd27b789330670",
+              "withdrawalRootHex": "af637696b95f847cd58d7498a058227b52c447f5ec72020d8ef0b61d3c668a1a",
+              "commitmentHashHex": "e95e845f2d3c87cd56c5bc3a6351eeebbb0c660f8be4b174f3b369f3558b167e"
+            },
+            "expected": {
+              "rule": "sender token balance must cover the selected send amount",
+              "selectedSendHash": "5a41f83d2e783f3a74c01239d1cbc396ecac07b46fa2d92c4dcbf1b53da65709"
+            },
+            "claimed": {
+              "senderAddress": "tltc1q2hjwxlj8muw5kq2r56ms9794zzz7st0kryffl4",
+              "availableUnits": "0",
+              "requiredUnits": "1",
+              "rejectReason": "insufficient balance proof"
+            },
+            "evidence": {
+              "source": "template"
+            },
+            "challengeable": true,
+            "remedy": "pause cooperative sweep and route to BitVM/UTXORef fraud challenge path"
+          }
+        },
+        {
+          "kind": "tradelayer_send_bitvm_fraud_challenge",
+          "challengeType": "bad_send_inclusion",
+          "challengeId": "680b17911ec1ad52461d447ca87707d27259dc5ddb475f50dc68a563364ccbfa",
+          "challengeable": false,
+          "challengeCore": {
+            "kind": "tradelayer_send_bitvm_fraud_challenge_v1",
+            "challengeType": "bad_send_inclusion",
+            "binding": {
+              "oracleBlobHash": "c1a461ff7ff1d3a74fed3bc3f39decf6dcf621cff4894bd140607ab8c73390ce",
+              "selectedSendHash": "5a41f83d2e783f3a74c01239d1cbc396ecac07b46fa2d92c4dcbf1b53da65709",
+              "dlcFunderRegistryHash": "e2057a8fb6fcfd3da569c56dec6978e416c4ec3f9595df7875b0f90052509986",
+              "selectedSendId": "live-send",
+              "selectedSendTxid": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+              "routePlanHash": "e204f5a6b7a5ab4011588131aca44778429b09bcba3580b9f056b1b32a31849e",
+              "routeTranscriptHash": "4afe1288e188211c5a0659a9c0017706736b0dba5052b33765fd27b789330670",
+              "withdrawalRootHex": "af637696b95f847cd58d7498a058227b52c447f5ec72020d8ef0b61d3c668a1a",
+              "commitmentHashHex": "e95e845f2d3c87cd56c5bc3a6351eeebbb0c660f8be4b174f3b369f3558b167e"
+            },
+            "expected": {
+              "rule": "state oracle may include only consensus-valid TradeLayer sends",
+              "selectedSendHash": "5a41f83d2e783f3a74c01239d1cbc396ecac07b46fa2d92c4dcbf1b53da65709"
+            },
+            "claimed": {
+              "includedSendId": null,
+              "includedSendTxid": null,
+              "sourceValid": null,
+              "consensusRejectReason": null
+            },
+            "evidence": {
+              "source": "template",
+              "note": "No invalid skipped send was present in this blob."
+            },
+            "challengeable": false,
+            "remedy": "none"
+          }
+        },
+        {
+          "kind": "tradelayer_send_bitvm_fraud_challenge",
+          "challengeType": "invalid_send_omission",
+          "challengeId": "da3129877747325932c26f4f6f9bea893600bb422bf0501475b37e87cb48b062",
+          "challengeable": true,
+          "challengeCore": {
+            "kind": "tradelayer_send_bitvm_fraud_challenge_v1",
+            "challengeType": "invalid_send_omission",
+            "binding": {
+              "oracleBlobHash": "c1a461ff7ff1d3a74fed3bc3f39decf6dcf621cff4894bd140607ab8c73390ce",
+              "selectedSendHash": "5a41f83d2e783f3a74c01239d1cbc396ecac07b46fa2d92c4dcbf1b53da65709",
+              "dlcFunderRegistryHash": "e2057a8fb6fcfd3da569c56dec6978e416c4ec3f9595df7875b0f90052509986",
+              "selectedSendId": "live-send",
+              "selectedSendTxid": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+              "routePlanHash": "e204f5a6b7a5ab4011588131aca44778429b09bcba3580b9f056b1b32a31849e",
+              "routeTranscriptHash": "4afe1288e188211c5a0659a9c0017706736b0dba5052b33765fd27b789330670",
+              "withdrawalRootHex": "af637696b95f847cd58d7498a058227b52c447f5ec72020d8ef0b61d3c668a1a",
+              "commitmentHashHex": "e95e845f2d3c87cd56c5bc3a6351eeebbb0c660f8be4b174f3b369f3558b167e"
+            },
+            "expected": {
+              "rule": "selected consensus-valid send must be included in the route set",
+              "selectedSendId": "live-send",
+              "selectedSendTxid": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+              "selectedSendHash": "5a41f83d2e783f3a74c01239d1cbc396ecac07b46fa2d92c4dcbf1b53da65709"
+            },
+            "claimed": {
+              "omittedSendId": "live-send",
+              "omittedSendTxid": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+              "omittedSendHash": "5a41f83d2e783f3a74c01239d1cbc396ecac07b46fa2d92c4dcbf1b53da65709"
+            },
+            "evidence": {
+              "source": "selected send membership"
+            },
+            "challengeable": true,
+            "remedy": "pause cooperative sweep and route to BitVM/UTXORef fraud challenge path"
+          }
+        },
+        {
+          "kind": "tradelayer_send_bitvm_fraud_challenge",
+          "challengeType": "bad_dlc_funder_mapping",
+          "challengeId": "3b59c10b50118152d4d8e8987927b77af3bb0874afbe3616ff23ab3970f5fd55",
+          "challengeable": true,
+          "challengeCore": {
+            "kind": "tradelayer_send_bitvm_fraud_challenge_v1",
+            "challengeType": "bad_dlc_funder_mapping",
+            "binding": {
+              "oracleBlobHash": "c1a461ff7ff1d3a74fed3bc3f39decf6dcf621cff4894bd140607ab8c73390ce",
+              "selectedSendHash": "5a41f83d2e783f3a74c01239d1cbc396ecac07b46fa2d92c4dcbf1b53da65709",
+              "dlcFunderRegistryHash": "e2057a8fb6fcfd3da569c56dec6978e416c4ec3f9595df7875b0f90052509986",
+              "selectedSendId": "live-send",
+              "selectedSendTxid": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+              "routePlanHash": "e204f5a6b7a5ab4011588131aca44778429b09bcba3580b9f056b1b32a31849e",
+              "routeTranscriptHash": "4afe1288e188211c5a0659a9c0017706736b0dba5052b33765fd27b789330670",
+              "withdrawalRootHex": "af637696b95f847cd58d7498a058227b52c447f5ec72020d8ef0b61d3c668a1a",
+              "commitmentHashHex": "e95e845f2d3c87cd56c5bc3a6351eeebbb0c660f8be4b174f3b369f3558b167e"
+            },
+            "expected": {
+              "oracleAddress": "tltc1qkz0vft2fc4nk0u9fx4k9yk4th7zherna3zxh22",
+              "resolvedDestinationAddress": "tltc1qldtqy3y0rasay8dqz6kc2nxx6zfs9e9j4veqcz",
+              "matchedDlcRef": "dlc-live-77",
+              "dlcFunderRegistryHash": "e2057a8fb6fcfd3da569c56dec6978e416c4ec3f9595df7875b0f90052509986"
+            },
+            "claimed": {
+              "oracleAddress": "tltc1qkz0vft2fc4nk0u9fx4k9yk4th7zherna3zxh22",
+              "resolvedDestinationAddress": "tltc1qkz0vft2fc4nk0u9fx4k9yk4th7zherna3zxh22",
+              "matchedDlcRef": "dlc-live-77"
+            },
+            "evidence": {
+              "source": "dlcFunderRegistry commitment"
+            },
+            "challengeable": true,
+            "remedy": "pause cooperative sweep and route to BitVM/UTXORef fraud challenge path"
+          }
+        },
+        {
+          "kind": "tradelayer_send_bitvm_fraud_challenge",
+          "challengeType": "bad_ratio_arithmetic",
+          "challengeId": "db73f984ef459c2642aa29285d620b741df6e158eff02e231e3845ff5d6457bb",
+          "challengeable": true,
+          "challengeCore": {
+            "kind": "tradelayer_send_bitvm_fraud_challenge_v1",
+            "challengeType": "bad_ratio_arithmetic",
+            "binding": {
+              "oracleBlobHash": "c1a461ff7ff1d3a74fed3bc3f39decf6dcf621cff4894bd140607ab8c73390ce",
+              "selectedSendHash": "5a41f83d2e783f3a74c01239d1cbc396ecac07b46fa2d92c4dcbf1b53da65709",
+              "dlcFunderRegistryHash": "e2057a8fb6fcfd3da569c56dec6978e416c4ec3f9595df7875b0f90052509986",
+              "selectedSendId": "live-send",
+              "selectedSendTxid": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+              "routePlanHash": "e204f5a6b7a5ab4011588131aca44778429b09bcba3580b9f056b1b32a31849e",
+              "routeTranscriptHash": "4afe1288e188211c5a0659a9c0017706736b0dba5052b33765fd27b789330670",
+              "withdrawalRootHex": "af637696b95f847cd58d7498a058227b52c447f5ec72020d8ef0b61d3c668a1a",
+              "commitmentHashHex": "e95e845f2d3c87cd56c5bc3a6351eeebbb0c660f8be4b174f3b369f3558b167e"
+            },
+            "expected": {
+              "depositSats": "960560",
+              "sendBps": 2500,
+              "sendSats": "240140",
+              "residualSats": "719420",
+              "feeSats": "1000"
+            },
+            "claimed": {
+              "depositSats": "960560",
+              "sendBps": 2501,
+              "sendSats": "240141",
+              "residualSats": "719420",
+              "feeSats": "1000"
+            },
+            "evidence": {
+              "formula": "sendSats = floor(depositSats * sendBps / 10000)"
+            },
+            "challengeable": true,
+            "remedy": "pause cooperative sweep and route to BitVM/UTXORef fraud challenge path"
+          }
+        },
+        {
+          "kind": "tradelayer_send_bitvm_fraud_challenge",
+          "challengeType": "wrong_utxoref_output",
+          "challengeId": "5a8a1f6d8a679c981c2ff76faed51843a491ed0453a9bb90fd9402cea2854b94",
+          "challengeable": true,
+          "challengeCore": {
+            "kind": "tradelayer_send_bitvm_fraud_challenge_v1",
+            "challengeType": "wrong_utxoref_output",
+            "binding": {
+              "oracleBlobHash": "c1a461ff7ff1d3a74fed3bc3f39decf6dcf621cff4894bd140607ab8c73390ce",
+              "selectedSendHash": "5a41f83d2e783f3a74c01239d1cbc396ecac07b46fa2d92c4dcbf1b53da65709",
+              "dlcFunderRegistryHash": "e2057a8fb6fcfd3da569c56dec6978e416c4ec3f9595df7875b0f90052509986",
+              "selectedSendId": "live-send",
+              "selectedSendTxid": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+              "routePlanHash": "e204f5a6b7a5ab4011588131aca44778429b09bcba3580b9f056b1b32a31849e",
+              "routeTranscriptHash": "4afe1288e188211c5a0659a9c0017706736b0dba5052b33765fd27b789330670",
+              "withdrawalRootHex": "af637696b95f847cd58d7498a058227b52c447f5ec72020d8ef0b61d3c668a1a",
+              "commitmentHashHex": "e95e845f2d3c87cd56c5bc3a6351eeebbb0c660f8be4b174f3b369f3558b167e"
+            },
+            "expected": {
+              "inputHash": "92ce3cc6ba1ef9d74ceae95b12804b9b56530554b740d137d93c8c16c0899a13",
+              "routeTranscriptHash": "4afe1288e188211c5a0659a9c0017706736b0dba5052b33765fd27b789330670",
+              "outputPlanHash": "75c42e3b313017169f591ed50cdc08e3cd3d0b525b255f8d63fcaa1174a64160",
+              "withdrawalRootHex": "af637696b95f847cd58d7498a058227b52c447f5ec72020d8ef0b61d3c668a1a"
+            },
+            "claimed": {
+              "inputHash": "49943989780dee494336317c609fdbc35197088a911349d2169f5cdb6a73ab1b",
+              "routeTranscriptHash": "4afe1288e188211c5a0659a9c0017706736b0dba5052b33765fd27b789330670",
+              "outputPlanHash": "75c42e3b313017169f591ed50cdc08e3cd3d0b525b255f8d63fcaa1174a64160",
+              "withdrawalRootHex": "af637696b95f847cd58d7498a058227b52c447f5ec72020d8ef0b61d3c668a1a"
+            },
+            "evidence": {
+              "source": "UTXORef funding input and route transcript"
+            },
+            "challengeable": true,
+            "remedy": "pause cooperative sweep and route to BitVM/UTXORef fraud challenge path"
+          }
+        },
+        {
+          "kind": "tradelayer_send_bitvm_fraud_challenge",
+          "challengeType": "wrong_destination",
+          "challengeId": "5c1eb90cda00c5ce841cf71b6d6aca6fcf470e32c6e76b956c7e4f53bb8a2922",
+          "challengeable": true,
+          "challengeCore": {
+            "kind": "tradelayer_send_bitvm_fraud_challenge_v1",
+            "challengeType": "wrong_destination",
+            "binding": {
+              "oracleBlobHash": "c1a461ff7ff1d3a74fed3bc3f39decf6dcf621cff4894bd140607ab8c73390ce",
+              "selectedSendHash": "5a41f83d2e783f3a74c01239d1cbc396ecac07b46fa2d92c4dcbf1b53da65709",
+              "dlcFunderRegistryHash": "e2057a8fb6fcfd3da569c56dec6978e416c4ec3f9595df7875b0f90052509986",
+              "selectedSendId": "live-send",
+              "selectedSendTxid": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+              "routePlanHash": "e204f5a6b7a5ab4011588131aca44778429b09bcba3580b9f056b1b32a31849e",
+              "routeTranscriptHash": "4afe1288e188211c5a0659a9c0017706736b0dba5052b33765fd27b789330670",
+              "withdrawalRootHex": "af637696b95f847cd58d7498a058227b52c447f5ec72020d8ef0b61d3c668a1a",
+              "commitmentHashHex": "e95e845f2d3c87cd56c5bc3a6351eeebbb0c660f8be4b174f3b369f3558b167e"
+            },
+            "expected": {
+              "output": {
+                "role": "send-to-dlc-funding-output",
+                "address": "tltc1qldtqy3y0rasay8dqz6kc2nxx6zfs9e9j4veqcz",
+                "sats": "240140",
+                "amountBps": 2500,
+                "oracleAddress": "tltc1qkz0vft2fc4nk0u9fx4k9yk4th7zherna3zxh22",
+                "matchedDlcRef": "dlc-live-77"
+              }
+            },
+            "claimed": {
+              "output": {
+                "role": "send-to-dlc-funding-output",
+                "address": "tltc1qkz0vft2fc4nk0u9fx4k9yk4th7zherna3zxh22",
+                "sats": "240140",
+                "amountBps": 2500,
+                "oracleAddress": "tltc1qkz0vft2fc4nk0u9fx4k9yk4th7zherna3zxh22",
+                "matchedDlcRef": "dlc-live-77"
+              }
+            },
+            "evidence": {
+              "source": "observed sweep output"
+            },
+            "challengeable": true,
+            "remedy": "pause cooperative sweep and route to BitVM/UTXORef fraud challenge path"
+          }
+        },
+        {
+          "kind": "tradelayer_send_bitvm_fraud_challenge",
+          "challengeType": "wrong_fee",
+          "challengeId": "5463e610bf6c91116d00a0061a5e7d5d108df4e711af15721aa1a9bb58fdd7a1",
+          "challengeable": true,
+          "challengeCore": {
+            "kind": "tradelayer_send_bitvm_fraud_challenge_v1",
+            "challengeType": "wrong_fee",
+            "binding": {
+              "oracleBlobHash": "c1a461ff7ff1d3a74fed3bc3f39decf6dcf621cff4894bd140607ab8c73390ce",
+              "selectedSendHash": "5a41f83d2e783f3a74c01239d1cbc396ecac07b46fa2d92c4dcbf1b53da65709",
+              "dlcFunderRegistryHash": "e2057a8fb6fcfd3da569c56dec6978e416c4ec3f9595df7875b0f90052509986",
+              "selectedSendId": "live-send",
+              "selectedSendTxid": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+              "routePlanHash": "e204f5a6b7a5ab4011588131aca44778429b09bcba3580b9f056b1b32a31849e",
+              "routeTranscriptHash": "4afe1288e188211c5a0659a9c0017706736b0dba5052b33765fd27b789330670",
+              "withdrawalRootHex": "af637696b95f847cd58d7498a058227b52c447f5ec72020d8ef0b61d3c668a1a",
+              "commitmentHashHex": "e95e845f2d3c87cd56c5bc3a6351eeebbb0c660f8be4b174f3b369f3558b167e"
+            },
+            "expected": {
+              "inputSats": "960560",
+              "payoutTotalSats": "959560",
+              "feeSats": "1000"
+            },
+            "claimed": {
+              "inputSats": "960560",
+              "payoutTotalSats": "959559",
+              "feeSats": "1001"
+            },
+            "evidence": {
+              "formula": "inputSats = payoutTotalSats + feeSats"
+            },
+            "challengeable": true,
+            "remedy": "pause cooperative sweep and route to BitVM/UTXORef fraud challenge path"
+          }
+        },
+        {
+          "kind": "tradelayer_send_bitvm_fraud_challenge",
+          "challengeType": "wrong_refund_remainder",
+          "challengeId": "5a82f78286c388b9ac817957e3bf8854d750cd0c2c9ee21f72040f2181f691b4",
+          "challengeable": true,
+          "challengeCore": {
+            "kind": "tradelayer_send_bitvm_fraud_challenge_v1",
+            "challengeType": "wrong_refund_remainder",
+            "binding": {
+              "oracleBlobHash": "c1a461ff7ff1d3a74fed3bc3f39decf6dcf621cff4894bd140607ab8c73390ce",
+              "selectedSendHash": "5a41f83d2e783f3a74c01239d1cbc396ecac07b46fa2d92c4dcbf1b53da65709",
+              "dlcFunderRegistryHash": "e2057a8fb6fcfd3da569c56dec6978e416c4ec3f9595df7875b0f90052509986",
+              "selectedSendId": "live-send",
+              "selectedSendTxid": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+              "routePlanHash": "e204f5a6b7a5ab4011588131aca44778429b09bcba3580b9f056b1b32a31849e",
+              "routeTranscriptHash": "4afe1288e188211c5a0659a9c0017706736b0dba5052b33765fd27b789330670",
+              "withdrawalRootHex": "af637696b95f847cd58d7498a058227b52c447f5ec72020d8ef0b61d3c668a1a",
+              "commitmentHashHex": "e95e845f2d3c87cd56c5bc3a6351eeebbb0c660f8be4b174f3b369f3558b167e"
+            },
+            "expected": {
+              "output": {
+                "role": "refund-remainder",
+                "address": "tltc1q2hjwxlj8muw5kq2r56ms9794zzz7st0kryffl4",
+                "sats": "719420",
+                "amountBps": null,
+                "oracleAddress": null,
+                "matchedDlcRef": null
+              }
+            },
+            "claimed": {
+              "output": {
+                "role": "refund-remainder",
+                "address": "tltc1q2hjwxlj8muw5kq2r56ms9794zzz7st0kryffl4",
+                "sats": "719421",
+                "amountBps": null,
+                "oracleAddress": null,
+                "matchedDlcRef": null
+              }
+            },
+            "evidence": {
+              "formula": "refundSats = depositSats - sendSats - feeSats"
+            },
+            "challengeable": true,
+            "remedy": "pause cooperative sweep and route to BitVM/UTXORef fraud challenge path"
+          }
+        },
+        {
+          "kind": "tradelayer_send_bitvm_fraud_challenge",
+          "challengeType": "stale_oracle_snapshot",
+          "challengeId": "a3700f5fbf9e2dd3c1f0902a01dc1c1f33ceaf724dc92000f3c6df184b91f55d",
+          "challengeable": true,
+          "challengeCore": {
+            "kind": "tradelayer_send_bitvm_fraud_challenge_v1",
+            "challengeType": "stale_oracle_snapshot",
+            "binding": {
+              "oracleBlobHash": "c1a461ff7ff1d3a74fed3bc3f39decf6dcf621cff4894bd140607ab8c73390ce",
+              "selectedSendHash": "5a41f83d2e783f3a74c01239d1cbc396ecac07b46fa2d92c4dcbf1b53da65709",
+              "dlcFunderRegistryHash": "e2057a8fb6fcfd3da569c56dec6978e416c4ec3f9595df7875b0f90052509986",
+              "selectedSendId": "live-send",
+              "selectedSendTxid": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+              "routePlanHash": "e204f5a6b7a5ab4011588131aca44778429b09bcba3580b9f056b1b32a31849e",
+              "routeTranscriptHash": "4afe1288e188211c5a0659a9c0017706736b0dba5052b33765fd27b789330670",
+              "withdrawalRootHex": "af637696b95f847cd58d7498a058227b52c447f5ec72020d8ef0b61d3c668a1a",
+              "commitmentHashHex": "e95e845f2d3c87cd56c5bc3a6351eeebbb0c660f8be4b174f3b369f3558b167e"
+            },
+            "expected": {
+              "snapshotHeight": 4696000,
+              "currentHeight": 4696145,
+              "maxSnapshotAgeBlocks": 144
+            },
+            "claimed": {
+              "snapshotHeight": 4696000,
+              "currentHeight": 4696145,
+              "snapshotAgeBlocks": 145
+            },
+            "evidence": {
+              "source": "state oracle freshness policy"
+            },
+            "challengeable": true,
+            "remedy": "pause cooperative sweep and route to BitVM/UTXORef fraud challenge path"
+          }
+        },
+        {
+          "kind": "tradelayer_send_bitvm_fraud_challenge",
+          "challengeType": "wrong_payout_root",
+          "challengeId": "096ecdf20a79e2e027943c8018ebcdd3b51ab239f2adcd4a4e370260fee15bad",
+          "challengeable": true,
+          "challengeCore": {
+            "kind": "tradelayer_send_bitvm_fraud_challenge_v1",
+            "challengeType": "wrong_payout_root",
+            "binding": {
+              "oracleBlobHash": "c1a461ff7ff1d3a74fed3bc3f39decf6dcf621cff4894bd140607ab8c73390ce",
+              "selectedSendHash": "5a41f83d2e783f3a74c01239d1cbc396ecac07b46fa2d92c4dcbf1b53da65709",
+              "dlcFunderRegistryHash": "e2057a8fb6fcfd3da569c56dec6978e416c4ec3f9595df7875b0f90052509986",
+              "selectedSendId": "live-send",
+              "selectedSendTxid": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+              "routePlanHash": "e204f5a6b7a5ab4011588131aca44778429b09bcba3580b9f056b1b32a31849e",
+              "routeTranscriptHash": "4afe1288e188211c5a0659a9c0017706736b0dba5052b33765fd27b789330670",
+              "withdrawalRootHex": "af637696b95f847cd58d7498a058227b52c447f5ec72020d8ef0b61d3c668a1a",
+              "commitmentHashHex": "e95e845f2d3c87cd56c5bc3a6351eeebbb0c660f8be4b174f3b369f3558b167e"
+            },
+            "expected": {
+              "withdrawalRootHex": "af637696b95f847cd58d7498a058227b52c447f5ec72020d8ef0b61d3c668a1a",
+              "commitmentHashHex": "e95e845f2d3c87cd56c5bc3a6351eeebbb0c660f8be4b174f3b369f3558b167e"
+            },
+            "claimed": {
+              "withdrawalRootHex": "0000000000000000000000000000000000000000000000000000000000000000",
+              "commitmentHashHex": "e95e845f2d3c87cd56c5bc3a6351eeebbb0c660f8be4b174f3b369f3558b167e"
+            },
+            "evidence": {
+              "source": "UTXORef payout root"
+            },
+            "challengeable": true,
+            "remedy": "pause cooperative sweep and route to BitVM/UTXORef fraud challenge path"
+          }
+        }
+      ],
+      "challengeRoot": "40466f75ed6ab0e7c99968ed48c6620fd810775bea27437f032c5384e28431b7",
+      "bundleHash": "ef4d00e7698b7acf398dc3ca09b430d8d126f56653eff7a920222d6287761529"
+    },
+    "walletFlow": {
+      "kind": "tradelayer_send_wallet_flow_v1",
+      "network": "litecoin-testnet",
+      "selectedSend": {
+        "id": "live-send",
+        "txid": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "hash": "5a41f83d2e783f3a74c01239d1cbc396ecac07b46fa2d92c4dcbf1b53da65709"
+      },
+      "hashes": {
+        "stateOracleHash": "c1a461ff7ff1d3a74fed3bc3f39decf6dcf621cff4894bd140607ab8c73390ce",
+        "selectedSendHash": "5a41f83d2e783f3a74c01239d1cbc396ecac07b46fa2d92c4dcbf1b53da65709",
+        "dlcFunderRegistryHash": "e2057a8fb6fcfd3da569c56dec6978e416c4ec3f9595df7875b0f90052509986",
+        "routePlanHash": "e204f5a6b7a5ab4011588131aca44778429b09bcba3580b9f056b1b32a31849e",
+        "withdrawalRootHex": "af637696b95f847cd58d7498a058227b52c447f5ec72020d8ef0b61d3c668a1a",
+        "commitmentHashHex": "e95e845f2d3c87cd56c5bc3a6351eeebbb0c660f8be4b174f3b369f3558b167e",
+        "routeTranscriptHash": "4afe1288e188211c5a0659a9c0017706736b0dba5052b33765fd27b789330670",
+        "fraudChallengeRoot": "40466f75ed6ab0e7c99968ed48c6620fd810775bea27437f032c5384e28431b7",
+        "fraudChallengeBundleHash": "ef4d00e7698b7acf398dc3ca09b430d8d126f56653eff7a920222d6287761529"
+      },
+      "routeTranscript": {
+        "kind": "tradelayer_send_route_transcript_v1",
+        "hash": "4afe1288e188211c5a0659a9c0017706736b0dba5052b33765fd27b789330670",
+        "core": {
+          "kind": "tradelayer_send_route_transcript_v1",
+          "network": "litecoin-testnet",
+          "route": "send",
+          "stateOracleHash": "c1a461ff7ff1d3a74fed3bc3f39decf6dcf621cff4894bd140607ab8c73390ce",
+          "selectedSendHash": "5a41f83d2e783f3a74c01239d1cbc396ecac07b46fa2d92c4dcbf1b53da65709",
+          "dlcFunderRegistryHash": "e2057a8fb6fcfd3da569c56dec6978e416c4ec3f9595df7875b0f90052509986",
+          "routePlanHash": "e204f5a6b7a5ab4011588131aca44778429b09bcba3580b9f056b1b32a31849e",
+          "withdrawalRootHex": "af637696b95f847cd58d7498a058227b52c447f5ec72020d8ef0b61d3c668a1a",
+          "commitmentHashHex": "e95e845f2d3c87cd56c5bc3a6351eeebbb0c660f8be4b174f3b369f3558b167e",
+          "fundingInputHash": "92ce3cc6ba1ef9d74ceae95b12804b9b56530554b740d137d93c8c16c0899a13",
+          "outputPlanHash": "75c42e3b313017169f591ed50cdc08e3cd3d0b525b255f8d63fcaa1174a64160",
+          "outputs": [
+            {
+              "role": "send-to-dlc-funding-output",
+              "address": "tltc1qldtqy3y0rasay8dqz6kc2nxx6zfs9e9j4veqcz",
+              "scriptPubKey": null,
+              "sats": "240140",
+              "amountBps": 2500,
+              "oracleAddress": "tltc1qkz0vft2fc4nk0u9fx4k9yk4th7zherna3zxh22",
+              "matchedDlcRef": "dlc-live-77"
+            },
+            {
+              "role": "refund-remainder",
+              "address": "tltc1q2hjwxlj8muw5kq2r56ms9794zzz7st0kryffl4",
+              "scriptPubKey": null,
+              "sats": "719420",
+              "amountBps": null,
+              "oracleAddress": null,
+              "matchedDlcRef": null
+            }
+          ],
+          "signedPsbtOutputHash": null,
+          "finalTxOutputHash": null
+        }
+      },
+      "amounts": {
+        "depositSats": "960560",
+        "sendBps": 2500,
+        "sendSats": "240140",
+        "feeSats": "1000",
+        "residualSats": "719420"
+      },
+      "destination": {
+        "kind": "dlc-funding-output",
+        "tradeLayerRecipient": "tltc1qkz0vft2fc4nk0u9fx4k9yk4th7zherna3zxh22",
+        "resolvedSweepAddress": "tltc1qldtqy3y0rasay8dqz6kc2nxx6zfs9e9j4veqcz",
+        "matchedDlcRef": "dlc-live-77",
+        "explanation": "TradeLayer recipient is a DLC funder; sweep routes to the registered DLC funding output."
+      },
+      "outputs": [
+        {
+          "role": "send-to-dlc-funding-output",
+          "destinationKind": "dlc-funding-output",
+          "address": "tltc1qldtqy3y0rasay8dqz6kc2nxx6zfs9e9j4veqcz",
+          "sats": "240140",
+          "amountBps": 2500,
+          "oracleAddress": "tltc1qkz0vft2fc4nk0u9fx4k9yk4th7zherna3zxh22",
+          "matchedDlcRef": "dlc-live-77"
+        },
+        {
+          "role": "refund-remainder",
+          "destinationKind": "refund-remainder",
+          "address": "tltc1q2hjwxlj8muw5kq2r56ms9794zzz7st0kryffl4",
+          "sats": "719420",
+          "amountBps": null,
+          "oracleAddress": null,
+          "matchedDlcRef": null
+        }
+      ],
+      "live": {
+        "sweepStatus": "planned",
+        "txid": null,
+        "signedPsbtAttached": false
+      },
+      "verifier": {
+        "routeOk": true,
+        "routeReason": null,
+        "routeTranscriptOk": true,
+        "routeTranscriptReason": null,
+        "sweepOk": true,
+        "sweepReason": null,
+        "oracleSignatureRequired": false,
+        "oracleSignatureOk": false,
+        "oracleSignatureReason": "missing oracle signature"
+      },
+      "steps": [
+        {
+          "id": "tl-send",
+          "title": "TradeLayer send",
+          "status": "observed",
+          "txid": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "details": {
+            "selectedSendId": "live-send",
+            "selectedSendHash": "5a41f83d2e783f3a74c01239d1cbc396ecac07b46fa2d92c4dcbf1b53da65709",
+            "amountUnits": null
+          }
+        },
+        {
+          "id": "state-oracle",
+          "title": "State oracle",
+          "status": "unsigned",
+          "details": {
+            "stateOracleHash": "c1a461ff7ff1d3a74fed3bc3f39decf6dcf621cff4894bd140607ab8c73390ce",
+            "designatedOracleAddress": "tltc1qn06nctkv2sm8wdjx5fe2x0zluxlyxynq3vud87hxsfv3u8kwdcaq0xvhqa",
+            "signatureRequired": false,
+            "signatureOk": false,
+            "signatureReason": "missing oracle signature"
+          }
+        },
+        {
+          "id": "dlc-mapping",
+          "title": "DLC mapping",
+          "status": "mapped",
+          "details": {
+            "tradeLayerRecipient": "tltc1qkz0vft2fc4nk0u9fx4k9yk4th7zherna3zxh22",
+            "resolvedSweepAddress": "tltc1qldtqy3y0rasay8dqz6kc2nxx6zfs9e9j4veqcz",
+            "destinationKind": "dlc-funding-output",
+            "matchedDlcRef": "dlc-live-77",
+            "registryHash": "e2057a8fb6fcfd3da569c56dec6978e416c4ec3f9595df7875b0f90052509986"
+          }
+        },
+        {
+          "id": "bitvm-utxoref-sweep",
+          "title": "BitVM/UTXORef sweep",
+          "status": "planned",
+          "details": {
+            "commitmentHashHex": "e95e845f2d3c87cd56c5bc3a6351eeebbb0c660f8be4b174f3b369f3558b167e",
+            "withdrawalRootHex": "af637696b95f847cd58d7498a058227b52c447f5ec72020d8ef0b61d3c668a1a",
+            "routeTranscriptHash": "4afe1288e188211c5a0659a9c0017706736b0dba5052b33765fd27b789330670",
+            "expectedOutputs": [
+              {
+                "role": "send-to-dlc-funding-output",
+                "destinationKind": "dlc-funding-output",
+                "address": "tltc1qldtqy3y0rasay8dqz6kc2nxx6zfs9e9j4veqcz",
+                "sats": "240140",
+                "amountBps": 2500,
+                "oracleAddress": "tltc1qkz0vft2fc4nk0u9fx4k9yk4th7zherna3zxh22",
+                "matchedDlcRef": "dlc-live-77"
+              },
+              {
+                "role": "refund-remainder",
+                "destinationKind": "refund-remainder",
+                "address": "tltc1q2hjwxlj8muw5kq2r56ms9794zzz7st0kryffl4",
+                "sats": "719420",
+                "amountBps": null,
+                "oracleAddress": null,
+                "matchedDlcRef": null
+              }
+            ],
+            "liveTxid": null,
+            "signedPsbtAttached": false
+          }
+        }
+      ],
+      "flowHash": "3cb5afe4e438ab6bcd215de8d6c31e285780d82d070e41b35aec0eed83facb87"
+    },
+    "productionPolicy": {
+      "kind": "tradelayer_send_production_policy",
+      "policy": {
+        "challengeWindowBlocks": 144,
+        "minChallengeWindowBlocks": 6,
+        "dustLimitSats": "546",
+        "maxFeeSats": "5000",
+        "maxFeeBpsOfInput": 500,
+        "maxRegistryAgeBlocks": 2016,
+        "requireOracleSignature": false,
+        "allowedOracleAddresses": [],
+        "allowedOracleKeyIds": [],
+        "pauseOnFailure": true
+      },
+      "binding": {
+        "oracleBlobHash": "c1a461ff7ff1d3a74fed3bc3f39decf6dcf621cff4894bd140607ab8c73390ce",
+        "selectedSendHash": "5a41f83d2e783f3a74c01239d1cbc396ecac07b46fa2d92c4dcbf1b53da65709",
+        "dlcFunderRegistryHash": "e2057a8fb6fcfd3da569c56dec6978e416c4ec3f9595df7875b0f90052509986",
+        "routePlanHash": "e204f5a6b7a5ab4011588131aca44778429b09bcba3580b9f056b1b32a31849e"
+      },
+      "checks": [
+        {
+          "name": "challenge_window",
+          "ok": true,
+          "severity": "block",
+          "details": {
+            "challengeWindowBlocks": 144,
+            "minChallengeWindowBlocks": 6
+          }
+        },
+        {
+          "name": "fee_cap",
+          "ok": true,
+          "severity": "block",
+          "details": {
+            "feeSats": "1000",
+            "maxFeeSats": "5000",
+            "maxFeeBpsOfInput": 500,
+            "effectiveFeeCapSats": "5000"
+          }
+        },
+        {
+          "name": "dust_limits",
+          "ok": true,
+          "severity": "block",
+          "details": {
+            "dustLimitSats": "546",
+            "outputs": [
+              {
+                "role": "send-to-dlc-funding-output",
+                "address": "tltc1qldtqy3y0rasay8dqz6kc2nxx6zfs9e9j4veqcz",
+                "sats": "240140"
+              },
+              {
+                "role": "refund-remainder",
+                "address": "tltc1q2hjwxlj8muw5kq2r56ms9794zzz7st0kryffl4",
+                "sats": "719420"
+              }
+            ]
+          }
+        },
+        {
+          "name": "registry_freshness",
+          "ok": true,
+          "severity": "block",
+          "details": {
+            "currentHeight": 4696000,
+            "registryHeight": 4696000,
+            "registryAgeBlocks": 0,
+            "maxRegistryAgeBlocks": 2016
+          }
+        },
+        {
+          "name": "oracle_address_allowed",
+          "ok": true,
+          "severity": "block",
+          "details": {
+            "oracleAddress": "tltc1qn06nctkv2sm8wdjx5fe2x0zluxlyxynq3vud87hxsfv3u8kwdcaq0xvhqa",
+            "allowedOracleAddresses": []
+          }
+        },
+        {
+          "name": "oracle_key_allowed",
+          "ok": true,
+          "severity": "block",
+          "details": {
+            "oracleKeyId": null,
+            "allowedOracleKeyIds": []
+          }
+        },
+        {
+          "name": "route_verifier",
+          "ok": true,
+          "severity": "block",
+          "details": {
+            "reason": null,
+            "planHash": "e204f5a6b7a5ab4011588131aca44778429b09bcba3580b9f056b1b32a31849e"
+          }
+        },
+        {
+          "name": "sweep_verifier",
+          "ok": true,
+          "severity": "block",
+          "details": {
+            "reason": null,
+            "commitmentHashHex": "e95e845f2d3c87cd56c5bc3a6351eeebbb0c660f8be4b174f3b369f3558b167e",
+            "withdrawalRootHex": "af637696b95f847cd58d7498a058227b52c447f5ec72020d8ef0b61d3c668a1a"
+          }
+        },
+        {
+          "name": "reserve_solvency",
+          "ok": true,
+          "severity": "block",
+          "details": {
+            "reason": null,
+            "solvent": true,
+            "reconciliationHash": "54c4ad48f7f2875e0c274c1173fb22f9f61455d18fabd9a90ec4f7f3d0cde0a5",
+            "capSats": "959560",
+            "reservedSats": "960560",
+            "marginSats": "1000"
+          }
+        }
+      ],
+      "ok": true,
+      "failedChecks": [],
+      "walletAction": "allow_sweep",
+      "policyHash": "55c2d2e0f3ecdb5e140522a27f0f4b4082a4387f9721006acf1778ee3833afa2"
+    },
+    "watchtower": {
+      "kind": "tradelayer_send_watchtower_report",
+      "ok": true,
+      "challengeRecommended": false,
+      "action": "allow_cooperative_sweep",
+      "reportHash": "f90fcb8f2d0ad7305e739106286856b7b187c8d96b0d51b62727dce455fc2254",
+      "reportCore": {
+        "kind": "tradelayer_send_watchtower_report_v1",
+        "observedAtHeight": 4696000,
+        "stateOracleHash": "c1a461ff7ff1d3a74fed3bc3f39decf6dcf621cff4894bd140607ab8c73390ce",
+        "selectedSendHash": "5a41f83d2e783f3a74c01239d1cbc396ecac07b46fa2d92c4dcbf1b53da65709",
+        "dlcFunderRegistryHash": "e2057a8fb6fcfd3da569c56dec6978e416c4ec3f9595df7875b0f90052509986",
+        "routePlanHash": "e204f5a6b7a5ab4011588131aca44778429b09bcba3580b9f056b1b32a31849e",
+        "routeTranscriptHash": "4afe1288e188211c5a0659a9c0017706736b0dba5052b33765fd27b789330670",
+        "sweepRouteTranscriptHash": "4afe1288e188211c5a0659a9c0017706736b0dba5052b33765fd27b789330670",
+        "fraudChallengeRoot": "40466f75ed6ab0e7c99968ed48c6620fd810775bea27437f032c5384e28431b7",
+        "fraudChallengeBundleHash": "ef4d00e7698b7acf398dc3ca09b430d8d126f56653eff7a920222d6287761529",
+        "walletFlowHash": "3cb5afe4e438ab6bcd215de8d6c31e285780d82d070e41b35aec0eed83facb87",
+        "productionPolicyHash": "55c2d2e0f3ecdb5e140522a27f0f4b4082a4387f9721006acf1778ee3833afa2",
+        "alerts": []
+      },
+      "alerts": [],
+      "challengeBundle": null
+    },
+    "stateCheckpoint": {
+      "kind": "tradelayer_state_checkpoint",
+      "checkpointHash": "a157146cd3682f8aaba09fc820b96500a857e81336ee139db06637bd23c5635b",
+      "core": {
+        "kind": "tradelayer_state_checkpoint_v1",
+        "chain": "litecoin-testnet",
+        "epochId": "77",
+        "height": 4696000,
+        "previousStateRoot": "0000000000000000000000000000000000000000000000000000000000000000",
+        "nextStateRoot": "14172a082004f03f8840b51c59f795a84904d0e5be17fe3842bfa95ef9859455",
+        "acceptedTxids": [
+          "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        ],
+        "acceptedTxRoot": "6d77960cb94321f0d022a25ae3ea8744a9fd3a294626d459101a114fd7823200",
+        "rejectedTxids": [],
+        "rejectedTxRoot": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "publisher": {
+          "address": "tl-state-oracle-demo",
+          "keyId": "checkpoint-publisher-v1",
+          "signatureHash": "519719a26ff8ba9427e43d18ff8c940b25da0fdd54e5e42c08cbafa7680f9b6d"
+        },
+        "fraudWindowBlocks": 144
+      }
+    },
+    "checkpointFraudProof": {
+      "kind": "tradelayer_state_checkpoint_fraud_proof",
+      "proofType": "state_root_mismatch",
+      "proofHash": "5f06cfa4e2cd973af987f21ad5a797e9664eaaa9f370a6a47ae3d2c56908253c",
+      "challengeable": true,
+      "core": {
+        "kind": "tradelayer_state_checkpoint_fraud_proof_v1",
+        "proofType": "state_root_mismatch",
+        "checkpointHash": "a157146cd3682f8aaba09fc820b96500a857e81336ee139db06637bd23c5635b",
+        "expected": {
+          "checkpointHash": "a157146cd3682f8aaba09fc820b96500a857e81336ee139db06637bd23c5635b",
+          "acceptedTxRoot": "6d77960cb94321f0d022a25ae3ea8744a9fd3a294626d459101a114fd7823200",
+          "rejectedTxRoot": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "nextStateRoot": "14172a082004f03f8840b51c59f795a84904d0e5be17fe3842bfa95ef9859455"
+        },
+        "claimed": {
+          "recomputedNextStateRoot": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "publishedNextStateRoot": "14172a082004f03f8840b51c59f795a84904d0e5be17fe3842bfa95ef9859455"
+        },
+        "evidence": {}
+      }
+    },
+    "withdrawalQueue": {
+      "kind": "tradelayer_withdrawal_queue",
+      "queueHash": "dc6b7d6e01463725d9d62722e972cc91dfdad2f56badf95c7c5b25839cb45bd0",
+      "queueCore": {
+        "kind": "tradelayer_withdrawal_queue_v1",
+        "chain": "litecoin-testnet",
+        "network": "litecoin-testnet",
+        "queueId": "tl-withdrawals-77",
+        "epochId": "77",
+        "stateRoot": "14172a082004f03f8840b51c59f795a84904d0e5be17fe3842bfa95ef9859455",
+        "entries": [
+          {
+            "id": "route-output-0",
+            "txid": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "address": "tltc1qldtqy3y0rasay8dqz6kc2nxx6zfs9e9j4veqcz",
+            "sats": "240140",
+            "propertyId": 0,
+            "status": "approved"
+          },
+          {
+            "id": "route-output-1",
+            "txid": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "address": "tltc1q2hjwxlj8muw5kq2r56ms9794zzz7st0kryffl4",
+            "sats": "719420",
+            "propertyId": 0,
+            "status": "approved"
+          }
+        ],
+        "payableRequestIds": [
+          "route-output-0",
+          "route-output-1"
+        ],
+        "queueRoot": "2b050b16312f690ddb4b57663583ecd05c5a02fe5bb153ddd5f8ac5257b536c0",
+        "withdrawalRootHex": "02e7c572eadd9d8177a0fec38b9d5e27fca9dd02b24008a1ce0f3e324bde3d56",
+        "commitmentHashHex": "3620bed2fa0ddbbc611915b26b03944ef34f803db9b0208bf242c6237069a8db",
+        "totalSats": "959560"
+      },
+      "commitment": {
+        "epochId": "77",
+        "withdrawalRootHex": "02e7c572eadd9d8177a0fec38b9d5e27fca9dd02b24008a1ce0f3e324bde3d56",
+        "commitmentHashHex": "3620bed2fa0ddbbc611915b26b03944ef34f803db9b0208bf242c6237069a8db",
+        "capSats": "959560"
+      },
+      "proofs": [
+        {
+          "requestId": "route-output-0",
+          "proof": {
+            "siblings": [
+              "784761651885966ead12e5380d35a5cdf97b603d1d75d302c1fd0d205b794850"
+            ],
+            "index": 0
+          }
+        },
+        {
+          "requestId": "route-output-1",
+          "proof": {
+            "siblings": [
+              "27c9b37a2eaeb7cc605f16c867a61c226b9917ea209bbb7df3af2d2fddfdcdea"
+            ],
+            "index": 1
+          }
+        }
+      ]
+    },
+    "reserveReconciliation": {
+      "kind": "tradelayer_reserve_reconciliation",
+      "reconciliationHash": "54c4ad48f7f2875e0c274c1173fb22f9f61455d18fabd9a90ec4f7f3d0cde0a5",
+      "solvent": true,
+      "core": {
+        "kind": "tradelayer_reserve_reconciliation_v1",
+        "network": "litecoin-testnet",
+        "epochId": "77",
+        "queueHash": "dc6b7d6e01463725d9d62722e972cc91dfdad2f56badf95c7c5b25839cb45bd0",
+        "withdrawalRootHex": "02e7c572eadd9d8177a0fec38b9d5e27fca9dd02b24008a1ce0f3e324bde3d56",
+        "capSats": "959560",
+        "payableCount": 2,
+        "reserveSourceKind": "explicit",
+        "reserveSourceHash": "9e6d41902109d5c8ccfda9e4c7efce039fb469a559a4fe53fd51af6565748ec9",
+        "reservedSats": "960560",
+        "marginSats": "1000",
+        "solvent": true
+      }
+    },
+    "perpPnl": {
+      "kind": "tradelayer_perp_pnl_settlement",
+      "settlementHash": "6579b95b0dfeaa875910aa453fcf96cb2f117e1b45e59bb332f9bdf7feeee0e6",
+      "settlementCore": {
+        "kind": "tradelayer_perp_pnl_settlement_v1",
+        "network": "litecoin-testnet",
+        "epochId": "77",
+        "contractId": "tl-perp-demo",
+        "positionHash": "c4a4198d144c0c6cf1ba39b1094e2abd0d277494de9e18fd51458d0248d02b30",
+        "closeHash": "ef74db0faf1b362e44ed5828e8870fabd0706bf337318e26d6a442cc470cf2e4",
+        "markSourceHash": "6a53cf77e7ba534fa0187c886f70d7c7f86d9a82a25b4be919064e3fb4b0ec6b",
+        "side": "short",
+        "entryPrice": "2200",
+        "closePrice": "2100",
+        "quantityUnits": "100",
+        "priceScale": "1",
+        "rawPnlSats": "10000",
+        "transferSats": "10000",
+        "tokenDelta": {
+          "winnerAddress": "tltc1qldtqy3y0rasay8dqz6kc2nxx6zfs9e9j4veqcz",
+          "loserAddress": "tltc1q2hjwxlj8muw5kq2r56ms9794zzz7st0kryffl4",
+          "quoteUnits": "10000",
+          "traderDeltaSats": "10000"
+        },
+        "outputs": [
+          {
+            "role": "pnl-winner",
+            "address": "tltc1qldtqy3y0rasay8dqz6kc2nxx6zfs9e9j4veqcz",
+            "sats": "10000"
+          },
+          {
+            "role": "loss-side-refund",
+            "address": "tltc1q2hjwxlj8muw5kq2r56ms9794zzz7st0kryffl4",
+            "sats": "40000"
+          }
+        ],
+        "withdrawalRootHex": "602696cba7af633cc5024c3a1626fb49792b943a6fb2b064e63f94802879651d",
+        "commitmentHashHex": "9acfeb736ec57e0263175d408f0026f90fb49a7bb0aedad451ac5894e0165a06"
+      },
+      "payout": {
+        "withdrawalRootHex": "602696cba7af633cc5024c3a1626fb49792b943a6fb2b064e63f94802879651d",
+        "commitmentHashHex": "9acfeb736ec57e0263175d408f0026f90fb49a7bb0aedad451ac5894e0165a06",
+        "totalSats": "50000",
+        "proofs": [
+          {
+            "siblings": [
+              "03e76138fa542b23d74099d0bd392040c9dba458589b2afd9808d2699303dd44"
+            ],
+            "index": 0
+          },
+          {
+            "siblings": [
+              "fe09f851d8cc464c1a87ebfab15492568961c50a989ab7ff0c0a00b9a3f90139"
+            ],
+            "index": 1
+          }
+        ]
+      }
+    },
+    "liquidityLease": {
+      "kind": "bitvm_liquidity_lease",
+      "leaseHash": "7c5967a0bf938c357d643b35d087b3035d641b78da6d70300fd98c7941e6db73",
+      "core": {
+        "kind": "bitvm_liquidity_lease_v1",
+        "terms": {
+          "kind": "bitvm_liquidity_lease_terms_v1",
+          "leaseId": "tl-bitvm-stack-lease",
+          "providerNodeId": "provider-node",
+          "routerNodeId": "router-node",
+          "committedUtxo": {
+            "outpoint": "1111111111111111111111111111111111111111111111111111111111111111:0",
+            "sats": "240140",
+            "address": "provider-utxo-address"
+          },
+          "promisedCapacitySats": "240140",
+          "leaseStartHeight": 0,
+          "leaseBlocks": 144,
+          "maxFeePpm": 1000,
+          "maxCltvDelta": 40,
+          "penaltySats": "5000"
+        },
+        "routeEvidence": {
+          "channelOutpoint": "ac2518f11bff1c6f229b9431dbc91d0f0d280dcde2b90de7e46c627a8b5dbbae:0",
+          "observedCapacitySats": "240140",
+          "observedFeePpm": 500,
+          "observedCltvDelta": 20,
+          "observedAtHeight": 4696000
+        },
+        "routeEvidenceHash": "c95cb404ed33212b692332525e9e9e1eb84adbc0affd4477daa31ad6ef256719",
+        "routeCheck": {
+          "ok": true,
+          "observedCapacitySats": "240140",
+          "observedFeePpm": 500,
+          "observedCltvDelta": 20,
+          "violations": []
+        }
+      },
+      "enforcement": {
+        "successPath": "release_provider_premium",
+        "challengePath": "none",
+        "penaltySats": "5000"
+      }
+    },
+    "arenaSecurity": {
+      "kind": "bitvm_arena_security_report",
+      "reportHash": "f9b02c4c1d931a416d9ba2eb01488f6c55d47206d26bf12d780f125145394086",
+      "core": {
+        "kind": "bitvm_arena_security_report_v1",
+        "createdFor": "UTXORef TradeLayer send route",
+        "before": {
+          "arenaCommit": "547840a",
+          "combinationId": "combo_utxo_ref_tradelayer_send_route",
+          "tasksEvaluated": 6,
+          "successfulAttacks": 6,
+          "successfulAttackRate": 1,
+          "winningTemplates": [
+            "send_oracle_registry_rebind",
+            "fraud_bundle_coverage_gap",
+            "rpc_sweep_preflight_bypass"
+          ]
+        },
+        "after": {
+          "arenaCommit": "547840a",
+          "combinationId": "combo_utxo_ref_tradelayer_send_route",
+          "tasksEvaluated": 6,
+          "successfulAttacks": 0,
+          "successfulAttackRate": 0,
+          "validationRegressions": 0
+        },
+        "fixes": [
+          {
+            "commit": "82a7e2c",
+            "title": "Bind TradeLayer send sweeps to route transcript",
+            "control": "single route transcript hash across oracle, registry, route, UTXORef root, wallet flow, and RPC signing"
+          },
+          {
+            "commit": "e380fda",
+            "title": "Add TradeLayer BitVM watchtower spine",
+            "control": "watchtower report pauses cooperative sweep and emits challenge bundle on drift"
+          },
+          {
+            "commit": null,
+            "title": "Bind finalized sweep outputs after decode",
+            "control": "decoded final transaction output vector hash is bound to the route transcript before wallet handoff"
+          }
+        ],
+        "residualRisks": [
+          "The prototype state oracle still assumes an external TradeLayer parser has computed valid state.",
+          "BitVM challenge objects are deterministic protocol skeletons, not full Bitcoin Script circuits yet.",
+          "Live wallet signing still depends on node RPC availability and operator key management."
+        ],
+        "improvement": {
+          "attackReduction": 6,
+          "attackRateBefore": 1,
+          "attackRateAfter": 0,
+          "validationRegressions": 0
+        },
+        "nextArenaTargets": [
+          "state checkpoint omission fraud",
+          "withdrawal queue duplicate payout",
+          "perp PNL mark drift",
+          "liquidity lease route evidence spoofing"
+        ]
+      }
+    },
+    "halalCapitalTokenPlan": {
+      "kind": "halal_capital_tradelayer_token_plan",
+      "planId": "01bf16a94fe229e28b941b73d5b23b49721544dc95fab7c524147f1d4ffcc029",
+      "planCore": {
+        "version": 1,
+        "marketplaceArtifact": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\halal_capital_marketplace_latest.json",
+        "marketplaceSnapshotId": "268c376b614075e1ae041cc8c3a95a0897cc627fbdd3ea69f4b7ab120b4ad9e9",
+        "registryId": "4b8d7d8c4d6342d4778f351fb7f0bfa8dadae903c727f0acc8c9f7fe4406c323",
+        "tokenSpecIds": [
+          "7c29fd976dba4fd8b0c835bf58a296f09cddaf56cc64fe5bf29d740204261b70",
+          "9a17e88df2765e93e2f1728f5173e901b3b997ee6d1393219cabd55c0dd9ecac",
+          "b9ad47acb6cd62cbe105ab7927e0f7d68a5a9dbe8d69d695c275d7416a36b636",
+          "971d0a70503ea3292624e6ac2a4ba5087c18e47749fe78e858e4604128e8a2ac",
+          "556360dc98dd9175c74bd81cd7dc2bf7b41bb4cd1e23d75e61adb1cabf16ce6c",
+          "7355c4d124a1b1ab60c8aec185723f3cb436d61b17ec6113d7ca541ba74b81d8",
+          "ee512626c460c24c80d69c23c13f0e3d7c6f15e66c0699256dfeae84a1212b42"
+        ],
+        "principalMintEventIds": [
+          "10fd495910d68a29ed5409779ccd628a4c97c624557121cfc917b6610652c9d4",
+          "c9c87b3df484738e1b8563fb48867e471a6c50ee91045d00820bac7ff140dc96",
+          "3884a754cc9435cc02560f43221b3b4e7a385f976af341004f97b55491af7185",
+          "5e5cec933ab68c95d50161ea5961368feea6da952e634fa92c4497bcba92dd27",
+          "be89fc2153c54ef9538b79822c2487fc6b47eae1621bbccef3561635435d341f",
+          "a5c8c10930c58a9d4f705181ff61ec06b325e439ecf2df87eab9d77436070411",
+          "74287cdc22720625ed9d8ca555e28ae86b0644fd4aae1eaba0881ae8c52a46f5"
+        ],
+        "serviceRevenueCreditEventIds": [
+          "7b8a1e44456c88360950a2b2c746713dea7cab1d8fb39d358c4369d1c668f623",
+          "6f3b7382feac60e45e2bb197bc37784315124ba2a5bfe8e6e125322843e6054a",
+          "7ed4403c3d6fcaa2c732198c2f770e065f1b9eba8d6d13eb895044215c415f6d",
+          "0b280531d4b2500372b97f60f1b8cc8784ec53dd8125dbc2e58dc99b959465bd",
+          "8a2ada64e63a715c2012bfc5578977a605924473a26faf0ed3c94f209bc44742",
+          "8ea35b7c7676ec3f6ebe10935bec247dc3be207ef0ffe6099cef66145dd6d269",
+          "235c9791f6e0c746f0b53569a0d9b0d6a60cb19536091d2f1507141df10968cd"
+        ],
+        "roleTransitionInstructionId": "17ceed1da4e4439d05e70ec10fd58b71becff6c42ee05d592bd98820efe26ec3",
+        "totalPrincipalUnits": "12250000",
+        "totalServiceRevenueUnits": "28000",
+        "accountingRule": "principal receipt supply and service revenue accrual are separate ledgers"
+      },
+      "marketplaceSnapshot": {
+        "kind": "halal_capital_marketplace_snapshot",
+        "snapshotId": "268c376b614075e1ae041cc8c3a95a0897cc627fbdd3ea69f4b7ab120b4ad9e9",
+        "snapshotCore": {
+          "version": 1,
+          "roadmapArtifact": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\halal_capital_roadmap_latest.json",
+          "registryId": "4b8d7d8c4d6342d4778f351fb7f0bfa8dadae903c727f0acc8c9f7fe4406c323",
+          "commitmentIds": [
+            "b698b31e28e8339287b3c2db8f7ebb1706f405ab2779057fe76c25dc3fae035c",
+            "8d740ded2f338ef7265f9986b0557b46355e3e2563543d63d0c117ff698d9859",
+            "618729c6c453d461581d5cc4ffd6d19f5111ab597664e8f3973c1c70d1aabac0",
+            "7a3b1ff6943f412416805372fec753829b5d24dbe97af5c2ac129ba1393751dd",
+            "ea8744e86190bb15647ada2954fc8d615204988bb9465f93b703b71e74025d16",
+            "d8a7d41f876134576441298daa56611b419f6446affd22bd2b0ca068f10d2b9f",
+            "c9054a7fa808785209a1940eac1b53220b4ecd77c1711ebb9ebbd497352fa52f"
+          ],
+          "revenueEventIds": [
+            "9d2eb167fe399f9425227d6a09f8f2a5e1479be6a6547dc72d9f36d84bbfe5e2",
+            "7011b9ff1890f6dd21203cb5a82ef9c41f36f700b567abcff74e194191431013",
+            "f4727bf57c97af6cf49de2f53413951fc0255f0ef18e0acccfaae84d17d8383b",
+            "49710a3b14609a51509b6ba67189a76dc5a9a36c23c57df9111137d9b3715449",
+            "f745fa1a9e1e960de9736274570138fd73dc81d1abdf80066e8053d322f767ed",
+            "a7c73b9232ae882bb6398c96d205a0b06f20fc0863fa4e793c2af2d8586b4bcd",
+            "7c1c36eac59b6f40c69e37708d887ae46e814e8e33f06579d947fa896205b776"
+          ],
+          "observerIndexId": "5bfd2b0c67391236330a70de4f09799c10db74b571191d4f0eeccd73e3437559",
+          "totalActiveCapitalSats": "12250000",
+          "totalServiceRevenueSats": "28000",
+          "exclusivityOk": true,
+          "roleTransitionOk": true
+        },
+        "registry": {
+          "kind": "halal_capital_template_registry",
+          "registryId": "4b8d7d8c4d6342d4778f351fb7f0bfa8dadae903c727f0acc8c9f7fe4406c323",
+          "registryCore": {
+            "version": 1,
+            "principle": "one sat, one role, one active commitment",
+            "propertyIdRule": "one propertyId equals one capital mechanic plus one enforcement template",
+            "templates": [
+              {
+                "propertyId": 1101,
+                "symbol": "HLN-LEASE",
+                "templateId": "ln-channel-lease-no-rehypo-v1",
+                "templateHash": "8ec59cda74a137006413d32bf0b1e8114a12c582d5e026a27b2d717a74c29241",
+                "capitalRole": "lightning_channel_lease",
+                "targetProtocol": "lightning"
+              },
+              {
+                "propertyId": 1102,
+                "symbol": "HLN-ROUTE",
+                "templateId": "ln-routing-reserve-no-rehypo-v1",
+                "templateHash": "764f37777156fbeab809b3171fa6fbb4257f1f4e8ce2856bea4d67d08d82277b",
+                "capitalRole": "lightning_routing_reserve",
+                "targetProtocol": "lightning"
+              },
+              {
+                "propertyId": 2101,
+                "symbol": "HTAP-RFQ",
+                "templateId": "taproot-assets-edge-rfq-no-rehypo-v1",
+                "templateHash": "71a9a636543168c423a5fc2c73831880834390666dedfc747cbdc671ccd28241",
+                "capitalRole": "taproot_assets_edge_rfq_reserve",
+                "targetProtocol": "taproot_assets"
+              },
+              {
+                "propertyId": 3101,
+                "symbol": "HARK-LIQ",
+                "templateId": "ark-round-liquidity-graft-no-rehypo-v1",
+                "templateHash": "d3522cc96e5ee32b26e1a942af4ea309f465adb85f28dd55f58eb278a5a2ccf1",
+                "capitalRole": "ark_round_liquidity_graft",
+                "targetProtocol": "ark"
+              },
+              {
+                "propertyId": 4101,
+                "symbol": "HTL-DLCM",
+                "templateId": "tradelayer-dlc-margin-reserve-no-rehypo-v1",
+                "templateHash": "d95d1c280cf00594bec3917b8f040aff5bb86882289a88f7ec89c645ee9a985d",
+                "capitalRole": "tradelayer_dlc_margin_reserve",
+                "targetProtocol": "shinigami"
+              },
+              {
+                "propertyId": 5101,
+                "symbol": "HWT-BOND",
+                "templateId": "watchtower-bond-no-rehypo-v1",
+                "templateHash": "c3d68cca0be68f07729b7c99bb6bbded5c4ae961f2e116ace40c54c80a017b34",
+                "capitalRole": "watchtower_bond",
+                "targetProtocol": "lightning"
+              },
+              {
+                "propertyId": 6101,
+                "symbol": "HPROOF",
+                "templateId": "proof-publication-bond-no-rehypo-v1",
+                "templateHash": "f54c6b5de95e3d3a4df0626fc506159c772a1e6fa4bc4fbe446b086e023b3046",
+                "capitalRole": "proof_publication_bond",
+                "targetProtocol": "shinigami"
+              }
+            ]
+          },
+          "templates": [
+            {
+              "kind": "halal_capital_property_template",
+              "templateHash": "8ec59cda74a137006413d32bf0b1e8114a12c582d5e026a27b2d717a74c29241",
+              "version": 1,
+              "propertyId": 1101,
+              "symbol": "HLN-LEASE",
+              "templateId": "ln-channel-lease-no-rehypo-v1",
+              "targetProtocol": "lightning",
+              "capitalRole": "lightning_channel_lease",
+              "productSurface": "capital-stakable Lightning channel lease",
+              "serviceRevenue": "fixed-duration inbound liquidity lease and routing-quality fee",
+              "backingAsset": "BTC",
+              "accounting": {
+                "exclusiveCommitment": true,
+                "oneSatOneRole": true,
+                "burnBeforeReissue": true,
+                "rehypothecationAllowed": false,
+                "guaranteedApyAllowed": false,
+                "hiddenLeverageAllowed": false
+              },
+              "enforcement": {
+                "fundingOutpointScope": "global_unique_active_commitment",
+                "receiptFungibility": "same_property_id_only",
+                "roleTransition": "retire_or_burn_old_receipt_before_new_property_issue",
+                "verifier": "UTXORef plus TradeLayer property-template registry"
+              },
+              "jurassicApplication": {
+                "kind": "jurassic_bitvm_mechanism_refs",
+                "refId": "b5029803fcafb98222f9ba979ddc82568dc07df58481fb6e1b44471f628f29ca",
+                "version": 1,
+                "target": "lightning",
+                "semanticStateHash": "3732bbbd8e35d7575805220bcfc0a8a4fc167b782f6128e1b9082d4bf51edc01",
+                "planId": "ln_ptlc_retry_watchtower_switchboard",
+                "transcriptVariantIds": [
+                  "ln_ptlc_success_retry_a",
+                  "ln_ptlc_success_retry_b",
+                  "ln_timeout_challenge_split"
+                ],
+                "transcriptDigests": [
+                  "c7997d307c39de6ad65e235bbf141a7a7e29b61dab03a8a4d877fe7599f1670d",
+                  "c7997d307c39de6ad65e235bbf141a7a7e29b61dab03a8a4d877fe7599f1670d",
+                  "419ece47005bac91c68c3145b6720b6266aa37646c9d7169c27278e0b5282595"
+                ],
+                "publicHandleIds": [
+                  "243ef3105038a4e723b5c92e9a0a6a41365bcb07a3167120f05dc29d9ad11921",
+                  "f60e1e111e8084d5bfa1ce17ea54789e91a226e86ee7460441bb0b09a8599ce4"
+                ],
+                "carrierCommitmentIds": [
+                  "8a061d33caf391d806063c957f21661ae508fb04b33c160fd034d56d576aa7f6",
+                  "a1626740e991dc3c7b9c2b020ec5e2094d19bc958cb27c2bbac9806879f1b092"
+                ],
+                "transcriptSwitchboardId": "3d4606b268b000d704f1023f2dd68f79785cb7de850c8bcaa1061627dbe2202a",
+                "primaryTranscriptDigest": "c7997d307c39de6ad65e235bbf141a7a7e29b61dab03a8a4d877fe7599f1670d",
+                "primaryPublicHandleId": "243ef3105038a4e723b5c92e9a0a6a41365bcb07a3167120f05dc29d9ad11921",
+                "primaryCarrierCommitmentId": "8a061d33caf391d806063c957f21661ae508fb04b33c160fd034d56d576aa7f6",
+                "status": "prototype_ready",
+                "rejectionTripwireDigest": "0000000000000000000000000000000000000000000000000000000000000001"
+              }
+            },
+            {
+              "kind": "halal_capital_property_template",
+              "templateHash": "764f37777156fbeab809b3171fa6fbb4257f1f4e8ce2856bea4d67d08d82277b",
+              "version": 1,
+              "propertyId": 1102,
+              "symbol": "HLN-ROUTE",
+              "templateId": "ln-routing-reserve-no-rehypo-v1",
+              "targetProtocol": "lightning",
+              "capitalRole": "lightning_routing_reserve",
+              "productSurface": "active Lightning routing reserve",
+              "serviceRevenue": "routing fees and route availability premiums",
+              "backingAsset": "BTC",
+              "accounting": {
+                "exclusiveCommitment": true,
+                "oneSatOneRole": true,
+                "burnBeforeReissue": true,
+                "rehypothecationAllowed": false,
+                "guaranteedApyAllowed": false,
+                "hiddenLeverageAllowed": false
+              },
+              "enforcement": {
+                "fundingOutpointScope": "global_unique_active_commitment",
+                "receiptFungibility": "same_property_id_only",
+                "roleTransition": "retire_or_burn_old_receipt_before_new_property_issue",
+                "verifier": "UTXORef plus TradeLayer property-template registry"
+              },
+              "jurassicApplication": {
+                "kind": "jurassic_bitvm_mechanism_refs",
+                "refId": "36a824918d392bdecf2f5e8426c87df6dc122c6c28dad04ddcdb5868c56e219a",
+                "version": 1,
+                "target": "lightning",
+                "semanticStateHash": "07d18b4e7abc4adb201aa669d868062646bfb2b350ca1d75deb323e19a8ef474",
+                "planId": "ln_ptlc_retry_watchtower_switchboard",
+                "transcriptVariantIds": [
+                  "ln_ptlc_success_retry_a",
+                  "ln_ptlc_success_retry_b",
+                  "ln_timeout_challenge_split"
+                ],
+                "transcriptDigests": [
+                  "47f554eedb49b5a31203fc76178e4a01eefc3bce3ce7eca7ded6c799bbe5cd9a",
+                  "47f554eedb49b5a31203fc76178e4a01eefc3bce3ce7eca7ded6c799bbe5cd9a",
+                  "1a12b9d1dc66610199c127bb01189a221073c6abf277750affd34ec65b6f9c3c"
+                ],
+                "publicHandleIds": [
+                  "26020889e5f11731d29cb89c70f64f8162a8416d82e107d7c6c34a0df8ac5ec1",
+                  "78036a52924f426338c386effb61caeeae1deeb4bf6bf81cac59aa44a8d8bb07"
+                ],
+                "carrierCommitmentIds": [
+                  "ab4047389bd8f5bd0718d367d5b9b58e41700ee89710d83f877181f3d7db0fb7",
+                  "033df07f23079d2b8dc7d07e70a1f08808923735eba9804083b46a48862f51d9"
+                ],
+                "transcriptSwitchboardId": "483e388789bf4afa6a3767875ae54f7cf33d1eef9ba04bedf83df778a3ada260",
+                "primaryTranscriptDigest": "47f554eedb49b5a31203fc76178e4a01eefc3bce3ce7eca7ded6c799bbe5cd9a",
+                "primaryPublicHandleId": "26020889e5f11731d29cb89c70f64f8162a8416d82e107d7c6c34a0df8ac5ec1",
+                "primaryCarrierCommitmentId": "ab4047389bd8f5bd0718d367d5b9b58e41700ee89710d83f877181f3d7db0fb7",
+                "status": "prototype_ready",
+                "rejectionTripwireDigest": "0000000000000000000000000000000000000000000000000000000000000001"
+              }
+            },
+            {
+              "kind": "halal_capital_property_template",
+              "templateHash": "71a9a636543168c423a5fc2c73831880834390666dedfc747cbdc671ccd28241",
+              "version": 1,
+              "propertyId": 2101,
+              "symbol": "HTAP-RFQ",
+              "templateId": "taproot-assets-edge-rfq-no-rehypo-v1",
+              "targetProtocol": "taproot_assets",
+              "capitalRole": "taproot_assets_edge_rfq_reserve",
+              "productSurface": "Taproot Assets Edge liquidity reserve",
+              "serviceRevenue": "Edge-node RFQ spread and proof-anchor service fee",
+              "backingAsset": "BTC",
+              "accounting": {
+                "exclusiveCommitment": true,
+                "oneSatOneRole": true,
+                "burnBeforeReissue": true,
+                "rehypothecationAllowed": false,
+                "guaranteedApyAllowed": false,
+                "hiddenLeverageAllowed": false
+              },
+              "enforcement": {
+                "fundingOutpointScope": "global_unique_active_commitment",
+                "receiptFungibility": "same_property_id_only",
+                "roleTransition": "retire_or_burn_old_receipt_before_new_property_issue",
+                "verifier": "UTXORef plus TradeLayer property-template registry"
+              },
+              "jurassicApplication": {
+                "kind": "jurassic_bitvm_mechanism_refs",
+                "refId": "559d92e69f60fe1b36c95f0254eb71b0e3ca09b6ea53833b9e5dc50282375325",
+                "version": 1,
+                "target": "taproot_assets",
+                "semanticStateHash": "a79653849bd3c48fba2cb422452331692eb6583782797b5fb2a2d562883ec5e3",
+                "planId": "tap_asset_proof_anchor_switchboard",
+                "transcriptVariantIds": [
+                  "tap_asset_proof_delta"
+                ],
+                "transcriptDigests": [
+                  "ef7184fc090432edc90b2b085c67e8386c433d8eb279b77e7d8a3bb3553144eb"
+                ],
+                "publicHandleIds": [
+                  "965758e48329d4137063817c23139af03831cc3882a939b86d28baeb66ed60e7",
+                  "dfb1b98de6c164afdf7029476ce9496e447810b1b0e67506868f56ffca780e63"
+                ],
+                "carrierCommitmentIds": [
+                  "f3014b0bbf83f99d88aa130dd502dc9915278cee672d546ca55c416483847152"
+                ],
+                "transcriptSwitchboardId": "ba2f56bbd9b8e9c620487eaad3eca4041c6b044aee524263785c910d3a776b6d",
+                "primaryTranscriptDigest": "ef7184fc090432edc90b2b085c67e8386c433d8eb279b77e7d8a3bb3553144eb",
+                "primaryPublicHandleId": "965758e48329d4137063817c23139af03831cc3882a939b86d28baeb66ed60e7",
+                "primaryCarrierCommitmentId": "f3014b0bbf83f99d88aa130dd502dc9915278cee672d546ca55c416483847152",
+                "status": "prototype_ready",
+                "rejectionTripwireDigest": "0000000000000000000000000000000000000000000000000000000000000001"
+              }
+            },
+            {
+              "kind": "halal_capital_property_template",
+              "templateHash": "d3522cc96e5ee32b26e1a942af4ea309f465adb85f28dd55f58eb278a5a2ccf1",
+              "version": 1,
+              "propertyId": 3101,
+              "symbol": "HARK-LIQ",
+              "templateId": "ark-round-liquidity-graft-no-rehypo-v1",
+              "targetProtocol": "ark",
+              "capitalRole": "ark_round_liquidity_graft",
+              "productSurface": "Ark round liquidity graft",
+              "serviceRevenue": "short-duration round liquidity and VTXO exit insurance premium",
+              "backingAsset": "BTC",
+              "accounting": {
+                "exclusiveCommitment": true,
+                "oneSatOneRole": true,
+                "burnBeforeReissue": true,
+                "rehypothecationAllowed": false,
+                "guaranteedApyAllowed": false,
+                "hiddenLeverageAllowed": false
+              },
+              "enforcement": {
+                "fundingOutpointScope": "global_unique_active_commitment",
+                "receiptFungibility": "same_property_id_only",
+                "roleTransition": "retire_or_burn_old_receipt_before_new_property_issue",
+                "verifier": "UTXORef plus TradeLayer property-template registry"
+              },
+              "jurassicApplication": {
+                "kind": "jurassic_bitvm_mechanism_refs",
+                "refId": "640de33e979892b01078b8ce6e4301a850509d1833af0598135f3b941d36afd1",
+                "version": 1,
+                "target": "ark",
+                "semanticStateHash": "75d8d6bff32fce8eec4928ad137841cc7bca3d5eb53c459ac8dc7d5845b60627",
+                "planId": "ark_round_exit_namespace_market",
+                "transcriptVariantIds": [
+                  "ark_round_exit_attestation"
+                ],
+                "transcriptDigests": [
+                  "fb06d95b7d97213bdc38d5451cc7c42177128d874016caf3e9c1ab99d18f89cc"
+                ],
+                "publicHandleIds": [
+                  "3dbb7a597598086954ea009a841ab4d897bdc7b58ade301cef525e799883ccc5",
+                  "9ef5f9b87419c98bcb38fc91336c93a16b35a8738e492cb94ac5a15784a1c088"
+                ],
+                "carrierCommitmentIds": [
+                  "1949d6450df43fe6e298c4bbbd0393bb79f0160aaf8c5789786ee772120486fc"
+                ],
+                "transcriptSwitchboardId": "9cb0da1540b25ba63c96420adb9a799ad42051275b13fd366eae817ad8af4f81",
+                "primaryTranscriptDigest": "fb06d95b7d97213bdc38d5451cc7c42177128d874016caf3e9c1ab99d18f89cc",
+                "primaryPublicHandleId": "3dbb7a597598086954ea009a841ab4d897bdc7b58ade301cef525e799883ccc5",
+                "primaryCarrierCommitmentId": "1949d6450df43fe6e298c4bbbd0393bb79f0160aaf8c5789786ee772120486fc",
+                "status": "prototype_ready",
+                "rejectionTripwireDigest": "0000000000000000000000000000000000000000000000000000000000000001"
+              }
+            },
+            {
+              "kind": "halal_capital_property_template",
+              "templateHash": "d95d1c280cf00594bec3917b8f040aff5bb86882289a88f7ec89c645ee9a985d",
+              "version": 1,
+              "propertyId": 4101,
+              "symbol": "HTL-DLCM",
+              "templateId": "tradelayer-dlc-margin-reserve-no-rehypo-v1",
+              "targetProtocol": "shinigami",
+              "capitalRole": "tradelayer_dlc_margin_reserve",
+              "productSurface": "TradeLayer derivatives margin reserve",
+              "serviceRevenue": "DLC margin reservation, bounded PnL settlement, and liquidation service fee",
+              "backingAsset": "BTC",
+              "accounting": {
+                "exclusiveCommitment": true,
+                "oneSatOneRole": true,
+                "burnBeforeReissue": true,
+                "rehypothecationAllowed": false,
+                "guaranteedApyAllowed": false,
+                "hiddenLeverageAllowed": false
+              },
+              "enforcement": {
+                "fundingOutpointScope": "global_unique_active_commitment",
+                "receiptFungibility": "same_property_id_only",
+                "roleTransition": "retire_or_burn_old_receipt_before_new_property_issue",
+                "verifier": "UTXORef plus TradeLayer property-template registry"
+              },
+              "jurassicApplication": {
+                "kind": "jurassic_bitvm_mechanism_refs",
+                "refId": "7cb35f97b959287edce921b9e4ff3098e82dff40adb5d4886d63b9e24f898871",
+                "version": 1,
+                "target": "shinigami",
+                "semanticStateHash": "f5cde7c02f72273a0566589efb480fcc2b448db422fff290a0a4fe095e0e8f8f",
+                "planId": "shinigami_proof_publication_switchboard",
+                "transcriptVariantIds": [
+                  "shinigami_execution_trace"
+                ],
+                "transcriptDigests": [
+                  "144aa170186a6d6c0e46826baaaa877f5ec4633dae4cf87377d693177e88fdff"
+                ],
+                "publicHandleIds": [
+                  "815647309c26d17f49d02f6ac636a105684160e0bffa347d4870cbd41bc3ad03",
+                  "c5a0e1a48a449754270fb4a62df4729df018304426e627d78999a3ea5ca7d774"
+                ],
+                "carrierCommitmentIds": [
+                  "fb438852b805b7c556191812a0f4bad74ef92a1ba18a95909c22ff2a87a396a9"
+                ],
+                "transcriptSwitchboardId": "c8ca996d3780c64d70a40397edb052fabaf021268b89a226b6965c01008def4d",
+                "primaryTranscriptDigest": "144aa170186a6d6c0e46826baaaa877f5ec4633dae4cf87377d693177e88fdff",
+                "primaryPublicHandleId": "815647309c26d17f49d02f6ac636a105684160e0bffa347d4870cbd41bc3ad03",
+                "primaryCarrierCommitmentId": "fb438852b805b7c556191812a0f4bad74ef92a1ba18a95909c22ff2a87a396a9",
+                "status": "scaffold_only",
+                "rejectionTripwireDigest": "0000000000000000000000000000000000000000000000000000000000000001"
+              }
+            },
+            {
+              "kind": "halal_capital_property_template",
+              "templateHash": "c3d68cca0be68f07729b7c99bb6bbded5c4ae961f2e116ace40c54c80a017b34",
+              "version": 1,
+              "propertyId": 5101,
+              "symbol": "HWT-BOND",
+              "templateId": "watchtower-bond-no-rehypo-v1",
+              "targetProtocol": "lightning",
+              "capitalRole": "watchtower_bond",
+              "productSurface": "watchtower and challenger bond",
+              "serviceRevenue": "challenge bounty, alert monitoring fee, and fraud-proof service fee",
+              "backingAsset": "BTC",
+              "accounting": {
+                "exclusiveCommitment": true,
+                "oneSatOneRole": true,
+                "burnBeforeReissue": true,
+                "rehypothecationAllowed": false,
+                "guaranteedApyAllowed": false,
+                "hiddenLeverageAllowed": false
+              },
+              "enforcement": {
+                "fundingOutpointScope": "global_unique_active_commitment",
+                "receiptFungibility": "same_property_id_only",
+                "roleTransition": "retire_or_burn_old_receipt_before_new_property_issue",
+                "verifier": "UTXORef plus TradeLayer property-template registry"
+              },
+              "jurassicApplication": {
+                "kind": "jurassic_bitvm_mechanism_refs",
+                "refId": "c10cdf81504ae7d6ccf8e1ca5532ee4719fe9f249fec400ce4fd2e5bb18f5935",
+                "version": 1,
+                "target": "lightning",
+                "semanticStateHash": "958ca512302000836a6f269eb8f9b90a31e54179382fe46c1715c04fc045731a",
+                "planId": "ln_ptlc_retry_watchtower_switchboard",
+                "transcriptVariantIds": [
+                  "ln_ptlc_success_retry_a",
+                  "ln_ptlc_success_retry_b",
+                  "ln_timeout_challenge_split"
+                ],
+                "transcriptDigests": [
+                  "57660a3620a90ddb64da9d0de8b7c3d112fd73aca7acc84122cdf9e1e6a1b689",
+                  "57660a3620a90ddb64da9d0de8b7c3d112fd73aca7acc84122cdf9e1e6a1b689",
+                  "797fd41bbbb555e632bd1761b530ae126ff57425c0514afb01194bf8daad0e97"
+                ],
+                "publicHandleIds": [
+                  "67839a4df6b906509a2af74a0dcccca6bff2d66c458272442e283c9340241620",
+                  "6dc9f59fa2f060482af0bde3db0aa61f2f40050d707c6adffd29d57b9b866a8d"
+                ],
+                "carrierCommitmentIds": [
+                  "384a55ab395a8c802e51775260061f06b2c1cd4384f5a6f65590712a77e1eef4",
+                  "e11fc6e46ec4e0b4ea1a6935d2f1d1679bef87257de618d22122218214b32d78"
+                ],
+                "transcriptSwitchboardId": "784402136807bf89e23309f16cf9e33f2bf416859227f5ee5eebc46630a4d39a",
+                "primaryTranscriptDigest": "57660a3620a90ddb64da9d0de8b7c3d112fd73aca7acc84122cdf9e1e6a1b689",
+                "primaryPublicHandleId": "67839a4df6b906509a2af74a0dcccca6bff2d66c458272442e283c9340241620",
+                "primaryCarrierCommitmentId": "384a55ab395a8c802e51775260061f06b2c1cd4384f5a6f65590712a77e1eef4",
+                "status": "prototype_ready",
+                "rejectionTripwireDigest": "0000000000000000000000000000000000000000000000000000000000000001"
+              }
+            },
+            {
+              "kind": "halal_capital_property_template",
+              "templateHash": "f54c6b5de95e3d3a4df0626fc506159c772a1e6fa4bc4fbe446b086e023b3046",
+              "version": 1,
+              "propertyId": 6101,
+              "symbol": "HPROOF",
+              "templateId": "proof-publication-bond-no-rehypo-v1",
+              "targetProtocol": "shinigami",
+              "capitalRole": "proof_publication_bond",
+              "productSurface": "proof-carrying execution publication bond",
+              "serviceRevenue": "proof publication, verifier receipt, and challenge-routing fee",
+              "backingAsset": "BTC",
+              "accounting": {
+                "exclusiveCommitment": true,
+                "oneSatOneRole": true,
+                "burnBeforeReissue": true,
+                "rehypothecationAllowed": false,
+                "guaranteedApyAllowed": false,
+                "hiddenLeverageAllowed": false
+              },
+              "enforcement": {
+                "fundingOutpointScope": "global_unique_active_commitment",
+                "receiptFungibility": "same_property_id_only",
+                "roleTransition": "retire_or_burn_old_receipt_before_new_property_issue",
+                "verifier": "UTXORef plus TradeLayer property-template registry"
+              },
+              "jurassicApplication": {
+                "kind": "jurassic_bitvm_mechanism_refs",
+                "refId": "721c604ed432b88d2dd19126ce9241f9468ce2b34ff8005bcf643b71267f7535",
+                "version": 1,
+                "target": "shinigami",
+                "semanticStateHash": "67a96d259001bbf2fbf5742f308fc291b6399c849cb36dfac2bdeeca2d425993",
+                "planId": "shinigami_proof_publication_switchboard",
+                "transcriptVariantIds": [
+                  "shinigami_execution_trace"
+                ],
+                "transcriptDigests": [
+                  "49dda7038148bec199134a4ba2e57a27a764d673f3c22861fec705f2569377a2"
+                ],
+                "publicHandleIds": [
+                  "8b5077343648ae66d3de4f4fce7279663971e674d55db1d51ce428d2bd5fa64a",
+                  "981a5d58b1609193e6e89115bd6ff9529131ba0add0b90265e6b980e264c31dd"
+                ],
+                "carrierCommitmentIds": [
+                  "4bd90df82bbb75e0fdc14e1799a1387bfac652a3e0d44957026ebeef7b7fa766"
+                ],
+                "transcriptSwitchboardId": "89ab9313a9223fc07ae956c9c67714f551f8981cf5df911295ec6312578aa3e1",
+                "primaryTranscriptDigest": "49dda7038148bec199134a4ba2e57a27a764d673f3c22861fec705f2569377a2",
+                "primaryPublicHandleId": "8b5077343648ae66d3de4f4fce7279663971e674d55db1d51ce428d2bd5fa64a",
+                "primaryCarrierCommitmentId": "4bd90df82bbb75e0fdc14e1799a1387bfac652a3e0d44957026ebeef7b7fa766",
+                "status": "scaffold_only",
+                "rejectionTripwireDigest": "0000000000000000000000000000000000000000000000000000000000000001"
+              }
+            }
+          ]
+        },
+        "commitments": [
+          {
+            "kind": "halal_capital_commitment",
+            "commitmentId": "b698b31e28e8339287b3c2db8f7ebb1706f405ab2779057fe76c25dc3fae035c",
+            "commitmentCore": {
+              "version": 1,
+              "propertyId": 1101,
+              "templateId": "ln-channel-lease-no-rehypo-v1",
+              "templateHash": "8ec59cda74a137006413d32bf0b1e8114a12c582d5e026a27b2d717a74c29241",
+              "holderId": "holder-1",
+              "operatorId": "operator-hln-lease",
+              "fundingOutpoint": "8d57b33cf97269a0ce1afd5621374b91d2314141ec366dd44592ac51d9c6e354:1",
+              "amountSats": "1000000",
+              "activeRole": "lightning_channel_lease",
+              "status": "active",
+              "exclusiveCommitment": true,
+              "jurassicMechanismRefId": "b5029803fcafb98222f9ba979ddc82568dc07df58481fb6e1b44471f628f29ca",
+              "publicHandleId": "243ef3105038a4e723b5c92e9a0a6a41365bcb07a3167120f05dc29d9ad11921",
+              "carrierCommitmentId": "8a061d33caf391d806063c957f21661ae508fb04b33c160fd034d56d576aa7f6"
+            },
+            "template": {
+              "kind": "halal_capital_property_template",
+              "templateHash": "8ec59cda74a137006413d32bf0b1e8114a12c582d5e026a27b2d717a74c29241",
+              "version": 1,
+              "propertyId": 1101,
+              "symbol": "HLN-LEASE",
+              "templateId": "ln-channel-lease-no-rehypo-v1",
+              "targetProtocol": "lightning",
+              "capitalRole": "lightning_channel_lease",
+              "productSurface": "capital-stakable Lightning channel lease",
+              "serviceRevenue": "fixed-duration inbound liquidity lease and routing-quality fee",
+              "backingAsset": "BTC",
+              "accounting": {
+                "exclusiveCommitment": true,
+                "oneSatOneRole": true,
+                "burnBeforeReissue": true,
+                "rehypothecationAllowed": false,
+                "guaranteedApyAllowed": false,
+                "hiddenLeverageAllowed": false
+              },
+              "enforcement": {
+                "fundingOutpointScope": "global_unique_active_commitment",
+                "receiptFungibility": "same_property_id_only",
+                "roleTransition": "retire_or_burn_old_receipt_before_new_property_issue",
+                "verifier": "UTXORef plus TradeLayer property-template registry"
+              },
+              "jurassicApplication": {
+                "kind": "jurassic_bitvm_mechanism_refs",
+                "refId": "b5029803fcafb98222f9ba979ddc82568dc07df58481fb6e1b44471f628f29ca",
+                "version": 1,
+                "target": "lightning",
+                "semanticStateHash": "3732bbbd8e35d7575805220bcfc0a8a4fc167b782f6128e1b9082d4bf51edc01",
+                "planId": "ln_ptlc_retry_watchtower_switchboard",
+                "transcriptVariantIds": [
+                  "ln_ptlc_success_retry_a",
+                  "ln_ptlc_success_retry_b",
+                  "ln_timeout_challenge_split"
+                ],
+                "transcriptDigests": [
+                  "c7997d307c39de6ad65e235bbf141a7a7e29b61dab03a8a4d877fe7599f1670d",
+                  "c7997d307c39de6ad65e235bbf141a7a7e29b61dab03a8a4d877fe7599f1670d",
+                  "419ece47005bac91c68c3145b6720b6266aa37646c9d7169c27278e0b5282595"
+                ],
+                "publicHandleIds": [
+                  "243ef3105038a4e723b5c92e9a0a6a41365bcb07a3167120f05dc29d9ad11921",
+                  "f60e1e111e8084d5bfa1ce17ea54789e91a226e86ee7460441bb0b09a8599ce4"
+                ],
+                "carrierCommitmentIds": [
+                  "8a061d33caf391d806063c957f21661ae508fb04b33c160fd034d56d576aa7f6",
+                  "a1626740e991dc3c7b9c2b020ec5e2094d19bc958cb27c2bbac9806879f1b092"
+                ],
+                "transcriptSwitchboardId": "3d4606b268b000d704f1023f2dd68f79785cb7de850c8bcaa1061627dbe2202a",
+                "primaryTranscriptDigest": "c7997d307c39de6ad65e235bbf141a7a7e29b61dab03a8a4d877fe7599f1670d",
+                "primaryPublicHandleId": "243ef3105038a4e723b5c92e9a0a6a41365bcb07a3167120f05dc29d9ad11921",
+                "primaryCarrierCommitmentId": "8a061d33caf391d806063c957f21661ae508fb04b33c160fd034d56d576aa7f6",
+                "status": "prototype_ready",
+                "rejectionTripwireDigest": "0000000000000000000000000000000000000000000000000000000000000001"
+              }
+            }
+          },
+          {
+            "kind": "halal_capital_commitment",
+            "commitmentId": "8d740ded2f338ef7265f9986b0557b46355e3e2563543d63d0c117ff698d9859",
+            "commitmentCore": {
+              "version": 1,
+              "propertyId": 1102,
+              "templateId": "ln-routing-reserve-no-rehypo-v1",
+              "templateHash": "764f37777156fbeab809b3171fa6fbb4257f1f4e8ce2856bea4d67d08d82277b",
+              "holderId": "holder-2",
+              "operatorId": "operator-hln-route",
+              "fundingOutpoint": "b594f56b9c83ff8d30d232637d2c3ed23005ead2e32b5bae9b50bbed7be685a5:0",
+              "amountSats": "1250000",
+              "activeRole": "lightning_routing_reserve",
+              "status": "active",
+              "exclusiveCommitment": true,
+              "jurassicMechanismRefId": "36a824918d392bdecf2f5e8426c87df6dc122c6c28dad04ddcdb5868c56e219a",
+              "publicHandleId": "26020889e5f11731d29cb89c70f64f8162a8416d82e107d7c6c34a0df8ac5ec1",
+              "carrierCommitmentId": "ab4047389bd8f5bd0718d367d5b9b58e41700ee89710d83f877181f3d7db0fb7"
+            },
+            "template": {
+              "kind": "halal_capital_property_template",
+              "templateHash": "764f37777156fbeab809b3171fa6fbb4257f1f4e8ce2856bea4d67d08d82277b",
+              "version": 1,
+              "propertyId": 1102,
+              "symbol": "HLN-ROUTE",
+              "templateId": "ln-routing-reserve-no-rehypo-v1",
+              "targetProtocol": "lightning",
+              "capitalRole": "lightning_routing_reserve",
+              "productSurface": "active Lightning routing reserve",
+              "serviceRevenue": "routing fees and route availability premiums",
+              "backingAsset": "BTC",
+              "accounting": {
+                "exclusiveCommitment": true,
+                "oneSatOneRole": true,
+                "burnBeforeReissue": true,
+                "rehypothecationAllowed": false,
+                "guaranteedApyAllowed": false,
+                "hiddenLeverageAllowed": false
+              },
+              "enforcement": {
+                "fundingOutpointScope": "global_unique_active_commitment",
+                "receiptFungibility": "same_property_id_only",
+                "roleTransition": "retire_or_burn_old_receipt_before_new_property_issue",
+                "verifier": "UTXORef plus TradeLayer property-template registry"
+              },
+              "jurassicApplication": {
+                "kind": "jurassic_bitvm_mechanism_refs",
+                "refId": "36a824918d392bdecf2f5e8426c87df6dc122c6c28dad04ddcdb5868c56e219a",
+                "version": 1,
+                "target": "lightning",
+                "semanticStateHash": "07d18b4e7abc4adb201aa669d868062646bfb2b350ca1d75deb323e19a8ef474",
+                "planId": "ln_ptlc_retry_watchtower_switchboard",
+                "transcriptVariantIds": [
+                  "ln_ptlc_success_retry_a",
+                  "ln_ptlc_success_retry_b",
+                  "ln_timeout_challenge_split"
+                ],
+                "transcriptDigests": [
+                  "47f554eedb49b5a31203fc76178e4a01eefc3bce3ce7eca7ded6c799bbe5cd9a",
+                  "47f554eedb49b5a31203fc76178e4a01eefc3bce3ce7eca7ded6c799bbe5cd9a",
+                  "1a12b9d1dc66610199c127bb01189a221073c6abf277750affd34ec65b6f9c3c"
+                ],
+                "publicHandleIds": [
+                  "26020889e5f11731d29cb89c70f64f8162a8416d82e107d7c6c34a0df8ac5ec1",
+                  "78036a52924f426338c386effb61caeeae1deeb4bf6bf81cac59aa44a8d8bb07"
+                ],
+                "carrierCommitmentIds": [
+                  "ab4047389bd8f5bd0718d367d5b9b58e41700ee89710d83f877181f3d7db0fb7",
+                  "033df07f23079d2b8dc7d07e70a1f08808923735eba9804083b46a48862f51d9"
+                ],
+                "transcriptSwitchboardId": "483e388789bf4afa6a3767875ae54f7cf33d1eef9ba04bedf83df778a3ada260",
+                "primaryTranscriptDigest": "47f554eedb49b5a31203fc76178e4a01eefc3bce3ce7eca7ded6c799bbe5cd9a",
+                "primaryPublicHandleId": "26020889e5f11731d29cb89c70f64f8162a8416d82e107d7c6c34a0df8ac5ec1",
+                "primaryCarrierCommitmentId": "ab4047389bd8f5bd0718d367d5b9b58e41700ee89710d83f877181f3d7db0fb7",
+                "status": "prototype_ready",
+                "rejectionTripwireDigest": "0000000000000000000000000000000000000000000000000000000000000001"
+              }
+            }
+          },
+          {
+            "kind": "halal_capital_commitment",
+            "commitmentId": "618729c6c453d461581d5cc4ffd6d19f5111ab597664e8f3973c1c70d1aabac0",
+            "commitmentCore": {
+              "version": 1,
+              "propertyId": 2101,
+              "templateId": "taproot-assets-edge-rfq-no-rehypo-v1",
+              "templateHash": "71a9a636543168c423a5fc2c73831880834390666dedfc747cbdc671ccd28241",
+              "holderId": "holder-3",
+              "operatorId": "operator-htap-rfq",
+              "fundingOutpoint": "7effdcc7874417021db176e822ba7b847337ef8d59848c27dcd0a98927b7f9b4:1",
+              "amountSats": "1500000",
+              "activeRole": "taproot_assets_edge_rfq_reserve",
+              "status": "active",
+              "exclusiveCommitment": true,
+              "jurassicMechanismRefId": "559d92e69f60fe1b36c95f0254eb71b0e3ca09b6ea53833b9e5dc50282375325",
+              "publicHandleId": "965758e48329d4137063817c23139af03831cc3882a939b86d28baeb66ed60e7",
+              "carrierCommitmentId": "f3014b0bbf83f99d88aa130dd502dc9915278cee672d546ca55c416483847152"
+            },
+            "template": {
+              "kind": "halal_capital_property_template",
+              "templateHash": "71a9a636543168c423a5fc2c73831880834390666dedfc747cbdc671ccd28241",
+              "version": 1,
+              "propertyId": 2101,
+              "symbol": "HTAP-RFQ",
+              "templateId": "taproot-assets-edge-rfq-no-rehypo-v1",
+              "targetProtocol": "taproot_assets",
+              "capitalRole": "taproot_assets_edge_rfq_reserve",
+              "productSurface": "Taproot Assets Edge liquidity reserve",
+              "serviceRevenue": "Edge-node RFQ spread and proof-anchor service fee",
+              "backingAsset": "BTC",
+              "accounting": {
+                "exclusiveCommitment": true,
+                "oneSatOneRole": true,
+                "burnBeforeReissue": true,
+                "rehypothecationAllowed": false,
+                "guaranteedApyAllowed": false,
+                "hiddenLeverageAllowed": false
+              },
+              "enforcement": {
+                "fundingOutpointScope": "global_unique_active_commitment",
+                "receiptFungibility": "same_property_id_only",
+                "roleTransition": "retire_or_burn_old_receipt_before_new_property_issue",
+                "verifier": "UTXORef plus TradeLayer property-template registry"
+              },
+              "jurassicApplication": {
+                "kind": "jurassic_bitvm_mechanism_refs",
+                "refId": "559d92e69f60fe1b36c95f0254eb71b0e3ca09b6ea53833b9e5dc50282375325",
+                "version": 1,
+                "target": "taproot_assets",
+                "semanticStateHash": "a79653849bd3c48fba2cb422452331692eb6583782797b5fb2a2d562883ec5e3",
+                "planId": "tap_asset_proof_anchor_switchboard",
+                "transcriptVariantIds": [
+                  "tap_asset_proof_delta"
+                ],
+                "transcriptDigests": [
+                  "ef7184fc090432edc90b2b085c67e8386c433d8eb279b77e7d8a3bb3553144eb"
+                ],
+                "publicHandleIds": [
+                  "965758e48329d4137063817c23139af03831cc3882a939b86d28baeb66ed60e7",
+                  "dfb1b98de6c164afdf7029476ce9496e447810b1b0e67506868f56ffca780e63"
+                ],
+                "carrierCommitmentIds": [
+                  "f3014b0bbf83f99d88aa130dd502dc9915278cee672d546ca55c416483847152"
+                ],
+                "transcriptSwitchboardId": "ba2f56bbd9b8e9c620487eaad3eca4041c6b044aee524263785c910d3a776b6d",
+                "primaryTranscriptDigest": "ef7184fc090432edc90b2b085c67e8386c433d8eb279b77e7d8a3bb3553144eb",
+                "primaryPublicHandleId": "965758e48329d4137063817c23139af03831cc3882a939b86d28baeb66ed60e7",
+                "primaryCarrierCommitmentId": "f3014b0bbf83f99d88aa130dd502dc9915278cee672d546ca55c416483847152",
+                "status": "prototype_ready",
+                "rejectionTripwireDigest": "0000000000000000000000000000000000000000000000000000000000000001"
+              }
+            }
+          },
+          {
+            "kind": "halal_capital_commitment",
+            "commitmentId": "7a3b1ff6943f412416805372fec753829b5d24dbe97af5c2ac129ba1393751dd",
+            "commitmentCore": {
+              "version": 1,
+              "propertyId": 3101,
+              "templateId": "ark-round-liquidity-graft-no-rehypo-v1",
+              "templateHash": "d3522cc96e5ee32b26e1a942af4ea309f465adb85f28dd55f58eb278a5a2ccf1",
+              "holderId": "holder-4",
+              "operatorId": "operator-hark-liq",
+              "fundingOutpoint": "8c5e35d7ed948f7d012d59f91b791d3dc26e65684ddd181c5a984bd99d637508:0",
+              "amountSats": "1750000",
+              "activeRole": "ark_round_liquidity_graft",
+              "status": "active",
+              "exclusiveCommitment": true,
+              "jurassicMechanismRefId": "640de33e979892b01078b8ce6e4301a850509d1833af0598135f3b941d36afd1",
+              "publicHandleId": "3dbb7a597598086954ea009a841ab4d897bdc7b58ade301cef525e799883ccc5",
+              "carrierCommitmentId": "1949d6450df43fe6e298c4bbbd0393bb79f0160aaf8c5789786ee772120486fc"
+            },
+            "template": {
+              "kind": "halal_capital_property_template",
+              "templateHash": "d3522cc96e5ee32b26e1a942af4ea309f465adb85f28dd55f58eb278a5a2ccf1",
+              "version": 1,
+              "propertyId": 3101,
+              "symbol": "HARK-LIQ",
+              "templateId": "ark-round-liquidity-graft-no-rehypo-v1",
+              "targetProtocol": "ark",
+              "capitalRole": "ark_round_liquidity_graft",
+              "productSurface": "Ark round liquidity graft",
+              "serviceRevenue": "short-duration round liquidity and VTXO exit insurance premium",
+              "backingAsset": "BTC",
+              "accounting": {
+                "exclusiveCommitment": true,
+                "oneSatOneRole": true,
+                "burnBeforeReissue": true,
+                "rehypothecationAllowed": false,
+                "guaranteedApyAllowed": false,
+                "hiddenLeverageAllowed": false
+              },
+              "enforcement": {
+                "fundingOutpointScope": "global_unique_active_commitment",
+                "receiptFungibility": "same_property_id_only",
+                "roleTransition": "retire_or_burn_old_receipt_before_new_property_issue",
+                "verifier": "UTXORef plus TradeLayer property-template registry"
+              },
+              "jurassicApplication": {
+                "kind": "jurassic_bitvm_mechanism_refs",
+                "refId": "640de33e979892b01078b8ce6e4301a850509d1833af0598135f3b941d36afd1",
+                "version": 1,
+                "target": "ark",
+                "semanticStateHash": "75d8d6bff32fce8eec4928ad137841cc7bca3d5eb53c459ac8dc7d5845b60627",
+                "planId": "ark_round_exit_namespace_market",
+                "transcriptVariantIds": [
+                  "ark_round_exit_attestation"
+                ],
+                "transcriptDigests": [
+                  "fb06d95b7d97213bdc38d5451cc7c42177128d874016caf3e9c1ab99d18f89cc"
+                ],
+                "publicHandleIds": [
+                  "3dbb7a597598086954ea009a841ab4d897bdc7b58ade301cef525e799883ccc5",
+                  "9ef5f9b87419c98bcb38fc91336c93a16b35a8738e492cb94ac5a15784a1c088"
+                ],
+                "carrierCommitmentIds": [
+                  "1949d6450df43fe6e298c4bbbd0393bb79f0160aaf8c5789786ee772120486fc"
+                ],
+                "transcriptSwitchboardId": "9cb0da1540b25ba63c96420adb9a799ad42051275b13fd366eae817ad8af4f81",
+                "primaryTranscriptDigest": "fb06d95b7d97213bdc38d5451cc7c42177128d874016caf3e9c1ab99d18f89cc",
+                "primaryPublicHandleId": "3dbb7a597598086954ea009a841ab4d897bdc7b58ade301cef525e799883ccc5",
+                "primaryCarrierCommitmentId": "1949d6450df43fe6e298c4bbbd0393bb79f0160aaf8c5789786ee772120486fc",
+                "status": "prototype_ready",
+                "rejectionTripwireDigest": "0000000000000000000000000000000000000000000000000000000000000001"
+              }
+            }
+          },
+          {
+            "kind": "halal_capital_commitment",
+            "commitmentId": "ea8744e86190bb15647ada2954fc8d615204988bb9465f93b703b71e74025d16",
+            "commitmentCore": {
+              "version": 1,
+              "propertyId": 4101,
+              "templateId": "tradelayer-dlc-margin-reserve-no-rehypo-v1",
+              "templateHash": "d95d1c280cf00594bec3917b8f040aff5bb86882289a88f7ec89c645ee9a985d",
+              "holderId": "holder-5",
+              "operatorId": "operator-htl-dlcm",
+              "fundingOutpoint": "f405067b411c5f89f9cc7ab6ca6a329d2d0f943b1b3cfb083040a89a1f8605f6:1",
+              "amountSats": "2000000",
+              "activeRole": "tradelayer_dlc_margin_reserve",
+              "status": "active",
+              "exclusiveCommitment": true,
+              "jurassicMechanismRefId": "7cb35f97b959287edce921b9e4ff3098e82dff40adb5d4886d63b9e24f898871",
+              "publicHandleId": "815647309c26d17f49d02f6ac636a105684160e0bffa347d4870cbd41bc3ad03",
+              "carrierCommitmentId": "fb438852b805b7c556191812a0f4bad74ef92a1ba18a95909c22ff2a87a396a9"
+            },
+            "template": {
+              "kind": "halal_capital_property_template",
+              "templateHash": "d95d1c280cf00594bec3917b8f040aff5bb86882289a88f7ec89c645ee9a985d",
+              "version": 1,
+              "propertyId": 4101,
+              "symbol": "HTL-DLCM",
+              "templateId": "tradelayer-dlc-margin-reserve-no-rehypo-v1",
+              "targetProtocol": "shinigami",
+              "capitalRole": "tradelayer_dlc_margin_reserve",
+              "productSurface": "TradeLayer derivatives margin reserve",
+              "serviceRevenue": "DLC margin reservation, bounded PnL settlement, and liquidation service fee",
+              "backingAsset": "BTC",
+              "accounting": {
+                "exclusiveCommitment": true,
+                "oneSatOneRole": true,
+                "burnBeforeReissue": true,
+                "rehypothecationAllowed": false,
+                "guaranteedApyAllowed": false,
+                "hiddenLeverageAllowed": false
+              },
+              "enforcement": {
+                "fundingOutpointScope": "global_unique_active_commitment",
+                "receiptFungibility": "same_property_id_only",
+                "roleTransition": "retire_or_burn_old_receipt_before_new_property_issue",
+                "verifier": "UTXORef plus TradeLayer property-template registry"
+              },
+              "jurassicApplication": {
+                "kind": "jurassic_bitvm_mechanism_refs",
+                "refId": "7cb35f97b959287edce921b9e4ff3098e82dff40adb5d4886d63b9e24f898871",
+                "version": 1,
+                "target": "shinigami",
+                "semanticStateHash": "f5cde7c02f72273a0566589efb480fcc2b448db422fff290a0a4fe095e0e8f8f",
+                "planId": "shinigami_proof_publication_switchboard",
+                "transcriptVariantIds": [
+                  "shinigami_execution_trace"
+                ],
+                "transcriptDigests": [
+                  "144aa170186a6d6c0e46826baaaa877f5ec4633dae4cf87377d693177e88fdff"
+                ],
+                "publicHandleIds": [
+                  "815647309c26d17f49d02f6ac636a105684160e0bffa347d4870cbd41bc3ad03",
+                  "c5a0e1a48a449754270fb4a62df4729df018304426e627d78999a3ea5ca7d774"
+                ],
+                "carrierCommitmentIds": [
+                  "fb438852b805b7c556191812a0f4bad74ef92a1ba18a95909c22ff2a87a396a9"
+                ],
+                "transcriptSwitchboardId": "c8ca996d3780c64d70a40397edb052fabaf021268b89a226b6965c01008def4d",
+                "primaryTranscriptDigest": "144aa170186a6d6c0e46826baaaa877f5ec4633dae4cf87377d693177e88fdff",
+                "primaryPublicHandleId": "815647309c26d17f49d02f6ac636a105684160e0bffa347d4870cbd41bc3ad03",
+                "primaryCarrierCommitmentId": "fb438852b805b7c556191812a0f4bad74ef92a1ba18a95909c22ff2a87a396a9",
+                "status": "scaffold_only",
+                "rejectionTripwireDigest": "0000000000000000000000000000000000000000000000000000000000000001"
+              }
+            }
+          },
+          {
+            "kind": "halal_capital_commitment",
+            "commitmentId": "d8a7d41f876134576441298daa56611b419f6446affd22bd2b0ca068f10d2b9f",
+            "commitmentCore": {
+              "version": 1,
+              "propertyId": 5101,
+              "templateId": "watchtower-bond-no-rehypo-v1",
+              "templateHash": "c3d68cca0be68f07729b7c99bb6bbded5c4ae961f2e116ace40c54c80a017b34",
+              "holderId": "holder-6",
+              "operatorId": "operator-hwt-bond",
+              "fundingOutpoint": "bc9be7dd5f28eb33acf9e443f5b9bb3e907e7be9866abc4f7caabdb675b16e86:0",
+              "amountSats": "2250000",
+              "activeRole": "watchtower_bond",
+              "status": "active",
+              "exclusiveCommitment": true,
+              "jurassicMechanismRefId": "c10cdf81504ae7d6ccf8e1ca5532ee4719fe9f249fec400ce4fd2e5bb18f5935",
+              "publicHandleId": "67839a4df6b906509a2af74a0dcccca6bff2d66c458272442e283c9340241620",
+              "carrierCommitmentId": "384a55ab395a8c802e51775260061f06b2c1cd4384f5a6f65590712a77e1eef4"
+            },
+            "template": {
+              "kind": "halal_capital_property_template",
+              "templateHash": "c3d68cca0be68f07729b7c99bb6bbded5c4ae961f2e116ace40c54c80a017b34",
+              "version": 1,
+              "propertyId": 5101,
+              "symbol": "HWT-BOND",
+              "templateId": "watchtower-bond-no-rehypo-v1",
+              "targetProtocol": "lightning",
+              "capitalRole": "watchtower_bond",
+              "productSurface": "watchtower and challenger bond",
+              "serviceRevenue": "challenge bounty, alert monitoring fee, and fraud-proof service fee",
+              "backingAsset": "BTC",
+              "accounting": {
+                "exclusiveCommitment": true,
+                "oneSatOneRole": true,
+                "burnBeforeReissue": true,
+                "rehypothecationAllowed": false,
+                "guaranteedApyAllowed": false,
+                "hiddenLeverageAllowed": false
+              },
+              "enforcement": {
+                "fundingOutpointScope": "global_unique_active_commitment",
+                "receiptFungibility": "same_property_id_only",
+                "roleTransition": "retire_or_burn_old_receipt_before_new_property_issue",
+                "verifier": "UTXORef plus TradeLayer property-template registry"
+              },
+              "jurassicApplication": {
+                "kind": "jurassic_bitvm_mechanism_refs",
+                "refId": "c10cdf81504ae7d6ccf8e1ca5532ee4719fe9f249fec400ce4fd2e5bb18f5935",
+                "version": 1,
+                "target": "lightning",
+                "semanticStateHash": "958ca512302000836a6f269eb8f9b90a31e54179382fe46c1715c04fc045731a",
+                "planId": "ln_ptlc_retry_watchtower_switchboard",
+                "transcriptVariantIds": [
+                  "ln_ptlc_success_retry_a",
+                  "ln_ptlc_success_retry_b",
+                  "ln_timeout_challenge_split"
+                ],
+                "transcriptDigests": [
+                  "57660a3620a90ddb64da9d0de8b7c3d112fd73aca7acc84122cdf9e1e6a1b689",
+                  "57660a3620a90ddb64da9d0de8b7c3d112fd73aca7acc84122cdf9e1e6a1b689",
+                  "797fd41bbbb555e632bd1761b530ae126ff57425c0514afb01194bf8daad0e97"
+                ],
+                "publicHandleIds": [
+                  "67839a4df6b906509a2af74a0dcccca6bff2d66c458272442e283c9340241620",
+                  "6dc9f59fa2f060482af0bde3db0aa61f2f40050d707c6adffd29d57b9b866a8d"
+                ],
+                "carrierCommitmentIds": [
+                  "384a55ab395a8c802e51775260061f06b2c1cd4384f5a6f65590712a77e1eef4",
+                  "e11fc6e46ec4e0b4ea1a6935d2f1d1679bef87257de618d22122218214b32d78"
+                ],
+                "transcriptSwitchboardId": "784402136807bf89e23309f16cf9e33f2bf416859227f5ee5eebc46630a4d39a",
+                "primaryTranscriptDigest": "57660a3620a90ddb64da9d0de8b7c3d112fd73aca7acc84122cdf9e1e6a1b689",
+                "primaryPublicHandleId": "67839a4df6b906509a2af74a0dcccca6bff2d66c458272442e283c9340241620",
+                "primaryCarrierCommitmentId": "384a55ab395a8c802e51775260061f06b2c1cd4384f5a6f65590712a77e1eef4",
+                "status": "prototype_ready",
+                "rejectionTripwireDigest": "0000000000000000000000000000000000000000000000000000000000000001"
+              }
+            }
+          },
+          {
+            "kind": "halal_capital_commitment",
+            "commitmentId": "c9054a7fa808785209a1940eac1b53220b4ecd77c1711ebb9ebbd497352fa52f",
+            "commitmentCore": {
+              "version": 1,
+              "propertyId": 6101,
+              "templateId": "proof-publication-bond-no-rehypo-v1",
+              "templateHash": "f54c6b5de95e3d3a4df0626fc506159c772a1e6fa4bc4fbe446b086e023b3046",
+              "holderId": "holder-7",
+              "operatorId": "operator-hproof",
+              "fundingOutpoint": "01e5939db2c9bf4c3f35ba367e206e19e0acc33f90ba26a78b8230beb0ac4b83:1",
+              "amountSats": "2500000",
+              "activeRole": "proof_publication_bond",
+              "status": "active",
+              "exclusiveCommitment": true,
+              "jurassicMechanismRefId": "721c604ed432b88d2dd19126ce9241f9468ce2b34ff8005bcf643b71267f7535",
+              "publicHandleId": "8b5077343648ae66d3de4f4fce7279663971e674d55db1d51ce428d2bd5fa64a",
+              "carrierCommitmentId": "4bd90df82bbb75e0fdc14e1799a1387bfac652a3e0d44957026ebeef7b7fa766"
+            },
+            "template": {
+              "kind": "halal_capital_property_template",
+              "templateHash": "f54c6b5de95e3d3a4df0626fc506159c772a1e6fa4bc4fbe446b086e023b3046",
+              "version": 1,
+              "propertyId": 6101,
+              "symbol": "HPROOF",
+              "templateId": "proof-publication-bond-no-rehypo-v1",
+              "targetProtocol": "shinigami",
+              "capitalRole": "proof_publication_bond",
+              "productSurface": "proof-carrying execution publication bond",
+              "serviceRevenue": "proof publication, verifier receipt, and challenge-routing fee",
+              "backingAsset": "BTC",
+              "accounting": {
+                "exclusiveCommitment": true,
+                "oneSatOneRole": true,
+                "burnBeforeReissue": true,
+                "rehypothecationAllowed": false,
+                "guaranteedApyAllowed": false,
+                "hiddenLeverageAllowed": false
+              },
+              "enforcement": {
+                "fundingOutpointScope": "global_unique_active_commitment",
+                "receiptFungibility": "same_property_id_only",
+                "roleTransition": "retire_or_burn_old_receipt_before_new_property_issue",
+                "verifier": "UTXORef plus TradeLayer property-template registry"
+              },
+              "jurassicApplication": {
+                "kind": "jurassic_bitvm_mechanism_refs",
+                "refId": "721c604ed432b88d2dd19126ce9241f9468ce2b34ff8005bcf643b71267f7535",
+                "version": 1,
+                "target": "shinigami",
+                "semanticStateHash": "67a96d259001bbf2fbf5742f308fc291b6399c849cb36dfac2bdeeca2d425993",
+                "planId": "shinigami_proof_publication_switchboard",
+                "transcriptVariantIds": [
+                  "shinigami_execution_trace"
+                ],
+                "transcriptDigests": [
+                  "49dda7038148bec199134a4ba2e57a27a764d673f3c22861fec705f2569377a2"
+                ],
+                "publicHandleIds": [
+                  "8b5077343648ae66d3de4f4fce7279663971e674d55db1d51ce428d2bd5fa64a",
+                  "981a5d58b1609193e6e89115bd6ff9529131ba0add0b90265e6b980e264c31dd"
+                ],
+                "carrierCommitmentIds": [
+                  "4bd90df82bbb75e0fdc14e1799a1387bfac652a3e0d44957026ebeef7b7fa766"
+                ],
+                "transcriptSwitchboardId": "89ab9313a9223fc07ae956c9c67714f551f8981cf5df911295ec6312578aa3e1",
+                "primaryTranscriptDigest": "49dda7038148bec199134a4ba2e57a27a764d673f3c22861fec705f2569377a2",
+                "primaryPublicHandleId": "8b5077343648ae66d3de4f4fce7279663971e674d55db1d51ce428d2bd5fa64a",
+                "primaryCarrierCommitmentId": "4bd90df82bbb75e0fdc14e1799a1387bfac652a3e0d44957026ebeef7b7fa766",
+                "status": "scaffold_only",
+                "rejectionTripwireDigest": "0000000000000000000000000000000000000000000000000000000000000001"
+              }
+            }
+          }
+        ],
+        "exclusivity": {
+          "ok": true,
+          "activeCommitmentCount": 7
+        },
+        "revenueEvents": [
+          {
+            "kind": "halal_capital_service_revenue_event",
+            "eventId": "9d2eb167fe399f9425227d6a09f8f2a5e1479be6a6547dc72d9f36d84bbfe5e2",
+            "eventCore": {
+              "version": 1,
+              "propertyId": 1101,
+              "commitmentId": "b698b31e28e8339287b3c2db8f7ebb1706f405ab2779057fe76c25dc3fae035c",
+              "templateId": "ln-channel-lease-no-rehypo-v1",
+              "activeRole": "lightning_channel_lease",
+              "revenueSats": "1000",
+              "revenueSource": "fixed-duration inbound liquidity lease and routing-quality fee",
+              "servicePeriod": "demo-period-1",
+              "sourceTxid": "c3e672e544133690056dabf7848e878bc1abfc6f5d4b0f3daefb991ce314281b"
+            }
+          },
+          {
+            "kind": "halal_capital_service_revenue_event",
+            "eventId": "7011b9ff1890f6dd21203cb5a82ef9c41f36f700b567abcff74e194191431013",
+            "eventCore": {
+              "version": 1,
+              "propertyId": 1102,
+              "commitmentId": "8d740ded2f338ef7265f9986b0557b46355e3e2563543d63d0c117ff698d9859",
+              "templateId": "ln-routing-reserve-no-rehypo-v1",
+              "activeRole": "lightning_routing_reserve",
+              "revenueSats": "2000",
+              "revenueSource": "routing fees and route availability premiums",
+              "servicePeriod": "demo-period-1",
+              "sourceTxid": "eea5276d31281efe44c87fbd75e3f6fdc20d7bc49638c489b460a33f9f391f99"
+            }
+          },
+          {
+            "kind": "halal_capital_service_revenue_event",
+            "eventId": "f4727bf57c97af6cf49de2f53413951fc0255f0ef18e0acccfaae84d17d8383b",
+            "eventCore": {
+              "version": 1,
+              "propertyId": 2101,
+              "commitmentId": "618729c6c453d461581d5cc4ffd6d19f5111ab597664e8f3973c1c70d1aabac0",
+              "templateId": "taproot-assets-edge-rfq-no-rehypo-v1",
+              "activeRole": "taproot_assets_edge_rfq_reserve",
+              "revenueSats": "3000",
+              "revenueSource": "Edge-node RFQ spread and proof-anchor service fee",
+              "servicePeriod": "demo-period-1",
+              "sourceTxid": "f1c4db035859beac461b6c89af16b503f397831316ae9d58da6d9386434cfcf2"
+            }
+          },
+          {
+            "kind": "halal_capital_service_revenue_event",
+            "eventId": "49710a3b14609a51509b6ba67189a76dc5a9a36c23c57df9111137d9b3715449",
+            "eventCore": {
+              "version": 1,
+              "propertyId": 3101,
+              "commitmentId": "7a3b1ff6943f412416805372fec753829b5d24dbe97af5c2ac129ba1393751dd",
+              "templateId": "ark-round-liquidity-graft-no-rehypo-v1",
+              "activeRole": "ark_round_liquidity_graft",
+              "revenueSats": "4000",
+              "revenueSource": "short-duration round liquidity and VTXO exit insurance premium",
+              "servicePeriod": "demo-period-1",
+              "sourceTxid": "b3191222ab0e9cdad7c21c4c29b8d5546775c39fe7cd15b0758724da01a0cedf"
+            }
+          },
+          {
+            "kind": "halal_capital_service_revenue_event",
+            "eventId": "f745fa1a9e1e960de9736274570138fd73dc81d1abdf80066e8053d322f767ed",
+            "eventCore": {
+              "version": 1,
+              "propertyId": 4101,
+              "commitmentId": "ea8744e86190bb15647ada2954fc8d615204988bb9465f93b703b71e74025d16",
+              "templateId": "tradelayer-dlc-margin-reserve-no-rehypo-v1",
+              "activeRole": "tradelayer_dlc_margin_reserve",
+              "revenueSats": "5000",
+              "revenueSource": "DLC margin reservation, bounded PnL settlement, and liquidation service fee",
+              "servicePeriod": "demo-period-1",
+              "sourceTxid": "da69ddcf0f31e599e8c02c1388f0823dc98f698d8f20cd67fbcc16ff01ce0de3"
+            }
+          },
+          {
+            "kind": "halal_capital_service_revenue_event",
+            "eventId": "a7c73b9232ae882bb6398c96d205a0b06f20fc0863fa4e793c2af2d8586b4bcd",
+            "eventCore": {
+              "version": 1,
+              "propertyId": 5101,
+              "commitmentId": "d8a7d41f876134576441298daa56611b419f6446affd22bd2b0ca068f10d2b9f",
+              "templateId": "watchtower-bond-no-rehypo-v1",
+              "activeRole": "watchtower_bond",
+              "revenueSats": "6000",
+              "revenueSource": "challenge bounty, alert monitoring fee, and fraud-proof service fee",
+              "servicePeriod": "demo-period-1",
+              "sourceTxid": "87fea702987b183c29f51acf2e349b8744672e305db48633d871dbcc1ef0a54c"
+            }
+          },
+          {
+            "kind": "halal_capital_service_revenue_event",
+            "eventId": "7c1c36eac59b6f40c69e37708d887ae46e814e8e33f06579d947fa896205b776",
+            "eventCore": {
+              "version": 1,
+              "propertyId": 6101,
+              "commitmentId": "c9054a7fa808785209a1940eac1b53220b4ecd77c1711ebb9ebbd497352fa52f",
+              "templateId": "proof-publication-bond-no-rehypo-v1",
+              "activeRole": "proof_publication_bond",
+              "revenueSats": "7000",
+              "revenueSource": "proof publication, verifier receipt, and challenge-routing fee",
+              "servicePeriod": "demo-period-1",
+              "sourceTxid": "2a284e68eea02eed76623fc80fb6a2587eeba46dfb8fcc6327b6ff004ae7c7d7"
+            }
+          }
+        ],
+        "observerIndex": {
+          "kind": "halal_capital_observer_index",
+          "indexId": "5bfd2b0c67391236330a70de4f09799c10db74b571191d4f0eeccd73e3437559",
+          "byPropertyId": {
+            "1101": [
+              {
+                "commitmentId": "b698b31e28e8339287b3c2db8f7ebb1706f405ab2779057fe76c25dc3fae035c",
+                "propertyId": 1101,
+                "templateId": "ln-channel-lease-no-rehypo-v1",
+                "activeRole": "lightning_channel_lease",
+                "amountSats": "1000000"
+              }
+            ],
+            "1102": [
+              {
+                "commitmentId": "8d740ded2f338ef7265f9986b0557b46355e3e2563543d63d0c117ff698d9859",
+                "propertyId": 1102,
+                "templateId": "ln-routing-reserve-no-rehypo-v1",
+                "activeRole": "lightning_routing_reserve",
+                "amountSats": "1250000"
+              }
+            ],
+            "2101": [
+              {
+                "commitmentId": "618729c6c453d461581d5cc4ffd6d19f5111ab597664e8f3973c1c70d1aabac0",
+                "propertyId": 2101,
+                "templateId": "taproot-assets-edge-rfq-no-rehypo-v1",
+                "activeRole": "taproot_assets_edge_rfq_reserve",
+                "amountSats": "1500000"
+              }
+            ],
+            "3101": [
+              {
+                "commitmentId": "7a3b1ff6943f412416805372fec753829b5d24dbe97af5c2ac129ba1393751dd",
+                "propertyId": 3101,
+                "templateId": "ark-round-liquidity-graft-no-rehypo-v1",
+                "activeRole": "ark_round_liquidity_graft",
+                "amountSats": "1750000"
+              }
+            ],
+            "4101": [
+              {
+                "commitmentId": "ea8744e86190bb15647ada2954fc8d615204988bb9465f93b703b71e74025d16",
+                "propertyId": 4101,
+                "templateId": "tradelayer-dlc-margin-reserve-no-rehypo-v1",
+                "activeRole": "tradelayer_dlc_margin_reserve",
+                "amountSats": "2000000"
+              }
+            ],
+            "5101": [
+              {
+                "commitmentId": "d8a7d41f876134576441298daa56611b419f6446affd22bd2b0ca068f10d2b9f",
+                "propertyId": 5101,
+                "templateId": "watchtower-bond-no-rehypo-v1",
+                "activeRole": "watchtower_bond",
+                "amountSats": "2250000"
+              }
+            ],
+            "6101": [
+              {
+                "commitmentId": "c9054a7fa808785209a1940eac1b53220b4ecd77c1711ebb9ebbd497352fa52f",
+                "propertyId": 6101,
+                "templateId": "proof-publication-bond-no-rehypo-v1",
+                "activeRole": "proof_publication_bond",
+                "amountSats": "2500000"
+              }
+            ]
+          },
+          "byPublicHandleId": {
+            "243ef3105038a4e723b5c92e9a0a6a41365bcb07a3167120f05dc29d9ad11921": {
+              "commitmentId": "b698b31e28e8339287b3c2db8f7ebb1706f405ab2779057fe76c25dc3fae035c",
+              "propertyId": 1101,
+              "templateId": "ln-channel-lease-no-rehypo-v1",
+              "activeRole": "lightning_channel_lease",
+              "amountSats": "1000000"
+            },
+            "26020889e5f11731d29cb89c70f64f8162a8416d82e107d7c6c34a0df8ac5ec1": {
+              "commitmentId": "8d740ded2f338ef7265f9986b0557b46355e3e2563543d63d0c117ff698d9859",
+              "propertyId": 1102,
+              "templateId": "ln-routing-reserve-no-rehypo-v1",
+              "activeRole": "lightning_routing_reserve",
+              "amountSats": "1250000"
+            },
+            "965758e48329d4137063817c23139af03831cc3882a939b86d28baeb66ed60e7": {
+              "commitmentId": "618729c6c453d461581d5cc4ffd6d19f5111ab597664e8f3973c1c70d1aabac0",
+              "propertyId": 2101,
+              "templateId": "taproot-assets-edge-rfq-no-rehypo-v1",
+              "activeRole": "taproot_assets_edge_rfq_reserve",
+              "amountSats": "1500000"
+            },
+            "3dbb7a597598086954ea009a841ab4d897bdc7b58ade301cef525e799883ccc5": {
+              "commitmentId": "7a3b1ff6943f412416805372fec753829b5d24dbe97af5c2ac129ba1393751dd",
+              "propertyId": 3101,
+              "templateId": "ark-round-liquidity-graft-no-rehypo-v1",
+              "activeRole": "ark_round_liquidity_graft",
+              "amountSats": "1750000"
+            },
+            "815647309c26d17f49d02f6ac636a105684160e0bffa347d4870cbd41bc3ad03": {
+              "commitmentId": "ea8744e86190bb15647ada2954fc8d615204988bb9465f93b703b71e74025d16",
+              "propertyId": 4101,
+              "templateId": "tradelayer-dlc-margin-reserve-no-rehypo-v1",
+              "activeRole": "tradelayer_dlc_margin_reserve",
+              "amountSats": "2000000"
+            },
+            "67839a4df6b906509a2af74a0dcccca6bff2d66c458272442e283c9340241620": {
+              "commitmentId": "d8a7d41f876134576441298daa56611b419f6446affd22bd2b0ca068f10d2b9f",
+              "propertyId": 5101,
+              "templateId": "watchtower-bond-no-rehypo-v1",
+              "activeRole": "watchtower_bond",
+              "amountSats": "2250000"
+            },
+            "8b5077343648ae66d3de4f4fce7279663971e674d55db1d51ce428d2bd5fa64a": {
+              "commitmentId": "c9054a7fa808785209a1940eac1b53220b4ecd77c1711ebb9ebbd497352fa52f",
+              "propertyId": 6101,
+              "templateId": "proof-publication-bond-no-rehypo-v1",
+              "activeRole": "proof_publication_bond",
+              "amountSats": "2500000"
+            }
+          },
+          "byCarrierCommitmentId": {
+            "8a061d33caf391d806063c957f21661ae508fb04b33c160fd034d56d576aa7f6": {
+              "commitmentId": "b698b31e28e8339287b3c2db8f7ebb1706f405ab2779057fe76c25dc3fae035c",
+              "propertyId": 1101,
+              "templateId": "ln-channel-lease-no-rehypo-v1",
+              "activeRole": "lightning_channel_lease",
+              "amountSats": "1000000"
+            },
+            "ab4047389bd8f5bd0718d367d5b9b58e41700ee89710d83f877181f3d7db0fb7": {
+              "commitmentId": "8d740ded2f338ef7265f9986b0557b46355e3e2563543d63d0c117ff698d9859",
+              "propertyId": 1102,
+              "templateId": "ln-routing-reserve-no-rehypo-v1",
+              "activeRole": "lightning_routing_reserve",
+              "amountSats": "1250000"
+            },
+            "f3014b0bbf83f99d88aa130dd502dc9915278cee672d546ca55c416483847152": {
+              "commitmentId": "618729c6c453d461581d5cc4ffd6d19f5111ab597664e8f3973c1c70d1aabac0",
+              "propertyId": 2101,
+              "templateId": "taproot-assets-edge-rfq-no-rehypo-v1",
+              "activeRole": "taproot_assets_edge_rfq_reserve",
+              "amountSats": "1500000"
+            },
+            "1949d6450df43fe6e298c4bbbd0393bb79f0160aaf8c5789786ee772120486fc": {
+              "commitmentId": "7a3b1ff6943f412416805372fec753829b5d24dbe97af5c2ac129ba1393751dd",
+              "propertyId": 3101,
+              "templateId": "ark-round-liquidity-graft-no-rehypo-v1",
+              "activeRole": "ark_round_liquidity_graft",
+              "amountSats": "1750000"
+            },
+            "fb438852b805b7c556191812a0f4bad74ef92a1ba18a95909c22ff2a87a396a9": {
+              "commitmentId": "ea8744e86190bb15647ada2954fc8d615204988bb9465f93b703b71e74025d16",
+              "propertyId": 4101,
+              "templateId": "tradelayer-dlc-margin-reserve-no-rehypo-v1",
+              "activeRole": "tradelayer_dlc_margin_reserve",
+              "amountSats": "2000000"
+            },
+            "384a55ab395a8c802e51775260061f06b2c1cd4384f5a6f65590712a77e1eef4": {
+              "commitmentId": "d8a7d41f876134576441298daa56611b419f6446affd22bd2b0ca068f10d2b9f",
+              "propertyId": 5101,
+              "templateId": "watchtower-bond-no-rehypo-v1",
+              "activeRole": "watchtower_bond",
+              "amountSats": "2250000"
+            },
+            "4bd90df82bbb75e0fdc14e1799a1387bfac652a3e0d44957026ebeef7b7fa766": {
+              "commitmentId": "c9054a7fa808785209a1940eac1b53220b4ecd77c1711ebb9ebbd497352fa52f",
+              "propertyId": 6101,
+              "templateId": "proof-publication-bond-no-rehypo-v1",
+              "activeRole": "proof_publication_bond",
+              "amountSats": "2500000"
+            }
+          }
+        },
+        "roleTransitionDemo": {
+          "retiredCommitmentId": "b698b31e28e8339287b3c2db8f7ebb1706f405ab2779057fe76c25dc3fae035c",
+          "transition": {
+            "kind": "halal_capital_role_transition",
+            "transitionId": "927c8df2d1cd7da43b29a1c8ca6ef9d9bd6ee3e154fbc84a0164c7eed01176d5",
+            "transitionCore": {
+              "version": 1,
+              "fromCommitmentId": "b698b31e28e8339287b3c2db8f7ebb1706f405ab2779057fe76c25dc3fae035c",
+              "fromPropertyId": 1101,
+              "fromTemplateId": "ln-channel-lease-no-rehypo-v1",
+              "toPropertyId": 3101,
+              "toTemplateId": "ark-round-liquidity-graft-no-rehypo-v1",
+              "fundingOutpoint": "8d57b33cf97269a0ce1afd5621374b91d2314141ec366dd44592ac51d9c6e354:1",
+              "amountSats": "1000000",
+              "burnReceiptId": "burn:b698b31e28e8339287b3c2db8f7ebb1706f405ab2779057fe76c25dc3fae035c",
+              "reissueReceiptId": "reissue:b698b31e28e8339287b3c2db8f7ebb1706f405ab2779057fe76c25dc3fae035c:3101",
+              "requiresOldCommitmentStatus": "retired",
+              "burnBeforeReissue": true,
+              "rehypothecationAllowed": false
+            },
+            "toTemplate": {
+              "kind": "halal_capital_property_template",
+              "templateHash": "d3522cc96e5ee32b26e1a942af4ea309f465adb85f28dd55f58eb278a5a2ccf1",
+              "version": 1,
+              "propertyId": 3101,
+              "symbol": "HARK-LIQ",
+              "templateId": "ark-round-liquidity-graft-no-rehypo-v1",
+              "targetProtocol": "ark",
+              "capitalRole": "ark_round_liquidity_graft",
+              "productSurface": "Ark round liquidity graft",
+              "serviceRevenue": "short-duration round liquidity and VTXO exit insurance premium",
+              "backingAsset": "BTC",
+              "accounting": {
+                "exclusiveCommitment": true,
+                "oneSatOneRole": true,
+                "burnBeforeReissue": true,
+                "rehypothecationAllowed": false,
+                "guaranteedApyAllowed": false,
+                "hiddenLeverageAllowed": false
+              },
+              "enforcement": {
+                "fundingOutpointScope": "global_unique_active_commitment",
+                "receiptFungibility": "same_property_id_only",
+                "roleTransition": "retire_or_burn_old_receipt_before_new_property_issue",
+                "verifier": "UTXORef plus TradeLayer property-template registry"
+              },
+              "jurassicApplication": {
+                "kind": "jurassic_bitvm_mechanism_refs",
+                "refId": "640de33e979892b01078b8ce6e4301a850509d1833af0598135f3b941d36afd1",
+                "version": 1,
+                "target": "ark",
+                "semanticStateHash": "75d8d6bff32fce8eec4928ad137841cc7bca3d5eb53c459ac8dc7d5845b60627",
+                "planId": "ark_round_exit_namespace_market",
+                "transcriptVariantIds": [
+                  "ark_round_exit_attestation"
+                ],
+                "transcriptDigests": [
+                  "fb06d95b7d97213bdc38d5451cc7c42177128d874016caf3e9c1ab99d18f89cc"
+                ],
+                "publicHandleIds": [
+                  "3dbb7a597598086954ea009a841ab4d897bdc7b58ade301cef525e799883ccc5",
+                  "9ef5f9b87419c98bcb38fc91336c93a16b35a8738e492cb94ac5a15784a1c088"
+                ],
+                "carrierCommitmentIds": [
+                  "1949d6450df43fe6e298c4bbbd0393bb79f0160aaf8c5789786ee772120486fc"
+                ],
+                "transcriptSwitchboardId": "9cb0da1540b25ba63c96420adb9a799ad42051275b13fd366eae817ad8af4f81",
+                "primaryTranscriptDigest": "fb06d95b7d97213bdc38d5451cc7c42177128d874016caf3e9c1ab99d18f89cc",
+                "primaryPublicHandleId": "3dbb7a597598086954ea009a841ab4d897bdc7b58ade301cef525e799883ccc5",
+                "primaryCarrierCommitmentId": "1949d6450df43fe6e298c4bbbd0393bb79f0160aaf8c5789786ee772120486fc",
+                "status": "prototype_ready",
+                "rejectionTripwireDigest": "0000000000000000000000000000000000000000000000000000000000000001"
+              }
+            }
+          },
+          "verification": {
+            "ok": true
+          }
+        }
+      },
+      "tokenSpecs": [
+        {
+          "kind": "tradelayer_procedural_capital_token_spec",
+          "specId": "7c29fd976dba4fd8b0c835bf58a296f09cddaf56cc64fe5bf29d740204261b70",
+          "specCore": {
+            "version": 1,
+            "protocol": "tradelayer-procedural-token",
+            "propertyId": 1101,
+            "symbol": "HLN-LEASE",
+            "templateId": "ln-channel-lease-no-rehypo-v1",
+            "templateHash": "8ec59cda74a137006413d32bf0b1e8114a12c582d5e026a27b2d717a74c29241",
+            "targetProtocol": "lightning",
+            "activeRole": "lightning_channel_lease",
+            "tokenKind": "capital_principal_receipt",
+            "principalUnit": "sat",
+            "mintRule": "mint one receipt unit per committed backing sat",
+            "burnRule": "burn or retire before reissue into a different propertyId",
+            "revenueRule": "service revenue is credited separately from principal supply",
+            "transferScope": "same_property_id_only",
+            "rehypothecationAllowed": false
+          }
+        },
+        {
+          "kind": "tradelayer_procedural_capital_token_spec",
+          "specId": "9a17e88df2765e93e2f1728f5173e901b3b997ee6d1393219cabd55c0dd9ecac",
+          "specCore": {
+            "version": 1,
+            "protocol": "tradelayer-procedural-token",
+            "propertyId": 1102,
+            "symbol": "HLN-ROUTE",
+            "templateId": "ln-routing-reserve-no-rehypo-v1",
+            "templateHash": "764f37777156fbeab809b3171fa6fbb4257f1f4e8ce2856bea4d67d08d82277b",
+            "targetProtocol": "lightning",
+            "activeRole": "lightning_routing_reserve",
+            "tokenKind": "capital_principal_receipt",
+            "principalUnit": "sat",
+            "mintRule": "mint one receipt unit per committed backing sat",
+            "burnRule": "burn or retire before reissue into a different propertyId",
+            "revenueRule": "service revenue is credited separately from principal supply",
+            "transferScope": "same_property_id_only",
+            "rehypothecationAllowed": false
+          }
+        },
+        {
+          "kind": "tradelayer_procedural_capital_token_spec",
+          "specId": "b9ad47acb6cd62cbe105ab7927e0f7d68a5a9dbe8d69d695c275d7416a36b636",
+          "specCore": {
+            "version": 1,
+            "protocol": "tradelayer-procedural-token",
+            "propertyId": 2101,
+            "symbol": "HTAP-RFQ",
+            "templateId": "taproot-assets-edge-rfq-no-rehypo-v1",
+            "templateHash": "71a9a636543168c423a5fc2c73831880834390666dedfc747cbdc671ccd28241",
+            "targetProtocol": "taproot_assets",
+            "activeRole": "taproot_assets_edge_rfq_reserve",
+            "tokenKind": "capital_principal_receipt",
+            "principalUnit": "sat",
+            "mintRule": "mint one receipt unit per committed backing sat",
+            "burnRule": "burn or retire before reissue into a different propertyId",
+            "revenueRule": "service revenue is credited separately from principal supply",
+            "transferScope": "same_property_id_only",
+            "rehypothecationAllowed": false
+          }
+        },
+        {
+          "kind": "tradelayer_procedural_capital_token_spec",
+          "specId": "971d0a70503ea3292624e6ac2a4ba5087c18e47749fe78e858e4604128e8a2ac",
+          "specCore": {
+            "version": 1,
+            "protocol": "tradelayer-procedural-token",
+            "propertyId": 3101,
+            "symbol": "HARK-LIQ",
+            "templateId": "ark-round-liquidity-graft-no-rehypo-v1",
+            "templateHash": "d3522cc96e5ee32b26e1a942af4ea309f465adb85f28dd55f58eb278a5a2ccf1",
+            "targetProtocol": "ark",
+            "activeRole": "ark_round_liquidity_graft",
+            "tokenKind": "capital_principal_receipt",
+            "principalUnit": "sat",
+            "mintRule": "mint one receipt unit per committed backing sat",
+            "burnRule": "burn or retire before reissue into a different propertyId",
+            "revenueRule": "service revenue is credited separately from principal supply",
+            "transferScope": "same_property_id_only",
+            "rehypothecationAllowed": false
+          }
+        },
+        {
+          "kind": "tradelayer_procedural_capital_token_spec",
+          "specId": "556360dc98dd9175c74bd81cd7dc2bf7b41bb4cd1e23d75e61adb1cabf16ce6c",
+          "specCore": {
+            "version": 1,
+            "protocol": "tradelayer-procedural-token",
+            "propertyId": 4101,
+            "symbol": "HTL-DLCM",
+            "templateId": "tradelayer-dlc-margin-reserve-no-rehypo-v1",
+            "templateHash": "d95d1c280cf00594bec3917b8f040aff5bb86882289a88f7ec89c645ee9a985d",
+            "targetProtocol": "shinigami",
+            "activeRole": "tradelayer_dlc_margin_reserve",
+            "tokenKind": "capital_principal_receipt",
+            "principalUnit": "sat",
+            "mintRule": "mint one receipt unit per committed backing sat",
+            "burnRule": "burn or retire before reissue into a different propertyId",
+            "revenueRule": "service revenue is credited separately from principal supply",
+            "transferScope": "same_property_id_only",
+            "rehypothecationAllowed": false
+          }
+        },
+        {
+          "kind": "tradelayer_procedural_capital_token_spec",
+          "specId": "7355c4d124a1b1ab60c8aec185723f3cb436d61b17ec6113d7ca541ba74b81d8",
+          "specCore": {
+            "version": 1,
+            "protocol": "tradelayer-procedural-token",
+            "propertyId": 5101,
+            "symbol": "HWT-BOND",
+            "templateId": "watchtower-bond-no-rehypo-v1",
+            "templateHash": "c3d68cca0be68f07729b7c99bb6bbded5c4ae961f2e116ace40c54c80a017b34",
+            "targetProtocol": "lightning",
+            "activeRole": "watchtower_bond",
+            "tokenKind": "capital_principal_receipt",
+            "principalUnit": "sat",
+            "mintRule": "mint one receipt unit per committed backing sat",
+            "burnRule": "burn or retire before reissue into a different propertyId",
+            "revenueRule": "service revenue is credited separately from principal supply",
+            "transferScope": "same_property_id_only",
+            "rehypothecationAllowed": false
+          }
+        },
+        {
+          "kind": "tradelayer_procedural_capital_token_spec",
+          "specId": "ee512626c460c24c80d69c23c13f0e3d7c6f15e66c0699256dfeae84a1212b42",
+          "specCore": {
+            "version": 1,
+            "protocol": "tradelayer-procedural-token",
+            "propertyId": 6101,
+            "symbol": "HPROOF",
+            "templateId": "proof-publication-bond-no-rehypo-v1",
+            "templateHash": "f54c6b5de95e3d3a4df0626fc506159c772a1e6fa4bc4fbe446b086e023b3046",
+            "targetProtocol": "shinigami",
+            "activeRole": "proof_publication_bond",
+            "tokenKind": "capital_principal_receipt",
+            "principalUnit": "sat",
+            "mintRule": "mint one receipt unit per committed backing sat",
+            "burnRule": "burn or retire before reissue into a different propertyId",
+            "revenueRule": "service revenue is credited separately from principal supply",
+            "transferScope": "same_property_id_only",
+            "rehypothecationAllowed": false
+          }
+        }
+      ],
+      "principalMintEvents": [
+        {
+          "kind": "tradelayer_procedural_capital_event",
+          "eventId": "10fd495910d68a29ed5409779ccd628a4c97c624557121cfc917b6610652c9d4",
+          "eventCore": {
+            "version": 1,
+            "eventType": "mint_principal_receipt",
+            "propertyId": 1101,
+            "templateId": "ln-channel-lease-no-rehypo-v1",
+            "commitmentId": "b698b31e28e8339287b3c2db8f7ebb1706f405ab2779057fe76c25dc3fae035c",
+            "accountId": "holder-1",
+            "operatorId": "operator-hln-lease",
+            "amountUnits": "1000000",
+            "fundingOutpoint": "8d57b33cf97269a0ce1afd5621374b91d2314141ec366dd44592ac51d9c6e354:1",
+            "publicHandleId": "243ef3105038a4e723b5c92e9a0a6a41365bcb07a3167120f05dc29d9ad11921",
+            "carrierCommitmentId": "8a061d33caf391d806063c957f21661ae508fb04b33c160fd034d56d576aa7f6"
+          }
+        },
+        {
+          "kind": "tradelayer_procedural_capital_event",
+          "eventId": "c9c87b3df484738e1b8563fb48867e471a6c50ee91045d00820bac7ff140dc96",
+          "eventCore": {
+            "version": 1,
+            "eventType": "mint_principal_receipt",
+            "propertyId": 1102,
+            "templateId": "ln-routing-reserve-no-rehypo-v1",
+            "commitmentId": "8d740ded2f338ef7265f9986b0557b46355e3e2563543d63d0c117ff698d9859",
+            "accountId": "holder-2",
+            "operatorId": "operator-hln-route",
+            "amountUnits": "1250000",
+            "fundingOutpoint": "b594f56b9c83ff8d30d232637d2c3ed23005ead2e32b5bae9b50bbed7be685a5:0",
+            "publicHandleId": "26020889e5f11731d29cb89c70f64f8162a8416d82e107d7c6c34a0df8ac5ec1",
+            "carrierCommitmentId": "ab4047389bd8f5bd0718d367d5b9b58e41700ee89710d83f877181f3d7db0fb7"
+          }
+        },
+        {
+          "kind": "tradelayer_procedural_capital_event",
+          "eventId": "3884a754cc9435cc02560f43221b3b4e7a385f976af341004f97b55491af7185",
+          "eventCore": {
+            "version": 1,
+            "eventType": "mint_principal_receipt",
+            "propertyId": 2101,
+            "templateId": "taproot-assets-edge-rfq-no-rehypo-v1",
+            "commitmentId": "618729c6c453d461581d5cc4ffd6d19f5111ab597664e8f3973c1c70d1aabac0",
+            "accountId": "holder-3",
+            "operatorId": "operator-htap-rfq",
+            "amountUnits": "1500000",
+            "fundingOutpoint": "7effdcc7874417021db176e822ba7b847337ef8d59848c27dcd0a98927b7f9b4:1",
+            "publicHandleId": "965758e48329d4137063817c23139af03831cc3882a939b86d28baeb66ed60e7",
+            "carrierCommitmentId": "f3014b0bbf83f99d88aa130dd502dc9915278cee672d546ca55c416483847152"
+          }
+        },
+        {
+          "kind": "tradelayer_procedural_capital_event",
+          "eventId": "5e5cec933ab68c95d50161ea5961368feea6da952e634fa92c4497bcba92dd27",
+          "eventCore": {
+            "version": 1,
+            "eventType": "mint_principal_receipt",
+            "propertyId": 3101,
+            "templateId": "ark-round-liquidity-graft-no-rehypo-v1",
+            "commitmentId": "7a3b1ff6943f412416805372fec753829b5d24dbe97af5c2ac129ba1393751dd",
+            "accountId": "holder-4",
+            "operatorId": "operator-hark-liq",
+            "amountUnits": "1750000",
+            "fundingOutpoint": "8c5e35d7ed948f7d012d59f91b791d3dc26e65684ddd181c5a984bd99d637508:0",
+            "publicHandleId": "3dbb7a597598086954ea009a841ab4d897bdc7b58ade301cef525e799883ccc5",
+            "carrierCommitmentId": "1949d6450df43fe6e298c4bbbd0393bb79f0160aaf8c5789786ee772120486fc"
+          }
+        },
+        {
+          "kind": "tradelayer_procedural_capital_event",
+          "eventId": "be89fc2153c54ef9538b79822c2487fc6b47eae1621bbccef3561635435d341f",
+          "eventCore": {
+            "version": 1,
+            "eventType": "mint_principal_receipt",
+            "propertyId": 4101,
+            "templateId": "tradelayer-dlc-margin-reserve-no-rehypo-v1",
+            "commitmentId": "ea8744e86190bb15647ada2954fc8d615204988bb9465f93b703b71e74025d16",
+            "accountId": "holder-5",
+            "operatorId": "operator-htl-dlcm",
+            "amountUnits": "2000000",
+            "fundingOutpoint": "f405067b411c5f89f9cc7ab6ca6a329d2d0f943b1b3cfb083040a89a1f8605f6:1",
+            "publicHandleId": "815647309c26d17f49d02f6ac636a105684160e0bffa347d4870cbd41bc3ad03",
+            "carrierCommitmentId": "fb438852b805b7c556191812a0f4bad74ef92a1ba18a95909c22ff2a87a396a9"
+          }
+        },
+        {
+          "kind": "tradelayer_procedural_capital_event",
+          "eventId": "a5c8c10930c58a9d4f705181ff61ec06b325e439ecf2df87eab9d77436070411",
+          "eventCore": {
+            "version": 1,
+            "eventType": "mint_principal_receipt",
+            "propertyId": 5101,
+            "templateId": "watchtower-bond-no-rehypo-v1",
+            "commitmentId": "d8a7d41f876134576441298daa56611b419f6446affd22bd2b0ca068f10d2b9f",
+            "accountId": "holder-6",
+            "operatorId": "operator-hwt-bond",
+            "amountUnits": "2250000",
+            "fundingOutpoint": "bc9be7dd5f28eb33acf9e443f5b9bb3e907e7be9866abc4f7caabdb675b16e86:0",
+            "publicHandleId": "67839a4df6b906509a2af74a0dcccca6bff2d66c458272442e283c9340241620",
+            "carrierCommitmentId": "384a55ab395a8c802e51775260061f06b2c1cd4384f5a6f65590712a77e1eef4"
+          }
+        },
+        {
+          "kind": "tradelayer_procedural_capital_event",
+          "eventId": "74287cdc22720625ed9d8ca555e28ae86b0644fd4aae1eaba0881ae8c52a46f5",
+          "eventCore": {
+            "version": 1,
+            "eventType": "mint_principal_receipt",
+            "propertyId": 6101,
+            "templateId": "proof-publication-bond-no-rehypo-v1",
+            "commitmentId": "c9054a7fa808785209a1940eac1b53220b4ecd77c1711ebb9ebbd497352fa52f",
+            "accountId": "holder-7",
+            "operatorId": "operator-hproof",
+            "amountUnits": "2500000",
+            "fundingOutpoint": "01e5939db2c9bf4c3f35ba367e206e19e0acc33f90ba26a78b8230beb0ac4b83:1",
+            "publicHandleId": "8b5077343648ae66d3de4f4fce7279663971e674d55db1d51ce428d2bd5fa64a",
+            "carrierCommitmentId": "4bd90df82bbb75e0fdc14e1799a1387bfac652a3e0d44957026ebeef7b7fa766"
+          }
+        }
+      ],
+      "serviceRevenueCreditEvents": [
+        {
+          "kind": "tradelayer_procedural_capital_event",
+          "eventId": "7b8a1e44456c88360950a2b2c746713dea7cab1d8fb39d358c4369d1c668f623",
+          "eventCore": {
+            "version": 1,
+            "eventType": "credit_service_revenue",
+            "propertyId": 1101,
+            "templateId": "ln-channel-lease-no-rehypo-v1",
+            "commitmentId": "b698b31e28e8339287b3c2db8f7ebb1706f405ab2779057fe76c25dc3fae035c",
+            "revenueEventId": "9d2eb167fe399f9425227d6a09f8f2a5e1479be6a6547dc72d9f36d84bbfe5e2",
+            "accountId": "holder-1",
+            "amountUnits": "1000",
+            "revenueSource": "fixed-duration inbound liquidity lease and routing-quality fee",
+            "servicePeriod": "demo-period-1",
+            "sourceTxid": "c3e672e544133690056dabf7848e878bc1abfc6f5d4b0f3daefb991ce314281b"
+          }
+        },
+        {
+          "kind": "tradelayer_procedural_capital_event",
+          "eventId": "6f3b7382feac60e45e2bb197bc37784315124ba2a5bfe8e6e125322843e6054a",
+          "eventCore": {
+            "version": 1,
+            "eventType": "credit_service_revenue",
+            "propertyId": 1102,
+            "templateId": "ln-routing-reserve-no-rehypo-v1",
+            "commitmentId": "8d740ded2f338ef7265f9986b0557b46355e3e2563543d63d0c117ff698d9859",
+            "revenueEventId": "7011b9ff1890f6dd21203cb5a82ef9c41f36f700b567abcff74e194191431013",
+            "accountId": "holder-2",
+            "amountUnits": "2000",
+            "revenueSource": "routing fees and route availability premiums",
+            "servicePeriod": "demo-period-1",
+            "sourceTxid": "eea5276d31281efe44c87fbd75e3f6fdc20d7bc49638c489b460a33f9f391f99"
+          }
+        },
+        {
+          "kind": "tradelayer_procedural_capital_event",
+          "eventId": "7ed4403c3d6fcaa2c732198c2f770e065f1b9eba8d6d13eb895044215c415f6d",
+          "eventCore": {
+            "version": 1,
+            "eventType": "credit_service_revenue",
+            "propertyId": 2101,
+            "templateId": "taproot-assets-edge-rfq-no-rehypo-v1",
+            "commitmentId": "618729c6c453d461581d5cc4ffd6d19f5111ab597664e8f3973c1c70d1aabac0",
+            "revenueEventId": "f4727bf57c97af6cf49de2f53413951fc0255f0ef18e0acccfaae84d17d8383b",
+            "accountId": "holder-3",
+            "amountUnits": "3000",
+            "revenueSource": "Edge-node RFQ spread and proof-anchor service fee",
+            "servicePeriod": "demo-period-1",
+            "sourceTxid": "f1c4db035859beac461b6c89af16b503f397831316ae9d58da6d9386434cfcf2"
+          }
+        },
+        {
+          "kind": "tradelayer_procedural_capital_event",
+          "eventId": "0b280531d4b2500372b97f60f1b8cc8784ec53dd8125dbc2e58dc99b959465bd",
+          "eventCore": {
+            "version": 1,
+            "eventType": "credit_service_revenue",
+            "propertyId": 3101,
+            "templateId": "ark-round-liquidity-graft-no-rehypo-v1",
+            "commitmentId": "7a3b1ff6943f412416805372fec753829b5d24dbe97af5c2ac129ba1393751dd",
+            "revenueEventId": "49710a3b14609a51509b6ba67189a76dc5a9a36c23c57df9111137d9b3715449",
+            "accountId": "holder-4",
+            "amountUnits": "4000",
+            "revenueSource": "short-duration round liquidity and VTXO exit insurance premium",
+            "servicePeriod": "demo-period-1",
+            "sourceTxid": "b3191222ab0e9cdad7c21c4c29b8d5546775c39fe7cd15b0758724da01a0cedf"
+          }
+        },
+        {
+          "kind": "tradelayer_procedural_capital_event",
+          "eventId": "8a2ada64e63a715c2012bfc5578977a605924473a26faf0ed3c94f209bc44742",
+          "eventCore": {
+            "version": 1,
+            "eventType": "credit_service_revenue",
+            "propertyId": 4101,
+            "templateId": "tradelayer-dlc-margin-reserve-no-rehypo-v1",
+            "commitmentId": "ea8744e86190bb15647ada2954fc8d615204988bb9465f93b703b71e74025d16",
+            "revenueEventId": "f745fa1a9e1e960de9736274570138fd73dc81d1abdf80066e8053d322f767ed",
+            "accountId": "holder-5",
+            "amountUnits": "5000",
+            "revenueSource": "DLC margin reservation, bounded PnL settlement, and liquidation service fee",
+            "servicePeriod": "demo-period-1",
+            "sourceTxid": "da69ddcf0f31e599e8c02c1388f0823dc98f698d8f20cd67fbcc16ff01ce0de3"
+          }
+        },
+        {
+          "kind": "tradelayer_procedural_capital_event",
+          "eventId": "8ea35b7c7676ec3f6ebe10935bec247dc3be207ef0ffe6099cef66145dd6d269",
+          "eventCore": {
+            "version": 1,
+            "eventType": "credit_service_revenue",
+            "propertyId": 5101,
+            "templateId": "watchtower-bond-no-rehypo-v1",
+            "commitmentId": "d8a7d41f876134576441298daa56611b419f6446affd22bd2b0ca068f10d2b9f",
+            "revenueEventId": "a7c73b9232ae882bb6398c96d205a0b06f20fc0863fa4e793c2af2d8586b4bcd",
+            "accountId": "holder-6",
+            "amountUnits": "6000",
+            "revenueSource": "challenge bounty, alert monitoring fee, and fraud-proof service fee",
+            "servicePeriod": "demo-period-1",
+            "sourceTxid": "87fea702987b183c29f51acf2e349b8744672e305db48633d871dbcc1ef0a54c"
+          }
+        },
+        {
+          "kind": "tradelayer_procedural_capital_event",
+          "eventId": "235c9791f6e0c746f0b53569a0d9b0d6a60cb19536091d2f1507141df10968cd",
+          "eventCore": {
+            "version": 1,
+            "eventType": "credit_service_revenue",
+            "propertyId": 6101,
+            "templateId": "proof-publication-bond-no-rehypo-v1",
+            "commitmentId": "c9054a7fa808785209a1940eac1b53220b4ecd77c1711ebb9ebbd497352fa52f",
+            "revenueEventId": "7c1c36eac59b6f40c69e37708d887ae46e814e8e33f06579d947fa896205b776",
+            "accountId": "holder-7",
+            "amountUnits": "7000",
+            "revenueSource": "proof publication, verifier receipt, and challenge-routing fee",
+            "servicePeriod": "demo-period-1",
+            "sourceTxid": "2a284e68eea02eed76623fc80fb6a2587eeba46dfb8fcc6327b6ff004ae7c7d7"
+          }
+        }
+      ],
+      "balanceRows": [
+        {
+          "propertyId": 1101,
+          "symbol": "HLN-LEASE",
+          "activeRole": "lightning_channel_lease",
+          "targetProtocol": "lightning",
+          "principalSupplyUnits": "1000000",
+          "accruedServiceRevenueUnits": "1000",
+          "activeCommitmentCount": 1,
+          "holderCount": 1,
+          "revenueBackedByKnownCommitments": true
+        },
+        {
+          "propertyId": 1102,
+          "symbol": "HLN-ROUTE",
+          "activeRole": "lightning_routing_reserve",
+          "targetProtocol": "lightning",
+          "principalSupplyUnits": "1250000",
+          "accruedServiceRevenueUnits": "2000",
+          "activeCommitmentCount": 1,
+          "holderCount": 1,
+          "revenueBackedByKnownCommitments": true
+        },
+        {
+          "propertyId": 2101,
+          "symbol": "HTAP-RFQ",
+          "activeRole": "taproot_assets_edge_rfq_reserve",
+          "targetProtocol": "taproot_assets",
+          "principalSupplyUnits": "1500000",
+          "accruedServiceRevenueUnits": "3000",
+          "activeCommitmentCount": 1,
+          "holderCount": 1,
+          "revenueBackedByKnownCommitments": true
+        },
+        {
+          "propertyId": 3101,
+          "symbol": "HARK-LIQ",
+          "activeRole": "ark_round_liquidity_graft",
+          "targetProtocol": "ark",
+          "principalSupplyUnits": "1750000",
+          "accruedServiceRevenueUnits": "4000",
+          "activeCommitmentCount": 1,
+          "holderCount": 1,
+          "revenueBackedByKnownCommitments": true
+        },
+        {
+          "propertyId": 4101,
+          "symbol": "HTL-DLCM",
+          "activeRole": "tradelayer_dlc_margin_reserve",
+          "targetProtocol": "shinigami",
+          "principalSupplyUnits": "2000000",
+          "accruedServiceRevenueUnits": "5000",
+          "activeCommitmentCount": 1,
+          "holderCount": 1,
+          "revenueBackedByKnownCommitments": true
+        },
+        {
+          "propertyId": 5101,
+          "symbol": "HWT-BOND",
+          "activeRole": "watchtower_bond",
+          "targetProtocol": "lightning",
+          "principalSupplyUnits": "2250000",
+          "accruedServiceRevenueUnits": "6000",
+          "activeCommitmentCount": 1,
+          "holderCount": 1,
+          "revenueBackedByKnownCommitments": true
+        },
+        {
+          "propertyId": 6101,
+          "symbol": "HPROOF",
+          "activeRole": "proof_publication_bond",
+          "targetProtocol": "shinigami",
+          "principalSupplyUnits": "2500000",
+          "accruedServiceRevenueUnits": "7000",
+          "activeCommitmentCount": 1,
+          "holderCount": 1,
+          "revenueBackedByKnownCommitments": true
+        }
+      ],
+      "roleTransitionInstruction": {
+        "kind": "tradelayer_procedural_role_transition_instruction",
+        "instructionId": "17ceed1da4e4439d05e70ec10fd58b71becff6c42ee05d592bd98820efe26ec3",
+        "instructionCore": {
+          "version": 1,
+          "transitionId": "927c8df2d1cd7da43b29a1c8ca6ef9d9bd6ee3e154fbc84a0164c7eed01176d5",
+          "burnEventId": "4c7cbf28c40fbd63cac3efb57325dba896de82a479cea0fe312ef7cf663a0437",
+          "reissueEventId": "0e1e4fe71b39b013528aba4ac0a4fac2734b59604184aa1f471a85bb64249d0d",
+          "oldStatusRequired": "retired",
+          "burnBeforeReissue": true,
+          "rehypothecationAllowed": false
+        },
+        "burnEvent": {
+          "kind": "tradelayer_procedural_capital_event",
+          "eventId": "4c7cbf28c40fbd63cac3efb57325dba896de82a479cea0fe312ef7cf663a0437",
+          "eventCore": {
+            "version": 1,
+            "eventType": "burn_principal_for_role_transition",
+            "propertyId": 1101,
+            "templateId": "ln-channel-lease-no-rehypo-v1",
+            "commitmentId": "b698b31e28e8339287b3c2db8f7ebb1706f405ab2779057fe76c25dc3fae035c",
+            "accountId": "holder-1",
+            "amountUnits": "1000000",
+            "fundingOutpoint": "8d57b33cf97269a0ce1afd5621374b91d2314141ec366dd44592ac51d9c6e354:1",
+            "burnReceiptId": "burn:b698b31e28e8339287b3c2db8f7ebb1706f405ab2779057fe76c25dc3fae035c",
+            "transitionId": "927c8df2d1cd7da43b29a1c8ca6ef9d9bd6ee3e154fbc84a0164c7eed01176d5"
+          }
+        },
+        "reissueEvent": {
+          "kind": "tradelayer_procedural_capital_event",
+          "eventId": "0e1e4fe71b39b013528aba4ac0a4fac2734b59604184aa1f471a85bb64249d0d",
+          "eventCore": {
+            "version": 1,
+            "eventType": "reissue_principal_after_burn",
+            "propertyId": 3101,
+            "templateId": "ark-round-liquidity-graft-no-rehypo-v1",
+            "sourcePropertyId": 1101,
+            "sourceBurnEventId": "4c7cbf28c40fbd63cac3efb57325dba896de82a479cea0fe312ef7cf663a0437",
+            "accountId": "holder-1",
+            "amountUnits": "1000000",
+            "fundingOutpoint": "8d57b33cf97269a0ce1afd5621374b91d2314141ec366dd44592ac51d9c6e354:1",
+            "reissueReceiptId": "reissue:b698b31e28e8339287b3c2db8f7ebb1706f405ab2779057fe76c25dc3fae035c:3101",
+            "transitionId": "927c8df2d1cd7da43b29a1c8ca6ef9d9bd6ee3e154fbc84a0164c7eed01176d5"
+          }
+        }
+      }
+    },
+    "dashboard": {
+      "kind": "bitvm_tradelayer_dashboard_view",
+      "viewHash": "aa0b67a217acd5563aebb34921a4f69c24f79daba5df4f59254a59448ef52f10",
+      "schema": "bitvm_tradelayer_dashboard_v1",
+      "status": "ready",
+      "solvent": true,
+      "hashes": {
+        "checkpoint": "a157146cd3682f8aaba09fc820b96500a857e81336ee139db06637bd23c5635b",
+        "stateOracle": "c1a461ff7ff1d3a74fed3bc3f39decf6dcf621cff4894bd140607ab8c73390ce",
+        "selectedSend": "5a41f83d2e783f3a74c01239d1cbc396ecac07b46fa2d92c4dcbf1b53da65709",
+        "registry": "e2057a8fb6fcfd3da569c56dec6978e416c4ec3f9595df7875b0f90052509986",
+        "routeTranscript": "4afe1288e188211c5a0659a9c0017706736b0dba5052b33765fd27b789330670",
+        "withdrawalQueue": "dc6b7d6e01463725d9d62722e972cc91dfdad2f56badf95c7c5b25839cb45bd0",
+        "reserveReconciliation": "54c4ad48f7f2875e0c274c1173fb22f9f61455d18fabd9a90ec4f7f3d0cde0a5",
+        "perpSettlement": "6579b95b0dfeaa875910aa453fcf96cb2f117e1b45e59bb332f9bdf7feeee0e6",
+        "liquidityLease": "7c5967a0bf938c357d643b35d087b3035d641b78da6d70300fd98c7941e6db73",
+        "arenaReport": "f9b02c4c1d931a416d9ba2eb01488f6c55d47206d26bf12d780f125145394086",
+        "halalCapitalTokenPlan": "01bf16a94fe229e28b941b73d5b23b49721544dc95fab7c524147f1d4ffcc029"
+      },
+      "capital": {
+        "principalUnits": "12250000",
+        "serviceRevenueUnits": "28000",
+        "tokenSpecCount": 7,
+        "propertyRows": [
+          {
+            "propertyId": 1101,
+            "symbol": "HLN-LEASE",
+            "principalSupplyUnits": "1000000",
+            "accruedServiceRevenueUnits": "1000",
+            "activeCommitmentCount": 1
+          },
+          {
+            "propertyId": 1102,
+            "symbol": "HLN-ROUTE",
+            "principalSupplyUnits": "1250000",
+            "accruedServiceRevenueUnits": "2000",
+            "activeCommitmentCount": 1
+          },
+          {
+            "propertyId": 2101,
+            "symbol": "HTAP-RFQ",
+            "principalSupplyUnits": "1500000",
+            "accruedServiceRevenueUnits": "3000",
+            "activeCommitmentCount": 1
+          },
+          {
+            "propertyId": 3101,
+            "symbol": "HARK-LIQ",
+            "principalSupplyUnits": "1750000",
+            "accruedServiceRevenueUnits": "4000",
+            "activeCommitmentCount": 1
+          },
+          {
+            "propertyId": 4101,
+            "symbol": "HTL-DLCM",
+            "principalSupplyUnits": "2000000",
+            "accruedServiceRevenueUnits": "5000",
+            "activeCommitmentCount": 1
+          },
+          {
+            "propertyId": 5101,
+            "symbol": "HWT-BOND",
+            "principalSupplyUnits": "2250000",
+            "accruedServiceRevenueUnits": "6000",
+            "activeCommitmentCount": 1
+          },
+          {
+            "propertyId": 6101,
+            "symbol": "HPROOF",
+            "principalSupplyUnits": "2500000",
+            "accruedServiceRevenueUnits": "7000",
+            "activeCommitmentCount": 1
+          }
+        ]
+      },
+      "actions": [
+        "allow_cooperative_sweep",
+        "allow_sweep",
+        "release_provider_premium",
+        "display property-scoped capital receipts and separate service-revenue accruals"
+      ],
+      "alerts": [],
+      "challengeable": [
+        "invalid_tx_type",
+        "malformed_payload",
+        "wrong_sender_balance",
+        "invalid_send_omission",
+        "bad_dlc_funder_mapping",
+        "bad_ratio_arithmetic",
+        "wrong_utxoref_output",
+        "wrong_destination",
+        "wrong_fee",
+        "wrong_refund_remainder",
+        "stale_oracle_snapshot",
+        "wrong_payout_root",
+        "state_root_mismatch"
+      ],
+      "txids": {
+        "selectedSend": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "fundingInput": "ac2518f11bff1c6f229b9431dbc91d0f0d280dcde2b90de7e46c627a8b5dbbae",
+        "liveSweep": null
+      },
+      "nextStep": "safe to present cooperative sweep and transcript chain"
+    },
+    "stackHash": "63121b5db0875db8b27d45cb83aaddc63973681645b97e42cf0fddc67714bcc6"
+  },
+  "decodedFinalTx": {
+    "txid": "3e8d784efab4a8b65d127267b441bfdf4a28aff7b46fa90c05f21113cfd001d7",
+    "hash": "c768457a484e253176e7064479d7be51effe27ac11b6ad3541ee68e9c26bd9b8",
+    "version": 2,
+    "size": 222,
+    "vsize": 141,
+    "weight": 561,
+    "locktime": 0,
+    "vin": [
+      {
+        "ismweb": false,
+        "txid": "ac2518f11bff1c6f229b9431dbc91d0f0d280dcde2b90de7e46c627a8b5dbbae",
+        "vout": 0,
+        "scriptSig": {
+          "asm": "",
+          "hex": ""
+        },
+        "txinwitness": [
+          "30440220378f01e9ddf2b91d482e505454dea2f968abbee4a8a164b0274c4c7b7750507c02200e7e7cdefe1bafd00d581a76b0635c0d27caad7d86c8cbb26134775d486fd9dc01",
+          "03d03ae580e6b40e97f0fe96d27ba417edae575181495cbf60dd36dde94da75237"
+        ],
+        "sequence": 4294967295
+      }
+    ],
+    "vout": [
+      {
+        "ismweb": false,
+        "value": 0.0024014,
+        "n": 0,
+        "scriptPubKey": {
+          "asm": "0 fb5602448f1f61d21da016ad854cc6d09302e4b2",
+          "hex": "0014fb5602448f1f61d21da016ad854cc6d09302e4b2",
+          "reqSigs": 1,
+          "type": "witness_v0_keyhash",
+          "addresses": [
+            "tltc1qldtqy3y0rasay8dqz6kc2nxx6zfs9e9j4veqcz"
+          ]
+        }
+      },
+      {
+        "ismweb": false,
+        "value": 0.0071942,
+        "n": 1,
+        "scriptPubKey": {
+          "asm": "0 55e4e37e47df1d4b0143a6b702f8b51085e82df6",
+          "hex": "001455e4e37e47df1d4b0143a6b702f8b51085e82df6",
+          "reqSigs": 1,
+          "type": "witness_v0_keyhash",
+          "addresses": [
+            "tltc1q2hjwxlj8muw5kq2r56ms9794zzz7st0kryffl4"
+          ]
+        }
+      }
+    ],
+    "hex": "02000000000101aebb5d8b7a626ce4e70db9e2cd0d280d0f1dc9db31949b226f1cff1bf11825ac0000000000ffffffff020caa030000000000160014fb5602448f1f61d21da016ad854cc6d09302e4b23cfa0a000000000016001455e4e37e47df1d4b0143a6b702f8b51085e82df6024730440220378f01e9ddf2b91d482e505454dea2f968abbee4a8a164b0274c4c7b7750507c02200e7e7cdefe1bafd00d581a76b0635c0d27caad7d86c8cbb26134775d486fd9dc012103d03ae580e6b40e97f0fe96d27ba417edae575181495cbf60dd36dde94da7523700000000"
+  },
+  "finalSpendBinding": {
+    "kind": "tradelayer_send_final_spend_binding",
+    "bindingHash": "74b0e2de2b042b1de1dc2a1cc926ff6a451f0f0aad15113eee7fb652d4dfeac5",
+    "core": {
+      "kind": "tradelayer_send_final_spend_binding_v1",
+      "routeTranscriptHash": "4afe1288e188211c5a0659a9c0017706736b0dba5052b33765fd27b789330670",
+      "finalTxOutputHash": "916733d3eca4f5eb3837cf59462efefa425db716ade6691bbe5641dd41bd67c6",
+      "txid": "3e8d784efab4a8b65d127267b441bfdf4a28aff7b46fa90c05f21113cfd001d7",
+      "wtxid": "c768457a484e253176e7064479d7be51effe27ac11b6ad3541ee68e9c26bd9b8"
+    }
+  },
+  "finalOutputReview": {
+    "kind": "utxoref_live_path_final_output_review",
+    "ok": true,
+    "reviewHash": "c1e5266c7d33785269ef133941dbe1a957da2854d8f820aae9bb544a10bb4795",
+    "mismatchCodes": [],
+    "core": {
+      "kind": "utxoref_live_path_final_output_review_v1",
+      "routeTranscriptHash": "4afe1288e188211c5a0659a9c0017706736b0dba5052b33765fd27b789330670",
+      "finalTxOutputHash": "916733d3eca4f5eb3837cf59462efefa425db716ade6691bbe5641dd41bd67c6",
+      "txid": "3e8d784efab4a8b65d127267b441bfdf4a28aff7b46fa90c05f21113cfd001d7",
+      "wtxid": "c768457a484e253176e7064479d7be51effe27ac11b6ad3541ee68e9c26bd9b8",
+      "expectedInput": {
+        "txid": "ac2518f11bff1c6f229b9431dbc91d0f0d280dcde2b90de7e46c627a8b5dbbae",
+        "vout": 0
+      },
+      "observedInput": {
+        "txid": "ac2518f11bff1c6f229b9431dbc91d0f0d280dcde2b90de7e46c627a8b5dbbae",
+        "vout": 0
+      },
+      "expectedOutputs": [
+        {
+          "n": 0,
+          "role": "send-to-dlc-funding-output",
+          "address": "tltc1qldtqy3y0rasay8dqz6kc2nxx6zfs9e9j4veqcz",
+          "sats": "240140",
+          "scriptPubKeyHex": "0014fb5602448f1f61d21da016ad854cc6d09302e4b2"
+        },
+        {
+          "n": 1,
+          "role": "refund-remainder",
+          "address": "tltc1q2hjwxlj8muw5kq2r56ms9794zzz7st0kryffl4",
+          "sats": "719420",
+          "scriptPubKeyHex": "001455e4e37e47df1d4b0143a6b702f8b51085e82df6"
+        }
+      ],
+      "observedOutputs": [
+        {
+          "n": 0,
+          "address": null,
+          "sats": "240140",
+          "scriptPubKeyHex": "0014fb5602448f1f61d21da016ad854cc6d09302e4b2",
+          "type": "witness_v0_keyhash"
+        },
+        {
+          "n": 1,
+          "address": null,
+          "sats": "719420",
+          "scriptPubKeyHex": "001455e4e37e47df1d4b0143a6b702f8b51085e82df6",
+          "type": "witness_v0_keyhash"
+        }
+      ],
+      "mismatches": []
+    }
+  },
+  "finalRouteTranscript": {
+    "kind": "tradelayer_send_route_transcript_v1",
+    "hash": "c92a8ed3c8b9bb16270aaec85ce9c51935cb7cbad0ccf2fe039e1176fe96371d",
+    "core": {
+      "kind": "tradelayer_send_route_transcript_v1",
+      "network": "litecoin-testnet",
+      "route": "send",
+      "stateOracleHash": "c1a461ff7ff1d3a74fed3bc3f39decf6dcf621cff4894bd140607ab8c73390ce",
+      "selectedSendHash": "5a41f83d2e783f3a74c01239d1cbc396ecac07b46fa2d92c4dcbf1b53da65709",
+      "dlcFunderRegistryHash": "e2057a8fb6fcfd3da569c56dec6978e416c4ec3f9595df7875b0f90052509986",
+      "routePlanHash": "e204f5a6b7a5ab4011588131aca44778429b09bcba3580b9f056b1b32a31849e",
+      "withdrawalRootHex": "af637696b95f847cd58d7498a058227b52c447f5ec72020d8ef0b61d3c668a1a",
+      "commitmentHashHex": "e95e845f2d3c87cd56c5bc3a6351eeebbb0c660f8be4b174f3b369f3558b167e",
+      "fundingInputHash": "92ce3cc6ba1ef9d74ceae95b12804b9b56530554b740d137d93c8c16c0899a13",
+      "outputPlanHash": "75c42e3b313017169f591ed50cdc08e3cd3d0b525b255f8d63fcaa1174a64160",
+      "outputs": [
+        {
+          "role": "send-to-dlc-funding-output",
+          "address": "tltc1qldtqy3y0rasay8dqz6kc2nxx6zfs9e9j4veqcz",
+          "scriptPubKey": null,
+          "sats": "240140",
+          "amountBps": 2500,
+          "oracleAddress": "tltc1qkz0vft2fc4nk0u9fx4k9yk4th7zherna3zxh22",
+          "matchedDlcRef": "dlc-live-77"
+        },
+        {
+          "role": "refund-remainder",
+          "address": "tltc1q2hjwxlj8muw5kq2r56ms9794zzz7st0kryffl4",
+          "scriptPubKey": null,
+          "sats": "719420",
+          "amountBps": null,
+          "oracleAddress": null,
+          "matchedDlcRef": null
+        }
+      ],
+      "signedPsbtOutputHash": null,
+      "finalTxOutputHash": "916733d3eca4f5eb3837cf59462efefa425db716ade6691bbe5641dd41bd67c6"
+    }
+  },
+  "finalOutputChallenge": {
+    "kind": "utxoref_live_path_final_output_challenge",
+    "challengeHash": "c34c57d5d5080d2bc3319bc16165ab089ee0be960ce3296299106b282cb58378",
+    "challengeable": true,
+    "core": {
+      "kind": "utxoref_live_path_final_output_challenge_v1",
+      "stackHash": "63121b5db0875db8b27d45cb83aaddc63973681645b97e42cf0fddc67714bcc6",
+      "routeTranscriptHash": "4afe1288e188211c5a0659a9c0017706736b0dba5052b33765fd27b789330670",
+      "expected": {
+        "finalTxOutputHash": "916733d3eca4f5eb3837cf59462efefa425db716ade6691bbe5641dd41bd67c6",
+        "finalOutputReviewHash": "c1e5266c7d33785269ef133941dbe1a957da2854d8f820aae9bb544a10bb4795",
+        "finalOutputReviewOk": true,
+        "txid": "3e8d784efab4a8b65d127267b441bfdf4a28aff7b46fa90c05f21113cfd001d7",
+        "wtxid": "c768457a484e253176e7064479d7be51effe27ac11b6ad3541ee68e9c26bd9b8"
+      },
+      "claimed": {
+        "finalTxOutputHash": "0000000000000000000000000000000000000000000000000000000000000000",
+        "finalOutputReviewOk": false
+      },
+      "challengeable": true,
+      "remedy": "reject signer handoff and route to final-output mismatch challenge"
+    }
+  },
+  "operatorChecklist": [
+    {
+      "step": "funding_input",
+      "status": "ready_for_rpc",
+      "check": "gettxout ac2518f11bff1c6f229b9431dbc91d0f0d280dcde2b90de7e46c627a8b5dbbae 0"
+    },
+    {
+      "step": "state_oracle",
+      "status": "bound",
+      "check": "c1a461ff7ff1d3a74fed3bc3f39decf6dcf621cff4894bd140607ab8c73390ce"
+    },
+    {
+      "step": "route_transcript",
+      "status": "bound",
+      "check": "4afe1288e188211c5a0659a9c0017706736b0dba5052b33765fd27b789330670"
+    },
+    {
+      "step": "final_outputs",
+      "status": "bound",
+      "check": "c1e5266c7d33785269ef133941dbe1a957da2854d8f820aae9bb544a10bb4795"
+    },
+    {
+      "step": "dashboard",
+      "status": "ready",
+      "check": "aa0b67a217acd5563aebb34921a4f69c24f79daba5df4f59254a59448ef52f10"
+    }
+  ],
+  "liveSwapPoints": {
+    "consensusInput": "replace sample consensus input with TradeLayer parser output",
+    "decodedFinalTx": "replace deterministic decodedFinalTx with Core decoderawtransaction output",
+    "signerPolicy": "show finalTxOutputHash, finalOutputReviewHash, and routeTranscriptHash before broadcast",
+    "dashboard": "display txids and hashes from evidence.core only after verification"
+  }
+}

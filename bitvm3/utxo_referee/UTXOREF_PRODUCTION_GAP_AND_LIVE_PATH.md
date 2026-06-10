@@ -132,14 +132,27 @@ Verified live (`verification=ok`, `finalOutputReview=ok`):
 - `finalTxOutputHash` now comes from a genuine Core decode, not the deterministic
   builder.
 
-This was a non-broadcast `createrawtransaction` -> `decoderawtransaction`
-round-trip (the documented live swap point). Both outputs happen to be
-wallet-owned, so a signed `sendrawtransaction` broadcast + `--final-txid` run is
-recoverable and is the next step for a confirmed on-chain txid.
+The sweep was then signed (`signrawtransactionwithwallet`) and broadcast
+(`sendrawtransaction`) — both outputs are wallet-owned, so it is recoverable:
 
-Still open here: broadcast the signed sweep for a confirmed txid via the
-`--final-txid`/getrawtransaction path, and turn the insolvency + final-output
-challenges into concrete BitVM/script constraints rather than evidence only.
+- Broadcast sweep txid:
+  `3e8d784efab4a8b65d127267b441bfdf4a28aff7b46fa90c05f21113cfd001d7`
+  (141 vB, 1,000 sat fee, `testmempoolaccept` allowed).
+- Re-ran the harness with `--final-txid` (the getrawtransaction path); it
+  verifies (`verification=ok`, `finalOutputReview=ok`) and produces the same
+  `finalTxOutputHash` (`916733...`) as the `--final-hex` round-trip, confirming
+  the on-chain tx's outputs are byte-identical to the planned sweep.
+- Evidence: `artifacts/live/utxoref_live_path_broadcast.{json,md}`.
+
+The whole deposit->withdraw path now runs on real chain data: a live deposit
+reserve (42 credited UTXOs) reconciled against the withdrawal cap, and a real
+funded input swept to plan-matching outputs, broadcast, and decoded back through
+Core.
+
+Still open here: turn the insolvency + final-output challenges into concrete
+BitVM/script constraints rather than evidence only; the broadcast sweep above
+sends the DLC-funding output to a wallet address rather than an actual DLC
+funding script, so the next refinement is a real DLC/BitVM output script.
 
 ## Work Started
 
