@@ -88,6 +88,8 @@ const tradeLayerDlcCetOracleSelection = require('./tradelayer_dlc_cet_oracle_sel
 const tradeLayerDlcAdaptorSig = require('./tradelayer_dlc_adaptor_sig');
 const tradeLayerTaproot = require('./tradelayer_taproot');
 const tradeLayerMusig2 = require('./tradelayer_musig2');
+const tradeLayerTaprootScript = require('./tradelayer_taproot_script');
+const tradeLayerBitvmGadgets = require('./tradelayer_bitvm_gadgets');
 const tradeLayerPerpPnlReferee = require('./tradelayer_perp_pnl_referee');
 const bitvmLiquidityLeaseReferee = require('./bitvm_liquidity_lease_referee');
 const bitvmArenaSecurityReport = require('./bitvm_arena_security_report');
@@ -454,6 +456,15 @@ module.exports = {
   musig2PartialSigAgg: tradeLayerMusig2.partialSigAgg,
   musig2PartialSigAggAdaptor: tradeLayerMusig2.partialSigAggAdaptor,
   musig2AdaptorComplete: tradeLayerMusig2.adaptorCompleteMuSig,
+  tapLeafHash: tradeLayerTaprootScript.tapLeafHash,
+  taprootMerkleRoot: tradeLayerTaprootScript.merkleRoot,
+  taprootTweakWithRoot: tradeLayerTaprootScript.taprootTweakWithRoot,
+  taprootControlBlock: tradeLayerTaprootScript.controlBlock,
+  taprootScriptPathSighash: tradeLayerTaprootScript.scriptPathSighash,
+  buildBitCommitment: tradeLayerBitvmGadgets.buildBitCommitment,
+  revealBit: tradeLayerBitvmGadgets.revealBit,
+  buildEquivocationPunishmentScript: tradeLayerBitvmGadgets.buildEquivocationPunishmentScript,
+  buildEquivocationWitness: tradeLayerBitvmGadgets.buildEquivocationWitness,
   buildTradeLayerPerpPnlSettlement: tradeLayerPerpPnlReferee.buildTradeLayerPerpPnlSettlement,
   verifyTradeLayerPerpPnlSettlement: tradeLayerPerpPnlReferee.verifyTradeLayerPerpPnlSettlement,
   buildTradeLayerPerpPnlChallenge: tradeLayerPerpPnlReferee.buildTradeLayerPerpPnlChallenge,
@@ -547,6 +558,8 @@ module.exports = {
   tradeLayerDlcAdaptorSig,
   tradeLayerTaproot,
   tradeLayerMusig2,
+  tradeLayerTaprootScript,
+  tradeLayerBitvmGadgets,
   tradeLayerPerpPnlReferee,
   bitvmLiquidityLeaseReferee,
   bitvmArenaSecurityReport,

@@ -277,9 +277,35 @@ attestation:
 `tradelayer_musig2_dlc_demo.js` runs the full flow. The signing side of the DLC
 is now complete on-chain: oracle-enforced, 2-of-2, taproot.
 
-Still open: the insolvency + final-output referee challenges remain evidence
-objects rather than concrete BitVM/Script constraints (the original "hard edge").
-The DLC settlement path itself is now real.
+### BitVM referee constraint enforced on-chain (added 2026-06-10)
+
+The referee challenge is no longer just an evidence object. `tradelayer_taproot_script.js`
+adds the taproot script-path machinery (tapleaf hash, merkle root, script-tree
+tweak, control block, BIP341 script-path sighash), validated against the BIP341
+wallet test vectors. `tradelayer_bitvm_gadgets.js` adds the foundational BitVM
+primitive: a bit commitment (hash0/hash1 over two preimages) and an
+equivocation-punishment tapscript that is spendable only by revealing BOTH
+preimages plus a challenger signature.
+
+`tradelayer_bitvm_punishment_demo.js` bonds a taproot output with the punishment
+leaf and spends it on the script path, so the network executes the tapscript:
+
+- Funding txid `46180ba8af7a2892c6374d409a5f806f42cf98c105fdb1b6202d792d2fd25895`
+  (bonds the output with the equivocation-punishment leaf), block 4,761,263.
+- Script-path spend txid
+  `aa3cd2fcd0cbe9a7b13355aab639e35c8a79a9b32f1080e55989434c63c8163a`,
+  witness reveals both committed preimages + the challenger BIP340 signature; the
+  consensus rules ran `OP_SHA256/OP_EQUALVERIFY` on each preimage and `OP_CHECKSIG`
+  on the signature and accepted it. Confirmed in block 4,761,263.
+
+This is the original "hard edge": a referee predicate (here, equivocation on the
+committed final-output-review bit) is now punished by a real Bitcoin Script
+executed by the network, not a JS evidence object.
+
+Remaining toward full BitVM: compose many such bit-commitment gates into a
+complete predicate circuit (e.g. the full `cap <= reserve` comparator) with the
+challenge-response bisection game, rather than the single equivocation gate
+demonstrated here. The on-chain enforcement primitive itself is now real.
 
 ## Work Started
 
