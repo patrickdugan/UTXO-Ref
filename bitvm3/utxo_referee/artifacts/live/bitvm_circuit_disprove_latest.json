@@ -1,0 +1,26 @@
+{
+  "kind": "tradelayer_bitvm_circuit_disprove",
+  "nBits": 16,
+  "gates": 93,
+  "leaves": 308,
+  "reserve": 1000,
+  "cap": 2000,
+  "honestSolvent": 0,
+  "claimedSolvent": 1,
+  "badGate": {
+    "type": "not",
+    "inputs": [
+      "borrow16"
+    ],
+    "output": "solvent"
+  },
+  "merklePathDepth": 8,
+  "treeRoot": "05804f26c2d534656e22b9b5c521f2bf0e84bcac4f5c97270d491730f2d0741f",
+  "p2trScriptPubKey": "51207bae6d3b972d69c4290d6568e077f6bd14b80c18ab415a86a85829ece470c868",
+  "fundingTxid": "8015156110bcbfe8a35fe6957ba4f0c18a107a369ae7ead0eb728c29a96fee46",
+  "spendTxid": "05d9d2b258a0c20306f88d23cdbf45c80d9156a7f628511fbbc177b3ee299d08",
+  "broadcast": {
+    "fundingTxid": "8015156110bcbfe8a35fe6957ba4f0c18a107a369ae7ead0eb728c29a96fee46",
+    "spendTxid": "05d9d2b258a0c20306f88d23cdbf45c80d9156a7f628511fbbc177b3ee299d08"
+  }
+}

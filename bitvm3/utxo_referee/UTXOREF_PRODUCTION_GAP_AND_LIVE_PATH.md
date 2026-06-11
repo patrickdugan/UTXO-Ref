@@ -343,6 +343,32 @@ mechanism). Remaining: commit the whole disprove leaf set as a taproot tree
 disprove/timeout transaction flow with bonds and CSV timeouts (Blocks 4-8). The
 per-gate on-chain disprove and the predicate circuit are both now real.
 
+### BitVM Blocks 4-5: whole circuit bonded in one taproot output (added 2026-06-11)
+
+`tradelayer_taproot_tree.js` commits every disprove leaf of the circuit into a
+single taproot output (balanced merkle tree) and produces each leaf's merkle
+path + control block. Root and control blocks are validated against the
+multi-leaf BIP341 wallet test vectors (`tradelayer_taproot_tree.test.js`).
+
+`tradelayer_bitvm_circuit_demo.js` runs the full predicate on-chain: the 16-bit
+`cap<=reserve` comparator's 308 disprove leaves are bonded in one P2TR output;
+the operator publishes a fraudulent solvency claim (reserve 1000 < cap 2000, but
+asserts solvent); a challenger localizes the inconsistent gate
+(`not(borrow16) -> solvent`) and spends its disprove leaf on the script path with
+an 8-deep merkle-path control block:
+
+- funding txid `8015156110bcbfe8a35fe6957ba4f0c18a107a369ae7ead0eb728c29a96fee46`
+  bonds the whole circuit (block 4,761,436)
+- disprove spend `05d9d2b258a0c20306f88d23cdbf45c80d9156a7f628511fbbc177b3ee299d08`,
+  network verified the merkle path AND executed the gate-disprove tapscript,
+  confirmed in block 4,761,436
+
+So the entire solvency predicate is bonded in one UTXO and any single
+inconsistent gate is punishable on-chain. Remaining (Blocks 6-8): the
+assert -> challenge -> disprove/timeout transaction flow with bonds and CSV
+timeouts, and binding the circuit input wires to the real on-chain reserve/cap
+commitment. The enforcement core is done.
+
 ## Work Started
 
 This repo now adds a live-path evidence harness:
