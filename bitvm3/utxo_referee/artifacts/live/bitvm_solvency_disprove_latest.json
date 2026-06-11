@@ -1,0 +1,19 @@
+{
+  "kind": "tradelayer_bitvm_solvency_input_disprove",
+  "reconciliationHash": "da5306f9174cd7394d3fc07f4d29761b831f244eebbc6eb87ae75d5463ce0d1e",
+  "reserve": 99000,
+  "cap": 17164718,
+  "honestSolvent": 0,
+  "fakedReserve": 33653432,
+  "fakedSolvent": 1,
+  "badInputWire": "r25",
+  "gateLeaves": 628,
+  "inputLeaves": 64,
+  "p2trScriptPubKey": "51209bfa44fbdca5730318283063424d59c9cb598c90bb0a45517998c83f5c797525",
+  "fundingTxid": "b189825dd6b0d407f6830d34a6f2b1059f303a595215bb7931e2b9ce763c2565",
+  "spendTxid": "134f204895ee57d5e748d28b4c7f33e5601fde9aa4cc1101c773798131746970",
+  "broadcast": {
+    "fundingTxid": "b189825dd6b0d407f6830d34a6f2b1059f303a595215bb7931e2b9ce763c2565",
+    "spendTxid": "134f204895ee57d5e748d28b4c7f33e5601fde9aa4cc1101c773798131746970"
+  }
+}

@@ -94,6 +94,7 @@ const tradeLayerBitvmCircuit = require('./tradelayer_bitvm_circuit');
 const tradeLayerBitvmComparator = require('./tradelayer_bitvm_comparator');
 const tradeLayerTaprootTree = require('./tradelayer_taproot_tree');
 const tradeLayerBitvmDispute = require('./tradelayer_bitvm_dispute');
+const tradeLayerBitvmSolvencyReferee = require('./tradelayer_bitvm_solvency_referee');
 const tradeLayerPerpPnlReferee = require('./tradelayer_perp_pnl_referee');
 const bitvmLiquidityLeaseReferee = require('./bitvm_liquidity_lease_referee');
 const bitvmArenaSecurityReport = require('./bitvm_arena_security_report');
@@ -485,6 +486,10 @@ module.exports = {
   buildBitvmTimeoutLeafScript: tradeLayerBitvmDispute.buildTimeoutLeafScript,
   buildBitvmDisputeTree: tradeLayerBitvmDispute.buildDisputeTree,
   bitvmCsvSequence: tradeLayerBitvmDispute.csvSequence,
+  commitBitvmBoundWires: tradeLayerBitvmSolvencyReferee.commitBoundWires,
+  buildBitvmInputBindingLeaves: tradeLayerBitvmSolvencyReferee.buildInputBindingLeaves,
+  findBitvmInputFraud: tradeLayerBitvmSolvencyReferee.findInputFraud,
+  buildBitvmSolvencyAssertTree: tradeLayerBitvmSolvencyReferee.buildSolvencyAssertTree,
   buildTradeLayerPerpPnlSettlement: tradeLayerPerpPnlReferee.buildTradeLayerPerpPnlSettlement,
   verifyTradeLayerPerpPnlSettlement: tradeLayerPerpPnlReferee.verifyTradeLayerPerpPnlSettlement,
   buildTradeLayerPerpPnlChallenge: tradeLayerPerpPnlReferee.buildTradeLayerPerpPnlChallenge,
@@ -584,6 +589,7 @@ module.exports = {
   tradeLayerBitvmComparator,
   tradeLayerTaprootTree,
   tradeLayerBitvmDispute,
+  tradeLayerBitvmSolvencyReferee,
   tradeLayerPerpPnlReferee,
   bitvmLiquidityLeaseReferee,
   bitvmArenaSecurityReport,

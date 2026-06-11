@@ -383,9 +383,37 @@ after the challenge window. Both outcomes are now on-chain:
     `OP_CHECKSEQUENCEVERIFY` passed, confirmed in block 4,761,442.
 
 The dispute game is complete: a bonded solvency assertion is safe iff the
-operator's committed circuit execution is honest. Remaining (Block 8): bind the
-circuit's input wires to the real on-chain reserve/cap commitment so the inputs
-cannot be faked, connecting this to `tradelayer_reserve_reconciliation_referee`.
+operator's committed circuit execution is honest.
+
+### BitVM Block 8: input binding -> the complete solvency referee (added 2026-06-11)
+
+`tradelayer_bitvm_solvency_referee.js` closes the last soundness gap: the
+operator must feed the *real* reserve/cap as circuit inputs. Wire commitments are
+derived deterministically from the reconciliation hash (binding the bonded
+circuit to one specific `tradelayer_reserve_reconciliation_referee` output), and
+because reserve/cap are public, every input wire has a known correct bit. An
+input-binding disprove leaf punishes the operator for asserting any input bit
+wrong. The full assert tree is gate-disprove + input-binding + CSV timeout
+(`tradelayer_bitvm_solvency_referee.test.js`, 5 tests, incl. binding to a real
+referee reconciliation).
+
+`tradelayer_bitvm_solvency_demo.js` runs it on-chain end to end: a real insolvent
+reconciliation (reserve 99,000 < cap 17,164,718) is bonded as a 32-bit solvency
+assert tree (628 gate + 64 input-binding + 1 timeout leaves); the operator fakes
+reserve bit r25 to make the circuit compute solvent; the challenger disproves via
+that input-binding leaf:
+
+- funding `b189825dd6b0d407f6830d34a6f2b1059f303a595215bb7931e2b9ce763c2565`
+  bonds the full referee (block 4,761,536)
+- disprove spend `134f204895ee57d5e748d28b4c7f33e5601fde9aa4cc1101c773798131746970`,
+  network punished the faked solvency input, confirmed in block 4,761,536
+
+This completes the launch-grade BitVM solvency referee (Blocks 1-8): a bonded
+"solvent" assertion tied to the real reserve reconciliation is sound on-chain -
+the operator can fake neither the inputs (input binding) nor the gate execution
+(gate disprove), and the dispute resolves by disprove or CSV timeout. Remaining
+(Blocks 9-10): a SHA256 gadget for the final-output-equality predicate (the
+second referee check) + hardening. The solvency predicate is launch-complete.
 
 ## Work Started
 
