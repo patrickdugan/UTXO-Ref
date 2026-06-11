@@ -364,10 +364,28 @@ an 8-deep merkle-path control block:
   confirmed in block 4,761,436
 
 So the entire solvency predicate is bonded in one UTXO and any single
-inconsistent gate is punishable on-chain. Remaining (Blocks 6-8): the
-assert -> challenge -> disprove/timeout transaction flow with bonds and CSV
-timeouts, and binding the circuit input wires to the real on-chain reserve/cap
-commitment. The enforcement core is done.
+inconsistent gate is punishable on-chain.
+
+### BitVM Blocks 6-7: dispute game (disprove vs CSV timeout) (added 2026-06-11)
+
+`tradelayer_bitvm_dispute.js` assembles the assert-output taproot tree from the
+circuit's disprove leaves PLUS a CSV timeout leaf
+(`<csvDelay> OP_CHECKSEQUENCEVERIFY OP_DROP <operatorXonly> OP_CHECKSIG`), so the
+bond has two exits: a challenger disproves a bad gate, or the operator reclaims
+after the challenge window. Both outcomes are now on-chain:
+
+- Disprove (challenger wins): Blocks 4-5, block 4,761,436.
+- Timeout (operator wins): `tradelayer_bitvm_timeout_demo.js` bonds the assert
+  output (148 disprove leaves + CSV timeout leaf, csv=2 blocks), waits for CSV
+  maturity, and reclaims via the timeout leaf with `nSequence=2`:
+  - funding `935a56903bd3a702f8a4bf1213d2f2dcfc974f62810ad026bcff989cd2064eea`
+  - timeout reclaim `581020bf4037bde521a0a87a2c9dc1d7cb9ab8b944062f6f63dbb15552e1840d`,
+    `OP_CHECKSEQUENCEVERIFY` passed, confirmed in block 4,761,442.
+
+The dispute game is complete: a bonded solvency assertion is safe iff the
+operator's committed circuit execution is honest. Remaining (Block 8): bind the
+circuit's input wires to the real on-chain reserve/cap commitment so the inputs
+cannot be faked, connecting this to `tradelayer_reserve_reconciliation_referee`.
 
 ## Work Started
 

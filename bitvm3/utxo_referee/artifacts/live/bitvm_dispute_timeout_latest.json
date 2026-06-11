@@ -1,0 +1,14 @@
+{
+  "kind": "tradelayer_bitvm_dispute_timeout",
+  "csvDelay": 2,
+  "nBits": 8,
+  "disproveLeaves": 148,
+  "timeoutScript": "52b275207017ebf81ffd7ee98f524e5799b7d2eff8f0c11aac6831b55cbd5471d2579792ac",
+  "p2trScriptPubKey": "512074dca58805db39371b39de8969c62e6df0a7e1a9aaf70d5e742991b015f344de",
+  "fundingTxid": "935a56903bd3a702f8a4bf1213d2f2dcfc974f62810ad026bcff989cd2064eea",
+  "spendTxid": "581020bf4037bde521a0a87a2c9dc1d7cb9ab8b944062f6f63dbb15552e1840d",
+  "broadcast": {
+    "fundingTxid": "935a56903bd3a702f8a4bf1213d2f2dcfc974f62810ad026bcff989cd2064eea",
+    "spendTxid": "581020bf4037bde521a0a87a2c9dc1d7cb9ab8b944062f6f63dbb15552e1840d"
+  }
+}
