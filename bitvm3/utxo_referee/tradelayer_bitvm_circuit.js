@@ -108,6 +108,37 @@ function findGateFraud(gateType, wires, asserted, challengerXonly) {
   };
 }
 
+// Generic over an arbitrary gate list (used by larger circuits e.g. SHA256).
+function buildGatesDisproveLeaves(gates, wireMap, challengerXonly) {
+  const leaves = [];
+  for (const g of gates) {
+    const gate = GATES[g.type];
+    const combos = gate.arity === 1 ? [[0], [1]] : [[0, 0], [0, 1], [1, 0], [1, 1]];
+    for (const inputs of combos) {
+      const wrongOut = 1 - gate.f(...inputs);
+      const hashes = inputs.map((bit, i) => wireHash(wireMap[g.inputs[i]], bit));
+      hashes.push(wireHash(wireMap[g.output], wrongOut));
+      leaves.push({ gate: g, row: { inputs, output: wrongOut }, script: buildRevealScript(hashes, challengerXonly) });
+    }
+  }
+  return leaves;
+}
+
+function findGatesFraud(gates, wireMap, trace, challengerXonly) {
+  for (const g of gates) {
+    const inBits = g.inputs.map((l) => trace[l]);
+    const correct = GATES[g.type].f(...inBits);
+    if (trace[g.output] !== correct) {
+      const hashes = inBits.map((bit, i) => wireHash(wireMap[g.inputs[i]], bit));
+      hashes.push(wireHash(wireMap[g.output], trace[g.output]));
+      const preimages = inBits.map((bit, i) => wirePreimage(wireMap[g.inputs[i]], bit));
+      preimages.push(wirePreimage(wireMap[g.output], trace[g.output]));
+      return { gate: g, script: buildRevealScript(hashes, challengerXonly), revealPreimages: preimages };
+    }
+  }
+  return null;
+}
+
 module.exports = {
   GATES,
   buildWire,
@@ -117,5 +148,7 @@ module.exports = {
   gateInvalidRows,
   buildGateDisproveLeaves,
   findGateFraud,
+  buildGatesDisproveLeaves,
+  findGatesFraud,
   sha256
 };

@@ -415,6 +415,31 @@ the operator can fake neither the inputs (input binding) nor the gate execution
 (Blocks 9-10): a SHA256 gadget for the final-output-equality predicate (the
 second referee check) + hardening. The solvency predicate is launch-complete.
 
+### BitVM Blocks 9-10: SHA256 circuit -> final-output predicate (added 2026-06-11)
+
+`tradelayer_bitvm_sha256.js` expresses SHA256 of a single 512-bit block as a
+~108-113k-gate boolean circuit over the AND/OR/XOR/NOT primitives (constant
+propagation keeps it to the real logic; rotations/shifts are free). The evaluator
+is validated against the NIST `"abc"` vector, the empty string, and random inputs
+(`tradelayer_bitvm_sha256.test.js`); a tampered gate is localized to exactly that
+gate. This is the final-output-equality referee check ("the swept outputs hash to
+the committed root") as an enforceable circuit.
+
+`tradelayer_bitvm_sha256_demo.js` runs it on-chain at full scale: the SHA256
+circuit's 447,392 gate-disprove leaves are bonded in one P2TR output; the
+operator tampers one gate to fake the hash; a challenger disproves it on the
+script path with a depth-19 merkle-path control block:
+
+- funding `4c2962f401cf48200b15314f7ccc7701ca6889bc76714047fdbbcbfdb7a33c9f`
+  bonds the whole SHA256 circuit (block 4,761,545)
+- disprove spend `21d753ce2ff465e43d2bcee06fc823a2f5942bb811513a4b9cdcc02903f2baf0`,
+  network verified the 19-deep merkle path AND executed the gate-disprove
+  tapscript, confirmed in block 4,761,545
+
+This completes the BitVM plan (Blocks 1-10): both referee predicates - solvency
+(`cap<=reserve`) and final-output (`SHA256`) - are now enforceable on-chain by
+real Bitcoin Script via the bonded disprove tree + CSV-timeout dispute game.
+
 ## Work Started
 
 This repo now adds a live-path evidence harness:
