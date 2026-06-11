@@ -320,10 +320,28 @@ path, revealing a=1/b=1/c=0:
 - disprove spend `2be77c16ee1de2e378a882671d48a688e73a352fb849972818874de69d3e5d78`,
   network executed the 3-wire reveal tapscript, confirmed in block 4,761,431
 
-This is Block 1 of the launch-grade BitVM plan. Remaining: compose gates into a
-full predicate circuit (the `cap <= reserve` comparator), build the per-gate
-disprove taproot tree, and wire the assert -> challenge -> disprove/timeout
-transaction flow (Blocks 2-8).
+This is Block 1 of the launch-grade BitVM plan.
+
+### BitVM Blocks 2-3: the cap <= reserve predicate circuit (added 2026-06-11)
+
+`tradelayer_bitvm_comparator.js` composes the gates into the real referee
+predicate - the solvency invariant `cap <= reserve` over N-bit unsigned integers,
+built as a full-subtractor borrow chain (`solvent = NOT final_borrow`). A 16-bit
+comparator is 93 gates. Validated (`tradelayer_bitvm_comparator.test.js`, 6 tests):
+
+- computes `cap <= reserve` correctly for 200 random pairs + boundary cases;
+- the honest execution trace has no satisfiable disprove leaf;
+- a tampered solvency claim (flip the final solvent bit) is localized to exactly
+  one bad gate, whose disprove leaf is in the committed set and whose required
+  reveals match the prover's own committed wire values;
+- a flipped internal borrow wire is also caught.
+
+So the operator commits the full wire-by-wire execution of the solvency check; if
+any gate is inconsistent, a challenger disproves that one gate on-chain (Block 1
+mechanism). Remaining: commit the whole disprove leaf set as a taproot tree
+(merkle tree + control-block-with-path), and the assert -> challenge ->
+disprove/timeout transaction flow with bonds and CSV timeouts (Blocks 4-8). The
+per-gate on-chain disprove and the predicate circuit are both now real.
 
 ## Work Started
 
