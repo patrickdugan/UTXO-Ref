@@ -302,10 +302,28 @@ This is the original "hard edge": a referee predicate (here, equivocation on the
 committed final-output-review bit) is now punished by a real Bitcoin Script
 executed by the network, not a JS evidence object.
 
-Remaining toward full BitVM: compose many such bit-commitment gates into a
-complete predicate circuit (e.g. the full `cap <= reserve` comparator) with the
-challenge-response bisection game, rather than the single equivocation gate
-demonstrated here. The on-chain enforcement primitive itself is now real.
+### BitVM circuit framework - Block 1: wires + logic gates (added 2026-06-11)
+
+`tradelayer_bitvm_circuit.js` turns the single-gate primitive into a circuit
+framework: a wire is a bit commitment; a gate (AND/OR/XOR/NAND/NOT) is enforced
+by one disprove leaf per invalid truth-table row. A fraudulent gate assertion
+(output != f(inputs)) is punishable by revealing the prover's own preimages for
+that invalid row; an honest assertion has no satisfiable disprove leaf. The
+reveal script generalizes the equivocation gadget to N wires
+(`tradelayer_bitvm_circuit.test.js`, 8 tests).
+
+`tradelayer_bitvm_gate_demo.js` runs an on-chain gate disprove: a prover claims
+`1 AND 1 = 0`, and the challenger spends the gate's disprove leaf on the script
+path, revealing a=1/b=1/c=0:
+- funding txid `985914a430f661805cdb8e10c746bb424fb70a57da098f90e93d6d7d1a7e1971`
+  bonds the disprove leaf (block 4,761,431)
+- disprove spend `2be77c16ee1de2e378a882671d48a688e73a352fb849972818874de69d3e5d78`,
+  network executed the 3-wire reveal tapscript, confirmed in block 4,761,431
+
+This is Block 1 of the launch-grade BitVM plan. Remaining: compose gates into a
+full predicate circuit (the `cap <= reserve` comparator), build the per-gate
+disprove taproot tree, and wire the assert -> challenge -> disprove/timeout
+transaction flow (Blocks 2-8).
 
 ## Work Started
 
