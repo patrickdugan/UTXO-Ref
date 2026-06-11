@@ -87,6 +87,7 @@ const tradeLayerLiveReserveAdapter = require('./tradelayer_live_reserve_adapter'
 const tradeLayerDlcCetOracleSelection = require('./tradelayer_dlc_cet_oracle_selection');
 const tradeLayerDlcAdaptorSig = require('./tradelayer_dlc_adaptor_sig');
 const tradeLayerTaproot = require('./tradelayer_taproot');
+const tradeLayerMusig2 = require('./tradelayer_musig2');
 const tradeLayerPerpPnlReferee = require('./tradelayer_perp_pnl_referee');
 const bitvmLiquidityLeaseReferee = require('./bitvm_liquidity_lease_referee');
 const bitvmArenaSecurityReport = require('./bitvm_arena_security_report');
@@ -445,6 +446,14 @@ module.exports = {
   taprootScriptPubKey: tradeLayerTaproot.taprootScriptPubKey,
   taprootTweakSecret: tradeLayerTaproot.taprootTweakSecret,
   bip341SighashDefault: tradeLayerTaproot.bip341SighashDefault,
+  musig2KeyAgg: tradeLayerMusig2.keyAgg,
+  musig2ApplyTweak: tradeLayerMusig2.applyTweak,
+  musig2NonceAgg: tradeLayerMusig2.nonceAgg,
+  musig2SessionValues: tradeLayerMusig2.sessionValues,
+  musig2PartialSign: tradeLayerMusig2.partialSign,
+  musig2PartialSigAgg: tradeLayerMusig2.partialSigAgg,
+  musig2PartialSigAggAdaptor: tradeLayerMusig2.partialSigAggAdaptor,
+  musig2AdaptorComplete: tradeLayerMusig2.adaptorCompleteMuSig,
   buildTradeLayerPerpPnlSettlement: tradeLayerPerpPnlReferee.buildTradeLayerPerpPnlSettlement,
   verifyTradeLayerPerpPnlSettlement: tradeLayerPerpPnlReferee.verifyTradeLayerPerpPnlSettlement,
   buildTradeLayerPerpPnlChallenge: tradeLayerPerpPnlReferee.buildTradeLayerPerpPnlChallenge,
@@ -537,6 +546,7 @@ module.exports = {
   tradeLayerDlcCetOracleSelection,
   tradeLayerDlcAdaptorSig,
   tradeLayerTaproot,
+  tradeLayerMusig2,
   tradeLayerPerpPnlReferee,
   bitvmLiquidityLeaseReferee,
   bitvmArenaSecurityReport,

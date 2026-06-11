@@ -254,12 +254,32 @@ witness that is the oracle-completed adaptor signature:
 Network acceptance is the end-to-end proof that the taproot tweak, BIP341
 sighash, witness serialization, and adaptor completion are all correct.
 
-Still open: this is a single-key keypath spend (it proves an adaptor-completed
-signature settles on-chain, but the single key holder could also spend
-unilaterally). Forcing the signer to wait for the oracle needs a 2-party MuSig2
-funding key — the adaptor primitive is identical, only key/nonce aggregation is
-added. And the insolvency + final-output referee challenges are still evidence
-objects rather than BitVM/Script constraints.
+### 2-party MuSig2 adaptor-DLC on-chain (added 2026-06-10)
+
+The unilateral-spend gap is closed. `tradelayer_musig2.js` implements MuSig2
+(BIP327) key aggregation, x-only (taproot) tweak, nonce aggregation, and partial
+signing, with an adaptor offset on the aggregate nonce. KeyAgg, the x-only tweak,
+and partial signing are validated against the published BIP327 test vectors
+(`tradelayer_musig2.test.js`, vectors vendored).
+
+The funding output is a P2TR keypath whose internal key is the MuSig2 aggregate
+of two parties, so settlement requires BOTH partial signatures AND the oracle
+attestation:
+
+- Funding txid `bfe988a468f2bf8a8da1ef2ee2fa462d6ea6f0c0b6bff3b68a3c36b09fe9bd37`,
+  confirmed in block 4,761,258.
+- Spend txid `8b8d18f45b209f7a687d9201e8e9b44a2aff2608aca7aad2b5d1472cfc9e5463`,
+  witness = 2-party MuSig2 adaptor-completed BIP340 signature, accepted by the
+  network and confirmed in block 4,761,258.
+- The driver asserts the negative cases before broadcast: one party alone is
+  rejected, and the pre-signature does not verify without the oracle.
+
+`tradelayer_musig2_dlc_demo.js` runs the full flow. The signing side of the DLC
+is now complete on-chain: oracle-enforced, 2-of-2, taproot.
+
+Still open: the insolvency + final-output referee challenges remain evidence
+objects rather than concrete BitVM/Script constraints (the original "hard edge").
+The DLC settlement path itself is now real.
 
 ## Work Started
 

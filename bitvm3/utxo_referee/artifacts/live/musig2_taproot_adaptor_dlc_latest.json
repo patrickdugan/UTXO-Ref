@@ -1,0 +1,20 @@
+{
+  "kind": "tradelayer_musig2_taproot_adaptor_dlc",
+  "p2trScriptPubKey": "512030a007cc4ee78670d0fd9927b3d1f3bcf9d3447feb7b44e4fde63952f25952d9",
+  "aggregateInternalKey": "82f32dcf2274673be1482f3ce8eaf01534049e73868dae2ac74978daddbec77d",
+  "outputKey": "30a007cc4ee78670d0fd9927b3d1f3bcf9d3447feb7b44e4fde63952f25952d9",
+  "fundingTxid": "bfe988a468f2bf8a8da1ef2ee2fa462d6ea6f0c0b6bff3b68a3c36b09fe9bd37",
+  "spendTxid": "8b8d18f45b209f7a687d9201e8e9b44a2aff2608aca7aad2b5d1472cfc9e5463",
+  "outcomeId": "settle-loss",
+  "oraclePx": "32dae91b6901f5cd901361ac1feafa17a61db40a8e8bba0507c83941394c5851",
+  "oracleRx": "0e1e21db5382c71936721c56b19315752baa6eb9189ade4df2b89b0c0b897830",
+  "enforcement": {
+    "onePartyAlone": "rejected",
+    "preSigWithoutOracle": "rejected",
+    "twoOfTwoPlusOracle": "valid"
+  },
+  "broadcast": {
+    "fundingTxid": "bfe988a468f2bf8a8da1ef2ee2fa462d6ea6f0c0b6bff3b68a3c36b09fe9bd37",
+    "spendTxid": "8b8d18f45b209f7a687d9201e8e9b44a2aff2608aca7aad2b5d1472cfc9e5463"
+  }
+}
