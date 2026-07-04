@@ -1,17 +1,17 @@
 {
   "kind": "tradelayer_taproot_adaptor_dlc",
-  "p2trScriptPubKey": "5120ee3aba8c611044355ef462f829d9a7d0008cb4b8ab17357109626d702a069882",
-  "outputKey": "ee3aba8c611044355ef462f829d9a7d0008cb4b8ab17357109626d702a069882",
-  "fundingTxid": "276b600baf04432b4b3bec03b2fc7aefd26203d8a6e51fa48f16639c08069045",
-  "spendTxid": "ce9e727324e3467129eb3a6e306610a2be4f0e53f7957fbec098124d6d3f0366",
+  "p2trScriptPubKey": "5120c64095137ea7b4c041778a7f5d64a7136c94d09fdf1295034ad28dc88b10639e",
+  "outputKey": "c64095137ea7b4c041778a7f5d64a7136c94d09fdf1295034ad28dc88b10639e",
+  "fundingTxid": "815df30e9ece557c18d8acb30a0d9ac89736a4100ceb68df3927c2928bc8160b",
+  "spendTxid": "e5aad6ff09ab2486db4baf871307d7271e7f5acaaa1d359ff1e4cd482948681b",
   "outcomeId": "settle-loss",
-  "oraclePx": "40ed0c40b2cc14d1b83d93903dc8cc0cc74ea8d8f9a86a302ebd70bb6ad50e48",
-  "oracleRx": "0dcd71bee090a9ade8b32a287f4d7ac75f7c26169e0b52ae40cac2ba894a76e1",
-  "attestation": "904fc5f0d1659b3852c3fd90865d7da198e4c86579736ed42c9269a590f2c14d",
+  "oraclePx": "cc59114982c7b1cd581a7afe574a0d0ecd0f986ca82de8b653fc036cfdfdebda",
+  "oracleRx": "61057ca9266dd5b4a5405dd8b22e6b1176e55bb731f0333090ad9218eed95705",
+  "attestation": "1eeddc4c5f4fc8f62a53cb8a454a945aa2cd14feed5cfed15f88b4938611b49a",
   "adaptorPresigVerified": true,
   "completedSigVerified": true,
   "broadcast": {
-    "fundingTxid": "276b600baf04432b4b3bec03b2fc7aefd26203d8a6e51fa48f16639c08069045",
-    "spendTxid": "ce9e727324e3467129eb3a6e306610a2be4f0e53f7957fbec098124d6d3f0366"
+    "fundingTxid": "815df30e9ece557c18d8acb30a0d9ac89736a4100ceb68df3927c2928bc8160b",
+    "spendTxid": "e5aad6ff09ab2486db4baf871307d7271e7f5acaaa1d359ff1e4cd482948681b"
   }
 }

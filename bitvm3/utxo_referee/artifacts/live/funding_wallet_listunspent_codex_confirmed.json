@@ -1,0 +1,15 @@
+[
+  {
+    "txid": "2f879c633ef6717f528eef235ef70caaacb70a3fc2d0f8ecd5d9f49cfa2d379f",
+    "amount": 0.05000000,
+    "confirmations": 3,
+    "spendable": true,
+    "address": "tltc1q5ffuqhuvm2n848cddmh9jnfcg9dhskfnu57c6z",
+    "label": "codex-funding",
+    "vout": 0,
+    "scriptPubKey": "0014a253c05f8cdaa67a9f0d6eee594d38415b785933",
+    "solvable": true,
+    "desc": "wpkh([dd90970f/0'/0'/2']028fe2ad18a0ea741b3a9fce2d74b0a3f99fb8adec80d756feb59c0bbc8d2a34c5)#3mkqvh23",
+    "safe": true
+  }
+]
