@@ -37,7 +37,11 @@ utxo_referee/
 
 TradeLayer-specific projection details are kept in `TLInt.md`.
 
-Launch sequencing for the live custody rail is documented in `LITECOIN_MAINNET_SHIP_PLAN.md`.
+Launch sequencing for a future live custody rail is documented in
+`LITECOIN_MAINNET_SHIP_PLAN.md`.
+> **Scope note:** no custody rail is running today — this points at a ship
+> *plan*. See `docs/PILOT_SURFACE.md` for what currently exists and
+> `SECURITY_BLOCKERS.md` for what must close before any real-value custody.
 
 ## Data Structures
 

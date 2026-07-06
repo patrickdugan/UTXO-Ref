@@ -97,8 +97,12 @@ async function main() {
   const nA = makeNonce(); const nB = makeNonce();
   const aggnonce = m.nonceAgg([nA.pub, nB.pub]);
   const session = m.sessionValues(aggnonce, tctx, sighash, T);
-  const psA = m.partialSign(nA.sec, a.bytes32(skA), tctx, session);
-  const psB = m.partialSign(nB.sec, a.bytes32(skB), tctx, session);
+  // partialSignGuarded (not the raw partialSign primitive) journals each
+  // (secnonce, sighash) pair before signing, per SECURITY_BLOCKERS.md #2 -
+  // this is the real value-signing path, so nonce-reuse-across-messages
+  // must be structurally impossible here, not just a documented risk.
+  const psA = m.partialSignGuarded(nA.sec, a.bytes32(skA), tctx, session, sighash);
+  const psB = m.partialSignGuarded(nB.sec, a.bytes32(skB), tctx, session, sighash);
   const preAgg = m.partialSigAggAdaptor([psA, psB], tctx, session);
 
   // neither party alone, and not without the oracle

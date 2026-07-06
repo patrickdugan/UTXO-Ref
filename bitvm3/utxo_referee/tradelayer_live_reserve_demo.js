@@ -52,19 +52,34 @@ function readJsonBomTolerant(filePath) {
   return JSON.parse(fs.readFileSync(filePath, 'utf8').replace(/^﻿/, ''));
 }
 
-async function loadUnspent(args) {
-  if (args.unspent) {
-    return readJsonBomTolerant(path.resolve(args.unspent));
-  }
+function liveRpc(args) {
   const chainEnv = resolveChainEnv();
-  const rpc = rpcFactory({
+  return rpcFactory({
     rpcUrl: args.rpcUrl || chainEnv.rpcUrl,
     rpcUser: args.rpcUser || chainEnv.rpcUser,
     rpcPass: args.rpcPass || chainEnv.rpcPass,
     requestId: 'tradelayer-live-reserve'
   });
+}
+
+async function loadUnspent(args) {
+  if (args.unspent) {
+    return readJsonBomTolerant(path.resolve(args.unspent));
+  }
+  const rpc = liveRpc(args);
   const minConf = Number(args.minConfirmations || 0);
   return rpc('listunspent', [minConf, 9999999], args.wallet || null);
+}
+
+// SECURITY_BLOCKERS.md #4: fetch the chain height fresh, right before the
+// gate decision - not reused from whenever listunspent was called earlier.
+// Offline/file mode (--unspent) has no live chain to re-check against, so
+// this intentionally returns undefined there (staleness check is skipped,
+// same as always having been - no regression for that mode).
+async function fetchFreshHeight(args) {
+  if (args.unspent) return undefined;
+  const rpc = liveRpc(args);
+  return Number(await rpc('getblockcount', [], args.wallet || null));
 }
 
 async function main() {
@@ -74,15 +89,37 @@ async function main() {
     return;
   }
 
+  // Fetch the REAL chain tip before anything else. buildLiveReserveFromUnspent
+  // otherwise falls back to a synthetic "height" derived from the highest UTXO
+  // confirmation count, which is a relative depth, not an absolute height -
+  // comparing that against a real tip later would produce a nonsense age.
+  // Passing the real tip in explicitly makes its blockHeight math (and this
+  // freshness check) operate on one consistent absolute scale.
+  const chainTipAtStart = args.currentHeight ? Number(args.currentHeight) : await fetchFreshHeight(args);
+
   const unspent = await loadUnspent(args);
   const reserve = buildLiveReserveFromUnspent(unspent, {
     network: args.network || 'litecoin-testnet',
     minConfirmations: Number(args.minConfirmations || 1),
-    currentHeight: args.currentHeight ? Number(args.currentHeight) : undefined
+    currentHeight: chainTipAtStart
   });
 
-  const bundle = buildTradeLayerBitvmStackBundle({ reserve: reserve.snapshot });
-  const verification = verifyTradeLayerBitvmStackBundle(bundle);
+  // The reserve snapshot's own height is "observedAtHeight" - the freshness
+  // window is measured from here. maxReserveAgeBlocks defaults to the
+  // referee's own conservative default (see tradelayer_reserve_reconciliation_referee.js)
+  // unless overridden.
+  const bundle = buildTradeLayerBitvmStackBundle({
+    reserve: reserve.snapshot,
+    observedAtHeight: reserve.currentHeight,
+    currentHeight: reserve.currentHeight,
+    maxReserveAgeBlocks: args.maxReserveAgeBlocks ? Number(args.maxReserveAgeBlocks) : undefined
+  });
+
+  // Re-fetch the height fresh, right before deciding whether this bundle is
+  // still good to act on - this is what actually catches "the reserve proof
+  // was fine when built, but has since gone stale."
+  const liveHeight = await fetchFreshHeight(args);
+  const verification = verifyTradeLayerBitvmStackBundle(bundle, { currentHeight: liveHeight });
   const reconciliation = bundle.reserveReconciliation;
   const insolvencyChallenge = buildTradeLayerReserveInsolvencyChallenge(reconciliation);
 
@@ -105,9 +142,10 @@ async function main() {
       shortfallSats: insolvencyChallenge.core.shortfallSats
     },
     stackHash: bundle.stackHash,
-    dashboardStatus: bundle.dashboard.status,
+    dashboardStatus: verification.ok ? verification.status : bundle.dashboard.status,
     walletAction: bundle.productionPolicy.walletAction,
-    stackVerification: verification.ok ? 'ok' : verification.reason
+    stackVerification: verification.ok ? 'ok' : verification.reason,
+    reserveFreshness: verification.ok ? verification.reserveFreshness : null
   };
 
   fs.mkdirSync(ARTIFACTS_DIR, { recursive: true });
@@ -119,8 +157,14 @@ async function main() {
   console.log(`  withdrawal cap   : ${reconciliation.core.capSats} sats`);
   console.log(`  margin           : ${reconciliation.core.marginSats} sats`);
   console.log(`  solvent          : ${reconciliation.solvent}`);
+  console.log(`  observedAtHeight : ${reconciliation.core.observedAtHeight} (maxReserveAgeBlocks=${reconciliation.core.maxReserveAgeBlocks})`);
+  if (liveHeight !== undefined) {
+    console.log(`  live re-check    : height ${liveHeight}, ageNow=${verification.ok ? verification.reserveFreshness.ageBlocksNow : 'n/a'}, staleNow=${verification.ok ? verification.reserveFreshness.staleNow : 'n/a'}`);
+  } else {
+    console.log('  live re-check    : skipped (offline --unspent mode has no live chain to re-check against)');
+  }
   console.log(`  walletAction     : ${bundle.productionPolicy.walletAction}`);
-  console.log(`  dashboard        : ${bundle.dashboard.status}`);
+  console.log(`  dashboard        : ${artifact.dashboardStatus}`);
   console.log(`  stack verify     : ${artifact.stackVerification}`);
   console.log(`  artifact         : ${outPath}`);
 

@@ -244,7 +244,13 @@ function buildTradeLayerBitvmStackBundle(input = {}) {
   const reserveReconciliation = buildTradeLayerReserveReconciliation({
     network: routePlan.network,
     queue: withdrawalQueue,
-    reserve: input.reserve || { reservedSats: routePlan.dlcInput.sats }
+    reserve: input.reserve || { reservedSats: routePlan.dlcInput.sats },
+    // SECURITY_BLOCKERS.md #4: opt-in freshness window - pass observedAtHeight
+    // (when the reserve snapshot was taken) and currentHeight to fail-closed
+    // on a stale reserve proof. Omitted by default for backward compatibility.
+    observedAtHeight: input.observedAtHeight,
+    currentHeight: input.currentHeight,
+    maxReserveAgeBlocks: input.maxReserveAgeBlocks
   });
   const productionPolicy = buildTradeLayerSendProductionPolicy(stateOracleBlob, {
     ...sendOptions,
@@ -342,10 +348,17 @@ function buildTradeLayerBitvmStackBundle(input = {}) {
   return bundle;
 }
 
-function verifyTradeLayerBitvmStackBundle(bundle) {
+function verifyTradeLayerBitvmStackBundle(bundle, options = {}) {
   if (!bundle || bundle.kind !== 'bitvm_tradelayer_stack_bundle') {
     return { ok: false, reason: 'wrong stack bundle kind' };
   }
+  // SECURITY_BLOCKERS.md #4: pass options.currentHeight (a FRESH chain height
+  // fetched right before this gate check) so a reserve reconciliation that
+  // was fresh when the bundle was built, but has since aged past its
+  // freshness window, is caught here - not just once, at build time.
+  const reserveCheck = verifyTradeLayerReserveReconciliation(
+    bundle.reserveReconciliation, bundle.withdrawalQueue, { currentHeight: options.currentHeight }
+  );
   const checks = [
     ['fraudChallenges', verifyTradeLayerSendFraudChallengeBundle(bundle.fraudChallenges)],
     ['walletFlow', verifyTradeLayerSendWalletFlow(bundle.walletFlow)],
@@ -354,7 +367,7 @@ function verifyTradeLayerBitvmStackBundle(bundle) {
     ['stateCheckpoint', verifyTradeLayerStateCheckpoint(bundle.stateCheckpoint)],
     ['checkpointFraudProof', verifyTradeLayerCheckpointFraudProof(bundle.checkpointFraudProof, bundle.stateCheckpoint)],
     ['withdrawalQueue', verifyTradeLayerWithdrawalQueue(bundle.withdrawalQueue)],
-    ['reserveReconciliation', verifyTradeLayerReserveReconciliation(bundle.reserveReconciliation, bundle.withdrawalQueue)],
+    ['reserveReconciliation', reserveCheck],
     ['perpPnl', verifyTradeLayerPerpPnlSettlement(bundle.perpPnl)],
     ['liquidityLease', verifyBitvmLiquidityLease(bundle.liquidityLease)],
     ['arenaSecurity', verifyBitvmArenaSecurityReport(bundle.arenaSecurity)],
@@ -378,11 +391,23 @@ function verifyTradeLayerBitvmStackBundle(bundle) {
   if (stackHash !== bundle.stackHash) {
     return { ok: false, reason: 'stack hash mismatch', stackHash };
   }
+  // Live staleness (caught only when options.currentHeight is supplied) can
+  // downgrade the status returned HERE without touching the hash-committed
+  // bundle itself - the bundle's own build-time dashboard/status stays an
+  // honest record of what was true when it was built; this is the fresher,
+  // more conservative judgment for whatever is deciding whether to spend now.
+  const wentStaleSinceBuild = reserveCheck.ok && reserveCheck.staleNow === true && !reserveCheck.staleAtBuild;
   return {
     ok: true,
     stackHash,
     dashboardViewHash: bundle.dashboard.viewHash,
-    status: bundle.dashboard.status,
+    status: wentStaleSinceBuild ? 'needs_attention' : bundle.dashboard.status,
+    reserveFreshness: {
+      staleAtBuild: reserveCheck.staleAtBuild,
+      staleNow: reserveCheck.staleNow,
+      ageBlocksNow: reserveCheck.ageBlocksNow,
+      wentStaleSinceBuild
+    },
     failedChecks: []
   };
 }

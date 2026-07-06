@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 const path = require('path');
+const fs = require('fs');
 const {
   loadRbtcDlcZkSettlementBundle,
   buildRbtcDlcBitvmSettlementReceipt,
@@ -35,13 +36,21 @@ function clone(value) {
 
 console.log('\n=== rBTC DLC ZK Settlement Adapter Tests ===\n');
 
-const TLZK_ARTIFACT = path.join(
-  'C:\\projects',
-  'TLZK',
-  'artifacts',
-  'rbtc_dlc_zk',
-  'rbtc_dlc_zk_settlement_latest.json'
-);
+function resolveTlzkArtifact() {
+  const candidates = [
+    process.env.TLZK_RBTC_DLC_ZK_ARTIFACT,
+    path.join(__dirname, 'artifacts', 'fixtures', 'rbtc_dlc_zk_settlement_latest.json'),
+    path.join('C:\\projects', 'TLZK', 'zkTL', 'artifacts', 'rbtc_dlc_zk', 'rbtc_dlc_zk_settlement_latest.json'),
+    path.join('C:\\projects', 'TLZK', 'artifacts', 'rbtc_dlc_zk', 'rbtc_dlc_zk_settlement_latest.json')
+  ].filter(Boolean);
+  const found = candidates.find((candidate) => fs.existsSync(candidate));
+  if (!found) {
+    throw new Error(`missing TLZK rBTC/DLC fixture; checked: ${candidates.join(', ')}`);
+  }
+  return found;
+}
+
+const TLZK_ARTIFACT = resolveTlzkArtifact();
 
 test('loads TLZK rBTC proof artifact and builds BitVM release receipt', () => {
   const bundle = loadRbtcDlcZkSettlementBundle(TLZK_ARTIFACT);

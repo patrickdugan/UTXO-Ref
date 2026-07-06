@@ -147,6 +147,62 @@ test('builds and verifies a challengeable insolvency proof', () => {
   assert(!noChallenge.challengeable, 'solvent reconciliation is not challengeable');
 });
 
+// --- SECURITY_BLOCKERS.md #4: freshness-window fail-closed tests ---
+
+test('omitting observedAtHeight leaves staleness unchecked (fully backward compatible)', () => {
+  const queue = buildQueue();
+  const rec = buildTradeLayerReserveReconciliation({ queue, reserve: 100000 });
+  assert(rec.solvent, 'no observedAtHeight supplied -> staleness must not be enforced');
+  assertEq(rec.core.observedAtHeight, null);
+  assertEq(rec.core.staleAtBuild, null);
+});
+
+test('reserve snapshot within the freshness window is solvent', () => {
+  const queue = buildQueue();
+  const rec = buildTradeLayerReserveReconciliation({
+    queue, reserve: 100000, observedAtHeight: 1000, currentHeight: 1002, maxReserveAgeBlocks: 6
+  });
+  assert(rec.solvent, 'age 2 <= window 6 should remain solvent');
+  assertEq(rec.core.ageBlocksAtBuild, 2);
+  assertEq(rec.core.staleAtBuild, false);
+});
+
+test('reserve snapshot older than the freshness window is fail-closed at build time', () => {
+  const queue = buildQueue();
+  const rec = buildTradeLayerReserveReconciliation({
+    queue, reserve: 100000, observedAtHeight: 1000, currentHeight: 1010, maxReserveAgeBlocks: 6
+  });
+  assert(!rec.solvent, 'age 10 > window 6 must force insolvent regardless of cap<=reserve math');
+  assertEq(rec.core.mathSolvent, true, 'the underlying arithmetic is still recorded as solvent for audit');
+  assertEq(rec.core.staleAtBuild, true);
+});
+
+test('a reconciliation that was fresh at build time is caught stale at verify time', () => {
+  const queue = buildQueue();
+  const rec = buildTradeLayerReserveReconciliation({
+    queue, reserve: 100000, observedAtHeight: 1000, currentHeight: 1002, maxReserveAgeBlocks: 6
+  });
+  assert(rec.solvent, 'fresh at build time');
+
+  // Time passes; re-verify with a much later live height.
+  const freshCheck = verifyTradeLayerReserveReconciliation(rec, queue, { currentHeight: 1002 });
+  assert(freshCheck.ok && freshCheck.solvent, 'still fresh a moment later');
+
+  const staleCheck = verifyTradeLayerReserveReconciliation(rec, queue, { currentHeight: 1050 });
+  assert(staleCheck.ok, staleCheck.reason);
+  assert(!staleCheck.solvent, 'live re-check at height 1050 (age 50 > window 6) must force insolvent');
+  assert(staleCheck.staleNow === true, 'staleNow must reflect the live re-check');
+  assertEq(staleCheck.mathSolvent, true, 'the math itself is unchanged - only the freshness policy blocks it');
+});
+
+test('currentHeight before observedAtHeight (reorg/bad input) fails closed, not silently accepted', () => {
+  const queue = buildQueue();
+  const rec = buildTradeLayerReserveReconciliation({
+    queue, reserve: 100000, observedAtHeight: 1000, currentHeight: 990, maxReserveAgeBlocks: 6
+  });
+  assert(!rec.solvent, 'currentHeight before observedAtHeight must never be treated as fresh/solvent');
+});
+
 if (failed > 0) {
   console.log(`\nFAIL: ${failed} failed, ${passed} passed\n`);
   process.exit(1);

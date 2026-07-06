@@ -1,0 +1,142 @@
+{
+  "kind": "tlzk_rbtc_redeem_dlc_settlement_bundle",
+  "bundleId": "70829fe5a792b51028c745bd96fcab2e2851304c24773bc7ec107ba973de41ef",
+  "bundleCore": {
+    "claimId": "7387ba14131f5e8aea04120e682a56ac6e7d3b61783116c4ee79870b9e6ac86f",
+    "receiptId": "30a1971afda4345fc1becb085244b849f5ebc48ecebd1878229546528d6b3bc0",
+    "challengeId": "b2cf86639b716630d40dcfc9b412f6a9d12de767758be1d799be87280ea96ceb"
+  },
+  "claim": {
+    "kind": "tlzk_rbtc_redeem_dlc_settlement_claim",
+    "claimId": "7387ba14131f5e8aea04120e682a56ac6e7d3b61783116c4ee79870b9e6ac86f",
+    "claimCore": {
+      "version": 1,
+      "protocol": "tlzk_rbtc_redeem_dlc_settlement_claim",
+      "proofType": "stwo-cairo-rbtc-redeem-dlc-settlement-v1",
+      "cairoProgram": "tradelayer_rbtc_redeem_dlc_settlement_v1",
+      "verifierId": "tlzk_rust_wasm_v0",
+      "publicInputs": {
+        "oldStateRoot": "921e727fa64117d18ff53580dde5953715b085c828d9f25db0a93832c734e8e9",
+        "newStateRoot": "3118ec2100da4a4003a0967e2fecf414fbc71fed5e8073f2ebbc9825773e7f57",
+        "tx12TransitionId": "0fa74a0e703f51b05cbf775a8333d03a9043bb94a4d976743e4bce97ef529ff3",
+        "tx12PayloadHash": "b62960c3559624598777d28d9a9cfdb31ec61d578fc82690a084e3973c2c72a7",
+        "rbtcPropertyId": 9,
+        "redeemerAddress": "tb1qrtbcredeemer0000000000000000000000000",
+        "redeemAmountUnits": "100000",
+        "btcRedeemScale": "1",
+        "dlcTemplateId": "dlc-bitvm-rbtc-template-v1",
+        "dlcContractId": "dlc-rbtc-redeem-1",
+        "settlementState": "oracle-selected-happy-path",
+        "btcPayoutTxid": "710003818dfe7d6ef9660293615c187718fd398c760935d6e8024c5fcb033b1a",
+        "btcPayoutOutputRoot": "cf2c887a35aba6beb674600f0c9ed4efa24608fa62eb2e4281dec6218a045d99",
+        "btcPayoutTotalSats": "100000",
+        "escrowManifestId": "6131e9d4343a92e5f9f0d9a16446303a77569fdcb205fa00f46cadb0c54d8468",
+        "selectedEscrowPath": "dlc_bitvm_happy_settlement",
+        "expectedPayoutRoot": "988b944b62301cf13166a02ca8f7a5bd275e632064e0d6e67f2a9620cd72fe73",
+        "observedPayoutRoot": "988b944b62301cf13166a02ca8f7a5bd275e632064e0d6e67f2a9620cd72fe73",
+        "raitoOpReturnClaimRoot": "079764872abdf50c0905d8ff640945dfd6b23213deb4affc738145aec5785987",
+        "btcPayoutInclusionClaimRoot": "145396586dfffcd98b5d08a132bc098832d8f0b8e91449f5a08ceb7a04d9a1b5",
+        "proofBindingCommitment": "acfd41439428861d8227406d84c06057b701d6f0351078b1d563db2e5881832d"
+      },
+      "witnessRoot": "50b27c1e0ac234f2bff121e4f4fe2b0d65a0b564556ba0660f9f52c6aa4ee5d7"
+    },
+    "expectedPayouts": [
+      {
+        "role": "rbtc-redeemer",
+        "address": "tb1qrtbcredeemer0000000000000000000000000",
+        "scriptPubKey": "",
+        "sats": "100000"
+      }
+    ],
+    "matchedOutputs": [
+      {
+        "vout": 0,
+        "address": "tb1qrtbcredeemer0000000000000000000000000",
+        "scriptPubKey": "",
+        "sats": "100000"
+      }
+    ],
+    "btcPayoutTx": {
+      "txid": "710003818dfe7d6ef9660293615c187718fd398c760935d6e8024c5fcb033b1a",
+      "outputs": [
+        {
+          "vout": 0,
+          "address": "tb1qrtbcredeemer0000000000000000000000000",
+          "satoshis": 100000
+        },
+        {
+          "vout": 1,
+          "address": "tb1qchange000000000000000000000000000000",
+          "satoshis": 9000
+        }
+      ]
+    },
+    "redeemTransition": {
+      "transitionId": "0fa74a0e703f51b05cbf775a8333d03a9043bb94a4d976743e4bce97ef529ff3",
+      "transitionCore": {
+        "version": 1,
+        "protocol": "tlzk_tradelayer_tx12_redeem_managed_transition",
+        "cairoProgram": "tradelayer_tx12_redeem_managed_v1",
+        "txType": 12,
+        "txid": "f5b75ea162d113fede36af841a0f5970723c16b477cfbf836f8ee835f147e3cb",
+        "payloadHash": "b62960c3559624598777d28d9a9cfdb31ec61d578fc82690a084e3973c2c72a7",
+        "inclusionReceiptId": "e96df9cf8748c6ec9ce4954a74ef163a8c6b95b7d621a60396872c6b7df6e09f",
+        "supportLevel": "state_kernel",
+        "economicMutation": true,
+        "sender": "tb1qrtbcredeemer0000000000000000000000000",
+        "propertyId": 9,
+        "amountUnits": "100000",
+        "dlcTemplateId": "dlc-bitvm-rbtc-template-v1",
+        "dlcContractId": "dlc-rbtc-redeem-1",
+        "settlementState": "oracle-selected-happy-path",
+        "oldStateRoot": "921e727fa64117d18ff53580dde5953715b085c828d9f25db0a93832c734e8e9",
+        "newStateRoot": "3118ec2100da4a4003a0967e2fecf414fbc71fed5e8073f2ebbc9825773e7f57",
+        "touchedKeys": [
+          "9",
+          "tb1qrtbcredeemer0000000000000000000000000:9",
+          "journal:000000000001",
+          "last:12",
+          "summary:txCounts"
+        ],
+        "witnessRoot": "3537257a5a3e31a842cba4a581ced8e6fd83ebe1939f4f7f2bdfb921eed79924"
+      }
+    }
+  },
+  "receipt": {
+    "kind": "tlzk_rbtc_redeem_dlc_settlement_receipt",
+    "receiptId": "30a1971afda4345fc1becb085244b849f5ebc48ecebd1878229546528d6b3bc0",
+    "receiptCore": {
+      "version": 1,
+      "protocol": "tlzk_rbtc_redeem_dlc_settlement_receipt",
+      "proofType": "stwo-cairo-rbtc-redeem-dlc-settlement-v1",
+      "verifierId": "tlzk_rust_wasm_v0",
+      "cairoProgram": "tradelayer_rbtc_redeem_dlc_settlement_v1",
+      "claimId": "7387ba14131f5e8aea04120e682a56ac6e7d3b61783116c4ee79870b9e6ac86f",
+      "publicInputHash": "43227cb95cc256a8c9fb8be4a83f4e92708663846b28f0b4cf093ba1856610e7",
+      "witnessRoot": "50b27c1e0ac234f2bff121e4f4fe2b0d65a0b564556ba0660f9f52c6aa4ee5d7",
+      "proofHash": "94e5424f065406a492b144b654f02ba20236a376512a021e130241001fe49cb3",
+      "programHash": "35627ede110e5b08c4b95cf48227278b60c34a1978d44627c32dc6cc8aefa642",
+      "status": "accepted-local-full-kernel-claim",
+      "remote": {
+        "host": "snacksack",
+        "proofPath": null
+      },
+      "ok": true
+    }
+  },
+  "challenge": {
+    "kind": "tlzk_rbtc_redeem_dlc_settlement_challenge",
+    "challengeId": "b2cf86639b716630d40dcfc9b412f6a9d12de767758be1d799be87280ea96ceb",
+    "challengeCore": {
+      "version": 1,
+      "protocol": "tlzk_rbtc_redeem_dlc_settlement_challenge",
+      "claimId": "7387ba14131f5e8aea04120e682a56ac6e7d3b61783116c4ee79870b9e6ac86f",
+      "expectedPayoutRoot": "988b944b62301cf13166a02ca8f7a5bd275e632064e0d6e67f2a9620cd72fe73",
+      "observedPayoutRoot": "630bafb3f457de35064dcdc64edbcf3d50d56cd051988d21891717a33046c767",
+      "violations": [
+        "wrong_payout_root"
+      ]
+    },
+    "slashable": true
+  }
+}

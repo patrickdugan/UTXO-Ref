@@ -1,13 +1,13 @@
 {
   "kind": "tradelayer_live_reserve_reconciliation",
-  "createdAt": "2026-06-10T15:34:16.770Z",
+  "createdAt": "2026-07-06T15:44:13.164Z",
   "source": "rpc:tl-wallet",
   "reserve": {
-    "creditedCount": 42,
-    "observedCount": 42,
-    "reservedSats": "17164718",
+    "creditedCount": 46,
+    "observedCount": 46,
+    "reservedSats": "17502113",
     "reserveSourceKind": "receipt-deposit-indexer",
-    "reserveSourceHash": "e95a514bdc20f3f7cd8257350a75a71e43b368697af4830fa520597aab57cb32"
+    "reserveSourceHash": "4fd21302508b4bf2015f20f2c4eaff7da83a481cc1c1bf02db2ca5b6c980e29e"
   },
   "reconciliation": {
     "kind": "tradelayer_reserve_reconciliation_v1",
@@ -18,19 +18,30 @@
     "capSats": "99000",
     "payableCount": 2,
     "reserveSourceKind": "receipt-deposit-indexer",
-    "reserveSourceHash": "e95a514bdc20f3f7cd8257350a75a71e43b368697af4830fa520597aab57cb32",
-    "reservedSats": "17164718",
-    "marginSats": "17065718",
+    "reserveSourceHash": "4fd21302508b4bf2015f20f2c4eaff7da83a481cc1c1bf02db2ca5b6c980e29e",
+    "reservedSats": "17502113",
+    "marginSats": "17403113",
+    "mathSolvent": true,
+    "observedAtHeight": 4794443,
+    "maxReserveAgeBlocks": 6,
+    "staleAtBuild": false,
+    "ageBlocksAtBuild": 0,
     "solvent": true
   },
-  "reconciliationHash": "e6e65dbfc6745371736166b319e283355b6cb0dc5e4124c7b21a654aabb3e8dc",
+  "reconciliationHash": "1411d93ee289463040a448b9b6b5852b594003150a936f5159374b666ad8f401",
   "insolvencyChallenge": {
     "challengeable": false,
-    "challengeHash": "5c01bd109e9c9d5b6190ea3f934d4ffe042b90fd05b2e305bd45c9ba55d4f908",
-    "shortfallSats": "-17065718"
+    "challengeHash": "d43022f114dc3aa965e8bbe14648fd2ee2d9470a328885359df6c4f1d9b22dc9",
+    "shortfallSats": "-17403113"
   },
-  "stackHash": "a17c0fe35d35d168257d2672e5c29df9a65125e283f6c484cdd16b4b63a73abf",
-  "dashboardStatus": "ready",
-  "walletAction": "allow_sweep",
-  "stackVerification": "ok"
+  "stackHash": "79d2ab93412e012f6925f0d504e7ac6b04cba6ff56f8ef8ecc111c8c7069a410",
+  "dashboardStatus": "needs_attention",
+  "walletAction": "pause_spend",
+  "stackVerification": "ok",
+  "reserveFreshness": {
+    "staleAtBuild": false,
+    "staleNow": false,
+    "ageBlocksNow": 0,
+    "wentStaleSinceBuild": false
+  }
 }

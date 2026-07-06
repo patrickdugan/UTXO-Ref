@@ -20,3 +20,10 @@ civkit/nostr_agent/artifacts/test_*/
 # Scratch stress-test dump with unresolved placeholders
 tests/stress_test_bitvm.js
 bitvm3/utxo_referee/artifacts/live/taproot_recovery_key.hex
+bitvm3/utxo_referee/artifacts/live/refund_cet_recovery_key.hex
+bitvm3/utxo_referee/artifacts/live/nonce_journal.json
+bitvm3/utxo_referee/artifacts/live/watchtower_state.json
+bitvm3/utxo_referee/artifacts/live/watchtower_alerts.jsonl
+bitvm3/utxo_referee/artifacts/live/test-tmp/
+bitvm3/utxo_referee/artifacts/live/traces/
+claudeChatExport*.txt*

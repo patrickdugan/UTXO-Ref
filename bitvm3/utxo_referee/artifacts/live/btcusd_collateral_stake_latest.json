@@ -1,0 +1,14 @@
+{
+  "kind": "tradelayer_btcusd_collateral_stake",
+  "collateralSats": "49000",
+  "btcUsdPriceMicros": "100000000000",
+  "btcUsdMicroUnits": "49000000",
+  "btcUsdDisplay": "49.000000",
+  "collateralAddress": "tltc1q365gzzupzy7laalphe6ezgl503wws63u76clmf",
+  "fundingUtxo": "8c9ea7a88f8c961891bdb18926810b8516051a09a62f0e0f65056e638d96277b:0",
+  "broadcast": {
+    "fundingTxid": "f04681b19e1951156649fbd89b8716621fc91f6dc2c82827d38f5c7a5b2ff99f",
+    "blockhash": "f56535e8849cdd38b9a679a2183a9c7da8763be6af7035dbb3b939ebaff4f6dd",
+    "confirmations": 1
+  }
+}

@@ -16,6 +16,22 @@
  *   2. a ReceiptDepositIndexer snapshot (kind: 'receipt-deposit-indexer')
  *      -> sums amountSats of deposits whose status === 'credited'
  *   3. a ReceiptLedger snapshot (has totalSupplySats)
+ *
+ * SECURITY_BLOCKERS.md #4 (partial fix - freshness window, not encumbrance):
+ * `reservedSats` is a `listunspent` snapshot of ordinary spendable wallet
+ * UTXOs at one point in time - nothing stops those UTXOs being spent
+ * elsewhere after the snapshot is taken (full fix requires a covenant/
+ * timelock, not attempted here). This referee instead bounds how OLD a
+ * reserve snapshot is allowed to be before it's trusted at all: pass
+ * `observedAtHeight` (the chain height when the snapshot was taken) and
+ * `currentHeight` (the height "now"); if the snapshot is older than
+ * `maxReserveAgeBlocks`, the reconciliation is fail-closed - `solvent` is
+ * forced to `false` regardless of the cap<=reserve math - both at build
+ * time and, critically, again at verify time with a FRESH `currentHeight`
+ * (so a reconciliation that was fresh when built but has since gone stale
+ * is caught the next time it's checked, not just once). This is opt-in and
+ * fully backward compatible: omit `observedAtHeight` and staleness is not
+ * enforced, exactly as before.
  */
 
 const {
@@ -24,6 +40,26 @@ const {
 const {
   verifyTradeLayerWithdrawalQueue
 } = require('./tradelayer_withdrawal_queue_referee');
+
+// Default staleness window: 6 blocks (~15 min at Litecoin's ~2.5 min target
+// block time). Deliberately tight - this is a mitigation for "reserve proof
+// can go stale," not a substitute for actual on-chain encumbrance. Override
+// via options.maxReserveAgeBlocks per call if a different window is needed.
+const DEFAULT_MAX_RESERVE_AGE_BLOCKS = 6;
+
+function computeStaleness(observedAtHeight, currentHeight, maxReserveAgeBlocks) {
+  if (observedAtHeight === undefined || observedAtHeight === null
+    || currentHeight === undefined || currentHeight === null) {
+    return { checked: false, ageBlocks: null, stale: false };
+  }
+  const ageBlocks = Number(currentHeight) - Number(observedAtHeight);
+  if (!Number.isFinite(ageBlocks) || ageBlocks < 0) {
+    // currentHeight before observedAtHeight is nonsensical (reorg, bad input,
+    // clock skew) - fail closed rather than silently accepting it.
+    return { checked: true, ageBlocks, stale: true, reason: 'currentHeight precedes observedAtHeight' };
+  }
+  return { checked: true, ageBlocks, stale: ageBlocks > maxReserveAgeBlocks };
+}
 
 function toSats(value, fieldName) {
   if (typeof value === 'bigint') return value;
@@ -100,7 +136,18 @@ function buildTradeLayerReserveReconciliation(input = {}) {
   const { reservedSats, reserveSourceKind, reserveSourceHash } = resolveReserve(input.reserve);
   const capSats = toSats(queue.queueCore.totalSats, 'queue.totalSats');
   const marginSats = reservedSats - capSats;
-  const solvent = marginSats >= 0n;
+  const mathSolvent = marginSats >= 0n;
+
+  const maxReserveAgeBlocks = input.maxReserveAgeBlocks !== undefined
+    ? Number(input.maxReserveAgeBlocks)
+    : DEFAULT_MAX_RESERVE_AGE_BLOCKS;
+  const observedAtHeight = input.observedAtHeight !== undefined && input.observedAtHeight !== null
+    ? Number(input.observedAtHeight)
+    : null;
+  const staleness = computeStaleness(observedAtHeight, input.currentHeight, maxReserveAgeBlocks);
+  // Fail-closed: a stale reserve snapshot is never treated as solvent,
+  // regardless of the cap<=reserve arithmetic. See file header.
+  const solvent = mathSolvent && !staleness.stale;
 
   const core = {
     kind: 'tradelayer_reserve_reconciliation_v1',
@@ -114,6 +161,11 @@ function buildTradeLayerReserveReconciliation(input = {}) {
     reserveSourceHash,
     reservedSats: reservedSats.toString(),
     marginSats: marginSats.toString(),
+    mathSolvent,
+    observedAtHeight,
+    maxReserveAgeBlocks,
+    staleAtBuild: staleness.checked ? staleness.stale : null,
+    ageBlocksAtBuild: staleness.checked ? staleness.ageBlocks : null,
     solvent
   };
 
@@ -125,7 +177,7 @@ function buildTradeLayerReserveReconciliation(input = {}) {
   };
 }
 
-function verifyTradeLayerReserveReconciliation(reconciliation, queue) {
+function verifyTradeLayerReserveReconciliation(reconciliation, queue, options = {}) {
   if (!reconciliation || reconciliation.kind !== 'tradelayer_reserve_reconciliation') {
     return { ok: false, reason: 'wrong reconciliation kind' };
   }
@@ -151,8 +203,16 @@ function verifyTradeLayerReserveReconciliation(reconciliation, queue) {
   if (marginSats.toString() !== core.marginSats) {
     return { ok: false, reason: 'margin mismatch' };
   }
-  const solvent = marginSats >= 0n;
-  if (solvent !== core.solvent || solvent !== reconciliation.solvent) {
+  const mathSolvent = marginSats >= 0n;
+  // Older committed cores (pre-staleness-window) won't have mathSolvent -
+  // fall back to the plain solvent flag so existing artifacts still verify.
+  const expectedMathSolvent = core.mathSolvent !== undefined ? core.mathSolvent : core.solvent;
+  if (mathSolvent !== expectedMathSolvent) {
+    return { ok: false, reason: 'solvency math mismatch' };
+  }
+
+  const builtSolvent = mathSolvent && !(core.staleAtBuild === true);
+  if (builtSolvent !== core.solvent || builtSolvent !== reconciliation.solvent) {
     return { ok: false, reason: 'solvency flag mismatch' };
   }
 
@@ -165,13 +225,29 @@ function verifyTradeLayerReserveReconciliation(reconciliation, queue) {
     if (queue.queueCore.totalSats !== core.capSats) return { ok: false, reason: 'cap mismatch against queue' };
   }
 
+  // SECURITY_BLOCKERS.md #4: re-check staleness against a FRESH currentHeight
+  // supplied at verify time, not just the height recorded at build time. A
+  // reconciliation that was fresh when built can go stale by the time it's
+  // actually used to gate a spend - this is what catches that, every time
+  // the gate is checked, not just once.
+  let solvent = builtSolvent;
+  let liveStaleness = null;
+  if (options.currentHeight !== undefined && options.currentHeight !== null && core.observedAtHeight !== null) {
+    liveStaleness = computeStaleness(core.observedAtHeight, options.currentHeight, core.maxReserveAgeBlocks);
+    if (liveStaleness.stale) solvent = false;
+  }
+
   return {
     ok: true,
     reconciliationHash,
     solvent,
+    mathSolvent,
     capSats: capSats.toString(),
     reservedSats: reservedSats.toString(),
-    marginSats: marginSats.toString()
+    marginSats: marginSats.toString(),
+    staleAtBuild: core.staleAtBuild === true,
+    staleNow: liveStaleness ? liveStaleness.stale : null,
+    ageBlocksNow: liveStaleness ? liveStaleness.ageBlocks : null
   };
 }
 

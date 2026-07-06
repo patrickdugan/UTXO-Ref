@@ -13,8 +13,27 @@
  * Implemented from scratch on Node built-ins (the repo is zero-dependency).
  * The secp256k1 scalar multiplication is cross-checked against Node's ECDH
  * (libsecp256k1) in the test suite, and BIP340 sign/verify round-trips guard
- * the rest. This is a reference implementation for testnet DLC settlement, not
- * a constant-time production signer.
+ * the rest.
+ *
+ * SECURITY_BLOCKERS.md #1 (partial fix): every point multiplication in this
+ * codebase where the *scalar is secret* (private key, nonce, oracle secret,
+ * adaptor secret) is always a multiplication by the fixed generator G - see
+ * `pointMul()` below. That specific operation is now routed through Node's
+ * built-in `crypto.createECDH('secp256k1')`, which uses OpenSSL's
+ * constant-time-ish scalar multiplication for named curves - a real security
+ * improvement with zero new dependencies (still Node built-ins only).
+ *
+ * Arbitrary-point multiplication (scalar * P for P != G) remains pure JS and
+ * variable-time. This is safe *in this codebase's actual usage* because every
+ * such call multiplies a PUBLIC point by a PUBLIC scalar (verification math:
+ * checking `sG - eP =? R` needs a public signature component `s` or `e`
+ * against a public key `P` - nothing secret to leak via timing). It would NOT
+ * be safe to reuse `pointMul` with a secret scalar against a non-generator
+ * point without revisiting this - if a future change introduces that pattern,
+ * route it through an audited library first (see SIGNER_MIGRATION_PLAN.md;
+ * Node has no built-in for arbitrary-point constant-time multiplication with
+ * a usable full-point output, only generator multiplication via ECDH.getPublicKey
+ * and X-coordinate-only Diffie-Hellman via ECDH.computeSecret).
  */
 
 const crypto = require('crypto');
@@ -74,7 +93,31 @@ function pointDouble(p1) {
   return { x: x3, y: y3 };
 }
 
+// scalar * G via Node's built-in OpenSSL binding (crypto.createECDH), which
+// uses a constant-time-ish implementation for named curves - unlike the pure
+// JS double-and-add loop below, this does not leak scalar bits through
+// data-dependent branching/timing. Node built-in only, no new dependency.
+function pointMulGeneratorHardened(scalar) {
+  const k = mod(scalar, N);
+  if (k === 0n) return null; // 0*G = point at infinity
+  const ecdh = crypto.createECDH('secp256k1');
+  ecdh.setPrivateKey(bytes32(k));
+  const uncompressed = ecdh.getPublicKey(null, 'uncompressed'); // 0x04 || x(32) || y(32)
+  return {
+    x: bufToBig(uncompressed.subarray(1, 33)),
+    y: bufToBig(uncompressed.subarray(33, 65))
+  };
+}
+
+function isGenerator(point) {
+  return point != null && point.x === GX && point.y === GY;
+}
+
 function pointMul(point, scalar) {
+  if (isGenerator(point)) return pointMulGeneratorHardened(scalar);
+  // Arbitrary-point multiplication: variable-time, but every call site in
+  // this codebase multiplies a PUBLIC point by a PUBLIC scalar (signature
+  // verification math) - see the file header note on this trade-off.
   let result = null;
   let addend = point;
   let k = mod(scalar, N);

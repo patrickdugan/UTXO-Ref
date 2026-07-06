@@ -16,6 +16,7 @@
 const {
   N, G, mod, pointMul, pointAdd, pointNegate, liftX, taggedHash, bytes32, bufToBig, schnorrVerify
 } = require('./tradelayer_dlc_adaptor_sig');
+const { reserveNonceUsage } = require('./tradelayer_nonce_journal');
 
 const FIELD_P = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2Fn;
 
@@ -109,6 +110,12 @@ function sessionValues(aggnonce, ctx, msg32, T = null) {
 }
 
 // ---- partial signing ----
+// Unguarded primitive, validated directly against BIP327 test vectors. Do
+// NOT call this directly for real signing - a secnonce is caller-generated
+// (unlike BIP340's deterministic per-message nonce), so nothing here stops
+// the same secnonce being reused across two different messages, which
+// leaks the private key. Use partialSignGuarded() below for anything that
+// isn't a fixed-vector conformance test.
 function partialSign(secnonce, sk, ctx, session) {
   const k1p = bufToBig(secnonce.slice(0, 32));
   const k2p = bufToBig(secnonce.slice(32, 64));
@@ -121,6 +128,16 @@ function partialSign(secnonce, sk, ctx, session) {
   const d = mod(g * ctx.gacc % N * dp, N);
   const s = mod(k1 + session.b * k2 % N + session.e * a % N * d, N);
   return bytes32(s);
+}
+
+// SECURITY_BLOCKERS.md #2: same as partialSign(), but durably records the
+// (secnonce, msg32) pair to the nonce journal BEFORE computing/releasing
+// anything. Reusing secnonce over a different msg32 throws NonceReuseError
+// instead of silently signing - this is the entry point real signing code
+// (demos, any future production path) should use.
+function partialSignGuarded(secnonce, sk, ctx, session, msg32, journalOptions = {}) {
+  reserveNonceUsage(secnonce, msg32, journalOptions);
+  return partialSign(secnonce, sk, ctx, session);
 }
 
 // ---- aggregation ----
@@ -157,6 +174,7 @@ module.exports = {
   nonceAgg,
   sessionValues,
   partialSign,
+  partialSignGuarded,
   partialSigAgg,
   partialSigAggAdaptor,
   adaptorCompleteMuSig,

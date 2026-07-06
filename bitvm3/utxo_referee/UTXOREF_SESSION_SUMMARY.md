@@ -14,10 +14,18 @@ Litecoin testnet (LTCTEST) txid.
 - **Settlement**: oracle attestation + adaptor signatures over a 2-of-2 MuSig2
   taproot output (a real DLC — neither party spends alone, nothing settles until
   the oracle attests).
-- **Referee correctness** (solvency, final-output): enforced trustlessly by
-  BitVM-style fraud proofs — the operator bonds a claim; any faked input or
-  inconsistent computation is punished on-chain; otherwise the operator reclaims
-  after a CSV timeout.
+- **Referee correctness** (solvency, final-output): enforced by BitVM-style
+  fraud proofs — the operator bonds a claim; any faked input or inconsistent
+  computation is punished on-chain; otherwise the operator reclaims after a
+  CSV timeout.
+  > **Scope note:** "trustless" describes the Script/circuit mechanics, not
+  > the current deployment. Every on-chain disprove/timeout to date was run
+  > with the operator also acting as the challenger (self-play). A persistent
+  > watchtower daemon now exists, but it has not been run by an
+  > independent challenger and does not yet auto-broadcast every possible
+  > disprove spend. See `SECURITY_BLOCKERS.md` #3, #5, and #6, and
+  > `docs/ADVERSARIAL_SIGNET_PLAN.md` for the rehearsal required before
+  > this claim holds operationally, not just mechanically.
 
 ## Layer map (all modules under `bitvm3/utxo_referee/`)
 
@@ -102,6 +110,7 @@ Node startup: `litecoind -testnet -server -rpcport=19332 -rpcuser=user
 
 - SHA256 circuit is single-block; multi-block + gate-count reduction for larger
   output vectors.
-- Watchtower automation, fee/RBF/CPFP and reorg hardening, operator runbooks.
+- Independent watchtower deployment, auto-disprove broadcast, fee/RBF/CPFP and
+  reorg hardening, operator runbooks.
 - The reserve's binding to the *actual* UTXO set at the consensus layer (the
   reconciliation currently takes a credited-deposit snapshot).
