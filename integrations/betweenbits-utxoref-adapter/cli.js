@@ -5,6 +5,7 @@ const {
   summarizeBetaGate,
   buildAssetAttestation,
   buildTaprootUsdWalletAsset,
+  buildPrototypeCrossReferences,
   evaluateSpendProposal
 } = require('./index');
 
@@ -45,6 +46,14 @@ function main() {
       autoRollState: artifacts.autoRollState,
       ticker: argValue('ticker') || undefined,
       displayName: argValue('display-name') || undefined
+    }));
+    return;
+  }
+  if (command === 'cross-ref') {
+    const reserve = betaGatePackage?.evidence?.reserve || {};
+    print(buildPrototypeCrossReferences({
+      reserveOutpoint: reserve.txid ? `${reserve.txid}:${reserve.vout ?? 0}` : null,
+      assetTicker: argValue('ticker') || undefined
     }));
     return;
   }

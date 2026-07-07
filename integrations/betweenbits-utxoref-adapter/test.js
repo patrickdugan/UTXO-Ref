@@ -6,6 +6,7 @@ const {
   summarizeBetaGate,
   buildAssetAttestation,
   buildTaprootUsdWalletAsset,
+  buildPrototypeCrossReferences,
   evaluateSpendProposal,
   hashOutputs
 } = require('./index');
@@ -165,6 +166,22 @@ function testTaprootUsdWalletAssetIsTestnetOnly() {
   assert.strictEqual(asset.tradeLayerBinding.autoRoll.nextContractId, 'rbtc-hour-listener-wallclock-002');
   assert.strictEqual(asset.tradeLayerBinding.autoRoll.selectedOutcomeId, 'roll');
   assert.strictEqual(asset.backingModel.reserveEvidence, 'UTXORef Taproot reserve vault');
+  assert(asset.crossReferences.lnToVaultFunding.prototypeModules.includes('bitvm3/utxo_referee/utxoref_dlc_subswap_funding.js'));
+  assert(asset.crossReferences.tradeLayerTaprootMinting.prototypeModules.includes('bitvm3/utxo_referee/lightning_taproot_assets_stablecoin.js'));
+}
+
+function testPrototypeCrossReferencesBindSubswapAndMinting() {
+  const crossRef = buildPrototypeCrossReferences({
+    createdAt: '2026-07-07T00:00:06.000Z',
+    reserveOutpoint: `${'a'.repeat(64)}:0`,
+    assetTicker: 'tUSD'
+  });
+  assert.strictEqual(crossRef.kind, 'betweenbits_taproot_usd_cross_reference_v1');
+  assert(crossRef.lnToVaultFunding.artifactKinds.includes('utxoref_dlc_subswap_funding_request'));
+  assert(crossRef.lnToVaultFunding.walletFlow.includes('pay_ln_invoice'));
+  assert(crossRef.tradeLayerTaprootMinting.artifactKinds.includes('taproot_asset_proof_commitment'));
+  assert(crossRef.tradeLayerTaprootMinting.mintFlow.includes('observe_tradelayer_rbtc_balance_and_derivative_state'));
+  assert.strictEqual(crossRef.tradeLayerTaprootMinting.assetBinding.ticker, 'tUSD');
 }
 
 const tests = [
@@ -173,7 +190,8 @@ const tests = [
   testAssetAttestationKeepsProductionOut,
   testSpendEvaluationRefusesClosedRealMoneyGate,
   testSpendEvaluationAllowsExactTestnetPolicy,
-  testTaprootUsdWalletAssetIsTestnetOnly
+  testTaprootUsdWalletAssetIsTestnetOnly,
+  testPrototypeCrossReferencesBindSubswapAndMinting
 ];
 
 for (const test of tests) test();

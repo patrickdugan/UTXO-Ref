@@ -6,6 +6,7 @@ const {
   summarizeBetaGate,
   buildAssetAttestation,
   buildTaprootUsdWalletAsset,
+  buildPrototypeCrossReferences,
   evaluateSpendProposal
 } = require('./index');
 
@@ -67,6 +68,13 @@ function createServer(options = {}) {
           betaGatePackage,
           reserveVault: artifacts.reserveVault,
           autoRollState: artifacts.autoRollState
+        }));
+      }
+
+      if (req.method === 'GET' && parsed.pathname === '/v1/wallet-assets/taproot-usd/cross-references') {
+        const reserve = betaGatePackage?.evidence?.reserve || {};
+        return send(res, 200, buildPrototypeCrossReferences({
+          reserveOutpoint: reserve.txid ? `${reserve.txid}:${reserve.vout ?? 0}` : null
         }));
       }
 

@@ -17,6 +17,7 @@ const BETWEENBITS_STATUS_KIND = 'betweenbits_utxoref_beta_status_v1';
 const BETWEENBITS_ATTESTATION_KIND = 'betweenbits_utxoref_asset_attestation_v1';
 const BETWEENBITS_SPEND_EVALUATION_KIND = 'betweenbits_utxoref_spend_policy_evaluation_v1';
 const BETWEENBITS_TAPROOT_USD_ASSET_KIND = 'betweenbits_taproot_usd_wallet_asset_v1';
+const BETWEENBITS_TAPROOT_USD_CROSSREF_KIND = 'betweenbits_taproot_usd_cross_reference_v1';
 
 function defaultArtifactsDir(repoRoot = path.resolve(__dirname, '..', '..')) {
   return path.join(repoRoot, 'bitvm3', 'utxo_referee', 'artifacts', 'live');
@@ -181,6 +182,79 @@ function buildAssetAttestation(input = {}) {
   return attestation;
 }
 
+function buildPrototypeCrossReferences(input = {}) {
+  const repoRoot = input.repoRoot || path.resolve(__dirname, '..', '..');
+  const rel = (filePath) => path.relative(repoRoot, path.join(repoRoot, filePath)).replace(/\\/g, '/');
+  const reserveOutpoint = input.reserveOutpoint || null;
+  const assetTicker = input.assetTicker || 'tUSD';
+  const crossRef = {
+    kind: BETWEENBITS_TAPROOT_USD_CROSSREF_KIND,
+    createdAt: input.createdAt || new Date().toISOString(),
+    walletProduct: 'taproot_usd',
+    thesis:
+      'Taproot USD is surfaced as a wallet asset whose BTC reserve is funded/verified through UTXORef and whose USD/rBTC state transitions are governed by TradeLayer derivative and Taproot-asset evidence.',
+    lnToVaultFunding: {
+      label: 'LN submarine swap to UTXORef vault funding',
+      purpose:
+        'Let an LN wallet fund the BTC leg by paying an invoice while UTXORef claims the HTLC into a reserve-vault or DLC funding output.',
+      prototypeModules: [
+        rel('bitvm3/utxo_referee/utxoref_dlc_subswap_funding.js'),
+        rel('bitvm3/utxo_referee/stage_submarine_swap_testnet4.js'),
+        rel('bitvm3/utxo_referee/lightning_subswap_dlc_demo.js')
+      ],
+      artifactKinds: [
+        'utxoref_dlc_subswap_funding_request',
+        'utxoref_subswap_execution_proof',
+        'staged_submarine_swap_htlc'
+      ],
+      walletFlow: [
+        'quote_submarine_swap',
+        'pay_ln_invoice',
+        'verify_payment_hash_and_preimage',
+        'watch_htlc_claim_to_vault_or_dlc_output',
+        'include_claimed_outpoint_in_reserve_reconciliation'
+      ],
+      reserveBinding: {
+        reserveOutpoint,
+        target: 'UTXORef Taproot reserve vault or DLC funding output',
+        safetyCheck: 'claim transaction must pay the committed vault/funding script and amount'
+      }
+    },
+    tradeLayerTaprootMinting: {
+      label: 'TradeLayer derivative state to Taproot USD asset mint',
+      purpose:
+        'Use TradeLayer rBTC/USD derivative and oracle state as the mint/roll eligibility input for a wallet-visible Taproot USD asset.',
+      prototypeModules: [
+        rel('bitvm3/utxo_referee/lightning_taproot_assets_stablecoin.js'),
+        rel('bitvm3/utxo_referee/tradelayer_rbtc_hourly_autoroll.js'),
+        rel('bitvm3/utxo_referee/tradelayer_tx30_relay_anchor.js'),
+        rel('bitvm3/utxo_referee/tradelayer_taproot.js')
+      ],
+      artifactKinds: [
+        'taproot_asset_stablecoin_descriptor',
+        'taproot_asset_proof_commitment',
+        'tradelayer_rbtc_hourly_dlc_contract',
+        'tradelayer_tx30_relay_anchor_v1'
+      ],
+      mintFlow: [
+        'verify_utxoref_vault_reserve',
+        'observe_tradelayer_rbtc_balance_and_derivative_state',
+        'select_valid_cet_or_auto_roll_outcome',
+        'anchor_signed_tx30_relay_or_retrieve_full_bundle',
+        'emit_wallet_asset_descriptor_for_taproot_usd'
+      ],
+      assetBinding: {
+        ticker: assetTicker,
+        issuerModel: 'TradeLayer-governed prototype; production must verify Taproot Assets proofs directly',
+        mintCondition:
+          'mint or continue display only when reserve evidence, tx30 relay, and TradeLayer oracle outcome all verify'
+      }
+    }
+  };
+  crossRef.crossReferenceHash = sha256Hex(crossRef);
+  return crossRef;
+}
+
 function extractAutoRollSummary(autoRollState) {
   if (!autoRollState || typeof autoRollState !== 'object') {
     return {
@@ -218,6 +292,13 @@ function buildTaprootUsdWalletAsset(input = {}) {
   const reserve = betaGatePackage?.evidence?.reserve || {};
   const relay = status.tx30RelayAnchor || {};
   const autoRoll = extractAutoRollSummary(input.autoRollState);
+  const reserveOutpoint = reserve.txid ? `${reserve.txid}:${reserve.vout ?? 0}` : null;
+  const crossReferences = buildPrototypeCrossReferences({
+    createdAt: input.createdAt,
+    repoRoot: input.repoRoot,
+    reserveOutpoint,
+    assetTicker: input.ticker || 'tUSD'
+  });
   const asset = {
     kind: BETWEENBITS_TAPROOT_USD_ASSET_KIND,
     createdAt: input.createdAt || new Date().toISOString(),
@@ -241,7 +322,7 @@ function buildTaprootUsdWalletAsset(input = {}) {
     reserveBinding: {
       sourcePackageHash: status.sourcePackageHash,
       statusHash: status.statusHash,
-      reserveOutpoint: reserve.txid ? `${reserve.txid}:${reserve.vout ?? 0}` : null,
+      reserveOutpoint,
       reserveConfirmed: reserve.confirmed === true,
       reserveUnspent: reserve.unspent === true,
       relayBlobHash: relay.relayBlobHash || null,
@@ -252,6 +333,7 @@ function buildTaprootUsdWalletAsset(input = {}) {
       oracleDependency: 'TradeLayer state oracle determines valid CET/roll outcome',
       reductionCondition: 'auto-roll path if no reduction in the vault funding address rBTC token balance'
     },
+    crossReferences,
     blockingGates: status.nextRequiredActions
   };
   asset.walletAssetHash = sha256Hex(asset);
@@ -346,6 +428,7 @@ module.exports = {
   BETWEENBITS_ATTESTATION_KIND,
   BETWEENBITS_SPEND_EVALUATION_KIND,
   BETWEENBITS_TAPROOT_USD_ASSET_KIND,
+  BETWEENBITS_TAPROOT_USD_CROSSREF_KIND,
   defaultArtifactsDir,
   liveArtifactPaths,
   readJson,
@@ -353,6 +436,7 @@ module.exports = {
   verifyBetaGatePackage,
   summarizeBetaGate,
   buildAssetAttestation,
+  buildPrototypeCrossReferences,
   buildTaprootUsdWalletAsset,
   extractAutoRollSummary,
   evaluateSpendProposal,

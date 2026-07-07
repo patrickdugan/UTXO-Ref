@@ -23,6 +23,19 @@ That object is the product descriptor a BetweenBits wallet surface can render as
 Taproot USD while binding it back to the BTC reserve outpoint, tx30 relay hash,
 and TradeLayer rBTC/USD auto-roll state.
 
+The descriptor also carries `betweenbits_taproot_usd_cross_reference_v1`, which
+links two local prototype branches:
+
+- LN submarine swap into UTXORef funding:
+  `bitvm3/utxo_referee/utxoref_dlc_subswap_funding.js`,
+  `bitvm3/utxo_referee/stage_submarine_swap_testnet4.js`, and
+  `bitvm3/utxo_referee/lightning_subswap_dlc_demo.js`.
+- TradeLayer/Taproot asset mint and state path:
+  `bitvm3/utxo_referee/lightning_taproot_assets_stablecoin.js`,
+  `bitvm3/utxo_referee/tradelayer_rbtc_hourly_autoroll.js`,
+  `bitvm3/utxo_referee/tradelayer_tx30_relay_anchor.js`, and
+  `bitvm3/utxo_referee/tradelayer_taproot.js`.
+
 ## Commands
 
 From the repo root:
@@ -32,6 +45,7 @@ node integrations\betweenbits-utxoref-adapter\test.js
 node integrations\betweenbits-utxoref-adapter\cli.js status
 node integrations\betweenbits-utxoref-adapter\cli.js attest --institution-id=demo-bank --amount-sats=20000
 node integrations\betweenbits-utxoref-adapter\cli.js wallet-asset
+node integrations\betweenbits-utxoref-adapter\cli.js cross-ref
 node integrations\betweenbits-utxoref-adapter\server.js --port=8787
 ```
 
@@ -41,6 +55,7 @@ Then query:
 Invoke-RestMethod http://127.0.0.1:8787/v1/beta-gate
 Invoke-RestMethod http://127.0.0.1:8787/v1/reserve-vaults/latest
 Invoke-RestMethod http://127.0.0.1:8787/v1/wallet-assets/taproot-usd
+Invoke-RestMethod http://127.0.0.1:8787/v1/wallet-assets/taproot-usd/cross-references
 ```
 
 ## Prototype API
@@ -49,6 +64,7 @@ Invoke-RestMethod http://127.0.0.1:8787/v1/wallet-assets/taproot-usd
 - `GET /v1/beta-gate`
 - `GET /v1/reserve-vaults/latest`
 - `GET /v1/wallet-assets/taproot-usd`
+- `GET /v1/wallet-assets/taproot-usd/cross-references`
 - `POST /v1/bitcert/asset-attestations`
 - `POST /v1/watchtower/spend-proposals/evaluate`
 
