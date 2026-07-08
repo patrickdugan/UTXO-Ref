@@ -73,6 +73,7 @@ const lnbtcTlusdLiquidityPatch = require('./lnbtc_tlusd_liquidity_patch');
 const bitvmChannelRouter = require('./bitvm_channel_router');
 const lightningTradeLayerOracleDlc = require('./lightning_tradelayer_oracle_dlc');
 const tradeLayerPnlRouteAdapter = require('./tradelayer_pnl_route_adapter');
+const tradeLayerPnlStateNetting = require('./tradelayer_pnl_state_netting');
 const tradeLayerSendOracleExtractor = require('./tradelayer_send_oracle_extractor');
 const tradeLayerSendSweepPsbt = require('./tradelayer_send_sweep_psbt');
 const tradeLayerSendFraudChallenges = require('./tradelayer_send_fraud_challenges');
@@ -401,6 +402,16 @@ module.exports = {
   buildTradeLayerSendRoutePlan: tradeLayerPnlRouteAdapter.buildTradeLayerSendRoutePlan,
   verifyTradeLayerSendRoutePlan: tradeLayerPnlRouteAdapter.verifyTradeLayerSendRoutePlan,
   verifyTradeLayerSendStateOracleRoute: tradeLayerPnlRouteAdapter.verifyTradeLayerSendStateOracleRoute,
+  buildTradeLayerPnlStateOracleCommitment: tradeLayerPnlStateNetting.buildTradeLayerPnlStateOracleCommitment,
+  deriveTradeLayerPnlRowsFromStateOracle: tradeLayerPnlStateNetting.derivePnlRowsFromStateOracle,
+  buildTradeLayerGrossPnlEdges: tradeLayerPnlStateNetting.buildGrossPnlEdges,
+  computeTradeLayerPnlNetBalances: tradeLayerPnlStateNetting.computeNetBalances,
+  foldTradeLayerPnlNettingGraph: tradeLayerPnlStateNetting.foldPnlNettingGraph,
+  buildTradeLayerPnlNettingSettlement: tradeLayerPnlStateNetting.buildTradeLayerPnlNettingSettlement,
+  verifyTradeLayerPnlNettingSettlement: tradeLayerPnlStateNetting.verifyTradeLayerPnlNettingSettlement,
+  buildTradeLayerPnlNettingChallenge: tradeLayerPnlStateNetting.buildTradeLayerPnlNettingChallenge,
+  verifyTradeLayerPnlNettingChallenge: tradeLayerPnlStateNetting.verifyTradeLayerPnlNettingChallenge,
+  describeTradeLayerPnlNettingFlow: tradeLayerPnlStateNetting.describeTradeLayerPnlNettingFlow,
   buildTradeLayerSendStateOracleFromConsensus: tradeLayerSendOracleExtractor.buildTradeLayerSendStateOracleFromConsensus,
   buildTradeLayerSendSweepPlan: tradeLayerSendSweepPsbt.buildTradeLayerSendSweepPlan,
   verifyTradeLayerObservedSweepOutputs: tradeLayerSendSweepPsbt.verifyObservedSweepOutputs,
@@ -571,6 +582,7 @@ module.exports = {
   bitvmChannelRouter,
   lightningTradeLayerOracleDlc,
   tradeLayerPnlRouteAdapter,
+  tradeLayerPnlStateNetting,
   tradeLayerSendOracleExtractor,
   tradeLayerSendSweepPsbt,
   tradeLayerSendFraudChallenges,
