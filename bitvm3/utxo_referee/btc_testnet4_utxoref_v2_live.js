@@ -540,7 +540,7 @@ async function status(runtime, args = {}) {
   const settlementTxid = txidFromUnsignedHex(artifact.graph.settlement.unsignedTxHex);
   const settlementKnown = await runtime.rpc('getrawtransaction', [settlementTxid, true]).catch(() => null);
   let settlementMempoolAccept = null;
-  if (txout && confirmations >= challengeCsvBlocks) {
+  if (txout && fundingStatus.known) {
     [settlementMempoolAccept] = await runtime.rpc('testmempoolaccept', [[artifact.graph.settlementPath.witnessTxHex]]);
   }
   let settlementBroadcastTxid = settlementKnown ? settlementTxid : null;
