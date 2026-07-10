@@ -1,0 +1,416 @@
+{
+  "kind": "btc_testnet4_taproot_reserve_vault_demo",
+  "createdAt": "2026-07-06T17:33:32.997Z",
+  "network": "bitcoin-testnet4",
+  "datadir": "D:\\BitcoinTestnet",
+  "rpcUrl": "http://127.0.0.1:48332",
+  "wallet": "utxoref-testnet",
+  "chain": {
+    "chain": "testnet4",
+    "observedAtHeight": 134473,
+    "currentHeight": 134484
+  },
+  "nodeStart": null,
+  "dryRun": false,
+  "reserveEvidenceMode": "rpc-gettxout",
+  "funding": {
+    "input": {
+      "txid": "508a8c9fdfa0f3c5adaf6420bb141d3cf26d43724f3799d14645b6a4bda24a89",
+      "vout": 1,
+      "amountSats": "359382"
+    },
+    "unsignedHex": "0200000001894aa2bda4b64546d199374f72436df23c1d14bb2064afadc5f3a0df9f8c8a500100000000fdffffff02204e0000000000002251203ff49680042242f299bd799942991f5f61ace719dd7c36700a777e27ae821e10fa2a0500000000001600146105789eaa65ea87813d9ba32e4892fc4599059c00000000",
+    "signedHex": "02000000000101894aa2bda4b64546d199374f72436df23c1d14bb2064afadc5f3a0df9f8c8a500100000000fdffffff02204e0000000000002251203ff49680042242f299bd799942991f5f61ace719dd7c36700a777e27ae821e10fa2a0500000000001600146105789eaa65ea87813d9ba32e4892fc4599059c02473044022027c9533a6f5ff362e00caf28ada07a9bae21dbfac81f161d530f59e51a93141f02205088fb030c603228bfa39a326b746d95a3c0727cb36bec6edca7b2771751e9aa012102c78bae8016b63277640c07f00a0c3c77033fe70605c8e7a675899b9a821c856c00000000",
+    "txid": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6",
+    "vaultOutpoint": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6:0",
+    "broadcast": {
+      "txid": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6",
+      "explorer": "https://mempool.space/testnet4/tx/93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6",
+      "mempoolAccept": {
+        "txid": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6",
+        "wtxid": "44cb12800baecfd88102603c8b83b435aee380831bd39618c8fc23cc81b06c4e",
+        "allowed": true,
+        "vsize": 153,
+        "fees": {
+          "base": 0.000007,
+          "effective-feerate": 0.00004575,
+          "effective-includes": [
+            "44cb12800baecfd88102603c8b83b435aee380831bd39618c8fc23cc81b06c4e"
+          ]
+        }
+      }
+    }
+  },
+  "manifest": {
+    "kind": "taproot_reserve_vault_manifest",
+    "manifestHash": "c404caca9a56350068b1bd0fd1e19bca5256a0d480b08e05e60f4fb2eec2269b",
+    "core": {
+      "kind": "taproot_reserve_vault_manifest_v1",
+      "network": "bitcoin-testnet4",
+      "vaultId": "btc-testnet4-reserve-134473-93f953df",
+      "fundingOutpoint": {
+        "txid": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6",
+        "vout": 0
+      },
+      "amountSats": "20000",
+      "operatorXonly": "19e54c3ac829fe28a575d25322f39c5fb86beaae961e82e3886092acd1aea23f",
+      "guardianXonly": "03869e328262890cdc18315a175c73f28de39019bdc8867fbcd3582a3d4aeea8",
+      "internalXonly": "59c5b5b1b5c46b5238fca22ac69aab11cb93dc9a443db075070c6947fb4da008",
+      "p2trScriptPubKey": "51203ff49680042242f299bd799942991f5f61ace719dd7c36700a777e27ae821e10",
+      "observedAtHeight": 134473,
+      "recoveryCsvDelay": 2016,
+      "reserveEpochId": "btc-testnet4-134473",
+      "merkleRoot": "a3db8196a483530a9c6a3cab0de5bbf3d83db5199b1a7802bb030fcb0056b577",
+      "leaves": {
+        "immediate-operator-guardian": {
+          "kind": "immediate-operator-guardian",
+          "leafVersion": 192,
+          "scriptHex": "2019e54c3ac829fe28a575d25322f39c5fb86beaae961e82e3886092acd1aea23fad2003869e328262890cdc18315a175c73f28de39019bdc8867fbcd3582a3d4aeea8ac",
+          "leafHash": "b35b1406c46851e9209cfdff75003554a10ba047487c5a6c36e3294c673fce30",
+          "controlBlock": "c059c5b5b1b5c46b5238fca22ac69aab11cb93dc9a443db075070c6947fb4da008e653657ea788a0c1ba0cf7eca80f942da4e33cad887aef1709dad469c6d7127d"
+        },
+        "recovery-operator-csv": {
+          "kind": "recovery-operator-csv",
+          "leafVersion": 192,
+          "scriptHex": "02e007b2752019e54c3ac829fe28a575d25322f39c5fb86beaae961e82e3886092acd1aea23fac",
+          "leafHash": "e653657ea788a0c1ba0cf7eca80f942da4e33cad887aef1709dad469c6d7127d",
+          "controlBlock": "c059c5b5b1b5c46b5238fca22ac69aab11cb93dc9a443db075070c6947fb4da008b35b1406c46851e9209cfdff75003554a10ba047487c5a6c36e3294c673fce30"
+        }
+      }
+    }
+  },
+  "reserveSet": {
+    "kind": "taproot-reserve-vault-set",
+    "vaultSetHash": "cde536940a2ddabd2fd9ccc6fced0899ed9739e50138e466f287c3eb71b1e45e",
+    "network": "bitcoin-testnet4",
+    "reserveEpochId": "btc-testnet4-134473",
+    "currentHeight": 134484,
+    "recoveryRiskMarginBlocks": 144,
+    "reservedSats": "20000",
+    "countedVaultCount": 1,
+    "rejectedVaultCount": 0,
+    "core": {
+      "kind": "taproot_reserve_vault_set_v1",
+      "network": "bitcoin-testnet4",
+      "reserveEpochId": "btc-testnet4-134473",
+      "currentHeight": 134484,
+      "recoveryRiskMarginBlocks": 144,
+      "vaultCount": 1,
+      "countedVaultCount": 1,
+      "rejectedVaultCount": 0,
+      "reservedSats": "20000",
+      "vaults": [
+        {
+          "vaultId": "btc-testnet4-reserve-134473-93f953df",
+          "outpoint": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6:0",
+          "manifest": {
+            "kind": "taproot_reserve_vault_manifest",
+            "manifestHash": "c404caca9a56350068b1bd0fd1e19bca5256a0d480b08e05e60f4fb2eec2269b",
+            "core": {
+              "kind": "taproot_reserve_vault_manifest_v1",
+              "network": "bitcoin-testnet4",
+              "vaultId": "btc-testnet4-reserve-134473-93f953df",
+              "fundingOutpoint": {
+                "txid": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6",
+                "vout": 0
+              },
+              "amountSats": "20000",
+              "operatorXonly": "19e54c3ac829fe28a575d25322f39c5fb86beaae961e82e3886092acd1aea23f",
+              "guardianXonly": "03869e328262890cdc18315a175c73f28de39019bdc8867fbcd3582a3d4aeea8",
+              "internalXonly": "59c5b5b1b5c46b5238fca22ac69aab11cb93dc9a443db075070c6947fb4da008",
+              "p2trScriptPubKey": "51203ff49680042242f299bd799942991f5f61ace719dd7c36700a777e27ae821e10",
+              "observedAtHeight": 134473,
+              "recoveryCsvDelay": 2016,
+              "reserveEpochId": "btc-testnet4-134473",
+              "merkleRoot": "a3db8196a483530a9c6a3cab0de5bbf3d83db5199b1a7802bb030fcb0056b577",
+              "leaves": {
+                "immediate-operator-guardian": {
+                  "kind": "immediate-operator-guardian",
+                  "leafVersion": 192,
+                  "scriptHex": "2019e54c3ac829fe28a575d25322f39c5fb86beaae961e82e3886092acd1aea23fad2003869e328262890cdc18315a175c73f28de39019bdc8867fbcd3582a3d4aeea8ac",
+                  "leafHash": "b35b1406c46851e9209cfdff75003554a10ba047487c5a6c36e3294c673fce30",
+                  "controlBlock": "c059c5b5b1b5c46b5238fca22ac69aab11cb93dc9a443db075070c6947fb4da008e653657ea788a0c1ba0cf7eca80f942da4e33cad887aef1709dad469c6d7127d"
+                },
+                "recovery-operator-csv": {
+                  "kind": "recovery-operator-csv",
+                  "leafVersion": 192,
+                  "scriptHex": "02e007b2752019e54c3ac829fe28a575d25322f39c5fb86beaae961e82e3886092acd1aea23fac",
+                  "leafHash": "e653657ea788a0c1ba0cf7eca80f942da4e33cad887aef1709dad469c6d7127d",
+                  "controlBlock": "c059c5b5b1b5c46b5238fca22ac69aab11cb93dc9a443db075070c6947fb4da008b35b1406c46851e9209cfdff75003554a10ba047487c5a6c36e3294c673fce30"
+                }
+              }
+            }
+          },
+          "chainTxout": {
+            "present": true,
+            "valueSats": "20000",
+            "scriptPubKey": "51203ff49680042242f299bd799942991f5f61ace719dd7c36700a777e27ae821e10",
+            "confirmations": 0,
+            "bestblock": "00000000001da237296e1e353c70d1332cee7184504d9b5431f177930179fb40"
+          },
+          "verification": {
+            "ok": true,
+            "counted": true,
+            "reason": null,
+            "amountSats": "20000",
+            "recoveryStatus": {
+              "checked": true,
+              "countable": true,
+              "reason": null,
+              "observedAtHeight": 134473,
+              "maturityHeight": 136489,
+              "remainingBlocks": 2005,
+              "riskMarginBlocks": 144
+            }
+          }
+        }
+      ]
+    }
+  },
+  "withdrawalQueue": {
+    "kind": "tradelayer_withdrawal_queue",
+    "queueHash": "52fea813aa924d563e19bf590eae16c032dcec3f1b5939fc4ab33b1f5e21a035",
+    "queueCore": {
+      "kind": "tradelayer_withdrawal_queue_v1",
+      "chain": "bitcoin-testnet4",
+      "network": "bitcoin-testnet4",
+      "queueId": "tl-withdrawals-134473",
+      "epochId": "134473",
+      "stateRoot": null,
+      "entries": [
+        {
+          "id": "btc-testnet4-reserve-withdrawal-1",
+          "txid": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6",
+          "address": "tb1quwk0e45ukvws4sdrv5xe40m63t3f5zpyzz5wwn",
+          "sats": "19000",
+          "propertyId": 0,
+          "status": "approved"
+        }
+      ],
+      "payableRequestIds": [
+        "btc-testnet4-reserve-withdrawal-1"
+      ],
+      "queueRoot": "777b2bac4775ddd56194a60225a0bbf5d232469ea19beb7cc00b446305ee0bcd",
+      "withdrawalRootHex": "c122ff6f74ebe157c975d43ca4252bee448f5a824a146b393b29fd975defdb60",
+      "commitmentHashHex": "5e08b515850fb0fe63820265d775f3528afe96d4900b6e5ee14c2a8f58e57576",
+      "totalSats": "19000"
+    },
+    "commitment": {
+      "epochId": "134473",
+      "withdrawalRootHex": "c122ff6f74ebe157c975d43ca4252bee448f5a824a146b393b29fd975defdb60",
+      "commitmentHashHex": "5e08b515850fb0fe63820265d775f3528afe96d4900b6e5ee14c2a8f58e57576",
+      "capSats": "19000"
+    },
+    "proofs": [
+      {
+        "requestId": "btc-testnet4-reserve-withdrawal-1",
+        "proof": {
+          "siblings": [
+            {
+              "type": "Buffer",
+              "data": [
+                102,
+                104,
+                122,
+                173,
+                248,
+                98,
+                189,
+                119,
+                108,
+                143,
+                193,
+                139,
+                142,
+                159,
+                142,
+                32,
+                8,
+                151,
+                20,
+                133,
+                110,
+                226,
+                51,
+                179,
+                144,
+                42,
+                89,
+                29,
+                13,
+                95,
+                41,
+                37
+              ]
+            }
+          ],
+          "index": 0
+        }
+      }
+    ]
+  },
+  "reconciliation": {
+    "kind": "tradelayer_reserve_reconciliation",
+    "reconciliationHash": "b3060e8eaf045048df1026e50c80a752906b8cc46e58feba2fcc30ea0ac0f5f6",
+    "solvent": true,
+    "core": {
+      "kind": "tradelayer_reserve_reconciliation_v1",
+      "network": "bitcoin-testnet4",
+      "epochId": "134473",
+      "queueHash": "52fea813aa924d563e19bf590eae16c032dcec3f1b5939fc4ab33b1f5e21a035",
+      "withdrawalRootHex": "c122ff6f74ebe157c975d43ca4252bee448f5a824a146b393b29fd975defdb60",
+      "capSats": "19000",
+      "payableCount": 1,
+      "reserveSourceKind": "taproot-reserve-vault-set",
+      "reserveSourceHash": "32532f4f90810c3097c5d52b1a45c780b4c0088284b7da2df46c5c0514848669",
+      "reservedSats": "20000",
+      "reserveEvidenceSummary": {
+        "vaultSetHash": "cde536940a2ddabd2fd9ccc6fced0899ed9739e50138e466f287c3eb71b1e45e",
+        "countedVaultCount": 1,
+        "rejectedVaultCount": 0
+      },
+      "marginSats": "1000",
+      "mathSolvent": true,
+      "observedAtHeight": 134484,
+      "maxReserveAgeBlocks": 6,
+      "staleAtBuild": false,
+      "ageBlocksAtBuild": 0,
+      "solvent": true
+    }
+  },
+  "guardianRefusal": {
+    "kind": "taproot_reserve_vault_guardian_approval",
+    "vaultId": "btc-testnet4-reserve-134473-93f953df",
+    "proposalHash": "8bac44069758b56a935d20751a3177fa505864a60437619f78e123d5fd3c24ed",
+    "approvedTxOutputHash": null,
+    "guardianXonly": "03869e328262890cdc18315a175c73f28de39019bdc8867fbcd3582a3d4aeea8",
+    "signature": null,
+    "height": 134484,
+    "policyResult": {
+      "ok": false,
+      "failedChecks": [
+        "expected_outputs",
+        "fee_cap"
+      ],
+      "checks": [
+        {
+          "name": "vault_manifest",
+          "ok": true,
+          "details": {
+            "reason": null,
+            "countable": true
+          }
+        },
+        {
+          "name": "reserve_solvency",
+          "ok": true,
+          "details": {
+            "reason": null,
+            "solvent": true,
+            "reconciliationHash": "b3060e8eaf045048df1026e50c80a752906b8cc46e58feba2fcc30ea0ac0f5f6"
+          }
+        },
+        {
+          "name": "expected_outputs",
+          "ok": false,
+          "details": {
+            "approvedTxOutputHash": "3f2b122e134a2febd175695ea9665c92dff4709214827cf5b3258b86c84d0339"
+          }
+        },
+        {
+          "name": "fee_non_negative",
+          "ok": true,
+          "details": {
+            "inputSats": "20000",
+            "outputSats": "18999",
+            "feeSats": "1001"
+          }
+        },
+        {
+          "name": "fee_cap",
+          "ok": false,
+          "details": {
+            "feeSats": "1001",
+            "maxFeeSats": "5000",
+            "maxFeeBpsOfInput": 500,
+            "effectiveFeeCapSats": "1000"
+          }
+        }
+      ],
+      "policyHash": "ca06a268734c0784deeb0e915556401fc90254d332e31c010a23c478c8f2b8cd"
+    },
+    "approved": false,
+    "approvalHash": "06235442e5a17dcf217d24f6d2cbaa12a8f078cf5cb36992be3a198b8e98e48e"
+  },
+  "guardianApproval": {
+    "kind": "taproot_reserve_vault_guardian_approval",
+    "vaultId": "btc-testnet4-reserve-134473-93f953df",
+    "proposalHash": "71aeaf1b2750205d625aaba42abba1a826c1708e5a10da994e099a749f1db8c5",
+    "approvedTxOutputHash": "63b3548993e03fded7d1a408fb0cfafe08de14278c509a122faa6a183214c8db",
+    "guardianXonly": "03869e328262890cdc18315a175c73f28de39019bdc8867fbcd3582a3d4aeea8",
+    "signature": "71d31d2b040ef8a957ab86cd815f67ce5927bf861e1ce5cbb68d920bed50ca08b81d99f9f9d2fdaea9309bd28084657ebe27e49c4bc0c3ae67f67a631c4c835f",
+    "height": 134484,
+    "policyResult": {
+      "ok": true,
+      "failedChecks": [],
+      "checks": [
+        {
+          "name": "vault_manifest",
+          "ok": true,
+          "details": {
+            "reason": null,
+            "countable": true
+          }
+        },
+        {
+          "name": "reserve_solvency",
+          "ok": true,
+          "details": {
+            "reason": null,
+            "solvent": true,
+            "reconciliationHash": "b3060e8eaf045048df1026e50c80a752906b8cc46e58feba2fcc30ea0ac0f5f6"
+          }
+        },
+        {
+          "name": "expected_outputs",
+          "ok": true,
+          "details": {
+            "approvedTxOutputHash": "63b3548993e03fded7d1a408fb0cfafe08de14278c509a122faa6a183214c8db"
+          }
+        },
+        {
+          "name": "fee_non_negative",
+          "ok": true,
+          "details": {
+            "inputSats": "20000",
+            "outputSats": "19000",
+            "feeSats": "1000"
+          }
+        },
+        {
+          "name": "fee_cap",
+          "ok": true,
+          "details": {
+            "feeSats": "1000",
+            "maxFeeSats": "5000",
+            "maxFeeBpsOfInput": 500,
+            "effectiveFeeCapSats": "1000"
+          }
+        }
+      ],
+      "policyHash": "513e60487030f555f5def9aa95b9b2e51f44c39d71a82aec8daaf3cd46fb7d83"
+    },
+    "approved": true,
+    "sighash": "427cb0b9c241216e492f1f9f2a1f5f8465406ef6034db44baaff78d1c5b54af6",
+    "approvalHash": "0ca1be09933a6e617acc7502408467f4cbff56613354d97a94da8944257dfc28"
+  },
+  "validSpend": {
+    "unsignedHex": "0200000001a6f6823865fdac53cc83ee9f78d3912de63d4dfb1742d186f3fa892cdf53f9930000000000fdffffff01384a000000000000160014e3acfcd69cb31d0ac1a3650d9abf7a8ae29a082400000000",
+    "proposalHash": "71aeaf1b2750205d625aaba42abba1a826c1708e5a10da994e099a749f1db8c5",
+    "broadcast": null
+  },
+  "explorer": {
+    "funding": "https://mempool.space/testnet4/tx/93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6",
+    "spend": null
+  }
+}

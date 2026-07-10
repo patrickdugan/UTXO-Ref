@@ -12,10 +12,12 @@
  * This referee makes solvency a verifiable, challengeable commitment.
  *
  * Reserve sources accepted (in priority order):
- *   1. explicit { reservedSats }
- *   2. a ReceiptDepositIndexer snapshot (kind: 'receipt-deposit-indexer')
+ *   1. a BTC testnet4 Taproot reserve vault set
+ *      (kind: 'taproot-reserve-vault-set')
+ *   2. explicit { reservedSats } legacy/demo snapshots
+ *   3. a ReceiptDepositIndexer snapshot (kind: 'receipt-deposit-indexer')
  *      -> sums amountSats of deposits whose status === 'credited'
- *   3. a ReceiptLedger snapshot (has totalSupplySats)
+ *   4. a ReceiptLedger snapshot (has totalSupplySats)
  *
  * SECURITY_BLOCKERS.md #4 (partial fix - freshness window, not encumbrance):
  * `reservedSats` is a `listunspent` snapshot of ordinary spendable wallet
@@ -40,6 +42,9 @@ const {
 const {
   verifyTradeLayerWithdrawalQueue
 } = require('./tradelayer_withdrawal_queue_referee');
+const {
+  reservedSatsFromTaprootReserveVaultSet
+} = require('./taproot_reserve_vault');
 
 // Default staleness window: 6 blocks (~15 min at Litecoin's ~2.5 min target
 // block time). Deliberately tight - this is a mitigation for "reserve proof
@@ -103,6 +108,20 @@ function resolveReserve(reserve) {
   }
   if (typeof reserve !== 'object') throw new Error('reserve must be an object or sat amount');
 
+  if (reserve.kind === 'taproot-reserve-vault-set') {
+    const vaultSummary = reservedSatsFromTaprootReserveVaultSet(reserve);
+    return {
+      reservedSats: vaultSummary.reservedSats,
+      reserveSourceKind: 'taproot-reserve-vault-set',
+      reserveSourceHash: sha256Hex(reserve),
+      reserveEvidenceSummary: {
+        vaultSetHash: vaultSummary.vaultSetHash,
+        countedVaultCount: vaultSummary.countedVaultCount,
+        rejectedVaultCount: vaultSummary.rejectedVaultCount
+      }
+    };
+  }
+
   if (reserve.reservedSats !== undefined) {
     const reservedSats = toSats(reserve.reservedSats, 'reserve.reservedSats');
     return {
@@ -133,7 +152,12 @@ function buildTradeLayerReserveReconciliation(input = {}) {
   const queueResult = verifyTradeLayerWithdrawalQueue(queue);
   if (!queueResult.ok) throw new Error(`invalid withdrawal queue: ${queueResult.reason}`);
 
-  const { reservedSats, reserveSourceKind, reserveSourceHash } = resolveReserve(input.reserve);
+  const {
+    reservedSats,
+    reserveSourceKind,
+    reserveSourceHash,
+    reserveEvidenceSummary
+  } = resolveReserve(input.reserve);
   const capSats = toSats(queue.queueCore.totalSats, 'queue.totalSats');
   const marginSats = reservedSats - capSats;
   const mathSolvent = marginSats >= 0n;
@@ -160,6 +184,7 @@ function buildTradeLayerReserveReconciliation(input = {}) {
     reserveSourceKind,
     reserveSourceHash,
     reservedSats: reservedSats.toString(),
+    reserveEvidenceSummary: reserveEvidenceSummary || null,
     marginSats: marginSats.toString(),
     mathSolvent,
     observedAtHeight,

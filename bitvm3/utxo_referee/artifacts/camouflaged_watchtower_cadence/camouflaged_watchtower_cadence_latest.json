@@ -1,0 +1,1257 @@
+{
+  "kind": "camouflaged_watchtower_cadence_demo",
+  "createdAt": "2026-07-07T00:05:24.164Z",
+  "source": {
+    "importPath": "C:\\projects\\BitcoinConsensusObservatory\\jurassic-bitcoin\\artifacts\\bitcoin-testnet4\\utxoref-live-import-latest.json",
+    "routeDemoPath": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\quirk_indexed_route\\quirk_indexed_route_latest.json"
+  },
+  "node": {
+    "chain": "testnet4",
+    "blocks": 143218,
+    "headers": 143218,
+    "bestblockhash": "00000000001782293e0f6f341862c47b0052aa499bf2f65e7d8c2359e4cdbc7b",
+    "initialblockdownload": false,
+    "pruned": true,
+    "wallet": "utxoref-testnet"
+  },
+  "reserve": {
+    "outpoint": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6:0",
+    "liveTraceHash": "f2d6366f065633837bd30ce7641c50f8d645e27f71f1a6320d922ea3f55ba840",
+    "bindingStatus": "live_unspent_reserve_countable"
+  },
+  "route": {
+    "claimHash": "fa3bc1f7bf482f66834f5c4e1c482d058c53509de437cdbeff6de34a6fe2120c",
+    "scenarioId": "accepted_transcript_alias_compact"
+  },
+  "scenarios": [
+    {
+      "id": "accepted_sweep_like_checkpoint",
+      "expected": "accepted",
+      "claim": {
+        "kind": "camouflaged_watchtower_cadence_claim",
+        "claimHash": "23d07563823edc857a43828685d6aa6c1a301e5bd936868b73dc4fc4a12309d3",
+        "core": {
+          "kind": "camouflaged_watchtower_cadence_claim_v1",
+          "network": "bitcoin-testnet4",
+          "reserveOutpoint": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6:0",
+          "liveTraceHash": "f2d6366f065633837bd30ce7641c50f8d645e27f71f1a6320d922ea3f55ba840",
+          "watchtowerEpoch": "watchtower-143218",
+          "expectedCadenceBlocks": 12,
+          "publicationHeight": 143212,
+          "carrierProfile": "wallet_sweep_checkpoint",
+          "publicationHandle": "sweep-cover-watchtower-current",
+          "semanticAlertHash": "37f8cd6fc842e4cd90dea4f915182adfe7c87d08df50dfed11190083078afd75",
+          "routeClaimHash": "fa3bc1f7bf482f66834f5c4e1c482d058c53509de437cdbeff6de34a6fe2120c"
+        }
+      },
+      "verification": {
+        "ok": true,
+        "admissible": true,
+        "reason": null,
+        "claimHash": "23d07563823edc857a43828685d6aa6c1a301e5bd936868b73dc4fc4a12309d3",
+        "routeClaim": {
+          "claimHash": "fa3bc1f7bf482f66834f5c4e1c482d058c53509de437cdbeff6de34a6fe2120c",
+          "admissible": true,
+          "routeClaim": {
+            "kind": "quirk_indexed_utxoref_route_claim",
+            "claimHash": "fa3bc1f7bf482f66834f5c4e1c482d058c53509de437cdbeff6de34a6fe2120c",
+            "core": {
+              "kind": "quirk_indexed_utxoref_route_claim_v1",
+              "network": "bitcoin-testnet4",
+              "motif": "transcript_multiplicity",
+              "publicHandle": "hybrid_transcript_alias_aa",
+              "semanticStateHash": "4943ceec005820e1dcba2f3b53f2a2c79c3ab712d82d758b232b14844a860868",
+              "routeTranscriptHash": "2b3d288d2c8d0962bc042eebc02b8c6a2672116d928d6c5a804cc63a2cb8a3d2",
+              "withdrawalRootHex": "c122ff6f74ebe157c975d43ca4252bee448f5a824a146b393b29fd975defdb60",
+              "finalOutputVectorHash": "2618453bd513d8a313c38dded01e378e1192e5b76570c61f546c8a6db82bbf12",
+              "liveTraceHash": "f2d6366f065633837bd30ce7641c50f8d645e27f71f1a6320d922ea3f55ba840",
+              "reserveOutpoint": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6:0",
+              "challengeWindow": {
+                "startHeight": 143218,
+                "endHeight": 143362
+              },
+              "commitmentHashHex": "5e08b515850fb0fe63820265d775f3528afe96d4900b6e5ee14c2a8f58e57576",
+              "transcriptAlias": "aa"
+            }
+          },
+          "source": "accepted_transcript_alias_compact"
+        },
+        "handleBinding": {
+          "publicationHandle": "sweep-cover-watchtower-current",
+          "routeClaimHash": "fa3bc1f7bf482f66834f5c4e1c482d058c53509de437cdbeff6de34a6fe2120c",
+          "semanticAlertHash": "37f8cd6fc842e4cd90dea4f915182adfe7c87d08df50dfed11190083078afd75"
+        },
+        "failedChecks": [],
+        "checks": [
+          {
+            "name": "claim_hash",
+            "ok": true,
+            "details": {
+              "claimHash": "23d07563823edc857a43828685d6aa6c1a301e5bd936868b73dc4fc4a12309d3"
+            }
+          },
+          {
+            "name": "cadence_freshness",
+            "ok": true,
+            "details": {
+              "currentHeight": 143218,
+              "publicationHeight": 143212,
+              "ageBlocks": 6,
+              "expectedCadenceBlocks": 12
+            }
+          },
+          {
+            "name": "admitted_route_claim",
+            "ok": true,
+            "details": {
+              "routeClaimHash": "fa3bc1f7bf482f66834f5c4e1c482d058c53509de437cdbeff6de34a6fe2120c",
+              "source": "accepted_transcript_alias_compact"
+            }
+          },
+          {
+            "name": "semantic_alert_hash",
+            "ok": true,
+            "details": {
+              "expected": "37f8cd6fc842e4cd90dea4f915182adfe7c87d08df50dfed11190083078afd75",
+              "actual": "37f8cd6fc842e4cd90dea4f915182adfe7c87d08df50dfed11190083078afd75"
+            }
+          },
+          {
+            "name": "publication_handle_binding",
+            "ok": true,
+            "details": {
+              "publicationHandle": "sweep-cover-watchtower-current",
+              "binding": {
+                "publicationHandle": "sweep-cover-watchtower-current",
+                "routeClaimHash": "fa3bc1f7bf482f66834f5c4e1c482d058c53509de437cdbeff6de34a6fe2120c",
+                "semanticAlertHash": "37f8cd6fc842e4cd90dea4f915182adfe7c87d08df50dfed11190083078afd75"
+              }
+            }
+          },
+          {
+            "name": "live_reserve_status",
+            "ok": true,
+            "details": {
+              "bindingStatus": "live_unspent_reserve_countable"
+            }
+          },
+          {
+            "name": "reserve_outpoint",
+            "ok": true,
+            "details": {
+              "expected": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6:0",
+              "actual": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6:0"
+            }
+          },
+          {
+            "name": "live_trace_hash",
+            "ok": true,
+            "details": {
+              "expected": "f2d6366f065633837bd30ce7641c50f8d645e27f71f1a6320d922ea3f55ba840",
+              "actual": "f2d6366f065633837bd30ce7641c50f8d645e27f71f1a6320d922ea3f55ba840"
+            }
+          },
+          {
+            "name": "reserve_csv_countable",
+            "ok": true,
+            "details": {
+              "recoveryStatus": {
+                "checked": true,
+                "countable": true,
+                "reason": null,
+                "currentHeight": 143218,
+                "artifactObservedAtHeight": 134473,
+                "liveFundingHeight": 143201,
+                "liveFundingHeightSource": "wallet_gettransaction.blockheight",
+                "artifactObservedAtHeightMatchesLiveFundingHeight": false,
+                "recoveryCsvDelay": 2016,
+                "maturityHeight": 145217,
+                "remainingBlocks": 1999,
+                "riskMarginBlocks": 144
+              }
+            }
+          }
+        ]
+      },
+      "challenge": {
+        "kind": "camouflaged_watchtower_cadence_challenge",
+        "challengeHash": "0bc2b89ba3bccdbcfee971a2aeaa94ffbfe84846b1b9453489d7f8f1146a663f",
+        "challengeable": false,
+        "core": {
+          "kind": "camouflaged_watchtower_cadence_challenge_v1",
+          "claimHash": "23d07563823edc857a43828685d6aa6c1a301e5bd936868b73dc4fc4a12309d3",
+          "routeClaimHash": "fa3bc1f7bf482f66834f5c4e1c482d058c53509de437cdbeff6de34a6fe2120c",
+          "reserveOutpoint": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6:0",
+          "publicationHandle": "sweep-cover-watchtower-current",
+          "violations": [],
+          "verificationHash": "c16d51aeedd6ed391135fe729fcbae69a7f83a22206b7137f787f880e12ff17b"
+        },
+        "verification": {
+          "ok": true,
+          "admissible": true,
+          "reason": null,
+          "claimHash": "23d07563823edc857a43828685d6aa6c1a301e5bd936868b73dc4fc4a12309d3",
+          "routeClaim": {
+            "claimHash": "fa3bc1f7bf482f66834f5c4e1c482d058c53509de437cdbeff6de34a6fe2120c",
+            "admissible": true,
+            "routeClaim": {
+              "kind": "quirk_indexed_utxoref_route_claim",
+              "claimHash": "fa3bc1f7bf482f66834f5c4e1c482d058c53509de437cdbeff6de34a6fe2120c",
+              "core": {
+                "kind": "quirk_indexed_utxoref_route_claim_v1",
+                "network": "bitcoin-testnet4",
+                "motif": "transcript_multiplicity",
+                "publicHandle": "hybrid_transcript_alias_aa",
+                "semanticStateHash": "4943ceec005820e1dcba2f3b53f2a2c79c3ab712d82d758b232b14844a860868",
+                "routeTranscriptHash": "2b3d288d2c8d0962bc042eebc02b8c6a2672116d928d6c5a804cc63a2cb8a3d2",
+                "withdrawalRootHex": "c122ff6f74ebe157c975d43ca4252bee448f5a824a146b393b29fd975defdb60",
+                "finalOutputVectorHash": "2618453bd513d8a313c38dded01e378e1192e5b76570c61f546c8a6db82bbf12",
+                "liveTraceHash": "f2d6366f065633837bd30ce7641c50f8d645e27f71f1a6320d922ea3f55ba840",
+                "reserveOutpoint": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6:0",
+                "challengeWindow": {
+                  "startHeight": 143218,
+                  "endHeight": 143362
+                },
+                "commitmentHashHex": "5e08b515850fb0fe63820265d775f3528afe96d4900b6e5ee14c2a8f58e57576",
+                "transcriptAlias": "aa"
+              }
+            },
+            "source": "accepted_transcript_alias_compact"
+          },
+          "handleBinding": {
+            "publicationHandle": "sweep-cover-watchtower-current",
+            "routeClaimHash": "fa3bc1f7bf482f66834f5c4e1c482d058c53509de437cdbeff6de34a6fe2120c",
+            "semanticAlertHash": "37f8cd6fc842e4cd90dea4f915182adfe7c87d08df50dfed11190083078afd75"
+          },
+          "failedChecks": [],
+          "checks": [
+            {
+              "name": "claim_hash",
+              "ok": true,
+              "details": {
+                "claimHash": "23d07563823edc857a43828685d6aa6c1a301e5bd936868b73dc4fc4a12309d3"
+              }
+            },
+            {
+              "name": "cadence_freshness",
+              "ok": true,
+              "details": {
+                "currentHeight": 143218,
+                "publicationHeight": 143212,
+                "ageBlocks": 6,
+                "expectedCadenceBlocks": 12
+              }
+            },
+            {
+              "name": "admitted_route_claim",
+              "ok": true,
+              "details": {
+                "routeClaimHash": "fa3bc1f7bf482f66834f5c4e1c482d058c53509de437cdbeff6de34a6fe2120c",
+                "source": "accepted_transcript_alias_compact"
+              }
+            },
+            {
+              "name": "semantic_alert_hash",
+              "ok": true,
+              "details": {
+                "expected": "37f8cd6fc842e4cd90dea4f915182adfe7c87d08df50dfed11190083078afd75",
+                "actual": "37f8cd6fc842e4cd90dea4f915182adfe7c87d08df50dfed11190083078afd75"
+              }
+            },
+            {
+              "name": "publication_handle_binding",
+              "ok": true,
+              "details": {
+                "publicationHandle": "sweep-cover-watchtower-current",
+                "binding": {
+                  "publicationHandle": "sweep-cover-watchtower-current",
+                  "routeClaimHash": "fa3bc1f7bf482f66834f5c4e1c482d058c53509de437cdbeff6de34a6fe2120c",
+                  "semanticAlertHash": "37f8cd6fc842e4cd90dea4f915182adfe7c87d08df50dfed11190083078afd75"
+                }
+              }
+            },
+            {
+              "name": "live_reserve_status",
+              "ok": true,
+              "details": {
+                "bindingStatus": "live_unspent_reserve_countable"
+              }
+            },
+            {
+              "name": "reserve_outpoint",
+              "ok": true,
+              "details": {
+                "expected": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6:0",
+                "actual": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6:0"
+              }
+            },
+            {
+              "name": "live_trace_hash",
+              "ok": true,
+              "details": {
+                "expected": "f2d6366f065633837bd30ce7641c50f8d645e27f71f1a6320d922ea3f55ba840",
+                "actual": "f2d6366f065633837bd30ce7641c50f8d645e27f71f1a6320d922ea3f55ba840"
+              }
+            },
+            {
+              "name": "reserve_csv_countable",
+              "ok": true,
+              "details": {
+                "recoveryStatus": {
+                  "checked": true,
+                  "countable": true,
+                  "reason": null,
+                  "currentHeight": 143218,
+                  "artifactObservedAtHeight": 134473,
+                  "liveFundingHeight": 143201,
+                  "liveFundingHeightSource": "wallet_gettransaction.blockheight",
+                  "artifactObservedAtHeightMatchesLiveFundingHeight": false,
+                  "recoveryCsvDelay": 2016,
+                  "maturityHeight": 145217,
+                  "remainingBlocks": 1999,
+                  "riskMarginBlocks": 144
+                }
+              }
+            }
+          ]
+        }
+      },
+      "summary": {
+        "claimHash": "23d07563823edc857a43828685d6aa6c1a301e5bd936868b73dc4fc4a12309d3",
+        "routeClaimHash": "fa3bc1f7bf482f66834f5c4e1c482d058c53509de437cdbeff6de34a6fe2120c",
+        "publicationHandle": "sweep-cover-watchtower-current",
+        "carrierProfile": "wallet_sweep_checkpoint",
+        "watchtowerEpoch": "watchtower-143218",
+        "admissible": true,
+        "failedChecks": []
+      }
+    },
+    {
+      "id": "accepted_payout_batch_checkpoint",
+      "expected": "accepted",
+      "claim": {
+        "kind": "camouflaged_watchtower_cadence_claim",
+        "claimHash": "a438a6fd09de7e6640c9b9b9bfb06899465e9446f610ef90b54d3ea72b304384",
+        "core": {
+          "kind": "camouflaged_watchtower_cadence_claim_v1",
+          "network": "bitcoin-testnet4",
+          "reserveOutpoint": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6:0",
+          "liveTraceHash": "f2d6366f065633837bd30ce7641c50f8d645e27f71f1a6320d922ea3f55ba840",
+          "watchtowerEpoch": "watchtower-143218",
+          "expectedCadenceBlocks": 12,
+          "publicationHeight": 143212,
+          "carrierProfile": "payout_batch_checkpoint",
+          "publicationHandle": "payout-batch-watchtower-current",
+          "semanticAlertHash": "37f8cd6fc842e4cd90dea4f915182adfe7c87d08df50dfed11190083078afd75",
+          "routeClaimHash": "fa3bc1f7bf482f66834f5c4e1c482d058c53509de437cdbeff6de34a6fe2120c"
+        }
+      },
+      "verification": {
+        "ok": true,
+        "admissible": true,
+        "reason": null,
+        "claimHash": "a438a6fd09de7e6640c9b9b9bfb06899465e9446f610ef90b54d3ea72b304384",
+        "routeClaim": {
+          "claimHash": "fa3bc1f7bf482f66834f5c4e1c482d058c53509de437cdbeff6de34a6fe2120c",
+          "admissible": true,
+          "routeClaim": {
+            "kind": "quirk_indexed_utxoref_route_claim",
+            "claimHash": "fa3bc1f7bf482f66834f5c4e1c482d058c53509de437cdbeff6de34a6fe2120c",
+            "core": {
+              "kind": "quirk_indexed_utxoref_route_claim_v1",
+              "network": "bitcoin-testnet4",
+              "motif": "transcript_multiplicity",
+              "publicHandle": "hybrid_transcript_alias_aa",
+              "semanticStateHash": "4943ceec005820e1dcba2f3b53f2a2c79c3ab712d82d758b232b14844a860868",
+              "routeTranscriptHash": "2b3d288d2c8d0962bc042eebc02b8c6a2672116d928d6c5a804cc63a2cb8a3d2",
+              "withdrawalRootHex": "c122ff6f74ebe157c975d43ca4252bee448f5a824a146b393b29fd975defdb60",
+              "finalOutputVectorHash": "2618453bd513d8a313c38dded01e378e1192e5b76570c61f546c8a6db82bbf12",
+              "liveTraceHash": "f2d6366f065633837bd30ce7641c50f8d645e27f71f1a6320d922ea3f55ba840",
+              "reserveOutpoint": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6:0",
+              "challengeWindow": {
+                "startHeight": 143218,
+                "endHeight": 143362
+              },
+              "commitmentHashHex": "5e08b515850fb0fe63820265d775f3528afe96d4900b6e5ee14c2a8f58e57576",
+              "transcriptAlias": "aa"
+            }
+          },
+          "source": "accepted_transcript_alias_compact"
+        },
+        "handleBinding": {
+          "publicationHandle": "payout-batch-watchtower-current",
+          "routeClaimHash": "fa3bc1f7bf482f66834f5c4e1c482d058c53509de437cdbeff6de34a6fe2120c",
+          "semanticAlertHash": "37f8cd6fc842e4cd90dea4f915182adfe7c87d08df50dfed11190083078afd75"
+        },
+        "failedChecks": [],
+        "checks": [
+          {
+            "name": "claim_hash",
+            "ok": true,
+            "details": {
+              "claimHash": "a438a6fd09de7e6640c9b9b9bfb06899465e9446f610ef90b54d3ea72b304384"
+            }
+          },
+          {
+            "name": "cadence_freshness",
+            "ok": true,
+            "details": {
+              "currentHeight": 143218,
+              "publicationHeight": 143212,
+              "ageBlocks": 6,
+              "expectedCadenceBlocks": 12
+            }
+          },
+          {
+            "name": "admitted_route_claim",
+            "ok": true,
+            "details": {
+              "routeClaimHash": "fa3bc1f7bf482f66834f5c4e1c482d058c53509de437cdbeff6de34a6fe2120c",
+              "source": "accepted_transcript_alias_compact"
+            }
+          },
+          {
+            "name": "semantic_alert_hash",
+            "ok": true,
+            "details": {
+              "expected": "37f8cd6fc842e4cd90dea4f915182adfe7c87d08df50dfed11190083078afd75",
+              "actual": "37f8cd6fc842e4cd90dea4f915182adfe7c87d08df50dfed11190083078afd75"
+            }
+          },
+          {
+            "name": "publication_handle_binding",
+            "ok": true,
+            "details": {
+              "publicationHandle": "payout-batch-watchtower-current",
+              "binding": {
+                "publicationHandle": "payout-batch-watchtower-current",
+                "routeClaimHash": "fa3bc1f7bf482f66834f5c4e1c482d058c53509de437cdbeff6de34a6fe2120c",
+                "semanticAlertHash": "37f8cd6fc842e4cd90dea4f915182adfe7c87d08df50dfed11190083078afd75"
+              }
+            }
+          },
+          {
+            "name": "live_reserve_status",
+            "ok": true,
+            "details": {
+              "bindingStatus": "live_unspent_reserve_countable"
+            }
+          },
+          {
+            "name": "reserve_outpoint",
+            "ok": true,
+            "details": {
+              "expected": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6:0",
+              "actual": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6:0"
+            }
+          },
+          {
+            "name": "live_trace_hash",
+            "ok": true,
+            "details": {
+              "expected": "f2d6366f065633837bd30ce7641c50f8d645e27f71f1a6320d922ea3f55ba840",
+              "actual": "f2d6366f065633837bd30ce7641c50f8d645e27f71f1a6320d922ea3f55ba840"
+            }
+          },
+          {
+            "name": "reserve_csv_countable",
+            "ok": true,
+            "details": {
+              "recoveryStatus": {
+                "checked": true,
+                "countable": true,
+                "reason": null,
+                "currentHeight": 143218,
+                "artifactObservedAtHeight": 134473,
+                "liveFundingHeight": 143201,
+                "liveFundingHeightSource": "wallet_gettransaction.blockheight",
+                "artifactObservedAtHeightMatchesLiveFundingHeight": false,
+                "recoveryCsvDelay": 2016,
+                "maturityHeight": 145217,
+                "remainingBlocks": 1999,
+                "riskMarginBlocks": 144
+              }
+            }
+          }
+        ]
+      },
+      "challenge": {
+        "kind": "camouflaged_watchtower_cadence_challenge",
+        "challengeHash": "edbfd41a834f8a4078a3deef3968252afa64723663173bc1be84ce59c82a6880",
+        "challengeable": false,
+        "core": {
+          "kind": "camouflaged_watchtower_cadence_challenge_v1",
+          "claimHash": "a438a6fd09de7e6640c9b9b9bfb06899465e9446f610ef90b54d3ea72b304384",
+          "routeClaimHash": "fa3bc1f7bf482f66834f5c4e1c482d058c53509de437cdbeff6de34a6fe2120c",
+          "reserveOutpoint": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6:0",
+          "publicationHandle": "payout-batch-watchtower-current",
+          "violations": [],
+          "verificationHash": "04e63fffedc4775e56fc74ab4ed4b1f4d234e7e0de7bfb19f62f311a7e6002a2"
+        },
+        "verification": {
+          "ok": true,
+          "admissible": true,
+          "reason": null,
+          "claimHash": "a438a6fd09de7e6640c9b9b9bfb06899465e9446f610ef90b54d3ea72b304384",
+          "routeClaim": {
+            "claimHash": "fa3bc1f7bf482f66834f5c4e1c482d058c53509de437cdbeff6de34a6fe2120c",
+            "admissible": true,
+            "routeClaim": {
+              "kind": "quirk_indexed_utxoref_route_claim",
+              "claimHash": "fa3bc1f7bf482f66834f5c4e1c482d058c53509de437cdbeff6de34a6fe2120c",
+              "core": {
+                "kind": "quirk_indexed_utxoref_route_claim_v1",
+                "network": "bitcoin-testnet4",
+                "motif": "transcript_multiplicity",
+                "publicHandle": "hybrid_transcript_alias_aa",
+                "semanticStateHash": "4943ceec005820e1dcba2f3b53f2a2c79c3ab712d82d758b232b14844a860868",
+                "routeTranscriptHash": "2b3d288d2c8d0962bc042eebc02b8c6a2672116d928d6c5a804cc63a2cb8a3d2",
+                "withdrawalRootHex": "c122ff6f74ebe157c975d43ca4252bee448f5a824a146b393b29fd975defdb60",
+                "finalOutputVectorHash": "2618453bd513d8a313c38dded01e378e1192e5b76570c61f546c8a6db82bbf12",
+                "liveTraceHash": "f2d6366f065633837bd30ce7641c50f8d645e27f71f1a6320d922ea3f55ba840",
+                "reserveOutpoint": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6:0",
+                "challengeWindow": {
+                  "startHeight": 143218,
+                  "endHeight": 143362
+                },
+                "commitmentHashHex": "5e08b515850fb0fe63820265d775f3528afe96d4900b6e5ee14c2a8f58e57576",
+                "transcriptAlias": "aa"
+              }
+            },
+            "source": "accepted_transcript_alias_compact"
+          },
+          "handleBinding": {
+            "publicationHandle": "payout-batch-watchtower-current",
+            "routeClaimHash": "fa3bc1f7bf482f66834f5c4e1c482d058c53509de437cdbeff6de34a6fe2120c",
+            "semanticAlertHash": "37f8cd6fc842e4cd90dea4f915182adfe7c87d08df50dfed11190083078afd75"
+          },
+          "failedChecks": [],
+          "checks": [
+            {
+              "name": "claim_hash",
+              "ok": true,
+              "details": {
+                "claimHash": "a438a6fd09de7e6640c9b9b9bfb06899465e9446f610ef90b54d3ea72b304384"
+              }
+            },
+            {
+              "name": "cadence_freshness",
+              "ok": true,
+              "details": {
+                "currentHeight": 143218,
+                "publicationHeight": 143212,
+                "ageBlocks": 6,
+                "expectedCadenceBlocks": 12
+              }
+            },
+            {
+              "name": "admitted_route_claim",
+              "ok": true,
+              "details": {
+                "routeClaimHash": "fa3bc1f7bf482f66834f5c4e1c482d058c53509de437cdbeff6de34a6fe2120c",
+                "source": "accepted_transcript_alias_compact"
+              }
+            },
+            {
+              "name": "semantic_alert_hash",
+              "ok": true,
+              "details": {
+                "expected": "37f8cd6fc842e4cd90dea4f915182adfe7c87d08df50dfed11190083078afd75",
+                "actual": "37f8cd6fc842e4cd90dea4f915182adfe7c87d08df50dfed11190083078afd75"
+              }
+            },
+            {
+              "name": "publication_handle_binding",
+              "ok": true,
+              "details": {
+                "publicationHandle": "payout-batch-watchtower-current",
+                "binding": {
+                  "publicationHandle": "payout-batch-watchtower-current",
+                  "routeClaimHash": "fa3bc1f7bf482f66834f5c4e1c482d058c53509de437cdbeff6de34a6fe2120c",
+                  "semanticAlertHash": "37f8cd6fc842e4cd90dea4f915182adfe7c87d08df50dfed11190083078afd75"
+                }
+              }
+            },
+            {
+              "name": "live_reserve_status",
+              "ok": true,
+              "details": {
+                "bindingStatus": "live_unspent_reserve_countable"
+              }
+            },
+            {
+              "name": "reserve_outpoint",
+              "ok": true,
+              "details": {
+                "expected": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6:0",
+                "actual": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6:0"
+              }
+            },
+            {
+              "name": "live_trace_hash",
+              "ok": true,
+              "details": {
+                "expected": "f2d6366f065633837bd30ce7641c50f8d645e27f71f1a6320d922ea3f55ba840",
+                "actual": "f2d6366f065633837bd30ce7641c50f8d645e27f71f1a6320d922ea3f55ba840"
+              }
+            },
+            {
+              "name": "reserve_csv_countable",
+              "ok": true,
+              "details": {
+                "recoveryStatus": {
+                  "checked": true,
+                  "countable": true,
+                  "reason": null,
+                  "currentHeight": 143218,
+                  "artifactObservedAtHeight": 134473,
+                  "liveFundingHeight": 143201,
+                  "liveFundingHeightSource": "wallet_gettransaction.blockheight",
+                  "artifactObservedAtHeightMatchesLiveFundingHeight": false,
+                  "recoveryCsvDelay": 2016,
+                  "maturityHeight": 145217,
+                  "remainingBlocks": 1999,
+                  "riskMarginBlocks": 144
+                }
+              }
+            }
+          ]
+        }
+      },
+      "summary": {
+        "claimHash": "a438a6fd09de7e6640c9b9b9bfb06899465e9446f610ef90b54d3ea72b304384",
+        "routeClaimHash": "fa3bc1f7bf482f66834f5c4e1c482d058c53509de437cdbeff6de34a6fe2120c",
+        "publicationHandle": "payout-batch-watchtower-current",
+        "carrierProfile": "payout_batch_checkpoint",
+        "watchtowerEpoch": "watchtower-143218",
+        "admissible": true,
+        "failedChecks": []
+      }
+    },
+    {
+      "id": "rejected_stale_checkpoint",
+      "expected": "rejected",
+      "claim": {
+        "kind": "camouflaged_watchtower_cadence_claim",
+        "claimHash": "0bcc65f5713c78297ea3df6ed09d81ec727338fb448858a311da9844a286289b",
+        "core": {
+          "kind": "camouflaged_watchtower_cadence_claim_v1",
+          "network": "bitcoin-testnet4",
+          "reserveOutpoint": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6:0",
+          "liveTraceHash": "f2d6366f065633837bd30ce7641c50f8d645e27f71f1a6320d922ea3f55ba840",
+          "watchtowerEpoch": "watchtower-143218",
+          "expectedCadenceBlocks": 12,
+          "publicationHeight": 143198,
+          "carrierProfile": "wallet_sweep_checkpoint",
+          "publicationHandle": "sweep-cover-watchtower-current",
+          "semanticAlertHash": "37f8cd6fc842e4cd90dea4f915182adfe7c87d08df50dfed11190083078afd75",
+          "routeClaimHash": "fa3bc1f7bf482f66834f5c4e1c482d058c53509de437cdbeff6de34a6fe2120c"
+        }
+      },
+      "verification": {
+        "ok": false,
+        "admissible": false,
+        "reason": "failed checks: cadence_freshness",
+        "claimHash": "0bcc65f5713c78297ea3df6ed09d81ec727338fb448858a311da9844a286289b",
+        "routeClaim": {
+          "claimHash": "fa3bc1f7bf482f66834f5c4e1c482d058c53509de437cdbeff6de34a6fe2120c",
+          "admissible": true,
+          "routeClaim": {
+            "kind": "quirk_indexed_utxoref_route_claim",
+            "claimHash": "fa3bc1f7bf482f66834f5c4e1c482d058c53509de437cdbeff6de34a6fe2120c",
+            "core": {
+              "kind": "quirk_indexed_utxoref_route_claim_v1",
+              "network": "bitcoin-testnet4",
+              "motif": "transcript_multiplicity",
+              "publicHandle": "hybrid_transcript_alias_aa",
+              "semanticStateHash": "4943ceec005820e1dcba2f3b53f2a2c79c3ab712d82d758b232b14844a860868",
+              "routeTranscriptHash": "2b3d288d2c8d0962bc042eebc02b8c6a2672116d928d6c5a804cc63a2cb8a3d2",
+              "withdrawalRootHex": "c122ff6f74ebe157c975d43ca4252bee448f5a824a146b393b29fd975defdb60",
+              "finalOutputVectorHash": "2618453bd513d8a313c38dded01e378e1192e5b76570c61f546c8a6db82bbf12",
+              "liveTraceHash": "f2d6366f065633837bd30ce7641c50f8d645e27f71f1a6320d922ea3f55ba840",
+              "reserveOutpoint": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6:0",
+              "challengeWindow": {
+                "startHeight": 143218,
+                "endHeight": 143362
+              },
+              "commitmentHashHex": "5e08b515850fb0fe63820265d775f3528afe96d4900b6e5ee14c2a8f58e57576",
+              "transcriptAlias": "aa"
+            }
+          },
+          "source": "accepted_transcript_alias_compact"
+        },
+        "handleBinding": {
+          "publicationHandle": "sweep-cover-watchtower-current",
+          "routeClaimHash": "fa3bc1f7bf482f66834f5c4e1c482d058c53509de437cdbeff6de34a6fe2120c",
+          "semanticAlertHash": "37f8cd6fc842e4cd90dea4f915182adfe7c87d08df50dfed11190083078afd75"
+        },
+        "failedChecks": [
+          "cadence_freshness"
+        ],
+        "checks": [
+          {
+            "name": "claim_hash",
+            "ok": true,
+            "details": {
+              "claimHash": "0bcc65f5713c78297ea3df6ed09d81ec727338fb448858a311da9844a286289b"
+            }
+          },
+          {
+            "name": "cadence_freshness",
+            "ok": false,
+            "details": {
+              "currentHeight": 143218,
+              "publicationHeight": 143198,
+              "ageBlocks": 20,
+              "expectedCadenceBlocks": 12
+            }
+          },
+          {
+            "name": "admitted_route_claim",
+            "ok": true,
+            "details": {
+              "routeClaimHash": "fa3bc1f7bf482f66834f5c4e1c482d058c53509de437cdbeff6de34a6fe2120c",
+              "source": "accepted_transcript_alias_compact"
+            }
+          },
+          {
+            "name": "semantic_alert_hash",
+            "ok": true,
+            "details": {
+              "expected": "37f8cd6fc842e4cd90dea4f915182adfe7c87d08df50dfed11190083078afd75",
+              "actual": "37f8cd6fc842e4cd90dea4f915182adfe7c87d08df50dfed11190083078afd75"
+            }
+          },
+          {
+            "name": "publication_handle_binding",
+            "ok": true,
+            "details": {
+              "publicationHandle": "sweep-cover-watchtower-current",
+              "binding": {
+                "publicationHandle": "sweep-cover-watchtower-current",
+                "routeClaimHash": "fa3bc1f7bf482f66834f5c4e1c482d058c53509de437cdbeff6de34a6fe2120c",
+                "semanticAlertHash": "37f8cd6fc842e4cd90dea4f915182adfe7c87d08df50dfed11190083078afd75"
+              }
+            }
+          },
+          {
+            "name": "live_reserve_status",
+            "ok": true,
+            "details": {
+              "bindingStatus": "live_unspent_reserve_countable"
+            }
+          },
+          {
+            "name": "reserve_outpoint",
+            "ok": true,
+            "details": {
+              "expected": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6:0",
+              "actual": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6:0"
+            }
+          },
+          {
+            "name": "live_trace_hash",
+            "ok": true,
+            "details": {
+              "expected": "f2d6366f065633837bd30ce7641c50f8d645e27f71f1a6320d922ea3f55ba840",
+              "actual": "f2d6366f065633837bd30ce7641c50f8d645e27f71f1a6320d922ea3f55ba840"
+            }
+          },
+          {
+            "name": "reserve_csv_countable",
+            "ok": true,
+            "details": {
+              "recoveryStatus": {
+                "checked": true,
+                "countable": true,
+                "reason": null,
+                "currentHeight": 143218,
+                "artifactObservedAtHeight": 134473,
+                "liveFundingHeight": 143201,
+                "liveFundingHeightSource": "wallet_gettransaction.blockheight",
+                "artifactObservedAtHeightMatchesLiveFundingHeight": false,
+                "recoveryCsvDelay": 2016,
+                "maturityHeight": 145217,
+                "remainingBlocks": 1999,
+                "riskMarginBlocks": 144
+              }
+            }
+          }
+        ]
+      },
+      "challenge": {
+        "kind": "camouflaged_watchtower_cadence_challenge",
+        "challengeHash": "c3b5df43ce646aa8234c9a42045239e664835196b2d9cdd7bd51df78047fa568",
+        "challengeable": true,
+        "core": {
+          "kind": "camouflaged_watchtower_cadence_challenge_v1",
+          "claimHash": "0bcc65f5713c78297ea3df6ed09d81ec727338fb448858a311da9844a286289b",
+          "routeClaimHash": "fa3bc1f7bf482f66834f5c4e1c482d058c53509de437cdbeff6de34a6fe2120c",
+          "reserveOutpoint": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6:0",
+          "publicationHandle": "sweep-cover-watchtower-current",
+          "violations": [
+            "cadence_freshness"
+          ],
+          "verificationHash": "6ea0827f252947b30eddc469ca7dcaf598a40bf05ca300e40afd1d5c5c670d6a"
+        },
+        "verification": {
+          "ok": false,
+          "admissible": false,
+          "reason": "failed checks: cadence_freshness",
+          "claimHash": "0bcc65f5713c78297ea3df6ed09d81ec727338fb448858a311da9844a286289b",
+          "routeClaim": {
+            "claimHash": "fa3bc1f7bf482f66834f5c4e1c482d058c53509de437cdbeff6de34a6fe2120c",
+            "admissible": true,
+            "routeClaim": {
+              "kind": "quirk_indexed_utxoref_route_claim",
+              "claimHash": "fa3bc1f7bf482f66834f5c4e1c482d058c53509de437cdbeff6de34a6fe2120c",
+              "core": {
+                "kind": "quirk_indexed_utxoref_route_claim_v1",
+                "network": "bitcoin-testnet4",
+                "motif": "transcript_multiplicity",
+                "publicHandle": "hybrid_transcript_alias_aa",
+                "semanticStateHash": "4943ceec005820e1dcba2f3b53f2a2c79c3ab712d82d758b232b14844a860868",
+                "routeTranscriptHash": "2b3d288d2c8d0962bc042eebc02b8c6a2672116d928d6c5a804cc63a2cb8a3d2",
+                "withdrawalRootHex": "c122ff6f74ebe157c975d43ca4252bee448f5a824a146b393b29fd975defdb60",
+                "finalOutputVectorHash": "2618453bd513d8a313c38dded01e378e1192e5b76570c61f546c8a6db82bbf12",
+                "liveTraceHash": "f2d6366f065633837bd30ce7641c50f8d645e27f71f1a6320d922ea3f55ba840",
+                "reserveOutpoint": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6:0",
+                "challengeWindow": {
+                  "startHeight": 143218,
+                  "endHeight": 143362
+                },
+                "commitmentHashHex": "5e08b515850fb0fe63820265d775f3528afe96d4900b6e5ee14c2a8f58e57576",
+                "transcriptAlias": "aa"
+              }
+            },
+            "source": "accepted_transcript_alias_compact"
+          },
+          "handleBinding": {
+            "publicationHandle": "sweep-cover-watchtower-current",
+            "routeClaimHash": "fa3bc1f7bf482f66834f5c4e1c482d058c53509de437cdbeff6de34a6fe2120c",
+            "semanticAlertHash": "37f8cd6fc842e4cd90dea4f915182adfe7c87d08df50dfed11190083078afd75"
+          },
+          "failedChecks": [
+            "cadence_freshness"
+          ],
+          "checks": [
+            {
+              "name": "claim_hash",
+              "ok": true,
+              "details": {
+                "claimHash": "0bcc65f5713c78297ea3df6ed09d81ec727338fb448858a311da9844a286289b"
+              }
+            },
+            {
+              "name": "cadence_freshness",
+              "ok": false,
+              "details": {
+                "currentHeight": 143218,
+                "publicationHeight": 143198,
+                "ageBlocks": 20,
+                "expectedCadenceBlocks": 12
+              }
+            },
+            {
+              "name": "admitted_route_claim",
+              "ok": true,
+              "details": {
+                "routeClaimHash": "fa3bc1f7bf482f66834f5c4e1c482d058c53509de437cdbeff6de34a6fe2120c",
+                "source": "accepted_transcript_alias_compact"
+              }
+            },
+            {
+              "name": "semantic_alert_hash",
+              "ok": true,
+              "details": {
+                "expected": "37f8cd6fc842e4cd90dea4f915182adfe7c87d08df50dfed11190083078afd75",
+                "actual": "37f8cd6fc842e4cd90dea4f915182adfe7c87d08df50dfed11190083078afd75"
+              }
+            },
+            {
+              "name": "publication_handle_binding",
+              "ok": true,
+              "details": {
+                "publicationHandle": "sweep-cover-watchtower-current",
+                "binding": {
+                  "publicationHandle": "sweep-cover-watchtower-current",
+                  "routeClaimHash": "fa3bc1f7bf482f66834f5c4e1c482d058c53509de437cdbeff6de34a6fe2120c",
+                  "semanticAlertHash": "37f8cd6fc842e4cd90dea4f915182adfe7c87d08df50dfed11190083078afd75"
+                }
+              }
+            },
+            {
+              "name": "live_reserve_status",
+              "ok": true,
+              "details": {
+                "bindingStatus": "live_unspent_reserve_countable"
+              }
+            },
+            {
+              "name": "reserve_outpoint",
+              "ok": true,
+              "details": {
+                "expected": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6:0",
+                "actual": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6:0"
+              }
+            },
+            {
+              "name": "live_trace_hash",
+              "ok": true,
+              "details": {
+                "expected": "f2d6366f065633837bd30ce7641c50f8d645e27f71f1a6320d922ea3f55ba840",
+                "actual": "f2d6366f065633837bd30ce7641c50f8d645e27f71f1a6320d922ea3f55ba840"
+              }
+            },
+            {
+              "name": "reserve_csv_countable",
+              "ok": true,
+              "details": {
+                "recoveryStatus": {
+                  "checked": true,
+                  "countable": true,
+                  "reason": null,
+                  "currentHeight": 143218,
+                  "artifactObservedAtHeight": 134473,
+                  "liveFundingHeight": 143201,
+                  "liveFundingHeightSource": "wallet_gettransaction.blockheight",
+                  "artifactObservedAtHeightMatchesLiveFundingHeight": false,
+                  "recoveryCsvDelay": 2016,
+                  "maturityHeight": 145217,
+                  "remainingBlocks": 1999,
+                  "riskMarginBlocks": 144
+                }
+              }
+            }
+          ]
+        }
+      },
+      "summary": {
+        "claimHash": "0bcc65f5713c78297ea3df6ed09d81ec727338fb448858a311da9844a286289b",
+        "routeClaimHash": "fa3bc1f7bf482f66834f5c4e1c482d058c53509de437cdbeff6de34a6fe2120c",
+        "publicationHandle": "sweep-cover-watchtower-current",
+        "carrierProfile": "wallet_sweep_checkpoint",
+        "watchtowerEpoch": "watchtower-143218",
+        "admissible": false,
+        "failedChecks": [
+          "cadence_freshness"
+        ]
+      }
+    },
+    {
+      "id": "rejected_wrong_alert_handle_route",
+      "expected": "rejected",
+      "claim": {
+        "kind": "camouflaged_watchtower_cadence_claim",
+        "claimHash": "934feb699b25ab64b3fac286e84a9ea9846995b199c0c1a4dcf80476cde244c1",
+        "core": {
+          "kind": "camouflaged_watchtower_cadence_claim_v1",
+          "network": "bitcoin-testnet4",
+          "reserveOutpoint": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6:0",
+          "liveTraceHash": "f2d6366f065633837bd30ce7641c50f8d645e27f71f1a6320d922ea3f55ba840",
+          "watchtowerEpoch": "watchtower-143218",
+          "expectedCadenceBlocks": 12,
+          "publicationHeight": 143212,
+          "carrierProfile": "wallet_sweep_checkpoint",
+          "publicationHandle": "wrong-route-watchtower-current",
+          "semanticAlertHash": "37f8cd6fc842e4cd90dea4f915182adfe7c87d08df50dfed11190083078afd75",
+          "routeClaimHash": "fa3bc1f7bf482f66834f5c4e1c482d058c53509de437cdbeff6de34a6fe2120c"
+        }
+      },
+      "verification": {
+        "ok": false,
+        "admissible": false,
+        "reason": "failed checks: publication_handle_binding",
+        "claimHash": "934feb699b25ab64b3fac286e84a9ea9846995b199c0c1a4dcf80476cde244c1",
+        "routeClaim": {
+          "claimHash": "fa3bc1f7bf482f66834f5c4e1c482d058c53509de437cdbeff6de34a6fe2120c",
+          "admissible": true,
+          "routeClaim": {
+            "kind": "quirk_indexed_utxoref_route_claim",
+            "claimHash": "fa3bc1f7bf482f66834f5c4e1c482d058c53509de437cdbeff6de34a6fe2120c",
+            "core": {
+              "kind": "quirk_indexed_utxoref_route_claim_v1",
+              "network": "bitcoin-testnet4",
+              "motif": "transcript_multiplicity",
+              "publicHandle": "hybrid_transcript_alias_aa",
+              "semanticStateHash": "4943ceec005820e1dcba2f3b53f2a2c79c3ab712d82d758b232b14844a860868",
+              "routeTranscriptHash": "2b3d288d2c8d0962bc042eebc02b8c6a2672116d928d6c5a804cc63a2cb8a3d2",
+              "withdrawalRootHex": "c122ff6f74ebe157c975d43ca4252bee448f5a824a146b393b29fd975defdb60",
+              "finalOutputVectorHash": "2618453bd513d8a313c38dded01e378e1192e5b76570c61f546c8a6db82bbf12",
+              "liveTraceHash": "f2d6366f065633837bd30ce7641c50f8d645e27f71f1a6320d922ea3f55ba840",
+              "reserveOutpoint": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6:0",
+              "challengeWindow": {
+                "startHeight": 143218,
+                "endHeight": 143362
+              },
+              "commitmentHashHex": "5e08b515850fb0fe63820265d775f3528afe96d4900b6e5ee14c2a8f58e57576",
+              "transcriptAlias": "aa"
+            }
+          },
+          "source": "accepted_transcript_alias_compact"
+        },
+        "handleBinding": {
+          "publicationHandle": "wrong-route-watchtower-current",
+          "routeClaimHash": "0000000000000000000000000000000000000000000000000000000000000000",
+          "semanticAlertHash": "37f8cd6fc842e4cd90dea4f915182adfe7c87d08df50dfed11190083078afd75"
+        },
+        "failedChecks": [
+          "publication_handle_binding"
+        ],
+        "checks": [
+          {
+            "name": "claim_hash",
+            "ok": true,
+            "details": {
+              "claimHash": "934feb699b25ab64b3fac286e84a9ea9846995b199c0c1a4dcf80476cde244c1"
+            }
+          },
+          {
+            "name": "cadence_freshness",
+            "ok": true,
+            "details": {
+              "currentHeight": 143218,
+              "publicationHeight": 143212,
+              "ageBlocks": 6,
+              "expectedCadenceBlocks": 12
+            }
+          },
+          {
+            "name": "admitted_route_claim",
+            "ok": true,
+            "details": {
+              "routeClaimHash": "fa3bc1f7bf482f66834f5c4e1c482d058c53509de437cdbeff6de34a6fe2120c",
+              "source": "accepted_transcript_alias_compact"
+            }
+          },
+          {
+            "name": "semantic_alert_hash",
+            "ok": true,
+            "details": {
+              "expected": "37f8cd6fc842e4cd90dea4f915182adfe7c87d08df50dfed11190083078afd75",
+              "actual": "37f8cd6fc842e4cd90dea4f915182adfe7c87d08df50dfed11190083078afd75"
+            }
+          },
+          {
+            "name": "publication_handle_binding",
+            "ok": false,
+            "details": {
+              "publicationHandle": "wrong-route-watchtower-current",
+              "binding": {
+                "publicationHandle": "wrong-route-watchtower-current",
+                "routeClaimHash": "0000000000000000000000000000000000000000000000000000000000000000",
+                "semanticAlertHash": "37f8cd6fc842e4cd90dea4f915182adfe7c87d08df50dfed11190083078afd75"
+              }
+            }
+          },
+          {
+            "name": "live_reserve_status",
+            "ok": true,
+            "details": {
+              "bindingStatus": "live_unspent_reserve_countable"
+            }
+          },
+          {
+            "name": "reserve_outpoint",
+            "ok": true,
+            "details": {
+              "expected": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6:0",
+              "actual": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6:0"
+            }
+          },
+          {
+            "name": "live_trace_hash",
+            "ok": true,
+            "details": {
+              "expected": "f2d6366f065633837bd30ce7641c50f8d645e27f71f1a6320d922ea3f55ba840",
+              "actual": "f2d6366f065633837bd30ce7641c50f8d645e27f71f1a6320d922ea3f55ba840"
+            }
+          },
+          {
+            "name": "reserve_csv_countable",
+            "ok": true,
+            "details": {
+              "recoveryStatus": {
+                "checked": true,
+                "countable": true,
+                "reason": null,
+                "currentHeight": 143218,
+                "artifactObservedAtHeight": 134473,
+                "liveFundingHeight": 143201,
+                "liveFundingHeightSource": "wallet_gettransaction.blockheight",
+                "artifactObservedAtHeightMatchesLiveFundingHeight": false,
+                "recoveryCsvDelay": 2016,
+                "maturityHeight": 145217,
+                "remainingBlocks": 1999,
+                "riskMarginBlocks": 144
+              }
+            }
+          }
+        ]
+      },
+      "challenge": {
+        "kind": "camouflaged_watchtower_cadence_challenge",
+        "challengeHash": "781aee52d226bb9138c2f0637f72718201d62645e199c65d8dbf77c893bae135",
+        "challengeable": true,
+        "core": {
+          "kind": "camouflaged_watchtower_cadence_challenge_v1",
+          "claimHash": "934feb699b25ab64b3fac286e84a9ea9846995b199c0c1a4dcf80476cde244c1",
+          "routeClaimHash": "fa3bc1f7bf482f66834f5c4e1c482d058c53509de437cdbeff6de34a6fe2120c",
+          "reserveOutpoint": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6:0",
+          "publicationHandle": "wrong-route-watchtower-current",
+          "violations": [
+            "publication_handle_binding"
+          ],
+          "verificationHash": "f27ba907e53e719aa6fd08a0463155e8cbd5d8db4e5a3f72289ea198aaa4f258"
+        },
+        "verification": {
+          "ok": false,
+          "admissible": false,
+          "reason": "failed checks: publication_handle_binding",
+          "claimHash": "934feb699b25ab64b3fac286e84a9ea9846995b199c0c1a4dcf80476cde244c1",
+          "routeClaim": {
+            "claimHash": "fa3bc1f7bf482f66834f5c4e1c482d058c53509de437cdbeff6de34a6fe2120c",
+            "admissible": true,
+            "routeClaim": {
+              "kind": "quirk_indexed_utxoref_route_claim",
+              "claimHash": "fa3bc1f7bf482f66834f5c4e1c482d058c53509de437cdbeff6de34a6fe2120c",
+              "core": {
+                "kind": "quirk_indexed_utxoref_route_claim_v1",
+                "network": "bitcoin-testnet4",
+                "motif": "transcript_multiplicity",
+                "publicHandle": "hybrid_transcript_alias_aa",
+                "semanticStateHash": "4943ceec005820e1dcba2f3b53f2a2c79c3ab712d82d758b232b14844a860868",
+                "routeTranscriptHash": "2b3d288d2c8d0962bc042eebc02b8c6a2672116d928d6c5a804cc63a2cb8a3d2",
+                "withdrawalRootHex": "c122ff6f74ebe157c975d43ca4252bee448f5a824a146b393b29fd975defdb60",
+                "finalOutputVectorHash": "2618453bd513d8a313c38dded01e378e1192e5b76570c61f546c8a6db82bbf12",
+                "liveTraceHash": "f2d6366f065633837bd30ce7641c50f8d645e27f71f1a6320d922ea3f55ba840",
+                "reserveOutpoint": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6:0",
+                "challengeWindow": {
+                  "startHeight": 143218,
+                  "endHeight": 143362
+                },
+                "commitmentHashHex": "5e08b515850fb0fe63820265d775f3528afe96d4900b6e5ee14c2a8f58e57576",
+                "transcriptAlias": "aa"
+              }
+            },
+            "source": "accepted_transcript_alias_compact"
+          },
+          "handleBinding": {
+            "publicationHandle": "wrong-route-watchtower-current",
+            "routeClaimHash": "0000000000000000000000000000000000000000000000000000000000000000",
+            "semanticAlertHash": "37f8cd6fc842e4cd90dea4f915182adfe7c87d08df50dfed11190083078afd75"
+          },
+          "failedChecks": [
+            "publication_handle_binding"
+          ],
+          "checks": [
+            {
+              "name": "claim_hash",
+              "ok": true,
+              "details": {
+                "claimHash": "934feb699b25ab64b3fac286e84a9ea9846995b199c0c1a4dcf80476cde244c1"
+              }
+            },
+            {
+              "name": "cadence_freshness",
+              "ok": true,
+              "details": {
+                "currentHeight": 143218,
+                "publicationHeight": 143212,
+                "ageBlocks": 6,
+                "expectedCadenceBlocks": 12
+              }
+            },
+            {
+              "name": "admitted_route_claim",
+              "ok": true,
+              "details": {
+                "routeClaimHash": "fa3bc1f7bf482f66834f5c4e1c482d058c53509de437cdbeff6de34a6fe2120c",
+                "source": "accepted_transcript_alias_compact"
+              }
+            },
+            {
+              "name": "semantic_alert_hash",
+              "ok": true,
+              "details": {
+                "expected": "37f8cd6fc842e4cd90dea4f915182adfe7c87d08df50dfed11190083078afd75",
+                "actual": "37f8cd6fc842e4cd90dea4f915182adfe7c87d08df50dfed11190083078afd75"
+              }
+            },
+            {
+              "name": "publication_handle_binding",
+              "ok": false,
+              "details": {
+                "publicationHandle": "wrong-route-watchtower-current",
+                "binding": {
+                  "publicationHandle": "wrong-route-watchtower-current",
+                  "routeClaimHash": "0000000000000000000000000000000000000000000000000000000000000000",
+                  "semanticAlertHash": "37f8cd6fc842e4cd90dea4f915182adfe7c87d08df50dfed11190083078afd75"
+                }
+              }
+            },
+            {
+              "name": "live_reserve_status",
+              "ok": true,
+              "details": {
+                "bindingStatus": "live_unspent_reserve_countable"
+              }
+            },
+            {
+              "name": "reserve_outpoint",
+              "ok": true,
+              "details": {
+                "expected": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6:0",
+                "actual": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6:0"
+              }
+            },
+            {
+              "name": "live_trace_hash",
+              "ok": true,
+              "details": {
+                "expected": "f2d6366f065633837bd30ce7641c50f8d645e27f71f1a6320d922ea3f55ba840",
+                "actual": "f2d6366f065633837bd30ce7641c50f8d645e27f71f1a6320d922ea3f55ba840"
+              }
+            },
+            {
+              "name": "reserve_csv_countable",
+              "ok": true,
+              "details": {
+                "recoveryStatus": {
+                  "checked": true,
+                  "countable": true,
+                  "reason": null,
+                  "currentHeight": 143218,
+                  "artifactObservedAtHeight": 134473,
+                  "liveFundingHeight": 143201,
+                  "liveFundingHeightSource": "wallet_gettransaction.blockheight",
+                  "artifactObservedAtHeightMatchesLiveFundingHeight": false,
+                  "recoveryCsvDelay": 2016,
+                  "maturityHeight": 145217,
+                  "remainingBlocks": 1999,
+                  "riskMarginBlocks": 144
+                }
+              }
+            }
+          ]
+        }
+      },
+      "summary": {
+        "claimHash": "934feb699b25ab64b3fac286e84a9ea9846995b199c0c1a4dcf80476cde244c1",
+        "routeClaimHash": "fa3bc1f7bf482f66834f5c4e1c482d058c53509de437cdbeff6de34a6fe2120c",
+        "publicationHandle": "wrong-route-watchtower-current",
+        "carrierProfile": "wallet_sweep_checkpoint",
+        "watchtowerEpoch": "watchtower-143218",
+        "admissible": false,
+        "failedChecks": [
+          "publication_handle_binding"
+        ]
+      }
+    }
+  ],
+  "conclusion": {
+    "acceptedCount": 2,
+    "rejectedCount": 2,
+    "novelty": "carrier camouflage becomes a watchtower cadence surface only after route and reserve admission"
+  }
+}

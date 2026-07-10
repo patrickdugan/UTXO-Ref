@@ -1,0 +1,266 @@
+{
+  "kind": "tradelayer_rbtc_hourly_autoroll_live_run",
+  "createdAt": "2026-07-06T23:38:26.752Z",
+  "source": "listener",
+  "tradelayerRepo": "C:\\projects\\tradelayer.js",
+  "baseUrl": "http://127.0.0.1:3000",
+  "chain": null,
+  "vaultArtifactPath": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\live\\btc_testnet4_reserve_vault_latest.json",
+  "balance": {
+    "source": "listener",
+    "rawBalances": [
+      {
+        "propertyId": "1",
+        "ticker": "tlBTC",
+        "amount": 0.00001,
+        "available": 0.00001,
+        "reserved": 0,
+        "margin": 0,
+        "vesting": 0,
+        "channel": 0
+      }
+    ],
+    "available": 0.00001
+  },
+  "currentUnits": "1000",
+  "startingUnits": "1000",
+  "contract": {
+    "kind": "tradelayer_rbtc_hourly_dlc_contract",
+    "contractHash": "f13a2200fc66f16eafef5e627aa716ee2039cf454d7ef79d6d5b495c290cc445",
+    "core": {
+      "kind": "tradelayer_rbtc_hourly_dlc_contract_v1",
+      "contractId": "rbtc-hour-listener-wallclock-001",
+      "previousContractId": null,
+      "vaultAddress": "tb1p8l6fdqqyyfp09xda0xv59xgltas6eecem47rvuq2walz0t5zrcgq06pcf9",
+      "fundingAddress": "tb1qwvzaayzrgreqyyvxp77wlr60ngaqnpcyhujz2m",
+      "rbtcPropertyId": 1,
+      "fundingOutpoint": {
+        "txid": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6",
+        "vout": 0
+      },
+      "reserveVaultId": "btc-testnet4-reserve-134473-93f953df",
+      "startsAtUnix": 1783377377,
+      "durationSeconds": 3600,
+      "expiresAtUnix": 1783380977,
+      "riskMarginSeconds": 300,
+      "startingRbtcBalance": "1000"
+    }
+  },
+  "decision": {
+    "kind": "tradelayer_rbtc_hourly_cet_decision",
+    "decisionHash": "a119e9c176cf8d7b76b07a1156cdd5ceeffe82fbfcce8e903600dfd1c4fc1f28",
+    "decisionCore": {
+      "kind": "tradelayer_rbtc_hourly_cet_decision_v1",
+      "contractHash": "f13a2200fc66f16eafef5e627aa716ee2039cf454d7ef79d6d5b495c290cc445",
+      "observationHash": "d7f1f6a4f5b74b5a0cc157f9d20b6cd6ffc781018307ce4870747e9f99eb58a5",
+      "policy": {
+        "outcomeId": "roll",
+        "canAutoRoll": true,
+        "reason": "rbtc_balance_unchanged"
+      },
+      "selectedOutcomeId": "roll",
+      "selectedCetHash": "0b778dc19d3f5b36d5a7d5cbd55dba11b3cf159a20d2be0400661433186a1a86",
+      "rollPublicationId": "72c3d12f0ab0a294f33b7159"
+    },
+    "contract": {
+      "kind": "tradelayer_rbtc_hourly_dlc_contract",
+      "contractHash": "f13a2200fc66f16eafef5e627aa716ee2039cf454d7ef79d6d5b495c290cc445",
+      "core": {
+        "kind": "tradelayer_rbtc_hourly_dlc_contract_v1",
+        "contractId": "rbtc-hour-listener-wallclock-001",
+        "previousContractId": null,
+        "vaultAddress": "tb1p8l6fdqqyyfp09xda0xv59xgltas6eecem47rvuq2walz0t5zrcgq06pcf9",
+        "fundingAddress": "tb1qwvzaayzrgreqyyvxp77wlr60ngaqnpcyhujz2m",
+        "rbtcPropertyId": 1,
+        "fundingOutpoint": {
+          "txid": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6",
+          "vout": 0
+        },
+        "reserveVaultId": "btc-testnet4-reserve-134473-93f953df",
+        "startsAtUnix": 1783377377,
+        "durationSeconds": 3600,
+        "expiresAtUnix": 1783380977,
+        "riskMarginSeconds": 300,
+        "startingRbtcBalance": "1000"
+      }
+    },
+    "observation": {
+      "kind": "tradelayer_rbtc_balance_oracle_observation",
+      "observationHash": "d7f1f6a4f5b74b5a0cc157f9d20b6cd6ffc781018307ce4870747e9f99eb58a5",
+      "core": {
+        "kind": "tradelayer_rbtc_balance_oracle_observation_v1",
+        "contractId": "rbtc-hour-listener-wallclock-001",
+        "vaultAddress": "tb1p8l6fdqqyyfp09xda0xv59xgltas6eecem47rvuq2walz0t5zrcgq06pcf9",
+        "fundingAddress": "tb1qwvzaayzrgreqyyvxp77wlr60ngaqnpcyhujz2m",
+        "rbtcPropertyId": 1,
+        "fundingOutpoint": {
+          "txid": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6",
+          "vout": 0
+        },
+        "startsAtUnix": 1783377377,
+        "expiresAtUnix": 1783380977,
+        "observedAtUnix": 1783381103,
+        "startingRbtcBalance": "1000",
+        "currentRbtcBalance": "1000",
+        "deltaRbtcBalance": "0",
+        "balanceReduced": false,
+        "matured": true,
+        "insideRiskWindow": true
+      }
+    },
+    "policy": {
+      "outcomeId": "roll",
+      "canAutoRoll": true,
+      "reason": "rbtc_balance_unchanged"
+    },
+    "settlementOutcomes": {
+      "kind": "tradelayer_dlc_settlement_outcomes_v1",
+      "collateralSats": "20000",
+      "bucketCapBps": 500,
+      "realizedPnlBps": 0,
+      "effectivePnlBps": 0,
+      "feeBps": 0,
+      "minerFeeSats": "1000",
+      "outcomes": [
+        {
+          "outcomeId": "settle-gain",
+          "winnerRole": "alice",
+          "outputsSats": {
+            "tb1p8l6fdqqyyfp09xda0xv59xgltas6eecem47rvuq2walz0t5zrcgq06pcf9": "19000"
+          },
+          "totalOutSats": "19000",
+          "minerFeeSats": "1000"
+        },
+        {
+          "outcomeId": "settle-loss",
+          "winnerRole": "bob",
+          "outputsSats": {
+            "tb1p8l6fdqqyyfp09xda0xv59xgltas6eecem47rvuq2walz0t5zrcgq06pcf9": "19000"
+          },
+          "totalOutSats": "19000",
+          "minerFeeSats": "1000"
+        },
+        {
+          "outcomeId": "roll",
+          "winnerRole": "residual",
+          "outputsSats": {
+            "tb1p8l6fdqqyyfp09xda0xv59xgltas6eecem47rvuq2walz0t5zrcgq06pcf9": "19000"
+          },
+          "totalOutSats": "19000",
+          "minerFeeSats": "1000"
+        }
+      ],
+      "outcomesHash": "671fd71e269671fc3c7460d0889b2108e2f49d79d37a4b35f2bebc30c4f2116b"
+    },
+    "attestation": {
+      "kind": "tradelayer_dlc_oracle_attestation",
+      "contractId": "rbtc-hour-listener-wallclock-001",
+      "fundingTxid": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6",
+      "fundingVout": 0,
+      "outcomeId": "roll",
+      "message": "{\"contractId\":\"rbtc-hour-listener-wallclock-001\",\"fundingTxid\":\"93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6\",\"fundingVout\":0,\"kind\":\"tradelayer_dlc_oracle_attestation_v1\",\"outcomeId\":\"roll\"}",
+      "signature": "bd35e8091394bdb870ebf7c0bac0ad76bb22b6d020e131e8f64166d2a2e7526d7a1886726b9cdad8d0f9322dac1a1df85e90bafa1a729abbd6461724271e8a07"
+    },
+    "selectedCet": {
+      "kind": "tradelayer_dlc_cet_selection",
+      "selectionHash": "0b778dc19d3f5b36d5a7d5cbd55dba11b3cf159a20d2be0400661433186a1a86",
+      "selection": {
+        "kind": "tradelayer_dlc_cet_selection_v1",
+        "outcomeId": "roll",
+        "winnerRole": "residual",
+        "fundingTxid": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6",
+        "fundingVout": 0,
+        "outputsSats": {
+          "tb1p8l6fdqqyyfp09xda0xv59xgltas6eecem47rvuq2walz0t5zrcgq06pcf9": "19000"
+        },
+        "totalOutSats": "19000",
+        "outcomesHash": "671fd71e269671fc3c7460d0889b2108e2f49d79d37a4b35f2bebc30c4f2116b",
+        "attestationMessage": "{\"contractId\":\"rbtc-hour-listener-wallclock-001\",\"fundingTxid\":\"93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6\",\"fundingVout\":0,\"kind\":\"tradelayer_dlc_oracle_attestation_v1\",\"outcomeId\":\"roll\"}"
+      }
+    },
+    "rollHandoff": {
+      "kind": "m1_fast_roll_handoff",
+      "createdAt": "2026-07-06T23:38:24.036Z",
+      "sourceBundleHash": "f13a2200fc66f16eafef5e627aa716ee2039cf454d7ef79d6d5b495c290cc445",
+      "oracleMapId": "5b5cfe32caafa57c",
+      "publication": {
+        "kind": "m1_oracle_delta_publication",
+        "publicationId": "72c3d12f0ab0a294f33b7159",
+        "oracleMapId": "5b5cfe32caafa57c",
+        "eventId": "rbtc-hour-listener-wallclock-001:rbtc-balance",
+        "quorumId": "rbtc-balance-oracle-1of1",
+        "keyId": "rbtc-balance-key-1",
+        "pathId": "roll",
+        "deltaSats": "20000",
+        "bundleHash": "f13a2200fc66f16eafef5e627aa716ee2039cf454d7ef79d6d5b495c290cc445",
+        "payloadText": "m1delta|5b5cfe32caafa57c|roll|20000|e51b08ccbc0713d2",
+        "payloadHex": "6d3164656c74617c356235636665333263616166613537637c726f6c6c7c32303030307c65353162303863636263303731336432",
+        "opReturnScriptHex": "6a346d3164656c74617c356235636665333263616166613537637c726f6c6c7c32303030307c65353162303863636263303731336432",
+        "adaptorMapping": {
+          "adaptorSignaturePlaceholder": "adaptor_sig_for_hourly_rbtc_roll",
+          "adaptorPointPlaceholder": "adaptor_point_for_hourly_rbtc_roll",
+          "cetTxid": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6",
+          "messageDigestHex": null,
+          "selectedPathId": "roll"
+        },
+        "committedRouting": {
+          "winnerRole": null,
+          "winnerAddress": null,
+          "refundRole": null,
+          "refundAddress": null,
+          "feeRole": null,
+          "feeAddress": null,
+          "dustRole": null,
+          "dustAddress": null
+        },
+        "rollTrigger": {
+          "kind": "event-driven-roll",
+          "canRoll": true,
+          "nextContractId": "e51b08ccbc0713d2",
+          "activation": "send"
+        },
+        "publicationHash": "8cb5cbf8c225f21ac57a211050d5ebcf06058d3c4c661754704d36892d9c0778"
+      },
+      "nextContract": {
+        "contractId": "e51b08ccbc0713d2",
+        "sourceContractId": "5b5cfe32caafa57c",
+        "cadence": "event-driven",
+        "trigger": "send",
+        "route": "roll",
+        "adapterSignatureSlot": "adaptor_sig_for_hourly_rbtc_roll",
+        "committedRouting": {
+          "winnerRole": null,
+          "winnerAddress": null,
+          "refundRole": null,
+          "refundAddress": null,
+          "feeRole": null,
+          "feeAddress": null,
+          "dustRole": null,
+          "dustAddress": null
+        }
+      }
+    }
+  },
+  "tx30Intent": {
+    "action": 2,
+    "oracleId": 1,
+    "relayType": 1,
+    "stateHash": "d7f1f6a4f5b74b5a0cc157f9d20b6cd6ffc781018307ce4870747e9f99eb58a5",
+    "dlcRef": "rbtc-hour-listener-wallclock-001",
+    "settlementState": "ROLLED",
+    "relayBlob": "{\"kind\":\"rbtc_hourly_autoroll_relay_v1\",\"contractId\":\"rbtc-hour-listener-wallclock-001\",\"observationHash\":\"d7f1f6a4f5b74b5a0cc157f9d20b6cd6ffc781018307ce4870747e9f99eb58a5\",\"policy\":{\"outcomeId\":\"roll\",\"canAutoRoll\":true,\"reason\":\"rbtc_balance_unchanged\"},\"selectedCetHash\":\"0b778dc19d3f5b36d5a7d5cbd55dba11b3cf159a20d2be0400661433186a1a86\",\"settlement\":{\"mode\":\"rollover\",\"propertyId\":1,\"amount\":0,\"fromAddress\":\"tb1qwvzaayzrgreqyyvxp77wlr60ngaqnpcyhujz2m\",\"toAddress\":\"tb1qwvzaayzrgreqyyvxp77wlr60ngaqnpcyhujz2m\",\"nextPropertyId\":1}}",
+    "autoRoll": true,
+    "nextDlcRef": "rbtc-hour-listener-wallclock-002",
+    "oracleAddress": "tb1qwvzaayzrgreqyyvxp77wlr60ngaqnpcyhujz2m",
+    "relayBlobHash": "2b9edc9661105ce3ea61ac63b4c11735adbb13072d17f51480b02a2a38da283d"
+  },
+  "broadcast": {
+    "attempted": true,
+    "command": "node utils\\canonicalStateOracle.js --oracleId=1 --oracleAddress=tb1qwvzaayzrgreqyyvxp77wlr60ngaqnpcyhujz2m --propertyId=1 --dlcRef=rbtc-hour-listener-wallclock-001 --settlementState=ROLLED --relayType=1 --autoRoll=1 --nextDlcRef=rbtc-hour-listener-wallclock-002 --settleAction=none --amount=0 --dryRun=0",
+    "status": 0,
+    "stdout": "constructed client wrapper now init\ngenerate activation instance\n[canonical-state-oracle] state {\n  propertyId: 1,\n  holderCount: 1,\n  stateHash: 'dba58b2857d25e7d4753df92396684adc2181c2ec9e56e57e8cf261f17efc939'\n}\n[canonical-state-oracle] relay {\n  oracleId: 1,\n  senderAddress: 'tb1qwvzaayzrgreqyyvxp77wlr60ngaqnpcyhujz2m',\n  dlcRef: 'rbtc-hour-listener-wallclock-001',\n  settlementState: 'ROLLED',\n  relayType: 1,\n  mode: 'none',\n  autoRoll: true,\n  nextDlcRef: 'rbtc-hour-listener-wallclock-002',\n  block: 0\n}\n[canonical-state-oracle] relay + settlement applied\n",
+    "stderr": "",
+    "ok": true
+  },
+  "artifactHash": "10b89aaeb420d952819ae80f6a7ee6d22c53cad65a8cfb31e90368d1bdc4b524"
+}

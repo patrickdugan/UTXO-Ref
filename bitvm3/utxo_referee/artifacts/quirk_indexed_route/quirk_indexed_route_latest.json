@@ -1,0 +1,1166 @@
+{
+  "kind": "quirk_indexed_utxoref_route_demo",
+  "createdAt": "2026-07-07T00:04:10.146Z",
+  "source": {
+    "importPath": "C:\\projects\\BitcoinConsensusObservatory\\jurassic-bitcoin\\artifacts\\bitcoin-testnet4\\utxoref-live-import-latest.json"
+  },
+  "node": {
+    "chain": "testnet4",
+    "blocks": 143218,
+    "headers": 143218,
+    "bestblockhash": "00000000001782293e0f6f341862c47b0052aa499bf2f65e7d8c2359e4cdbc7b",
+    "initialblockdownload": false,
+    "pruned": true,
+    "wallet": "utxoref-testnet"
+  },
+  "grant": {
+    "txid": "7dec37bebf56575abd5e3fb48e7fbe1c278cb7d1f78356fe0b2c4113b759464d",
+    "semanticStateHash": "4943ceec005820e1dcba2f3b53f2a2c79c3ab712d82d758b232b14844a860868",
+    "bindingStatus": "live_confirmed_payload_verified"
+  },
+  "reserve": {
+    "outpoint": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6:0",
+    "liveTraceHash": "f2d6366f065633837bd30ce7641c50f8d645e27f71f1a6320d922ea3f55ba840",
+    "withdrawalRootHex": "c122ff6f74ebe157c975d43ca4252bee448f5a824a146b393b29fd975defdb60",
+    "finalOutputVectorHash": "2618453bd513d8a313c38dded01e378e1192e5b76570c61f546c8a6db82bbf12",
+    "bindingStatus": "live_unspent_reserve_countable"
+  },
+  "scenarios": [
+    {
+      "id": "accepted_transcript_alias_compact",
+      "expected": "accepted",
+      "claim": {
+        "kind": "quirk_indexed_utxoref_route_claim",
+        "claimHash": "fa3bc1f7bf482f66834f5c4e1c482d058c53509de437cdbeff6de34a6fe2120c",
+        "core": {
+          "kind": "quirk_indexed_utxoref_route_claim_v1",
+          "network": "bitcoin-testnet4",
+          "motif": "transcript_multiplicity",
+          "publicHandle": "hybrid_transcript_alias_aa",
+          "semanticStateHash": "4943ceec005820e1dcba2f3b53f2a2c79c3ab712d82d758b232b14844a860868",
+          "routeTranscriptHash": "2b3d288d2c8d0962bc042eebc02b8c6a2672116d928d6c5a804cc63a2cb8a3d2",
+          "withdrawalRootHex": "c122ff6f74ebe157c975d43ca4252bee448f5a824a146b393b29fd975defdb60",
+          "finalOutputVectorHash": "2618453bd513d8a313c38dded01e378e1192e5b76570c61f546c8a6db82bbf12",
+          "liveTraceHash": "f2d6366f065633837bd30ce7641c50f8d645e27f71f1a6320d922ea3f55ba840",
+          "reserveOutpoint": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6:0",
+          "challengeWindow": {
+            "startHeight": 143218,
+            "endHeight": 143362
+          },
+          "commitmentHashHex": "5e08b515850fb0fe63820265d775f3528afe96d4900b6e5ee14c2a8f58e57576",
+          "transcriptAlias": "aa"
+        }
+      },
+      "verification": {
+        "ok": true,
+        "admissible": true,
+        "reason": null,
+        "claimHash": "fa3bc1f7bf482f66834f5c4e1c482d058c53509de437cdbeff6de34a6fe2120c",
+        "routeCandidate": {
+          "routeTranscriptHash": "2b3d288d2c8d0962bc042eebc02b8c6a2672116d928d6c5a804cc63a2cb8a3d2",
+          "entryId": "qi-1-transcript_alias_relay",
+          "motif": "transcript_multiplicity",
+          "surfaceId": "transcript_alias_relay"
+        },
+        "failedChecks": [],
+        "checks": [
+          {
+            "name": "claim_hash",
+            "ok": true,
+            "details": {
+              "claimHash": "fa3bc1f7bf482f66834f5c4e1c482d058c53509de437cdbeff6de34a6fe2120c"
+            }
+          },
+          {
+            "name": "route_transcript_candidate",
+            "ok": true,
+            "details": {
+              "routeTranscriptHash": "2b3d288d2c8d0962bc042eebc02b8c6a2672116d928d6c5a804cc63a2cb8a3d2",
+              "candidate": {
+                "routeTranscriptHash": "2b3d288d2c8d0962bc042eebc02b8c6a2672116d928d6c5a804cc63a2cb8a3d2",
+                "entryId": "qi-1-transcript_alias_relay",
+                "motif": "transcript_multiplicity",
+                "surfaceId": "transcript_alias_relay"
+              }
+            }
+          },
+          {
+            "name": "semantic_state",
+            "ok": true,
+            "details": {
+              "expected": "4943ceec005820e1dcba2f3b53f2a2c79c3ab712d82d758b232b14844a860868",
+              "actual": "4943ceec005820e1dcba2f3b53f2a2c79c3ab712d82d758b232b14844a860868"
+            }
+          },
+          {
+            "name": "live_reserve_status",
+            "ok": true,
+            "details": {
+              "bindingStatus": "live_unspent_reserve_countable"
+            }
+          },
+          {
+            "name": "reserve_outpoint",
+            "ok": true,
+            "details": {
+              "expected": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6:0",
+              "actual": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6:0"
+            }
+          },
+          {
+            "name": "live_trace_hash",
+            "ok": true,
+            "details": {
+              "expected": "f2d6366f065633837bd30ce7641c50f8d645e27f71f1a6320d922ea3f55ba840",
+              "actual": "f2d6366f065633837bd30ce7641c50f8d645e27f71f1a6320d922ea3f55ba840"
+            }
+          },
+          {
+            "name": "withdrawal_root",
+            "ok": true,
+            "details": {
+              "expected": "c122ff6f74ebe157c975d43ca4252bee448f5a824a146b393b29fd975defdb60",
+              "actual": "c122ff6f74ebe157c975d43ca4252bee448f5a824a146b393b29fd975defdb60"
+            }
+          },
+          {
+            "name": "final_output_vector",
+            "ok": true,
+            "details": {
+              "expected": "2618453bd513d8a313c38dded01e378e1192e5b76570c61f546c8a6db82bbf12",
+              "actual": "2618453bd513d8a313c38dded01e378e1192e5b76570c61f546c8a6db82bbf12"
+            }
+          },
+          {
+            "name": "commitment_hash",
+            "ok": true,
+            "details": {
+              "expected": "5e08b515850fb0fe63820265d775f3528afe96d4900b6e5ee14c2a8f58e57576",
+              "actual": "5e08b515850fb0fe63820265d775f3528afe96d4900b6e5ee14c2a8f58e57576"
+            }
+          },
+          {
+            "name": "reserve_chain_checks",
+            "ok": true,
+            "details": {
+              "scriptMatchesManifest": true,
+              "valueMatchesManifest": true
+            }
+          },
+          {
+            "name": "reserve_csv_countable",
+            "ok": true,
+            "details": {
+              "recoveryStatus": {
+                "checked": true,
+                "countable": true,
+                "reason": null,
+                "currentHeight": 143218,
+                "artifactObservedAtHeight": 134473,
+                "liveFundingHeight": 143201,
+                "liveFundingHeightSource": "wallet_gettransaction.blockheight",
+                "artifactObservedAtHeightMatchesLiveFundingHeight": false,
+                "recoveryCsvDelay": 2016,
+                "maturityHeight": 145217,
+                "remainingBlocks": 1999,
+                "riskMarginBlocks": 144
+              }
+            }
+          }
+        ]
+      },
+      "challenge": {
+        "kind": "quirk_indexed_utxoref_route_challenge",
+        "challengeHash": "4e261b88cf1201374d1631d46717d04b273a3c398968ecee2ff4efddf4a6a8ac",
+        "challengeable": false,
+        "core": {
+          "kind": "quirk_indexed_utxoref_route_challenge_v1",
+          "claimHash": "fa3bc1f7bf482f66834f5c4e1c482d058c53509de437cdbeff6de34a6fe2120c",
+          "reserveOutpoint": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6:0",
+          "routeTranscriptHash": "2b3d288d2c8d0962bc042eebc02b8c6a2672116d928d6c5a804cc63a2cb8a3d2",
+          "violations": [],
+          "verificationHash": "049acac41aa47a42fbb30e6d2c9e21e6eb1dfd8f689902527c60c72f4439c602"
+        },
+        "verification": {
+          "ok": true,
+          "admissible": true,
+          "reason": null,
+          "claimHash": "fa3bc1f7bf482f66834f5c4e1c482d058c53509de437cdbeff6de34a6fe2120c",
+          "routeCandidate": {
+            "routeTranscriptHash": "2b3d288d2c8d0962bc042eebc02b8c6a2672116d928d6c5a804cc63a2cb8a3d2",
+            "entryId": "qi-1-transcript_alias_relay",
+            "motif": "transcript_multiplicity",
+            "surfaceId": "transcript_alias_relay"
+          },
+          "failedChecks": [],
+          "checks": [
+            {
+              "name": "claim_hash",
+              "ok": true,
+              "details": {
+                "claimHash": "fa3bc1f7bf482f66834f5c4e1c482d058c53509de437cdbeff6de34a6fe2120c"
+              }
+            },
+            {
+              "name": "route_transcript_candidate",
+              "ok": true,
+              "details": {
+                "routeTranscriptHash": "2b3d288d2c8d0962bc042eebc02b8c6a2672116d928d6c5a804cc63a2cb8a3d2",
+                "candidate": {
+                  "routeTranscriptHash": "2b3d288d2c8d0962bc042eebc02b8c6a2672116d928d6c5a804cc63a2cb8a3d2",
+                  "entryId": "qi-1-transcript_alias_relay",
+                  "motif": "transcript_multiplicity",
+                  "surfaceId": "transcript_alias_relay"
+                }
+              }
+            },
+            {
+              "name": "semantic_state",
+              "ok": true,
+              "details": {
+                "expected": "4943ceec005820e1dcba2f3b53f2a2c79c3ab712d82d758b232b14844a860868",
+                "actual": "4943ceec005820e1dcba2f3b53f2a2c79c3ab712d82d758b232b14844a860868"
+              }
+            },
+            {
+              "name": "live_reserve_status",
+              "ok": true,
+              "details": {
+                "bindingStatus": "live_unspent_reserve_countable"
+              }
+            },
+            {
+              "name": "reserve_outpoint",
+              "ok": true,
+              "details": {
+                "expected": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6:0",
+                "actual": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6:0"
+              }
+            },
+            {
+              "name": "live_trace_hash",
+              "ok": true,
+              "details": {
+                "expected": "f2d6366f065633837bd30ce7641c50f8d645e27f71f1a6320d922ea3f55ba840",
+                "actual": "f2d6366f065633837bd30ce7641c50f8d645e27f71f1a6320d922ea3f55ba840"
+              }
+            },
+            {
+              "name": "withdrawal_root",
+              "ok": true,
+              "details": {
+                "expected": "c122ff6f74ebe157c975d43ca4252bee448f5a824a146b393b29fd975defdb60",
+                "actual": "c122ff6f74ebe157c975d43ca4252bee448f5a824a146b393b29fd975defdb60"
+              }
+            },
+            {
+              "name": "final_output_vector",
+              "ok": true,
+              "details": {
+                "expected": "2618453bd513d8a313c38dded01e378e1192e5b76570c61f546c8a6db82bbf12",
+                "actual": "2618453bd513d8a313c38dded01e378e1192e5b76570c61f546c8a6db82bbf12"
+              }
+            },
+            {
+              "name": "commitment_hash",
+              "ok": true,
+              "details": {
+                "expected": "5e08b515850fb0fe63820265d775f3528afe96d4900b6e5ee14c2a8f58e57576",
+                "actual": "5e08b515850fb0fe63820265d775f3528afe96d4900b6e5ee14c2a8f58e57576"
+              }
+            },
+            {
+              "name": "reserve_chain_checks",
+              "ok": true,
+              "details": {
+                "scriptMatchesManifest": true,
+                "valueMatchesManifest": true
+              }
+            },
+            {
+              "name": "reserve_csv_countable",
+              "ok": true,
+              "details": {
+                "recoveryStatus": {
+                  "checked": true,
+                  "countable": true,
+                  "reason": null,
+                  "currentHeight": 143218,
+                  "artifactObservedAtHeight": 134473,
+                  "liveFundingHeight": 143201,
+                  "liveFundingHeightSource": "wallet_gettransaction.blockheight",
+                  "artifactObservedAtHeightMatchesLiveFundingHeight": false,
+                  "recoveryCsvDelay": 2016,
+                  "maturityHeight": 145217,
+                  "remainingBlocks": 1999,
+                  "riskMarginBlocks": 144
+                }
+              }
+            }
+          ]
+        }
+      },
+      "summary": {
+        "claimHash": "fa3bc1f7bf482f66834f5c4e1c482d058c53509de437cdbeff6de34a6fe2120c",
+        "motif": "transcript_multiplicity",
+        "publicHandle": "hybrid_transcript_alias_aa",
+        "reserveOutpoint": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6:0",
+        "routeTranscriptHash": "2b3d288d2c8d0962bc042eebc02b8c6a2672116d928d6c5a804cc63a2cb8a3d2",
+        "admissible": true,
+        "failedChecks": []
+      }
+    },
+    {
+      "id": "accepted_identifier_namespace_rotated",
+      "expected": "accepted",
+      "claim": {
+        "kind": "quirk_indexed_utxoref_route_claim",
+        "claimHash": "338f9fed3ba94dca52d4765d9342c031988058d0c2f4f62926d856a1eda1fade",
+        "core": {
+          "kind": "quirk_indexed_utxoref_route_claim_v1",
+          "network": "bitcoin-testnet4",
+          "motif": "identifier_bifurcation",
+          "publicHandle": "namespace-32",
+          "semanticStateHash": "4943ceec005820e1dcba2f3b53f2a2c79c3ab712d82d758b232b14844a860868",
+          "routeTranscriptHash": "02d2fe6f6f4d8b6b3c3ca79a72dd10e31f50f26e449288b892134cdec5dd060f",
+          "withdrawalRootHex": "c122ff6f74ebe157c975d43ca4252bee448f5a824a146b393b29fd975defdb60",
+          "finalOutputVectorHash": "2618453bd513d8a313c38dded01e378e1192e5b76570c61f546c8a6db82bbf12",
+          "liveTraceHash": "f2d6366f065633837bd30ce7641c50f8d645e27f71f1a6320d922ea3f55ba840",
+          "reserveOutpoint": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6:0",
+          "challengeWindow": {
+            "startHeight": 143218,
+            "endHeight": 143362
+          },
+          "commitmentHashHex": "5e08b515850fb0fe63820265d775f3528afe96d4900b6e5ee14c2a8f58e57576",
+          "namespace": "dummy_32"
+        }
+      },
+      "verification": {
+        "ok": true,
+        "admissible": true,
+        "reason": null,
+        "claimHash": "338f9fed3ba94dca52d4765d9342c031988058d0c2f4f62926d856a1eda1fade",
+        "routeCandidate": {
+          "routeTranscriptHash": "02d2fe6f6f4d8b6b3c3ca79a72dd10e31f50f26e449288b892134cdec5dd060f",
+          "entryId": "qi-2-identifier_namespace_bifurcation",
+          "motif": "identifier_bifurcation",
+          "surfaceId": "identifier_namespace_bifurcation"
+        },
+        "failedChecks": [],
+        "checks": [
+          {
+            "name": "claim_hash",
+            "ok": true,
+            "details": {
+              "claimHash": "338f9fed3ba94dca52d4765d9342c031988058d0c2f4f62926d856a1eda1fade"
+            }
+          },
+          {
+            "name": "route_transcript_candidate",
+            "ok": true,
+            "details": {
+              "routeTranscriptHash": "02d2fe6f6f4d8b6b3c3ca79a72dd10e31f50f26e449288b892134cdec5dd060f",
+              "candidate": {
+                "routeTranscriptHash": "02d2fe6f6f4d8b6b3c3ca79a72dd10e31f50f26e449288b892134cdec5dd060f",
+                "entryId": "qi-2-identifier_namespace_bifurcation",
+                "motif": "identifier_bifurcation",
+                "surfaceId": "identifier_namespace_bifurcation"
+              }
+            }
+          },
+          {
+            "name": "semantic_state",
+            "ok": true,
+            "details": {
+              "expected": "4943ceec005820e1dcba2f3b53f2a2c79c3ab712d82d758b232b14844a860868",
+              "actual": "4943ceec005820e1dcba2f3b53f2a2c79c3ab712d82d758b232b14844a860868"
+            }
+          },
+          {
+            "name": "live_reserve_status",
+            "ok": true,
+            "details": {
+              "bindingStatus": "live_unspent_reserve_countable"
+            }
+          },
+          {
+            "name": "reserve_outpoint",
+            "ok": true,
+            "details": {
+              "expected": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6:0",
+              "actual": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6:0"
+            }
+          },
+          {
+            "name": "live_trace_hash",
+            "ok": true,
+            "details": {
+              "expected": "f2d6366f065633837bd30ce7641c50f8d645e27f71f1a6320d922ea3f55ba840",
+              "actual": "f2d6366f065633837bd30ce7641c50f8d645e27f71f1a6320d922ea3f55ba840"
+            }
+          },
+          {
+            "name": "withdrawal_root",
+            "ok": true,
+            "details": {
+              "expected": "c122ff6f74ebe157c975d43ca4252bee448f5a824a146b393b29fd975defdb60",
+              "actual": "c122ff6f74ebe157c975d43ca4252bee448f5a824a146b393b29fd975defdb60"
+            }
+          },
+          {
+            "name": "final_output_vector",
+            "ok": true,
+            "details": {
+              "expected": "2618453bd513d8a313c38dded01e378e1192e5b76570c61f546c8a6db82bbf12",
+              "actual": "2618453bd513d8a313c38dded01e378e1192e5b76570c61f546c8a6db82bbf12"
+            }
+          },
+          {
+            "name": "commitment_hash",
+            "ok": true,
+            "details": {
+              "expected": "5e08b515850fb0fe63820265d775f3528afe96d4900b6e5ee14c2a8f58e57576",
+              "actual": "5e08b515850fb0fe63820265d775f3528afe96d4900b6e5ee14c2a8f58e57576"
+            }
+          },
+          {
+            "name": "reserve_chain_checks",
+            "ok": true,
+            "details": {
+              "scriptMatchesManifest": true,
+              "valueMatchesManifest": true
+            }
+          },
+          {
+            "name": "reserve_csv_countable",
+            "ok": true,
+            "details": {
+              "recoveryStatus": {
+                "checked": true,
+                "countable": true,
+                "reason": null,
+                "currentHeight": 143218,
+                "artifactObservedAtHeight": 134473,
+                "liveFundingHeight": 143201,
+                "liveFundingHeightSource": "wallet_gettransaction.blockheight",
+                "artifactObservedAtHeightMatchesLiveFundingHeight": false,
+                "recoveryCsvDelay": 2016,
+                "maturityHeight": 145217,
+                "remainingBlocks": 1999,
+                "riskMarginBlocks": 144
+              }
+            }
+          }
+        ]
+      },
+      "challenge": {
+        "kind": "quirk_indexed_utxoref_route_challenge",
+        "challengeHash": "192783d292bcac6773feb5911a45dd46895560d952196c3cfbe7f8a4252d904e",
+        "challengeable": false,
+        "core": {
+          "kind": "quirk_indexed_utxoref_route_challenge_v1",
+          "claimHash": "338f9fed3ba94dca52d4765d9342c031988058d0c2f4f62926d856a1eda1fade",
+          "reserveOutpoint": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6:0",
+          "routeTranscriptHash": "02d2fe6f6f4d8b6b3c3ca79a72dd10e31f50f26e449288b892134cdec5dd060f",
+          "violations": [],
+          "verificationHash": "dce4c857a27c4e4aa208a917204d2dc28ed2448940201022e588cd11d6ad9c4d"
+        },
+        "verification": {
+          "ok": true,
+          "admissible": true,
+          "reason": null,
+          "claimHash": "338f9fed3ba94dca52d4765d9342c031988058d0c2f4f62926d856a1eda1fade",
+          "routeCandidate": {
+            "routeTranscriptHash": "02d2fe6f6f4d8b6b3c3ca79a72dd10e31f50f26e449288b892134cdec5dd060f",
+            "entryId": "qi-2-identifier_namespace_bifurcation",
+            "motif": "identifier_bifurcation",
+            "surfaceId": "identifier_namespace_bifurcation"
+          },
+          "failedChecks": [],
+          "checks": [
+            {
+              "name": "claim_hash",
+              "ok": true,
+              "details": {
+                "claimHash": "338f9fed3ba94dca52d4765d9342c031988058d0c2f4f62926d856a1eda1fade"
+              }
+            },
+            {
+              "name": "route_transcript_candidate",
+              "ok": true,
+              "details": {
+                "routeTranscriptHash": "02d2fe6f6f4d8b6b3c3ca79a72dd10e31f50f26e449288b892134cdec5dd060f",
+                "candidate": {
+                  "routeTranscriptHash": "02d2fe6f6f4d8b6b3c3ca79a72dd10e31f50f26e449288b892134cdec5dd060f",
+                  "entryId": "qi-2-identifier_namespace_bifurcation",
+                  "motif": "identifier_bifurcation",
+                  "surfaceId": "identifier_namespace_bifurcation"
+                }
+              }
+            },
+            {
+              "name": "semantic_state",
+              "ok": true,
+              "details": {
+                "expected": "4943ceec005820e1dcba2f3b53f2a2c79c3ab712d82d758b232b14844a860868",
+                "actual": "4943ceec005820e1dcba2f3b53f2a2c79c3ab712d82d758b232b14844a860868"
+              }
+            },
+            {
+              "name": "live_reserve_status",
+              "ok": true,
+              "details": {
+                "bindingStatus": "live_unspent_reserve_countable"
+              }
+            },
+            {
+              "name": "reserve_outpoint",
+              "ok": true,
+              "details": {
+                "expected": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6:0",
+                "actual": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6:0"
+              }
+            },
+            {
+              "name": "live_trace_hash",
+              "ok": true,
+              "details": {
+                "expected": "f2d6366f065633837bd30ce7641c50f8d645e27f71f1a6320d922ea3f55ba840",
+                "actual": "f2d6366f065633837bd30ce7641c50f8d645e27f71f1a6320d922ea3f55ba840"
+              }
+            },
+            {
+              "name": "withdrawal_root",
+              "ok": true,
+              "details": {
+                "expected": "c122ff6f74ebe157c975d43ca4252bee448f5a824a146b393b29fd975defdb60",
+                "actual": "c122ff6f74ebe157c975d43ca4252bee448f5a824a146b393b29fd975defdb60"
+              }
+            },
+            {
+              "name": "final_output_vector",
+              "ok": true,
+              "details": {
+                "expected": "2618453bd513d8a313c38dded01e378e1192e5b76570c61f546c8a6db82bbf12",
+                "actual": "2618453bd513d8a313c38dded01e378e1192e5b76570c61f546c8a6db82bbf12"
+              }
+            },
+            {
+              "name": "commitment_hash",
+              "ok": true,
+              "details": {
+                "expected": "5e08b515850fb0fe63820265d775f3528afe96d4900b6e5ee14c2a8f58e57576",
+                "actual": "5e08b515850fb0fe63820265d775f3528afe96d4900b6e5ee14c2a8f58e57576"
+              }
+            },
+            {
+              "name": "reserve_chain_checks",
+              "ok": true,
+              "details": {
+                "scriptMatchesManifest": true,
+                "valueMatchesManifest": true
+              }
+            },
+            {
+              "name": "reserve_csv_countable",
+              "ok": true,
+              "details": {
+                "recoveryStatus": {
+                  "checked": true,
+                  "countable": true,
+                  "reason": null,
+                  "currentHeight": 143218,
+                  "artifactObservedAtHeight": 134473,
+                  "liveFundingHeight": 143201,
+                  "liveFundingHeightSource": "wallet_gettransaction.blockheight",
+                  "artifactObservedAtHeightMatchesLiveFundingHeight": false,
+                  "recoveryCsvDelay": 2016,
+                  "maturityHeight": 145217,
+                  "remainingBlocks": 1999,
+                  "riskMarginBlocks": 144
+                }
+              }
+            }
+          ]
+        }
+      },
+      "summary": {
+        "claimHash": "338f9fed3ba94dca52d4765d9342c031988058d0c2f4f62926d856a1eda1fade",
+        "motif": "identifier_bifurcation",
+        "publicHandle": "namespace-32",
+        "reserveOutpoint": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6:0",
+        "routeTranscriptHash": "02d2fe6f6f4d8b6b3c3ca79a72dd10e31f50f26e449288b892134cdec5dd060f",
+        "admissible": true,
+        "failedChecks": []
+      }
+    },
+    {
+      "id": "rejected_mutated_withdrawal_root",
+      "expected": "rejected",
+      "claim": {
+        "kind": "quirk_indexed_utxoref_route_claim",
+        "claimHash": "3ccf837c975a79a10cde769aa150f1e0089741e926037e707951b208b0e99e65",
+        "core": {
+          "kind": "quirk_indexed_utxoref_route_claim_v1",
+          "network": "bitcoin-testnet4",
+          "motif": "transcript_multiplicity",
+          "publicHandle": "hybrid_transcript_alias_aa_mutated_root",
+          "semanticStateHash": "4943ceec005820e1dcba2f3b53f2a2c79c3ab712d82d758b232b14844a860868",
+          "routeTranscriptHash": "2b3d288d2c8d0962bc042eebc02b8c6a2672116d928d6c5a804cc63a2cb8a3d2",
+          "withdrawalRootHex": "0000000000000000000000000000000000000000000000000000000000000000",
+          "finalOutputVectorHash": "2618453bd513d8a313c38dded01e378e1192e5b76570c61f546c8a6db82bbf12",
+          "liveTraceHash": "f2d6366f065633837bd30ce7641c50f8d645e27f71f1a6320d922ea3f55ba840",
+          "reserveOutpoint": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6:0",
+          "challengeWindow": {
+            "startHeight": 143218,
+            "endHeight": 143362
+          },
+          "commitmentHashHex": "5e08b515850fb0fe63820265d775f3528afe96d4900b6e5ee14c2a8f58e57576",
+          "transcriptAlias": "aa"
+        }
+      },
+      "verification": {
+        "ok": false,
+        "admissible": false,
+        "reason": "failed checks: withdrawal_root",
+        "claimHash": "3ccf837c975a79a10cde769aa150f1e0089741e926037e707951b208b0e99e65",
+        "routeCandidate": {
+          "routeTranscriptHash": "2b3d288d2c8d0962bc042eebc02b8c6a2672116d928d6c5a804cc63a2cb8a3d2",
+          "entryId": "qi-1-transcript_alias_relay",
+          "motif": "transcript_multiplicity",
+          "surfaceId": "transcript_alias_relay"
+        },
+        "failedChecks": [
+          "withdrawal_root"
+        ],
+        "checks": [
+          {
+            "name": "claim_hash",
+            "ok": true,
+            "details": {
+              "claimHash": "3ccf837c975a79a10cde769aa150f1e0089741e926037e707951b208b0e99e65"
+            }
+          },
+          {
+            "name": "route_transcript_candidate",
+            "ok": true,
+            "details": {
+              "routeTranscriptHash": "2b3d288d2c8d0962bc042eebc02b8c6a2672116d928d6c5a804cc63a2cb8a3d2",
+              "candidate": {
+                "routeTranscriptHash": "2b3d288d2c8d0962bc042eebc02b8c6a2672116d928d6c5a804cc63a2cb8a3d2",
+                "entryId": "qi-1-transcript_alias_relay",
+                "motif": "transcript_multiplicity",
+                "surfaceId": "transcript_alias_relay"
+              }
+            }
+          },
+          {
+            "name": "semantic_state",
+            "ok": true,
+            "details": {
+              "expected": "4943ceec005820e1dcba2f3b53f2a2c79c3ab712d82d758b232b14844a860868",
+              "actual": "4943ceec005820e1dcba2f3b53f2a2c79c3ab712d82d758b232b14844a860868"
+            }
+          },
+          {
+            "name": "live_reserve_status",
+            "ok": true,
+            "details": {
+              "bindingStatus": "live_unspent_reserve_countable"
+            }
+          },
+          {
+            "name": "reserve_outpoint",
+            "ok": true,
+            "details": {
+              "expected": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6:0",
+              "actual": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6:0"
+            }
+          },
+          {
+            "name": "live_trace_hash",
+            "ok": true,
+            "details": {
+              "expected": "f2d6366f065633837bd30ce7641c50f8d645e27f71f1a6320d922ea3f55ba840",
+              "actual": "f2d6366f065633837bd30ce7641c50f8d645e27f71f1a6320d922ea3f55ba840"
+            }
+          },
+          {
+            "name": "withdrawal_root",
+            "ok": false,
+            "details": {
+              "expected": "c122ff6f74ebe157c975d43ca4252bee448f5a824a146b393b29fd975defdb60",
+              "actual": "0000000000000000000000000000000000000000000000000000000000000000"
+            }
+          },
+          {
+            "name": "final_output_vector",
+            "ok": true,
+            "details": {
+              "expected": "2618453bd513d8a313c38dded01e378e1192e5b76570c61f546c8a6db82bbf12",
+              "actual": "2618453bd513d8a313c38dded01e378e1192e5b76570c61f546c8a6db82bbf12"
+            }
+          },
+          {
+            "name": "commitment_hash",
+            "ok": true,
+            "details": {
+              "expected": "5e08b515850fb0fe63820265d775f3528afe96d4900b6e5ee14c2a8f58e57576",
+              "actual": "5e08b515850fb0fe63820265d775f3528afe96d4900b6e5ee14c2a8f58e57576"
+            }
+          },
+          {
+            "name": "reserve_chain_checks",
+            "ok": true,
+            "details": {
+              "scriptMatchesManifest": true,
+              "valueMatchesManifest": true
+            }
+          },
+          {
+            "name": "reserve_csv_countable",
+            "ok": true,
+            "details": {
+              "recoveryStatus": {
+                "checked": true,
+                "countable": true,
+                "reason": null,
+                "currentHeight": 143218,
+                "artifactObservedAtHeight": 134473,
+                "liveFundingHeight": 143201,
+                "liveFundingHeightSource": "wallet_gettransaction.blockheight",
+                "artifactObservedAtHeightMatchesLiveFundingHeight": false,
+                "recoveryCsvDelay": 2016,
+                "maturityHeight": 145217,
+                "remainingBlocks": 1999,
+                "riskMarginBlocks": 144
+              }
+            }
+          }
+        ]
+      },
+      "challenge": {
+        "kind": "quirk_indexed_utxoref_route_challenge",
+        "challengeHash": "12ed2ea799492d5126cf493384104ea0e99edc04ff7623dfbadd380ca3f62fff",
+        "challengeable": true,
+        "core": {
+          "kind": "quirk_indexed_utxoref_route_challenge_v1",
+          "claimHash": "3ccf837c975a79a10cde769aa150f1e0089741e926037e707951b208b0e99e65",
+          "reserveOutpoint": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6:0",
+          "routeTranscriptHash": "2b3d288d2c8d0962bc042eebc02b8c6a2672116d928d6c5a804cc63a2cb8a3d2",
+          "violations": [
+            "withdrawal_root"
+          ],
+          "verificationHash": "1b6156d3402d37c8bbad3f625d4e14d4af55f4d67f478f3b48c7a00728a20231"
+        },
+        "verification": {
+          "ok": false,
+          "admissible": false,
+          "reason": "failed checks: withdrawal_root",
+          "claimHash": "3ccf837c975a79a10cde769aa150f1e0089741e926037e707951b208b0e99e65",
+          "routeCandidate": {
+            "routeTranscriptHash": "2b3d288d2c8d0962bc042eebc02b8c6a2672116d928d6c5a804cc63a2cb8a3d2",
+            "entryId": "qi-1-transcript_alias_relay",
+            "motif": "transcript_multiplicity",
+            "surfaceId": "transcript_alias_relay"
+          },
+          "failedChecks": [
+            "withdrawal_root"
+          ],
+          "checks": [
+            {
+              "name": "claim_hash",
+              "ok": true,
+              "details": {
+                "claimHash": "3ccf837c975a79a10cde769aa150f1e0089741e926037e707951b208b0e99e65"
+              }
+            },
+            {
+              "name": "route_transcript_candidate",
+              "ok": true,
+              "details": {
+                "routeTranscriptHash": "2b3d288d2c8d0962bc042eebc02b8c6a2672116d928d6c5a804cc63a2cb8a3d2",
+                "candidate": {
+                  "routeTranscriptHash": "2b3d288d2c8d0962bc042eebc02b8c6a2672116d928d6c5a804cc63a2cb8a3d2",
+                  "entryId": "qi-1-transcript_alias_relay",
+                  "motif": "transcript_multiplicity",
+                  "surfaceId": "transcript_alias_relay"
+                }
+              }
+            },
+            {
+              "name": "semantic_state",
+              "ok": true,
+              "details": {
+                "expected": "4943ceec005820e1dcba2f3b53f2a2c79c3ab712d82d758b232b14844a860868",
+                "actual": "4943ceec005820e1dcba2f3b53f2a2c79c3ab712d82d758b232b14844a860868"
+              }
+            },
+            {
+              "name": "live_reserve_status",
+              "ok": true,
+              "details": {
+                "bindingStatus": "live_unspent_reserve_countable"
+              }
+            },
+            {
+              "name": "reserve_outpoint",
+              "ok": true,
+              "details": {
+                "expected": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6:0",
+                "actual": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6:0"
+              }
+            },
+            {
+              "name": "live_trace_hash",
+              "ok": true,
+              "details": {
+                "expected": "f2d6366f065633837bd30ce7641c50f8d645e27f71f1a6320d922ea3f55ba840",
+                "actual": "f2d6366f065633837bd30ce7641c50f8d645e27f71f1a6320d922ea3f55ba840"
+              }
+            },
+            {
+              "name": "withdrawal_root",
+              "ok": false,
+              "details": {
+                "expected": "c122ff6f74ebe157c975d43ca4252bee448f5a824a146b393b29fd975defdb60",
+                "actual": "0000000000000000000000000000000000000000000000000000000000000000"
+              }
+            },
+            {
+              "name": "final_output_vector",
+              "ok": true,
+              "details": {
+                "expected": "2618453bd513d8a313c38dded01e378e1192e5b76570c61f546c8a6db82bbf12",
+                "actual": "2618453bd513d8a313c38dded01e378e1192e5b76570c61f546c8a6db82bbf12"
+              }
+            },
+            {
+              "name": "commitment_hash",
+              "ok": true,
+              "details": {
+                "expected": "5e08b515850fb0fe63820265d775f3528afe96d4900b6e5ee14c2a8f58e57576",
+                "actual": "5e08b515850fb0fe63820265d775f3528afe96d4900b6e5ee14c2a8f58e57576"
+              }
+            },
+            {
+              "name": "reserve_chain_checks",
+              "ok": true,
+              "details": {
+                "scriptMatchesManifest": true,
+                "valueMatchesManifest": true
+              }
+            },
+            {
+              "name": "reserve_csv_countable",
+              "ok": true,
+              "details": {
+                "recoveryStatus": {
+                  "checked": true,
+                  "countable": true,
+                  "reason": null,
+                  "currentHeight": 143218,
+                  "artifactObservedAtHeight": 134473,
+                  "liveFundingHeight": 143201,
+                  "liveFundingHeightSource": "wallet_gettransaction.blockheight",
+                  "artifactObservedAtHeightMatchesLiveFundingHeight": false,
+                  "recoveryCsvDelay": 2016,
+                  "maturityHeight": 145217,
+                  "remainingBlocks": 1999,
+                  "riskMarginBlocks": 144
+                }
+              }
+            }
+          ]
+        }
+      },
+      "summary": {
+        "claimHash": "3ccf837c975a79a10cde769aa150f1e0089741e926037e707951b208b0e99e65",
+        "motif": "transcript_multiplicity",
+        "publicHandle": "hybrid_transcript_alias_aa_mutated_root",
+        "reserveOutpoint": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6:0",
+        "routeTranscriptHash": "2b3d288d2c8d0962bc042eebc02b8c6a2672116d928d6c5a804cc63a2cb8a3d2",
+        "admissible": false,
+        "failedChecks": [
+          "withdrawal_root"
+        ]
+      }
+    },
+    {
+      "id": "rejected_unknown_route_transcript",
+      "expected": "rejected",
+      "claim": {
+        "kind": "quirk_indexed_utxoref_route_claim",
+        "claimHash": "113d78bc802af00628cd50ee46e6deecee073a0644c48d18c5dab8f02849756c",
+        "core": {
+          "kind": "quirk_indexed_utxoref_route_claim_v1",
+          "network": "bitcoin-testnet4",
+          "motif": "carrier_camouflage",
+          "publicHandle": "unknown-route-transcript",
+          "semanticStateHash": "4943ceec005820e1dcba2f3b53f2a2c79c3ab712d82d758b232b14844a860868",
+          "routeTranscriptHash": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          "withdrawalRootHex": "c122ff6f74ebe157c975d43ca4252bee448f5a824a146b393b29fd975defdb60",
+          "finalOutputVectorHash": "2618453bd513d8a313c38dded01e378e1192e5b76570c61f546c8a6db82bbf12",
+          "liveTraceHash": "f2d6366f065633837bd30ce7641c50f8d645e27f71f1a6320d922ea3f55ba840",
+          "reserveOutpoint": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6:0",
+          "challengeWindow": {
+            "startHeight": 143218,
+            "endHeight": 143362
+          },
+          "commitmentHashHex": "5e08b515850fb0fe63820265d775f3528afe96d4900b6e5ee14c2a8f58e57576"
+        }
+      },
+      "verification": {
+        "ok": false,
+        "admissible": false,
+        "reason": "failed checks: route_transcript_candidate",
+        "claimHash": "113d78bc802af00628cd50ee46e6deecee073a0644c48d18c5dab8f02849756c",
+        "routeCandidate": null,
+        "failedChecks": [
+          "route_transcript_candidate"
+        ],
+        "checks": [
+          {
+            "name": "claim_hash",
+            "ok": true,
+            "details": {
+              "claimHash": "113d78bc802af00628cd50ee46e6deecee073a0644c48d18c5dab8f02849756c"
+            }
+          },
+          {
+            "name": "route_transcript_candidate",
+            "ok": false,
+            "details": {
+              "routeTranscriptHash": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+              "candidate": null
+            }
+          },
+          {
+            "name": "semantic_state",
+            "ok": true,
+            "details": {
+              "expected": "4943ceec005820e1dcba2f3b53f2a2c79c3ab712d82d758b232b14844a860868",
+              "actual": "4943ceec005820e1dcba2f3b53f2a2c79c3ab712d82d758b232b14844a860868"
+            }
+          },
+          {
+            "name": "live_reserve_status",
+            "ok": true,
+            "details": {
+              "bindingStatus": "live_unspent_reserve_countable"
+            }
+          },
+          {
+            "name": "reserve_outpoint",
+            "ok": true,
+            "details": {
+              "expected": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6:0",
+              "actual": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6:0"
+            }
+          },
+          {
+            "name": "live_trace_hash",
+            "ok": true,
+            "details": {
+              "expected": "f2d6366f065633837bd30ce7641c50f8d645e27f71f1a6320d922ea3f55ba840",
+              "actual": "f2d6366f065633837bd30ce7641c50f8d645e27f71f1a6320d922ea3f55ba840"
+            }
+          },
+          {
+            "name": "withdrawal_root",
+            "ok": true,
+            "details": {
+              "expected": "c122ff6f74ebe157c975d43ca4252bee448f5a824a146b393b29fd975defdb60",
+              "actual": "c122ff6f74ebe157c975d43ca4252bee448f5a824a146b393b29fd975defdb60"
+            }
+          },
+          {
+            "name": "final_output_vector",
+            "ok": true,
+            "details": {
+              "expected": "2618453bd513d8a313c38dded01e378e1192e5b76570c61f546c8a6db82bbf12",
+              "actual": "2618453bd513d8a313c38dded01e378e1192e5b76570c61f546c8a6db82bbf12"
+            }
+          },
+          {
+            "name": "commitment_hash",
+            "ok": true,
+            "details": {
+              "expected": "5e08b515850fb0fe63820265d775f3528afe96d4900b6e5ee14c2a8f58e57576",
+              "actual": "5e08b515850fb0fe63820265d775f3528afe96d4900b6e5ee14c2a8f58e57576"
+            }
+          },
+          {
+            "name": "reserve_chain_checks",
+            "ok": true,
+            "details": {
+              "scriptMatchesManifest": true,
+              "valueMatchesManifest": true
+            }
+          },
+          {
+            "name": "reserve_csv_countable",
+            "ok": true,
+            "details": {
+              "recoveryStatus": {
+                "checked": true,
+                "countable": true,
+                "reason": null,
+                "currentHeight": 143218,
+                "artifactObservedAtHeight": 134473,
+                "liveFundingHeight": 143201,
+                "liveFundingHeightSource": "wallet_gettransaction.blockheight",
+                "artifactObservedAtHeightMatchesLiveFundingHeight": false,
+                "recoveryCsvDelay": 2016,
+                "maturityHeight": 145217,
+                "remainingBlocks": 1999,
+                "riskMarginBlocks": 144
+              }
+            }
+          }
+        ]
+      },
+      "challenge": {
+        "kind": "quirk_indexed_utxoref_route_challenge",
+        "challengeHash": "d4b2caa6de9917c0806effe1fa48fe2f7f9d94fccfafb9ea19f024ff58c0a16c",
+        "challengeable": true,
+        "core": {
+          "kind": "quirk_indexed_utxoref_route_challenge_v1",
+          "claimHash": "113d78bc802af00628cd50ee46e6deecee073a0644c48d18c5dab8f02849756c",
+          "reserveOutpoint": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6:0",
+          "routeTranscriptHash": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          "violations": [
+            "route_transcript_candidate"
+          ],
+          "verificationHash": "d5e3357c0e85977ccb83a9a359fe52fddc457c12f3188af40ff3f6e7c0812e75"
+        },
+        "verification": {
+          "ok": false,
+          "admissible": false,
+          "reason": "failed checks: route_transcript_candidate",
+          "claimHash": "113d78bc802af00628cd50ee46e6deecee073a0644c48d18c5dab8f02849756c",
+          "routeCandidate": null,
+          "failedChecks": [
+            "route_transcript_candidate"
+          ],
+          "checks": [
+            {
+              "name": "claim_hash",
+              "ok": true,
+              "details": {
+                "claimHash": "113d78bc802af00628cd50ee46e6deecee073a0644c48d18c5dab8f02849756c"
+              }
+            },
+            {
+              "name": "route_transcript_candidate",
+              "ok": false,
+              "details": {
+                "routeTranscriptHash": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+                "candidate": null
+              }
+            },
+            {
+              "name": "semantic_state",
+              "ok": true,
+              "details": {
+                "expected": "4943ceec005820e1dcba2f3b53f2a2c79c3ab712d82d758b232b14844a860868",
+                "actual": "4943ceec005820e1dcba2f3b53f2a2c79c3ab712d82d758b232b14844a860868"
+              }
+            },
+            {
+              "name": "live_reserve_status",
+              "ok": true,
+              "details": {
+                "bindingStatus": "live_unspent_reserve_countable"
+              }
+            },
+            {
+              "name": "reserve_outpoint",
+              "ok": true,
+              "details": {
+                "expected": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6:0",
+                "actual": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6:0"
+              }
+            },
+            {
+              "name": "live_trace_hash",
+              "ok": true,
+              "details": {
+                "expected": "f2d6366f065633837bd30ce7641c50f8d645e27f71f1a6320d922ea3f55ba840",
+                "actual": "f2d6366f065633837bd30ce7641c50f8d645e27f71f1a6320d922ea3f55ba840"
+              }
+            },
+            {
+              "name": "withdrawal_root",
+              "ok": true,
+              "details": {
+                "expected": "c122ff6f74ebe157c975d43ca4252bee448f5a824a146b393b29fd975defdb60",
+                "actual": "c122ff6f74ebe157c975d43ca4252bee448f5a824a146b393b29fd975defdb60"
+              }
+            },
+            {
+              "name": "final_output_vector",
+              "ok": true,
+              "details": {
+                "expected": "2618453bd513d8a313c38dded01e378e1192e5b76570c61f546c8a6db82bbf12",
+                "actual": "2618453bd513d8a313c38dded01e378e1192e5b76570c61f546c8a6db82bbf12"
+              }
+            },
+            {
+              "name": "commitment_hash",
+              "ok": true,
+              "details": {
+                "expected": "5e08b515850fb0fe63820265d775f3528afe96d4900b6e5ee14c2a8f58e57576",
+                "actual": "5e08b515850fb0fe63820265d775f3528afe96d4900b6e5ee14c2a8f58e57576"
+              }
+            },
+            {
+              "name": "reserve_chain_checks",
+              "ok": true,
+              "details": {
+                "scriptMatchesManifest": true,
+                "valueMatchesManifest": true
+              }
+            },
+            {
+              "name": "reserve_csv_countable",
+              "ok": true,
+              "details": {
+                "recoveryStatus": {
+                  "checked": true,
+                  "countable": true,
+                  "reason": null,
+                  "currentHeight": 143218,
+                  "artifactObservedAtHeight": 134473,
+                  "liveFundingHeight": 143201,
+                  "liveFundingHeightSource": "wallet_gettransaction.blockheight",
+                  "artifactObservedAtHeightMatchesLiveFundingHeight": false,
+                  "recoveryCsvDelay": 2016,
+                  "maturityHeight": 145217,
+                  "remainingBlocks": 1999,
+                  "riskMarginBlocks": 144
+                }
+              }
+            }
+          ]
+        }
+      },
+      "summary": {
+        "claimHash": "113d78bc802af00628cd50ee46e6deecee073a0644c48d18c5dab8f02849756c",
+        "motif": "carrier_camouflage",
+        "publicHandle": "unknown-route-transcript",
+        "reserveOutpoint": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6:0",
+        "routeTranscriptHash": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "admissible": false,
+        "failedChecks": [
+          "route_transcript_candidate"
+        ]
+      }
+    }
+  ],
+  "conclusion": {
+    "acceptedCount": 2,
+    "rejectedCount": 2,
+    "novelty": "ossified quirk candidates act as BitVM route selectors only after UTXORef binds them to live reserve evidence"
+  }
+}

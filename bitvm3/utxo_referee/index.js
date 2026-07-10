@@ -90,6 +90,11 @@ const tradeLayerDlcAdaptorSig = require('./tradelayer_dlc_adaptor_sig');
 const tradeLayerTaproot = require('./tradelayer_taproot');
 const tradeLayerMusig2 = require('./tradelayer_musig2');
 const tradeLayerTaprootScript = require('./tradelayer_taproot_script');
+const taprootReserveVault = require('./taproot_reserve_vault');
+const tradeLayerRbtcHourlyAutoRoll = require('./tradelayer_rbtc_hourly_autoroll');
+const tradeLayerTx30RelayAnchor = require('./tradelayer_tx30_relay_anchor');
+const tradeLayerTx30RelayRetrieval = require('./tradelayer_tx30_relay_retrieval');
+const tradeLayerBetaGatePackage = require('./tradelayer_beta_gate_package');
 const tradeLayerBitvmGadgets = require('./tradelayer_bitvm_gadgets');
 const tradeLayerBitvmCircuit = require('./tradelayer_bitvm_circuit');
 const tradeLayerBitvmComparator = require('./tradelayer_bitvm_comparator');
@@ -452,6 +457,24 @@ module.exports = {
   buildDlcOracleAttestation: tradeLayerDlcCetOracleSelection.buildDlcOracleAttestation,
   verifyDlcOracleAttestation: tradeLayerDlcCetOracleSelection.verifyDlcOracleAttestation,
   selectCetForAttestation: tradeLayerDlcCetOracleSelection.selectCetForAttestation,
+  RBTC_HOURLY_DLC_DURATION_SECONDS: tradeLayerRbtcHourlyAutoRoll.DEFAULT_DURATION_SECONDS,
+  buildHourlyRbtcDlcContract: tradeLayerRbtcHourlyAutoRoll.buildHourlyRbtcDlcContract,
+  buildRbtcBalanceOracleObservation: tradeLayerRbtcHourlyAutoRoll.buildBalanceOracleObservation,
+  chooseRbtcAutoRollOutcomeFromBalance: tradeLayerRbtcHourlyAutoRoll.chooseOutcomeFromBalanceObservation,
+  buildHourlyRbtcCetDecision: tradeLayerRbtcHourlyAutoRoll.buildHourlyRbtcCetDecision,
+  TX30_RELAY_REFERENCE_PREFIX: tradeLayerTx30RelayAnchor.RELAY_REFERENCE_PREFIX,
+  TX30_RELAY_MAX_OP_RETURN_PAYLOAD_BYTES: tradeLayerTx30RelayAnchor.MAX_STANDARD_OP_RETURN_PAYLOAD_BYTES,
+  buildTx30RelayBlobEnvelope: tradeLayerTx30RelayAnchor.buildTx30RelayBlobEnvelope,
+  buildTx30RelayReference: tradeLayerTx30RelayAnchor.buildTx30RelayReference,
+  buildTx30RelayAnchor: tradeLayerTx30RelayAnchor.buildTx30RelayAnchor,
+  verifyTx30RelayAnchor: tradeLayerTx30RelayAnchor.verifyTx30RelayAnchor,
+  publishTx30RelayBundleToReplicas: tradeLayerTx30RelayRetrieval.publishRelayBundleToReplicas,
+  retrieveTx30RelayBundleFromReplicas: tradeLayerTx30RelayRetrieval.retrieveRelayBundleFromReplicas,
+  verifyTx30RelayBundleDocument: tradeLayerTx30RelayRetrieval.verifyRelayBundleDocument,
+  buildTx30RelayRetrievalFault: tradeLayerTx30RelayRetrieval.buildRelayRetrievalFault,
+  buildBetaKeySeparationCeremony: tradeLayerBetaGatePackage.buildKeySeparationCeremony,
+  buildBetaOperationalDrillChecklist: tradeLayerBetaGatePackage.buildOperationalDrillChecklist,
+  buildRealMoneyBetaGatePackage: tradeLayerBetaGatePackage.buildBetaGatePackage,
   dlcSchnorrSign: tradeLayerDlcAdaptorSig.schnorrSign,
   dlcSchnorrVerify: tradeLayerDlcAdaptorSig.schnorrVerify,
   dlcAdaptorSign: tradeLayerDlcAdaptorSig.adaptorSign,
@@ -478,6 +501,17 @@ module.exports = {
   taprootTweakWithRoot: tradeLayerTaprootScript.taprootTweakWithRoot,
   taprootControlBlock: tradeLayerTaprootScript.controlBlock,
   taprootScriptPathSighash: tradeLayerTaprootScript.scriptPathSighash,
+  TAPROOT_RESERVE_DEFAULT_RECOVERY_CSV_DELAY: taprootReserveVault.DEFAULT_RECOVERY_CSV_DELAY,
+  TAPROOT_RESERVE_DEFAULT_RECOVERY_RISK_MARGIN_BLOCKS: taprootReserveVault.DEFAULT_RECOVERY_RISK_MARGIN_BLOCKS,
+  buildTaprootReserveVaultManifest: taprootReserveVault.buildTaprootReserveVaultManifest,
+  verifyTaprootReserveVaultManifest: taprootReserveVault.verifyTaprootReserveVaultManifest,
+  verifyTaprootReserveVaultOnChain: taprootReserveVault.verifyTaprootReserveVaultOnChain,
+  buildTaprootReserveVaultSet: taprootReserveVault.buildTaprootReserveVaultSet,
+  buildTaprootReserveVaultSetFromRpc: taprootReserveVault.buildTaprootReserveVaultSetFromRpc,
+  reservedSatsFromTaprootReserveVaultSet: taprootReserveVault.reservedSatsFromTaprootReserveVaultSet,
+  buildTaprootReserveVaultSpendProposal: taprootReserveVault.buildVaultSpendProposal,
+  approveTaprootReserveVaultSpend: taprootReserveVault.approveTaprootReserveVaultSpend,
+  verifyTaprootReserveVaultGuardianApproval: taprootReserveVault.verifyGuardianApproval,
   buildBitCommitment: tradeLayerBitvmGadgets.buildBitCommitment,
   revealBit: tradeLayerBitvmGadgets.revealBit,
   buildEquivocationPunishmentScript: tradeLayerBitvmGadgets.buildEquivocationPunishmentScript,
@@ -599,6 +633,10 @@ module.exports = {
   tradeLayerTaproot,
   tradeLayerMusig2,
   tradeLayerTaprootScript,
+  taprootReserveVault,
+  tradeLayerTx30RelayAnchor,
+  tradeLayerTx30RelayRetrieval,
+  tradeLayerBetaGatePackage,
   tradeLayerBitvmGadgets,
   tradeLayerBitvmCircuit,
   tradeLayerBitvmComparator,

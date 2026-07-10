@@ -1,0 +1,39 @@
+{
+  "kind": "tradelayer_tx30_relay_bundle_document_v1",
+  "createdAt": "2026-07-07T00:13:16.306Z",
+  "relayBlobHash": "dca8e7c5964dbf2ae902cc20b757d0400434a19a25c72da5dba5100a09491821",
+  "envelopeHash": "db5240ced75ebaf4520a029bc07d420b4be26463fcef59f548f9623bc56520b6",
+  "referenceHash": "bdbcbe7558016030f36a7ad90bb3de83eca558759881544bc6245ba68611fe7a",
+  "chainTxid": "88cd8bf0f9d3d7a79607ad65da81c7d8b3b28c48c75ef8aedbecbdf02b8e486c",
+  "source": {
+    "chain": "BTC_TESTNET4",
+    "oracleId": 1,
+    "relayType": 1,
+    "stateHash": "dba58b2857d25e7d4753df92396684adc2181c2ec9e56e57e8cf261f17efc939",
+    "dlcRef": "rbtc-hour-listener-wallclock-001",
+    "settlementState": "ROLLED",
+    "blockHeight": 0,
+    "relayStoreKey": "oracle-relay-1-1-0",
+    "replicaLabel": "primary-local"
+  },
+  "relayBundle": {
+    "eventId": "proc-rbtc-hour-listener-wallclock-001",
+    "outcome": "ROLLED",
+    "outcomeIndex": 0,
+    "stateHash": "dba58b2857d25e7d4753df92396684adc2181c2ec9e56e57e8cf261f17efc939",
+    "timestamp": 1783381106608,
+    "payloadHash": "dba58b2857d25e7d4753df92396684adc2181c2ec9e56e57e8cf261f17efc939",
+    "balancePayloadB64": "eyJwcm9wZXJ0eUlkIjoxLCJob2xkZXJDb3VudCI6MSwiYmFsYW5jZXMiOlt7ImFkZHJlc3MiOiJ0YjFxd3Z6YWF5enJncmVxeXl2eHA3N3dscjYwbmdhcW5wY3lodWp6Mm0iLCJhdmFpbGFibGUiOjAuMDAwMDEsInJlc2VydmVkIjowLCJtYXJnaW4iOjAsInZlc3RpbmciOjAsImNoYW5uZWxCYWxhbmNlIjowfV19",
+    "oraclePubkeyHex": "0317e41bb70d1147a3b87d6220a2a835ad8ed9860fc92ffd51fdc18f0491d36d7d",
+    "signatureHex": "3231ea1f590ae1b87bf6823f0e69850f2714b43e1741b4d6978f0799810feec037ba91fc68e1472e07fb267344b6427970c589965c7d636e490e7db23da03179",
+    "settlement": {
+      "mode": "none",
+      "propertyId": 1,
+      "amount": 0,
+      "fromAddress": "tb1qwvzaayzrgreqyyvxp77wlr60ngaqnpcyhujz2m",
+      "toAddress": "tb1qwvzaayzrgreqyyvxp77wlr60ngaqnpcyhujz2m",
+      "nextPropertyId": 0
+    }
+  },
+  "documentHash": "407071a391e891c0a5f82028168a4f7aefa84af4496cec2b043c96455127ea1d"
+}

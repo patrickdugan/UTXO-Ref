@@ -1,0 +1,203 @@
+{
+  "kind": "tradelayer_rbtc_hourly_autoroll_live_run",
+  "createdAt": "2026-07-06T22:11:14.466Z",
+  "source": "listener",
+  "tradelayerRepo": "C:\\projects\\tradelayer.js",
+  "baseUrl": "http://127.0.0.1:3000",
+  "chain": null,
+  "vaultArtifactPath": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\live\\btc_testnet4_reserve_vault_latest.json",
+  "balance": {
+    "source": "listener",
+    "rawBalances": [
+      {
+        "propertyId": "1",
+        "ticker": "tlBTC",
+        "amount": 0.00001,
+        "available": 0.00001,
+        "reserved": 0,
+        "margin": 0,
+        "vesting": 0,
+        "channel": 0
+      }
+    ],
+    "available": 0.00001
+  },
+  "currentUnits": "1000",
+  "startingUnits": "2000",
+  "contract": {
+    "kind": "tradelayer_rbtc_hourly_dlc_contract",
+    "contractHash": "f1ed980a93297ec834c3d5be23038a85b4b95db1708e5a724131282e5198af99",
+    "core": {
+      "kind": "tradelayer_rbtc_hourly_dlc_contract_v1",
+      "contractId": "rbtc-hour-listener-reduced-001",
+      "previousContractId": null,
+      "vaultAddress": "tb1p8l6fdqqyyfp09xda0xv59xgltas6eecem47rvuq2walz0t5zrcgq06pcf9",
+      "fundingAddress": "tb1qwvzaayzrgreqyyvxp77wlr60ngaqnpcyhujz2m",
+      "rbtcPropertyId": 1,
+      "fundingOutpoint": {
+        "txid": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6",
+        "vout": 0
+      },
+      "reserveVaultId": "btc-testnet4-reserve-134473-93f953df",
+      "startsAtUnix": 1783375874,
+      "durationSeconds": 3600,
+      "expiresAtUnix": 1783379474,
+      "riskMarginSeconds": 300,
+      "startingRbtcBalance": "2000"
+    }
+  },
+  "decision": {
+    "kind": "tradelayer_rbtc_hourly_cet_decision",
+    "decisionHash": "aa5b0a506c62ce901e4f503a7f0e15bc40db5f7dec0fbd1def1457fda874ed41",
+    "decisionCore": {
+      "kind": "tradelayer_rbtc_hourly_cet_decision_v1",
+      "contractHash": "f1ed980a93297ec834c3d5be23038a85b4b95db1708e5a724131282e5198af99",
+      "observationHash": "ae97d9e991355bb18f596fa34d07b644c6d8b1d4e40ef4c13a2e7b3c29d6ae29",
+      "policy": {
+        "outcomeId": "settle-loss",
+        "canAutoRoll": false,
+        "reason": "rbtc_balance_reduced"
+      },
+      "selectedOutcomeId": "settle-loss",
+      "selectedCetHash": "edeece0bfec09ef2912c270f900d8fc06702d77d70b6ea684de2233da55983c2",
+      "rollPublicationId": null
+    },
+    "contract": {
+      "kind": "tradelayer_rbtc_hourly_dlc_contract",
+      "contractHash": "f1ed980a93297ec834c3d5be23038a85b4b95db1708e5a724131282e5198af99",
+      "core": {
+        "kind": "tradelayer_rbtc_hourly_dlc_contract_v1",
+        "contractId": "rbtc-hour-listener-reduced-001",
+        "previousContractId": null,
+        "vaultAddress": "tb1p8l6fdqqyyfp09xda0xv59xgltas6eecem47rvuq2walz0t5zrcgq06pcf9",
+        "fundingAddress": "tb1qwvzaayzrgreqyyvxp77wlr60ngaqnpcyhujz2m",
+        "rbtcPropertyId": 1,
+        "fundingOutpoint": {
+          "txid": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6",
+          "vout": 0
+        },
+        "reserveVaultId": "btc-testnet4-reserve-134473-93f953df",
+        "startsAtUnix": 1783375874,
+        "durationSeconds": 3600,
+        "expiresAtUnix": 1783379474,
+        "riskMarginSeconds": 300,
+        "startingRbtcBalance": "2000"
+      }
+    },
+    "observation": {
+      "kind": "tradelayer_rbtc_balance_oracle_observation",
+      "observationHash": "ae97d9e991355bb18f596fa34d07b644c6d8b1d4e40ef4c13a2e7b3c29d6ae29",
+      "core": {
+        "kind": "tradelayer_rbtc_balance_oracle_observation_v1",
+        "contractId": "rbtc-hour-listener-reduced-001",
+        "vaultAddress": "tb1p8l6fdqqyyfp09xda0xv59xgltas6eecem47rvuq2walz0t5zrcgq06pcf9",
+        "fundingAddress": "tb1qwvzaayzrgreqyyvxp77wlr60ngaqnpcyhujz2m",
+        "rbtcPropertyId": 1,
+        "fundingOutpoint": {
+          "txid": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6",
+          "vout": 0
+        },
+        "startsAtUnix": 1783375874,
+        "expiresAtUnix": 1783379474,
+        "observedAtUnix": 1783379474,
+        "startingRbtcBalance": "2000",
+        "currentRbtcBalance": "1000",
+        "deltaRbtcBalance": "-1000",
+        "balanceReduced": true,
+        "matured": true,
+        "insideRiskWindow": true
+      }
+    },
+    "policy": {
+      "outcomeId": "settle-loss",
+      "canAutoRoll": false,
+      "reason": "rbtc_balance_reduced"
+    },
+    "settlementOutcomes": {
+      "kind": "tradelayer_dlc_settlement_outcomes_v1",
+      "collateralSats": "20000",
+      "bucketCapBps": 500,
+      "realizedPnlBps": 500,
+      "effectivePnlBps": 500,
+      "feeBps": 0,
+      "minerFeeSats": "1000",
+      "outcomes": [
+        {
+          "outcomeId": "settle-gain",
+          "winnerRole": "alice",
+          "outputsSats": {
+            "tb1qwvzaayzrgreqyyvxp77wlr60ngaqnpcyhujz2m": "1000",
+            "tb1p8l6fdqqyyfp09xda0xv59xgltas6eecem47rvuq2walz0t5zrcgq06pcf9": "18000"
+          },
+          "totalOutSats": "19000",
+          "minerFeeSats": "1000"
+        },
+        {
+          "outcomeId": "settle-loss",
+          "winnerRole": "bob",
+          "outputsSats": {
+            "tb1p8l6fdqqyyfp09xda0xv59xgltas6eecem47rvuq2walz0t5zrcgq06pcf9": "19000"
+          },
+          "totalOutSats": "19000",
+          "minerFeeSats": "1000"
+        },
+        {
+          "outcomeId": "roll",
+          "winnerRole": "residual",
+          "outputsSats": {
+            "tb1p8l6fdqqyyfp09xda0xv59xgltas6eecem47rvuq2walz0t5zrcgq06pcf9": "18000",
+            "tb1qwvzaayzrgreqyyvxp77wlr60ngaqnpcyhujz2m": "1000"
+          },
+          "totalOutSats": "19000",
+          "minerFeeSats": "1000"
+        }
+      ],
+      "outcomesHash": "9e4e8c8896c1f548f84b66911e967144d5601f8503eba925153ab11280317bca"
+    },
+    "attestation": {
+      "kind": "tradelayer_dlc_oracle_attestation",
+      "contractId": "rbtc-hour-listener-reduced-001",
+      "fundingTxid": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6",
+      "fundingVout": 0,
+      "outcomeId": "settle-loss",
+      "message": "{\"contractId\":\"rbtc-hour-listener-reduced-001\",\"fundingTxid\":\"93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6\",\"fundingVout\":0,\"kind\":\"tradelayer_dlc_oracle_attestation_v1\",\"outcomeId\":\"settle-loss\"}",
+      "signature": "9e80eb43167a2419ccfae5e4761ef1d6c2b6663cd164231da13280ca05e2fd4e8434ac6dd66fd74a4aa97d306047c2aaf53bc8915c58dd1efa1e95802ce05401"
+    },
+    "selectedCet": {
+      "kind": "tradelayer_dlc_cet_selection",
+      "selectionHash": "edeece0bfec09ef2912c270f900d8fc06702d77d70b6ea684de2233da55983c2",
+      "selection": {
+        "kind": "tradelayer_dlc_cet_selection_v1",
+        "outcomeId": "settle-loss",
+        "winnerRole": "bob",
+        "fundingTxid": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6",
+        "fundingVout": 0,
+        "outputsSats": {
+          "tb1p8l6fdqqyyfp09xda0xv59xgltas6eecem47rvuq2walz0t5zrcgq06pcf9": "19000"
+        },
+        "totalOutSats": "19000",
+        "outcomesHash": "9e4e8c8896c1f548f84b66911e967144d5601f8503eba925153ab11280317bca",
+        "attestationMessage": "{\"contractId\":\"rbtc-hour-listener-reduced-001\",\"fundingTxid\":\"93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6\",\"fundingVout\":0,\"kind\":\"tradelayer_dlc_oracle_attestation_v1\",\"outcomeId\":\"settle-loss\"}"
+      }
+    },
+    "rollHandoff": null
+  },
+  "tx30Intent": {
+    "action": 2,
+    "oracleId": 0,
+    "relayType": 1,
+    "stateHash": "ae97d9e991355bb18f596fa34d07b644c6d8b1d4e40ef4c13a2e7b3c29d6ae29",
+    "dlcRef": "rbtc-hour-listener-reduced-001",
+    "settlementState": "SETTLED",
+    "relayBlob": "{\"kind\":\"rbtc_hourly_autoroll_relay_v1\",\"contractId\":\"rbtc-hour-listener-reduced-001\",\"observationHash\":\"ae97d9e991355bb18f596fa34d07b644c6d8b1d4e40ef4c13a2e7b3c29d6ae29\",\"policy\":{\"outcomeId\":\"settle-loss\",\"canAutoRoll\":false,\"reason\":\"rbtc_balance_reduced\"},\"selectedCetHash\":\"edeece0bfec09ef2912c270f900d8fc06702d77d70b6ea684de2233da55983c2\",\"settlement\":{\"mode\":\"none\",\"propertyId\":1,\"amount\":0,\"fromAddress\":\"tb1qwvzaayzrgreqyyvxp77wlr60ngaqnpcyhujz2m\",\"toAddress\":\"tb1qwvzaayzrgreqyyvxp77wlr60ngaqnpcyhujz2m\",\"nextPropertyId\":1}}",
+    "autoRoll": false,
+    "nextDlcRef": "",
+    "oracleAddress": null,
+    "relayBlobHash": "3e34de5a375dad5e44f0427a5d000acfb1708fba36dbf67675367a71e560cdcb"
+  },
+  "broadcast": {
+    "attempted": false,
+    "reason": "broadcast flag not set"
+  },
+  "artifactHash": "baf4675bff8da5378666321d885c4843348b658dc82e84f9776814a656f6756d"
+}

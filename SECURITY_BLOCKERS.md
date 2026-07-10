@@ -110,7 +110,7 @@ processes (ideally different people), is the minimum bar.
 
 ## 4. Reserve snapshot is not reserve encumbrance
 
-**Where:** `tradelayer_live_reserve_adapter.js`, `tradelayer_reserve_reconciliation_referee.js`, `tradelayer_bitvm_solvency_referee.js`
+**Where:** `tradelayer_live_reserve_adapter.js`, `tradelayer_reserve_reconciliation_referee.js`, `taproot_reserve_vault.js`, `btc_testnet4_reserve_vault_demo.js`, `tradelayer_bitvm_solvency_referee.js`
 
 The solvency circuit proves that `cap <= reserve` was computed honestly over
 the committed inputs. The "reserve" input is a `listunspent` snapshot of
@@ -124,10 +124,9 @@ reserve availability at withdrawal time. Classic proof-of-reserves gap
 (same class of issue as exchange-run PoR without liabilities disclosure or
 without a locking mechanism).
 
-**Status (2026-07-06): option (b) implemented - freshness window, not
-encumbrance.** No on-chain covenant/timelock exists yet (option (a) is
-still open, and remains the only *complete* fix - see below). What's now
-implemented: `buildTradeLayerReserveReconciliation` accepts
+**Status (2026-07-06, earlier pass): option (b) implemented - freshness
+window, not encumbrance.** The legacy `listunspent` path is still an
+ordinary-wallet snapshot. `buildTradeLayerReserveReconciliation` accepts
 `observedAtHeight` (the chain height when the reserve snapshot was taken)
 and `maxReserveAgeBlocks` (default 6 blocks, ~15 min on Litecoin); a
 reserve snapshot older than that window is fail-closed - `solvent` is
@@ -146,6 +145,21 @@ in-window, out-of-window, went-stale-since-build, and a reorg/bad-input
 edge case (`currentHeight` before `observedAtHeight` fails closed rather
 than being silently accepted).
 
+**Status (2026-07-06, BTC testnet4 reserve-vault v1): encumbered reserve
+evidence now exists for the new path.** `taproot_reserve_vault.js` builds
+and verifies a BTC testnet4 P2TR reserve vault manifest with two tapscript
+leaves: immediate spend requires both the operator and watchtower guardian
+signatures; recovery is operator-only after a CSV delay (default 2016
+blocks). `tradelayer_reserve_reconciliation_referee.js` now accepts
+`kind: 'taproot-reserve-vault-set'` before legacy `reservedSats` snapshots
+and sums only vault UTXOs that are still live on chain, match the manifest
+scriptPubKey/amount/outpoint/network, and are safely outside the recovery
+risk window. Guardian approval receipts sign only the exact policy-matching
+transaction sighash and refuse wrong outputs, excessive fees, stale reserve,
+or insolvent caps. This is still not a covenant: the on-chain enforcement is
+guardian co-signature plus operational policy, so production safety depends
+on independent guardian operation and key separation.
+
 **Bug found and fixed along the way:** wiring the live re-check exposed a
 pre-existing issue in `tradelayer_live_reserve_adapter.js` -
 `buildLiveReserveFromUnspent`'s synthetic "currentHeight" fallback was
@@ -156,11 +170,13 @@ produced a nonsense multi-million-block "age." Fixed by having
 up front and pass it in explicitly, so all height math in that path is now
 on one consistent absolute scale.
 
-**Required before pilot:** Option (a) - an actual covenant/timelock on the
-reserve UTXOs - is the only complete fix; the freshness window only bounds
-*how long* an operator could get away with spending the reserve elsewhere
-undetected, it doesn't prevent it. A 6-block default window is a starting
-point, not a validated threat-model number - it should be revisited against
+**Required before pilot:** Use the BTC testnet4 vault evidence path for any
+claim that reserves are encumbered. The legacy snapshot mode must remain
+documented as weaker demo evidence. For production, validate independent
+watchtower operation, separated keys, recovery runbooks, and the recovery
+risk margin. A 6-block default freshness window on the legacy snapshot path
+is only a starting point, not a validated threat-model number - it should be
+revisited against
 real operational re-attestation cadence before real value is at stake.
 
 ---
@@ -392,10 +408,11 @@ keys) still has to pass before this is more than "the Script mechanics
 work when one wallet controls everything."
 
 **#4, #5, #6, #7 - follow-up hardening.** Reserve freshness checks,
-persistent watchtower state, and trace-publication fault detection now
-exist at testnet/self-play level; reserve encumbrance, independent
-operation, automatic disprove broadcast, mirrored DA, and bond economics
-remain as described above.
+persistent watchtower state, trace-publication fault detection, and the
+BTC testnet4 2-signer reserve-vault evidence path now exist at
+testnet/self-play level; independent operation, covenant-level guarantees,
+automatic disprove broadcast, mirrored DA, and bond economics remain as
+described above.
 
 **New, unlisted operational risk surfaced by this pass: node cold-start
 time.** The LTCTEST node took over 24 minutes to load its block index after

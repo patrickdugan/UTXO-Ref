@@ -1,0 +1,126 @@
+{
+  "kind": "tradelayer_rbtc_hourly_autoroll_live_run",
+  "createdAt": "2026-07-06T22:36:17.377Z",
+  "source": "listener",
+  "tradelayerRepo": "C:\\projects\\tradelayer.js",
+  "baseUrl": "http://127.0.0.1:3000",
+  "chain": null,
+  "vaultArtifactPath": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\live\\btc_testnet4_reserve_vault_latest.json",
+  "balance": {
+    "source": "listener",
+    "rawBalances": [
+      {
+        "propertyId": "1",
+        "ticker": "tlBTC",
+        "amount": 0.00001,
+        "available": 0.00001,
+        "reserved": 0,
+        "margin": 0,
+        "vesting": 0,
+        "channel": 0
+      }
+    ],
+    "available": 0.00001
+  },
+  "currentUnits": "1000",
+  "startingUnits": "1000",
+  "contract": {
+    "kind": "tradelayer_rbtc_hourly_dlc_contract",
+    "contractHash": "f13a2200fc66f16eafef5e627aa716ee2039cf454d7ef79d6d5b495c290cc445",
+    "core": {
+      "kind": "tradelayer_rbtc_hourly_dlc_contract_v1",
+      "contractId": "rbtc-hour-listener-wallclock-001",
+      "previousContractId": null,
+      "vaultAddress": "tb1p8l6fdqqyyfp09xda0xv59xgltas6eecem47rvuq2walz0t5zrcgq06pcf9",
+      "fundingAddress": "tb1qwvzaayzrgreqyyvxp77wlr60ngaqnpcyhujz2m",
+      "rbtcPropertyId": 1,
+      "fundingOutpoint": {
+        "txid": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6",
+        "vout": 0
+      },
+      "reserveVaultId": "btc-testnet4-reserve-134473-93f953df",
+      "startsAtUnix": 1783377377,
+      "durationSeconds": 3600,
+      "expiresAtUnix": 1783380977,
+      "riskMarginSeconds": 300,
+      "startingRbtcBalance": "1000"
+    }
+  },
+  "decision": {
+    "kind": "tradelayer_rbtc_hourly_cet_decision",
+    "decisionHash": "db3290b0fb32b2d45b021cb948c5cfcfb6ee82880edc2afb10edae602619a68b",
+    "contract": {
+      "kind": "tradelayer_rbtc_hourly_dlc_contract",
+      "contractHash": "f13a2200fc66f16eafef5e627aa716ee2039cf454d7ef79d6d5b495c290cc445",
+      "core": {
+        "kind": "tradelayer_rbtc_hourly_dlc_contract_v1",
+        "contractId": "rbtc-hour-listener-wallclock-001",
+        "previousContractId": null,
+        "vaultAddress": "tb1p8l6fdqqyyfp09xda0xv59xgltas6eecem47rvuq2walz0t5zrcgq06pcf9",
+        "fundingAddress": "tb1qwvzaayzrgreqyyvxp77wlr60ngaqnpcyhujz2m",
+        "rbtcPropertyId": 1,
+        "fundingOutpoint": {
+          "txid": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6",
+          "vout": 0
+        },
+        "reserveVaultId": "btc-testnet4-reserve-134473-93f953df",
+        "startsAtUnix": 1783377377,
+        "durationSeconds": 3600,
+        "expiresAtUnix": 1783380977,
+        "riskMarginSeconds": 300,
+        "startingRbtcBalance": "1000"
+      }
+    },
+    "observation": {
+      "kind": "tradelayer_rbtc_balance_oracle_observation",
+      "observationHash": "86b12cbe0db71185766649044d911613e6683fb13fcdd08f098ce220fea54088",
+      "core": {
+        "kind": "tradelayer_rbtc_balance_oracle_observation_v1",
+        "contractId": "rbtc-hour-listener-wallclock-001",
+        "vaultAddress": "tb1p8l6fdqqyyfp09xda0xv59xgltas6eecem47rvuq2walz0t5zrcgq06pcf9",
+        "fundingAddress": "tb1qwvzaayzrgreqyyvxp77wlr60ngaqnpcyhujz2m",
+        "rbtcPropertyId": 1,
+        "fundingOutpoint": {
+          "txid": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6",
+          "vout": 0
+        },
+        "startsAtUnix": 1783377377,
+        "expiresAtUnix": 1783380977,
+        "observedAtUnix": 1783377377,
+        "startingRbtcBalance": "1000",
+        "currentRbtcBalance": "1000",
+        "deltaRbtcBalance": "0",
+        "balanceReduced": false,
+        "matured": false,
+        "insideRiskWindow": false
+      }
+    },
+    "policy": {
+      "outcomeId": "wait",
+      "canAutoRoll": false,
+      "reason": "contract_not_mature"
+    },
+    "settlementOutcomes": null,
+    "attestation": null,
+    "selectedCet": null,
+    "rollHandoff": null
+  },
+  "tx30Intent": {
+    "action": 2,
+    "oracleId": 0,
+    "relayType": 1,
+    "stateHash": "86b12cbe0db71185766649044d911613e6683fb13fcdd08f098ce220fea54088",
+    "dlcRef": "rbtc-hour-listener-wallclock-001",
+    "settlementState": "SETTLED",
+    "relayBlob": "{\"kind\":\"rbtc_hourly_autoroll_relay_v1\",\"contractId\":\"rbtc-hour-listener-wallclock-001\",\"observationHash\":\"86b12cbe0db71185766649044d911613e6683fb13fcdd08f098ce220fea54088\",\"policy\":{\"outcomeId\":\"wait\",\"canAutoRoll\":false,\"reason\":\"contract_not_mature\"},\"selectedCetHash\":null,\"settlement\":{\"mode\":\"none\",\"propertyId\":1,\"amount\":0,\"fromAddress\":\"tb1qwvzaayzrgreqyyvxp77wlr60ngaqnpcyhujz2m\",\"toAddress\":\"tb1qwvzaayzrgreqyyvxp77wlr60ngaqnpcyhujz2m\",\"nextPropertyId\":1}}",
+    "autoRoll": false,
+    "nextDlcRef": "",
+    "oracleAddress": null,
+    "relayBlobHash": "123f7e5a134d1f55da91c85ac86e38632cd272252495c047846c9941c4cedbc5"
+  },
+  "broadcast": {
+    "attempted": false,
+    "reason": "broadcast flag not set"
+  },
+  "artifactHash": "02483b806e6724e6eaa509c49942c7691b8c3c8e7e3e4bab99160aa17f9d9371"
+}

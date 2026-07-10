@@ -26,4 +26,7 @@ bitvm3/utxo_referee/artifacts/live/watchtower_state.json
 bitvm3/utxo_referee/artifacts/live/watchtower_alerts.jsonl
 bitvm3/utxo_referee/artifacts/live/test-tmp/
 bitvm3/utxo_referee/artifacts/live/traces/
+bitvm3/utxo_referee/artifacts/live/tradelayer_btc_test_pre_tx30_*/
+bitvm3/utxo_referee/artifacts/live/utxoref_v2_secrets/
+bitvm3/utxo_referee/artifacts/tmp/
 claudeChatExport*.txt*

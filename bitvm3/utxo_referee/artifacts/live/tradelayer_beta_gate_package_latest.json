@@ -1,0 +1,310 @@
+{
+  "kind": "tradelayer_real_money_beta_gate_package_v1",
+  "createdAt": "2026-07-07T00:13:16.306Z",
+  "status": "LIMITED_TESTNET_CONTINUE",
+  "realMoneyAllowed": false,
+  "gates": [
+    {
+      "name": "confirmed_live_reserve",
+      "ok": true,
+      "txid": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6",
+      "confirmations": 22
+    },
+    {
+      "name": "full_signed_relay_retrieval",
+      "ok": true,
+      "relayBlobHash": "dca8e7c5964dbf2ae902cc20b757d0400434a19a25c72da5dba5100a09491821",
+      "replicaCount": 2
+    },
+    {
+      "name": "separated_keys",
+      "ok": false,
+      "ceremonyHash": "1626bf0575eac5c2932707233f23c23db5daadd8d631058a01e7c6933d548e68",
+      "errors": [
+        "reserveOperator.publicKey is required",
+        "watchtowerGuardian.publicKey is required",
+        "stateOracle.publicKey is required",
+        "challenger.publicKey is required",
+        "emergencyRecovery.publicKey is required"
+      ]
+    },
+    {
+      "name": "operational_drills",
+      "ok": false,
+      "checklistHash": "75145dcff7ad88ecd1a3da18339523764cac4db9fce6dfc7994d021576378cb3",
+      "missing": [
+        "rbf_fee_bump",
+        "cpfp_fee_bump",
+        "node_restart_recovery",
+        "stale_indexer_detection",
+        "reorg_reserve_reconciliation",
+        "watchtower_restart_alerting",
+        "relay_retrieval_fault"
+      ]
+    },
+    {
+      "name": "loss_caps_defined",
+      "ok": false,
+      "maxTotalLossSats": null,
+      "maxPerContractSats": null,
+      "pausePolicy": null
+    },
+    {
+      "name": "external_review_scope",
+      "ok": false,
+      "reviewer": null,
+      "reviewOwner": null
+    },
+    {
+      "name": "regression_green",
+      "ok": true,
+      "command": "node bitvm3\\utxo_referee\\run_utxoref_all.js",
+      "suites": "76/76"
+    }
+  ],
+  "evidence": {
+    "createdAt": "2026-07-07T00:13:16.306Z",
+    "chain": "BTC_TESTNET4",
+    "tipHeight": 143222,
+    "reserve": {
+      "txid": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6",
+      "vout": 0,
+      "confirmed": true,
+      "confirmations": 22,
+      "blockheight": 143201,
+      "blockhash": "0000000000000001106d4be4a169c34d6b379688151742efde77a991c54b4de5",
+      "inMempool": false,
+      "unbroadcast": null,
+      "bip125": null,
+      "unspent": true,
+      "artifact": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\live\\btc_testnet4_reserve_vault_latest.json"
+    },
+    "tx30RelayAnchor": {
+      "txid": "88cd8bf0f9d3d7a79607ad65da81c7d8b3b28c48c75ef8aedbecbdf02b8e486c",
+      "vout": null,
+      "confirmed": false,
+      "confirmations": 0,
+      "blockheight": null,
+      "blockhash": null,
+      "inMempool": true,
+      "unbroadcast": false,
+      "bip125": true,
+      "unspent": null,
+      "artifact": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\live\\tradelayer_tx30_relay_anchor_broadcast_latest.json",
+      "relayBlobHash": "dca8e7c5964dbf2ae902cc20b757d0400434a19a25c72da5dba5100a09491821"
+    },
+    "relayRetrieval": {
+      "ok": true,
+      "relayBlobHash": "dca8e7c5964dbf2ae902cc20b757d0400434a19a25c72da5dba5100a09491821",
+      "replicaCount": 2,
+      "publicationHash": "59aa83fd4ef1d681dd75146113cc54e7f72dd5785ac726b08c8246e2c6883d1d",
+      "retrievalHash": "093f56ac6b4e842c4171094075613c1b77090be1f4800c0c7db31b68486a259d",
+      "recoveredFrom": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\live\\tx30_relay_replicas\\primary",
+      "fault": {
+        "kind": "tradelayer_tx30_relay_retrieval_fault_v1",
+        "fault": false,
+        "severity": "none",
+        "relayBlobHash": "dca8e7c5964dbf2ae902cc20b757d0400434a19a25c72da5dba5100a09491821",
+        "chainTxid": "88cd8bf0f9d3d7a79607ad65da81c7d8b3b28c48c75ef8aedbecbdf02b8e486c",
+        "checkedAtHeight": 143222,
+        "reason": null,
+        "attempts": [
+          {
+            "replicaDir": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\live\\tx30_relay_replicas\\primary",
+            "path": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\live\\tx30_relay_replicas\\primary\\dca8e7c5964dbf2ae902cc20b757d0400434a19a25c72da5dba5100a09491821.json",
+            "ok": true,
+            "reason": null,
+            "documentHash": "407071a391e891c0a5f82028168a4f7aefa84af4496cec2b043c96455127ea1d"
+          }
+        ],
+        "faultHash": "9ca367a641322e8176223ce11c0a8830ea6c21076738eb1e946676fd60239016"
+      }
+    },
+    "tests": {
+      "fullSuitePassed": true,
+      "command": "node bitvm3\\utxo_referee\\run_utxoref_all.js",
+      "suites": "76/76"
+    }
+  },
+  "keyCeremony": {
+    "kind": "tradelayer_beta_key_separation_ceremony_v1",
+    "createdAt": "2026-07-07T00:13:16.306Z",
+    "roles": {
+      "reserveOperator": {
+        "role": "reserveOperator",
+        "owner": "",
+        "custody": "",
+        "publicKey": "",
+        "fingerprint": null,
+        "allowedActions": [
+          "propose-vault-spend",
+          "fund-vault",
+          "initiate-rebalance"
+        ],
+        "rotation": "",
+        "emergencyContact": ""
+      },
+      "watchtowerGuardian": {
+        "role": "watchtowerGuardian",
+        "owner": "",
+        "custody": "",
+        "publicKey": "",
+        "fingerprint": null,
+        "allowedActions": [
+          "approve-policy-matching-vault-spend",
+          "refuse-policy-violations"
+        ],
+        "rotation": "",
+        "emergencyContact": ""
+      },
+      "stateOracle": {
+        "role": "stateOracle",
+        "owner": "",
+        "custody": "",
+        "publicKey": "",
+        "fingerprint": null,
+        "allowedActions": [
+          "attest-tradelayer-state",
+          "sign-tx30-relay-bundle"
+        ],
+        "rotation": "",
+        "emergencyContact": ""
+      },
+      "challenger": {
+        "role": "challenger",
+        "owner": "",
+        "custody": "",
+        "publicKey": "",
+        "fingerprint": null,
+        "allowedActions": [
+          "monitor-relay-bundles",
+          "publish-fault",
+          "initiate-dispute"
+        ],
+        "rotation": "",
+        "emergencyContact": ""
+      },
+      "emergencyRecovery": {
+        "role": "emergencyRecovery",
+        "owner": "",
+        "custody": "",
+        "publicKey": "",
+        "fingerprint": null,
+        "allowedActions": [
+          "execute-csv-recovery-after-delay"
+        ],
+        "rotation": "",
+        "emergencyContact": ""
+      }
+    },
+    "requiredRoles": [
+      "reserveOperator",
+      "watchtowerGuardian",
+      "stateOracle",
+      "challenger",
+      "emergencyRecovery"
+    ],
+    "errors": [
+      "reserveOperator.publicKey is required",
+      "watchtowerGuardian.publicKey is required",
+      "stateOracle.publicKey is required",
+      "challenger.publicKey is required",
+      "emergencyRecovery.publicKey is required"
+    ],
+    "warnings": [],
+    "ok": false,
+    "ceremonyHash": "1626bf0575eac5c2932707233f23c23db5daadd8d631058a01e7c6933d548e68"
+  },
+  "drillChecklist": {
+    "kind": "tradelayer_beta_operational_drill_checklist_v1",
+    "createdAt": "2026-07-07T00:13:16.306Z",
+    "drills": {
+      "rbf_fee_bump": {
+        "id": "rbf_fee_bump",
+        "status": "not_run",
+        "artifact": null,
+        "txid": null,
+        "notes": ""
+      },
+      "cpfp_fee_bump": {
+        "id": "cpfp_fee_bump",
+        "status": "not_run",
+        "artifact": null,
+        "txid": null,
+        "notes": ""
+      },
+      "node_restart_recovery": {
+        "id": "node_restart_recovery",
+        "status": "not_run",
+        "artifact": null,
+        "txid": null,
+        "notes": ""
+      },
+      "stale_indexer_detection": {
+        "id": "stale_indexer_detection",
+        "status": "not_run",
+        "artifact": null,
+        "txid": null,
+        "notes": ""
+      },
+      "reorg_reserve_reconciliation": {
+        "id": "reorg_reserve_reconciliation",
+        "status": "not_run",
+        "artifact": null,
+        "txid": null,
+        "notes": ""
+      },
+      "watchtower_restart_alerting": {
+        "id": "watchtower_restart_alerting",
+        "status": "not_run",
+        "artifact": null,
+        "txid": null,
+        "notes": ""
+      },
+      "relay_retrieval_fault": {
+        "id": "relay_retrieval_fault",
+        "status": "not_run",
+        "artifact": null,
+        "txid": null,
+        "notes": ""
+      }
+    },
+    "requiredDrills": [
+      "rbf_fee_bump",
+      "cpfp_fee_bump",
+      "node_restart_recovery",
+      "stale_indexer_detection",
+      "reorg_reserve_reconciliation",
+      "watchtower_restart_alerting",
+      "relay_retrieval_fault"
+    ],
+    "ok": false,
+    "missing": [
+      "rbf_fee_bump",
+      "cpfp_fee_bump",
+      "node_restart_recovery",
+      "stale_indexer_detection",
+      "reorg_reserve_reconciliation",
+      "watchtower_restart_alerting",
+      "relay_retrieval_fault"
+    ],
+    "checklistHash": "75145dcff7ad88ecd1a3da18339523764cac4db9fce6dfc7994d021576378cb3"
+  },
+  "caps": {
+    "maxTotalLossSats": "",
+    "maxPerContractSats": "",
+    "pausePolicy": ""
+  },
+  "externalReview": {
+    "scopeDefined": false,
+    "reviewer": "",
+    "reviewOwner": ""
+  },
+  "nextRequiredActions": [
+    "separated_keys",
+    "operational_drills",
+    "loss_caps_defined",
+    "external_review_scope"
+  ],
+  "packageHash": "3120560cb91b62fd7827f00f134a3f00e2268f3674b016db5c6febde724693ad"
+}
