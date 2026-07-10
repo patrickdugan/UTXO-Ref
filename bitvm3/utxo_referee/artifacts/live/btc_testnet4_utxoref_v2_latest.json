@@ -1,0 +1,696 @@
+{
+  "kind": "btc_testnet4_utxoref_v2_live_ceremony",
+  "version": 2,
+  "createdAt": "2026-07-10T20:09:16.437Z",
+  "network": "bitcoin-testnet4",
+  "status": "broadcast",
+  "chain": {
+    "snapshotHeight": 143688,
+    "snapshotBlockHash": "0000000000c1de75705dcd14b36c4821fac52a305bb3f6c04b7e2d6c2dbfd44f",
+    "genesisHash": "00000000da84f2bafbbc53dee25a72ae507ff4914b867c565be350b0da8bf043",
+    "initialBlockDownload": false
+  },
+  "keyCeremony": {
+    "id": "utxoref-v2-20260710t200915z-ca6cfca6",
+    "stateSignerKeyId": "edc1b04417adf266e84b9c98a8eeaea70e4e9b1e885af023d19499a587dd625a",
+    "stateSignerPublicKeyPem": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAQ6FcPZ98RZlO34lNEuNtTSBWycVdhKIUsbEfmquhVK4=\n-----END PUBLIC KEY-----\n",
+    "operatorXonly": "8692db0c1d59466c044b448911381ef561868c15c4806d9556d7f7f5f6eff51e",
+    "challengerXonly": "18ede8df94a4a87ea079a017e57bb58a27c4e401fd9e54404cc6f701cc1ecc4f",
+    "model": "local-test-ceremony-separated-files",
+    "productionRequirement": "challenger key and signing process must run on a separately administered host"
+  },
+  "funding": {
+    "input": {
+      "txid": "88cd8bf0f9d3d7a79607ad65da81c7d8b3b28c48c75ef8aedbecbdf02b8e486c",
+      "vout": 1,
+      "amountSats": "338310"
+    },
+    "fundingFeeSats": "1000",
+    "assertionAmountSats": "6000",
+    "changeSats": "331310",
+    "unsignedHex": "02000000016c488e2bf0bdecdbaef85ec7488cb2b3d8c781da65ad0796a7d7d3f9f08bcd880100000000fdffffff02701700000000000022512050e627de1c7a920e8b6af405d30547c784cf45508af2a50ef1424094d85a66cc2e0e050000000000160014c312096b4d246cd66e0c6ba1b669fb2db4db156900000000",
+    "signedHex": "020000000001016c488e2bf0bdecdbaef85ec7488cb2b3d8c781da65ad0796a7d7d3f9f08bcd880100000000fdffffff02701700000000000022512050e627de1c7a920e8b6af405d30547c784cf45508af2a50ef1424094d85a66cc2e0e050000000000160014c312096b4d246cd66e0c6ba1b669fb2db4db15690140fafbff0e75f787b3a3ae6708f9321439c93a2a24490eff2d098e3d2d85011854761fa645c1768eb3a29e483551fd811c40198e605025093548450185871f4e6200000000",
+    "txid": "8bd4e076f0666cb3839f5056ef214aa116dd3e1edbd4528605716f55bb66a656",
+    "assertionOutpoint": "8bd4e076f0666cb3839f5056ef214aa116dd3e1edbd4528605716f55bb66a656:0",
+    "mempoolAccept": {
+      "txid": "8bd4e076f0666cb3839f5056ef214aa116dd3e1edbd4528605716f55bb66a656",
+      "wtxid": "a6ac77e3791ef7f56e566a9aa3331490664c92c0925e712c0966309df82656c7",
+      "allowed": true,
+      "vsize": 142,
+      "fees": {
+        "base": 0.00001,
+        "effective-feerate": 0.00007042,
+        "effective-includes": [
+          "a6ac77e3791ef7f56e566a9aa3331490664c92c0925e712c0966309df82656c7"
+        ]
+      }
+    },
+    "broadcastTxid": "8bd4e076f0666cb3839f5056ef214aa116dd3e1edbd4528605716f55bb66a656",
+    "confirmations": 0,
+    "mempoolAcceptAtBroadcast": {
+      "txid": "8bd4e076f0666cb3839f5056ef214aa116dd3e1edbd4528605716f55bb66a656",
+      "wtxid": "a6ac77e3791ef7f56e566a9aa3331490664c92c0925e712c0966309df82656c7",
+      "allowed": true,
+      "vsize": 142,
+      "fees": {
+        "base": 0.00001,
+        "effective-feerate": 0.00007042,
+        "effective-includes": [
+          "a6ac77e3791ef7f56e566a9aa3331490664c92c0925e712c0966309df82656c7"
+        ]
+      }
+    }
+  },
+  "graph": {
+    "kind": "utxoref_bitvm_assertion_graph_v2",
+    "version": 2,
+    "publicTrace": {
+      "kind": "utxoref_bitvm_public_trace_v2",
+      "version": 2,
+      "circuitId": "utxoref-v2-state-and-payout-authorization",
+      "binding": {
+        "kind": "utxoref_settlement_trace_binding_v2",
+        "version": 2,
+        "network": "bitcoin-testnet4",
+        "chainGenesisHash": "00000000da84f2bafbbc53dee25a72ae507ff4914b867c565be350b0da8bf043",
+        "contractId": "9dc15511f1762035ab9d770a9ed4d2f6d7e1a46070a37839c8d10efd81da2764",
+        "epochId": "143688",
+        "stateCheckpointHash": "0e02de61f982cff23ac0ef78471752ddfda88c11b7abed3e598a136e60325aa1",
+        "outputsHash": "66d004ed4aa013f95cbfd7e87f2a0869541117b8295da538df714ab550febea0",
+        "payoutTotalSats": "5000",
+        "feeSats": "1000",
+        "assertionAmountSats": "6000"
+      },
+      "gates": [
+        {
+          "index": 0,
+          "type": "and",
+          "inputs": [
+            "state_checkpoint_valid",
+            "payout_vector_exact"
+          ],
+          "output": "settlement_authorized"
+        }
+      ],
+      "publicWires": {
+        "payout_vector_exact": {
+          "label": "payout_vector_exact",
+          "hash0": "7268be3ad459badb63d98c32c253b94485107beb5f7e9a063b08b6c8f9228ad5",
+          "hash1": "5a4edca3a5173f88407bcd74709bdc63cd3d960d894f568db1fb2f10985a577c"
+        },
+        "settlement_authorized": {
+          "label": "settlement_authorized",
+          "hash0": "0e1b47ec3328cc746e4ac0aadbb1945c4e0faac9ed24719c0789675fd20f8fc2",
+          "hash1": "826f063e463fade38714538c100ffce1209d376d93ed2b18562271c4a482c71c"
+        },
+        "state_checkpoint_valid": {
+          "label": "state_checkpoint_valid",
+          "hash0": "64f4b20aaf58c8bb56c129fbb7e9303cf808f2f22ad13508d2e34654b6cfa6f1",
+          "hash1": "283f181a7803ea955eb7cf45f49582ec38dde0c8c54a40df9727162080781ce6"
+        }
+      },
+      "reveals": {
+        "payout_vector_exact": {
+          "bit": 1,
+          "preimage": "10e62776b32c28f4a158e51330675d213254311d323ce5ac674e1e82cb2dbab6"
+        },
+        "settlement_authorized": {
+          "bit": 1,
+          "preimage": "0c43337efef362cb29b5ab5fba9e9bb299dffb78f2bbd2582471fe608b8ea606"
+        },
+        "state_checkpoint_valid": {
+          "bit": 1,
+          "preimage": "b853fe7b8722deaefc4ca130e9a6a328eb0587e49eff44dfb6d950425330e77a"
+        }
+      },
+      "wireRoot": "ffafed52b58a4d5a29548e751f58ac6656271369d903e6914ad9c4a83686d69e",
+      "gatesHash": "d17e357b5eb42f4a970f906c8a65af5376887a57ef30eeb78936501083f8c251",
+      "bindingHash": "d718fdf3af5b8599aa855f1b1a57efcc9dc93e5729f604b4dd48b4eadd05820a",
+      "traceRoot": "014011f94957ef276ca121d6a8c0708f586e12ac7c12c939836b3715ac0ca933"
+    },
+    "template": {
+      "kind": "utxoref_bitvm_assertion_template_v2",
+      "version": 2,
+      "network": "bitcoin-testnet4",
+      "traceRoot": "014011f94957ef276ca121d6a8c0708f586e12ac7c12c939836b3715ac0ca933",
+      "traceBindingHash": "d718fdf3af5b8599aa855f1b1a57efcc9dc93e5729f604b4dd48b4eadd05820a",
+      "expectedInputs": {
+        "payout_vector_exact": 1,
+        "state_checkpoint_valid": 1
+      },
+      "operatorXonly": "8692db0c1d59466c044b448911381ef561868c15c4806d9556d7f7f5f6eff51e",
+      "challengerXonly": "18ede8df94a4a87ea079a017e57bb58a27c4e401fd9e54404cc6f701cc1ecc4f",
+      "challengeCsvBlocks": 6,
+      "recoveryCsvBlocks": 2016,
+      "internalKeyPolicy": "deterministic-nums-no-keypath-v2",
+      "internalXonly": "2bec353e0c7a5d939659570a93bf407a15624ac8a9960b3a3332a6b6b17ee714",
+      "assertionTreeRoot": "8cdfa2318f11d91fea1ac468a76e647acb0dd71caf9fb52eabb954cf45cd3010",
+      "outputKeyXonly": "50e627de1c7a920e8b6af405d30547c784cf45508af2a50ef1424094d85a66cc",
+      "outputParity": 1,
+      "p2trScriptPubKey": "512050e627de1c7a920e8b6af405d30547c784cf45508af2a50ef1424094d85a66cc",
+      "gateDisproveLeafCount": 4,
+      "inputDisproveLeafCount": 2,
+      "traceCommitmentLeafCount": 1,
+      "leaves": [
+        {
+          "id": "gate:0:00:1",
+          "kind": "gate-disprove-v2",
+          "scriptHex": "a820826f063e463fade38714538c100ffce1209d376d93ed2b18562271c4a482c71c88a8207268be3ad459badb63d98c32c253b94485107beb5f7e9a063b08b6c8f9228ad588a82064f4b20aaf58c8bb56c129fbb7e9303cf808f2f22ad13508d2e34654b6cfa6f1882018ede8df94a4a87ea079a017e57bb58a27c4e401fd9e54404cc6f701cc1ecc4fac",
+          "leafVersion": 192,
+          "leafHash": "3172ef093146e3f625194293a82665956ad19833f453a0d190763101499399bf",
+          "merklePath": [
+            "5e8a8ed09e930dacf2cf6ac3d68fd7fe59fccde223925394e8a1b462e827dec7",
+            "b87da38bfc8944a61a358d515d970ad15c132e8ce1fcc7b91910dc3677bb9cba",
+            "e82276b5a91da62413417bbd34295f02c5b0180c6ce33c73c2e5759082b45670",
+            "4f96d9b646f12fb9b67d5f24421f8efa6cbfbae859ede9116c9516b4c8b278af"
+          ],
+          "controlBlock": "c12bec353e0c7a5d939659570a93bf407a15624ac8a9960b3a3332a6b6b17ee7145e8a8ed09e930dacf2cf6ac3d68fd7fe59fccde223925394e8a1b462e827dec7b87da38bfc8944a61a358d515d970ad15c132e8ce1fcc7b91910dc3677bb9cbae82276b5a91da62413417bbd34295f02c5b0180c6ce33c73c2e5759082b456704f96d9b646f12fb9b67d5f24421f8efa6cbfbae859ede9116c9516b4c8b278af",
+          "gateIndex": 0,
+          "gate": {
+            "index": 0,
+            "type": "and",
+            "inputs": [
+              "state_checkpoint_valid",
+              "payout_vector_exact"
+            ],
+            "output": "settlement_authorized"
+          },
+          "row": {
+            "inputs": [
+              0,
+              0
+            ],
+            "output": 1
+          }
+        },
+        {
+          "id": "gate:0:01:1",
+          "kind": "gate-disprove-v2",
+          "scriptHex": "a820826f063e463fade38714538c100ffce1209d376d93ed2b18562271c4a482c71c88a8205a4edca3a5173f88407bcd74709bdc63cd3d960d894f568db1fb2f10985a577c88a82064f4b20aaf58c8bb56c129fbb7e9303cf808f2f22ad13508d2e34654b6cfa6f1882018ede8df94a4a87ea079a017e57bb58a27c4e401fd9e54404cc6f701cc1ecc4fac",
+          "leafVersion": 192,
+          "leafHash": "5e8a8ed09e930dacf2cf6ac3d68fd7fe59fccde223925394e8a1b462e827dec7",
+          "merklePath": [
+            "3172ef093146e3f625194293a82665956ad19833f453a0d190763101499399bf",
+            "b87da38bfc8944a61a358d515d970ad15c132e8ce1fcc7b91910dc3677bb9cba",
+            "e82276b5a91da62413417bbd34295f02c5b0180c6ce33c73c2e5759082b45670",
+            "4f96d9b646f12fb9b67d5f24421f8efa6cbfbae859ede9116c9516b4c8b278af"
+          ],
+          "controlBlock": "c12bec353e0c7a5d939659570a93bf407a15624ac8a9960b3a3332a6b6b17ee7143172ef093146e3f625194293a82665956ad19833f453a0d190763101499399bfb87da38bfc8944a61a358d515d970ad15c132e8ce1fcc7b91910dc3677bb9cbae82276b5a91da62413417bbd34295f02c5b0180c6ce33c73c2e5759082b456704f96d9b646f12fb9b67d5f24421f8efa6cbfbae859ede9116c9516b4c8b278af",
+          "gateIndex": 0,
+          "gate": {
+            "index": 0,
+            "type": "and",
+            "inputs": [
+              "state_checkpoint_valid",
+              "payout_vector_exact"
+            ],
+            "output": "settlement_authorized"
+          },
+          "row": {
+            "inputs": [
+              0,
+              1
+            ],
+            "output": 1
+          }
+        },
+        {
+          "id": "gate:0:10:1",
+          "kind": "gate-disprove-v2",
+          "scriptHex": "a820826f063e463fade38714538c100ffce1209d376d93ed2b18562271c4a482c71c88a8207268be3ad459badb63d98c32c253b94485107beb5f7e9a063b08b6c8f9228ad588a820283f181a7803ea955eb7cf45f49582ec38dde0c8c54a40df9727162080781ce6882018ede8df94a4a87ea079a017e57bb58a27c4e401fd9e54404cc6f701cc1ecc4fac",
+          "leafVersion": 192,
+          "leafHash": "b87da38bfc8944a61a358d515d970ad15c132e8ce1fcc7b91910dc3677bb9cba",
+          "merklePath": [
+            "8296699d95ed1899b1a05279d005f0cc9ee666b2b302993eb40683e440c388f4",
+            "e82276b5a91da62413417bbd34295f02c5b0180c6ce33c73c2e5759082b45670",
+            "4f96d9b646f12fb9b67d5f24421f8efa6cbfbae859ede9116c9516b4c8b278af"
+          ],
+          "controlBlock": "c12bec353e0c7a5d939659570a93bf407a15624ac8a9960b3a3332a6b6b17ee7148296699d95ed1899b1a05279d005f0cc9ee666b2b302993eb40683e440c388f4e82276b5a91da62413417bbd34295f02c5b0180c6ce33c73c2e5759082b456704f96d9b646f12fb9b67d5f24421f8efa6cbfbae859ede9116c9516b4c8b278af",
+          "gateIndex": 0,
+          "gate": {
+            "index": 0,
+            "type": "and",
+            "inputs": [
+              "state_checkpoint_valid",
+              "payout_vector_exact"
+            ],
+            "output": "settlement_authorized"
+          },
+          "row": {
+            "inputs": [
+              1,
+              0
+            ],
+            "output": 1
+          }
+        },
+        {
+          "id": "gate:0:11:0",
+          "kind": "gate-disprove-v2",
+          "scriptHex": "a8200e1b47ec3328cc746e4ac0aadbb1945c4e0faac9ed24719c0789675fd20f8fc288a8205a4edca3a5173f88407bcd74709bdc63cd3d960d894f568db1fb2f10985a577c88a820283f181a7803ea955eb7cf45f49582ec38dde0c8c54a40df9727162080781ce6882018ede8df94a4a87ea079a017e57bb58a27c4e401fd9e54404cc6f701cc1ecc4fac",
+          "leafVersion": 192,
+          "leafHash": "578d390718e120c740ec0562c3ea48184d31ddb26c1c95fb44a23781a8515f79",
+          "merklePath": [
+            "0e3ee0ce05f9293c6937a0798a77c1553bb0cb15bd40942c89c85343db257256",
+            "8616412bf836473ad29c091a644282534e188d90abc3d088edf52a6c67886fb3",
+            "4f96d9b646f12fb9b67d5f24421f8efa6cbfbae859ede9116c9516b4c8b278af"
+          ],
+          "controlBlock": "c12bec353e0c7a5d939659570a93bf407a15624ac8a9960b3a3332a6b6b17ee7140e3ee0ce05f9293c6937a0798a77c1553bb0cb15bd40942c89c85343db2572568616412bf836473ad29c091a644282534e188d90abc3d088edf52a6c67886fb34f96d9b646f12fb9b67d5f24421f8efa6cbfbae859ede9116c9516b4c8b278af",
+          "gateIndex": 0,
+          "gate": {
+            "index": 0,
+            "type": "and",
+            "inputs": [
+              "state_checkpoint_valid",
+              "payout_vector_exact"
+            ],
+            "output": "settlement_authorized"
+          },
+          "row": {
+            "inputs": [
+              1,
+              1
+            ],
+            "output": 0
+          }
+        },
+        {
+          "id": "input:payout_vector_exact:0",
+          "kind": "input-binding-disprove-v2",
+          "scriptHex": "a8207268be3ad459badb63d98c32c253b94485107beb5f7e9a063b08b6c8f9228ad5882018ede8df94a4a87ea079a017e57bb58a27c4e401fd9e54404cc6f701cc1ecc4fac",
+          "leafVersion": 192,
+          "leafHash": "0e3ee0ce05f9293c6937a0798a77c1553bb0cb15bd40942c89c85343db257256",
+          "merklePath": [
+            "578d390718e120c740ec0562c3ea48184d31ddb26c1c95fb44a23781a8515f79",
+            "8616412bf836473ad29c091a644282534e188d90abc3d088edf52a6c67886fb3",
+            "4f96d9b646f12fb9b67d5f24421f8efa6cbfbae859ede9116c9516b4c8b278af"
+          ],
+          "controlBlock": "c12bec353e0c7a5d939659570a93bf407a15624ac8a9960b3a3332a6b6b17ee714578d390718e120c740ec0562c3ea48184d31ddb26c1c95fb44a23781a8515f798616412bf836473ad29c091a644282534e188d90abc3d088edf52a6c67886fb34f96d9b646f12fb9b67d5f24421f8efa6cbfbae859ede9116c9516b4c8b278af",
+          "label": "payout_vector_exact",
+          "expectedBit": 1,
+          "wrongBit": 0
+        },
+        {
+          "id": "input:state_checkpoint_valid:0",
+          "kind": "input-binding-disprove-v2",
+          "scriptHex": "a82064f4b20aaf58c8bb56c129fbb7e9303cf808f2f22ad13508d2e34654b6cfa6f1882018ede8df94a4a87ea079a017e57bb58a27c4e401fd9e54404cc6f701cc1ecc4fac",
+          "leafVersion": 192,
+          "leafHash": "2d96b3e712e0097e57c8e9bc6c0b484569aef61ce518b86752a0fc809b80d321",
+          "merklePath": [
+            "9e783efa8e9c729d89d45840617e73538bdedb40059368b058517c17d58a73b5",
+            "255458b5562b8aebbfdfc55a6a6fc7ed4a76dc137d371e941a1b354b3f10217b",
+            "fb47beb0eae137a241670d65d3a443e2776cd90a62ac87103552125032446036"
+          ],
+          "controlBlock": "c12bec353e0c7a5d939659570a93bf407a15624ac8a9960b3a3332a6b6b17ee7149e783efa8e9c729d89d45840617e73538bdedb40059368b058517c17d58a73b5255458b5562b8aebbfdfc55a6a6fc7ed4a76dc137d371e941a1b354b3f10217bfb47beb0eae137a241670d65d3a443e2776cd90a62ac87103552125032446036",
+          "label": "state_checkpoint_valid",
+          "expectedBit": 1,
+          "wrongBit": 0
+        },
+        {
+          "id": "trace-commitment",
+          "kind": "trace-root-commitment-v2",
+          "scriptHex": "6a20014011f94957ef276ca121d6a8c0708f586e12ac7c12c939836b3715ac0ca933",
+          "leafVersion": 192,
+          "leafHash": "9e783efa8e9c729d89d45840617e73538bdedb40059368b058517c17d58a73b5",
+          "merklePath": [
+            "2d96b3e712e0097e57c8e9bc6c0b484569aef61ce518b86752a0fc809b80d321",
+            "255458b5562b8aebbfdfc55a6a6fc7ed4a76dc137d371e941a1b354b3f10217b",
+            "fb47beb0eae137a241670d65d3a443e2776cd90a62ac87103552125032446036"
+          ],
+          "controlBlock": "c12bec353e0c7a5d939659570a93bf407a15624ac8a9960b3a3332a6b6b17ee7142d96b3e712e0097e57c8e9bc6c0b484569aef61ce518b86752a0fc809b80d321255458b5562b8aebbfdfc55a6a6fc7ed4a76dc137d371e941a1b354b3f10217bfb47beb0eae137a241670d65d3a443e2776cd90a62ac87103552125032446036"
+        },
+        {
+          "id": "settlement",
+          "kind": "cooperative-settlement-csv-v2",
+          "scriptHex": "56b275208692db0c1d59466c044b448911381ef561868c15c4806d9556d7f7f5f6eff51ead2018ede8df94a4a87ea079a017e57bb58a27c4e401fd9e54404cc6f701cc1ecc4fac",
+          "leafVersion": 192,
+          "leafHash": "4d4aa857fb02af25cf8205b1964c15b0a6cd03474a7eefc5b6adcb989488eed9",
+          "merklePath": [
+            "1e0fd8a64cf51573d308d6f52ccc717b889bb392698654cf2942ce9f4626f0bd",
+            "c8ad7a52641b965a2d9b3d49ccc66625fa3fdf3908088c46e23b0e348323db8e",
+            "fb47beb0eae137a241670d65d3a443e2776cd90a62ac87103552125032446036"
+          ],
+          "controlBlock": "c12bec353e0c7a5d939659570a93bf407a15624ac8a9960b3a3332a6b6b17ee7141e0fd8a64cf51573d308d6f52ccc717b889bb392698654cf2942ce9f4626f0bdc8ad7a52641b965a2d9b3d49ccc66625fa3fdf3908088c46e23b0e348323db8efb47beb0eae137a241670d65d3a443e2776cd90a62ac87103552125032446036"
+        },
+        {
+          "id": "recovery",
+          "kind": "emergency-recovery-csv-v2",
+          "scriptHex": "02e007b275208692db0c1d59466c044b448911381ef561868c15c4806d9556d7f7f5f6eff51eac",
+          "leafVersion": 192,
+          "leafHash": "1e0fd8a64cf51573d308d6f52ccc717b889bb392698654cf2942ce9f4626f0bd",
+          "merklePath": [
+            "4d4aa857fb02af25cf8205b1964c15b0a6cd03474a7eefc5b6adcb989488eed9",
+            "c8ad7a52641b965a2d9b3d49ccc66625fa3fdf3908088c46e23b0e348323db8e",
+            "fb47beb0eae137a241670d65d3a443e2776cd90a62ac87103552125032446036"
+          ],
+          "controlBlock": "c12bec353e0c7a5d939659570a93bf407a15624ac8a9960b3a3332a6b6b17ee7144d4aa857fb02af25cf8205b1964c15b0a6cd03474a7eefc5b6adcb989488eed9c8ad7a52641b965a2d9b3d49ccc66625fa3fdf3908088c46e23b0e348323db8efb47beb0eae137a241670d65d3a443e2776cd90a62ac87103552125032446036"
+        }
+      ],
+      "templateHash": "3e15832dbec99d1b18c3942b8ab15a1b63a2004892d82d6f5b8a563fccf5ab29"
+    },
+    "assertionOutpoint": {
+      "txid": "8bd4e076f0666cb3839f5056ef214aa116dd3e1edbd4528605716f55bb66a656",
+      "vout": 0,
+      "amountSats": "6000",
+      "scriptPubKeyHex": "512050e627de1c7a920e8b6af405d30547c784cf45508af2a50ef1424094d85a66cc"
+    },
+    "settlement": {
+      "kind": "utxoref_pnl_settlement_v2",
+      "version": 2,
+      "stateEnvelope": {
+        "kind": "utxoref_signed_state_checkpoint_v2",
+        "version": 2,
+        "signer": {
+          "algorithm": "ed25519",
+          "keyId": "edc1b04417adf266e84b9c98a8eeaea70e4e9b1e885af023d19499a587dd625a"
+        },
+        "bodyHash": "0e02de61f982cff23ac0ef78471752ddfda88c11b7abed3e598a136e60325aa1",
+        "signatureHex": "e76705163be0441a3acbdebdd1f99acd01b8ff1458bbfb853611e9756a65256b6c8c623487f184451128395572425f57c1e6f57736cde26f2abed9fd9aae750e",
+        "body": {
+          "kind": "utxoref_state_checkpoint_v2",
+          "version": 2,
+          "network": "bitcoin-testnet4",
+          "chainGenesisHash": "00000000da84f2bafbbc53dee25a72ae507ff4914b867c565be350b0da8bf043",
+          "contractId": "9dc15511f1762035ab9d770a9ed4d2f6d7e1a46070a37839c8d10efd81da2764",
+          "epochId": "143688",
+          "snapshotHeight": 143688,
+          "snapshotBlockHash": "0000000000c1de75705dcd14b36c4821fac52a305bb3f6c04b7e2d6c2dbfd44f",
+          "marks": {
+            "source": "testnet4-v2-live-ceremony",
+            "price": 2200
+          },
+          "pnlRows": [
+            {
+              "id": "testnet4-a-wins-from-b",
+              "contractId": "9dc15511f1762035ab9d770a9ed4d2f6d7e1a46070a37839c8d10efd81da2764",
+              "side": "long",
+              "entryPrice": 2100,
+              "closePrice": 2200,
+              "quantityUnits": 30,
+              "collateralSats": 50000,
+              "traderAddress": "A",
+              "counterpartyAddress": "B"
+            },
+            {
+              "id": "testnet4-c-wins-from-b",
+              "contractId": "9dc15511f1762035ab9d770a9ed4d2f6d7e1a46070a37839c8d10efd81da2764",
+              "side": "long",
+              "entryPrice": 2100,
+              "closePrice": 2200,
+              "quantityUnits": 20,
+              "collateralSats": 50000,
+              "traderAddress": "C",
+              "counterpartyAddress": "B"
+            }
+          ],
+          "settlementAddressMap": {
+            "A": {
+              "address": "tb1ql9x97s5q9mxxkw2rmxeaj78yephxz2j7hqg3ev",
+              "scriptPubKeyHex": "0014f94c5f42802ecc6b3943d9b3d978e4c86e612a5e"
+            },
+            "C": {
+              "address": "tb1qzyzkp6usjl3cppt92le86zfqwyddl53z249xp8",
+              "scriptPubKeyHex": "0014110560eb9097e380856557f27d0920711adfd222"
+            }
+          }
+        }
+      },
+      "commitment": {
+        "kind": "utxoref_commitment_v2",
+        "version": 2,
+        "commitmentHash": "6689dc9a34b3c46aac63a308cba9dd01078dc0485cbce10ad8efb0180ee69bc6",
+        "commitmentHex": "5554584f5245465f434f4d4d49544d454e545f56320002001000626974636f696e2d746573746e65743400000000da84f2bafbbc53dee25a72ae507ff4914b867c565be350b0da8bf0439dc15511f1762035ab9d770a9ed4d2f6d7e1a46070a37839c8d10efd81da2764483102000000000065aeb499c57caa4fcd9d117cd38d2c0df2323bc3d8bef82523b72d26aeffedea0100000070170000000000000e02de61f982cff23ac0ef78471752ddfda88c11b7abed3e598a136e60325aa1cb16c1ae5b13be32c28dae8350c4da5cc0f45a30934932dc885e68ac5aac04ab02000000881300000000000066d004ed4aa013f95cbfd7e87f2a0869541117b8295da538df714ab550febea0e803000000000000014011f94957ef276ca121d6a8c0708f586e12ac7c12c939836b3715ac0ca9338cdfa2318f11d91fea1ac468a76e647acb0dd71caf9fb52eabb954cf45cd301006000000e00700008692db0c1d59466c044b448911381ef561868c15c4806d9556d7f7f5f6eff51e18ede8df94a4a87ea079a017e57bb58a27c4e401fd9e54404cc6f701cc1ecc4f",
+        "core": {
+          "kind": "utxoref_commitment_v2",
+          "version": 2,
+          "network": "bitcoin-testnet4",
+          "chainGenesisHash": "00000000da84f2bafbbc53dee25a72ae507ff4914b867c565be350b0da8bf043",
+          "contractId": "9dc15511f1762035ab9d770a9ed4d2f6d7e1a46070a37839c8d10efd81da2764",
+          "epochId": "143688",
+          "fundingRoot": "65aeb499c57caa4fcd9d117cd38d2c0df2323bc3d8bef82523b72d26aeffedea",
+          "fundingCount": 1,
+          "fundingTotalSats": "6000",
+          "stateCheckpointHash": "0e02de61f982cff23ac0ef78471752ddfda88c11b7abed3e598a136e60325aa1",
+          "payoutRoot": "cb16c1ae5b13be32c28dae8350c4da5cc0f45a30934932dc885e68ac5aac04ab",
+          "payoutCount": 2,
+          "payoutTotalSats": "5000",
+          "outputsHash": "66d004ed4aa013f95cbfd7e87f2a0869541117b8295da538df714ab550febea0",
+          "feeSats": "1000",
+          "traceRoot": "014011f94957ef276ca121d6a8c0708f586e12ac7c12c939836b3715ac0ca933",
+          "assertionTreeRoot": "8cdfa2318f11d91fea1ac468a76e647acb0dd71caf9fb52eabb954cf45cd3010",
+          "challengeCsvBlocks": 6,
+          "recoveryCsvBlocks": 2016,
+          "operatorXonly": "8692db0c1d59466c044b448911381ef561868c15c4806d9556d7f7f5f6eff51e",
+          "challengerXonly": "18ede8df94a4a87ea079a017e57bb58a27c4e401fd9e54404cc6f701cc1ecc4f"
+        },
+        "funding": [
+          {
+            "index": 0,
+            "txid": "8bd4e076f0666cb3839f5056ef214aa116dd3e1edbd4528605716f55bb66a656",
+            "vout": 0,
+            "amountSats": "6000",
+            "scriptPubKeyHex": "512050e627de1c7a920e8b6af405d30547c784cf45508af2a50ef1424094d85a66cc"
+          }
+        ],
+        "payouts": [
+          {
+            "index": 0,
+            "contractId": "9dc15511f1762035ab9d770a9ed4d2f6d7e1a46070a37839c8d10efd81da2764",
+            "epochId": "143688",
+            "requestId": "pnl:9dc15511f1762035ab9d770a9ed4d2f6d7e1a46070a37839c8d10efd81da2764:143688:A",
+            "requestIdHash": "0005a15b3607feee28c8e7938d01efc655af8624dbf502789e2ea19dcef5cc7a",
+            "role": "pnl-netted-winner",
+            "roleCode": 1,
+            "accountAddress": "A",
+            "destinationAddress": "tb1ql9x97s5q9mxxkw2rmxeaj78yephxz2j7hqg3ev",
+            "amountSats": "3000",
+            "scriptPubKeyHex": "0014f94c5f42802ecc6b3943d9b3d978e4c86e612a5e"
+          },
+          {
+            "index": 1,
+            "contractId": "9dc15511f1762035ab9d770a9ed4d2f6d7e1a46070a37839c8d10efd81da2764",
+            "epochId": "143688",
+            "requestId": "pnl:9dc15511f1762035ab9d770a9ed4d2f6d7e1a46070a37839c8d10efd81da2764:143688:C",
+            "requestIdHash": "0ac92b9234e8a166c476ee171d7b149278a62bf4cd99451e23715cfcaca8c8ee",
+            "role": "pnl-netted-winner",
+            "roleCode": 1,
+            "accountAddress": "C",
+            "destinationAddress": "tb1qzyzkp6usjl3cppt92le86zfqwyddl53z249xp8",
+            "amountSats": "2000",
+            "scriptPubKeyHex": "0014110560eb9097e380856557f27d0920711adfd222"
+          }
+        ],
+        "outputs": [
+          {
+            "index": 0,
+            "valueSats": "3000",
+            "scriptPubKeyHex": "0014f94c5f42802ecc6b3943d9b3d978e4c86e612a5e"
+          },
+          {
+            "index": 1,
+            "valueSats": "2000",
+            "scriptPubKeyHex": "0014110560eb9097e380856557f27d0920711adfd222"
+          }
+        ]
+      },
+      "fundingOutpoints": [
+        {
+          "index": 0,
+          "txid": "8bd4e076f0666cb3839f5056ef214aa116dd3e1edbd4528605716f55bb66a656",
+          "vout": 0,
+          "amountSats": "6000",
+          "scriptPubKeyHex": "512050e627de1c7a920e8b6af405d30547c784cf45508af2a50ef1424094d85a66cc"
+        }
+      ],
+      "payouts": [
+        {
+          "index": 0,
+          "contractId": "9dc15511f1762035ab9d770a9ed4d2f6d7e1a46070a37839c8d10efd81da2764",
+          "epochId": "143688",
+          "requestId": "pnl:9dc15511f1762035ab9d770a9ed4d2f6d7e1a46070a37839c8d10efd81da2764:143688:A",
+          "requestIdHash": "0005a15b3607feee28c8e7938d01efc655af8624dbf502789e2ea19dcef5cc7a",
+          "role": "pnl-netted-winner",
+          "roleCode": 1,
+          "accountAddress": "A",
+          "destinationAddress": "tb1ql9x97s5q9mxxkw2rmxeaj78yephxz2j7hqg3ev",
+          "amountSats": "3000",
+          "scriptPubKeyHex": "0014f94c5f42802ecc6b3943d9b3d978e4c86e612a5e"
+        },
+        {
+          "index": 1,
+          "contractId": "9dc15511f1762035ab9d770a9ed4d2f6d7e1a46070a37839c8d10efd81da2764",
+          "epochId": "143688",
+          "requestId": "pnl:9dc15511f1762035ab9d770a9ed4d2f6d7e1a46070a37839c8d10efd81da2764:143688:C",
+          "requestIdHash": "0ac92b9234e8a166c476ee171d7b149278a62bf4cd99451e23715cfcaca8c8ee",
+          "role": "pnl-netted-winner",
+          "roleCode": 1,
+          "accountAddress": "C",
+          "destinationAddress": "tb1qzyzkp6usjl3cppt92le86zfqwyddl53z249xp8",
+          "amountSats": "2000",
+          "scriptPubKeyHex": "0014110560eb9097e380856557f27d0920711adfd222"
+        }
+      ],
+      "outputs": [
+        {
+          "index": 0,
+          "valueSats": "3000",
+          "scriptPubKeyHex": "0014f94c5f42802ecc6b3943d9b3d978e4c86e612a5e"
+        },
+        {
+          "index": 1,
+          "valueSats": "2000",
+          "scriptPubKeyHex": "0014110560eb9097e380856557f27d0920711adfd222"
+        }
+      ],
+      "rows": [
+        {
+          "rowId": "testnet4-a-wins-from-b",
+          "positionId": "testnet4-a-wins-from-b",
+          "contractId": "9dc15511f1762035ab9d770a9ed4d2f6d7e1a46070a37839c8d10efd81da2764",
+          "side": "long",
+          "traderAddress": "A",
+          "counterpartyAddress": "B",
+          "longAddress": "A",
+          "shortAddress": "B",
+          "winnerAddress": "A",
+          "loserAddress": "B",
+          "entryPrice": "2100",
+          "closePrice": "2200",
+          "quantityUnits": "30",
+          "priceScale": "1",
+          "collateralSats": "50000",
+          "rawPnlSats": "3000",
+          "transferSats": "3000",
+          "markHash": "53f108fdc02008a0296456a00cc05bc96ff75086c1865cb818420918cf56e111",
+          "positionHash": "00a7824824db9d4384564725b2434832e88af00e1baa86143edea65ec314fa63",
+          "sourceTxid": null,
+          "closeTxid": null,
+          "rowHash": "c6224b6c59006467359252114d8153e92dce54bfdc1e6e26e0e0e51f4b5deaeb"
+        },
+        {
+          "rowId": "testnet4-c-wins-from-b",
+          "positionId": "testnet4-c-wins-from-b",
+          "contractId": "9dc15511f1762035ab9d770a9ed4d2f6d7e1a46070a37839c8d10efd81da2764",
+          "side": "long",
+          "traderAddress": "C",
+          "counterpartyAddress": "B",
+          "longAddress": "C",
+          "shortAddress": "B",
+          "winnerAddress": "C",
+          "loserAddress": "B",
+          "entryPrice": "2100",
+          "closePrice": "2200",
+          "quantityUnits": "20",
+          "priceScale": "1",
+          "collateralSats": "50000",
+          "rawPnlSats": "2000",
+          "transferSats": "2000",
+          "markHash": "53f108fdc02008a0296456a00cc05bc96ff75086c1865cb818420918cf56e111",
+          "positionHash": "43f8652188b3fd1841a08d5885bdcb62e6ed96ed84b659d257a7a06de5c3d67a",
+          "sourceTxid": null,
+          "closeTxid": null,
+          "rowHash": "6b778c787736efa42d0b104ab8448f21e04e0f993aa197a9f0ec610b061eeeef"
+        }
+      ],
+      "grossEdges": [
+        {
+          "edgeIndex": 0,
+          "rowId": "testnet4-a-wins-from-b",
+          "contractId": "9dc15511f1762035ab9d770a9ed4d2f6d7e1a46070a37839c8d10efd81da2764",
+          "fromAddress": "B",
+          "toAddress": "A",
+          "sats": "3000",
+          "rowHash": "c6224b6c59006467359252114d8153e92dce54bfdc1e6e26e0e0e51f4b5deaeb",
+          "edgeId": "30676e8065d144bce8b55daa"
+        },
+        {
+          "edgeIndex": 1,
+          "rowId": "testnet4-c-wins-from-b",
+          "contractId": "9dc15511f1762035ab9d770a9ed4d2f6d7e1a46070a37839c8d10efd81da2764",
+          "fromAddress": "B",
+          "toAddress": "C",
+          "sats": "2000",
+          "rowHash": "6b778c787736efa42d0b104ab8448f21e04e0f993aa197a9f0ec610b061eeeef",
+          "edgeId": "b8665e4207a1f85f118b8bbd"
+        }
+      ],
+      "netBalances": [
+        {
+          "address": "A",
+          "netSats": "3000",
+          "direction": "receive"
+        },
+        {
+          "address": "B",
+          "netSats": "-5000",
+          "direction": "pay"
+        },
+        {
+          "address": "C",
+          "netSats": "2000",
+          "direction": "receive"
+        }
+      ],
+      "unsignedTxHex": "020000000156a666bb556f71058652d4db1e3edd16a14a21ef56509f83b36c66f076e0d48b00000000000600000002b80b000000000000160014f94c5f42802ecc6b3943d9b3d978e4c86e612a5ed007000000000000160014110560eb9097e380856557f27d0920711adfd22200000000"
+    },
+    "settlementPath": {
+      "kind": "cooperative-settlement-csv-v2",
+      "leafId": "settlement",
+      "sighash": "6b4c0d92a94171b4c0277ad49a62662885293792becceacda636d14bf0a5efdd",
+      "operatorSignature": "10ab66940b53103d6c3c7ac36470a98d2e5cb258146972eeb3d1b375ec76b6e4a27a71060a1a726df40046a3926d590a441cb73e1c186a6f181537db49f41de7",
+      "challengerSignature": "54243eeb9d9cd1a09f343a52d42488ce79839c6adac9c6315b652c301650202689195042dfc9f67d360b87380f933d2cb06b97338acda7329699fe6fc7889db0",
+      "witness": [
+        "54243eeb9d9cd1a09f343a52d42488ce79839c6adac9c6315b652c301650202689195042dfc9f67d360b87380f933d2cb06b97338acda7329699fe6fc7889db0",
+        "10ab66940b53103d6c3c7ac36470a98d2e5cb258146972eeb3d1b375ec76b6e4a27a71060a1a726df40046a3926d590a441cb73e1c186a6f181537db49f41de7",
+        "56b275208692db0c1d59466c044b448911381ef561868c15c4806d9556d7f7f5f6eff51ead2018ede8df94a4a87ea079a017e57bb58a27c4e401fd9e54404cc6f701cc1ecc4fac",
+        "c12bec353e0c7a5d939659570a93bf407a15624ac8a9960b3a3332a6b6b17ee7141e0fd8a64cf51573d308d6f52ccc717b889bb392698654cf2942ce9f4626f0bdc8ad7a52641b965a2d9b3d49ccc66625fa3fdf3908088c46e23b0e348323db8efb47beb0eae137a241670d65d3a443e2776cd90a62ac87103552125032446036"
+      ],
+      "witnessTxHex": "0200000000010156a666bb556f71058652d4db1e3edd16a14a21ef56509f83b36c66f076e0d48b00000000000600000002b80b000000000000160014f94c5f42802ecc6b3943d9b3d978e4c86e612a5ed007000000000000160014110560eb9097e380856557f27d0920711adfd222044054243eeb9d9cd1a09f343a52d42488ce79839c6adac9c6315b652c301650202689195042dfc9f67d360b87380f933d2cb06b97338acda7329699fe6fc7889db04010ab66940b53103d6c3c7ac36470a98d2e5cb258146972eeb3d1b375ec76b6e4a27a71060a1a726df40046a3926d590a441cb73e1c186a6f181537db49f41de74756b275208692db0c1d59466c044b448911381ef561868c15c4806d9556d7f7f5f6eff51ead2018ede8df94a4a87ea079a017e57bb58a27c4e401fd9e54404cc6f701cc1ecc4fac81c12bec353e0c7a5d939659570a93bf407a15624ac8a9960b3a3332a6b6b17ee7141e0fd8a64cf51573d308d6f52ccc717b889bb392698654cf2942ce9f4626f0bdc8ad7a52641b965a2d9b3d49ccc66625fa3fdf3908088c46e23b0e348323db8efb47beb0eae137a241670d65d3a443e2776cd90a62ac8710355212503244603600000000"
+    },
+    "recoveryPath": {
+      "kind": "emergency-recovery-csv-v2",
+      "leafId": "recovery",
+      "recoveryFeeSats": "1000",
+      "recoveryScriptPubKeyHex": "001437a9e8e5e126cb8dc177363c7c6f7787d5cd8cf6",
+      "unsignedTxHex": "020000000156a666bb556f71058652d4db1e3edd16a14a21ef56509f83b36c66f076e0d48b0000000000e007000001881300000000000016001437a9e8e5e126cb8dc177363c7c6f7787d5cd8cf600000000",
+      "sighash": "dacc367adbb7c33841f0a93b8276ffcea552b0bdcfb3b8495664e91fe85c8b84",
+      "operatorSignature": "50aed4a1adaa3a1534095e11a54177a5b2a06f79bcf79d70cca8159d4cdf9938efd9695064baf0e71d41ca7e3952e1e6327e85e54c95dd2947346d5cb8cc52e8",
+      "witness": [
+        "50aed4a1adaa3a1534095e11a54177a5b2a06f79bcf79d70cca8159d4cdf9938efd9695064baf0e71d41ca7e3952e1e6327e85e54c95dd2947346d5cb8cc52e8",
+        "02e007b275208692db0c1d59466c044b448911381ef561868c15c4806d9556d7f7f5f6eff51eac",
+        "c12bec353e0c7a5d939659570a93bf407a15624ac8a9960b3a3332a6b6b17ee7144d4aa857fb02af25cf8205b1964c15b0a6cd03474a7eefc5b6adcb989488eed9c8ad7a52641b965a2d9b3d49ccc66625fa3fdf3908088c46e23b0e348323db8efb47beb0eae137a241670d65d3a443e2776cd90a62ac87103552125032446036"
+      ],
+      "witnessTxHex": "0200000000010156a666bb556f71058652d4db1e3edd16a14a21ef56509f83b36c66f076e0d48b0000000000e007000001881300000000000016001437a9e8e5e126cb8dc177363c7c6f7787d5cd8cf6034050aed4a1adaa3a1534095e11a54177a5b2a06f79bcf79d70cca8159d4cdf9938efd9695064baf0e71d41ca7e3952e1e6327e85e54c95dd2947346d5cb8cc52e82702e007b275208692db0c1d59466c044b448911381ef561868c15c4806d9556d7f7f5f6eff51eac81c12bec353e0c7a5d939659570a93bf407a15624ac8a9960b3a3332a6b6b17ee7144d4aa857fb02af25cf8205b1964c15b0a6cd03474a7eefc5b6adcb989488eed9c8ad7a52641b965a2d9b3d49ccc66625fa3fdf3908088c46e23b0e348323db8efb47beb0eae137a241670d65d3a443e2776cd90a62ac8710355212503244603600000000"
+    },
+    "graphHash": "34dfe4a3d05264fa54cd6d99e9a07ac784c22f3011b7704847337a0543d02eee"
+  },
+  "verification": {
+    "ok": true,
+    "graphHash": "34dfe4a3d05264fa54cd6d99e9a07ac784c22f3011b7704847337a0543d02eee",
+    "commitmentHash": "6689dc9a34b3c46aac63a308cba9dd01078dc0485cbce10ad8efb0180ee69bc6",
+    "assertionTreeRoot": "8cdfa2318f11d91fea1ac468a76e647acb0dd71caf9fb52eabb954cf45cd3010",
+    "p2trScriptPubKey": "512050e627de1c7a920e8b6af405d30547c784cf45508af2a50ef1424094d85a66cc",
+    "fraudCount": 0,
+    "challengeCsvBlocks": 6,
+    "recoveryCsvBlocks": 2016
+  },
+  "explorer": {
+    "funding": "https://mempool.space/testnet4/tx/8bd4e076f0666cb3839f5056ef214aa116dd3e1edbd4528605716f55bb66a656",
+    "settlement": "https://mempool.space/testnet4/tx/5a4f837b786369e338e087cf78e1d114d838bf0eadfce5470fe4b84f9b1152d0"
+  },
+  "broadcastAt": "2026-07-10T20:09:27.835Z",
+  "verificationAtBroadcast": {
+    "height": 143688,
+    "blockHash": "0000000000c1de75705dcd14b36c4821fac52a305bb3f6c04b7e2d6c2dbfd44f",
+    "graph": {
+      "ok": true,
+      "graphHash": "34dfe4a3d05264fa54cd6d99e9a07ac784c22f3011b7704847337a0543d02eee",
+      "commitmentHash": "6689dc9a34b3c46aac63a308cba9dd01078dc0485cbce10ad8efb0180ee69bc6",
+      "assertionTreeRoot": "8cdfa2318f11d91fea1ac468a76e647acb0dd71caf9fb52eabb954cf45cd3010",
+      "p2trScriptPubKey": "512050e627de1c7a920e8b6af405d30547c784cf45508af2a50ef1424094d85a66cc",
+      "fraudCount": 0,
+      "challengeCsvBlocks": 6,
+      "recoveryCsvBlocks": 2016
+    }
+  }
+}

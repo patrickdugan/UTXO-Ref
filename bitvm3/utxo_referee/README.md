@@ -25,6 +25,10 @@ const legacy = referee.legacyUnsafe.load({
 
 Do not use `legacyUnsafe` to custody funds.
 
+The implemented V2 transaction flow, live testnet4 evidence, assumptions, and
+remaining mainnet blockers are documented in
+[`UTXOREF_V2_SECURITY_MODEL.md`](./UTXOREF_V2_SECURITY_MODEL.md).
+
 BitVM3 module for verifying sweep transactions against committed settlement rules.
 
 ## Legacy V1 Scope
