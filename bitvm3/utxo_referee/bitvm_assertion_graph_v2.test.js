@@ -6,7 +6,8 @@ const {
 } = require('./utxoref_v2');
 const {
   buildWireSecretSetV2,
-  buildPublicTraceV2
+  buildPublicTraceV2,
+  traceCommitment
 } = require('./bitvm_trace_v2');
 const {
   deriveAssertionNumsXonly,
@@ -144,6 +145,25 @@ test('assertion output uses only the deterministic NUMS internal key', () => {
     rejected = /custom internal key is forbidden/.test(err.message);
   }
   assert(rejected, 'known internal key must be rejected');
+});
+
+test('the P2TR tree itself commits the signed-state trace binding', () => {
+  const fixture = buildFixture();
+  const changedTrace = clone(fixture.publicTrace);
+  changedTrace.binding.stateCheckpointHash = 'ff'.repeat(32);
+  Object.assign(changedTrace, traceCommitment(changedTrace));
+  const changedTemplate = buildBitvmAssertionTemplateV2({
+    network: NETWORK,
+    publicTrace: changedTrace,
+    expectedInputs: { a: 1, b: 1 },
+    operatorXonly: OPERATOR_XONLY,
+    challengerXonly: CHALLENGER_XONLY,
+    challengeCsvBlocks: 6,
+    recoveryCsvBlocks: 144
+  });
+  assert(changedTemplate.assertionTreeRoot !== fixture.template.assertionTreeRoot);
+  assert(changedTemplate.p2trScriptPubKey !== fixture.template.p2trScriptPubKey);
+  assert(changedTemplate.leaves.some((leaf) => leaf.id === 'trace-commitment'));
 });
 
 test('exact settlement is pre-signed by operator and challenger', () => {

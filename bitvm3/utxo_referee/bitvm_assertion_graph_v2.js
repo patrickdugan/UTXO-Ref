@@ -29,6 +29,7 @@ const OP_DROP = 0x75;
 const OP_PUSH32 = 0x20;
 const OP_CHECKSIG = 0xac;
 const OP_CHECKSIGVERIFY = 0xad;
+const OP_RETURN = 0x6a;
 const TAG_TEMPLATE = Buffer.from('UTXOREF_BITVM_ASSERTION_TEMPLATE_V2\0', 'ascii');
 const TAG_GRAPH = Buffer.from('UTXOREF_BITVM_ASSERTION_GRAPH_V2\0', 'ascii');
 const NUMS_DOMAIN = 'UTXORef BitVM assertion NUMS internal key v2';
@@ -127,6 +128,11 @@ function buildEmergencyRecoveryLeafScript(operatorXonly, recoveryCsvBlocks) {
   ]).toString('hex');
 }
 
+function buildTraceCommitmentLeafScript(traceRoot) {
+  const root = Buffer.from(assertHex(traceRoot, 32, 'traceRoot'), 'hex');
+  return Buffer.concat([Buffer.from([OP_RETURN, OP_PUSH32]), root]).toString('hex');
+}
+
 function normalizeExpectedInputs(value) {
   const normalized = {};
   for (const [label, rawBit] of Object.entries(value || {}).sort(([left], [right]) => left.localeCompare(right))) {
@@ -142,6 +148,7 @@ function leafId(leaf, index) {
     return `gate:${leaf.gateIndex}:${leaf.row.inputs.join('')}:${leaf.row.output}`;
   }
   if (leaf.kind === 'input-binding-disprove-v2') return `input:${leaf.label}:${leaf.wrongBit}`;
+  if (leaf.kind === 'trace-root-commitment-v2') return 'trace-commitment';
   if (leaf.kind === 'cooperative-settlement-csv-v2') return 'settlement';
   if (leaf.kind === 'emergency-recovery-csv-v2') return 'recovery';
   return `leaf:${index}`;
@@ -206,9 +213,11 @@ function buildBitvmAssertionTemplateV2(input = {}) {
     challengeCsvBlocks
   );
   const recoveryScript = buildEmergencyRecoveryLeafScript(operatorXonly, recoveryCsvBlocks);
+  const traceCommitmentScript = buildTraceCommitmentLeafScript(input.publicTrace.traceRoot);
   const drafts = [
     ...gateLeaves,
     ...inputLeaves,
+    { kind: 'trace-root-commitment-v2', scriptHex: traceCommitmentScript },
     { kind: 'cooperative-settlement-csv-v2', scriptHex: settlementScript },
     { kind: 'emergency-recovery-csv-v2', scriptHex: recoveryScript }
   ];
@@ -239,6 +248,7 @@ function buildBitvmAssertionTemplateV2(input = {}) {
       .toString('hex'),
     gateDisproveLeafCount: gateLeaves.length,
     inputDisproveLeafCount: inputLeaves.length,
+    traceCommitmentLeafCount: 1,
     leaves
   };
   return { ...core, templateHash: taggedObjectHash(TAG_TEMPLATE, core) };
@@ -731,6 +741,7 @@ module.exports = {
   deriveAssertionNumsXonly,
   buildCooperativeSettlementLeafScript,
   buildEmergencyRecoveryLeafScript,
+  buildTraceCommitmentLeafScript,
   buildSettlementTraceBindingV2,
   buildBitvmAssertionTemplateV2,
   verifyBitvmAssertionTemplateV2,

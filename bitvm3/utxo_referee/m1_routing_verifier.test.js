@@ -4,10 +4,11 @@
  * Run: node bitvm3/utxo_referee/m1_routing_verifier.test.js
  */
 
+const api = require('./index');
 const {
   deriveSettlementRouting,
   verifySettlementRouting
-} = require('./index');
+} = api.legacyUnsafe.load({ acknowledgeUnsafePrototype: true });
 
 let passed = 0;
 let failed = 0;
