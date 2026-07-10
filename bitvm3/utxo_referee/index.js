@@ -1,30 +1,16 @@
 /**
  * UTXO Referee - BitVM3 Module
  *
- * Verifies sweep transactions against committed settlement rules.
- * Receipt tokens are 1:1 with sats - no price/conversion logic.
+ * V2 verifies signed state, exact settlement transactions, secret-safe BitVM
+ * traces, and a NUMS-keyed optimistic assertion graph.
  *
  * Usage:
  *   const referee = require('./bitvm3/utxo_referee');
  *
- *   // Build payout tree
- *   const leaves = [
- *     { epochId: 1, recipientScriptPubKey: '...', amountSats: 10000 },
- *     ...
- *   ];
- *   const { root, proofs } = referee.buildTreeWithProofs(leaves);
+ *   const { settlement, trace, assertionGraph } = referee.v2;
  *
- *   // Create commitment
- *   const commitment = new referee.CommitmentPackage({
- *     epochId: 1,
- *     withdrawalRoot: root,
- *     capSats: 100000,
- *     residualDest: '...'
- *   });
- *
- *   // Verify sweep
- *   const sweep = new referee.SweepObject({ ... });
- *   const result = referee.verifySweep(commitment, sweep);
+ * The historical sweep API is available only through:
+ *   referee.legacyUnsafe.load({ acknowledgeUnsafePrototype: true })
  */
 
 const types = require('./types');
@@ -108,6 +94,9 @@ const bitvmArenaSecurityReport = require('./bitvm_arena_security_report');
 const tradeLayerBitvmStack = require('./tradelayer_bitvm_stack');
 const tradeLayerUtxoRefLivePath = require('./tradelayer_utxoref_live_path');
 const rbtcDlcZkSettlementAdapter = require('./rbtc_dlc_zk_settlement_adapter');
+const utxoRefV2 = require('./utxoref_v2');
+const bitvmTraceV2 = require('./bitvm_trace_v2');
+const bitvmAssertionGraphV2 = require('./bitvm_assertion_graph_v2');
 
 module.exports = {
   // Types
@@ -651,3 +640,104 @@ module.exports = {
   tradeLayerUtxoRefLivePath,
   rbtcDlcZkSettlementAdapter
 };
+
+// The original sweep and BitVM demos remain importable from their source files
+// for reproducibility, but they are not safe defaults. Package consumers must
+// acknowledge that these APIs are prototype-only before loading them.
+const LEGACY_UNSAFE_EXPORT_NAMES = Object.freeze([
+  'CommitmentPackage',
+  'PayoutLeaf',
+  'PayoutOutput',
+  'ResidualOutput',
+  'SweepObject',
+  'LEAF_TAG',
+  'PayoutMerkleTree',
+  'computeWithdrawalRoot',
+  'buildTreeWithProofs',
+  'ZERO_HASH',
+  'verifySweep',
+  'verifyRules',
+  'deriveSettlementRouting',
+  'verifySettlementRouting',
+  'RefereeCircuit',
+  'generateRefereeCircuit',
+  'toCircuitWitness',
+  'buildBitCommitment',
+  'revealBit',
+  'buildEquivocationPunishmentScript',
+  'buildEquivocationWitness',
+  'BITVM_GATES',
+  'buildBitvmWire',
+  'buildBitvmRevealScript',
+  'bitvmGateInvalidRows',
+  'buildBitvmGateDisproveLeaves',
+  'findBitvmGateFraud',
+  'buildBitvmComparatorCircuit',
+  'evaluateBitvmComparator',
+  'commitBitvmCircuitWires',
+  'buildBitvmComparatorDisproveLeaves',
+  'findBitvmComparatorFraud',
+  'buildBitvmTimeoutLeafScript',
+  'buildBitvmDisputeTree',
+  'commitBitvmBoundWires',
+  'buildBitvmInputBindingLeaves',
+  'findBitvmInputFraud',
+  'buildBitvmSolvencyAssertTree',
+  'buildBitvmSha256Circuit',
+  'evaluateBitvmSha256',
+  'buildTradeLayerPerpPnlSettlement',
+  'verifyTradeLayerPerpPnlSettlement',
+  'buildTradeLayerPerpPnlChallenge',
+  'verifyTradeLayerPerpPnlChallenge',
+  'buildTradeLayerBitvmStackBundle',
+  'verifyTradeLayerBitvmStackBundle',
+  'buildTradeLayerDashboardView',
+  'tradeLayerDashboardJsonSchema',
+  'loadTradeLayerUtxoRefDecodedFinalTxFromRpc',
+  'buildTradeLayerUtxoRefDecodedFinalTx',
+  'buildTradeLayerUtxoRefFinalOutputReview',
+  'buildTradeLayerUtxoRefFinalOutputChallenge',
+  'buildTradeLayerUtxoRefLivePathEvidence',
+  'verifyTradeLayerUtxoRefLivePathEvidence',
+  'types',
+  'merkle',
+  'verify',
+  'circuit',
+  'tradeLayerWithdrawalQueueReferee',
+  'tradeLayerBitvmGadgets',
+  'tradeLayerBitvmCircuit',
+  'tradeLayerBitvmComparator',
+  'tradeLayerBitvmDispute',
+  'tradeLayerBitvmSolvencyReferee',
+  'tradeLayerBitvmSha256',
+  'tradeLayerPerpPnlReferee',
+  'tradeLayerBitvmStack',
+  'tradeLayerUtxoRefLivePath'
+]);
+
+const legacyUnsafeApi = {};
+for (const name of LEGACY_UNSAFE_EXPORT_NAMES) {
+  if (Object.prototype.hasOwnProperty.call(module.exports, name)) {
+    legacyUnsafeApi[name] = module.exports[name];
+    delete module.exports[name];
+  }
+}
+Object.freeze(legacyUnsafeApi);
+
+const legacyUnsafe = Object.freeze({
+  warning: 'UNSAFE V1 PROTOTYPES: self-authored roots, reusable proofs, public wire secrets, or key-path bypasses may be present.',
+  exportNames: LEGACY_UNSAFE_EXPORT_NAMES,
+  load(options = {}) {
+    if (options.acknowledgeUnsafePrototype !== true) {
+      throw new Error('legacyUnsafe requires acknowledgeUnsafePrototype: true');
+    }
+    return legacyUnsafeApi;
+  }
+});
+
+module.exports.v2 = Object.freeze({
+  settlement: utxoRefV2,
+  trace: bitvmTraceV2,
+  assertionGraph: bitvmAssertionGraphV2
+});
+module.exports.legacyUnsafe = legacyUnsafe;

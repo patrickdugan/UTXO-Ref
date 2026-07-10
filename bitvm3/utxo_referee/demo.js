@@ -11,6 +11,7 @@
  * Run: node bitvm3/utxo_referee/demo.js
  */
 
+const api = require('./index');
 const {
   CommitmentPackage,
   PayoutLeaf,
@@ -18,7 +19,7 @@ const {
   buildTreeWithProofs,
   verifySweep,
   generateRefereeCircuit
-} = require('./index');
+} = api.legacyUnsafe.load({ acknowledgeUnsafePrototype: true });
 
 console.log('=== UTXO Referee Demo ===\n');
 

@@ -4,6 +4,7 @@
  * Run: node bitvm3/utxo_referee/test.js
  */
 
+const api = require('./index');
 const {
   CommitmentPackage,
   PayoutLeaf,
@@ -12,7 +13,7 @@ const {
   buildTreeWithProofs,
   verifySweep,
   verifyRules
-} = require('./index');
+} = api.legacyUnsafe.load({ acknowledgeUnsafePrototype: true });
 
 // Test helpers
 let passed = 0;

@@ -1,8 +1,33 @@
 # UTXO Referee
 
+> **Current security target:** use the namespaced V2 API for a Bitcoin
+> testnet4 alpha. The original V1 sweep and BitVM demos are retained only as
+> explicitly acknowledged unsafe prototypes.
+
+```javascript
+const referee = require('./bitvm3/utxo_referee');
+const { settlement, trace, assertionGraph } = referee.v2;
+```
+
+V2 requires an allowlisted Ed25519 state checkpoint, exact ordered settlement
+outputs, unique indexed payout requests, secret-safe wire reveals, a
+deterministic NUMS Taproot internal key, an immediate challenger fraud path,
+dual-signed delayed settlement, and a longer operator recovery delay.
+
+Historical V1 APIs are no longer exported at the package top level. Replaying
+old demonstrations requires an explicit acknowledgement:
+
+```javascript
+const legacy = referee.legacyUnsafe.load({
+  acknowledgeUnsafePrototype: true
+});
+```
+
+Do not use `legacyUnsafe` to custody funds.
+
 BitVM3 module for verifying sweep transactions against committed settlement rules.
 
-## Scope
+## Legacy V1 Scope
 
 The UTXO Referee verifies a single statement:
 
@@ -99,16 +124,19 @@ Simplified representation of the sweep transaction:
 
 ```javascript
 const referee = require('./bitvm3/utxo_referee');
+const legacy = referee.legacyUnsafe.load({
+  acknowledgeUnsafePrototype: true
+});
 
 // Build payout tree
 const leaves = [
   { epochId: 1, recipientScriptPubKey: '...', amountSats: 10000 },
   { epochId: 1, recipientScriptPubKey: '...', amountSats: 20000 }
 ];
-const { root, proofs } = referee.buildTreeWithProofs(leaves);
+const { root, proofs } = legacy.buildTreeWithProofs(leaves);
 
 // Create commitment
-const commitment = new referee.CommitmentPackage({
+const commitment = new legacy.CommitmentPackage({
   epochId: 1,
   withdrawalRoot: root,
   capSats: 100000,
@@ -116,7 +144,7 @@ const commitment = new referee.CommitmentPackage({
 });
 
 // Build sweep
-const sweep = new referee.SweepObject({
+const sweep = new legacy.SweepObject({
   epochIdCommitted: 1,
   payoutOutputs: leaves.map((l, i) => ({
     recipientScriptPubKey: l.recipientScriptPubKey,
@@ -130,7 +158,7 @@ const sweep = new referee.SweepObject({
 });
 
 // Verify
-const result = referee.verifySweep(commitment, sweep);
+const result = legacy.verifySweep(commitment, sweep);
 if (result.ok) {
   console.log('Sweep is valid');
 } else {
@@ -519,7 +547,8 @@ For exact output verification, use the routing verifier:
 
 ```javascript
 const referee = require('./bitvm3/utxo_referee');
-const result = referee.verifySettlementRouting(
+const legacy = referee.legacyUnsafe.load({ acknowledgeUnsafePrototype: true });
+const result = legacy.verifySettlementRouting(
   {
     route: 'roll',
     collateralSats: 798100n,
