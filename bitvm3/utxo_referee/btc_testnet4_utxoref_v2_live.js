@@ -73,6 +73,7 @@ function usage() {
     '  --settlement-fee-sats <n> default 1000',
     '  --challenge-csv <n>       default 6 (test profile)',
     '  --recovery-csv <n>        default 2016',
+    '  --fraud-mode <honest|gate|input> default honest; stage only',
     '  --force-new               replace an unbroadcast staged artifact'
   ].join('\n');
 }
@@ -232,6 +233,28 @@ function buildDemoStateBody(input) {
   };
 }
 
+function traceValuesForMode(mode) {
+  switch (String(mode || 'honest').toLowerCase()) {
+    case 'honest':
+      return {
+        mode: 'honest',
+        values: { state_checkpoint_valid: 1, payout_vector_exact: 1, settlement_authorized: 1 }
+      };
+    case 'gate':
+      return {
+        mode: 'gate',
+        values: { state_checkpoint_valid: 1, payout_vector_exact: 1, settlement_authorized: 0 }
+      };
+    case 'input':
+      return {
+        mode: 'input',
+        values: { state_checkpoint_valid: 0, payout_vector_exact: 1, settlement_authorized: 0 }
+      };
+    default:
+      throw new Error('fraudMode must be honest, gate, or input');
+  }
+}
+
 function publicKeyPem(publicKey) {
   return publicKey.export({ type: 'spki', format: 'pem' });
 }
@@ -322,6 +345,7 @@ async function stage(runtime, args) {
     keyId: stateSignerKeyId
   });
   const binding = buildSettlementTraceBindingV2({ stateEnvelope, feeSats: settlementFeeSats });
+  const traceMode = traceValuesForMode(args.fraudMode);
   const wireBundle = buildWireSecretSetV2([
     'state_checkpoint_valid',
     'payout_vector_exact',
@@ -337,11 +361,7 @@ async function stage(runtime, args) {
       output: 'settlement_authorized'
     }],
     wireBundle,
-    values: {
-      state_checkpoint_valid: 1,
-      payout_vector_exact: 1,
-      settlement_authorized: 1
-    }
+    values: traceMode.values
   });
   const expectedInputs = { state_checkpoint_valid: 1, payout_vector_exact: 1 };
   const template = buildBitvmAssertionTemplateV2({
@@ -408,6 +428,7 @@ async function stage(runtime, args) {
     createdAt: new Date().toISOString(),
     network: 'bitcoin-testnet4',
     status: 'staged',
+    traceMode: traceMode.mode,
     chain: {
       snapshotHeight: chain.blocks,
       snapshotBlockHash: chain.bestblockhash,
@@ -616,6 +637,7 @@ if (require.main === module) {
 module.exports = {
   parseArgs,
   buildDemoStateBody,
+  traceValuesForMode,
   graphVerificationOptions,
   verifyFundingDecode,
   stage,

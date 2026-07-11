@@ -89,12 +89,21 @@ function parseSecretFile(filePath) {
   return text.toLowerCase();
 }
 
+function authorizationReference(artifact) {
+  const authorization = artifact.verificationAtBroadcast || {
+    height: artifact.chain?.snapshotHeight,
+    blockHash: artifact.chain?.snapshotBlockHash,
+    source: 'staged-snapshot'
+  };
+  if (!Number.isSafeInteger(authorization.height) || !authorization.blockHash) {
+    throw new Error('artifact lacks a valid authorization or staging snapshot height');
+  }
+  return authorization;
+}
+
 function verificationOptions(artifact) {
   const publicKey = crypto.createPublicKey(artifact.keyCeremony?.stateSignerPublicKeyPem);
-  const authorization = artifact.verificationAtBroadcast;
-  if (!authorization || !Number.isSafeInteger(authorization.height) || !authorization.blockHash) {
-    throw new Error('artifact lacks an immutable funding authorization height');
-  }
+  const authorization = authorizationReference(artifact);
   return {
     trustedSigners: { [artifact.keyCeremony.stateSignerKeyId]: publicKey },
     expectedNetwork: 'bitcoin-testnet4',
@@ -109,6 +118,7 @@ function inspectArtifact(artifact) {
     throw new Error('wrong UTXORef V2 public artifact kind or version');
   }
   const options = verificationOptions(artifact);
+  const authorization = authorizationReference(artifact);
   const verification = verifyBitvmAssertionGraphV2(artifact.graph, options);
   if (!verification.ok) throw new Error(`public assertion graph failed verification: ${verification.reason}`);
   const gateEvidence = findGateDisproveV2(artifact.graph.publicTrace, artifact.graph.template.challengerXonly);
@@ -121,6 +131,8 @@ function inspectArtifact(artifact) {
   return {
     graphHash: artifact.graph.graphHash,
     authorizationHeight: options.currentHeight,
+    authorizationBlockHash: authorization.blockHash,
+    authorizationSource: authorization.source || 'broadcast',
     assertionOutpoint: artifact.graph.assertionOutpoint,
     challengeCsvBlocks: artifact.graph.template.challengeCsvBlocks,
     recoveryCsvBlocks: artifact.graph.template.recoveryCsvBlocks,
@@ -167,7 +179,7 @@ async function runTick(args, rpc, state) {
   const chain = await rpc('getblockchaininfo');
   if (chain.chain !== 'testnet4') throw new Error(`wrong chain: ${chain.chain}`);
   const authorizationBlock = await rpc('getblockhash', [inspected.authorizationHeight]);
-  if (authorizationBlock !== artifact.verificationAtBroadcast.blockHash) {
+  if (authorizationBlock !== inspected.authorizationBlockHash) {
     throw new Error('artifact authorization block is not in the active chain');
   }
   const assertion = inspected.assertionOutpoint;
@@ -184,7 +196,13 @@ async function runTick(args, rpc, state) {
     assertionConfirmations: confirmationCount,
     fraudDetected: inspected.fraudDetected,
     fraudType: inspected.fraudType,
-    action: inspected.fraudDetected && txout ? 'challenge_required' : txout ? 'monitoring' : 'assertion_spent',
+    action: inspected.fraudDetected && txout
+      ? 'challenge_required'
+      : txout
+      ? 'monitoring'
+      : artifact.status === 'staged'
+      ? 'awaiting_funding_broadcast'
+      : 'assertion_spent',
     disprove: null
   };
 
@@ -274,6 +292,7 @@ if (require.main === module) {
 
 module.exports = {
   parseArgs,
+  authorizationReference,
   verificationOptions,
   inspectArtifact,
   runTick,

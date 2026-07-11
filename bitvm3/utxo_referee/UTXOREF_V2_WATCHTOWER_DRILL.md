@@ -47,8 +47,14 @@ spend construction.
 
 ## Funded Fraud Drill
 
-1. Produce a separate testnet assertion whose public trace has a committed
-   invalid gate row or wrong bound input.
+1. Stage a separate assertion with an intentional fraud mode. This does not
+   broadcast or spend funds:
+
+   ```powershell
+   node bitvm3\utxo_referee\btc_testnet4_utxoref_v2_live.js --fraud-mode gate --artifact bitvm3\utxo_referee\artifacts\tmp\utxoref_v2_gate_drill.json
+   ```
+
+   Use `--fraud-mode input` to exercise the input-binding path instead.
 2. Broadcast the assertion funding transaction and wait for one confirmation.
 3. Run the VPS watcher without a secret. It must emit
    `challenge_signature_required` with the exact public evidence.
