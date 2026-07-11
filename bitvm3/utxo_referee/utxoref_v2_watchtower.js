@@ -272,6 +272,7 @@ async function main() {
   do {
     try {
       const result = await runTick(args, rpc, state);
+      delete state.lastError;
       console.log(JSON.stringify(result));
     } catch (err) {
       state.lastError = { at: new Date().toISOString(), message: err.message };

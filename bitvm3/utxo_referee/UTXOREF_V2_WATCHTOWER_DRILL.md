@@ -23,12 +23,23 @@ local Bitcoin Core RPC <- authenticated reverse tunnel -> VPS watcher
 local challenger signer <- public challenge request ---/
 ```
 
-The reverse tunnel keeps the node RPC bound to localhost. The VPS must use a
-dedicated, low-privilege RPC account; do not copy the local Core cookie to the
-server.
+The reverse tunnel keeps the node RPC bound to localhost. The local bridge
+uses Core's rotating cookie and exposes only `getblockchaininfo`,
+`getblockhash`, `gettxout`, and `testmempoolaccept`; it does not permit remote
+broadcast or wallet RPC. The server receives only proxy credentials, never the
+local Core cookie.
 
 Install the standalone service from `deploy/` under `/opt/utxoref-v2-watchtower`
 and store credentials in `/etc/utxoref-v2-watchtower.env` with mode `0600`.
+The included `deploy/install_utxoref_v2_watchtower.sh` creates the service
+account, state directory, environment file, and systemd unit but does not
+enable the service until its RPC access has been configured.
+
+On the local node, `deploy/start_utxoref_v2_watchtower_bridge.ps1` starts the
+localhost-only method-filtering proxy, creates an SSH reverse tunnel, installs
+the VPS environment file, and enables the service. It stores its generated
+proxy credential and process IDs outside the repository under the Bitcoin
+testnet key-backup directory.
 
 ## Local Smoke Check
 
