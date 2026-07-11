@@ -3,7 +3,7 @@
   "version": 2,
   "createdAt": "2026-07-10T20:09:16.437Z",
   "network": "bitcoin-testnet4",
-  "status": "broadcast",
+  "status": "settlement-broadcast",
   "chain": {
     "snapshotHeight": 143688,
     "snapshotBlockHash": "0000000000c1de75705dcd14b36c4821fac52a305bb3f6c04b7e2d6c2dbfd44f",
@@ -692,5 +692,23 @@
       "challengeCsvBlocks": 6,
       "recoveryCsvBlocks": 2016
     }
+  },
+  "settlementBroadcastAt": "2026-07-11T18:49:15.140Z",
+  "settlement": {
+    "txid": "5a4f837b786369e338e087cf78e1d114d838bf0eadfce5470fe4b84f9b1152d0",
+    "mempoolAccept": {
+      "txid": "5a4f837b786369e338e087cf78e1d114d838bf0eadfce5470fe4b84f9b1152d0",
+      "wtxid": "0458ed64921695d54fe0c2b25749ee3985619f6a016697edfff2e17c230152cf",
+      "allowed": true,
+      "vsize": 197,
+      "fees": {
+        "base": 0.00001,
+        "effective-feerate": 0.00005076,
+        "effective-includes": [
+          "0458ed64921695d54fe0c2b25749ee3985619f6a016697edfff2e17c230152cf"
+        ]
+      }
+    },
+    "explorer": "https://mempool.space/testnet4/tx/5a4f837b786369e338e087cf78e1d114d838bf0eadfce5470fe4b84f9b1152d0"
   }
 }
