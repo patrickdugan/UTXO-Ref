@@ -538,7 +538,12 @@ async function status(runtime, args = {}) {
   const confirmations = txout ? Number(txout.confirmations || 0) : fundingStatus.confirmations;
   const challengeCsvBlocks = artifact.graph.template.challengeCsvBlocks;
   const settlementTxid = txidFromUnsignedHex(artifact.graph.settlement.unsignedTxHex);
-  const settlementKnown = await runtime.rpc('getrawtransaction', [settlementTxid, true]).catch(() => null);
+  const settlementRaw = await runtime.rpc('getrawtransaction', [settlementTxid, true]).catch(() => null);
+  const settlementWallet = settlementRaw
+    ? null
+    : await runtime.rpc('gettransaction', [settlementTxid, true, false], runtime.wallet).catch(() => null);
+  const settlementKnown = settlementRaw || settlementWallet;
+  const settlementConfirmations = Number(settlementKnown?.confirmations || 0);
   let settlementMempoolAccept = null;
   if (txout && fundingStatus.known) {
     [settlementMempoolAccept] = await runtime.rpc('testmempoolaccept', [[artifact.graph.settlementPath.witnessTxHex]]);
@@ -580,6 +585,8 @@ async function status(runtime, args = {}) {
     settlementRejectReason: settlementMempoolAccept?.['reject-reason'] || null,
     settlementTxid,
     settlementBroadcastTxid,
+    settlementKnown: Boolean(settlementKnown),
+    settlementConfirmations,
     explorer: {
       funding: EXPLORER + artifact.funding.txid,
       settlement: EXPLORER + settlementTxid
