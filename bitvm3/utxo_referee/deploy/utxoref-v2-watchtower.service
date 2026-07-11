@@ -1,0 +1,22 @@
+[Unit]
+Description=UTXORef V2 public-graph watchtower
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=utxoref
+Group=utxoref
+EnvironmentFile=/etc/utxoref-v2-watchtower.env
+WorkingDirectory=/opt/utxoref-v2-watchtower
+ExecStart=/usr/bin/node /opt/utxoref-v2-watchtower/utxoref_v2_watchtower.js --artifact /var/lib/utxoref-v2-watchtower/btc_testnet4_utxoref_v2_latest.json --state-path /var/lib/utxoref-v2-watchtower/state.json --alert-path /var/lib/utxoref-v2-watchtower/alerts.jsonl --poll-interval-ms 30000
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/utxoref-v2-watchtower
+
+[Install]
+WantedBy=multi-user.target
