@@ -11,7 +11,7 @@ The current live assertion funding transaction is:
 - Funding: [8bd4e076f0666cb3839f5056ef214aa116dd3e1edbd4528605716f55bb66a656](https://mempool.space/testnet4/tx/8bd4e076f0666cb3839f5056ef214aa116dd3e1edbd4528605716f55bb66a656)
 - Assertion outpoint: `8bd4e076f0666cb3839f5056ef214aa116dd3e1edbd4528605716f55bb66a656:0`
 - Assertion value: `6,000 sats`
-- Settlement broadcast: [5a4f837b786369e338e087cf78e1d114d838bf0eadfce5470fe4b84f9b1152d0](https://mempool.space/testnet4/tx/5a4f837b786369e338e087cf78e1d114d838bf0eadfce5470fe4b84f9b1152d0)
+- Settlement confirmed in block 143,764: [5a4f837b786369e338e087cf78e1d114d838bf0eadfce5470fe4b84f9b1152d0](https://mempool.space/testnet4/tx/5a4f837b786369e338e087cf78e1d114d838bf0eadfce5470fe4b84f9b1152d0)
 - Graph hash: `34dfe4a3d05264fa54cd6d99e9a07ac784c22f3011b7704847337a0543d02eee`
 - V2 commitment: `6689dc9a34b3c46aac63a308cba9dd01078dc0485cbce10ad8efb0180ee69bc6`
 
@@ -114,8 +114,7 @@ Bitcoin testnet key-backup directory.
    mempool tests for every path.
 5. Expand the circuit from externally verified boolean facts to the exact
    predicates that should be Bitcoin-challengeable.
-6. Confirm the broadcast testnet settlement and run a funded fraudulent-trace
-   challenge drill.
+6. Run a funded fraudulent-trace challenge drill.
 7. Obtain an independent cryptographic and transaction-graph review before
    assigning real value.
 
