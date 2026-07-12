@@ -5,10 +5,11 @@ const path = require('path');
 const { rpcFactory } = require('./tradelayer_send_rpc_sweep');
 const tr = require('./tradelayer_taproot');
 const { txidFromUnsignedHex } = require('./recover_btc_testnet4_reserve_vault');
-const { loadState, saveJsonAtomic } = require('./utxoref_v2_watchtower');
+const { loadState, saveJsonAtomic, inspectArtifact } = require('./utxoref_v2_watchtower');
 
 const DEFAULT_STATE_PATH = path.join(__dirname, 'artifacts', 'live', 'utxoref_v2_watchtower_state.json');
 const DEFAULT_ARTIFACT_PATH = path.join(__dirname, 'artifacts', 'live', 'btc_testnet4_utxoref_v2_latest.json');
+const DEFAULT_TRUST_POLICY_PATH = path.join(__dirname, 'artifacts', 'live', 'utxoref_v2_watchtower_trust_policy.json');
 const MIN_OUTPUT_SATS = 330n;
 
 function parseArgs(argv) {
@@ -110,6 +111,22 @@ function assertExistingCpfpBinding(plan, decoded) {
   return true;
 }
 
+function assertSignedCpfpBinding(plan, decoded) {
+  if (decoded?.txid !== plan.txid) throw new Error('signed CPFP txid does not match the exact plan');
+  if (!Array.isArray(decoded.vin) || decoded.vin.length !== 1) throw new Error('signed CPFP must have exactly one input');
+  const input = decoded.vin[0];
+  if (input.txid !== plan.parentTxid || Number(input.vout) !== plan.parentVout) {
+    throw new Error('signed CPFP does not spend the exact challenge output');
+  }
+  if (Number(input.sequence) !== 0xfffffffd) throw new Error('signed CPFP sequence mismatch');
+  if (!Array.isArray(decoded.vout) || decoded.vout.length !== 1) throw new Error('signed CPFP must have exactly one output');
+  if (btcToSats(decoded.vout[0].value) !== BigInt(plan.outputSats)) throw new Error('signed CPFP output amount mismatch');
+  if (String(decoded.vout[0].scriptPubKey?.hex || '').toLowerCase() !== plan.parentScriptPubKeyHex) {
+    throw new Error('signed CPFP output script mismatch');
+  }
+  return true;
+}
+
 function buildCpfpPlan(state, args, artifact) {
   verifyChallengeStateBinding(artifact, state);
   const tracked = state?.challenge;
@@ -177,10 +194,13 @@ async function preflightCpfp(plan, args, rpc) {
   if (!args.wallet) throw new Error('--wallet is required for CPFP signing');
   const signed = await rpc('signrawtransactionwithwallet', [plan.unsignedTxHex], args.wallet);
   if (!signed?.complete || !signed.hex) throw new Error('wallet could not completely sign the CPFP child');
+  const decodedSigned = await rpc('decoderawtransaction', [signed.hex]);
+  assertSignedCpfpBinding(plan, decodedSigned);
   const [mempoolAccept] = plan.replacementOf
     ? [{ allowed: null, replacementPreflight: 'sendrawtransaction-required-for-conflict' }]
     : await rpc('testmempoolaccept', [[signed.hex]]);
-  return { signedHex: signed.hex, mempoolAccept };
+  if (mempoolAccept?.txid && mempoolAccept.txid !== plan.txid) throw new Error('CPFP preflight txid mismatch');
+  return { signedHex: signed.hex, decodedSigned, mempoolAccept };
 }
 
 async function runCpfp(state, args, rpc, artifact) {
@@ -195,6 +215,7 @@ async function runCpfp(state, args, rpc, artifact) {
   const priorChild = state.challenge.cpfp || null;
   state.challenge.cpfp = {
     txid: broadcastTxid,
+    wtxid: preflight.mempoolAccept?.wtxid || preflight.decodedSigned?.hash || null,
     vout: 0,
     parentTxid: plan.parentTxid,
     feeSats: plan.feeSats,
@@ -230,9 +251,13 @@ async function main() {
   if (args.help) { console.log(usage()); return; }
   const statePath = path.resolve(args.statePath || DEFAULT_STATE_PATH);
   const artifactPath = path.resolve(args.artifact || DEFAULT_ARTIFACT_PATH);
+  const trustPolicyPath = path.resolve(args.trustPolicy || DEFAULT_TRUST_POLICY_PATH);
   if (!fs.existsSync(artifactPath)) throw new Error(`public artifact does not exist: ${artifactPath}`);
+  if (!fs.existsSync(trustPolicyPath)) throw new Error(`trust policy does not exist: ${trustPolicyPath}`);
   const state = loadState(statePath);
   const artifact = JSON.parse(fs.readFileSync(artifactPath, 'utf8'));
+  const trustPolicy = JSON.parse(fs.readFileSync(trustPolicyPath, 'utf8'));
+  inspectArtifact(artifact, trustPolicy);
   const outcome = await runCpfp(state, args, resolveRpc(args), artifact);
   if (outcome.action === 'cpfp_broadcast' || outcome.action === 'cpfp_replaced') saveJsonAtomic(statePath, state);
   console.log(JSON.stringify(outcome));
@@ -251,6 +276,7 @@ module.exports = {
   nativeSegwitScript,
   verifyChallengeStateBinding,
   assertExistingCpfpBinding,
+  assertSignedCpfpBinding,
   buildCpfpPlan,
   preflightCpfp,
   runCpfp

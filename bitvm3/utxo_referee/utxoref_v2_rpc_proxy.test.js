@@ -1,7 +1,8 @@
 const {
   ALLOWED_METHODS,
   parseArgs,
-  authorized
+  authorized,
+  validateRpcPayload
 } = require('./utxoref_v2_rpc_proxy');
 
 let passed = 0;
@@ -34,6 +35,16 @@ test('CLI parser accepts a localhost-only binding configuration', () => {
   assert(args.datadir === 'D:\\BitcoinTestnet');
   assert(args.host === '127.0.0.1');
   assert(args.port === '48334');
+});
+
+test('malformed authenticated payloads fail without dereferencing them', () => {
+  for (const payload of [null, [], 'x', 7, { method: 'gettxout', params: 'wrong' }]) {
+    const result = validateRpcPayload(payload);
+    assert(!result.ok && result.statusCode === 400);
+  }
+  const forbidden = validateRpcPayload({ method: 'sendrawtransaction', params: [] });
+  assert(!forbidden.ok && forbidden.statusCode === 403);
+  assert(validateRpcPayload({ method: 'gettxout', params: [] }).ok);
 });
 
 console.log(`\n${failed ? 'FAIL' : 'PASS'}: ${passed} passed${failed ? `, ${failed} failed` : ''}\n`);

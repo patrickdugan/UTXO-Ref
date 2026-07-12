@@ -47,9 +47,11 @@ to 144 blocks. Emergency recovery remains 2,016 blocks.
 
 ## What V2 Checks
 
-The state checkpoint must have a valid Ed25519 signature from an explicitly
-allowlisted key. Network, genesis hash, snapshot height, and maximum age are
-checked before funding authorization.
+The state checkpoint must have a valid Ed25519 signature from an externally
+pinned key. A separate trust policy binds network, genesis hash, graph hash,
+and signer key; the public artifact cannot nominate its own trust roots.
+Snapshot age is checked against the current chain tip before new authority is
+granted.
 
 PNL rows, gross transfer edges, net balances, payout destinations, amounts,
 and ordering are recomputed from the signed state. The settlement transaction
@@ -121,10 +123,9 @@ Bitcoin testnet key-backup directory.
    reproducible review/signing protocol.
 2. Replace the single state signer or formally accept it as the protocol trust
    root; threshold authorization is not implemented.
-3. Observe the funded testnet4 BIP125 replacement and exact one-input CPFP
-   package through confirmation. Construction, broadcast, dependency checks,
-   durable replacement history, wallet-isolated CPFP signing, and watcher
-   tracking have all been exercised live.
+3. Define package-fee and propagation policy for partitioned mempools. The live
+   testnet4 drill proved that a locally accepted CPFP replacement can lose to
+   its superseded transaction on another miner's mempool.
 4. Broaden adversarial package and mempool tests for every path. The forced
    reorg/reconfirmation lifecycle is covered against an isolated real Core
    regtest node; it has not and should not be forced against public testnet4.
@@ -141,3 +142,5 @@ Bitcoin testnet key-backup directory.
 - `btc_testnet4_utxoref_v2_live.js`: staged funding, broadcast, status, settlement
 - `recover_btc_testnet4_reserve_vault.js`: old-vault recovery preflight and receipt
 - `utxoref_v2_challenge_cpfp.js`: local wallet-owned challenge fee rescue
+- `artifacts/live/utxoref_v2_watchtower_trust_policy.json`: external testnet4 signer and graph pins
+- `UTXOREF_V2_REDTEAM_TESTNET4.md`: adversarial campaign, live conflict, and residual risks

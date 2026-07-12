@@ -81,6 +81,12 @@ test('CPFP signer preflights and broadcasts without adding wallet inputs', async
       scriptPubKey: { hex: plan.parentScriptPubKeyHex }
     };
     if (method === 'signrawtransactionwithwallet') return { complete: true, hex: 'signed-child' };
+    if (method === 'decoderawtransaction') return {
+      txid: plan.txid,
+      hash: '99'.repeat(32),
+      vin: [{ txid: plan.parentTxid, vout: plan.parentVout, sequence: 0xfffffffd }],
+      vout: [{ n: 0, value: 0.00004, scriptPubKey: { hex: plan.parentScriptPubKeyHex } }]
+    };
     if (method === 'testmempoolaccept') return [{ allowed: true, vsize: 110 }];
     if (method === 'sendrawtransaction') return plan.txid;
     throw new Error(`unexpected RPC ${method}`);
@@ -128,14 +134,6 @@ test('CPFP replacement verifies the parent and records child history', async () 
     replacements: []
   };
   const plan = buildCpfpPlan(state, { feeSats: '1500', replaceChild: true }, artifact);
-  const rpc = async (method) => {
-    if (method === 'getblockchaininfo') return { chain: 'testnet4' };
-    if (method === 'getmempoolentry') return { 'bip125-replaceable': true };
-    if (method === 'getrawtransaction') return method;
-    if (method === 'signrawtransactionwithwallet') return { complete: true, hex: 'signed-replacement-child' };
-    if (method === 'sendrawtransaction') return plan.txid;
-    throw new Error(`unexpected RPC ${method}`);
-  };
   const replacementRpc = async (method, params) => {
     if (method === 'getblockchaininfo') return { chain: 'testnet4' };
     if (method === 'getmempoolentry') return { 'bip125-replaceable': true };
@@ -148,6 +146,12 @@ test('CPFP replacement verifies the parent and records child history', async () 
       vout: [{ n: 0, value: 0.00005, scriptPubKey: { hex: plan.parentScriptPubKeyHex } }]
     };
     if (method === 'signrawtransactionwithwallet') return { complete: true, hex: 'signed-replacement-child' };
+    if (method === 'decoderawtransaction') return {
+      txid: plan.txid,
+      hash: '88'.repeat(32),
+      vin: [{ txid: plan.parentTxid, vout: plan.parentVout, sequence: 0xfffffffd }],
+      vout: [{ n: 0, value: 0.000035, scriptPubKey: { hex: plan.parentScriptPubKeyHex } }]
+    };
     if (method === 'sendrawtransaction') return plan.txid;
     throw new Error(`unexpected RPC ${method}`);
   };
@@ -202,6 +206,28 @@ test('fabricated challenge state cannot authorize a CPFP plan', () => {
   try { buildCpfpPlan(state, { feeSats: '1000' }, artifact); }
   catch (err) { rejected = /does not bind to the artifact assertion/.test(err.message); }
   assert(rejected);
+});
+
+test('wallet-signed CPFP mutation is rejected before broadcast', async () => {
+  const { state, artifact } = fixture();
+  let sent = false;
+  const plan = buildCpfpPlan(state, { feeSats: '1000' }, artifact);
+  let rejected = false;
+  try {
+    await runCpfp(state, { feeSats: '1000', wallet: 'utxoref-testnet', broadcast: true }, async (method) => {
+      if (method === 'getblockchaininfo') return { chain: 'testnet4' };
+      if (method === 'gettxout') return { confirmations: 0, value: 0.00005, scriptPubKey: { hex: plan.parentScriptPubKeyHex } };
+      if (method === 'signrawtransactionwithwallet') return { complete: true, hex: 'mutated-signed-child' };
+      if (method === 'decoderawtransaction') return {
+        txid: 'ff'.repeat(32),
+        vin: [{ txid: plan.parentTxid, vout: plan.parentVout, sequence: 0xfffffffd }],
+        vout: [{ n: 0, value: 0.00004, scriptPubKey: { hex: plan.parentScriptPubKeyHex } }]
+      };
+      if (method === 'sendrawtransaction') { sent = true; return plan.txid; }
+      throw new Error(method);
+    }, artifact);
+  } catch (err) { rejected = /signed CPFP txid/.test(err.message); }
+  assert(rejected && !sent);
 });
 
 (async () => {

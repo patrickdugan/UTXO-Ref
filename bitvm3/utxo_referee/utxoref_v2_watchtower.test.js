@@ -5,6 +5,7 @@ const {
   parseArgs,
   inspectArtifact,
   authorizationPolicy,
+  challengeStateBindsArtifact,
   deterministicChallengeAux,
   feeCandidates,
   isFeePolicyReject,
@@ -12,6 +13,7 @@ const {
   replacementFeeCandidates,
   assertTrackedOutputBinding,
   assertChallengeTransactionBinding,
+  assertRpcSnapshotTip,
   deriveChallengeLifecycle,
   saveJsonAtomic,
   loadState
@@ -26,15 +28,55 @@ function test(name, fn) {
 function assert(condition, message) { if (!condition) throw new Error(message || 'assertion failed'); }
 
 const ARTIFACT_PATH = path.join(__dirname, 'artifacts', 'live', 'btc_testnet4_utxoref_v2_latest.json');
+const TRUST_POLICY_PATH = path.join(__dirname, 'artifacts', 'live', 'utxoref_v2_watchtower_trust_policy.json');
+const TRUST_POLICY = JSON.parse(fs.readFileSync(TRUST_POLICY_PATH, 'utf8'));
+const tr = require('./tradelayer_taproot');
+const { txidFromUnsignedHex } = require('./recover_btc_testnet4_reserve_vault');
+
+function boundChallengeState(artifact) {
+  const assertion = artifact.graph.assertionOutpoint;
+  const feeSats = 1000n;
+  const outputSats = BigInt(assertion.amountSats) - feeSats;
+  const script = `0014${'44'.repeat(20)}`;
+  const unsigned = tr.serializeUnsignedTx(2, [{
+    outpoint: tr.outpoint(assertion.txid, assertion.vout),
+    sequence: 0xfffffffd
+  }], [{ valueSats: outputSats, script }], 0);
+  return { challenge: {
+    graphHash: artifact.graph.graphHash,
+    txid: txidFromUnsignedHex(unsigned),
+    vout: 0,
+    outputSats: outputSats.toString(),
+    feeSats: feeSats.toString(),
+    challengeScriptPubKeyHex: script
+  } };
+}
 
 console.log('\n=== UTXORef V2 Watchtower Tests ===\n');
 
 test('public artifact reconstructs and verifies without a challenger secret', () => {
   const artifact = JSON.parse(fs.readFileSync(ARTIFACT_PATH, 'utf8'));
-  const result = inspectArtifact(artifact);
+  const result = inspectArtifact(artifact, TRUST_POLICY);
   assert(result.graphHash === artifact.graph.graphHash);
   assert(result.fraudDetected === false, 'honest graph must not trigger a fraud alert');
   assert(result.assertionOutpoint.txid === artifact.funding.txid);
+});
+
+test('public artifact cannot nominate its own signer or graph trust', () => {
+  const artifact = JSON.parse(fs.readFileSync(ARTIFACT_PATH, 'utf8'));
+  const untrusted = JSON.parse(JSON.stringify(artifact));
+  untrusted.graph.graphHash = 'ff'.repeat(32);
+  let rejected = false;
+  try { inspectArtifact(untrusted, TRUST_POLICY); }
+  catch (err) { rejected = /not externally allowlisted/.test(err.message); }
+  assert(rejected);
+
+  const wrongSigner = JSON.parse(JSON.stringify(TRUST_POLICY));
+  wrongSigner.allowedGraphs[artifact.graph.graphHash].signerKeyId = '00'.repeat(32);
+  rejected = false;
+  try { inspectArtifact(artifact, wrongSigner); }
+  catch (err) { rejected = /not trusted for this graph/.test(err.message); }
+  assert(rejected);
 });
 
 test('watchtower CLI keeps monitor and broadcast authority distinct', () => {
@@ -57,15 +99,21 @@ test('challenge signing auxiliary data is stable and leaf-bound', () => {
 });
 
 test('authorization reorg permits only an already tracked graph to remain monitored', () => {
-  const inspected = { graphHash: '11'.repeat(32), authorizationBlockHash: '22'.repeat(32) };
-  const untracked = authorizationPolicy(inspected, '33'.repeat(32), {});
+  const artifact = JSON.parse(fs.readFileSync(ARTIFACT_PATH, 'utf8'));
+  const inspected = inspectArtifact(artifact, TRUST_POLICY);
+  const tip = inspected.stateSnapshotHeight;
+  const untracked = authorizationPolicy(inspected, '33'.repeat(32), {}, tip, artifact);
   assert(untracked.reorged && !untracked.monitoringOnly && !untracked.authorizedForNewChallenge);
-  const tracked = authorizationPolicy(inspected, '33'.repeat(32), {
-    challenge: { graphHash: inspected.graphHash }
-  });
+  const forged = authorizationPolicy(inspected, '33'.repeat(32), { challenge: { graphHash: inspected.graphHash } }, tip, artifact);
+  assert(!forged.tracked && !forged.monitoringOnly);
+  const state = boundChallengeState(artifact);
+  assert(challengeStateBindsArtifact(artifact, state));
+  const tracked = authorizationPolicy(inspected, '33'.repeat(32), state, tip, artifact);
   assert(tracked.reorged && tracked.monitoringOnly && !tracked.authorizedForNewChallenge);
-  const active = authorizationPolicy(inspected, inspected.authorizationBlockHash, {});
+  const active = authorizationPolicy(inspected, inspected.authorizationBlockHash, {}, tip, artifact);
   assert(!active.reorged && active.authorizedForNewChallenge);
+  const stale = authorizationPolicy(inspected, inspected.authorizationBlockHash, state, tip + 7, artifact);
+  assert(stale.stale && stale.monitoringOnly && !stale.authorizedForNewChallenge);
 });
 
 test('challenge fee ladder is bounded by policy and the dust floor', () => {
@@ -168,6 +216,14 @@ test('challenge lifecycle distinguishes mempool, confirmation, and reorg states'
   });
   assert(reorgedToMempool.action === 'challenge_in_mempool');
   assert(reorgedToMempool.reorgDetected === true);
+});
+
+test('monitoring rejects a mixed Core chain snapshot', () => {
+  let rejected = false;
+  try {
+    assertRpcSnapshotTip({ bestblock: '55'.repeat(32) }, '66'.repeat(32), 'challenge output');
+  } catch (err) { rejected = /snapshot does not match/.test(err.message); }
+  assert(rejected);
 });
 
 test('state is written atomically and resumes after a restart', () => {

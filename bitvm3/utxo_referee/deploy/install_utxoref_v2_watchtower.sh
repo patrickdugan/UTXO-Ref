@@ -5,6 +5,8 @@ APP_DIR="${APP_DIR:-/opt/utxoref-v2-watchtower}"
 STATE_DIR="${STATE_DIR:-/var/lib/utxoref-v2-watchtower}"
 ENV_FILE="${ENV_FILE:-/etc/utxoref-v2-watchtower.env}"
 SERVICE_FILE="${APP_DIR}/deploy/utxoref-v2-watchtower.service"
+TRUST_POLICY_FILE="${TRUST_POLICY_FILE:-/etc/utxoref-v2-watchtower-trust-policy.json}"
+TRUST_POLICY_SOURCE="${TRUST_POLICY_SOURCE:-}"
 
 if [[ ! -f "${APP_DIR}/utxoref_v2_watchtower.js" ]]; then
   echo "Missing watcher application at ${APP_DIR}" >&2
@@ -17,6 +19,15 @@ fi
 
 sudo install -d -o utxoref -g utxoref -m 0750 "${STATE_DIR}"
 sudo install -m 0644 "${SERVICE_FILE}" /etc/systemd/system/utxoref-v2-watchtower.service
+
+if [[ -n "${TRUST_POLICY_SOURCE}" ]]; then
+  sudo install -o root -g root -m 0644 "${TRUST_POLICY_SOURCE}" "${TRUST_POLICY_FILE}"
+fi
+if [[ ! -f "${TRUST_POLICY_FILE}" ]]; then
+  echo "Missing externally reviewed trust policy at ${TRUST_POLICY_FILE}." >&2
+  echo "Set TRUST_POLICY_SOURCE to install one; the public artifact cannot supply its own trust anchors." >&2
+  exit 1
+fi
 
 if [[ ! -f "${ENV_FILE}" ]]; then
   sudo install -m 0600 "${APP_DIR}/deploy/utxoref-v2-watchtower.env.example" "${ENV_FILE}"

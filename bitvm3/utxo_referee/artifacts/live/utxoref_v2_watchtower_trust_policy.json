@@ -1,0 +1,19 @@
+{
+  "kind": "utxoref_v2_watchtower_trust_policy",
+  "version": 1,
+  "policyId": "utxoref-v2-testnet4-alpha-20260712",
+  "network": "bitcoin-testnet4",
+  "genesisHash": "00000000da84f2bafbbc53dee25a72ae507ff4914b867c565be350b0da8bf043",
+  "trustedSigners": {
+    "edc1b04417adf266e84b9c98a8eeaea70e4e9b1e885af023d19499a587dd625a": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAQ6FcPZ98RZlO34lNEuNtTSBWycVdhKIUsbEfmquhVK4=\n-----END PUBLIC KEY-----\n",
+    "5d1a8edc3776eae3a65241e157b754b79f62973f617ce5e3b90a1eae2aa007bb": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEArWr9g07BmfAFKTIW82bJMWFKuUkvdozCBqHVWErlx5c=\n-----END PUBLIC KEY-----\n"
+  },
+  "allowedGraphs": {
+    "34dfe4a3d05264fa54cd6d99e9a07ac784c22f3011b7704847337a0543d02eee": {
+      "signerKeyId": "edc1b04417adf266e84b9c98a8eeaea70e4e9b1e885af023d19499a587dd625a"
+    },
+    "e98272fd3c934e8e1298b6e0a820d1b86769c4fa0606327b6e3c3a509d252531": {
+      "signerKeyId": "5d1a8edc3776eae3a65241e157b754b79f62973f617ce5e3b90a1eae2aa007bb"
+    }
+  }
+}

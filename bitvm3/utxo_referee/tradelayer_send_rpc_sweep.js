@@ -44,6 +44,10 @@ function rpcFactory({ rpcUrl, rpcUser, rpcPass, requestId = 'tradelayer-send-swe
         res.on('data', (chunk) => chunks.push(chunk));
         res.on('end', () => {
           const body = Buffer.concat(chunks).toString('utf8');
+          if (res.statusCode < 200 || res.statusCode >= 300) {
+            reject(new Error(`RPC ${method} returned HTTP ${res.statusCode}: ${body.slice(0, 160)}`));
+            return;
+          }
           let json;
           try {
             json = JSON.parse(body);
@@ -53,6 +57,10 @@ function rpcFactory({ rpcUrl, rpcUser, rpcPass, requestId = 'tradelayer-send-swe
           }
           if (json.error) {
             reject(new Error(`RPC ${method} failed: ${json.error.message}`));
+            return;
+          }
+          if (json.id !== requestId) {
+            reject(new Error(`RPC ${method} response id mismatch`));
             return;
           }
           resolve(json.result);

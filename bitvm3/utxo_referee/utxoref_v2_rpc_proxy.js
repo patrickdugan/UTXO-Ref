@@ -53,6 +53,19 @@ function sendJson(response, statusCode, body) {
   response.end(encoded);
 }
 
+function validateRpcPayload(payload) {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    return { ok: false, statusCode: 400, error: 'invalid JSON-RPC request' };
+  }
+  if (typeof payload.method !== 'string' || !Array.isArray(payload.params || [])) {
+    return { ok: false, statusCode: 400, error: 'invalid JSON-RPC request' };
+  }
+  if (!ALLOWED_METHODS.has(payload.method)) {
+    return { ok: false, statusCode: 403, error: 'RPC method is not permitted' };
+  }
+  return { ok: true };
+}
+
 function createProxy(options) {
   const datadir = path.resolve(options.datadir);
   const rpcUrl = options.rpcUrl || 'http://127.0.0.1:48332';
@@ -76,21 +89,26 @@ function createProxy(options) {
     }
     const chunks = [];
     let size = 0;
+    let tooLarge = false;
     request.on('data', (chunk) => {
+      if (tooLarge) return;
       size += chunk.length;
       if (size > 1024 * 1024) {
-        request.destroy(new Error('request too large'));
+        tooLarge = true;
+        sendJson(response, 413, { error: 'request too large' });
         return;
       }
       chunks.push(chunk);
     });
     request.on('error', () => {});
     request.on('end', async () => {
+      if (tooLarge) return;
       let payload;
       try { payload = JSON.parse(Buffer.concat(chunks).toString('utf8')); }
       catch (_err) { sendJson(response, 400, { error: 'invalid JSON-RPC request' }); return; }
-      if (!ALLOWED_METHODS.has(payload.method) || !Array.isArray(payload.params || [])) {
-        sendJson(response, 403, { error: 'RPC method is not permitted' });
+      const validation = validateRpcPayload(payload);
+      if (!validation.ok) {
+        sendJson(response, validation.statusCode, { error: validation.error });
         return;
       }
       try {
@@ -125,4 +143,4 @@ function main() {
 
 if (require.main === module) main();
 
-module.exports = { ALLOWED_METHODS, parseArgs, readCookie, authorized, createProxy };
+module.exports = { ALLOWED_METHODS, parseArgs, readCookie, authorized, validateRpcPayload, createProxy };

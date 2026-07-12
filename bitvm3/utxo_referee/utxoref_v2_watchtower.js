@@ -5,6 +5,7 @@ const path = require('path');
 const crypto = require('crypto');
 const { rpcFactory } = require('./tradelayer_send_rpc_sweep');
 const { addressToScriptPubKey } = require('./tradelayer_pnl_route_adapter');
+const tr = require('./tradelayer_taproot');
 const {
   findGateDisproveV2,
   findInputBindingDisproveV2
@@ -16,6 +17,7 @@ const {
 const { txidFromUnsignedHex } = require('./recover_btc_testnet4_reserve_vault');
 
 const DEFAULT_ARTIFACT = path.join(__dirname, 'artifacts', 'live', 'btc_testnet4_utxoref_v2_latest.json');
+const DEFAULT_TRUST_POLICY = path.join(__dirname, 'artifacts', 'live', 'utxoref_v2_watchtower_trust_policy.json');
 const DEFAULT_STATE_PATH = path.join(__dirname, 'artifacts', 'live', 'utxoref_v2_watchtower_state.json');
 const DEFAULT_ALERT_PATH = path.join(__dirname, 'artifacts', 'live', 'utxoref_v2_watchtower_alerts.jsonl');
 const DEFAULT_POLL_INTERVAL_MS = 30000;
@@ -42,7 +44,8 @@ function usage() {
     'UTXORef V2 public-graph watchtower.',
     '',
     'Monitor only:',
-    '  node utxoref_v2_watchtower.js --once --artifact <public-artifact.json>',
+    '  node utxoref_v2_watchtower.js --once --artifact <public-artifact.json> \\',
+    '    --trust-policy <externally-pinned-policy.json>',
     '',
     'Testnet fraud seizure, only with an explicitly supplied challenger key:',
     '  node utxoref_v2_watchtower.js --once --challenger-secret-file <path> \\',
@@ -109,34 +112,85 @@ function authorizationReference(artifact) {
   return authorization;
 }
 
-function verificationOptions(artifact) {
-  const publicKey = crypto.createPublicKey(artifact.keyCeremony?.stateSignerPublicKeyPem);
+function trustBindingForArtifact(artifact, trustPolicy) {
+  if (trustPolicy?.kind !== 'utxoref_v2_watchtower_trust_policy' || trustPolicy.version !== 1) {
+    throw new Error('wrong UTXORef V2 trust policy kind or version');
+  }
+  const network = String(trustPolicy.network || '');
+  const genesisHash = String(trustPolicy.genesisHash || '').toLowerCase();
+  if (network !== 'bitcoin-testnet4' || !/^[0-9a-f]{64}$/.test(genesisHash)) {
+    throw new Error('trust policy network or genesis hash is invalid');
+  }
+  if (artifact.chain?.genesisHash !== genesisHash) throw new Error('artifact genesis hash is not externally trusted');
+  const graphHash = String(artifact.graph?.graphHash || '').toLowerCase();
+  const graphPolicy = trustPolicy.allowedGraphs?.[graphHash];
+  if (!graphPolicy) throw new Error('artifact graph hash is not externally allowlisted');
+  const signerKeyId = String(graphPolicy.signerKeyId || '');
+  if (artifact.keyCeremony?.stateSignerKeyId !== signerKeyId) throw new Error('artifact signer is not trusted for this graph');
+  const publicKeyPem = trustPolicy.trustedSigners?.[signerKeyId];
+  if (!publicKeyPem) throw new Error('trust policy lacks the graph signer public key');
+  const publicKey = crypto.createPublicKey(publicKeyPem);
+  const canonicalPem = publicKey.export({ type: 'spki', format: 'pem' });
+  if (artifact.keyCeremony?.stateSignerPublicKeyPem !== canonicalPem) {
+    throw new Error('artifact signer public key differs from the external trust policy');
+  }
+  return { network, genesisHash, graphHash, signerKeyId, publicKey, policyId: trustPolicy.policyId || null };
+}
+
+function verificationOptions(artifact, trustPolicy) {
+  const trust = trustBindingForArtifact(artifact, trustPolicy);
   const authorization = authorizationReference(artifact);
   return {
-    trustedSigners: { [artifact.keyCeremony.stateSignerKeyId]: publicKey },
-    expectedNetwork: 'bitcoin-testnet4',
-    expectedGenesisHash: artifact.chain.genesisHash,
+    trustedSigners: { [trust.signerKeyId]: trust.publicKey },
+    expectedNetwork: trust.network,
+    expectedGenesisHash: trust.genesisHash,
     currentHeight: authorization.height,
     maxAgeBlocks: 6
   };
 }
 
-function authorizationPolicy(inspected, activeBlockHash, state) {
+function challengeStateBindsArtifact(artifact, state) {
+  try {
+    const tracked = state?.challenge;
+    const assertion = artifact.graph.assertionOutpoint;
+    if (!tracked || tracked.graphHash !== artifact.graph.graphHash || Number(tracked.vout || 0) !== 0) return false;
+    const outputSats = BigInt(tracked.outputSats);
+    const feeSats = BigInt(tracked.feeSats);
+    if (outputSats <= 0n || feeSats <= 0n || outputSats + feeSats !== BigInt(assertion.amountSats)) return false;
+    const script = String(tracked.challengeScriptPubKeyHex || '').toLowerCase();
+    if (!/^[0-9a-f]+$/.test(script) || script.length % 2) return false;
+    const unsigned = tr.serializeUnsignedTx(2, [{
+      outpoint: tr.outpoint(assertion.txid, assertion.vout),
+      sequence: 0xfffffffd
+    }], [{ valueSats: outputSats, script }], 0);
+    return txidFromUnsignedHex(unsigned) === tracked.txid;
+  } catch (_err) {
+    return false;
+  }
+}
+
+function authorizationPolicy(inspected, activeBlockHash, state, currentHeight, artifact) {
   const reorged = activeBlockHash !== inspected.authorizationBlockHash;
-  const tracked = state?.challenge?.graphHash === inspected.graphHash;
+  const snapshotHeight = Number(inspected.stateSnapshotHeight);
+  const ageBlocks = Number(currentHeight) - snapshotHeight;
+  const stale = !Number.isSafeInteger(ageBlocks) || ageBlocks < 0 || ageBlocks > 6;
+  const tracked = challengeStateBindsArtifact(artifact, state);
   return {
     reorged,
+    stale,
+    ageBlocks,
     tracked,
-    monitoringOnly: reorged && tracked,
-    authorizedForNewChallenge: !reorged
+    monitoringOnly: (reorged || stale) && tracked,
+    authorizedForNewChallenge: !reorged && !stale
   };
 }
 
-function inspectArtifact(artifact) {
+function inspectArtifact(artifact, trustPolicy) {
   if (artifact?.kind !== 'btc_testnet4_utxoref_v2_live_ceremony' || artifact.version !== 2) {
     throw new Error('wrong UTXORef V2 public artifact kind or version');
   }
-  const options = verificationOptions(artifact);
+  const options = verificationOptions(artifact, trustPolicy);
+  const trust = trustBindingForArtifact(artifact, trustPolicy);
   const authorization = authorizationReference(artifact);
   const verification = verifyBitvmAssertionGraphV2(artifact.graph, options);
   if (!verification.ok) throw new Error(`public assertion graph failed verification: ${verification.reason}`);
@@ -152,6 +206,9 @@ function inspectArtifact(artifact) {
     authorizationHeight: options.currentHeight,
     authorizationBlockHash: authorization.blockHash,
     authorizationSource: authorization.source || 'broadcast',
+    stateSnapshotHeight: Number(artifact.graph.settlement?.stateEnvelope?.body?.snapshotHeight),
+    trustPolicyId: trust.policyId,
+    trustPolicy,
     assertionOutpoint: artifact.graph.assertionOutpoint,
     challengeCsvBlocks: artifact.graph.template.challengeCsvBlocks,
     recoveryCsvBlocks: artifact.graph.template.recoveryCsvBlocks,
@@ -173,13 +230,19 @@ function resolveRpc(args) {
 }
 
 function challengeScript(args) {
+  let script;
   if (args.challengeScriptPubKeyHex) {
     const text = String(args.challengeScriptPubKeyHex).toLowerCase();
     if (!/^[0-9a-f]+$/.test(text) || text.length % 2) throw new Error('challenge scriptPubKey must be even-length hex');
-    return text;
+    script = text;
+  } else {
+    if (!args.challengeAddress) throw new Error('a challenge address or scriptPubKey is required to prepare a disprove transaction');
+    script = addressToScriptPubKey(args.challengeAddress, 'bitcoin-testnet4').toString('hex');
   }
-  if (!args.challengeAddress) throw new Error('a challenge address or scriptPubKey is required to prepare a disprove transaction');
-  return addressToScriptPubKey(args.challengeAddress, 'bitcoin-testnet4').toString('hex');
+  if (!/^(0014[0-9a-f]{40}|5120[0-9a-f]{64})$/.test(script)) {
+    throw new Error('challenge destination must be native P2WPKH or P2TR');
+  }
+  return script;
 }
 
 function deterministicChallengeAux(graphHash, evidence) {
@@ -268,6 +331,12 @@ function assertChallengeTransactionBinding(artifact, tracked, decoded) {
   return true;
 }
 
+function assertRpcSnapshotTip(txout, expectedTipHash, fieldName) {
+  if (txout?.bestblock && expectedTipHash && txout.bestblock !== expectedTipHash) {
+    throw new Error(`${fieldName} RPC snapshot does not match the tick chain tip`);
+  }
+}
+
 function deriveChallengeLifecycle(input = {}) {
   const txout = input.txout || null;
   const prior = input.priorConfirmation || null;
@@ -303,7 +372,7 @@ function deriveChallengeLifecycle(input = {}) {
   return { action: 'challenge_missing', confirmations: 0, confirmation: null, reorgDetected: false };
 }
 
-async function monitorChallenge(rpc, state, currentHeight) {
+async function monitorChallenge(rpc, state, currentHeight, expectedTipHash = null) {
   const challenge = state.challenge;
   let tracked = challenge?.cpfp?.txid ? challenge.cpfp : challenge;
   if (!tracked?.txid) return null;
@@ -346,6 +415,7 @@ async function monitorChallenge(rpc, state, currentHeight) {
     }
   }
   if (txout) assertTrackedOutputBinding(challenge, tracked, txout);
+  assertRpcSnapshotTip(txout, expectedTipHash, 'challenge output');
   let inclusionBlockHash = null;
   let activeHashAtPriorHeight = null;
   if (txout && Number(txout.confirmations || 0) > 0) {
@@ -388,7 +458,7 @@ async function prepareChallenge(artifact, inspected, args, rpc) {
   let selected = null;
   for (const feeSats of feeCandidates(args, inspected.assertionOutpoint.amountSats)) {
     const disprove = buildBitvmDisproveV2(artifact.graph, {
-      stateVerification: verificationOptions(artifact),
+      stateVerification: verificationOptions(artifact, inspected.trustPolicy),
       challengerSecret: parseSecretFile(args.challengerSecretFile),
       challengerAux: deterministicChallengeAux(inspected.graphHash, inspected.evidence),
       feeSats,
@@ -412,7 +482,7 @@ async function prepareChallenge(artifact, inspected, args, rpc) {
 
 function buildChallengeAtFee(artifact, inspected, args, feeSats, scriptPubKeyHex) {
   return buildBitvmDisproveV2(artifact.graph, {
-    stateVerification: verificationOptions(artifact),
+    stateVerification: verificationOptions(artifact, inspected.trustPolicy),
     challengerSecret: parseSecretFile(args.challengerSecretFile),
     challengerAux: deterministicChallengeAux(inspected.graphHash, inspected.evidence),
     feeSats,
@@ -479,29 +549,38 @@ function alertFingerprint(result) {
     fraudType: result.fraudType,
     assertionUnspent: result.assertionUnspent,
     action: result.action,
-    challengeTxid: result.challenge?.txid || result.disprove?.broadcastTxid || null
+    challengeTxid: result.challenge?.txid || result.disprove?.broadcastTxid || null,
+    authorizationActiveBlockHash: result.authorization?.activeBlockHash || null,
+    authorizationReorged: result.authorization?.reorged || false,
+    authorizationStale: result.authorization?.stale || false
   })).digest('hex');
 }
 
 async function runTick(args, rpc, state) {
   const artifactPath = path.resolve(args.artifact || DEFAULT_ARTIFACT);
   const artifact = readJson(artifactPath, 'public artifact');
-  const inspected = inspectArtifact(artifact);
+  const trustPolicyPath = path.resolve(args.trustPolicy || DEFAULT_TRUST_POLICY);
+  const trustPolicy = readJson(trustPolicyPath, 'watchtower trust policy');
+  const inspected = inspectArtifact(artifact, trustPolicy);
   const chain = await rpc('getblockchaininfo');
   if (chain.chain !== 'testnet4') throw new Error(`wrong chain: ${chain.chain}`);
   const authorizationBlock = await rpc('getblockhash', [inspected.authorizationHeight]);
-  const authorization = authorizationPolicy(inspected, authorizationBlock, state);
-  if (authorization.reorged && !authorization.tracked) {
-    throw new Error('artifact authorization block is not in the active chain');
+  const authorization = authorizationPolicy(inspected, authorizationBlock, state, Number(chain.blocks), artifact);
+  if (!authorization.authorizedForNewChallenge && !authorization.tracked) {
+    throw new Error(authorization.reorged
+      ? 'artifact authorization block is not in the active chain'
+      : 'artifact state checkpoint is stale at the current chain tip');
   }
   const assertion = inspected.assertionOutpoint;
   const txout = await rpc('gettxout', [assertion.txid, assertion.vout, true]);
+  assertRpcSnapshotTip(txout, chain.bestblockhash, 'assertion output');
   const currentHeight = Number(chain.blocks);
   const confirmationCount = Number(txout?.confirmations || 0);
   const result = {
     kind: 'utxoref_v2_watchtower_tick',
     at: new Date().toISOString(),
     graphHash: inspected.graphHash,
+    trustPolicyId: inspected.trustPolicyId,
     height: currentHeight,
     assertionOutpoint: `${assertion.txid}:${assertion.vout}`,
     assertionUnspent: Boolean(txout),
@@ -513,6 +592,8 @@ async function runTick(args, rpc, state) {
       recordedBlockHash: inspected.authorizationBlockHash,
       activeBlockHash: authorizationBlock,
       reorged: authorization.reorged,
+      stale: authorization.stale,
+      ageBlocks: authorization.ageBlocks,
       monitoringOnly: authorization.monitoringOnly
     },
     action: inspected.fraudDetected && txout
@@ -521,12 +602,12 @@ async function runTick(args, rpc, state) {
       ? 'monitoring'
       : artifact.status === 'staged'
       ? 'awaiting_funding_broadcast'
-      : 'assertion_spent',
+      : 'assertion_spent_unresolved',
     disprove: null
   };
 
   if (!txout && state.challenge?.graphHash === inspected.graphHash) {
-    result.challenge = await monitorChallenge(rpc, state, currentHeight);
+    result.challenge = await monitorChallenge(rpc, state, currentHeight, chain.bestblockhash);
     result.action = result.challenge.action;
     if (args.replaceChallenge) {
       if (!authorization.authorizedForNewChallenge) {
@@ -568,6 +649,9 @@ async function runTick(args, rpc, state) {
         result.action = 'challenge_preflight_rejected';
       } else if (args.broadcast) {
         result.disprove.broadcastTxid = await rpc('sendrawtransaction', [disprove.witnessTxHex]);
+        if (result.disprove.broadcastTxid !== result.disprove.txid) {
+          throw new Error(`challenge broadcast txid mismatch: expected ${result.disprove.txid}, got ${result.disprove.broadcastTxid}`);
+        }
         result.action = 'challenge_broadcast';
         state.challenge = {
           graphHash: inspected.graphHash,
@@ -595,7 +679,7 @@ async function runTick(args, rpc, state) {
   state.lastStatus = result.action;
   state.lastHeight = currentHeight;
   const fingerprint = alertFingerprint(result);
-  if (result.action !== 'monitoring' && result.action !== 'assertion_spent' && state.lastAlertFingerprint !== fingerprint) {
+  if (result.action !== 'monitoring' && state.lastAlertFingerprint !== fingerprint) {
     state.alertCount = Number(state.alertCount || 0) + 1;
     state.lastAlertFingerprint = fingerprint;
     appendJsonLine(args.alertPath || DEFAULT_ALERT_PATH, result);
@@ -645,6 +729,8 @@ if (require.main === module) {
 module.exports = {
   parseArgs,
   authorizationReference,
+  trustBindingForArtifact,
+  challengeStateBindsArtifact,
   verificationOptions,
   authorizationPolicy,
   inspectArtifact,
@@ -656,6 +742,7 @@ module.exports = {
   coreValueToSats,
   assertTrackedOutputBinding,
   assertChallengeTransactionBinding,
+  assertRpcSnapshotTip,
   deriveChallengeLifecycle,
   monitorChallenge,
   prepareChallenge,

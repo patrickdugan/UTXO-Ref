@@ -2,6 +2,7 @@ param(
   [string]$BitcoinDatadir = 'D:\BitcoinTestnet',
   [string]$SshTarget = 'ubuntu@172.81.181.19',
   [string]$SshKey = "$env:USERPROFILE\.ssh\tl_vps_bitvise_bridge_ed25519",
+  [string]$TrustPolicy = '',
   [int]$ProxyPort = 48434
 )
 
@@ -11,9 +12,11 @@ $backupDir = Join-Path $BitcoinDatadir 'key-backups\utxoref-v2-watchtower-bridge
 $credentialFile = Join-Path $backupDir 'proxy.env'
 $remoteEnvFile = Join-Path $env:TEMP 'utxoref-v2-watchtower.env'
 $proxyScript = Join-Path $root 'utxoref_v2_rpc_proxy.js'
+if (-not $TrustPolicy) { $TrustPolicy = Join-Path $root 'artifacts\live\utxoref_v2_watchtower_trust_policy.json' }
 
 if (-not (Test-Path -LiteralPath $SshKey)) { throw "SSH key not found: $SshKey" }
 if (-not (Test-Path -LiteralPath $proxyScript)) { throw "Proxy script not found: $proxyScript" }
+if (-not (Test-Path -LiteralPath $TrustPolicy)) { throw "Trust policy not found: $TrustPolicy" }
 New-Item -ItemType Directory -Force -Path $backupDir | Out-Null
 
 if (-not (Test-Path -LiteralPath $credentialFile)) {
@@ -55,7 +58,8 @@ for ($attempt = 0; $attempt -lt 20; $attempt++) {
 ) | Set-Content -LiteralPath $remoteEnvFile -Encoding ASCII
 
 & scp -i $SshKey -o IdentitiesOnly=yes -o BatchMode=yes $remoteEnvFile "${SshTarget}:/tmp/utxoref-v2-watchtower.env"
-& ssh -i $SshKey -o IdentitiesOnly=yes -o BatchMode=yes $SshTarget 'sudo install -o root -g root -m 0600 /tmp/utxoref-v2-watchtower.env /etc/utxoref-v2-watchtower.env'
+& scp -i $SshKey -o IdentitiesOnly=yes -o BatchMode=yes $TrustPolicy "${SshTarget}:/tmp/utxoref-v2-watchtower-trust-policy.json"
+& ssh -i $SshKey -o IdentitiesOnly=yes -o BatchMode=yes $SshTarget 'sudo install -o root -g root -m 0600 /tmp/utxoref-v2-watchtower.env /etc/utxoref-v2-watchtower.env; sudo install -o root -g root -m 0644 /tmp/utxoref-v2-watchtower-trust-policy.json /etc/utxoref-v2-watchtower-trust-policy.json'
 Remove-Item -LiteralPath $remoteEnvFile -Force
 
 $ssh = (Get-Command ssh -ErrorAction Stop).Source

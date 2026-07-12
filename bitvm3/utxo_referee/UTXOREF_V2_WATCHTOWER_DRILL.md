@@ -149,8 +149,10 @@ For a challenge paid to a wallet-owned native P2WPKH or P2TR output, the local
 wallet signer can construct an exact one-input CPFP child:
 
 ```text
-node utxoref_v2_challenge_cpfp.js --state-path <watchtower-state.json>
-  --wallet <wallet-name> --fee-sats 1000 --broadcast
+node utxoref_v2_challenge_cpfp.js --artifact <public-artifact.json>
+  --trust-policy <externally-pinned-policy.json>
+  --state-path <watchtower-state.json> --wallet <wallet-name>
+  --fee-sats 1000 --broadcast
 ```
 
 The child spends only the tracked challenge output, returns the remainder to
@@ -180,8 +182,7 @@ in distinct block
 The secret-free receipt is
 `artifacts/live/utxoref_v2_regtest_reorg_latest.json`.
 
-The funded live testnet4 RBF and CPFP broadcast drill is recorded below;
-confirmation observation remains open until testnet4 mines the package.
+The funded live testnet4 RBF and CPFP conflict drill is recorded below.
 
 ## Live Fee-Rescue Drill
 
@@ -191,14 +192,16 @@ The funded RBF and CPFP paths were exercised together on Bitcoin testnet4 on
 - Funding assertion: `389307d5195a1fcf8854d469f34b162afc3603fea4b15ac3319df1d224851469`
 - Superseded 500-sat challenge: `afaa8ddfea8d07f2a831257a9cf5cdab6e5595a57fbe9644a0a726e933b8ceec`
 - 1,000-sat replacement: `96f52e7120f3ce53e349e9aa51fcf8b1ae36dfc5f5da4b51f3a9a5ff9b8a0482`
-- Superseded 500-sat CPFP child: `0a4233b97346525188e99f5214e700be0d69b0ffbeb6756f689027afb86b970d`
-- 2,000-sat CPFP replacement: `5a37264a3becf0fa11872ae5087aa44493518c585322438bfad8da9dda33ce92`
+- Confirmed 500-sat CPFP child: `0a4233b97346525188e99f5214e700be0d69b0ffbeb6756f689027afb86b970d`
+- Conflicted 2,000-sat CPFP replacement: `5a37264a3becf0fa11872ae5087aa44493518c585322438bfad8da9dda33ce92`
 
-Core's mempool graph contains funding, replacement, and CPFP in that order;
-the superseded challenge and first CPFP child are absent. The final package
-pays 4,000 sats across 455 virtual bytes, approximately 8.79 sat/vB. The
-watcher follows the replacement CPFP output rather than reporting a
-superseded output as missing.
+The local node accepted the 2,000-sat child replacement, but another relay
+partition retained the original child. The original 500-sat child won and
+confirmed with funding and the challenge in block 143,874, while the local
+replacement became conflicted with `-5` wallet confirmations. The confirmed
+package pays 2,500 sats across 455 virtual bytes, approximately 5.49 sat/vB.
+The watcher now searches replacement history, restores the confirmed winner,
+and records the losing local replacement as conflict evidence.
 
 The secret-free receipt is
 `artifacts/live/btc_testnet4_utxoref_v2_fee_rescue_latest.json`. Its status and
@@ -210,3 +213,7 @@ authorization block cannot authorize construction or replacement of a
 challenge, but an already tracked challenge for the same graph remains
 observable in monitoring-only mode. This preserves reorg visibility without
 turning an orphaned state reference into fresh spending authority.
+
+The standalone service receives the artifact and trust policy as separate
+files. Installation refuses to proceed without the policy; replacing a public
+artifact cannot add a signer or graph to that policy.
