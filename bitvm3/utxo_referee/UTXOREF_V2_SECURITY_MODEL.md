@@ -116,10 +116,10 @@ Bitcoin testnet key-backup directory.
    reproducible review/signing protocol.
 2. Replace the single state signer or formally accept it as the protocol trust
    root; threshold authorization is not implemented.
-3. Complete CPFP construction for an already broadcast challenge and exercise
-   the implemented explicit BIP125 replacement path live. The watcher has a
-   bounded fee ladder, durable replacement history, and explicit
-   confirmation/reorg transitions.
+3. Exercise the implemented explicit BIP125 replacement and exact one-input
+   CPFP paths live. The watcher has a bounded fee ladder, durable replacement
+   history, wallet-isolated CPFP signing, and explicit confirmation/reorg
+   transitions.
 4. Run a forced live reorg/reconfirmation drill and broaden adversarial package
    and mempool tests for every path.
 5. Expand the circuit from externally verified boolean facts to the exact
@@ -134,3 +134,4 @@ Bitcoin testnet key-backup directory.
 - `bitvm_assertion_graph_v2.js`: NUMS Taproot tree and transaction graph
 - `btc_testnet4_utxoref_v2_live.js`: staged funding, broadcast, status, settlement
 - `recover_btc_testnet4_reserve_vault.js`: old-vault recovery preflight and receipt
+- `utxoref_v2_challenge_cpfp.js`: local wallet-owned challenge fee rescue

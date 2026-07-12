@@ -257,8 +257,10 @@ function deriveChallengeLifecycle(input = {}) {
 }
 
 async function monitorChallenge(rpc, state, currentHeight) {
-  const tracked = state.challenge;
+  const challenge = state.challenge;
+  const tracked = challenge?.cpfp?.txid ? challenge.cpfp : challenge;
   if (!tracked?.txid) return null;
+  const role = tracked === challenge ? 'challenge' : 'cpfp';
   const txout = await rpc('gettxout', [tracked.txid, Number(tracked.vout || 0), true]);
   let inclusionBlockHash = null;
   let activeHashAtPriorHeight = null;
@@ -286,7 +288,7 @@ async function monitorChallenge(rpc, state, currentHeight) {
   }
   tracked.lastObservedAt = new Date().toISOString();
   tracked.lastAction = lifecycle.action;
-  return { txid: tracked.txid, vout: Number(tracked.vout || 0), ...lifecycle };
+  return { txid: tracked.txid, vout: Number(tracked.vout || 0), role, ...lifecycle };
 }
 
 async function prepareChallenge(artifact, inspected, args, rpc) {
@@ -329,6 +331,7 @@ function buildChallengeAtFee(artifact, inspected, args, feeSats, scriptPubKeyHex
 async function replaceTrackedChallenge(artifact, inspected, args, rpc, state) {
   const tracked = state.challenge;
   if (!tracked || tracked.graphHash !== inspected.graphHash) throw new Error('no challenge for this graph is tracked');
+  if (tracked.cpfp?.txid) throw new Error('the challenge has a tracked CPFP child and can no longer be replaced directly');
   if (tracked.confirmation) throw new Error('a confirmed challenge cannot be fee-replaced');
   const scriptPubKeyHex = tracked.challengeScriptPubKeyHex || challengeScript(args);
   if (args.challengeAddress || args.challengeScriptPubKeyHex) {
@@ -468,6 +471,7 @@ async function runTick(args, rpc, state) {
           vout: 0,
           outputSats: (BigInt(inspected.assertionOutpoint.amountSats) - BigInt(feeSats)).toString(),
           feeSats,
+          challengeAddress: args.challengeAddress || null,
           challengeScriptPubKeyHex: disprove.challengeScriptPubKeyHex,
           broadcastAt: result.at,
           confirmation: null,

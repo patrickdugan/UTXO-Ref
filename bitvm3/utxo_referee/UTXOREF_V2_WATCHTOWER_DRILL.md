@@ -145,5 +145,19 @@ restricted to the signer/broadcaster and records every RPC rejection. A
 semantic rejection stops immediately; only fee-policy failures advance the
 bounded ladder.
 
-This does not yet construct CPFP children. A forced live RBF and reorg drill
-remain separate release gates.
+For a challenge paid to a wallet-owned native P2WPKH or P2TR output, the local
+wallet signer can construct an exact one-input CPFP child:
+
+```text
+node utxoref_v2_challenge_cpfp.js --state-path <watchtower-state.json>
+  --wallet <wallet-name> --fee-sats 1000 --broadcast
+```
+
+The child spends only the tracked challenge output, returns the remainder to
+the same script, opts into replacement itself, and preserves at least 330
+sats. Core must report that the parent is unconfirmed and exactly matches the
+state amount and script before the wallet signs. The exact signed child is
+then preflighted before optional broadcast; no wallet coin-selection RPC is
+used, so unrelated inputs cannot be added.
+
+A forced live RBF, CPFP, and reorg drill remains a separate release gate.
