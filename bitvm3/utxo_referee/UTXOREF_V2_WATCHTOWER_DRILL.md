@@ -81,7 +81,7 @@ The funded drill is a release gate for a limited pilot, not a substitute for a
 full external review or for the production watchtower controls in
 `UTXOREF_V2_SECURITY_MODEL.md`.
 
-## Live Gate-Fraud Drill
+## Live Fraud Drills
 
 The gate path was funded and challenged on Bitcoin testnet4 on 2026-07-12:
 
@@ -94,3 +94,14 @@ The gate path was funded and challenged on Bitcoin testnet4 on 2026-07-12:
 
 The public receipt is
 `artifacts/live/btc_testnet4_utxoref_v2_gate_fraud_latest.json`.
+
+The input-binding path was then exercised independently:
+
+- Assertion funding: [12678731dcc0f815dc0545cbc00a1c023df65de62e2d3ddde6c1779178679f05](https://mempool.space/testnet4/tx/12678731dcc0f815dc0545cbc00a1c023df65de62e2d3ddde6c1779178679f05)
+- Immediate disprove: [eef1e750eed567e4ec1e32955af9964433abd92c0a3d381ad7b3c4f77d3d078c](https://mempool.space/testnet4/tx/eef1e750eed567e4ec1e32955af9964433abd92c0a3d381ad7b3c4f77d3d078c)
+- Committed expectation: `state_checkpoint_valid = 1`
+- Revealed fraudulent input: `state_checkpoint_valid = 0`
+- Committed leaf: `input:state_checkpoint_valid:0`
+
+Its public receipt is
+`artifacts/live/btc_testnet4_utxoref_v2_input_fraud_latest.json`.

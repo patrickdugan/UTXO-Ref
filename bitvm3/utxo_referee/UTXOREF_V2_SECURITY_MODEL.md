@@ -25,6 +25,8 @@ spend:
 
 - Fraud assertion: [047c46864b5b0b3d634391323ab30e6af63fbd679dc56e2224ae7c93aba1a155](https://mempool.space/testnet4/tx/047c46864b5b0b3d634391323ab30e6af63fbd679dc56e2224ae7c93aba1a155)
 - Gate disprove: [5aefff774e67c6b95f9d8ba89437e96dbcf97bdd3bbe44d072479be0b8132750](https://mempool.space/testnet4/tx/5aefff774e67c6b95f9d8ba89437e96dbcf97bdd3bbe44d072479be0b8132750)
+- Input-fraud assertion: [12678731dcc0f815dc0545cbc00a1c023df65de62e2d3ddde6c1779178679f05](https://mempool.space/testnet4/tx/12678731dcc0f815dc0545cbc00a1c023df65de62e2d3ddde6c1779178679f05)
+- Input-binding disprove: [eef1e750eed567e4ec1e32955af9964433abd92c0a3d381ad7b3c4f77d3d078c](https://mempool.space/testnet4/tx/eef1e750eed567e4ec1e32955af9964433abd92c0a3d381ad7b3c4f77d3d078c)
 
 ## Enforced Flow
 
@@ -120,8 +122,7 @@ Bitcoin testnet key-backup directory.
    mempool tests for every path.
 5. Expand the circuit from externally verified boolean facts to the exact
    predicates that should be Bitcoin-challengeable.
-6. Confirm the funded gate-fraud challenge and repeat the drill for the
-   input-binding fraud path.
+6. Confirm both funded fraud-challenge packages.
 7. Obtain an independent cryptographic and transaction-graph review before
    assigning real value.
 

@@ -1,0 +1,57 @@
+{
+  "kind": "btc_testnet4_utxoref_v2_input_fraud_drill_receipt",
+  "version": 2,
+  "network": "bitcoin-testnet4",
+  "status": "challenge-broadcast",
+  "stagedAt": "2026-07-12T12:40:53.078Z",
+  "observedAt": "2026-07-12T12:42:18.704Z",
+  "funding": {
+    "txid": "12678731dcc0f815dc0545cbc00a1c023df65de62e2d3ddde6c1779178679f05",
+    "vout": 0,
+    "amountSats": "6000",
+    "vsize": 153,
+    "feeSats": "1000",
+    "explorer": "https://mempool.space/testnet4/tx/12678731dcc0f815dc0545cbc00a1c023df65de62e2d3ddde6c1779178679f05"
+  },
+  "graph": {
+    "graphHash": "5deef420d11c1663428266cedfa949083300ef0b43a307aa4f15c46b54a07f13",
+    "commitmentHash": "0161b7e1a47017805a0be153de0a3526798966e70efaee5d77be10cc6b59ecba",
+    "traceRoot": "589e994ba3436a96f6fad3e801164685a1942fc68a51ad81562cbec5e9c4c9b2",
+    "assertionTreeRoot": "1fa8e0dd0b5e9e00b42479799910467c9827e041cff777822a143cdafeca2618",
+    "challengerXonly": "5ef4d9a69575a09dd409cca13a778d6114199c9827ff297c48cd8e1785cf173f"
+  },
+  "fraud": {
+    "type": "input",
+    "leafId": "input:state_checkpoint_valid:0",
+    "label": "state_checkpoint_valid",
+    "expectedBit": 1,
+    "actualBit": 0,
+    "revealCount": 1,
+    "evidenceHashDomain": "UTXOREF_V2_FRAUD_EVIDENCE_RECEIPT\\0",
+    "evidenceHash": "9eea526d579b6e17c392ff6d5a003aeaa56694124e40fb162fbbc73d7ee6acb8",
+    "scriptSha256": "f2dbd752405aa4ecec12a5b81db5bdc3cb5c6bcf9b2cc15f87cce09da7eb9e0b"
+  },
+  "watchtower": {
+    "publicOnlyAction": "challenge_signature_required",
+    "publicOnlyTickAt": "2026-07-12T12:41:18.875Z",
+    "signingModel": "separately supplied local challenger key",
+    "deterministicPreflightRuns": 2,
+    "preflightWitnessStable": true,
+    "preflightAllowed": true
+  },
+  "disprove": {
+    "txid": "eef1e750eed567e4ec1e32955af9964433abd92c0a3d381ad7b3c4f77d3d078c",
+    "wtxid": "182d13cc5486a3fa547898b61dcee59f7a9238bf76625804323022a414bb0789",
+    "broadcastAt": "2026-07-12T12:41:56.600Z",
+    "vsize": 158,
+    "weight": 629,
+    "sequence": 4294967293,
+    "feeSats": "1000",
+    "challengeOutputSats": "5000",
+    "challengeAddress": "tb1qcdaan7e9c2dz0ey28hkd4s8scugvsv5js29ejz",
+    "mempoolAccept": true,
+    "dependsOnFundingTxid": "12678731dcc0f815dc0545cbc00a1c023df65de62e2d3ddde6c1779178679f05",
+    "explorer": "https://mempool.space/testnet4/tx/eef1e750eed567e4ec1e32955af9964433abd92c0a3d381ad7b3c4f77d3d078c"
+  },
+  "confirmation": null
+}
