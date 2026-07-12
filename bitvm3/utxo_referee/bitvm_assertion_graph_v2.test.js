@@ -147,6 +147,23 @@ test('assertion output uses only the deterministic NUMS internal key', () => {
   assert(rejected, 'known internal key must be rejected');
 });
 
+test('assertion template binds every primary circuit input', () => {
+  const { publicTrace } = buildFixture();
+  let rejected = false;
+  try {
+    buildBitvmAssertionTemplateV2({
+      network: NETWORK,
+      publicTrace,
+      expectedInputs: { a: 1 },
+      operatorXonly: OPERATOR_XONLY,
+      challengerXonly: CHALLENGER_XONLY,
+      challengeCsvBlocks: 6,
+      recoveryCsvBlocks: 144
+    });
+  } catch (err) { rejected = /exactly match/.test(err.message); }
+  assert(rejected);
+});
+
 test('the P2TR tree itself commits the signed-state trace binding', () => {
   const fixture = buildFixture();
   const changedTrace = clone(fixture.publicTrace);

@@ -83,6 +83,51 @@ function validateGates(gates, publicWires) {
   });
 }
 
+function validateCircuitStructure(gates, publicWires) {
+  if (!gates.length) throw new Error('circuit must contain at least one gate');
+  const labels = Object.keys(publicWires).sort();
+  const commitmentOwners = new Map();
+  for (const label of labels) {
+    const wire = publicWires[label];
+    if (wire?.label !== label) throw new Error(`wire ${label} label mismatch`);
+    const hash0 = assertHex(wire.hash0, 32, `${label}.hash0`);
+    const hash1 = assertHex(wire.hash1, 32, `${label}.hash1`);
+    if (hash0 === hash1) throw new Error(`wire ${label} bit commitments must differ`);
+    for (const [bit, hash] of [[0, hash0], [1, hash1]]) {
+      if (commitmentOwners.has(hash)) {
+        throw new Error(`wire commitment reused by ${commitmentOwners.get(hash)} and ${label}:${bit}`);
+      }
+      commitmentOwners.set(hash, `${label}:${bit}`);
+    }
+  }
+
+  const outputProducer = new Map();
+  for (const gate of gates) {
+    if (outputProducer.has(gate.output)) throw new Error(`wire ${gate.output} has multiple producers`);
+    outputProducer.set(gate.output, gate.index);
+  }
+  const used = new Set();
+  const consumed = new Set();
+  for (const gate of gates) {
+    used.add(gate.output);
+    for (const input of gate.inputs) {
+      used.add(input);
+      consumed.add(input);
+      const producer = outputProducer.get(input);
+      if (producer !== undefined && producer >= gate.index) {
+        throw new Error(`gate[${gate.index}] is not topologically ordered at wire ${input}`);
+      }
+    }
+  }
+  const orphans = labels.filter((label) => !used.has(label));
+  if (orphans.length) throw new Error(`circuit has orphan wires: ${orphans.join(',')}`);
+  const primaryInputs = labels.filter((label) => !outputProducer.has(label));
+  if (!primaryInputs.length) throw new Error('circuit must contain at least one primary input');
+  const terminalOutputs = [...outputProducer.keys()].filter((label) => !consumed.has(label)).sort();
+  if (terminalOutputs.length !== 1) throw new Error('circuit must contain exactly one terminal output');
+  return { primaryInputs, terminalOutput: terminalOutputs[0] };
+}
+
 function selectedPreimage(secret, bit) {
   return bit === 1 ? secret.preimage1 : secret.preimage0;
 }
@@ -143,6 +188,7 @@ function buildPublicTraceV2(input = {}) {
   if (!bundle || bundle.kind !== 'utxoref_bitvm_wire_bundle_v2') throw new Error('wireBundle is required');
   const publicWires = bundle.publicWires;
   const gates = validateGates(input.gates || [], publicWires);
+  validateCircuitStructure(gates, publicWires);
   const labels = Object.keys(publicWires).sort();
   const values = input.values || {};
   const reveals = {};
@@ -186,6 +232,7 @@ function verifyPublicTraceV2(trace, options = {}) {
       return { ok: false, reason: 'public trace reveal set does not match wire set' };
     }
     const gates = validateGates(trace.gates || [], trace.publicWires);
+    const circuit = validateCircuitStructure(gates, trace.publicWires);
     if (canonicalStringify(gates) !== canonicalStringify(trace.gates)) {
       return { ok: false, reason: 'public trace gates are not canonical' };
     }
@@ -214,7 +261,7 @@ function verifyPublicTraceV2(trace, options = {}) {
       const actual = values[gate.output];
       if (actual !== expected) frauds.push({ gate, inputs, expected, actual });
     }
-    return { ok: true, traceRoot: trace.traceRoot, values, frauds };
+    return { ok: true, traceRoot: trace.traceRoot, values, frauds, circuit };
   } catch (err) {
     return { ok: false, reason: err.message };
   }
@@ -309,6 +356,7 @@ module.exports = {
   verifyPublicTraceV2,
   containsSecretPair,
   traceCommitment,
+  validateCircuitStructure,
   buildGateDisproveLeavesV2,
   buildInputBindingLeavesV2,
   findGateDisproveV2,

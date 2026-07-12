@@ -10,7 +10,8 @@ const {
   buildInputBindingLeavesV2,
   findGateDisproveV2,
   findInputBindingDisproveV2,
-  verifyPublicTraceV2
+  verifyPublicTraceV2,
+  validateCircuitStructure
 } = require('./bitvm_trace_v2');
 const {
   DEFAULT_CHALLENGE_CSV_BLOCKS,
@@ -191,6 +192,11 @@ function buildBitvmAssertionTemplateV2(input = {}) {
     throw new Error('recoveryCsvBlocks must exceed challengeCsvBlocks');
   }
   const expectedInputs = normalizeExpectedInputs(input.expectedInputs);
+  const circuit = validateCircuitStructure(input.publicTrace.gates, input.publicTrace.publicWires);
+  const expectedLabels = Object.keys(expectedInputs).sort();
+  if (canonicalStringify(expectedLabels) !== canonicalStringify(circuit.primaryInputs)) {
+    throw new Error('expected input bindings must exactly match the circuit primary inputs');
+  }
   const derivedInternalXonly = deriveAssertionNumsXonly(network);
   if (input.internalXonly && assertHex(input.internalXonly, 32, 'internalXonly') !== derivedInternalXonly) {
     throw new Error('custom internal key is forbidden; the V2 assertion output requires the deterministic NUMS key');

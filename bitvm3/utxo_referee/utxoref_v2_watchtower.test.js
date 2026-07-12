@@ -10,6 +10,8 @@ const {
   isFeePolicyReject,
   isFeePolicyError,
   replacementFeeCandidates,
+  assertTrackedOutputBinding,
+  assertChallengeTransactionBinding,
   deriveChallengeLifecycle,
   saveJsonAtomic,
   loadState
@@ -87,6 +89,43 @@ test('replacement fees only advance and classify RPC fee failures', () => {
   assert(isFeePolicyError(new Error('RPC sendrawtransaction failed: insufficient fee, rejecting replacement')));
   assert(!isFeePolicyError(new Error('RPC sendrawtransaction failed: mandatory-script-verify-flag-failed')));
   assert(!isFeePolicyError(new Error('replacement txid mismatch')));
+});
+
+test('tracked outputs and replacement parents are bound to Core and the assertion', () => {
+  const challenge = { challengeScriptPubKeyHex: `0014${'22'.repeat(20)}` };
+  const tracked = {
+    txid: '11'.repeat(32),
+    outputSats: '5000',
+    challengeScriptPubKeyHex: challenge.challengeScriptPubKeyHex
+  };
+  assertTrackedOutputBinding(challenge, tracked, {
+    value: 0.00005,
+    scriptPubKey: { hex: challenge.challengeScriptPubKeyHex }
+  });
+  let mismatch = false;
+  try {
+    assertTrackedOutputBinding(challenge, tracked, {
+      value: 0.00005,
+      scriptPubKey: { hex: `0014${'33'.repeat(20)}` }
+    });
+  } catch (err) { mismatch = /script does not match/.test(err.message); }
+  assert(mismatch, 'state/Core script mismatch must fail closed');
+
+  const artifact = { graph: { assertionOutpoint: { txid: 'aa'.repeat(32), vout: 2 } } };
+  assertChallengeTransactionBinding(artifact, tracked, {
+    txid: tracked.txid,
+    vin: [{ txid: artifact.graph.assertionOutpoint.txid, vout: 2, sequence: 0xfffffffd }],
+    vout: [{ value: 0.00005, scriptPubKey: { hex: challenge.challengeScriptPubKeyHex } }]
+  });
+  let wrongInput = false;
+  try {
+    assertChallengeTransactionBinding(artifact, tracked, {
+      txid: tracked.txid,
+      vin: [{ txid: 'bb'.repeat(32), vout: 2, sequence: 0xfffffffd }],
+      vout: [{ value: 0.00005, scriptPubKey: { hex: challenge.challengeScriptPubKeyHex } }]
+    });
+  } catch (err) { wrongInput = /assertion outpoint/.test(err.message); }
+  assert(wrongInput, 'replacement must decode to the assertion outpoint');
 });
 
 test('challenge lifecycle distinguishes mempool, confirmation, and reorg states', () => {

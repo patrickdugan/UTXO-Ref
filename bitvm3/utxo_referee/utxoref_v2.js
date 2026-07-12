@@ -236,14 +236,17 @@ function normalizePayout(payout, expectedIndex, context = {}) {
     ? Buffer.from(payout.scriptPubKey)
     : Buffer.from(assertHex(payout.scriptPubKeyHex || payout.scriptPubKey, undefined, `payout[${index}].scriptPubKey`), 'hex');
   if (!scriptPubKey.length || scriptPubKey.length > 10000) throw new Error(`payout[${index}].scriptPubKey length invalid`);
+  const normalizedRequestId = String(payout.requestId || '');
+  const derivedRequestIdHash = requestIdHash(normalizedRequestId);
+  if (payout.requestIdHash && assertHex(payout.requestIdHash, 32, `payout[${index}].requestIdHash`) !== derivedRequestIdHash) {
+    throw new Error(`payout[${index}].requestIdHash does not match requestId`);
+  }
   return {
     index,
     contractId: assertHex(payout.contractId || context.contractId, 32, `payout[${index}].contractId`),
     epochId: toU64(payout.epochId ?? context.epochId, `payout[${index}].epochId`).toString(),
-    requestId: String(payout.requestId || ''),
-    requestIdHash: payout.requestIdHash
-      ? assertHex(payout.requestIdHash, 32, `payout[${index}].requestIdHash`)
-      : requestIdHash(payout.requestId),
+    requestId: normalizedRequestId,
+    requestIdHash: derivedRequestIdHash,
     role,
     roleCode,
     accountAddress: payout.accountAddress ? String(payout.accountAddress) : null,

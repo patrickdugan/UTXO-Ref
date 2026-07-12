@@ -232,6 +232,42 @@ function replacementFeeCandidates(args, assertionAmountSats, currentFeeSats) {
   return feeCandidates(args, assertionAmountSats).filter((candidate) => Number(candidate) > current);
 }
 
+function coreValueToSats(value) {
+  const text = Number(value).toFixed(8);
+  if (!/^[0-9]+\.[0-9]{8}$/.test(text)) throw new Error('Core returned an invalid BTC amount');
+  const [whole, fraction] = text.split('.');
+  return BigInt(whole) * 100000000n + BigInt(fraction);
+}
+
+function assertTrackedOutputBinding(challenge, tracked, txout) {
+  const expectedScript = String(tracked.scriptPubKeyHex || challenge.challengeScriptPubKeyHex || '').toLowerCase();
+  if (!expectedScript) throw new Error('tracked challenge output has no bound scriptPubKey');
+  if (coreValueToSats(txout.value) !== BigInt(tracked.outputSats)) {
+    throw new Error('tracked challenge output amount does not match Core');
+  }
+  if (String(txout.scriptPubKey?.hex || '').toLowerCase() !== expectedScript) {
+    throw new Error('tracked challenge output script does not match Core');
+  }
+}
+
+function assertChallengeTransactionBinding(artifact, tracked, decoded) {
+  const assertion = artifact.graph.assertionOutpoint;
+  if (decoded?.txid !== tracked.txid) throw new Error('tracked challenge decoded txid mismatch');
+  if (!Array.isArray(decoded.vin) || decoded.vin.length !== 1) throw new Error('tracked challenge must have exactly one input');
+  const input = decoded.vin[0];
+  if (input.txid !== assertion.txid || Number(input.vout) !== Number(assertion.vout)) {
+    throw new Error('tracked challenge does not spend the assertion outpoint');
+  }
+  if (Number(input.sequence) !== 0xfffffffd) throw new Error('tracked challenge sequence is not BIP125 replaceable');
+  if (!Array.isArray(decoded.vout) || decoded.vout.length !== 1) throw new Error('tracked challenge must have exactly one output');
+  const output = decoded.vout[0];
+  if (coreValueToSats(output.value) !== BigInt(tracked.outputSats)) throw new Error('tracked challenge decoded amount mismatch');
+  if (String(output.scriptPubKey?.hex || '').toLowerCase() !== String(tracked.challengeScriptPubKeyHex || '').toLowerCase()) {
+    throw new Error('tracked challenge decoded script mismatch');
+  }
+  return true;
+}
+
 function deriveChallengeLifecycle(input = {}) {
   const txout = input.txout || null;
   const prior = input.priorConfirmation || null;
@@ -269,10 +305,47 @@ function deriveChallengeLifecycle(input = {}) {
 
 async function monitorChallenge(rpc, state, currentHeight) {
   const challenge = state.challenge;
-  const tracked = challenge?.cpfp?.txid ? challenge.cpfp : challenge;
+  let tracked = challenge?.cpfp?.txid ? challenge.cpfp : challenge;
   if (!tracked?.txid) return null;
-  const role = tracked === challenge ? 'challenge' : 'cpfp';
-  const txout = await rpc('gettxout', [tracked.txid, Number(tracked.vout || 0), true]);
+  let role = tracked === challenge ? 'challenge' : 'cpfp';
+  let conflictResolution = null;
+  let txout = await rpc('gettxout', [tracked.txid, Number(tracked.vout || 0), true]);
+  if (!txout && role === 'cpfp') {
+    const priorCandidates = [...(tracked.replacements || [])].reverse();
+    for (const prior of priorCandidates) {
+      const candidate = await rpc('gettxout', [prior.txid, Number(prior.vout || 0), true]);
+      if (!candidate) continue;
+      const restored = {
+        txid: prior.txid,
+        vout: Number(prior.vout || 0),
+        parentTxid: tracked.parentTxid,
+        feeSats: String(prior.feeSats),
+        outputSats: String(prior.outputSats),
+        scriptPubKeyHex: tracked.scriptPubKeyHex || challenge.challengeScriptPubKeyHex,
+        broadcastAt: prior.broadcastAt || null,
+        confirmation: null,
+        replacements: [],
+        conflicts: [
+          ...(tracked.conflicts || []),
+          {
+            txid: tracked.txid,
+            feeSats: String(tracked.feeSats),
+            outputSats: String(tracked.outputSats),
+            lostAt: new Date().toISOString(),
+            reason: 'superseded-cpfp-won-confirmation'
+          }
+        ]
+      };
+      assertTrackedOutputBinding(challenge, restored, candidate);
+      conflictResolution = { winnerTxid: restored.txid, loserTxid: tracked.txid };
+      challenge.cpfp = restored;
+      tracked = restored;
+      role = 'cpfp-conflict-winner';
+      txout = candidate;
+      break;
+    }
+  }
+  if (txout) assertTrackedOutputBinding(challenge, tracked, txout);
   let inclusionBlockHash = null;
   let activeHashAtPriorHeight = null;
   if (txout && Number(txout.confirmations || 0) > 0) {
@@ -303,8 +376,11 @@ async function monitorChallenge(rpc, state, currentHeight) {
     tracked.reorgPending = true;
   }
   tracked.lastObservedAt = new Date().toISOString();
-  tracked.lastAction = lifecycle.action;
-  return { txid: tracked.txid, vout: Number(tracked.vout || 0), role, ...lifecycle };
+  const action = conflictResolution && lifecycle.action === 'challenge_confirmed'
+    ? 'challenge_conflict_winner_confirmed'
+    : lifecycle.action;
+  tracked.lastAction = action;
+  return { txid: tracked.txid, vout: Number(tracked.vout || 0), role, ...lifecycle, action, conflictResolution };
 }
 
 async function prepareChallenge(artifact, inspected, args, rpc) {
@@ -349,6 +425,8 @@ async function replaceTrackedChallenge(artifact, inspected, args, rpc, state) {
   if (!tracked || tracked.graphHash !== inspected.graphHash) throw new Error('no challenge for this graph is tracked');
   if (tracked.cpfp?.txid) throw new Error('the challenge has a tracked CPFP child and can no longer be replaced directly');
   if (tracked.confirmation) throw new Error('a confirmed challenge cannot be fee-replaced');
+  const decoded = await rpc('getrawtransaction', [tracked.txid, true]);
+  assertChallengeTransactionBinding(artifact, tracked, decoded);
   const scriptPubKeyHex = tracked.challengeScriptPubKeyHex || challengeScript(args);
   if (args.challengeAddress || args.challengeScriptPubKeyHex) {
     const requestedScript = challengeScript(args);
@@ -575,6 +653,9 @@ module.exports = {
   isFeePolicyReject,
   isFeePolicyError,
   replacementFeeCandidates,
+  coreValueToSats,
+  assertTrackedOutputBinding,
+  assertChallengeTransactionBinding,
   deriveChallengeLifecycle,
   monitorChallenge,
   prepareChallenge,

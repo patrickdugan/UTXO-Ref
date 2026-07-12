@@ -92,5 +92,32 @@ test('tampered reveal and leaked opposite preimage are rejected', () => {
   assert(!verifyPublicTraceV2(leaked).ok);
 });
 
+test('rejects vacuous, cyclic, orphaned, and ambiguous circuits', () => {
+  const bundle = buildWireSecretSetV2(['a', 'b', 'c']);
+  for (const gates of [
+    [],
+    [{ type: 'and', inputs: ['a', 'c'], output: 'c' }],
+    [{ type: 'and', inputs: ['a', 'b'], output: 'a' }]
+  ]) {
+    let rejected = false;
+    try {
+      buildPublicTraceV2({ circuitId: 'bad', binding: {}, gates, wireBundle: bundle, values: { a: 1, b: 1, c: 1 } });
+    } catch (_err) { rejected = true; }
+    assert(rejected);
+  }
+});
+
+test('rejects equal and cross-wire reused bit commitments', () => {
+  const { trace } = fixture({ a: 1, b: 1, c: 1 });
+  const equal = JSON.parse(JSON.stringify(trace));
+  equal.publicWires.a.hash0 = equal.publicWires.a.hash1;
+  equal.wireRoot = equal.gatesHash = equal.bindingHash = equal.traceRoot = '00'.repeat(32);
+  assert(!verifyPublicTraceV2(equal).ok);
+
+  const reused = JSON.parse(JSON.stringify(trace));
+  reused.publicWires.b.hash0 = reused.publicWires.a.hash0;
+  assert(!verifyPublicTraceV2(reused).ok);
+});
+
 console.log(`\n${failed ? 'FAIL' : 'PASS'}: ${passed} passed${failed ? `, ${failed} failed` : ''}\n`);
 if (failed) process.exit(1);

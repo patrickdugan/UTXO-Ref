@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+const fs = require('fs');
 const path = require('path');
 const { rpcFactory } = require('./tradelayer_send_rpc_sweep');
 const tr = require('./tradelayer_taproot');
@@ -7,6 +8,7 @@ const { txidFromUnsignedHex } = require('./recover_btc_testnet4_reserve_vault');
 const { loadState, saveJsonAtomic } = require('./utxoref_v2_watchtower');
 
 const DEFAULT_STATE_PATH = path.join(__dirname, 'artifacts', 'live', 'utxoref_v2_watchtower_state.json');
+const DEFAULT_ARTIFACT_PATH = path.join(__dirname, 'artifacts', 'live', 'btc_testnet4_utxoref_v2_latest.json');
 const MIN_OUTPUT_SATS = 330n;
 
 function parseArgs(argv) {
@@ -30,7 +32,8 @@ function usage() {
     'Build a wallet-signed CPFP child for an unconfirmed UTXORef V2 challenge.',
     '',
     'Preflight only:',
-    '  node utxoref_v2_challenge_cpfp.js --state-path <watchtower-state.json> \\',
+    '  node utxoref_v2_challenge_cpfp.js --artifact <public-artifact.json> \\',
+    '    --state-path <watchtower-state.json> \\',
     '    --wallet <wallet-name> --fee-sats 1000',
     '',
     'Broadcast after a successful preflight:',
@@ -68,7 +71,47 @@ function nativeSegwitScript(scriptPubKeyHex) {
   return script;
 }
 
-function buildCpfpPlan(state, args) {
+function verifyChallengeStateBinding(artifact, state) {
+  if (artifact?.kind !== 'btc_testnet4_utxoref_v2_live_ceremony' || artifact.version !== 2) {
+    throw new Error('wrong UTXORef V2 public artifact kind or version');
+  }
+  const tracked = state?.challenge;
+  const assertion = artifact.graph?.assertionOutpoint;
+  if (!assertion || !tracked) throw new Error('artifact or state challenge binding is missing');
+  if (tracked.graphHash !== artifact.graph.graphHash) throw new Error('state challenge graph hash does not match artifact');
+  if (Number(tracked.vout || 0) !== 0) throw new Error('challenge parent output must be vout 0');
+  const outputSats = positiveSats(tracked.outputSats, 'tracked challenge outputSats');
+  const feeSats = positiveSats(tracked.feeSats, 'tracked challenge feeSats');
+  if (outputSats + feeSats !== BigInt(assertion.amountSats)) throw new Error('challenge fee arithmetic does not match assertion amount');
+  const scriptPubKeyHex = nativeSegwitScript(tracked.challengeScriptPubKeyHex);
+  const unsignedTxHex = tr.serializeUnsignedTx(2, [{
+    outpoint: tr.outpoint(assertion.txid, assertion.vout),
+    sequence: 0xfffffffd
+  }], [{ valueSats: outputSats, script: scriptPubKeyHex }], 0);
+  const expectedTxid = txidFromUnsignedHex(unsignedTxHex);
+  if (tracked.txid !== expectedTxid) throw new Error('tracked challenge txid does not bind to the artifact assertion');
+  return { expectedTxid, unsignedTxHex, scriptPubKeyHex };
+}
+
+function assertExistingCpfpBinding(plan, decoded) {
+  if (decoded?.txid !== plan.replacementOf) throw new Error('tracked CPFP decoded txid mismatch');
+  if (!Array.isArray(decoded.vin) || decoded.vin.length !== 1) throw new Error('tracked CPFP must have exactly one input');
+  const input = decoded.vin[0];
+  if (input.txid !== plan.parentTxid || Number(input.vout) !== plan.parentVout) {
+    throw new Error('tracked CPFP does not spend the challenge output');
+  }
+  if (Number(input.sequence) !== 0xfffffffd) throw new Error('tracked CPFP sequence is not BIP125 replaceable');
+  if (!Array.isArray(decoded.vout) || decoded.vout.length !== 1) throw new Error('tracked CPFP must have exactly one output');
+  const output = decoded.vout[0];
+  if (btcToSats(output.value) !== BigInt(plan.replacementOutputSats)) throw new Error('tracked CPFP decoded amount mismatch');
+  if (String(output.scriptPubKey?.hex || '').toLowerCase() !== plan.parentScriptPubKeyHex) {
+    throw new Error('tracked CPFP decoded script mismatch');
+  }
+  return true;
+}
+
+function buildCpfpPlan(state, args, artifact) {
+  verifyChallengeStateBinding(artifact, state);
   const tracked = state?.challenge;
   if (!tracked?.txid || !/^[0-9a-f]{64}$/.test(tracked.txid)) throw new Error('state has no valid tracked challenge txid');
   const vout = Number(tracked.vout || 0);
@@ -95,6 +138,7 @@ function buildCpfpPlan(state, args) {
     version: 1,
     graphHash: tracked.graphHash,
     replacementOf: args.replaceChild ? existingChild.txid : null,
+    replacementOutputSats: args.replaceChild ? String(existingChild.outputSats) : null,
     parentTxid: tracked.txid,
     parentVout: vout,
     parentAmountSats: parentAmount.toString(),
@@ -112,6 +156,8 @@ async function preflightCpfp(plan, args, rpc) {
   if (plan.replacementOf) {
     const existing = await rpc('getmempoolentry', [plan.replacementOf]);
     if (existing?.['bip125-replaceable'] !== true) throw new Error('tracked CPFP child is not BIP125-replaceable');
+    const existingRaw = await rpc('getrawtransaction', [plan.replacementOf, true]);
+    assertExistingCpfpBinding(plan, existingRaw);
     const parent = await rpc('getrawtransaction', [plan.parentTxid, true]);
     const output = parent?.vout?.find((candidate) => Number(candidate.n) === plan.parentVout);
     if (!output) throw new Error('tracked challenge parent output is unavailable');
@@ -137,8 +183,8 @@ async function preflightCpfp(plan, args, rpc) {
   return { signedHex: signed.hex, mempoolAccept };
 }
 
-async function runCpfp(state, args, rpc) {
-  const plan = buildCpfpPlan(state, args);
+async function runCpfp(state, args, rpc, artifact) {
+  const plan = buildCpfpPlan(state, args, artifact);
   const preflight = await preflightCpfp(plan, args, rpc);
   const result = { ...plan, mempoolAccept: preflight.mempoolAccept, broadcast: false };
   if (!plan.replacementOf && !preflight.mempoolAccept?.allowed) return { action: 'cpfp_preflight_rejected', result };
@@ -153,6 +199,7 @@ async function runCpfp(state, args, rpc) {
     parentTxid: plan.parentTxid,
     feeSats: plan.feeSats,
     outputSats: plan.outputSats,
+    scriptPubKeyHex: plan.parentScriptPubKeyHex,
     broadcastAt: at,
     confirmation: null,
     replacements: priorChild
@@ -182,8 +229,11 @@ async function main() {
   const args = parseArgs(process.argv.slice(2));
   if (args.help) { console.log(usage()); return; }
   const statePath = path.resolve(args.statePath || DEFAULT_STATE_PATH);
+  const artifactPath = path.resolve(args.artifact || DEFAULT_ARTIFACT_PATH);
+  if (!fs.existsSync(artifactPath)) throw new Error(`public artifact does not exist: ${artifactPath}`);
   const state = loadState(statePath);
-  const outcome = await runCpfp(state, args, resolveRpc(args));
+  const artifact = JSON.parse(fs.readFileSync(artifactPath, 'utf8'));
+  const outcome = await runCpfp(state, args, resolveRpc(args), artifact);
   if (outcome.action === 'cpfp_broadcast' || outcome.action === 'cpfp_replaced') saveJsonAtomic(statePath, state);
   console.log(JSON.stringify(outcome));
 }
@@ -199,6 +249,8 @@ module.exports = {
   parseArgs,
   btcToSats,
   nativeSegwitScript,
+  verifyChallengeStateBinding,
+  assertExistingCpfpBinding,
   buildCpfpPlan,
   preflightCpfp,
   runCpfp

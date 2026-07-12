@@ -151,6 +151,24 @@ test('duplicate payout request ids are rejected', () => {
   assert(threw, 'duplicate payout request must fail');
 });
 
+test('caller cannot spoof payout request hashes', () => {
+  const settlement = buildFixture();
+  const spoofed = clone(settlement.payouts);
+  spoofed[0].requestIdHash = 'ff'.repeat(32);
+  let threw = false;
+  try {
+    buildUtxoRefCommitmentV2({
+      ...settlement.commitment.core,
+      fundingOutpoints: settlement.fundingOutpoints,
+      payouts: spoofed,
+      stateCheckpointHash: settlement.commitment.core.stateCheckpointHash
+    });
+  } catch (err) {
+    threw = /does not match requestId/.test(err.message);
+  }
+  assert(threw, 'spoofed requestIdHash must fail');
+});
+
 test('redirected, reordered, or extra outputs are rejected', () => {
   const redirected = buildFixture();
   redirected.unsignedTxHex = tr.serializeUnsignedTx(2, [{
