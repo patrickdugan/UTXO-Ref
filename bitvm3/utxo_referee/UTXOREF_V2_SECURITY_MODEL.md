@@ -20,6 +20,12 @@ window and was recovered with its operator-plus-guardian script path:
 
 - Recovery: [63f7144661328c06cc1055bd7210cea4e7bc2e8a3bf4c178e0ed4a94c73c08e9](https://mempool.space/testnet4/tx/63f7144661328c06cc1055bd7210cea4e7bc2e8a3bf4c178e0ed4a94c73c08e9)
 
+The funded gate-fraud path was also exercised with an immediate challenger
+spend:
+
+- Fraud assertion: [047c46864b5b0b3d634391323ab30e6af63fbd679dc56e2224ae7c93aba1a155](https://mempool.space/testnet4/tx/047c46864b5b0b3d634391323ab30e6af63fbd679dc56e2224ae7c93aba1a155)
+- Gate disprove: [5aefff774e67c6b95f9d8ba89437e96dbcf97bdd3bbe44d072479be0b8132750](https://mempool.space/testnet4/tx/5aefff774e67c6b95f9d8ba89437e96dbcf97bdd3bbe44d072479be0b8132750)
+
 ## Enforced Flow
 
 ```text
@@ -114,7 +120,8 @@ Bitcoin testnet key-backup directory.
    mempool tests for every path.
 5. Expand the circuit from externally verified boolean facts to the exact
    predicates that should be Bitcoin-challengeable.
-6. Run a funded fraudulent-trace challenge drill.
+6. Confirm the funded gate-fraud challenge and repeat the drill for the
+   input-binding fraud path.
 7. Obtain an independent cryptographic and transaction-graph review before
    assigning real value.
 

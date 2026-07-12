@@ -4,6 +4,7 @@ const path = require('path');
 const {
   parseArgs,
   inspectArtifact,
+  deterministicChallengeAux,
   saveJsonAtomic,
   loadState
 } = require('./utxoref_v2_watchtower');
@@ -33,6 +34,16 @@ test('watchtower CLI keeps monitor and broadcast authority distinct', () => {
   assert(monitor.once === true && monitor.broadcast === false);
   const broadcast = parseArgs(['--broadcast', '--challenger-secret-file', 'test.hex']);
   assert(broadcast.broadcast === true && broadcast.challengerSecretFile === 'test.hex');
+});
+
+test('challenge signing auxiliary data is stable and leaf-bound', () => {
+  const graphHash = '11'.repeat(32);
+  const first = deterministicChallengeAux(graphHash, { scriptHex: '51' });
+  const second = deterministicChallengeAux(graphHash, { scriptHex: '51' });
+  const otherLeaf = deterministicChallengeAux(graphHash, { scriptHex: '52' });
+  assert(first.length === 32);
+  assert(first.equals(second), 'same graph and leaf must reproduce the preflight signature input');
+  assert(!first.equals(otherLeaf), 'different leaves must use different auxiliary data');
 });
 
 test('state is written atomically and resumes after a restart', () => {

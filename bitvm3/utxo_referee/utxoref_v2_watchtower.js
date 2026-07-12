@@ -163,6 +163,18 @@ function challengeScript(args) {
   return addressToScriptPubKey(args.challengeAddress, 'bitcoin-testnet4').toString('hex');
 }
 
+function deterministicChallengeAux(graphHash, evidence) {
+  const normalizedGraphHash = String(graphHash || '').toLowerCase();
+  const scriptHex = String(evidence?.scriptHex || '').toLowerCase();
+  if (!/^[0-9a-f]{64}$/.test(normalizedGraphHash)) throw new Error('graphHash must be 32 bytes of hex');
+  if (!/^[0-9a-f]+$/.test(scriptHex) || scriptHex.length % 2) throw new Error('fraud evidence script must be even-length hex');
+  return crypto.createHash('sha256')
+    .update('UTXOREF_V2_WATCHTOWER_CHALLENGE_AUX\0', 'ascii')
+    .update(Buffer.from(normalizedGraphHash, 'hex'))
+    .update(Buffer.from(scriptHex, 'hex'))
+    .digest();
+}
+
 function alertFingerprint(result) {
   return crypto.createHash('sha256').update(JSON.stringify({
     graphHash: result.graphHash,
@@ -221,6 +233,7 @@ async function runTick(args, rpc, state) {
       const disprove = buildBitvmDisproveV2(artifact.graph, {
         stateVerification: verificationOptions(artifact),
         challengerSecret: parseSecretFile(args.challengerSecretFile),
+        challengerAux: deterministicChallengeAux(inspected.graphHash, inspected.evidence),
         feeSats: args.feeSats || '1000',
         challengeScriptPubKeyHex: challengeScript(args)
       });
@@ -296,6 +309,7 @@ module.exports = {
   authorizationReference,
   verificationOptions,
   inspectArtifact,
+  deterministicChallengeAux,
   runTick,
   saveJsonAtomic,
   loadState

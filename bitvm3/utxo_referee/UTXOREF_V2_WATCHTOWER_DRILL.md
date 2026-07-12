@@ -80,3 +80,17 @@ spend construction.
 The funded drill is a release gate for a limited pilot, not a substitute for a
 full external review or for the production watchtower controls in
 `UTXOREF_V2_SECURITY_MODEL.md`.
+
+## Live Gate-Fraud Drill
+
+The gate path was funded and challenged on Bitcoin testnet4 on 2026-07-12:
+
+- Assertion funding: [047c46864b5b0b3d634391323ab30e6af63fbd679dc56e2224ae7c93aba1a155](https://mempool.space/testnet4/tx/047c46864b5b0b3d634391323ab30e6af63fbd679dc56e2224ae7c93aba1a155)
+- Immediate disprove: [5aefff774e67c6b95f9d8ba89437e96dbcf97bdd3bbe44d072479be0b8132750](https://mempool.space/testnet4/tx/5aefff774e67c6b95f9d8ba89437e96dbcf97bdd3bbe44d072479be0b8132750)
+- Committed invalid row: `AND(1, 1) = 0`
+- Committed leaf: `gate:0:11:0`
+- Result: the 6,000-sat assertion paid 5,000 sats to the challenger with a
+  1,000-sat fee, without waiting for the settlement CSV.
+
+The public receipt is
+`artifacts/live/btc_testnet4_utxoref_v2_gate_fraud_latest.json`.
