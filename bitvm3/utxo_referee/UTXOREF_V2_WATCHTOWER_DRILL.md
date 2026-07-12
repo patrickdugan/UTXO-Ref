@@ -91,6 +91,7 @@ The gate path was funded and challenged on Bitcoin testnet4 on 2026-07-12:
 - Committed leaf: `gate:0:11:0`
 - Result: the 6,000-sat assertion paid 5,000 sats to the challenger with a
   1,000-sat fee, without waiting for the settlement CSV.
+- Confirmation: funding and disprove confirmed together in block 143,851.
 
 The public receipt is
 `artifacts/live/btc_testnet4_utxoref_v2_gate_fraud_latest.json`.
@@ -102,6 +103,7 @@ The input-binding path was then exercised independently:
 - Committed expectation: `state_checkpoint_valid = 1`
 - Revealed fraudulent input: `state_checkpoint_valid = 0`
 - Committed leaf: `input:state_checkpoint_valid:0`
+- Confirmation: funding and disprove confirmed together in block 143,852.
 
 Its public receipt is
 `artifacts/live/btc_testnet4_utxoref_v2_input_fraud_latest.json`.

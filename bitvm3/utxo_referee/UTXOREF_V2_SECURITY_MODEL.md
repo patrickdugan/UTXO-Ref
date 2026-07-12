@@ -122,8 +122,7 @@ Bitcoin testnet key-backup directory.
    mempool tests for every path.
 5. Expand the circuit from externally verified boolean facts to the exact
    predicates that should be Bitcoin-challengeable.
-6. Confirm both funded fraud-challenge packages.
-7. Obtain an independent cryptographic and transaction-graph review before
+6. Obtain an independent cryptographic and transaction-graph review before
    assigning real value.
 
 ## Main Files

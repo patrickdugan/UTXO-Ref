@@ -2,7 +2,7 @@
   "kind": "btc_testnet4_utxoref_v2_input_fraud_drill_receipt",
   "version": 2,
   "network": "bitcoin-testnet4",
-  "status": "challenge-broadcast",
+  "status": "challenge-confirmed",
   "stagedAt": "2026-07-12T12:40:53.078Z",
   "observedAt": "2026-07-12T12:42:18.704Z",
   "funding": {
@@ -53,5 +53,12 @@
     "dependsOnFundingTxid": "12678731dcc0f815dc0545cbc00a1c023df65de62e2d3ddde6c1779178679f05",
     "explorer": "https://mempool.space/testnet4/tx/eef1e750eed567e4ec1e32955af9964433abd92c0a3d381ad7b3c4f77d3d078c"
   },
-  "confirmation": null
+  "confirmation": {
+    "observedAt": "2026-07-12T15:02:35.354Z",
+    "confirmations": 12,
+    "blockHeight": 143852,
+    "blockHash": "0000000000000001e0da6a44787bbb93e4a14b25964ebe67d7b3256af9efbb3a",
+    "blockTime": 1783862445,
+    "parentAndDisproveSameBlock": true
+  }
 }
