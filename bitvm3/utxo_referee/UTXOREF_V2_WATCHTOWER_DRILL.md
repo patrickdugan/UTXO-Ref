@@ -128,5 +128,22 @@ report `challenge_in_mempool`, `challenge_confirmed`,
 `challenge_output_spent_or_missing`. The two live challenge outputs resolve to
 their recorded confirmation heights and block hashes through this path.
 
-This does not yet construct CPFP children or replace an already broadcast
-challenge through RBF. Those are separate release gates.
+An unconfirmed challenge can be replaced explicitly by its separately
+administered signer:
+
+```text
+--replace-challenge --broadcast --challenger-secret-file <path>
+--fee-sats 1000 --fee-step-sats 500 --max-fee-sats 5000
+```
+
+The disprove input opts into BIP125 with sequence `0xfffffffd`. Replacement
+keeps the assertion outpoint, committed fraud leaf, and challenge destination
+unchanged. It selects only fees above the tracked fee and records each
+superseded txid in the durable state. Because a conflicting replacement does
+not have a useful independent `testmempoolaccept` preflight, this action is
+restricted to the signer/broadcaster and records every RPC rejection. A
+semantic rejection stops immediately; only fee-policy failures advance the
+bounded ladder.
+
+This does not yet construct CPFP children. A forced live RBF and reorg drill
+remain separate release gates.

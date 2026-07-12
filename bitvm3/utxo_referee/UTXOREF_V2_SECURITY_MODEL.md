@@ -116,9 +116,10 @@ Bitcoin testnet key-backup directory.
    reproducible review/signing protocol.
 2. Replace the single state signer or formally accept it as the protocol trust
    root; threshold authorization is not implemented.
-3. Complete RBF replacement and CPFP construction for an already broadcast
-   challenge. The watcher now has a bounded pre-broadcast fee ladder, durable
-   challenge state, and explicit confirmation/reorg transitions.
+3. Complete CPFP construction for an already broadcast challenge and exercise
+   the implemented explicit BIP125 replacement path live. The watcher has a
+   bounded fee ladder, durable replacement history, and explicit
+   confirmation/reorg transitions.
 4. Run a forced live reorg/reconfirmation drill and broaden adversarial package
    and mempool tests for every path.
 5. Expand the circuit from externally verified boolean facts to the exact

@@ -7,6 +7,8 @@ const {
   deterministicChallengeAux,
   feeCandidates,
   isFeePolicyReject,
+  isFeePolicyError,
+  replacementFeeCandidates,
   deriveChallengeLifecycle,
   saveJsonAtomic,
   loadState
@@ -37,6 +39,8 @@ test('watchtower CLI keeps monitor and broadcast authority distinct', () => {
   assert(monitor.once === true && monitor.broadcast === false);
   const broadcast = parseArgs(['--broadcast', '--challenger-secret-file', 'test.hex']);
   assert(broadcast.broadcast === true && broadcast.challengerSecretFile === 'test.hex');
+  const replacement = parseArgs(['--replace-challenge', '--broadcast', '--challenger-secret-file', 'test.hex']);
+  assert(replacement.replaceChallenge === true && replacement.broadcast === true);
 });
 
 test('challenge signing auxiliary data is stable and leaf-bound', () => {
@@ -58,6 +62,18 @@ test('challenge fee ladder is bounded by policy and the dust floor', () => {
   try { feeCandidates({ feeSats: '1000', maxFeeSats: '5800' }, '6000'); }
   catch (err) { rejected = /dust floor/.test(err.message); }
   assert(rejected, 'fee policy must preserve a non-dust challenge output');
+});
+
+test('replacement fees only advance and classify RPC fee failures', () => {
+  const fees = replacementFeeCandidates(
+    { feeSats: '1000', feeStepSats: '500', maxFeeSats: '2500' },
+    '6000',
+    '1500'
+  );
+  assert(JSON.stringify(fees) === JSON.stringify(['2000', '2500']));
+  assert(isFeePolicyError(new Error('RPC sendrawtransaction failed: insufficient fee, rejecting replacement')));
+  assert(!isFeePolicyError(new Error('RPC sendrawtransaction failed: mandatory-script-verify-flag-failed')));
+  assert(!isFeePolicyError(new Error('replacement txid mismatch')));
 });
 
 test('challenge lifecycle distinguishes mempool, confirmation, and reorg states', () => {
@@ -86,6 +102,13 @@ test('challenge lifecycle distinguishes mempool, confirmation, and reorg states'
   });
   assert(reconfirmed.action === 'challenge_reconfirmed');
   assert(reconfirmed.reorgDetected === true);
+  const reorgedToMempool = deriveChallengeLifecycle({
+    currentHeight: 108,
+    txout: { confirmations: 0 },
+    priorConfirmation: confirmed.confirmation
+  });
+  assert(reorgedToMempool.action === 'challenge_in_mempool');
+  assert(reorgedToMempool.reorgDetected === true);
 });
 
 test('state is written atomically and resumes after a restart', () => {

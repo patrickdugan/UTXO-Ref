@@ -21,11 +21,12 @@ const DEFAULT_ALERT_PATH = path.join(__dirname, 'artifacts', 'live', 'utxoref_v2
 const DEFAULT_POLL_INTERVAL_MS = 30000;
 
 function parseArgs(argv) {
-  const args = { once: false, broadcast: false };
+  const args = { once: false, broadcast: false, replaceChallenge: false };
   for (let index = 0; index < argv.length; index++) {
     const arg = argv[index];
     if (arg === '--once') { args.once = true; continue; }
     if (arg === '--broadcast') { args.broadcast = true; continue; }
+    if (arg === '--replace-challenge') { args.replaceChallenge = true; continue; }
     if (arg === '--help' || arg === '-h') { args.help = true; continue; }
     if (!arg.startsWith('--')) throw new Error(`unexpected argument ${arg}`);
     const key = arg.slice(2).replace(/-([a-z])/g, (_match, letter) => letter.toUpperCase());
@@ -47,6 +48,11 @@ function usage() {
     '  node utxoref_v2_watchtower.js --once --challenger-secret-file <path> \\',
     '    --challenge-address <tb1...> --fee-sats 1000 \\',
     '    --fee-step-sats 500 --max-fee-sats 5000 --broadcast',
+    '',
+    'Replace a tracked unconfirmed challenge at the next bounded fee:',
+    '  node utxoref_v2_watchtower.js --once --replace-challenge --broadcast \\',
+    '    --challenger-secret-file <path> --artifact <public-artifact.json> \\',
+    '    --fee-sats 1000 --fee-step-sats 500 --max-fee-sats 5000',
     '',
     'RPC credentials are read from BTC_RPC_URL, BTC_RPC_USER, and BTC_RPC_PASS,',
     'or passed as --rpc-url, --rpc-user, and --rpc-pass.'
@@ -206,12 +212,23 @@ function isFeePolicyReject(result) {
   return /fee|feerate|min relay|mempool min/i.test(mempoolRejectReason(result));
 }
 
+function isFeePolicyError(err) {
+  return /fee|feerate|min relay|mempool min|does not pay for its bandwidth/i.test(String(err?.message || err || ''));
+}
+
+function replacementFeeCandidates(args, assertionAmountSats, currentFeeSats) {
+  const current = safePositiveInteger(currentFeeSats, 'currentFeeSats');
+  return feeCandidates(args, assertionAmountSats).filter((candidate) => Number(candidate) > current);
+}
+
 function deriveChallengeLifecycle(input = {}) {
   const txout = input.txout || null;
   const prior = input.priorConfirmation || null;
   if (txout) {
     const confirmations = Number(txout.confirmations || 0);
-    if (confirmations <= 0) return { action: 'challenge_in_mempool', confirmations: 0, confirmation: null, reorgDetected: false };
+    if (confirmations <= 0) {
+      return { action: 'challenge_in_mempool', confirmations: 0, confirmation: null, reorgDetected: Boolean(prior) };
+    }
     const height = Number(input.currentHeight) - confirmations + 1;
     const blockHash = String(input.inclusionBlockHash || '');
     if (!Number.isSafeInteger(height) || height < 0 || !/^[0-9a-f]{64}$/.test(blockHash)) {
@@ -260,6 +277,12 @@ async function monitorChallenge(rpc, state, currentHeight) {
   });
   if (lifecycle.confirmation && lifecycle.action !== 'challenge_reorged') {
     tracked.confirmation = lifecycle.confirmation;
+  } else if (lifecycle.action === 'challenge_in_mempool' && tracked.confirmation) {
+    tracked.confirmationHistory = [
+      ...(tracked.confirmationHistory || []),
+      { ...tracked.confirmation, removedAt: new Date().toISOString(), reason: 'reorged-to-mempool' }
+    ];
+    tracked.confirmation = null;
   }
   tracked.lastObservedAt = new Date().toISOString();
   tracked.lastAction = lifecycle.action;
@@ -293,12 +316,73 @@ async function prepareChallenge(artifact, inspected, args, rpc) {
   return { ...selected, attempts };
 }
 
+function buildChallengeAtFee(artifact, inspected, args, feeSats, scriptPubKeyHex) {
+  return buildBitvmDisproveV2(artifact.graph, {
+    stateVerification: verificationOptions(artifact),
+    challengerSecret: parseSecretFile(args.challengerSecretFile),
+    challengerAux: deterministicChallengeAux(inspected.graphHash, inspected.evidence),
+    feeSats,
+    challengeScriptPubKeyHex: scriptPubKeyHex
+  });
+}
+
+async function replaceTrackedChallenge(artifact, inspected, args, rpc, state) {
+  const tracked = state.challenge;
+  if (!tracked || tracked.graphHash !== inspected.graphHash) throw new Error('no challenge for this graph is tracked');
+  if (tracked.confirmation) throw new Error('a confirmed challenge cannot be fee-replaced');
+  const scriptPubKeyHex = tracked.challengeScriptPubKeyHex || challengeScript(args);
+  if (args.challengeAddress || args.challengeScriptPubKeyHex) {
+    const requestedScript = challengeScript(args);
+    if (requestedScript !== scriptPubKeyHex) throw new Error('replacement challenge destination must match the tracked transaction');
+  }
+  const candidates = replacementFeeCandidates(args, inspected.assertionOutpoint.amountSats, tracked.feeSats);
+  if (!candidates.length) {
+    return { action: 'challenge_replacement_exhausted', attempts: [], challenge: tracked };
+  }
+
+  const attempts = [];
+  for (const feeSats of candidates) {
+    const disprove = buildChallengeAtFee(artifact, inspected, args, feeSats, scriptPubKeyHex);
+    const txid = txidFromUnsignedHex(disprove.unsignedTxHex);
+    try {
+      const broadcastTxid = await rpc('sendrawtransaction', [disprove.witnessTxHex]);
+      if (broadcastTxid !== txid) throw new Error(`replacement txid mismatch: expected ${txid}, got ${broadcastTxid}`);
+      const replaced = {
+        txid: tracked.txid,
+        wtxid: tracked.wtxid || null,
+        feeSats: String(tracked.feeSats),
+        outputSats: String(tracked.outputSats),
+        replacedAt: new Date().toISOString(),
+        replacementTxid: txid
+      };
+      tracked.replacements = [...(tracked.replacements || []), replaced];
+      tracked.txid = txid;
+      tracked.wtxid = null;
+      tracked.feeSats = feeSats;
+      tracked.outputSats = (BigInt(inspected.assertionOutpoint.amountSats) - BigInt(feeSats)).toString();
+      tracked.broadcastAt = replaced.replacedAt;
+      tracked.lastObservedAt = replaced.replacedAt;
+      tracked.lastAction = 'challenge_replaced';
+      tracked.confirmation = null;
+      attempts.push({ feeSats, txid, allowed: true, rejectReason: null });
+      return { action: 'challenge_replaced', attempts, challenge: tracked };
+    } catch (err) {
+      attempts.push({ feeSats, txid, allowed: false, rejectReason: err.message });
+      if (!isFeePolicyError(err)) {
+        return { action: 'challenge_replacement_rejected', attempts, challenge: tracked };
+      }
+    }
+  }
+  return { action: 'challenge_replacement_exhausted', attempts, challenge: tracked };
+}
+
 function alertFingerprint(result) {
   return crypto.createHash('sha256').update(JSON.stringify({
     graphHash: result.graphHash,
     fraudType: result.fraudType,
     assertionUnspent: result.assertionUnspent,
-    action: result.action
+    action: result.action,
+    challengeTxid: result.challenge?.txid || result.disprove?.broadcastTxid || null
   })).digest('hex');
 }
 
@@ -339,6 +423,15 @@ async function runTick(args, rpc, state) {
   if (!txout && state.challenge?.graphHash === inspected.graphHash) {
     result.challenge = await monitorChallenge(rpc, state, currentHeight);
     result.action = result.challenge.action;
+    if (args.replaceChallenge) {
+      if (result.action !== 'challenge_in_mempool') {
+        throw new Error(`challenge replacement requires an unconfirmed tracked challenge, got ${result.action}`);
+      }
+      const replacement = await replaceTrackedChallenge(artifact, inspected, args, rpc, state);
+      result.action = replacement.action;
+      result.challenge = replacement.challenge;
+      result.replacementAttempts = replacement.attempts;
+    }
   }
 
   if (inspected.fraudDetected && txout) {
@@ -375,8 +468,10 @@ async function runTick(args, rpc, state) {
           vout: 0,
           outputSats: (BigInt(inspected.assertionOutpoint.amountSats) - BigInt(feeSats)).toString(),
           feeSats,
+          challengeScriptPubKeyHex: disprove.challengeScriptPubKeyHex,
           broadcastAt: result.at,
-          confirmation: null
+          confirmation: null,
+          replacements: []
         };
       } else {
         result.action = 'challenge_ready_for_broadcast';
@@ -405,6 +500,9 @@ async function main() {
   }
   if (args.broadcast && !args.challengerSecretFile) {
     throw new Error('--broadcast requires --challenger-secret-file');
+  }
+  if (args.replaceChallenge && !args.broadcast) {
+    throw new Error('--replace-challenge requires --broadcast');
   }
   const rpc = resolveRpc(args);
   const statePath = path.resolve(args.statePath || DEFAULT_STATE_PATH);
@@ -441,9 +539,13 @@ module.exports = {
   deterministicChallengeAux,
   feeCandidates,
   isFeePolicyReject,
+  isFeePolicyError,
+  replacementFeeCandidates,
   deriveChallengeLifecycle,
   monitorChallenge,
   prepareChallenge,
+  buildChallengeAtFee,
+  replaceTrackedChallenge,
   runTick,
   saveJsonAtomic,
   loadState
