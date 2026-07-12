@@ -102,6 +102,13 @@ test('challenge lifecycle distinguishes mempool, confirmation, and reorg states'
   });
   assert(reconfirmed.action === 'challenge_reconfirmed');
   assert(reconfirmed.reorgDetected === true);
+  const reconfirmedAfterMempool = deriveChallengeLifecycle({
+    currentHeight: 109,
+    txout: { confirmations: 1 },
+    reorgPending: true,
+    inclusionBlockHash: confirmed.confirmation.blockHash
+  });
+  assert(reconfirmedAfterMempool.action === 'challenge_reconfirmed');
   const reorgedToMempool = deriveChallengeLifecycle({
     currentHeight: 108,
     txout: { confirmations: 0 },

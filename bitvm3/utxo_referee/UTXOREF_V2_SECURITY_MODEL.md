@@ -120,8 +120,9 @@ Bitcoin testnet key-backup directory.
    CPFP paths live. The watcher has a bounded fee ladder, durable replacement
    history, wallet-isolated CPFP signing, and explicit confirmation/reorg
    transitions.
-4. Run a forced live reorg/reconfirmation drill and broaden adversarial package
-   and mempool tests for every path.
+4. Broaden adversarial package and mempool tests for every path. The forced
+   reorg/reconfirmation lifecycle is covered against an isolated real Core
+   regtest node; it has not and should not be forced against public testnet4.
 5. Expand the circuit from externally verified boolean facts to the exact
    predicates that should be Bitcoin-challengeable.
 6. Obtain an independent cryptographic and transaction-graph review before

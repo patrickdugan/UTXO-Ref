@@ -235,7 +235,7 @@ function deriveChallengeLifecycle(input = {}) {
       throw new Error('confirmed challenge requires a valid inclusion height and block hash');
     }
     const confirmation = { height, blockHash, confirmations };
-    const reorgDetected = Boolean(prior) && (prior.height !== height || prior.blockHash !== blockHash);
+    const reorgDetected = Boolean(input.reorgPending) || (Boolean(prior) && (prior.height !== height || prior.blockHash !== blockHash));
     return {
       action: reorgDetected ? 'challenge_reconfirmed' : 'challenge_confirmed',
       confirmations,
@@ -274,17 +274,22 @@ async function monitorChallenge(rpc, state, currentHeight) {
     currentHeight,
     txout,
     priorConfirmation: tracked.confirmation || null,
+    reorgPending: tracked.reorgPending === true,
     inclusionBlockHash,
     activeHashAtPriorHeight
   });
   if (lifecycle.confirmation && lifecycle.action !== 'challenge_reorged') {
     tracked.confirmation = lifecycle.confirmation;
+    tracked.reorgPending = false;
   } else if (lifecycle.action === 'challenge_in_mempool' && tracked.confirmation) {
     tracked.confirmationHistory = [
       ...(tracked.confirmationHistory || []),
       { ...tracked.confirmation, removedAt: new Date().toISOString(), reason: 'reorged-to-mempool' }
     ];
     tracked.confirmation = null;
+    tracked.reorgPending = true;
+  } else if (lifecycle.action === 'challenge_reorged') {
+    tracked.reorgPending = true;
   }
   tracked.lastObservedAt = new Date().toISOString();
   tracked.lastAction = lifecycle.action;

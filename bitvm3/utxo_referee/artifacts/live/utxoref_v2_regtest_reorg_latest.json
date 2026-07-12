@@ -1,0 +1,32 @@
+{
+  "kind": "utxoref_v2_regtest_reorg_drill_receipt",
+  "version": 1,
+  "observedAt": "2026-07-12T17:54:36.558Z",
+  "chain": "regtest",
+  "txid": "35c3a991c200ffc8dde107f4c2c1875a060cd70a88ffe3bb13856ae3cab24c48",
+  "vout": 0,
+  "amountSats": "10000",
+  "firstBlockHash": "229347ed563c203a2756e971eb83d60dfded78927140d790e0b11fcf00c70b08",
+  "secondBlockHash": "3f5f08f1851cc87176442ee117b6e20480aa9d5ed5f8eb8180270455d3679aa1",
+  "actions": [
+    "challenge_in_mempool",
+    "challenge_confirmed",
+    "challenge_in_mempool",
+    "challenge_reconfirmed"
+  ],
+  "reorgDetected": true,
+  "confirmationHistory": [
+    {
+      "height": 102,
+      "blockHash": "229347ed563c203a2756e971eb83d60dfded78927140d790e0b11fcf00c70b08",
+      "confirmations": 1,
+      "removedAt": "2026-07-12T17:54:36.291Z",
+      "reason": "reorged-to-mempool"
+    }
+  ],
+  "finalConfirmation": {
+    "height": 102,
+    "blockHash": "3f5f08f1851cc87176442ee117b6e20480aa9d5ed5f8eb8180270455d3679aa1",
+    "confirmations": 1
+  }
+}

@@ -160,4 +160,19 @@ state amount and script before the wallet signs. The exact signed child is
 then preflighted before optional broadcast; no wallet coin-selection RPC is
 used, so unrelated inputs cannot be added.
 
-A forced live RBF, CPFP, and reorg drill remains a separate release gate.
+`utxoref_v2_reorg_drill.js` exercises the lifecycle against an isolated Core
+regtest node. It refuses testnet and mainnet, observes a real wallet output in
+the mempool and a mined block, invalidates only that newly mined block, then
+requires reorg-to-mempool and reconfirmation states. This is the reproducible
+reorg release drill; public testnet4 is never invalidated.
+
+The drill passed against Bitcoin Core 31.0 on 2026-07-12. The transaction was
+first confirmed at height 102 in block
+`229347ed563c203a2756e971eb83d60dfded78927140d790e0b11fcf00c70b08`,
+returned to the mempool after invalidation, and reconfirmed at the same height
+in distinct block
+`3f5f08f1851cc87176442ee117b6e20480aa9d5ed5f8eb8180270455d3679aa1`.
+The secret-free receipt is
+`artifacts/live/utxoref_v2_regtest_reorg_latest.json`.
+
+A funded live testnet4 RBF and CPFP drill remains a separate release gate.
