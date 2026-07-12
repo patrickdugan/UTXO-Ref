@@ -121,6 +121,17 @@ function verificationOptions(artifact) {
   };
 }
 
+function authorizationPolicy(inspected, activeBlockHash, state) {
+  const reorged = activeBlockHash !== inspected.authorizationBlockHash;
+  const tracked = state?.challenge?.graphHash === inspected.graphHash;
+  return {
+    reorged,
+    tracked,
+    monitoringOnly: reorged && tracked,
+    authorizedForNewChallenge: !reorged
+  };
+}
+
 function inspectArtifact(artifact) {
   if (artifact?.kind !== 'btc_testnet4_utxoref_v2_live_ceremony' || artifact.version !== 2) {
     throw new Error('wrong UTXORef V2 public artifact kind or version');
@@ -401,7 +412,8 @@ async function runTick(args, rpc, state) {
   const chain = await rpc('getblockchaininfo');
   if (chain.chain !== 'testnet4') throw new Error(`wrong chain: ${chain.chain}`);
   const authorizationBlock = await rpc('getblockhash', [inspected.authorizationHeight]);
-  if (authorizationBlock !== inspected.authorizationBlockHash) {
+  const authorization = authorizationPolicy(inspected, authorizationBlock, state);
+  if (authorization.reorged && !authorization.tracked) {
     throw new Error('artifact authorization block is not in the active chain');
   }
   const assertion = inspected.assertionOutpoint;
@@ -418,6 +430,13 @@ async function runTick(args, rpc, state) {
     assertionConfirmations: confirmationCount,
     fraudDetected: inspected.fraudDetected,
     fraudType: inspected.fraudType,
+    authorization: {
+      height: inspected.authorizationHeight,
+      recordedBlockHash: inspected.authorizationBlockHash,
+      activeBlockHash: authorizationBlock,
+      reorged: authorization.reorged,
+      monitoringOnly: authorization.monitoringOnly
+    },
     action: inspected.fraudDetected && txout
       ? 'challenge_required'
       : txout
@@ -432,6 +451,9 @@ async function runTick(args, rpc, state) {
     result.challenge = await monitorChallenge(rpc, state, currentHeight);
     result.action = result.challenge.action;
     if (args.replaceChallenge) {
+      if (!authorization.authorizedForNewChallenge) {
+        throw new Error('challenge replacement is disabled after authorization-block reorg');
+      }
       if (result.action !== 'challenge_in_mempool') {
         throw new Error(`challenge replacement requires an unconfirmed tracked challenge, got ${result.action}`);
       }
@@ -442,7 +464,7 @@ async function runTick(args, rpc, state) {
     }
   }
 
-  if (inspected.fraudDetected && txout) {
+  if (inspected.fraudDetected && txout && authorization.authorizedForNewChallenge) {
     if (!args.challengerSecretFile) {
       result.action = 'challenge_signature_required';
       result.challengeRequest = {
@@ -486,6 +508,8 @@ async function runTick(args, rpc, state) {
         result.action = 'challenge_ready_for_broadcast';
       }
     }
+  } else if (inspected.fraudDetected && txout && authorization.monitoringOnly) {
+    result.action = 'authorization_reorged_monitoring_only';
   }
 
   state.tickCount = Number(state.tickCount || 0) + 1;
@@ -544,6 +568,7 @@ module.exports = {
   parseArgs,
   authorizationReference,
   verificationOptions,
+  authorizationPolicy,
   inspectArtifact,
   deterministicChallengeAux,
   feeCandidates,

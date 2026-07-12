@@ -10,10 +10,11 @@ const DEFAULT_STATE_PATH = path.join(__dirname, 'artifacts', 'live', 'utxoref_v2
 const MIN_OUTPUT_SATS = 330n;
 
 function parseArgs(argv) {
-  const args = { broadcast: false };
+  const args = { broadcast: false, replaceChild: false };
   for (let index = 0; index < argv.length; index++) {
     const arg = argv[index];
     if (arg === '--broadcast') { args.broadcast = true; continue; }
+    if (arg === '--replace-child') { args.replaceChild = true; continue; }
     if (arg === '--help' || arg === '-h') { args.help = true; continue; }
     if (!arg.startsWith('--')) throw new Error(`unexpected argument ${arg}`);
     const key = arg.slice(2).replace(/-([a-z])/g, (_match, letter) => letter.toUpperCase());
@@ -35,6 +36,10 @@ function usage() {
     'Broadcast after a successful preflight:',
     '  node utxoref_v2_challenge_cpfp.js --state-path <watchtower-state.json> \\',
     '    --wallet <wallet-name> --fee-sats 1000 --broadcast',
+    '',
+    'Replace the tracked unconfirmed CPFP child at a higher fee:',
+    '  node utxoref_v2_challenge_cpfp.js --state-path <watchtower-state.json> \\',
+    '    --wallet <wallet-name> --fee-sats 2000 --replace-child --broadcast',
     '',
     'RPC credentials are read from BTC_RPC_URL, BTC_RPC_USER, and BTC_RPC_PASS,',
     'or passed as --rpc-url, --rpc-user, and --rpc-pass.'
@@ -70,6 +75,14 @@ function buildCpfpPlan(state, args) {
   if (!Number.isSafeInteger(vout) || vout < 0) throw new Error('tracked challenge vout is invalid');
   const parentAmount = positiveSats(tracked.outputSats, 'tracked challenge outputSats');
   const feeSats = positiveSats(args.feeSats, 'feeSats');
+  const existingChild = tracked.cpfp || null;
+  if (existingChild && !args.replaceChild) throw new Error('state already tracks a CPFP child; use --replace-child to fee-bump it');
+  if (args.replaceChild) {
+    if (!existingChild?.txid || !/^[0-9a-f]{64}$/.test(existingChild.txid)) throw new Error('state has no valid CPFP child to replace');
+    if (feeSats <= positiveSats(existingChild.feeSats, 'tracked CPFP feeSats')) {
+      throw new Error('replacement CPFP fee must exceed the tracked child fee');
+    }
+  }
   if (feeSats > parentAmount - MIN_OUTPUT_SATS) throw new Error('CPFP fee would reduce the child output below the dust floor');
   const outputSats = parentAmount - feeSats;
   const scriptPubKeyHex = nativeSegwitScript(tracked.challengeScriptPubKeyHex);
@@ -81,6 +94,7 @@ function buildCpfpPlan(state, args) {
     kind: 'utxoref_v2_challenge_cpfp_plan',
     version: 1,
     graphHash: tracked.graphHash,
+    replacementOf: args.replaceChild ? existingChild.txid : null,
     parentTxid: tracked.txid,
     parentVout: vout,
     parentAmountSats: parentAmount.toString(),
@@ -95,17 +109,31 @@ function buildCpfpPlan(state, args) {
 async function preflightCpfp(plan, args, rpc) {
   const chain = await rpc('getblockchaininfo');
   if (chain.chain !== 'testnet4') throw new Error(`wrong chain: ${chain.chain}`);
-  const parent = await rpc('gettxout', [plan.parentTxid, plan.parentVout, true]);
-  if (!parent) throw new Error('tracked challenge output is spent or missing');
-  if (Number(parent.confirmations || 0) !== 0) throw new Error('CPFP is restricted to an unconfirmed challenge output');
-  if (btcToSats(parent.value) !== BigInt(plan.parentAmountSats)) throw new Error('tracked challenge amount does not match Core');
-  if (String(parent.scriptPubKey?.hex || '').toLowerCase() !== plan.parentScriptPubKeyHex) {
-    throw new Error('tracked challenge script does not match Core');
+  if (plan.replacementOf) {
+    const existing = await rpc('getmempoolentry', [plan.replacementOf]);
+    if (existing?.['bip125-replaceable'] !== true) throw new Error('tracked CPFP child is not BIP125-replaceable');
+    const parent = await rpc('getrawtransaction', [plan.parentTxid, true]);
+    const output = parent?.vout?.find((candidate) => Number(candidate.n) === plan.parentVout);
+    if (!output) throw new Error('tracked challenge parent output is unavailable');
+    if (btcToSats(output.value) !== BigInt(plan.parentAmountSats)) throw new Error('tracked challenge amount does not match Core');
+    if (String(output.scriptPubKey?.hex || '').toLowerCase() !== plan.parentScriptPubKeyHex) {
+      throw new Error('tracked challenge script does not match Core');
+    }
+  } else {
+    const parent = await rpc('gettxout', [plan.parentTxid, plan.parentVout, true]);
+    if (!parent) throw new Error('tracked challenge output is spent or missing');
+    if (Number(parent.confirmations || 0) !== 0) throw new Error('CPFP is restricted to an unconfirmed challenge output');
+    if (btcToSats(parent.value) !== BigInt(plan.parentAmountSats)) throw new Error('tracked challenge amount does not match Core');
+    if (String(parent.scriptPubKey?.hex || '').toLowerCase() !== plan.parentScriptPubKeyHex) {
+      throw new Error('tracked challenge script does not match Core');
+    }
   }
   if (!args.wallet) throw new Error('--wallet is required for CPFP signing');
   const signed = await rpc('signrawtransactionwithwallet', [plan.unsignedTxHex], args.wallet);
   if (!signed?.complete || !signed.hex) throw new Error('wallet could not completely sign the CPFP child');
-  const [mempoolAccept] = await rpc('testmempoolaccept', [[signed.hex]]);
+  const [mempoolAccept] = plan.replacementOf
+    ? [{ allowed: null, replacementPreflight: 'sendrawtransaction-required-for-conflict' }]
+    : await rpc('testmempoolaccept', [[signed.hex]]);
   return { signedHex: signed.hex, mempoolAccept };
 }
 
@@ -113,11 +141,12 @@ async function runCpfp(state, args, rpc) {
   const plan = buildCpfpPlan(state, args);
   const preflight = await preflightCpfp(plan, args, rpc);
   const result = { ...plan, mempoolAccept: preflight.mempoolAccept, broadcast: false };
-  if (!preflight.mempoolAccept?.allowed) return { action: 'cpfp_preflight_rejected', result };
-  if (!args.broadcast) return { action: 'cpfp_ready_for_broadcast', result };
+  if (!plan.replacementOf && !preflight.mempoolAccept?.allowed) return { action: 'cpfp_preflight_rejected', result };
+  if (!args.broadcast) return { action: plan.replacementOf ? 'cpfp_replacement_ready_for_broadcast' : 'cpfp_ready_for_broadcast', result };
   const broadcastTxid = await rpc('sendrawtransaction', [preflight.signedHex]);
   if (broadcastTxid !== plan.txid) throw new Error(`CPFP txid mismatch: expected ${plan.txid}, got ${broadcastTxid}`);
   const at = new Date().toISOString();
+  const priorChild = state.challenge.cpfp || null;
   state.challenge.cpfp = {
     txid: broadcastTxid,
     vout: 0,
@@ -125,11 +154,20 @@ async function runCpfp(state, args, rpc) {
     feeSats: plan.feeSats,
     outputSats: plan.outputSats,
     broadcastAt: at,
-    confirmation: null
+    confirmation: null,
+    replacements: priorChild
+      ? [...(priorChild.replacements || []), {
+          txid: priorChild.txid,
+          feeSats: String(priorChild.feeSats),
+          outputSats: String(priorChild.outputSats),
+          replacedAt: at,
+          replacementTxid: broadcastTxid
+        }]
+      : []
   };
   result.broadcast = true;
   result.broadcastTxid = broadcastTxid;
-  return { action: 'cpfp_broadcast', result };
+  return { action: plan.replacementOf ? 'cpfp_replaced' : 'cpfp_broadcast', result };
 }
 
 function resolveRpc(args) {
@@ -146,7 +184,7 @@ async function main() {
   const statePath = path.resolve(args.statePath || DEFAULT_STATE_PATH);
   const state = loadState(statePath);
   const outcome = await runCpfp(state, args, resolveRpc(args));
-  if (outcome.action === 'cpfp_broadcast') saveJsonAtomic(statePath, state);
+  if (outcome.action === 'cpfp_broadcast' || outcome.action === 'cpfp_replaced') saveJsonAtomic(statePath, state);
   console.log(JSON.stringify(outcome));
 }
 

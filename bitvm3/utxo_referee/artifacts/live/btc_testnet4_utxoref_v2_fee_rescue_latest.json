@@ -2,12 +2,14 @@
   "kind": "btc_testnet4_utxoref_v2_fee_rescue_drill_receipt",
   "version": 1,
   "network": "bitcoin-testnet4",
-  "status": "package-in-mempool",
-  "observedAt": "2026-07-12T18:16:00.000Z",
+  "status": "fee-rescued-after-authorization-reorg",
+  "observedAt": "2026-07-12T18:26:26.902Z",
   "ceremonyId": "utxoref-v2-20260712t181444z-59d5df3f",
   "authorization": {
     "height": 143872,
-    "blockHash": "00000000003abb10e752986f2ae7f29f58df72eda07417c8c9899fd12493b3f2"
+    "blockHash": "00000000003abb10e752986f2ae7f29f58df72eda07417c8c9899fd12493b3f2",
+    "activeBlockHashAtHeight": "0000000000803c7783f6f8ed4eb03f03346079b7e7d284b734dfaf45d66b92c4",
+    "reorged": true
   },
   "graph": {
     "graphHash": "e98272fd3c934e8e1298b6e0a820d1b86769c4fa0606327b6e3c3a509d252531",
@@ -39,7 +41,7 @@
     "sequence": 4294967293,
     "explorer": "https://mempool.space/testnet4/tx/96f52e7120f3ce53e349e9aa51fcf8b1ae36dfc5f5da4b51f3a9a5ff9b8a0482"
   },
-  "cpfp": {
+  "supersededCpfp": {
     "txid": "0a4233b97346525188e99f5214e700be0d69b0ffbeb6756f689027afb86b970d",
     "parentVout": 0,
     "feeSats": "500",
@@ -47,13 +49,25 @@
     "vsize": 110,
     "sequence": 4294967293,
     "sameDestinationScript": true,
+    "mempoolPresentAfterReplacement": false,
     "explorer": "https://mempool.space/testnet4/tx/0a4233b97346525188e99f5214e700be0d69b0ffbeb6756f689027afb86b970d"
+  },
+  "cpfp": {
+    "txid": "5a37264a3becf0fa11872ae5087aa44493518c585322438bfad8da9dda33ce92",
+    "replacesTxid": "0a4233b97346525188e99f5214e700be0d69b0ffbeb6756f689027afb86b970d",
+    "parentVout": 0,
+    "feeSats": "2000",
+    "outputSats": "3000",
+    "vsize": 110,
+    "sequence": 4294967293,
+    "sameDestinationScript": true,
+    "explorer": "https://mempool.space/testnet4/tx/5a37264a3becf0fa11872ae5087aa44493518c585322438bfad8da9dda33ce92"
   },
   "package": {
     "ancestorCount": 3,
     "vsize": 455,
-    "feeSats": "2500",
-    "feeRateSatVb": 5.4945,
+    "feeSats": "4000",
+    "feeRateSatVb": 8.7912,
     "dependencyOrder": [
       "funding",
       "replacementChallenge",
@@ -62,7 +76,9 @@
   },
   "watchtower": {
     "trackedRole": "cpfp",
-    "action": "challenge_in_mempool"
+    "action": "challenge_in_mempool",
+    "authorizationReorged": true,
+    "monitoringOnly": true
   },
   "confirmation": null
 }

@@ -160,6 +160,11 @@ state amount and script before the wallet signs. The exact signed child is
 then preflighted before optional broadcast; no wallet coin-selection RPC is
 used, so unrelated inputs cannot be added.
 
+The child also opts into BIP125. `--replace-child` rebuilds the same exact
+parent spend at a strictly higher fee, verifies the prior child is replaceable
+and the raw parent still matches the tracked amount and script, then records
+the superseded child in durable history.
+
 `utxoref_v2_reorg_drill.js` exercises the lifecycle against an isolated Core
 regtest node. It refuses testnet and mainnet, observes a real wallet output in
 the mempool and a mined block, invalidates only that newly mined block, then
@@ -186,13 +191,22 @@ The funded RBF and CPFP paths were exercised together on Bitcoin testnet4 on
 - Funding assertion: `389307d5195a1fcf8854d469f34b162afc3603fea4b15ac3319df1d224851469`
 - Superseded 500-sat challenge: `afaa8ddfea8d07f2a831257a9cf5cdab6e5595a57fbe9644a0a726e933b8ceec`
 - 1,000-sat replacement: `96f52e7120f3ce53e349e9aa51fcf8b1ae36dfc5f5da4b51f3a9a5ff9b8a0482`
-- 500-sat CPFP child: `0a4233b97346525188e99f5214e700be0d69b0ffbeb6756f689027afb86b970d`
+- Superseded 500-sat CPFP child: `0a4233b97346525188e99f5214e700be0d69b0ffbeb6756f689027afb86b970d`
+- 2,000-sat CPFP replacement: `5a37264a3becf0fa11872ae5087aa44493518c585322438bfad8da9dda33ce92`
 
 Core's mempool graph contains funding, replacement, and CPFP in that order;
-the superseded challenge is absent. The final package pays 2,500 sats across
-455 virtual bytes, approximately 5.49 sat/vB. The watcher follows the CPFP
-output rather than reporting the spent replacement output as missing.
+the superseded challenge and first CPFP child are absent. The final package
+pays 4,000 sats across 455 virtual bytes, approximately 8.79 sat/vB. The
+watcher follows the replacement CPFP output rather than reporting a
+superseded output as missing.
 
 The secret-free receipt is
 `artifacts/live/btc_testnet4_utxoref_v2_fee_rescue_latest.json`. Its status and
 confirmation fields report only what Core has actually observed.
+
+The next public block reorganized the artifact's authorization height 143,872.
+The watcher distinguishes authorization from observation: an orphaned
+authorization block cannot authorize construction or replacement of a
+challenge, but an already tracked challenge for the same graph remains
+observable in monitoring-only mode. This preserves reorg visibility without
+turning an orphaned state reference into fresh spending authority.

@@ -96,6 +96,38 @@ test('watchtower follows the CPFP output after the parent is spent', async () =>
   assert(state.challenge.cpfp.confirmation.height === 119);
 });
 
+test('CPFP replacement verifies the parent and records child history', async () => {
+  const state = fixture();
+  state.challenge.cpfp = {
+    txid: '33'.repeat(32),
+    parentTxid: state.challenge.txid,
+    feeSats: '500',
+    outputSats: '4500',
+    replacements: []
+  };
+  const plan = buildCpfpPlan(state, { feeSats: '1500', replaceChild: true });
+  const rpc = async (method) => {
+    if (method === 'getblockchaininfo') return { chain: 'testnet4' };
+    if (method === 'getmempoolentry') return { 'bip125-replaceable': true };
+    if (method === 'getrawtransaction') return {
+      vout: [{ n: 0, value: 0.00005, scriptPubKey: { hex: plan.parentScriptPubKeyHex } }]
+    };
+    if (method === 'signrawtransactionwithwallet') return { complete: true, hex: 'signed-replacement-child' };
+    if (method === 'sendrawtransaction') return plan.txid;
+    throw new Error(`unexpected RPC ${method}`);
+  };
+  const outcome = await runCpfp(state, {
+    feeSats: '1500',
+    wallet: 'utxoref-testnet',
+    replaceChild: true,
+    broadcast: true
+  }, rpc);
+  assert(outcome.action === 'cpfp_replaced');
+  assert(state.challenge.cpfp.feeSats === '1500');
+  assert(state.challenge.cpfp.replacements.length === 1);
+  assert(state.challenge.cpfp.replacements[0].txid === '33'.repeat(32));
+});
+
 (async () => {
   let passed = 0;
   let failed = 0;

@@ -80,6 +80,11 @@ transaction is broadcast. The local test ceremony stores challenger and
 operator keys in separate files, but it does not provide administrative
 separation. Production must move challenger signing to another host/operator.
 
+If the recorded authorization block is reorganized, the watcher fails closed
+for new challenge construction and challenge replacement. It may continue to
+monitor a challenge already tracked under the same graph hash; that mode has
+observation authority only and cannot create a new spend.
+
 The boolean circuit currently consumes externally verified facts such as
 `state_checkpoint_valid` and `payout_vector_exact`. It does not implement
 Ed25519 or full TradeLayer consensus in Bitcoin Script. The challenger

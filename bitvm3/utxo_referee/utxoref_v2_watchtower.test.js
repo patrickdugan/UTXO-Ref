@@ -4,6 +4,7 @@ const path = require('path');
 const {
   parseArgs,
   inspectArtifact,
+  authorizationPolicy,
   deterministicChallengeAux,
   feeCandidates,
   isFeePolicyReject,
@@ -51,6 +52,18 @@ test('challenge signing auxiliary data is stable and leaf-bound', () => {
   assert(first.length === 32);
   assert(first.equals(second), 'same graph and leaf must reproduce the preflight signature input');
   assert(!first.equals(otherLeaf), 'different leaves must use different auxiliary data');
+});
+
+test('authorization reorg permits only an already tracked graph to remain monitored', () => {
+  const inspected = { graphHash: '11'.repeat(32), authorizationBlockHash: '22'.repeat(32) };
+  const untracked = authorizationPolicy(inspected, '33'.repeat(32), {});
+  assert(untracked.reorged && !untracked.monitoringOnly && !untracked.authorizedForNewChallenge);
+  const tracked = authorizationPolicy(inspected, '33'.repeat(32), {
+    challenge: { graphHash: inspected.graphHash }
+  });
+  assert(tracked.reorged && tracked.monitoringOnly && !tracked.authorizedForNewChallenge);
+  const active = authorizationPolicy(inspected, inspected.authorizationBlockHash, {});
+  assert(!active.reorged && active.authorizedForNewChallenge);
 });
 
 test('challenge fee ladder is bounded by policy and the dust floor', () => {
