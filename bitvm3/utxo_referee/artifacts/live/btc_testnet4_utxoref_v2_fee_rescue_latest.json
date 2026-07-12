@@ -1,0 +1,68 @@
+{
+  "kind": "btc_testnet4_utxoref_v2_fee_rescue_drill_receipt",
+  "version": 1,
+  "network": "bitcoin-testnet4",
+  "status": "package-in-mempool",
+  "observedAt": "2026-07-12T18:16:00.000Z",
+  "ceremonyId": "utxoref-v2-20260712t181444z-59d5df3f",
+  "authorization": {
+    "height": 143872,
+    "blockHash": "00000000003abb10e752986f2ae7f29f58df72eda07417c8c9899fd12493b3f2"
+  },
+  "graph": {
+    "graphHash": "e98272fd3c934e8e1298b6e0a820d1b86769c4fa0606327b6e3c3a509d252531",
+    "commitmentHash": "7093a1cb06b2d153415d0ffe3cb3c5487ef7ef6f94c1d019ec8c605e2cf00a44",
+    "assertionTreeRoot": "8e2fee07c23be8e958a0436553366a0b1f5809781f3201cc93483062a5564e07",
+    "fraudType": "gate",
+    "leafId": "gate:0:11:0"
+  },
+  "funding": {
+    "txid": "389307d5195a1fcf8854d469f34b162afc3603fea4b15ac3319df1d224851469",
+    "assertionVout": 0,
+    "assertionAmountSats": "6000",
+    "feeSats": "1000",
+    "vsize": 153,
+    "explorer": "https://mempool.space/testnet4/tx/389307d5195a1fcf8854d469f34b162afc3603fea4b15ac3319df1d224851469"
+  },
+  "supersededChallenge": {
+    "txid": "afaa8ddfea8d07f2a831257a9cf5cdab6e5595a57fbe9644a0a726e933b8ceec",
+    "wtxid": "472ec419927f68e9186b85f44df01e474095bcb32537e11184e273362a6bd67f",
+    "feeSats": "500",
+    "outputSats": "5500",
+    "mempoolPresentAfterReplacement": false
+  },
+  "replacementChallenge": {
+    "txid": "96f52e7120f3ce53e349e9aa51fcf8b1ae36dfc5f5da4b51f3a9a5ff9b8a0482",
+    "feeSats": "1000",
+    "outputSats": "5000",
+    "vsize": 192,
+    "sequence": 4294967293,
+    "explorer": "https://mempool.space/testnet4/tx/96f52e7120f3ce53e349e9aa51fcf8b1ae36dfc5f5da4b51f3a9a5ff9b8a0482"
+  },
+  "cpfp": {
+    "txid": "0a4233b97346525188e99f5214e700be0d69b0ffbeb6756f689027afb86b970d",
+    "parentVout": 0,
+    "feeSats": "500",
+    "outputSats": "4500",
+    "vsize": 110,
+    "sequence": 4294967293,
+    "sameDestinationScript": true,
+    "explorer": "https://mempool.space/testnet4/tx/0a4233b97346525188e99f5214e700be0d69b0ffbeb6756f689027afb86b970d"
+  },
+  "package": {
+    "ancestorCount": 3,
+    "vsize": 455,
+    "feeSats": "2500",
+    "feeRateSatVb": 5.4945,
+    "dependencyOrder": [
+      "funding",
+      "replacementChallenge",
+      "cpfp"
+    ]
+  },
+  "watchtower": {
+    "trackedRole": "cpfp",
+    "action": "challenge_in_mempool"
+  },
+  "confirmation": null
+}

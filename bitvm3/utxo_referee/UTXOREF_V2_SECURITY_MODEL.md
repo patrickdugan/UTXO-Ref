@@ -116,10 +116,10 @@ Bitcoin testnet key-backup directory.
    reproducible review/signing protocol.
 2. Replace the single state signer or formally accept it as the protocol trust
    root; threshold authorization is not implemented.
-3. Exercise the implemented explicit BIP125 replacement and exact one-input
-   CPFP paths live. The watcher has a bounded fee ladder, durable replacement
-   history, wallet-isolated CPFP signing, and explicit confirmation/reorg
-   transitions.
+3. Observe the funded testnet4 BIP125 replacement and exact one-input CPFP
+   package through confirmation. Construction, broadcast, dependency checks,
+   durable replacement history, wallet-isolated CPFP signing, and watcher
+   tracking have all been exercised live.
 4. Broaden adversarial package and mempool tests for every path. The forced
    reorg/reconfirmation lifecycle is covered against an isolated real Core
    regtest node; it has not and should not be forced against public testnet4.

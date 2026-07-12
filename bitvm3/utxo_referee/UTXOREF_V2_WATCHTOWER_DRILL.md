@@ -175,4 +175,24 @@ in distinct block
 The secret-free receipt is
 `artifacts/live/utxoref_v2_regtest_reorg_latest.json`.
 
-A funded live testnet4 RBF and CPFP drill remains a separate release gate.
+The funded live testnet4 RBF and CPFP broadcast drill is recorded below;
+confirmation observation remains open until testnet4 mines the package.
+
+## Live Fee-Rescue Drill
+
+The funded RBF and CPFP paths were exercised together on Bitcoin testnet4 on
+2026-07-12:
+
+- Funding assertion: `389307d5195a1fcf8854d469f34b162afc3603fea4b15ac3319df1d224851469`
+- Superseded 500-sat challenge: `afaa8ddfea8d07f2a831257a9cf5cdab6e5595a57fbe9644a0a726e933b8ceec`
+- 1,000-sat replacement: `96f52e7120f3ce53e349e9aa51fcf8b1ae36dfc5f5da4b51f3a9a5ff9b8a0482`
+- 500-sat CPFP child: `0a4233b97346525188e99f5214e700be0d69b0ffbeb6756f689027afb86b970d`
+
+Core's mempool graph contains funding, replacement, and CPFP in that order;
+the superseded challenge is absent. The final package pays 2,500 sats across
+455 virtual bytes, approximately 5.49 sat/vB. The watcher follows the CPFP
+output rather than reporting the spent replacement output as missing.
+
+The secret-free receipt is
+`artifacts/live/btc_testnet4_utxoref_v2_fee_rescue_latest.json`. Its status and
+confirmation fields report only what Core has actually observed.
