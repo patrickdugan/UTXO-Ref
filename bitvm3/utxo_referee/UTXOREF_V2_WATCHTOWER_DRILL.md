@@ -107,3 +107,26 @@ The input-binding path was then exercised independently:
 
 Its public receipt is
 `artifacts/live/btc_testnet4_utxoref_v2_input_fraud_latest.json`.
+
+## Fee And Reorg Policy
+
+The challenger signer accepts a bounded fee ladder:
+
+```text
+--fee-sats 1000 --fee-step-sats 500 --max-fee-sats 5000
+```
+
+It advances to the next candidate only when Core reports a fee-policy
+rejection. Script, input, or other semantic failures stop immediately. Every
+candidate preserves at least the 330-sat challenge-output floor, and a policy
+may contain at most 32 attempts.
+
+After broadcast, the state file tracks the challenge txid and output. Using
+only the filtered `gettxout` and `getblockhash` RPC methods, subsequent ticks
+report `challenge_in_mempool`, `challenge_confirmed`,
+`challenge_reconfirmed`, `challenge_reorged`, or
+`challenge_output_spent_or_missing`. The two live challenge outputs resolve to
+their recorded confirmation heights and block hashes through this path.
+
+This does not yet construct CPFP children or replace an already broadcast
+challenge through RBF. Those are separate release gates.

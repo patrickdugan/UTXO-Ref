@@ -13,6 +13,7 @@ const {
   buildBitvmDisproveV2,
   verifyBitvmAssertionGraphV2
 } = require('./bitvm_assertion_graph_v2');
+const { txidFromUnsignedHex } = require('./recover_btc_testnet4_reserve_vault');
 
 const DEFAULT_ARTIFACT = path.join(__dirname, 'artifacts', 'live', 'btc_testnet4_utxoref_v2_latest.json');
 const DEFAULT_STATE_PATH = path.join(__dirname, 'artifacts', 'live', 'utxoref_v2_watchtower_state.json');
@@ -44,7 +45,8 @@ function usage() {
     '',
     'Testnet fraud seizure, only with an explicitly supplied challenger key:',
     '  node utxoref_v2_watchtower.js --once --challenger-secret-file <path> \\',
-    '    --challenge-address <tb1...> --broadcast',
+    '    --challenge-address <tb1...> --fee-sats 1000 \\',
+    '    --fee-step-sats 500 --max-fee-sats 5000 --broadcast',
     '',
     'RPC credentials are read from BTC_RPC_URL, BTC_RPC_USER, and BTC_RPC_PASS,',
     'or passed as --rpc-url, --rpc-user, and --rpc-pass.'
@@ -175,6 +177,122 @@ function deterministicChallengeAux(graphHash, evidence) {
     .digest();
 }
 
+function safePositiveInteger(value, fieldName) {
+  const parsed = Number(value);
+  if (!Number.isSafeInteger(parsed) || parsed <= 0) throw new Error(`${fieldName} must be a positive safe integer`);
+  return parsed;
+}
+
+function feeCandidates(args, assertionAmountSats) {
+  const start = safePositiveInteger(args.feeSats || 1000, 'feeSats');
+  const step = safePositiveInteger(args.feeStepSats || 500, 'feeStepSats');
+  const maximum = safePositiveInteger(args.maxFeeSats || start, 'maxFeeSats');
+  const amount = BigInt(assertionAmountSats);
+  if (maximum < start) throw new Error('maxFeeSats must be at least feeSats');
+  if (BigInt(maximum) > amount - 330n) throw new Error('maxFeeSats would reduce the challenge output below the dust floor');
+  const count = Math.floor((maximum - start) / step) + 1;
+  if (count > 32) throw new Error('fee policy may contain at most 32 attempts');
+  const candidates = [];
+  for (let fee = start; fee <= maximum; fee += step) candidates.push(String(fee));
+  if (candidates[candidates.length - 1] !== String(maximum)) candidates.push(String(maximum));
+  return candidates;
+}
+
+function mempoolRejectReason(result) {
+  return String(result?.['reject-reason'] || result?.reject_reason || result?.rejectReason || '');
+}
+
+function isFeePolicyReject(result) {
+  return /fee|feerate|min relay|mempool min/i.test(mempoolRejectReason(result));
+}
+
+function deriveChallengeLifecycle(input = {}) {
+  const txout = input.txout || null;
+  const prior = input.priorConfirmation || null;
+  if (txout) {
+    const confirmations = Number(txout.confirmations || 0);
+    if (confirmations <= 0) return { action: 'challenge_in_mempool', confirmations: 0, confirmation: null, reorgDetected: false };
+    const height = Number(input.currentHeight) - confirmations + 1;
+    const blockHash = String(input.inclusionBlockHash || '');
+    if (!Number.isSafeInteger(height) || height < 0 || !/^[0-9a-f]{64}$/.test(blockHash)) {
+      throw new Error('confirmed challenge requires a valid inclusion height and block hash');
+    }
+    const confirmation = { height, blockHash, confirmations };
+    const reorgDetected = Boolean(prior) && (prior.height !== height || prior.blockHash !== blockHash);
+    return {
+      action: reorgDetected ? 'challenge_reconfirmed' : 'challenge_confirmed',
+      confirmations,
+      confirmation,
+      reorgDetected
+    };
+  }
+  if (prior) {
+    const active = String(input.activeHashAtPriorHeight || '');
+    const reorgDetected = active !== prior.blockHash;
+    return {
+      action: reorgDetected ? 'challenge_reorged' : 'challenge_output_spent_or_missing',
+      confirmations: 0,
+      confirmation: prior,
+      reorgDetected
+    };
+  }
+  return { action: 'challenge_missing', confirmations: 0, confirmation: null, reorgDetected: false };
+}
+
+async function monitorChallenge(rpc, state, currentHeight) {
+  const tracked = state.challenge;
+  if (!tracked?.txid) return null;
+  const txout = await rpc('gettxout', [tracked.txid, Number(tracked.vout || 0), true]);
+  let inclusionBlockHash = null;
+  let activeHashAtPriorHeight = null;
+  if (txout && Number(txout.confirmations || 0) > 0) {
+    const inclusionHeight = currentHeight - Number(txout.confirmations) + 1;
+    inclusionBlockHash = await rpc('getblockhash', [inclusionHeight]);
+  } else if (!txout && tracked.confirmation) {
+    activeHashAtPriorHeight = await rpc('getblockhash', [tracked.confirmation.height]).catch(() => null);
+  }
+  const lifecycle = deriveChallengeLifecycle({
+    currentHeight,
+    txout,
+    priorConfirmation: tracked.confirmation || null,
+    inclusionBlockHash,
+    activeHashAtPriorHeight
+  });
+  if (lifecycle.confirmation && lifecycle.action !== 'challenge_reorged') {
+    tracked.confirmation = lifecycle.confirmation;
+  }
+  tracked.lastObservedAt = new Date().toISOString();
+  tracked.lastAction = lifecycle.action;
+  return { txid: tracked.txid, vout: Number(tracked.vout || 0), ...lifecycle };
+}
+
+async function prepareChallenge(artifact, inspected, args, rpc) {
+  const attempts = [];
+  let selected = null;
+  for (const feeSats of feeCandidates(args, inspected.assertionOutpoint.amountSats)) {
+    const disprove = buildBitvmDisproveV2(artifact.graph, {
+      stateVerification: verificationOptions(artifact),
+      challengerSecret: parseSecretFile(args.challengerSecretFile),
+      challengerAux: deterministicChallengeAux(inspected.graphHash, inspected.evidence),
+      feeSats,
+      challengeScriptPubKeyHex: challengeScript(args)
+    });
+    const [mempoolAccept] = await rpc('testmempoolaccept', [[disprove.witnessTxHex]]);
+    const attempt = {
+      feeSats,
+      txid: txidFromUnsignedHex(disprove.unsignedTxHex),
+      wtxid: mempoolAccept?.wtxid || null,
+      allowed: mempoolAccept?.allowed === true,
+      rejectReason: mempoolRejectReason(mempoolAccept) || null,
+      vsize: mempoolAccept?.vsize || null
+    };
+    attempts.push(attempt);
+    selected = { disprove, mempoolAccept, feeSats, attempt };
+    if (attempt.allowed || !isFeePolicyReject(mempoolAccept)) break;
+  }
+  return { ...selected, attempts };
+}
+
 function alertFingerprint(result) {
   return crypto.createHash('sha256').update(JSON.stringify({
     graphHash: result.graphHash,
@@ -218,6 +336,11 @@ async function runTick(args, rpc, state) {
     disprove: null
   };
 
+  if (!txout && state.challenge?.graphHash === inspected.graphHash) {
+    result.challenge = await monitorChallenge(rpc, state, currentHeight);
+    result.action = result.challenge.action;
+  }
+
   if (inspected.fraudDetected && txout) {
     if (!args.challengerSecretFile) {
       result.action = 'challenge_signature_required';
@@ -230,18 +353,14 @@ async function runTick(args, rpc, state) {
         requiredAction: 'run a separately administered challenger signer'
       };
     } else {
-      const disprove = buildBitvmDisproveV2(artifact.graph, {
-        stateVerification: verificationOptions(artifact),
-        challengerSecret: parseSecretFile(args.challengerSecretFile),
-        challengerAux: deterministicChallengeAux(inspected.graphHash, inspected.evidence),
-        feeSats: args.feeSats || '1000',
-        challengeScriptPubKeyHex: challengeScript(args)
-      });
-      const [mempoolAccept] = await rpc('testmempoolaccept', [[disprove.witnessTxHex]]);
+      const prepared = await prepareChallenge(artifact, inspected, args, rpc);
+      const { disprove, mempoolAccept, feeSats, attempts } = prepared;
       result.disprove = {
-        txid: require('./recover_btc_testnet4_reserve_vault').txidFromUnsignedHex(disprove.unsignedTxHex),
+        txid: txidFromUnsignedHex(disprove.unsignedTxHex),
         leafId: disprove.leafId,
         fraudType: disprove.fraudType,
+        feeSats,
+        feeAttempts: attempts,
         mempoolAccept
       };
       if (!mempoolAccept.allowed) {
@@ -249,6 +368,16 @@ async function runTick(args, rpc, state) {
       } else if (args.broadcast) {
         result.disprove.broadcastTxid = await rpc('sendrawtransaction', [disprove.witnessTxHex]);
         result.action = 'challenge_broadcast';
+        state.challenge = {
+          graphHash: inspected.graphHash,
+          txid: result.disprove.broadcastTxid,
+          wtxid: mempoolAccept.wtxid || null,
+          vout: 0,
+          outputSats: (BigInt(inspected.assertionOutpoint.amountSats) - BigInt(feeSats)).toString(),
+          feeSats,
+          broadcastAt: result.at,
+          confirmation: null
+        };
       } else {
         result.action = 'challenge_ready_for_broadcast';
       }
@@ -310,6 +439,11 @@ module.exports = {
   verificationOptions,
   inspectArtifact,
   deterministicChallengeAux,
+  feeCandidates,
+  isFeePolicyReject,
+  deriveChallengeLifecycle,
+  monitorChallenge,
+  prepareChallenge,
   runTick,
   saveJsonAtomic,
   loadState

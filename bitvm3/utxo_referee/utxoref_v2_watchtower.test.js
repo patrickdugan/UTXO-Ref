@@ -5,6 +5,9 @@ const {
   parseArgs,
   inspectArtifact,
   deterministicChallengeAux,
+  feeCandidates,
+  isFeePolicyReject,
+  deriveChallengeLifecycle,
   saveJsonAtomic,
   loadState
 } = require('./utxoref_v2_watchtower');
@@ -44,6 +47,45 @@ test('challenge signing auxiliary data is stable and leaf-bound', () => {
   assert(first.length === 32);
   assert(first.equals(second), 'same graph and leaf must reproduce the preflight signature input');
   assert(!first.equals(otherLeaf), 'different leaves must use different auxiliary data');
+});
+
+test('challenge fee ladder is bounded by policy and the dust floor', () => {
+  const fees = feeCandidates({ feeSats: '1000', feeStepSats: '500', maxFeeSats: '2000' }, '6000');
+  assert(JSON.stringify(fees) === JSON.stringify(['1000', '1500', '2000']));
+  assert(isFeePolicyReject({ allowed: false, 'reject-reason': 'mempool min fee not met' }));
+  assert(!isFeePolicyReject({ allowed: false, 'reject-reason': 'mandatory-script-verify-flag-failed' }));
+  let rejected = false;
+  try { feeCandidates({ feeSats: '1000', maxFeeSats: '5800' }, '6000'); }
+  catch (err) { rejected = /dust floor/.test(err.message); }
+  assert(rejected, 'fee policy must preserve a non-dust challenge output');
+});
+
+test('challenge lifecycle distinguishes mempool, confirmation, and reorg states', () => {
+  const mempool = deriveChallengeLifecycle({ currentHeight: 100, txout: { confirmations: 0 } });
+  assert(mempool.action === 'challenge_in_mempool');
+  const confirmed = deriveChallengeLifecycle({
+    currentHeight: 105,
+    txout: { confirmations: 3 },
+    inclusionBlockHash: '22'.repeat(32)
+  });
+  assert(confirmed.action === 'challenge_confirmed');
+  assert(confirmed.confirmation.height === 103);
+  const reorged = deriveChallengeLifecycle({
+    currentHeight: 106,
+    txout: null,
+    priorConfirmation: confirmed.confirmation,
+    activeHashAtPriorHeight: '33'.repeat(32)
+  });
+  assert(reorged.action === 'challenge_reorged');
+  assert(reorged.reorgDetected === true);
+  const reconfirmed = deriveChallengeLifecycle({
+    currentHeight: 108,
+    txout: { confirmations: 2 },
+    priorConfirmation: confirmed.confirmation,
+    inclusionBlockHash: '44'.repeat(32)
+  });
+  assert(reconfirmed.action === 'challenge_reconfirmed');
+  assert(reconfirmed.reorgDetected === true);
 });
 
 test('state is written atomically and resumes after a restart', () => {
