@@ -2,7 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { readJsonStrict } = require('./strict_artifact_ingress');
+const { readJsonStrictProfile } = require('./strict_artifact_profiles');
 const crypto = require('crypto');
 const { rpcFactory } = require('./tradelayer_send_rpc_sweep');
 const { addressToScriptPubKey } = require('./tradelayer_pnl_route_adapter');
@@ -486,7 +486,7 @@ async function stage(runtime, args) {
 
 async function broadcast(runtime) {
   if (!fs.existsSync(runtime.artifactPath)) throw new Error(`staged artifact not found: ${runtime.artifactPath}`);
-  const artifact = readJsonStrict(runtime.artifactPath, 'staged UTXORef V2 artifact');
+  const artifact = readJsonStrictProfile(runtime.artifactPath, 'utxoref-v2-public-artifact', 'staged UTXORef V2 artifact');
   if (artifact.kind !== 'btc_testnet4_utxoref_v2_live_ceremony' || artifact.version !== 2) {
     throw new Error('wrong staged artifact kind or version');
   }
@@ -539,7 +539,7 @@ async function broadcast(runtime) {
 
 async function status(runtime, args = {}) {
   if (!fs.existsSync(runtime.artifactPath)) throw new Error(`staged artifact not found: ${runtime.artifactPath}`);
-  const artifact = readJsonStrict(runtime.artifactPath, 'staged UTXORef V2 artifact');
+  const artifact = readJsonStrictProfile(runtime.artifactPath, 'utxoref-v2-public-artifact', 'staged UTXORef V2 artifact');
   if (artifact.kind !== 'btc_testnet4_utxoref_v2_live_ceremony' || artifact.version !== 2) {
     throw new Error('wrong staged artifact kind or version');
   }

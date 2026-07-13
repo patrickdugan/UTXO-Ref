@@ -136,19 +136,30 @@ function deriveReserveVaultInternalXonly(network = DEFAULT_NETWORK) {
   throw new Error('failed to derive reserve vault internal key');
 }
 
-function buildImmediateLeafScript(operatorXonly, guardianXonly) {
+function bindingPrefix(bindingHash) {
+  if (bindingHash === undefined || bindingHash === null || bindingHash === '') return Buffer.alloc(0);
+  return Buffer.concat([
+    Buffer.from([OP_PUSH32]),
+    Buffer.from(assertHex(bindingHash, 32, 'bindingHash'), 'hex'),
+    Buffer.from([OP_DROP])
+  ]);
+}
+
+function buildImmediateLeafScript(operatorXonly, guardianXonly, bindingHash = null) {
   const op = Buffer.from(assertXonly(operatorXonly, 'operatorXonly'), 'hex');
   const guardian = Buffer.from(assertXonly(guardianXonly, 'guardianXonly'), 'hex');
   return Buffer.concat([
+    bindingPrefix(bindingHash),
     Buffer.from([OP_PUSH32]), op,
     Buffer.from([OP_CHECKSIGVERIFY, OP_PUSH32]), guardian,
     Buffer.from([OP_CHECKSIG])
   ]).toString('hex');
 }
 
-function buildRecoveryLeafScript(operatorXonly, recoveryCsvDelay = DEFAULT_RECOVERY_CSV_DELAY) {
-  const op = Buffer.from(assertXonly(operatorXonly, 'operatorXonly'), 'hex');
+function buildRecoveryLeafScript(operatorXonly, recoveryCsvDelay = DEFAULT_RECOVERY_CSV_DELAY, bindingHash = null) {
+  const op = Buffer.from(assertXonly(operatorXonly, 'recoveryXonly'), 'hex');
   return Buffer.concat([
+    bindingPrefix(bindingHash),
     pushScriptNum(csvSequence(recoveryCsvDelay)),
     Buffer.from([OP_CHECKSEQUENCEVERIFY, OP_DROP, OP_PUSH32]), op,
     Buffer.from([OP_CHECKSIG])
@@ -159,13 +170,15 @@ function buildTaprootReserveVaultTemplate(input = {}) {
   const network = normalizeNetwork(input.network || DEFAULT_NETWORK);
   const operatorXonly = assertXonly(input.operatorXonly, 'operatorXonly');
   const guardianXonly = assertXonly(input.guardianXonly, 'guardianXonly');
+  const recoveryXonly = assertXonly(input.recoveryXonly || operatorXonly, 'recoveryXonly');
+  const bindingHash = input.bindingHash ? assertHex(input.bindingHash, 32, 'bindingHash') : null;
   const recoveryCsvDelay = csvSequence(input.recoveryCsvDelay ?? DEFAULT_RECOVERY_CSV_DELAY);
   const internalXonly = input.internalXonly
     ? assertXonly(input.internalXonly, 'internalXonly')
     : deriveReserveVaultInternalXonly(network);
 
-  const immediateScript = buildImmediateLeafScript(operatorXonly, guardianXonly);
-  const recoveryScript = buildRecoveryLeafScript(operatorXonly, recoveryCsvDelay);
+  const immediateScript = buildImmediateLeafScript(operatorXonly, guardianXonly, bindingHash);
+  const recoveryScript = buildRecoveryLeafScript(recoveryXonly, recoveryCsvDelay, bindingHash);
   const tree = buildTaprootTree([
     { kind: 'immediate-operator-guardian', scriptHex: immediateScript },
     { kind: 'recovery-operator-csv', scriptHex: recoveryScript }
@@ -193,6 +206,8 @@ function buildTaprootReserveVaultTemplate(input = {}) {
 
   return {
     network,
+    bindingHash,
+    recoveryXonly,
     internalXonly,
     merkleRoot: tree.root.toString('hex'),
     p2trScriptPubKey,
@@ -214,20 +229,27 @@ function buildTaprootReserveVaultManifest(input = {}) {
   const recoveryCsvDelay = csvSequence(input.recoveryCsvDelay ?? DEFAULT_RECOVERY_CSV_DELAY);
   const operatorXonly = assertXonly(input.operatorXonly, 'operatorXonly');
   const guardianXonly = assertXonly(input.guardianXonly, 'guardianXonly');
+  const recoveryXonly = assertXonly(input.recoveryXonly || operatorXonly, 'recoveryXonly');
+  const bindingHash = input.bindingHash ? assertHex(input.bindingHash, 32, 'bindingHash') : null;
   const reserveEpochId = String(input.reserveEpochId ?? input.epochId ?? '0');
-  const vaultId = String(input.vaultId || sha256Hex({
+  const vaultIdPreimage = {
     network,
     fundingOutpoint,
     amountSats: amountSats.toString(),
     operatorXonly,
     guardianXonly,
     reserveEpochId
-  }).slice(0, 32));
+  };
+  if (recoveryXonly !== operatorXonly) vaultIdPreimage.recoveryXonly = recoveryXonly;
+  if (bindingHash) vaultIdPreimage.bindingHash = bindingHash;
+  const vaultId = String(input.vaultId || sha256Hex(vaultIdPreimage).slice(0, 32));
 
   const template = buildTaprootReserveVaultTemplate({
     network,
     operatorXonly,
     guardianXonly,
+    recoveryXonly,
+    bindingHash,
     recoveryCsvDelay,
     internalXonly: input.internalXonly
   });
@@ -252,6 +274,8 @@ function buildTaprootReserveVaultManifest(input = {}) {
     merkleRoot: template.merkleRoot,
     leaves: template.leaves
   };
+  if (recoveryXonly !== operatorXonly) core.recoveryXonly = recoveryXonly;
+  if (bindingHash) core.bindingHash = bindingHash;
 
   return {
     kind: 'taproot_reserve_vault_manifest',
@@ -318,6 +342,8 @@ function verifyTaprootReserveVaultManifest(manifest, options = {}) {
       network: core.network,
       operatorXonly: core.operatorXonly,
       guardianXonly: core.guardianXonly,
+      recoveryXonly: core.recoveryXonly || core.operatorXonly,
+      bindingHash: core.bindingHash || null,
       recoveryCsvDelay: core.recoveryCsvDelay,
       internalXonly: core.internalXonly
     });

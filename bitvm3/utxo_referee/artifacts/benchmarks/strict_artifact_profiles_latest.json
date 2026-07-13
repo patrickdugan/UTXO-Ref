@@ -1,0 +1,222 @@
+{
+  "kind": "utxoref_v2_strict_artifact_profile_benchmark",
+  "version": 1,
+  "observedAt": "2026-07-13T02:46:05.881Z",
+  "node": "v20.20.0",
+  "platform": "win32-x64",
+  "cpu": "11th Gen Intel(R) Core(TM) i5-11400H @ 2.70GHz",
+  "iterations": 5,
+  "releaseGates": {
+    "maxProfileMs": 2000,
+    "maxHeapDeltaBytes": 268435456
+  },
+  "ok": true,
+  "failures": [],
+  "profiles": [
+    {
+      "profile": "utxoref-v2-public-artifact",
+      "bytes": 1918161,
+      "sha256": "0d6666ebae75d3efe3cc9ee35918899c4bf741a7221c721953ad5d632e961952",
+      "iterations": 5,
+      "medianMs": 628.355,
+      "p95Ms": 977.263,
+      "maximumMs": 977.263,
+      "maximumHeapDeltaBytes": 7783744,
+      "parsePolicy": {
+        "maxBytes": 4194304,
+        "maxDepth": 48,
+        "maxTotalNodes": 200000,
+        "maxObjectKeys": 20000,
+        "maxArrayItems": 16384,
+        "maxStringBytes": 1048576,
+        "maxIdentifierBytes": 256
+      },
+      "collectionLimits": {
+        "graph.publicTrace.gates": {
+          "type": "array",
+          "max": 4096
+        },
+        "graph.publicTrace.publicWires": {
+          "type": "object",
+          "max": 8192
+        },
+        "graph.publicTrace.reveals": {
+          "type": "object",
+          "max": 8192
+        },
+        "graph.template.leaves": {
+          "type": "array",
+          "max": 16384
+        },
+        "graph.settlement.stateEnvelope.body.pnlRows": {
+          "type": "array",
+          "max": 2048
+        },
+        "graph.settlement.stateEnvelope.body.settlementAddressMap": {
+          "type": "object",
+          "max": 2048
+        },
+        "graph.settlement.payouts": {
+          "type": "array",
+          "max": 2048
+        },
+        "graph.settlement.outputs": {
+          "type": "array",
+          "max": 2048
+        },
+        "graph.settlement.rows": {
+          "type": "array",
+          "max": 2048
+        },
+        "graph.settlement.grossEdges": {
+          "type": "array",
+          "max": 4096
+        },
+        "graph.settlement.netBalances": {
+          "type": "array",
+          "max": 2048
+        }
+      }
+    },
+    {
+      "profile": "utxoref-v2-trust-policy",
+      "bytes": 24724,
+      "sha256": "674e666e473f0e0a7e3d91a183ac659e40c7a4ff75700beab828ce55eeb0d733",
+      "iterations": 5,
+      "medianMs": 5.16,
+      "p95Ms": 6.483,
+      "maximumMs": 6.483,
+      "maximumHeapDeltaBytes": 1357752,
+      "parsePolicy": {
+        "maxBytes": 262144,
+        "maxDepth": 16,
+        "maxTotalNodes": 8192,
+        "maxObjectKeys": 4096,
+        "maxArrayItems": 1024,
+        "maxStringBytes": 65536,
+        "maxIdentifierBytes": 256
+      },
+      "collectionLimits": {
+        "allowedGraphs": {
+          "type": "object",
+          "max": 256
+        },
+        "trustedSigners": {
+          "type": "object",
+          "max": 64
+        },
+        "watcherQuorum.watchers": {
+          "type": "object",
+          "max": 32
+        }
+      }
+    },
+    {
+      "profile": "utxoref-v2-watchtower-state",
+      "bytes": 3941,
+      "sha256": "97919ae3fe40cf7c90be463f6bfb2503f861cc31a33100be271a8330c4bb5f62",
+      "iterations": 5,
+      "medianMs": 0.713,
+      "p95Ms": 4.788,
+      "maximumMs": 4.788,
+      "maximumHeapDeltaBytes": 281632,
+      "parsePolicy": {
+        "maxBytes": 2097152,
+        "maxDepth": 24,
+        "maxTotalNodes": 32768,
+        "maxObjectKeys": 8192,
+        "maxArrayItems": 256,
+        "maxStringBytes": 1048576,
+        "maxIdentifierBytes": 256
+      },
+      "collectionLimits": {
+        "challenge.replacements": {
+          "type": "array",
+          "max": 32
+        },
+        "challenge.confirmationHistory": {
+          "type": "array",
+          "max": 64
+        },
+        "challenge.cpfp.replacements": {
+          "type": "array",
+          "max": 32
+        },
+        "challenge.cpfp.confirmationHistory": {
+          "type": "array",
+          "max": 64
+        }
+      }
+    },
+    {
+      "profile": "utxoref-v2-fee-reserve-registry",
+      "bytes": 4427,
+      "sha256": "36a009c5d0911d0bd0cbe4de2167d32824b958129acb2306c86dbab7c7394ff9",
+      "iterations": 5,
+      "medianMs": 1.94,
+      "p95Ms": 3.652,
+      "maximumMs": 3.652,
+      "maximumHeapDeltaBytes": 429376,
+      "parsePolicy": {
+        "maxBytes": 2097152,
+        "maxDepth": 32,
+        "maxTotalNodes": 65536,
+        "maxObjectKeys": 16384,
+        "maxArrayItems": 256,
+        "maxStringBytes": 262144,
+        "maxIdentifierBytes": 256
+      },
+      "collectionLimits": {
+        "core.entries": {
+          "type": "array",
+          "max": 256
+        }
+      }
+    },
+    {
+      "profile": "utxoref-v2-fee-reserve",
+      "bytes": 32868,
+      "sha256": "7db1c23fef9fb76f8fe380ce31f9412cbf45181258e42577ca1999f9b135ac4b",
+      "iterations": 5,
+      "medianMs": 1.989,
+      "p95Ms": 4.814,
+      "maximumMs": 4.814,
+      "maximumHeapDeltaBytes": 1091624,
+      "parsePolicy": {
+        "maxBytes": 262144,
+        "maxDepth": 24,
+        "maxTotalNodes": 8192,
+        "maxObjectKeys": 4096,
+        "maxArrayItems": 256,
+        "maxStringBytes": 65536,
+        "maxIdentifierBytes": 256
+      },
+      "collectionLimits": {}
+    },
+    {
+      "profile": "utxoref-v2-watcher-quorum",
+      "bytes": 4708,
+      "sha256": "eed5002b80c4e625c589661a76475ce3605952ff6891bb2c0dd9ff0d169ecfb5",
+      "iterations": 5,
+      "medianMs": 0.463,
+      "p95Ms": 6.268,
+      "maximumMs": 6.268,
+      "maximumHeapDeltaBytes": 198392,
+      "parsePolicy": {
+        "maxBytes": 524288,
+        "maxDepth": 20,
+        "maxTotalNodes": 16384,
+        "maxObjectKeys": 4096,
+        "maxArrayItems": 32,
+        "maxStringBytes": 65536,
+        "maxIdentifierBytes": 256
+      },
+      "collectionLimits": {
+        "receipts": {
+          "type": "array",
+          "max": 32
+        }
+      }
+    }
+  ]
+}

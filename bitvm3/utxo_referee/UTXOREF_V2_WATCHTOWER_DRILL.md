@@ -217,3 +217,19 @@ turning an orphaned state reference into fresh spending authority.
 The standalone service receives the artifact and trust policy as separate
 files. Installation refuses to proceed without the policy; replacing a public
 artifact cannot add a signer or graph to that policy.
+
+## Reserve And Quorum Gates
+
+An allowlisted graph may now pin an exact `feeReserve.reserveHash` and
+`minimumFeeReserveSats` in its trust-policy entry. Such a graph requires
+`--fee-reserve <manifest.json>` while its assertion is unspent. The watcher
+checks the graph-bound Taproot script, live UTXO amount, confirmation-derived
+funding height, and remaining CSV horizon before granting new challenge
+authority.
+
+Each watcher can emit an Ed25519 observation receipt by supplying a watcher
+id, policy fault domain, coordinator round id, and isolated private-key file.
+`utxoref_v2_watcher_quorum.js` accepts a threshold only when all receipts bind
+the same round and chain statement and meet the configured independent-domain
+count. See `UTXOREF_V2_PACKAGE_RESERVE_QUORUM.md` for the package-policy drill,
+limitations, and benchmark evidence.

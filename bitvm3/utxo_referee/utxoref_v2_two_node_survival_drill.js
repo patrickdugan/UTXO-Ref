@@ -57,7 +57,10 @@ async function waitFor(fn, description, timeoutMs = 30000, intervalMs = 100) {
   throw new Error(`timed out waiting for ${description}${lastError ? `: ${lastError.message}` : ''}`);
 }
 
-function startNode(bitcoind, dataDir, ports, auth, label) {
+function startNode(bitcoind, dataDir, ports, auth, label, extraArgs = []) {
+  if (!Array.isArray(extraArgs) || extraArgs.some((arg) => typeof arg !== 'string')) {
+    throw new Error('extra bitcoind arguments must be an array of strings');
+  }
   fs.mkdirSync(dataDir, { recursive: true });
   const child = spawn(bitcoind, [
     '-regtest=1',
@@ -75,7 +78,8 @@ function startNode(bitcoind, dataDir, ports, auth, label) {
     `-rpcport=${ports.rpc}`,
     `-port=${ports.p2p}`,
     `-rpcuser=${auth.user}`,
-    `-rpcpassword=${auth.pass}`
+    `-rpcpassword=${auth.pass}`,
+    ...extraArgs
   ], { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
   child.output = '';
   const capture = (chunk) => {
@@ -106,7 +110,13 @@ async function stopNode(node) {
     new Promise((resolve) => node.child.once('exit', () => resolve(true))),
     sleep(5000).then(() => false)
   ]);
-  if (!exited && node.child.exitCode === null) node.child.kill();
+  if (!exited && node.child.exitCode === null) {
+    node.child.kill();
+    await Promise.race([
+      new Promise((resolve) => node.child.once('exit', resolve)),
+      sleep(5000)
+    ]);
+  }
 }
 
 async function ensureWallet(rpc, wallet) {
@@ -264,7 +274,7 @@ async function runTwoNodeDrill(args = {}) {
       const resolvedRoot = path.resolve(root);
       const tempRoot = path.resolve(os.tmpdir()) + path.sep;
       if (!resolvedRoot.startsWith(tempRoot)) throw new Error(`refusing to remove non-temporary datadir ${resolvedRoot}`);
-      fs.rmSync(resolvedRoot, { recursive: true, force: true });
+      fs.rmSync(resolvedRoot, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
     }
   }
 }

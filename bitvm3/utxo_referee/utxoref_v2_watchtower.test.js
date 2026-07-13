@@ -79,6 +79,23 @@ test('public artifact cannot nominate its own signer or graph trust', () => {
   assert(rejected);
 });
 
+test('external graph policy pins an exact minimum fee reserve', () => {
+  const artifact = JSON.parse(fs.readFileSync(ARTIFACT_PATH, 'utf8'));
+  const graphHash = artifact.graph.graphHash;
+  const policy = JSON.parse(JSON.stringify(TRUST_POLICY));
+  policy.allowedGraphs[graphHash].feeReserve = {
+    reserveHash: '77'.repeat(32),
+    minimumFeeReserveSats: '10000'
+  };
+  const inspected = inspectArtifact(artifact, policy);
+  assert(inspected.feeReservePolicy.reserveHash === '77'.repeat(32));
+  assert(inspected.feeReservePolicy.minimumFeeReserveSats === '10000');
+  policy.allowedGraphs[graphHash].feeReserve.minimumFeeReserveSats = '0';
+  let rejected = false;
+  try { inspectArtifact(artifact, policy); } catch (err) { rejected = /fee reserve policy is invalid/.test(err.message); }
+  assert(rejected);
+});
+
 test('watchtower CLI keeps monitor and broadcast authority distinct', () => {
   const monitor = parseArgs(['--once', '--artifact', 'public.json']);
   assert(monitor.once === true && monitor.broadcast === false);

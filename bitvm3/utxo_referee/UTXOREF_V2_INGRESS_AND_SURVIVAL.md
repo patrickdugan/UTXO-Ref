@@ -85,18 +85,19 @@ node bitvm3\utxo_referee\utxoref_v2_two_node_survival_drill.js `
 
 The successful 2026-07-13 run used Bitcoin Core 30.2. It produced divergent
 mempools, converged by exact-parent rebroadcast, confirmed transaction
-`e91f5df8d4759bc9bd4c4208c0af7ff52eb91300aedc3ce4c39297fccea9e801`,
+`162ced5e072f9eb128a9181318cd108d04e4fd6879ff7dc7c3b929d91e81cd3b`,
 detected the invalidation, and reconfirmed it in block
-`190ddbae5515c4d541e7770364f466a04866e14a8d65a9dd44020f8c532fcc4e`.
+`6de6aa93a471721ec2eae6f525619bd56109be665d5007b587dac5b3e8f2d301`.
 The local receipt is written under ignored `artifacts/tmp/`.
 
 ## Remaining Boundary
 
 The two-node drill exercises real Core mempool divergence, rebroadcast, and
-reorganization behavior. Package pinning, reserve exhaustion, deadline
-compression, and conflict selection are deterministic adversarial models, not
-claims about guaranteed miner behavior. A release candidate still needs a
-funded multi-implementation test with an actual pinning package, independent
-watchers, and deliberately unequal relay policy. No watchtower can guarantee
-inclusion; the design can only preserve valid fee-bumping paths and detect when
-its challenge margin is no longer adequate.
+reorganization behavior. `UTXOREF_V2_PACKAGE_RESERVE_QUORUM.md` adds a real
+Core economic-pinning package, a graph-bound fee-reserve UTXO, signed watcher
+quorum receipts, and benchmarked schema limits. A release candidate still
+needs multi-implementation relay testing, the exact two-input CPFP reserve
+spend, genuinely independent watcher deployments, and deliberately unequal
+relay policy. No watchtower can guarantee inclusion; the design can only
+preserve valid fee-bumping paths and detect when its challenge margin is no
+longer adequate.

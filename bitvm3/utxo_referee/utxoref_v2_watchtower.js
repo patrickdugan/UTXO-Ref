@@ -16,6 +16,9 @@ const {
 } = require('./bitvm_assertion_graph_v2');
 const { txidFromUnsignedHex } = require('./recover_btc_testnet4_reserve_vault');
 const { readJsonStrict } = require('./strict_artifact_ingress');
+const { readJsonStrictProfile } = require('./strict_artifact_profiles');
+const { statementFromWatchtowerTick, buildWatcherReceipt } = require('./utxoref_v2_watcher_quorum');
+const { verifyUtxorefV2FeeReserve } = require('./utxoref_v2_fee_reserve');
 
 const DEFAULT_ARTIFACT = path.join(__dirname, 'artifacts', 'live', 'btc_testnet4_utxoref_v2_latest.json');
 const DEFAULT_TRUST_POLICY = path.join(__dirname, 'artifacts', 'live', 'utxoref_v2_watchtower_trust_policy.json');
@@ -59,12 +62,22 @@ function usage() {
     '    --fee-sats 1000 --fee-step-sats 500 --max-fee-sats 5000',
     '',
     'RPC credentials are read from BTC_RPC_URL, BTC_RPC_USER, and BTC_RPC_PASS,',
-    'or passed as --rpc-url, --rpc-user, and --rpc-pass.'
+    'or passed as --rpc-url, --rpc-user, and --rpc-pass.',
+    '',
+    'Optional signed observation receipt:',
+    '  --watcher-id <id> --watcher-fault-domain <domain> \\',
+    '    --watcher-round-id <coordinator-round-id> \\',
+    '    --watcher-private-key-file <ed25519-private-key.pem>',
+    '',
+    'A graph policy with feeReserve requires:',
+    '  --fee-reserve <externally-pinned-fee-reserve.json>'
   ].join('\n');
 }
 
-function readJson(filePath, fieldName) {
-  return readJsonStrict(filePath, fieldName);
+function readJson(filePath, fieldName, profileName = null) {
+  return profileName
+    ? readJsonStrictProfile(filePath, profileName, fieldName)
+    : readJsonStrict(filePath, fieldName);
 }
 
 function saveJsonAtomic(filePath, value) {
@@ -90,7 +103,7 @@ function loadState(filePath) {
       lastStatus: null
     };
   }
-  const existing = readJson(filePath, 'watchtower state');
+  const existing = readJson(filePath, 'watchtower state', 'utxoref-v2-watchtower-state');
   return { ...existing, resumedAt: new Date().toISOString(), restarts: Number(existing.restarts || 0) + 1 };
 }
 
@@ -134,7 +147,24 @@ function trustBindingForArtifact(artifact, trustPolicy) {
   if (artifact.keyCeremony?.stateSignerPublicKeyPem !== canonicalPem) {
     throw new Error('artifact signer public key differs from the external trust policy');
   }
-  return { network, genesisHash, graphHash, signerKeyId, publicKey, policyId: trustPolicy.policyId || null };
+  let feeReservePolicy = null;
+  if (graphPolicy.feeReserve !== undefined) {
+    const reserveHash = String(graphPolicy.feeReserve?.reserveHash || '').toLowerCase();
+    const minimumFeeReserveSats = String(graphPolicy.feeReserve?.minimumFeeReserveSats || '');
+    if (!/^[0-9a-f]{64}$/.test(reserveHash) || !/^[1-9][0-9]*$/.test(minimumFeeReserveSats)) {
+      throw new Error('graph fee reserve policy is invalid');
+    }
+    feeReservePolicy = { reserveHash, minimumFeeReserveSats };
+  }
+  return {
+    network,
+    genesisHash,
+    graphHash,
+    signerKeyId,
+    publicKey,
+    policyId: trustPolicy.policyId || null,
+    feeReservePolicy
+  };
 }
 
 function verificationOptions(artifact, trustPolicy) {
@@ -208,6 +238,7 @@ function inspectArtifact(artifact, trustPolicy) {
     authorizationSource: authorization.source || 'broadcast',
     stateSnapshotHeight: Number(artifact.graph.settlement?.stateEnvelope?.body?.snapshotHeight),
     trustPolicyId: trust.policyId,
+    feeReservePolicy: trust.feeReservePolicy,
     trustPolicy,
     assertionOutpoint: artifact.graph.assertionOutpoint,
     challengeCsvBlocks: artifact.graph.template.challengeCsvBlocks,
@@ -216,6 +247,49 @@ function inspectArtifact(artifact, trustPolicy) {
     fraudDetected: Boolean(evidence),
     fraudType: gateEvidence ? 'gate' : inputEvidence ? 'input' : null,
     evidence
+  };
+}
+
+async function verifyConfiguredFeeReserve(args, inspected, rpc, chain, assertionUnspent) {
+  const policy = inspected.feeReservePolicy;
+  if (!policy) {
+    if (args.feeReserve) throw new Error('fee reserve is not pinned by the graph trust policy');
+    return null;
+  }
+  if (!assertionUnspent) return {
+    required: true,
+    reserveHash: policy.reserveHash,
+    status: 'not_rechecked_after_assertion_spend'
+  };
+  if (!args.feeReserve) throw new Error('graph trust policy requires --fee-reserve');
+  const reserve = readJsonStrictProfile(
+    path.resolve(args.feeReserve),
+    'utxoref-v2-fee-reserve',
+    'graph fee reserve'
+  );
+  if (reserve.reserveHash !== policy.reserveHash) throw new Error('fee reserve hash differs from graph trust policy');
+  const funding = reserve.core?.vaultManifest?.core?.fundingOutpoint;
+  if (!funding || !/^[0-9a-f]{64}$/.test(String(funding.txid || '')) ||
+      !Number.isSafeInteger(Number(funding.vout)) || Number(funding.vout) < 0) {
+    throw new Error('fee reserve funding outpoint is invalid');
+  }
+  const txout = await rpc('gettxout', [funding.txid, Number(funding.vout), true]);
+  assertRpcSnapshotTip(txout, chain.bestblockhash, 'fee reserve output');
+  const verification = verifyUtxorefV2FeeReserve(reserve, {
+    graphHash: inspected.graphHash,
+    currentHeight: Number(chain.blocks),
+    minimumFeeReserveSats: policy.minimumFeeReserveSats,
+    txout
+  });
+  if (!verification.ok || !verification.counted) throw new Error(`graph fee reserve failed verification: ${verification.reason}`);
+  return {
+    required: true,
+    status: 'counted',
+    reserveHash: reserve.reserveHash,
+    outpoint: verification.outpoint,
+    amountSats: verification.amountSats,
+    maxFeeSats: verification.maxFeeSats,
+    remainingBlocks: verification.remainingBlocks
   };
 }
 
@@ -558,9 +632,9 @@ function alertFingerprint(result) {
 
 async function runTick(args, rpc, state) {
   const artifactPath = path.resolve(args.artifact || DEFAULT_ARTIFACT);
-  const artifact = readJson(artifactPath, 'public artifact');
+  const artifact = readJson(artifactPath, 'public artifact', 'utxoref-v2-public-artifact');
   const trustPolicyPath = path.resolve(args.trustPolicy || DEFAULT_TRUST_POLICY);
-  const trustPolicy = readJson(trustPolicyPath, 'watchtower trust policy');
+  const trustPolicy = readJson(trustPolicyPath, 'watchtower trust policy', 'utxoref-v2-trust-policy');
   const inspected = inspectArtifact(artifact, trustPolicy);
   const chain = await rpc('getblockchaininfo');
   if (chain.chain !== 'testnet4') throw new Error(`wrong chain: ${chain.chain}`);
@@ -575,13 +649,16 @@ async function runTick(args, rpc, state) {
   const txout = await rpc('gettxout', [assertion.txid, assertion.vout, true]);
   assertRpcSnapshotTip(txout, chain.bestblockhash, 'assertion output');
   const currentHeight = Number(chain.blocks);
+  const feeReserve = await verifyConfiguredFeeReserve(args, inspected, rpc, chain, Boolean(txout));
   const confirmationCount = Number(txout?.confirmations || 0);
   const result = {
     kind: 'utxoref_v2_watchtower_tick',
     at: new Date().toISOString(),
     graphHash: inspected.graphHash,
     trustPolicyId: inspected.trustPolicyId,
+    network: 'bitcoin-testnet4',
     height: currentHeight,
+    chainBestBlockHash: chain.bestblockhash,
     assertionOutpoint: `${assertion.txid}:${assertion.vout}`,
     assertionUnspent: Boolean(txout),
     assertionConfirmations: confirmationCount,
@@ -605,6 +682,7 @@ async function runTick(args, rpc, state) {
       : 'assertion_spent_unresolved',
     disprove: null
   };
+  if (feeReserve) result.feeReserve = feeReserve;
 
   if (!txout && state.challenge?.graphHash === inspected.graphHash) {
     result.challenge = await monitorChallenge(rpc, state, currentHeight, chain.bestblockhash);
@@ -666,12 +744,34 @@ async function runTick(args, rpc, state) {
           confirmation: null,
           replacements: []
         };
+        if (feeReserve?.status === 'counted') {
+          state.challenge.feeReserveHash = feeReserve.reserveHash;
+          state.challenge.feeReserveOutpoint = feeReserve.outpoint;
+        }
       } else {
         result.action = 'challenge_ready_for_broadcast';
       }
     }
   } else if (inspected.fraudDetected && txout && authorization.monitoringOnly) {
     result.action = 'authorization_reorged_monitoring_only';
+  }
+
+  const receiptArgs = [args.watcherId, args.watcherFaultDomain, args.watcherRoundId, args.watcherPrivateKeyFile];
+  if (receiptArgs.some(Boolean) && !receiptArgs.every(Boolean)) {
+    throw new Error('signed watcher receipts require watcher id, fault domain, and private key file');
+  }
+  if (receiptArgs.every(Boolean)) {
+    const privateKeyPath = path.resolve(args.watcherPrivateKeyFile);
+    const privateKeyStats = fs.statSync(privateKeyPath);
+    if (!privateKeyStats.isFile() || privateKeyStats.size > 16384) {
+      throw new Error('watcher private key must be a regular PEM file no larger than 16 KiB');
+    }
+    const privateKeyPem = fs.readFileSync(privateKeyPath, 'utf8');
+    result.watcherRoundId = args.watcherRoundId;
+    result.watcherReceipt = buildWatcherReceipt(statementFromWatchtowerTick(result), {
+      watcherId: args.watcherId,
+      faultDomain: args.watcherFaultDomain
+    }, privateKeyPem);
   }
 
   state.tickCount = Number(state.tickCount || 0) + 1;
@@ -734,6 +834,7 @@ module.exports = {
   verificationOptions,
   authorizationPolicy,
   inspectArtifact,
+  verifyConfiguredFeeReserve,
   deterministicChallengeAux,
   feeCandidates,
   isFeePolicyReject,
