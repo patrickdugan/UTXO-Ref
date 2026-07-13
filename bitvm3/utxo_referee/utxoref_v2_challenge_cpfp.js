@@ -2,6 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { readJsonStrict } = require('./strict_artifact_ingress');
 const { rpcFactory } = require('./tradelayer_send_rpc_sweep');
 const tr = require('./tradelayer_taproot');
 const { txidFromUnsignedHex } = require('./recover_btc_testnet4_reserve_vault');
@@ -255,8 +256,8 @@ async function main() {
   if (!fs.existsSync(artifactPath)) throw new Error(`public artifact does not exist: ${artifactPath}`);
   if (!fs.existsSync(trustPolicyPath)) throw new Error(`trust policy does not exist: ${trustPolicyPath}`);
   const state = loadState(statePath);
-  const artifact = JSON.parse(fs.readFileSync(artifactPath, 'utf8'));
-  const trustPolicy = JSON.parse(fs.readFileSync(trustPolicyPath, 'utf8'));
+  const artifact = readJsonStrict(artifactPath, 'public artifact');
+  const trustPolicy = readJsonStrict(trustPolicyPath, 'trust policy');
   inspectArtifact(artifact, trustPolicy);
   const outcome = await runCpfp(state, args, resolveRpc(args), artifact);
   if (outcome.action === 'cpfp_broadcast' || outcome.action === 'cpfp_replaced') saveJsonAtomic(statePath, state);

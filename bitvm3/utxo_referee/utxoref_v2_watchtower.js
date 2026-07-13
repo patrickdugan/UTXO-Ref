@@ -15,6 +15,7 @@ const {
   verifyBitvmAssertionGraphV2
 } = require('./bitvm_assertion_graph_v2');
 const { txidFromUnsignedHex } = require('./recover_btc_testnet4_reserve_vault');
+const { readJsonStrict } = require('./strict_artifact_ingress');
 
 const DEFAULT_ARTIFACT = path.join(__dirname, 'artifacts', 'live', 'btc_testnet4_utxoref_v2_latest.json');
 const DEFAULT_TRUST_POLICY = path.join(__dirname, 'artifacts', 'live', 'utxoref_v2_watchtower_trust_policy.json');
@@ -63,8 +64,7 @@ function usage() {
 }
 
 function readJson(filePath, fieldName) {
-  if (!fs.existsSync(filePath)) throw new Error(`${fieldName} does not exist: ${filePath}`);
-  return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  return readJsonStrict(filePath, fieldName);
 }
 
 function saveJsonAtomic(filePath, value) {
