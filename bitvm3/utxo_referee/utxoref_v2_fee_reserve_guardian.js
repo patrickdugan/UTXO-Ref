@@ -22,6 +22,7 @@ function usage() {
     '    --guardian-secret-file <secret.hex> --output <approval.json>',
     '',
     'Add --replace-child when authorizing a replacement of the tracked child.',
+    'For a quorum reserve, each guardian runs this command independently.',
     'This command accepts no challenger secret and performs no broadcast.'
   ].join('\n');
 }
@@ -47,6 +48,10 @@ async function runGuardian(args, rpc) {
     version: 1,
     approved: true,
     approvalHash: approval.approvalHash,
+    guardianXonly: approval.core.guardianXonly,
+    guardianSetHash: approval.core.guardianSetHash || null,
+    guardianThreshold: approval.core.guardianThreshold || 1,
+    guardianCount: approval.core.guardianCount || 1,
     planHash: plan.planHash,
     transactionTxid: plan.txid,
     reserveOutpoint: plan.reserve.outpoint,

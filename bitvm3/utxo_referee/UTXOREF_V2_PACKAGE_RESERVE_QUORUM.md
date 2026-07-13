@@ -54,7 +54,9 @@ without changing old manifest hashes. A new reserve commits the graph hash
 inside both leaves:
 
 ```text
-immediate: <graph-hash> DROP <challenger> CHECKSIGVERIFY <guardian> CHECKSIG
+legacy immediate: <graph-hash> DROP <challenger> CHECKSIGVERIFY <guardian> CHECKSIG
+quorum immediate: <graph-hash> DROP <challenger> CHECKSIGVERIFY
+                  <g1> CHECKSIG <g2> CHECKSIGADD ... <threshold> NUMEQUAL
 recovery:  <graph-hash> DROP <csv-delay> CSV DROP <refund-key> CHECKSIG
 ```
 
@@ -72,21 +74,29 @@ When a graph policy contains `feeReserve`, the watchtower requires
 `--fee-reserve <file>` before it grants new challenge authority. It records the
 reserve hash and outpoint with a broadcast challenge.
 
-This is a tapscript encumbrance, not a covenant. The generic leaf still permits
-challenger and guardian to co-sign another destination, so guardian policy and
-key separation remain part of the security boundary. The transaction-level
-rescue now narrows that authority operationally:
+This is a tapscript encumbrance, not a covenant. The quorum leaf still permits
+the challenger and a guardian threshold to co-sign another destination, so
+guardian policy and key separation remain part of the security boundary. The
+transaction-level rescue now narrows that authority operationally:
 
 - `utxoref_v2_fee_reserve_guardian.js` reconstructs and validates an exact
   two-input, one-output plan and emits a signed approval without receiving the
   challenger secret;
-- `utxoref_v2_reserve_cpfp.js` accepts that approval, lets the wallet sign only
-  the challenge input, adds the challenger signature to the reserve leaf, and
+- `utxoref_v2_reserve_cpfp.js` accepts one approval for a legacy reserve or a
+  distinct threshold set for a quorum reserve, lets the wallet sign only the
+  challenge input, adds the challenger signature to the reserve leaf, and
   rejects any input, output, sequence, amount, script, or witness mutation;
 - the only output returns the combined challenge and unused reserve value to
   the original challenge script; and
 - every replacement spends the same two outpoints, uses a fresh guardian
-  approval, increases the absolute fee, and preserves conflict history.
+  approval set, increases the absolute fee, and preserves conflict history.
+
+`utxoref_v2_guardian_quorum_reserve.js` commits a unique ordered guardian set,
+threshold, graph hash, challenger, refund key, and recovery delay into a
+separate manifest kind. The final witness uses fixed reverse-order guardian
+slots, including empty slots for non-signers. Focused tests and the real Core
+drill cover insufficient quorum, duplicate approvals, role-key aliasing, set
+mutation, initial spend, RBF replacement, and legacy compatibility.
 
 The isolated Core drill is described in `UTXOREF_V2_RESERVE_CPFP.md`.
 

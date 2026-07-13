@@ -10,6 +10,10 @@ const a = require('./tradelayer_dlc_adaptor_sig');
 const { coinValueToSats, buildTaprootReserveVaultTemplate } = require('./taproot_reserve_vault');
 const { buildUtxorefV2FeeReserve } = require('./utxoref_v2_fee_reserve');
 const {
+  buildGuardianQuorumVaultTemplate,
+  buildGuardianQuorumFeeReserve
+} = require('./utxoref_v2_guardian_quorum_reserve');
+const {
   buildReserveCpfpPlan,
   buildReserveGuardianApproval,
   preflightReserveCpfpInputs,
@@ -26,6 +30,7 @@ function parseArgs(argv) {
   for (let index = 0; index < argv.length; index++) {
     const arg = argv[index];
     if (arg === '--keep-datadir') { args.keepDatadir = true; continue; }
+    if (arg === '--guardian-quorum') { args.guardianQuorum = true; continue; }
     if (arg === '--help' || arg === '-h') { args.help = true; continue; }
     if (!arg.startsWith('--')) throw new Error(`unexpected argument ${arg}`);
     const key = arg.slice(2).replace(/-([a-z])/g, (_match, letter) => letter.toUpperCase());
@@ -40,7 +45,7 @@ function usage() {
   return [
     'Exercise a guardian-approved, reserve-backed CPFP and replacement in Bitcoin Core.',
     '',
-    '  node utxoref_v2_reserve_cpfp_drill.js --bitcoind <path-to-bitcoind.exe>',
+    '  node utxoref_v2_reserve_cpfp_drill.js --bitcoind <path-to-bitcoind.exe> [--guardian-quorum]',
     '',
     'The drill uses one isolated temporary regtest node and writes an ignored receipt.'
   ].join('\n');
@@ -118,13 +123,25 @@ async function runReserveCpfpDrill(args = {}) {
     if (splitUtxos.length !== 2) throw new Error(`expected two split UTXOs, got ${splitUtxos.length}`);
 
     const challengerSecret = 101n;
-    const guardianSecret = 102n;
+    const guardianSecrets = args.guardianQuorum ? [102n, 104n, 105n] : [102n];
+    const guardianXonlys = guardianSecrets.map((secret) => a.xOnlyPubkey(secret).toString('hex'));
+    const guardianThreshold = args.guardianQuorum ? 2 : 1;
     const refundSecret = 103n;
     const graphHash = sha256Hex('UTXORef V2 reserve-backed CPFP Core drill v1');
-    const reserveTemplate = buildTaprootReserveVaultTemplate({
+    const reserveTemplate = args.guardianQuorum
+      ? buildGuardianQuorumVaultTemplate({
+        network: 'bitcoin-regtest',
+        operatorXonly: a.xOnlyPubkey(challengerSecret).toString('hex'),
+        guardianXonlys,
+        guardianThreshold,
+        recoveryXonly: a.xOnlyPubkey(refundSecret).toString('hex'),
+        recoveryCsvDelay: 144,
+        bindingHash: graphHash
+      })
+      : buildTaprootReserveVaultTemplate({
       network: 'bitcoin-regtest',
       operatorXonly: a.xOnlyPubkey(challengerSecret).toString('hex'),
-      guardianXonly: a.xOnlyPubkey(guardianSecret).toString('hex'),
+      guardianXonly: guardianXonlys[0],
       recoveryXonly: a.xOnlyPubkey(refundSecret).toString('hex'),
       recoveryCsvDelay: 144,
       bindingHash: graphHash
@@ -156,10 +173,10 @@ async function runReserveCpfpDrill(args = {}) {
     const [fundingBlockHash] = await node.rpc('generatetoaddress', [1, miningAddress]);
     const fundingHeight = Number(await node.rpc('getblockcount'));
 
-    const feeReserve = buildUtxorefV2FeeReserve({
+    const reserveInput = {
       network: 'bitcoin-regtest',
       graphHash,
-      disputeId: 'reserve-cpfp-core-drill',
+      disputeId: args.guardianQuorum ? 'reserve-cpfp-quorum-core-drill' : 'reserve-cpfp-core-drill',
       fundingOutpoint: { txid: reserveFunding.txid, vout: reserveFunding.vout },
       fundingHeight,
       amountSats: 30000,
@@ -169,10 +186,12 @@ async function runReserveCpfpDrill(args = {}) {
       recoverySafetyBlocks: 6,
       recoveryCsvDelay: 144,
       challengerXonly: a.xOnlyPubkey(challengerSecret).toString('hex'),
-      guardianXonly: a.xOnlyPubkey(guardianSecret).toString('hex'),
       refundXonly: a.xOnlyPubkey(refundSecret).toString('hex'),
       p2trScriptPubKey: reserveTemplate.p2trScriptPubKey
-    });
+    };
+    const feeReserve = args.guardianQuorum
+      ? buildGuardianQuorumFeeReserve({ ...reserveInput, guardianXonlys, guardianThreshold })
+      : buildUtxorefV2FeeReserve({ ...reserveInput, guardianXonly: guardianXonlys[0] });
 
     const challengeAddress = await node.rpc('getnewaddress', ['challenge', 'bech32'], wallet);
     const challengeScript = addressToScriptPubKey(challengeAddress, 'bitcoin-regtest').toString('hex');
@@ -213,11 +232,8 @@ async function runReserveCpfpDrill(args = {}) {
     const initialArgs = { feeSats: '4000', wallet, broadcast: true };
     const initialPlan = buildReserveCpfpPlan(state, initialArgs, artifact, feeReserve);
     const initialInputCheck = await preflightReserveCpfpInputs(initialPlan, feeReserve, node.rpc);
-    const initialApproval = buildReserveGuardianApproval(
-      initialPlan,
-      feeReserve,
-      initialInputCheck.chainEvidence,
-      guardianSecret
+    const initialApprovals = guardianSecrets.slice(0, guardianThreshold).map((guardianSecret) =>
+      buildReserveGuardianApproval(initialPlan, feeReserve, initialInputCheck.chainEvidence, guardianSecret)
     );
     const initialOutcome = await runReserveCpfp(
       state,
@@ -225,7 +241,7 @@ async function runReserveCpfpDrill(args = {}) {
       node.rpc,
       artifact,
       feeReserve,
-      initialApproval,
+      initialApprovals,
       challengerSecret
     );
     if (initialOutcome.action !== 'reserve_cpfp_broadcast') {
@@ -236,11 +252,8 @@ async function runReserveCpfpDrill(args = {}) {
     const replacementArgs = { feeSats: '8000', wallet, broadcast: true, replaceChild: true };
     const replacementPlan = buildReserveCpfpPlan(state, replacementArgs, artifact, feeReserve);
     const replacementInputCheck = await preflightReserveCpfpInputs(replacementPlan, feeReserve, node.rpc);
-    const replacementApproval = buildReserveGuardianApproval(
-      replacementPlan,
-      feeReserve,
-      replacementInputCheck.chainEvidence,
-      guardianSecret
+    const replacementApprovals = guardianSecrets.slice(0, guardianThreshold).map((guardianSecret) =>
+      buildReserveGuardianApproval(replacementPlan, feeReserve, replacementInputCheck.chainEvidence, guardianSecret)
     );
     const replacementOutcome = await runReserveCpfp(
       state,
@@ -248,7 +261,7 @@ async function runReserveCpfpDrill(args = {}) {
       node.rpc,
       artifact,
       feeReserve,
-      replacementApproval,
+      replacementApprovals,
       challengerSecret
     );
     if (replacementOutcome.action !== 'reserve_cpfp_replaced') {
@@ -273,6 +286,11 @@ async function runReserveCpfpDrill(args = {}) {
       bitcoinCore: path.basename(bitcoind),
       chain: 'regtest',
       graphHash,
+      guardianPolicy: {
+        kind: args.guardianQuorum ? 'guardian-quorum' : 'single-guardian',
+        guardianXonlys,
+        threshold: guardianThreshold
+      },
       funding: {
         blockHash: fundingBlockHash,
         height: fundingHeight,
@@ -291,7 +309,8 @@ async function runReserveCpfpDrill(args = {}) {
         planHash: initialPlan.planHash,
         feeSats: initialPlan.feeSats,
         outputSats: initialPlan.outputSats,
-        guardianApprovalHash: initialApproval.approvalHash,
+        guardianApprovalHash: initialOutcome.result.guardianApprovalSetHash,
+        guardianApprovalHashes: initialOutcome.result.guardianApprovalHashes,
         broadcast: initialOutcome.result.broadcast
       },
       replacementCpfp: {
@@ -300,7 +319,8 @@ async function runReserveCpfpDrill(args = {}) {
         planHash: replacementPlan.planHash,
         feeSats: replacementPlan.feeSats,
         outputSats: replacementPlan.outputSats,
-        guardianApprovalHash: replacementApproval.approvalHash,
+        guardianApprovalHash: replacementOutcome.result.guardianApprovalSetHash,
+        guardianApprovalHashes: replacementOutcome.result.guardianApprovalHashes,
         initialEvicted,
         replacementPresentBeforeMining: replacementPresent
       },
@@ -313,7 +333,7 @@ async function runReserveCpfpDrill(args = {}) {
       checks: {
         exactTwoInputs: true,
         singleChallengeScriptOutput: true,
-        guardianAndChallengerSignedReserveLeaf: true,
+        guardianThresholdAndChallengerSignedReserveLeaf: true,
         walletSignedOnlyChallengeInput: true,
         higherFeeReplacementWon: true,
         reserveConsumedIntoConfirmedChallengeOutput: true

@@ -3,6 +3,7 @@ const {
   reserveSpendSighash,
   buildReserveGuardianApproval,
   verifyReserveGuardianApproval,
+  verifyReserveGuardianApprovalSet,
   verifyApprovalChainFreshness,
   assertDecodedPlanBinding,
   finalizeReserveCpfp,
@@ -10,6 +11,7 @@ const {
   runReserveCpfp
 } = require('./utxoref_v2_reserve_cpfp');
 const { buildUtxorefV2FeeReserve } = require('./utxoref_v2_fee_reserve');
+const { buildGuardianQuorumFeeReserve } = require('./utxoref_v2_guardian_quorum_reserve');
 const tr = require('./tradelayer_taproot');
 const a = require('./tradelayer_dlc_adaptor_sig');
 const { txidFromUnsignedHex } = require('./recover_btc_testnet4_reserve_vault');
@@ -22,6 +24,7 @@ function assert(condition, message) { if (!condition) throw new Error(message ||
 const CHALLENGER_SECRET = 11n;
 const GUARDIAN_SECRET = 12n;
 const REFUND_SECRET = 13n;
+const QUORUM_GUARDIAN_SECRETS = [12n, 14n, 15n];
 const BEST_BLOCK_HASH = '99'.repeat(32);
 
 function fixture() {
@@ -77,6 +80,31 @@ function fixture() {
     reserveStatus: 'available'
   };
   return { artifact, state, reserve, chainEvidence };
+}
+
+function quorumFixture() {
+  const data = fixture();
+  const reserve = buildGuardianQuorumFeeReserve({
+    network: 'bitcoin-testnet4',
+    graphHash: data.artifact.graph.graphHash,
+    disputeId: 'reserve-cpfp-quorum-test',
+    fundingOutpoint: { txid: 'cd'.repeat(32), vout: 1 },
+    fundingHeight: 100,
+    amountSats: 30000,
+    maxFeeSats: 10000,
+    challengeWindowBlocks: 18,
+    confirmationTarget: 2,
+    recoverySafetyBlocks: 6,
+    recoveryCsvDelay: 144,
+    challengerXonly: a.xOnlyPubkey(CHALLENGER_SECRET).toString('hex'),
+    guardianXonlys: QUORUM_GUARDIAN_SECRETS.map((secret) => a.xOnlyPubkey(secret).toString('hex')),
+    guardianThreshold: 2,
+    refundXonly: a.xOnlyPubkey(REFUND_SECRET).toString('hex')
+  });
+  data.reserve = reserve;
+  data.state.challenge.feeReserveHash = reserve.reserveHash;
+  data.state.challenge.feeReserveOutpoint = `${reserve.core.vaultManifest.core.fundingOutpoint.txid}:1`;
+  return data;
 }
 
 function btc(sats) {
@@ -137,12 +165,25 @@ function initialRpc(plan, reserve, options = {}) {
     }
     if (method === 'decoderawtransaction') {
       finalizedHex = params[0];
-      const leaf = reserve.core.vaultManifest.core.leaves['immediate-operator-guardian'];
-      const guardianSignature = options.approval.transactionSignature;
+      const leaf = reserve.core.vaultManifest.core.leaves[
+        plan.reserve.guardianPolicyKind === 'guardian-quorum'
+          ? 'immediate-operator-guardian-quorum'
+          : 'immediate-operator-guardian'
+      ];
+      const approvals = options.approvals || [options.approval];
+      const byGuardian = Object.fromEntries(approvals.map((approval) => [
+        approval.core.guardianXonly,
+        approval.transactionSignature
+      ]));
+      const guardianSignatures = (reserve.core.vaultManifest.core.guardianXonlys ||
+        [reserve.core.vaultManifest.core.guardianXonly])
+        .slice()
+        .reverse()
+        .map((guardianXonly) => byGuardian[guardianXonly] || '');
       const challengerSignature = options.challengerSignature();
       return decodedPlan(plan, {
         walletWitness,
-        reserveWitness: [guardianSignature, challengerSignature, leaf.scriptHex, leaf.controlBlock]
+        reserveWitness: [...guardianSignatures, challengerSignature, leaf.scriptHex, leaf.controlBlock]
       });
     }
     if (method === 'testmempoolaccept') return [{ allowed: true, txid: plan.txid, wtxid: '77'.repeat(32), vsize: 260 }];
@@ -191,6 +232,8 @@ test('guardian approval signs both the exact transaction and its authorization e
   });
   const check = verifyReserveGuardianApproval(approval, plan, reserve);
   assert(check.ok, check.reason);
+  assert(approval.core.guardianSetHash === undefined, 'legacy approval metadata shape changed');
+  assert(approval.core.guardianThreshold === undefined, 'legacy approval metadata shape changed');
   assert(approval.core.transactionSighash === reserveSpendSighash(plan, reserve).toString('hex'));
   const differentPlan = buildReserveCpfpPlan(state, { feeSats: '3000' }, artifact, reserve);
   assert(!verifyReserveGuardianApproval(approval, differentPlan, reserve).ok, 'approval replayed across fee plans');
@@ -233,8 +276,30 @@ test('finalizer rejects the wrong challenger and assembles the exact tapscript w
   assert(wrongKeyRejected);
   const finalized = finalizeReserveCpfp(plan, reserve, approval, CHALLENGER_SECRET, ['aa']);
   assert(finalized.txid === plan.txid);
-  assert(finalized.guardianApprovalHash === approval.approvalHash);
+  assert(finalized.guardianApprovalHashes.length === 1);
+  assert(finalized.guardianApprovalHashes[0] === approval.approvalHash);
+  assert(finalized.guardianApprovalHash === finalized.guardianApprovalSetHash);
   assert(/^[0-9a-f]+$/.test(finalized.witnessTxHex));
+});
+
+test('guardian quorum requires distinct threshold approvals and fills fixed witness slots', () => {
+  const { artifact, state, reserve, chainEvidence } = quorumFixture();
+  const plan = buildReserveCpfpPlan(state, { feeSats: '2000' }, artifact, reserve);
+  assert(plan.reserve.guardianThreshold === 2);
+  assert(plan.reserve.guardianCount === 3);
+  const approvals = [QUORUM_GUARDIAN_SECRETS[0], QUORUM_GUARDIAN_SECRETS[2]]
+    .map((secret) => buildReserveGuardianApproval(plan, reserve, chainEvidence, secret));
+  const setCheck = verifyReserveGuardianApprovalSet(approvals, plan, reserve);
+  assert(setCheck.ok && setCheck.approvedGuardianCount === 2);
+  assert(!verifyReserveGuardianApprovalSet(approvals.slice(0, 1), plan, reserve).ok);
+  assert(/duplicate/.test(verifyReserveGuardianApprovalSet([approvals[0], approvals[0]], plan, reserve).reason));
+
+  const finalized = finalizeReserveCpfp(plan, reserve, approvals, CHALLENGER_SECRET, ['aa']);
+  assert(finalized.guardianTransactionSignatures.length === 3);
+  assert(finalized.guardianTransactionSignatures[0] === approvals[1].transactionSignature);
+  assert(finalized.guardianTransactionSignatures[1] === '');
+  assert(finalized.guardianTransactionSignatures[2] === approvals[0].transactionSignature);
+  assert(finalized.guardianApprovalHashes.length === 2);
 });
 
 test('live preflight rejects wallet authority over the guardian reserve input', async () => {

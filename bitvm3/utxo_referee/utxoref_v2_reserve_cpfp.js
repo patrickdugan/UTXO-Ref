@@ -12,6 +12,11 @@ const {
   outpointKey,
   verifyTaprootReserveVaultManifest
 } = require('./taproot_reserve_vault');
+const {
+  MAX_GUARDIANS,
+  isGuardianQuorumFeeReserve,
+  verifyGuardianQuorumVaultManifest
+} = require('./utxoref_v2_guardian_quorum_reserve');
 const { verifyUtxorefV2FeeReserve } = require('./utxoref_v2_fee_reserve');
 const {
   btcToSats,
@@ -36,6 +41,16 @@ function parseArgs(argv) {
   const args = { broadcast: false, replaceChild: false };
   for (let index = 0; index < argv.length; index++) {
     const arg = argv[index];
+    if (arg === '--guardian-approval') {
+      const value = argv[++index];
+      if (!value || value.startsWith('--')) throw new Error(`missing value for ${arg}`);
+      args.guardianApprovals = [...(args.guardianApprovals || []), value];
+      if (args.guardianApprovals.length > MAX_GUARDIANS) {
+        throw new Error(`at most ${MAX_GUARDIANS} guardian approvals are allowed`);
+      }
+      args.guardianApproval = args.guardianApproval || value;
+      continue;
+    }
     if (arg === '--broadcast') { args.broadcast = true; continue; }
     if (arg === '--replace-child') { args.replaceChild = true; continue; }
     if (arg === '--help' || arg === '-h') { args.help = true; continue; }
@@ -63,6 +78,7 @@ function usage() {
     '    --guardian-approval <approval.json> --challenger-secret-file <secret.hex> \\',
     '    --wallet <wallet-name> --fee-sats 2000 --broadcast',
     '',
+    'Repeat --guardian-approval for a threshold guardian reserve.',
     'Use --replace-child on both commands to replace the tracked unconfirmed child.',
     'RPC credentials are read from BTC_RPC_URL, BTC_RPC_USER, and BTC_RPC_PASS,',
     'or passed as --rpc-url, --rpc-user, and --rpc-pass.'
@@ -121,13 +137,46 @@ function assertPlanHash(plan) {
   return true;
 }
 
+function reserveGuardianPolicy(reserve) {
+  const manifest = reserve?.core?.vaultManifest;
+  if (isGuardianQuorumFeeReserve(reserve)) {
+    const manifestCheck = verifyGuardianQuorumVaultManifest(manifest);
+    if (!manifestCheck.ok) throw new Error(`fee reserve quorum vault manifest is invalid: ${manifestCheck.reason}`);
+    const guardianXonlys = manifest.core.guardianXonlys;
+    return {
+      kind: 'guardian-quorum',
+      manifest,
+      manifestCheck,
+      guardianXonlys,
+      guardianThreshold: Number(manifest.core.guardianThreshold),
+      guardianSetHash: manifest.core.guardianSetHash,
+      immediateLeaf: manifest.core.leaves['immediate-operator-guardian-quorum']
+    };
+  }
+  if (reserve?.core?.kind !== 'utxoref_v2_fee_reserve_v1') {
+    throw new Error('fee reserve core is invalid');
+  }
+  const manifestCheck = verifyTaprootReserveVaultManifest(manifest);
+  if (!manifestCheck.ok) throw new Error(`fee reserve vault manifest is invalid: ${manifestCheck.reason}`);
+  const guardianXonlys = [manifest.core.guardianXonly];
+  return {
+    kind: 'single-guardian',
+    manifest,
+    manifestCheck,
+    guardianXonlys,
+    guardianThreshold: 1,
+    guardianSetHash: sha256Hex({ guardianXonlys, guardianThreshold: 1 }),
+    immediateLeaf: manifest.core.leaves['immediate-operator-guardian']
+  };
+}
+
 function reserveBinding(reserve, state, artifact) {
   verifyChallengeStateBinding(artifact, state);
   if (!reserve || reserve.kind !== 'utxoref_v2_fee_reserve' || reserve.version !== 1) {
     throw new Error('wrong fee reserve kind or version');
   }
   const core = reserve.core;
-  if (!core || core.kind !== 'utxoref_v2_fee_reserve_v1') throw new Error('fee reserve core is invalid');
+  if (!core) throw new Error('fee reserve core is invalid');
   if (reserve.reserveHash !== sha256Hex(core)) throw new Error('fee reserve hash mismatch');
   const graphHash = assertHex(state.challenge.graphHash, 32, 'challenge graphHash');
   if (core.graphHash !== graphHash || artifact.graph.graphHash !== graphHash) {
@@ -136,9 +185,8 @@ function reserveBinding(reserve, state, artifact) {
   if (state.challenge.feeReserveHash !== reserve.reserveHash) {
     throw new Error('tracked challenge fee reserve hash does not match the supplied reserve');
   }
-  const manifest = core.vaultManifest;
-  const manifestCheck = verifyTaprootReserveVaultManifest(manifest);
-  if (!manifestCheck.ok) throw new Error(`fee reserve vault manifest is invalid: ${manifestCheck.reason}`);
+  const guardianPolicy = reserveGuardianPolicy(reserve);
+  const manifest = guardianPolicy.manifest;
   if (manifest.core.bindingHash !== graphHash) throw new Error('fee reserve tapscript is not graph-bound');
   if (manifest.core.reserveEpochId !== core.disputeId) throw new Error('fee reserve dispute id mismatch');
   const outpoint = outpointKey(manifest.core.fundingOutpoint);
@@ -158,7 +206,11 @@ function reserveBinding(reserve, state, artifact) {
     fundingTxid: manifest.core.fundingOutpoint.txid,
     fundingVout: Number(manifest.core.fundingOutpoint.vout),
     scriptPubKeyHex: manifest.core.p2trScriptPubKey,
-    immediateLeaf: manifest.core.leaves['immediate-operator-guardian']
+    immediateLeaf: guardianPolicy.immediateLeaf,
+    guardianXonlys: guardianPolicy.guardianXonlys,
+    guardianThreshold: guardianPolicy.guardianThreshold,
+    guardianSetHash: guardianPolicy.guardianSetHash,
+    guardianPolicyKind: guardianPolicy.kind
   };
 }
 
@@ -233,7 +285,11 @@ function buildReserveCpfpPlan(state, args, artifact, reserve) {
       maxFeeSats: binding.maxFeeSats.toString(),
       scriptPubKeyHex: binding.scriptPubKeyHex,
       vaultId: binding.manifest.core.vaultId,
-      immediateLeafHash: binding.immediateLeaf.leafHash
+      immediateLeafHash: binding.immediateLeaf.leafHash,
+      guardianPolicyKind: binding.guardianPolicyKind,
+      guardianSetHash: binding.guardianSetHash,
+      guardianThreshold: binding.guardianThreshold,
+      guardianCount: binding.guardianXonlys.length
     },
     feeSats: feeSats.toString(),
     totalInputSats: totalInputSats.toString(),
@@ -260,20 +316,27 @@ function reserveSpendSighash(plan, reserve) {
 function reserveBindingForPlan(reserve, plan) {
   if (!reserve || reserve.reserveHash !== plan.reserveHash) throw new Error('plan fee reserve hash mismatch');
   if (reserve.reserveHash !== sha256Hex(reserve.core)) throw new Error('fee reserve hash mismatch');
-  const manifest = reserve.core?.vaultManifest;
-  const manifestCheck = verifyTaprootReserveVaultManifest(manifest);
-  if (!manifestCheck.ok) throw new Error(`fee reserve vault manifest is invalid: ${manifestCheck.reason}`);
+  const guardianPolicy = reserveGuardianPolicy(reserve);
+  const manifest = guardianPolicy.manifest;
   const binding = {
     amountSats: positiveSats(reserve.core.amountSats, 'fee reserve amountSats'),
     scriptPubKeyHex: manifest.core.p2trScriptPubKey,
-    immediateLeaf: manifest.core.leaves['immediate-operator-guardian']
+    immediateLeaf: guardianPolicy.immediateLeaf,
+    guardianXonlys: guardianPolicy.guardianXonlys,
+    guardianThreshold: guardianPolicy.guardianThreshold,
+    guardianSetHash: guardianPolicy.guardianSetHash,
+    guardianPolicyKind: guardianPolicy.kind
   };
   if (manifest.core.bindingHash !== plan.graphHash || plan.reserve.outpoint !== outpointKey(manifest.core.fundingOutpoint)) {
     throw new Error('plan does not bind the supplied fee reserve');
   }
   if (plan.reserve.amountSats !== binding.amountSats.toString() ||
       plan.reserve.scriptPubKeyHex !== binding.scriptPubKeyHex ||
-      plan.reserve.immediateLeafHash !== binding.immediateLeaf.leafHash) {
+      plan.reserve.immediateLeafHash !== binding.immediateLeaf.leafHash ||
+      plan.reserve.guardianPolicyKind !== binding.guardianPolicyKind ||
+      plan.reserve.guardianSetHash !== binding.guardianSetHash ||
+      Number(plan.reserve.guardianThreshold) !== binding.guardianThreshold ||
+      Number(plan.reserve.guardianCount) !== binding.guardianXonlys.length) {
     throw new Error('plan fee reserve fields differ from the vault manifest');
   }
   return binding;
@@ -298,10 +361,12 @@ function normalizeChainEvidence(evidence = {}) {
   };
 }
 
-function approvalCore(plan, reserve, chainEvidence, authorizedAt) {
+function approvalCore(plan, reserve, chainEvidence, authorizedAt, guardianXonlyInput = null) {
   const binding = reserveBindingForPlan(reserve, plan);
   const sighash = reserveSpendSighash(plan, reserve).toString('hex');
-  return {
+  const guardianXonly = String(guardianXonlyInput || binding.guardianXonlys[0]).toLowerCase();
+  if (!binding.guardianXonlys.includes(guardianXonly)) throw new Error('guardian is not in the fee reserve policy');
+  const core = {
     kind: 'utxoref_v2_reserve_cpfp_guardian_approval_v1',
     planHash: plan.planHash,
     graphHash: plan.graphHash,
@@ -314,22 +379,28 @@ function approvalCore(plan, reserve, chainEvidence, authorizedAt) {
     outputScriptPubKeyHex: plan.outputScriptPubKeyHex,
     feeSats: plan.feeSats,
     transactionSighash: sighash,
-    guardianXonly: reserve.core.vaultManifest.core.guardianXonly,
+    guardianXonly,
     vaultId: reserve.core.vaultManifest.core.vaultId,
     immediateLeafHash: binding.immediateLeaf.leafHash,
     chainEvidence: normalizeChainEvidence(chainEvidence),
     authorizedAt: String(authorizedAt || new Date().toISOString())
   };
+  if (binding.guardianPolicyKind === 'guardian-quorum') {
+    core.guardianSetHash = binding.guardianSetHash;
+    core.guardianThreshold = binding.guardianThreshold;
+    core.guardianCount = binding.guardianXonlys.length;
+  }
+  return core;
 }
 
 function buildReserveGuardianApproval(plan, reserve, chainEvidence, guardianSecretInput, options = {}) {
   const guardianSecret = typeof guardianSecretInput === 'bigint'
     ? guardianSecretInput
     : secretFromHex(guardianSecretInput, 'guardianSecret');
-  const expectedXonly = reserve.core.vaultManifest.core.guardianXonly;
+  const binding = reserveBindingForPlan(reserve, plan);
   const guardianXonly = a.xOnlyPubkey(guardianSecret).toString('hex');
-  if (guardianXonly !== expectedXonly) throw new Error('guardian secret does not match the fee reserve');
-  const core = approvalCore(plan, reserve, chainEvidence, options.authorizedAt);
+  if (!binding.guardianXonlys.includes(guardianXonly)) throw new Error('guardian secret does not match the fee reserve');
+  const core = approvalCore(plan, reserve, chainEvidence, options.authorizedAt, guardianXonly);
   const authorizationDigest = Buffer.from(sha256Hex(core), 'hex');
   const signed = {
     kind: 'utxoref_v2_reserve_cpfp_guardian_approval',
@@ -355,7 +426,13 @@ function verifyReserveGuardianApproval(approval, plan, reserve) {
     const approvalCopy = { ...approval };
     delete approvalCopy.approvalHash;
     if (approval.approvalHash !== sha256Hex(approvalCopy)) return { ok: false, reason: 'guardian approval hash mismatch' };
-    const expectedCore = approvalCore(plan, reserve, approval.core?.chainEvidence, approval.core?.authorizedAt);
+    const expectedCore = approvalCore(
+      plan,
+      reserve,
+      approval.core?.chainEvidence,
+      approval.core?.authorizedAt,
+      approval.core?.guardianXonly
+    );
     if (stableStringify(approval.core) !== stableStringify(expectedCore)) {
       return { ok: false, reason: 'guardian approval does not bind the exact reserve CPFP plan' };
     }
@@ -379,6 +456,58 @@ function verifyReserveGuardianApproval(approval, plan, reserve) {
   } catch (err) {
     return { ok: false, reason: err.message };
   }
+}
+
+function normalizeGuardianApprovals(approvals) {
+  if (Array.isArray(approvals)) return approvals;
+  return approvals ? [approvals] : [];
+}
+
+function verifyReserveGuardianApprovalSet(approvalsInput, plan, reserve) {
+  const approvals = normalizeGuardianApprovals(approvalsInput);
+  const binding = reserveBindingForPlan(reserve, plan);
+  if (approvals.length > binding.guardianXonlys.length) {
+    return { ok: false, reason: 'guardian approval count exceeds the committed guardian set', checks: [] };
+  }
+  const byGuardian = {};
+  const checks = [];
+  for (const approval of approvals) {
+    const check = verifyReserveGuardianApproval(approval, plan, reserve);
+    if (!check.ok) return { ok: false, reason: check.reason, checks };
+    const guardianXonly = approval.core.guardianXonly;
+    if (byGuardian[guardianXonly]) return { ok: false, reason: 'duplicate guardian approval', checks };
+    byGuardian[guardianXonly] = {
+      approval,
+      transactionSignature: check.transactionSignature
+    };
+    checks.push({ guardianXonly, approvalHash: check.approvalHash, chainEvidence: check.chainEvidence });
+  }
+  const approvedGuardianCount = Object.keys(byGuardian).length;
+  if (approvedGuardianCount < binding.guardianThreshold) {
+    return {
+      ok: false,
+      reason: `guardian approval threshold not met: ${approvedGuardianCount}/${binding.guardianThreshold}`,
+      checks
+    };
+  }
+  const approvalHashes = checks.map((check) => check.approvalHash).sort();
+  return {
+    ok: true,
+    reason: null,
+    guardianThreshold: binding.guardianThreshold,
+    guardianCount: binding.guardianXonlys.length,
+    approvedGuardianCount,
+    guardianXonlys: binding.guardianXonlys,
+    byGuardian,
+    checks,
+    approvalHashes,
+    approvalSetHash: sha256Hex({
+      kind: 'utxoref_v2_reserve_cpfp_guardian_approval_set_v1',
+      planHash: plan.planHash,
+      guardianSetHash: binding.guardianSetHash,
+      approvalHashes
+    })
+  };
 }
 
 function assertDecodedPlanBinding(plan, decoded, options = {}) {
@@ -555,14 +684,15 @@ async function walletSignChallengeInput(plan, args, rpc) {
   };
 }
 
-function finalizeReserveCpfp(plan, reserve, approval, challengerSecretInput, walletWitness) {
-  const approvalCheck = verifyReserveGuardianApproval(approval, plan, reserve);
+function finalizeReserveCpfp(plan, reserve, approvals, challengerSecretInput, walletWitness) {
+  const approvalCheck = verifyReserveGuardianApprovalSet(approvals, plan, reserve);
   if (!approvalCheck.ok) throw new Error(`guardian approval rejected: ${approvalCheck.reason}`);
   if (!Array.isArray(walletWitness) || walletWitness.length === 0) throw new Error('challenge wallet witness is required');
   const normalizedWalletWitness = walletWitness.map((item, index) => assertHexBytes(item, `walletWitness[${index}]`));
   const challengerSecret = typeof challengerSecretInput === 'bigint'
     ? challengerSecretInput
     : secretFromHex(challengerSecretInput, 'challengerSecret');
+  const binding = reserveBindingForPlan(reserve, plan);
   const manifest = reserve.core.vaultManifest;
   const challengerXonly = a.xOnlyPubkey(challengerSecret).toString('hex');
   if (challengerXonly !== manifest.core.operatorXonly) {
@@ -573,7 +703,10 @@ function finalizeReserveCpfp(plan, reserve, approval, challengerSecretInput, wal
   if (!a.schnorrVerify(Buffer.from(challengerXonly, 'hex'), sighash, Buffer.from(challengerSignature, 'hex'))) {
     throw new Error('challenger transaction signature failed self-verification');
   }
-  const leaf = manifest.core.leaves['immediate-operator-guardian'];
+  const leaf = binding.immediateLeaf;
+  const guardianSignatureSlots = [...binding.guardianXonlys]
+    .reverse()
+    .map((guardianXonly) => approvalCheck.byGuardian[guardianXonly]?.transactionSignature || '');
   const witnessTxHex = tr.serializeWitnessTx(2, [
     {
       outpoint: tr.outpoint(plan.challenge.txid, plan.challenge.vout),
@@ -583,7 +716,7 @@ function finalizeReserveCpfp(plan, reserve, approval, challengerSecretInput, wal
     {
       outpoint: tr.outpoint(plan.reserve.txid, plan.reserve.vout),
       sequence: RBF_SEQUENCE,
-      witness: [approval.transactionSignature, challengerSignature, leaf.scriptHex, leaf.controlBlock]
+      witness: [...guardianSignatureSlots, challengerSignature, leaf.scriptHex, leaf.controlBlock]
     }
   ], [{ valueSats: BigInt(plan.outputSats), script: plan.outputScriptPubKeyHex }], 0);
   return {
@@ -591,8 +724,11 @@ function finalizeReserveCpfp(plan, reserve, approval, challengerSecretInput, wal
     txid: plan.txid,
     reserveSighash: sighash.toString('hex'),
     challengerSignature,
-    guardianTransactionSignature: approval.transactionSignature,
-    guardianApprovalHash: approval.approvalHash
+    guardianTransactionSignatures: guardianSignatureSlots,
+    guardianTransactionSignature: guardianSignatureSlots.find((signature) => signature) || null,
+    guardianApprovalHashes: approvalCheck.approvalHashes,
+    guardianApprovalSetHash: approvalCheck.approvalSetHash,
+    guardianApprovalHash: approvalCheck.approvalSetHash
   };
 }
 
@@ -600,21 +736,30 @@ function mempoolRejectReason(result) {
   return result?.['reject-reason'] || result?.['reject-details'] || null;
 }
 
-async function preflightFinalTransaction(plan, reserve, approval, challengerSecret, args, rpc, inputPreflight = null) {
+async function preflightFinalTransaction(plan, reserve, approvalsInput, challengerSecret, args, rpc, inputPreflight = null) {
   const inputs = inputPreflight || await preflightReserveCpfpInputs(plan, reserve, rpc);
-  const approvalCheck = verifyReserveGuardianApproval(approval, plan, reserve);
+  const approvals = normalizeGuardianApprovals(approvalsInput);
+  const approvalCheck = verifyReserveGuardianApprovalSet(approvals, plan, reserve);
   if (!approvalCheck.ok) throw new Error(`guardian approval rejected: ${approvalCheck.reason}`);
-  const approvalFreshness = await verifyApprovalChainFreshness(approval, rpc, inputs.chain, args);
+  const approvalFreshnesses = [];
+  for (const approval of approvals) {
+    approvalFreshnesses.push(await verifyApprovalChainFreshness(approval, rpc, inputs.chain, args));
+  }
+  const approvalFreshness = {
+    ageBlocks: Math.max(...approvalFreshnesses.map((freshness) => freshness.ageBlocks)),
+    approvals: approvalFreshnesses
+  };
   const walletSigning = await walletSignChallengeInput(plan, args, rpc);
-  const finalized = finalizeReserveCpfp(plan, reserve, approval, challengerSecret, walletSigning.walletWitness);
+  const finalized = finalizeReserveCpfp(plan, reserve, approvals, challengerSecret, walletSigning.walletWitness);
   const decodedFinal = await rpc('decoderawtransaction', [finalized.witnessTxHex]);
   assertDecodedPlanBinding(plan, decodedFinal);
   const reserveWitness = decodedFinal.vin[1].txinwitness || [];
+  const binding = reserveBindingForPlan(reserve, plan);
   const expectedReserveWitness = [
-    finalized.guardianTransactionSignature,
+    ...finalized.guardianTransactionSignatures,
     finalized.challengerSignature,
-    reserve.core.vaultManifest.core.leaves['immediate-operator-guardian'].scriptHex,
-    reserve.core.vaultManifest.core.leaves['immediate-operator-guardian'].controlBlock
+    binding.immediateLeaf.scriptHex,
+    binding.immediateLeaf.controlBlock
   ];
   if (stableStringify(reserveWitness.map((item) => String(item).toLowerCase())) !== stableStringify(expectedReserveWitness)) {
     throw new Error('final reserve witness differs from the approved tapscript path');
@@ -637,6 +782,7 @@ function updateReserveCpfpState(state, plan, preflight, broadcastTxid) {
     reserveHash: priorChild.reserveHash,
     reserveOutpoint: priorChild.reserveOutpoint,
     guardianApprovalHash: priorChild.guardianApprovalHash || null,
+    guardianApprovalHashes: priorChild.guardianApprovalHashes || [],
     broadcastAt: priorChild.broadcastAt || null,
     replacedAt: at,
     replacementTxid: broadcastTxid
@@ -653,7 +799,8 @@ function updateReserveCpfpState(state, plan, preflight, broadcastTxid) {
     reserveHash: plan.reserveHash,
     reserveOutpoint: plan.reserve.outpoint,
     reserveAmountSats: plan.reserve.amountSats,
-    guardianApprovalHash: preflight.approvalCheck.approvalHash,
+    guardianApprovalHash: preflight.approvalCheck.approvalSetHash,
+    guardianApprovalHashes: preflight.approvalCheck.approvalHashes,
     broadcastAt: at,
     confirmation: null,
     replacements: replacementRecord
@@ -667,7 +814,8 @@ function updateReserveCpfpState(state, plan, preflight, broadcastTxid) {
     amountSats: plan.reserve.amountSats,
     status: plan.replacementOf ? 'committed_to_replacement' : 'committed_to_cpfp',
     activeCpfpTxid: broadcastTxid,
-    guardianApprovalHash: preflight.approvalCheck.approvalHash,
+    guardianApprovalHash: preflight.approvalCheck.approvalSetHash,
+    guardianApprovalHashes: preflight.approvalCheck.approvalHashes,
     committedAt: priorLifecycle?.committedAt || at,
     updatedAt: at,
     confirmation: null,
@@ -677,12 +825,15 @@ function updateReserveCpfpState(state, plan, preflight, broadcastTxid) {
   };
 }
 
-async function runReserveCpfp(state, args, rpc, artifact, reserve, approval, challengerSecret) {
+async function runReserveCpfp(state, args, rpc, artifact, reserve, approvals, challengerSecret) {
   const plan = buildReserveCpfpPlan(state, args, artifact, reserve);
-  const preflight = await preflightFinalTransaction(plan, reserve, approval, challengerSecret, args, rpc);
+  const preflight = await preflightFinalTransaction(plan, reserve, approvals, challengerSecret, args, rpc);
   const result = {
     ...plan,
-    guardianApprovalHash: preflight.approvalCheck.approvalHash,
+    guardianApprovalHash: preflight.approvalCheck.approvalSetHash,
+    guardianApprovalSetHash: preflight.approvalCheck.approvalSetHash,
+    guardianApprovalHashes: preflight.approvalCheck.approvalHashes,
+    approvedGuardianCount: preflight.approvalCheck.approvedGuardianCount,
     approvalAgeBlocks: preflight.approvalFreshness.ageBlocks,
     mempoolAccept: preflight.mempoolAccept,
     broadcast: false
@@ -737,10 +888,12 @@ async function main() {
   if (!args.guardianApproval) throw new Error('--guardian-approval is required');
   if (!args.challengerSecretFile) throw new Error('--challenger-secret-file is required');
   const inputs = loadInputs(args);
-  const approval = readJsonStrictProfile(
-    path.resolve(args.guardianApproval),
-    'utxoref-v2-reserve-cpfp-approval',
-    'guardian approval'
+  const approvals = (args.guardianApprovals || [args.guardianApproval]).map((approvalPath, index) =>
+    readJsonStrictProfile(
+      path.resolve(approvalPath),
+      'utxoref-v2-reserve-cpfp-approval',
+      `guardian approval ${index + 1}`
+    )
   );
   const challengerSecret = readSecretFile(args.challengerSecretFile, 'challengerSecret');
   const outcome = await runReserveCpfp(
@@ -749,7 +902,7 @@ async function main() {
     resolveRpc(args),
     inputs.artifact,
     inputs.reserve,
-    approval,
+    approvals,
     challengerSecret
   );
   if (outcome.action === 'reserve_cpfp_broadcast' || outcome.action === 'reserve_cpfp_replaced') {
@@ -776,6 +929,7 @@ module.exports = {
   planHash,
   assertPlanHash,
   reserveBinding,
+  reserveGuardianPolicy,
   reserveBindingForPlan,
   assertTrustPolicyReserve,
   buildReserveCpfpPlan,
@@ -784,6 +938,8 @@ module.exports = {
   approvalCore,
   buildReserveGuardianApproval,
   verifyReserveGuardianApproval,
+  normalizeGuardianApprovals,
+  verifyReserveGuardianApprovalSet,
   assertDecodedPlanBinding,
   assertExistingReserveCpfpBinding,
   preflightReserveCpfpInputs,

@@ -91,6 +91,10 @@ function buildUtxorefV2FeeReserve(input = {}) {
 }
 
 function verifyUtxorefV2FeeReserve(reserve, options = {}) {
+  if (reserve?.core?.kind === 'utxoref_v2_fee_reserve_guardian_quorum_v1') {
+    const { verifyGuardianQuorumFeeReserve } = require('./utxoref_v2_guardian_quorum_reserve');
+    return verifyGuardianQuorumFeeReserve(reserve, options);
+  }
   if (!reserve || reserve.kind !== 'utxoref_v2_fee_reserve' || reserve.version !== 1) {
     return { ok: false, counted: false, reason: 'wrong fee reserve kind or version' };
   }

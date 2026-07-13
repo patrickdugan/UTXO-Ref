@@ -289,6 +289,8 @@ async function verifyConfiguredFeeReserve(args, inspected, rpc, chain, assertion
     outpoint: verification.outpoint,
     amountSats: verification.amountSats,
     maxFeeSats: verification.maxFeeSats,
+    guardianThreshold: verification.guardianThreshold || 1,
+    guardianCount: verification.guardianCount || 1,
     remainingBlocks: verification.remainingBlocks
   };
 }
@@ -470,6 +472,7 @@ async function monitorChallenge(rpc, state, currentHeight, expectedTipHash = nul
         reserveOutpoint: prior.reserveOutpoint || tracked.reserveOutpoint || null,
         reserveAmountSats: tracked.reserveAmountSats || null,
         guardianApprovalHash: prior.guardianApprovalHash || tracked.guardianApprovalHash || null,
+        guardianApprovalHashes: prior.guardianApprovalHashes || tracked.guardianApprovalHashes || [],
         broadcastAt: prior.broadcastAt || null,
         confirmation: null,
         replacements: [],
