@@ -459,12 +459,17 @@ async function monitorChallenge(rpc, state, currentHeight, expectedTipHash = nul
       const candidate = await rpc('gettxout', [prior.txid, Number(prior.vout || 0), true]);
       if (!candidate) continue;
       const restored = {
+        mode: tracked.mode || null,
         txid: prior.txid,
         vout: Number(prior.vout || 0),
         parentTxid: tracked.parentTxid,
         feeSats: String(prior.feeSats),
         outputSats: String(prior.outputSats),
         scriptPubKeyHex: tracked.scriptPubKeyHex || challenge.challengeScriptPubKeyHex,
+        reserveHash: prior.reserveHash || tracked.reserveHash || null,
+        reserveOutpoint: prior.reserveOutpoint || tracked.reserveOutpoint || null,
+        reserveAmountSats: tracked.reserveAmountSats || null,
+        guardianApprovalHash: prior.guardianApprovalHash || tracked.guardianApprovalHash || null,
         broadcastAt: prior.broadcastAt || null,
         confirmation: null,
         replacements: [],
@@ -524,6 +529,24 @@ async function monitorChallenge(rpc, state, currentHeight, expectedTipHash = nul
     ? 'challenge_conflict_winner_confirmed'
     : lifecycle.action;
   tracked.lastAction = action;
+  if (tracked.mode === 'reserve-backed' && challenge.feeReserveLifecycle) {
+    const reserveLifecycle = challenge.feeReserveLifecycle;
+    reserveLifecycle.activeCpfpTxid = tracked.txid;
+    reserveLifecycle.updatedAt = tracked.lastObservedAt;
+    if (lifecycle.confirmation && ['challenge_confirmed', 'challenge_reconfirmed'].includes(lifecycle.action)) {
+      reserveLifecycle.status = 'consumed_confirmed';
+      reserveLifecycle.confirmation = lifecycle.confirmation;
+    } else if (lifecycle.action === 'challenge_in_mempool') {
+      reserveLifecycle.status = (tracked.replacements || []).length
+        ? 'committed_to_replacement'
+        : 'committed_to_cpfp';
+      reserveLifecycle.confirmation = null;
+    } else if (lifecycle.action === 'challenge_reorged') {
+      reserveLifecycle.status = 'reorged_unresolved';
+    } else if (['challenge_missing', 'challenge_output_spent_or_missing'].includes(lifecycle.action)) {
+      reserveLifecycle.status = 'spent_or_missing_unresolved';
+    }
+  }
   return { txid: tracked.txid, vout: Number(tracked.vout || 0), role, ...lifecycle, action, conflictResolution };
 }
 

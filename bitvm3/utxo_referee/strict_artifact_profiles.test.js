@@ -58,6 +58,21 @@ test('durable state bounds replacement and confirmation history independently', 
     challenge: { replacements: new Array(33).fill({}), confirmationHistory: [] }
   };
   assert(rejects(() => validateArtifactProfile(state, 'utxoref-v2-watchtower-state'), /replacements exceeds schema maximum 32/));
+  state.challenge.replacements = [];
+  state.challenge.feeReserveLifecycle = { replacements: new Array(33).fill({}) };
+  assert(rejects(() => validateArtifactProfile(state, 'utxoref-v2-watchtower-state'), /feeReserveLifecycle.replacements exceeds schema maximum 32/));
+});
+
+test('reserve CPFP guardian approvals use a separate bounded profile', () => {
+  const approval = {
+    kind: 'utxoref_v2_reserve_cpfp_guardian_approval',
+    version: 1,
+    approved: true,
+    core: {}
+  };
+  assert(validateArtifactProfile(approval, 'utxoref-v2-reserve-cpfp-approval') === approval);
+  approval.version = 2;
+  assert(rejects(() => validateArtifactProfile(approval, 'utxoref-v2-reserve-cpfp-approval'), /wrong version/));
 });
 
 test('registry and quorum bundle profiles enforce operational fanout', () => {

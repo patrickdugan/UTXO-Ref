@@ -142,5 +142,8 @@ Bitcoin testnet key-backup directory.
 - `btc_testnet4_utxoref_v2_live.js`: staged funding, broadcast, status, settlement
 - `recover_btc_testnet4_reserve_vault.js`: old-vault recovery preflight and receipt
 - `utxoref_v2_challenge_cpfp.js`: local wallet-owned challenge fee rescue
+- `utxoref_v2_fee_reserve_guardian.js`: separated exact-plan reserve authorization
+- `utxoref_v2_reserve_cpfp.js`: two-input guardian/challenger reserve fee rescue
+- `utxoref_v2_reserve_cpfp_drill.js`: real Core spend, replacement, and confirmation drill
 - `artifacts/live/utxoref_v2_watchtower_trust_policy.json`: external testnet4 signer and graph pins
 - `UTXOREF_V2_REDTEAM_TESTNET4.md`: adversarial campaign, live conflict, and residual risks

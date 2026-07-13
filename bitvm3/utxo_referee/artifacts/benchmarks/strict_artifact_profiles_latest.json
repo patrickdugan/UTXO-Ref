@@ -1,7 +1,7 @@
 {
   "kind": "utxoref_v2_strict_artifact_profile_benchmark",
   "version": 1,
-  "observedAt": "2026-07-13T02:46:05.881Z",
+  "observedAt": "2026-07-13T12:27:11.006Z",
   "node": "v20.20.0",
   "platform": "win32-x64",
   "cpu": "11th Gen Intel(R) Core(TM) i5-11400H @ 2.70GHz",
@@ -18,10 +18,10 @@
       "bytes": 1918161,
       "sha256": "0d6666ebae75d3efe3cc9ee35918899c4bf741a7221c721953ad5d632e961952",
       "iterations": 5,
-      "medianMs": 628.355,
-      "p95Ms": 977.263,
-      "maximumMs": 977.263,
-      "maximumHeapDeltaBytes": 7783744,
+      "medianMs": 155.772,
+      "p95Ms": 186.764,
+      "maximumMs": 186.764,
+      "maximumHeapDeltaBytes": 7770424,
       "parsePolicy": {
         "maxBytes": 4194304,
         "maxDepth": 48,
@@ -83,10 +83,10 @@
       "bytes": 24724,
       "sha256": "674e666e473f0e0a7e3d91a183ac659e40c7a4ff75700beab828ce55eeb0d733",
       "iterations": 5,
-      "medianMs": 5.16,
-      "p95Ms": 6.483,
-      "maximumMs": 6.483,
-      "maximumHeapDeltaBytes": 1357752,
+      "medianMs": 1.486,
+      "p95Ms": 1.915,
+      "maximumMs": 1.915,
+      "maximumHeapDeltaBytes": 1333536,
       "parsePolicy": {
         "maxBytes": 262144,
         "maxDepth": 16,
@@ -116,10 +116,10 @@
       "bytes": 3941,
       "sha256": "97919ae3fe40cf7c90be463f6bfb2503f861cc31a33100be271a8330c4bb5f62",
       "iterations": 5,
-      "medianMs": 0.713,
-      "p95Ms": 4.788,
-      "maximumMs": 4.788,
-      "maximumHeapDeltaBytes": 281632,
+      "medianMs": 0.3,
+      "p95Ms": 0.315,
+      "maximumMs": 0.315,
+      "maximumHeapDeltaBytes": 282040,
       "parsePolicy": {
         "maxBytes": 2097152,
         "maxDepth": 24,
@@ -145,6 +145,10 @@
         "challenge.cpfp.confirmationHistory": {
           "type": "array",
           "max": 64
+        },
+        "challenge.feeReserveLifecycle.replacements": {
+          "type": "array",
+          "max": 32
         }
       }
     },
@@ -153,10 +157,10 @@
       "bytes": 4427,
       "sha256": "36a009c5d0911d0bd0cbe4de2167d32824b958129acb2306c86dbab7c7394ff9",
       "iterations": 5,
-      "medianMs": 1.94,
-      "p95Ms": 3.652,
-      "maximumMs": 3.652,
-      "maximumHeapDeltaBytes": 429376,
+      "medianMs": 0.67,
+      "p95Ms": 1.354,
+      "maximumMs": 1.354,
+      "maximumHeapDeltaBytes": 430472,
       "parsePolicy": {
         "maxBytes": 2097152,
         "maxDepth": 32,
@@ -178,10 +182,10 @@
       "bytes": 32868,
       "sha256": "7db1c23fef9fb76f8fe380ce31f9412cbf45181258e42577ca1999f9b135ac4b",
       "iterations": 5,
-      "medianMs": 1.989,
-      "p95Ms": 4.814,
-      "maximumMs": 4.814,
-      "maximumHeapDeltaBytes": 1091624,
+      "medianMs": 0.57,
+      "p95Ms": 0.657,
+      "maximumMs": 0.657,
+      "maximumHeapDeltaBytes": 1111720,
       "parsePolicy": {
         "maxBytes": 262144,
         "maxDepth": 24,
@@ -194,14 +198,34 @@
       "collectionLimits": {}
     },
     {
+      "profile": "utxoref-v2-reserve-cpfp-approval",
+      "bytes": 8683,
+      "sha256": "7ad1fe3c8e73e0fa3f1fe6e59e7d700230aa95b4c881f773b72e88191a8c926f",
+      "iterations": 5,
+      "medianMs": 0.113,
+      "p95Ms": 0.121,
+      "maximumMs": 0.121,
+      "maximumHeapDeltaBytes": 295008,
+      "parsePolicy": {
+        "maxBytes": 65536,
+        "maxDepth": 12,
+        "maxTotalNodes": 1024,
+        "maxObjectKeys": 512,
+        "maxArrayItems": 32,
+        "maxStringBytes": 16384,
+        "maxIdentifierBytes": 256
+      },
+      "collectionLimits": {}
+    },
+    {
       "profile": "utxoref-v2-watcher-quorum",
       "bytes": 4708,
       "sha256": "eed5002b80c4e625c589661a76475ce3605952ff6891bb2c0dd9ff0d169ecfb5",
       "iterations": 5,
-      "medianMs": 0.463,
-      "p95Ms": 6.268,
-      "maximumMs": 6.268,
-      "maximumHeapDeltaBytes": 198392,
+      "medianMs": 0.122,
+      "p95Ms": 0.135,
+      "maximumMs": 0.135,
+      "maximumHeapDeltaBytes": 198264,
       "parsePolicy": {
         "maxBytes": 524288,
         "maxDepth": 20,

@@ -68,6 +68,16 @@ function sampleForProfile(profileName) {
   if (profileName === 'utxoref-v2-fee-reserve') {
     return { kind: 'utxoref_v2_fee_reserve', version: 1, core: { kind: 'utxoref_v2_fee_reserve_v1', proof: 'x'.repeat(32 * 1024) } };
   }
+  if (profileName === 'utxoref-v2-reserve-cpfp-approval') {
+    return {
+      kind: 'utxoref_v2_reserve_cpfp_guardian_approval',
+      version: 1,
+      approved: true,
+      core: { planHash: '00'.repeat(32), evidence: 'x'.repeat(8 * 1024) },
+      transactionSignature: '11'.repeat(64),
+      authorizationSignature: '22'.repeat(64)
+    };
+  }
   return { kind: 'utxoref_v2_watcher_quorum_bundle', version: 1, receipts: new Array(32).fill({ signature: 'A'.repeat(128) }) };
 }
 

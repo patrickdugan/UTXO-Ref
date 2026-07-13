@@ -72,10 +72,23 @@ When a graph policy contains `feeReserve`, the watchtower requires
 `--fee-reserve <file>` before it grants new challenge authority. It records the
 reserve hash and outpoint with a broadcast challenge.
 
-This is a tapscript encumbrance, not a covenant. Challenger and guardian can
-co-sign another destination. The reserve is not yet consumed as a second
-input by `utxoref_v2_challenge_cpfp.js`; wiring that exact two-input rescue and
-its guardian approval is the next transaction-level step.
+This is a tapscript encumbrance, not a covenant. The generic leaf still permits
+challenger and guardian to co-sign another destination, so guardian policy and
+key separation remain part of the security boundary. The transaction-level
+rescue now narrows that authority operationally:
+
+- `utxoref_v2_fee_reserve_guardian.js` reconstructs and validates an exact
+  two-input, one-output plan and emits a signed approval without receiving the
+  challenger secret;
+- `utxoref_v2_reserve_cpfp.js` accepts that approval, lets the wallet sign only
+  the challenge input, adds the challenger signature to the reserve leaf, and
+  rejects any input, output, sequence, amount, script, or witness mutation;
+- the only output returns the combined challenge and unused reserve value to
+  the original challenge script; and
+- every replacement spends the same two outpoints, uses a fresh guardian
+  approval, increases the absolute fee, and preserves conflict history.
+
+The isolated Core drill is described in `UTXOREF_V2_RESERVE_CPFP.md`.
 
 ## Independent Watcher Receipts
 
@@ -112,15 +125,17 @@ separate failure domains.
 
 `strict_artifact_profiles.js` defines separate limits for public graph
 artifacts, trust policies, watchtower state, fee reserves, reserve registries,
-and watcher quorum bundles. The watchtower, CPFP tool, and live staging path
-now select the expected profile before deeper verification.
+reserve CPFP guardian approvals, and watcher quorum bundles. The watchtower,
+CPFP tools, and live staging path now select the expected profile before deeper
+verification.
 
 `strict_artifact_benchmark.js` generates near-limit objects and enforces a
 2,000 ms per-profile and 256 MiB heap-growth release gate. On the local
 11th-generation i5-11400H with Node 20.20.0, the 1.92 MB public graph profile
-completed in 977.263 ms maximum across five measured iterations with
-7,783,744 bytes maximum measured heap growth. Smaller profiles completed in
-under 7 ms. The machine-readable result is
+completed in 186.764 ms maximum across five measured iterations with
+7,770,424 bytes maximum measured heap growth. Smaller profiles completed in
+under 2 ms; the new guardian approval profile completed in 0.121 ms maximum.
+The machine-readable result is
 `artifacts/benchmarks/strict_artifact_profiles_latest.json`.
 
 Timing is a local regression baseline, not a universal deadline guarantee.

@@ -36,7 +36,8 @@ const SCHEMA_PROFILES = Object.freeze({
       'challenge.replacements': Object.freeze({ type: 'array', max: 32 }),
       'challenge.confirmationHistory': Object.freeze({ type: 'array', max: 64 }),
       'challenge.cpfp.replacements': Object.freeze({ type: 'array', max: 32 }),
-      'challenge.cpfp.confirmationHistory': Object.freeze({ type: 'array', max: 64 })
+      'challenge.cpfp.confirmationHistory': Object.freeze({ type: 'array', max: 64 }),
+      'challenge.feeReserveLifecycle.replacements': Object.freeze({ type: 'array', max: 32 })
     })
   }),
   'utxoref-v2-fee-reserve-registry': Object.freeze({
@@ -51,6 +52,12 @@ const SCHEMA_PROFILES = Object.freeze({
     kind: 'utxoref_v2_fee_reserve',
     version: 1,
     parsePolicy: Object.freeze({ maxBytes: 256 * 1024, maxDepth: 24, maxTotalNodes: 8192, maxObjectKeys: 4096, maxArrayItems: 256, maxStringBytes: 64 * 1024, maxIdentifierBytes: 256 }),
+    collections: Object.freeze({})
+  }),
+  'utxoref-v2-reserve-cpfp-approval': Object.freeze({
+    kind: 'utxoref_v2_reserve_cpfp_guardian_approval',
+    version: 1,
+    parsePolicy: Object.freeze({ maxBytes: 64 * 1024, maxDepth: 12, maxTotalNodes: 1024, maxObjectKeys: 512, maxArrayItems: 32, maxStringBytes: 16 * 1024, maxIdentifierBytes: 256 }),
     collections: Object.freeze({})
   }),
   'utxoref-v2-watcher-quorum': Object.freeze({

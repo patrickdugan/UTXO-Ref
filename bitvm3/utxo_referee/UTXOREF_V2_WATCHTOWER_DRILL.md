@@ -167,6 +167,26 @@ parent spend at a strictly higher fee, verifies the prior child is replaceable
 and the raw parent still matches the tracked amount and script, then records
 the superseded child in durable history.
 
+For a graph policy with a confirmed Taproot fee reserve, the separated
+guardian flow can instead construct an exact two-input CPFP. The guardian signs
+the transaction and approval metadata without receiving the challenger key;
+the finalizer lets the wallet sign only the challenge input and uses the
+guardian/challenger reserve leaf for input 1. The combined value returns to the
+unchanged challenge script.
+
+```text
+node utxoref_v2_fee_reserve_guardian.js ... --fee-sats 4000 --output approval.json
+node utxoref_v2_reserve_cpfp.js ... --fee-sats 4000
+  --guardian-approval approval.json --challenger-secret-file challenger.hex
+  --wallet <wallet-name> --broadcast
+```
+
+`utxoref_v2_reserve_cpfp_drill.js` validates the initial spend, fresh guardian
+approval, partial wallet signing, tapscript witness, higher-fee replacement,
+mempool conflict winner, confirmation, and reserve lifecycle against isolated
+Bitcoin Core. See `UTXOREF_V2_RESERVE_CPFP.md` for the exact transaction and
+2026-07-13 drill receipt summary.
+
 `utxoref_v2_reorg_drill.js` exercises the lifecycle against an isolated Core
 regtest node. It refuses testnet and mainnet, observes a real wallet output in
 the mempool and a mined block, invalidates only that newly mined block, then
