@@ -8,6 +8,7 @@ node_modules/
 # Runtime logs and local sidecar output
 *.log
 integrations/lightning-liquidity-lease-sidecar/*.log
+integrations/utxoref-testnet-beta/runtime/
 handoff.md
 
 # External repos checked out beside prototypes

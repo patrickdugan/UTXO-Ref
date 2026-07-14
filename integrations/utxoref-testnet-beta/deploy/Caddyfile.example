@@ -1,0 +1,11 @@
+beta.example.org {
+  encode zstd gzip
+  request_body {
+    max_size 16KB
+  }
+  reverse_proxy 127.0.0.1:8790
+  header {
+    Strict-Transport-Security "max-age=31536000; includeSubDomains"
+    -Server
+  }
+}

@@ -1,0 +1,24 @@
+[Unit]
+Description=UTXORef Bitcoin testnet4 beta
+After=network-online.target bitcoind.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=utxoref-beta
+Group=utxoref-beta
+WorkingDirectory=/opt/utxoref/UTXO-Ref/integrations/utxoref-testnet-beta
+EnvironmentFile=/etc/utxoref-beta.env
+ExecStart=/usr/bin/node server.js
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/utxoref-beta
+UMask=0077
+TimeoutStopSec=15
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,57 @@
+{
+  "kind": "utxoref_testnet_beta_acceptance_receipt",
+  "version": 1,
+  "observedAt": "2026-07-14T23:39:20.561Z",
+  "network": {
+    "chain": "testnet4",
+    "blocks": 144137,
+    "headers": 144137,
+    "initialBlockDownload": false,
+    "pruned": true
+  },
+  "graph": {
+    "graphHash": "34dfe4a3d05264fa54cd6d99e9a07ac784c22f3011b7704847337a0543d02eee",
+    "verificationOk": true,
+    "artifactStatus": "settlement-confirmed",
+    "assertionOutpoint": "8bd4e076f0666cb3839f5056ef214aa116dd3e1edbd4528605716f55bb66a656:0"
+  },
+  "faucet": {
+    "claimId": "4a8d7f5a531f625c354f3038",
+    "status": "broadcast",
+    "amountSats": "1000",
+    "destination": "tb1pu0z9yd788kg3fvsvn5jw97vjrec0vytt8vpa9we6zhz3nd9c69pqtg2ns5",
+    "txid": "4623e25a03cee2ab0ad5169c70675280d1bd37db859c34d81a17a4b4c94b61e1",
+    "wtxid": "f36f7f429c800b4c2b2bdf645ca41bb65e78514bce48f6e6f63b30e6c1433a73",
+    "feeSats": "167",
+    "walletComment": "UTXORef beta 4a8d7f5a531f625c354f3038",
+    "idempotentReplayReturnedSameTxid": true,
+    "explorer": "https://mempool.space/testnet4/tx/4623e25a03cee2ab0ad5169c70675280d1bd37db859c34d81a17a4b4c94b61e1"
+  },
+  "statusLoad": {
+    "requests": 500,
+    "concurrency": 25,
+    "succeeded": 500,
+    "failed": 0,
+    "elapsedMs": 3774.95,
+    "requestsPerSecond": 132.45,
+    "latencyMs": {
+      "p50": 62.92,
+      "p95": 185.2,
+      "p99": 2348.16,
+      "max": 2431.68
+    },
+    "responseDigest": "cc20b7fd0ad8392ca4a6c7030cc59edf66bbf55ba4d164b8537352df674c62dc"
+  },
+  "workerIsolation": {
+    "statusRequestsDuringStress": 100,
+    "statusRequestsSucceeded": 100,
+    "statusRequestsElapsedMs": 2368.3,
+    "stressRunId": "59782246aec50e02ecd37e47",
+    "stressIterations": 10,
+    "stressPassed": 10,
+    "stressFailed": 0,
+    "stressElapsedMs": 14633.68,
+    "stressResultDigest": "0c2cf1a55bd29b1b0675a6c8141f60e92555ff12fe4d29b79174a447446f8321"
+  },
+  "secretsIncluded": false
+}

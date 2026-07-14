@@ -1,0 +1,13 @@
+{
+  "name": "utxoref-testnet-beta",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Invite-gated Bitcoin testnet4 faucet and UTXORef verification beta",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test.js",
+    "invite": "node invite.js",
+    "reconcile": "node reconcile.js",
+    "load": "node load_test.js"
+  }
+}

@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>UTXORef Testnet Beta</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="app-header">
+    <div>
+      <p class="network-label">BITCOIN TESTNET4</p>
+      <h1>UTXORef Beta Console</h1>
+    </div>
+    <div class="header-status">
+      <span id="ready-badge" class="badge badge-waiting">Checking</span>
+      <button id="refresh-button" class="secondary-button" type="button">Refresh</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="status-band" aria-labelledby="status-heading">
+      <div class="section-heading">
+        <div>
+          <p class="step-number">01</p>
+          <h2 id="status-heading">Network and referee graph</h2>
+        </div>
+        <p id="checked-at" class="timestamp">Not checked</p>
+      </div>
+      <div class="metrics-grid">
+        <div class="metric"><span>Block</span><strong id="block-height">-</strong></div>
+        <div class="metric"><span>Header lag</span><strong id="chain-lag">-</strong></div>
+        <div class="metric"><span>Graph verification</span><strong id="graph-verification">-</strong></div>
+        <div class="metric"><span>Assertion state</span><strong id="assertion-state">-</strong></div>
+        <div class="metric"><span>Faucet available</span><strong id="faucet-available">-</strong></div>
+        <div class="metric"><span>Daily allowance</span><strong id="daily-remaining">-</strong></div>
+      </div>
+      <div class="graph-line">
+        <span class="graph-node">Signed graph</span>
+        <span class="connector" aria-hidden="true"></span>
+        <span class="graph-node">Referee checks</span>
+        <span class="connector" aria-hidden="true"></span>
+        <a id="assertion-link" class="graph-node graph-link" href="#" target="_blank" rel="noreferrer">Testnet outpoint</a>
+      </div>
+      <p id="graph-hash" class="mono-line">Graph hash unavailable</p>
+    </section>
+
+    <section class="action-band" aria-labelledby="access-heading">
+      <div class="section-heading">
+        <div>
+          <p class="step-number">02</p>
+          <h2 id="access-heading">Beta access</h2>
+        </div>
+      </div>
+      <label class="field full-field">
+        <span>Invite token</span>
+        <input id="invite-token" type="password" autocomplete="off" spellcheck="false" placeholder="ubeta_...">
+      </label>
+    </section>
+
+    <section class="action-band two-column" aria-label="Beta actions">
+      <div class="action-panel">
+        <div class="section-heading compact-heading">
+          <div>
+            <p class="step-number">03</p>
+            <h2>Claim test sats</h2>
+          </div>
+          <span id="claim-amount" class="amount-label">- sats</span>
+        </div>
+        <form id="faucet-form">
+          <label class="field">
+            <span>Native SegWit or Taproot address</span>
+            <input id="faucet-address" type="text" autocomplete="off" spellcheck="false" placeholder="tb1..." required>
+          </label>
+          <button id="claim-button" class="primary-button" type="submit">Claim sats</button>
+        </form>
+        <div id="claim-receipt" class="receipt" hidden></div>
+      </div>
+
+      <div class="action-panel">
+        <div class="section-heading compact-heading">
+          <div>
+            <p class="step-number">04</p>
+            <h2>Run referee stress</h2>
+          </div>
+          <span id="stress-limit" class="amount-label">Max -</span>
+        </div>
+        <form id="stress-form">
+          <label class="field">
+            <span>Verification iterations</span>
+            <div class="range-row">
+              <input id="stress-iterations" type="range" min="1" max="100" value="25">
+              <output id="stress-output" for="stress-iterations">25</output>
+            </div>
+          </label>
+          <button id="stress-button" class="primary-button" type="submit">Run verification</button>
+        </form>
+        <div id="stress-receipt" class="receipt" hidden></div>
+      </div>
+    </section>
+
+    <section class="receipts-band" aria-labelledby="receipts-heading">
+      <div class="section-heading">
+        <div>
+          <p class="step-number">05</p>
+          <h2 id="receipts-heading">Session receipts</h2>
+        </div>
+        <button id="clear-receipts" class="secondary-button" type="button">Clear</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Time</th><th>Type</th><th>Result</th><th>Receipt</th></tr></thead>
+          <tbody id="receipt-rows"><tr><td colspan="4" class="empty-row">No receipts in this browser.</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+  <script src="/app.js" defer></script>
+</body>
+</html>
