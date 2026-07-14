@@ -2,6 +2,8 @@
 
 Invite-gated Bitcoin testnet4 console for a real UTXORef referee graph, a bounded test-sat faucet, and repeatable graph-verification stress runs.
 
+Current operator beta: `https://api.layerwallet.com/utxoref-beta/`. It is served through a path-scoped TLS reverse proxy and a loopback-only reverse tunnel to the local testnet4 node; availability therefore depends on the operator workstation, node, service, and tunnel remaining online.
+
 The service deliberately has no generic wallet or RPC endpoint. Faucet signing remains inside the local Bitcoin Core wallet. Invite tokens are stored only as hashes, requester IPs are stored as salted hashes, and every claim is written to disk before Bitcoin Core is asked to broadcast. Destination addresses remain in receipts because they become public when a claim is broadcast.
 
 ## Beta surface
@@ -31,7 +33,7 @@ npm test
 npm start
 ```
 
-Open `http://127.0.0.1:8790`. Generate an invitation in another terminal:
+Open `http://127.0.0.1:8790`. If `BETA_BASE_PATH` is set, append that path and a trailing slash. Generate an invitation in another terminal:
 
 ```powershell
 npm run invite -- --label reviewer-01 --max-claims 1 --max-stress-runs 10 --expires-at 2026-07-21T00:00:00Z
@@ -81,6 +83,8 @@ Receipts are written under ignored `runtime/`; publish selected receipts only af
 
 The sanitized local acceptance run is checked in at `artifacts/testnet4_acceptance_2026-07-14.json`. It binds the live faucet txid, graph hash, 500-request status load, and status responsiveness during a worker verification run without including an invitation or RPC secret.
 
+The separate `artifacts/public_testnet4_acceptance_2026-07-14.json` receipt records an HTTPS faucet claim, worker receipt round trip, and 100-request public status load through the deployed reverse proxy. Invitation tokens remain only in the ignored operator runtime directory.
+
 ## Public deployment
 
 Keep both this service and Bitcoin Core RPC on loopback. Put TLS and request limits in a reverse proxy. `deploy/Caddyfile.example` and `deploy/utxoref-testnet-beta.service` are starting templates; update the hostname, repository path, service account, and Bitcoin datadir.
@@ -89,6 +93,7 @@ Keep both this service and Bitcoin Core RPC on loopback. Put TLS and request lim
 2. Install the repository read-only under `/opt/utxoref/UTXO-Ref`.
 3. Install `.env.example` as mode `0600` at `/etc/utxoref-beta.env`.
 4. Set `BETA_PUBLIC_ORIGIN` to the exact HTTPS origin and enable `BETA_TRUST_PROXY=1` only when direct access to port `8790` is blocked.
+   Set `BETA_BASE_PATH` when the service shares a hostname, for example `/utxoref-beta`.
 5. Start Core, load the faucet wallet, start the service, then verify `/v1/beta/status` reports `betaReady: true`.
 6. Run the 500-request status test and one self-claim before issuing invitations.
 

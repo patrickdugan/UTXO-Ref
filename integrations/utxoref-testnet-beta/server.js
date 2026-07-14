@@ -57,7 +57,7 @@ async function start(env = process.env) {
   server.listen(policy.port, policy.host, () => {
     console.log(JSON.stringify({
       service: policy.serviceName,
-      url: `http://${policy.host}:${policy.port}`,
+      url: `http://${policy.host}:${policy.port}${policy.basePath || ''}/`,
       chain: policy.chain,
       wallet: policy.wallet,
       statePath: policy.statePath

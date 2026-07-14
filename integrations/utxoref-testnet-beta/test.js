@@ -180,6 +180,29 @@ async function testUnknownBroadcast(root) {
   }
 }
 
+async function testBasePath(root) {
+  const statePath = path.join(root, 'base-path.json');
+  const store = new StateStore(statePath);
+  const bitcoin = fakeBitcoin(store);
+  const policy = policyFor(statePath, { basePath: '/utxoref-beta' });
+  const live = await listen(createBetaService({ policy, store, bitcoin }));
+  try {
+    const outside = await fetch(`${live.baseUrl}/`);
+    assert.equal(outside.status, 404);
+    const redirect = await fetch(`${live.baseUrl}/utxoref-beta`, { redirect: 'manual' });
+    assert.equal(redirect.status, 308);
+    assert.equal(redirect.headers.get('location'), '/utxoref-beta/');
+    const page = await fetch(`${live.baseUrl}/utxoref-beta/`);
+    assert.equal(page.status, 200);
+    assert.match(await page.text(), /UTXORef Beta Console/);
+    const status = await jsonRequest(live.baseUrl, '/utxoref-beta/v1/beta/status');
+    assert.equal(status.response.status, 200);
+    assert.equal(status.payload.betaReady, true);
+  } finally {
+    await live.close();
+  }
+}
+
 async function testCrossProcessLock(root) {
   const statePath = path.join(root, 'lock.json');
   const first = new StateStore(statePath);
@@ -228,10 +251,11 @@ async function main() {
   try {
     await testHappyPath(root);
     await testUnknownBroadcast(root);
+    await testBasePath(root);
     await testCrossProcessLock(root);
     await testBitcoinBackendCompatibility();
     testInterruptedRunRecovery();
-    console.log(JSON.stringify({ ok: true, suite: 'utxoref-testnet-beta', tests: 5 }));
+    console.log(JSON.stringify({ ok: true, suite: 'utxoref-testnet-beta', tests: 6 }));
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

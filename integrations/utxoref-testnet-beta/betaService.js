@@ -433,6 +433,14 @@ function createBetaService(options) {
   async function handler(req, res) {
     try {
       const parsed = new URL(req.url, 'http://beta.local');
+      if (policy.basePath && parsed.pathname === policy.basePath) {
+        res.writeHead(308, { location: `${policy.basePath}/`, ...responseHeaders(policy, 'text/plain') });
+        return res.end();
+      }
+      if (policy.basePath && !parsed.pathname.startsWith(`${policy.basePath}/`)) {
+        throw new HttpError(404, 'not_found');
+      }
+      const routePath = policy.basePath ? parsed.pathname.slice(policy.basePath.length) : parsed.pathname;
       const now = clock().toISOString();
       if (req.method === 'POST') postRateLimit(requestIp(req, policy), now);
 
@@ -444,19 +452,19 @@ function createBetaService(options) {
         });
         return res.end();
       }
-      if (req.method === 'GET' && parsed.pathname === '/healthz') {
+      if (req.method === 'GET' && routePath === '/healthz') {
         return sendJson(res, 200, { ok: true, service: policy.serviceName }, policy);
       }
-      if (req.method === 'GET' && parsed.pathname === '/v1/beta/status') {
+      if (req.method === 'GET' && routePath === '/v1/beta/status') {
         return sendJson(res, 200, await betaStatus(), policy);
       }
-      if (req.method === 'POST' && parsed.pathname === '/v1/faucet/claim') {
+      if (req.method === 'POST' && routePath === '/v1/faucet/claim') {
         return sendJson(res, 201, await claimFaucet(await readBody(req), req), policy);
       }
-      if (req.method === 'POST' && parsed.pathname === '/v1/stress/verify') {
+      if (req.method === 'POST' && routePath === '/v1/stress/verify') {
         return sendJson(res, 201, await runStress(await readBody(req)), policy);
       }
-      const runMatch = parsed.pathname.match(/^\/v1\/runs\/([0-9a-f]{24})$/);
+      const runMatch = routePath.match(/^\/v1\/runs\/([0-9a-f]{24})$/);
       if (req.method === 'GET' && runMatch) {
         const run = store.read().stressRuns[runMatch[1]];
         if (!run) throw new HttpError(404, 'run_not_found');
@@ -468,8 +476,8 @@ function createBetaService(options) {
         '/app.js': ['app.js', 'application/javascript; charset=utf-8'],
         '/styles.css': ['styles.css', 'text/css; charset=utf-8']
       };
-      if (req.method === 'GET' && staticFiles[parsed.pathname]) {
-        const [name, contentType] = staticFiles[parsed.pathname];
+      if (req.method === 'GET' && staticFiles[routePath]) {
+        const [name, contentType] = staticFiles[routePath];
         const body = fs.readFileSync(path.join(publicDir, name));
         res.writeHead(200, { ...responseHeaders(policy, contentType), 'content-length': body.length });
         return res.end(body);

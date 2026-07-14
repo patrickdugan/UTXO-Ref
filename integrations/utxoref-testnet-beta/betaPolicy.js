@@ -8,6 +8,15 @@ function integer(value, fallback, minimum, maximum, name) {
   return parsed;
 }
 
+function basePath(value) {
+  const normalized = String(value || '').trim().replace(/\/$/, '');
+  if (normalized === '') return '';
+  if (!/^\/[A-Za-z0-9._~-]+(?:\/[A-Za-z0-9._~-]+)*$/.test(normalized)) {
+    throw new Error('BETA_BASE_PATH must be empty or an absolute URL path without a trailing slash');
+  }
+  return normalized;
+}
+
 function loadPolicy(env = process.env) {
   const root = path.join(__dirname, '..', '..');
   return {
@@ -15,6 +24,7 @@ function loadPolicy(env = process.env) {
     chain: 'testnet4',
     host: env.BETA_BIND_HOST || '127.0.0.1',
     port: integer(env.PORT, 8790, 1, 65535, 'PORT'),
+    basePath: basePath(env.BETA_BASE_PATH),
     wallet: env.BTC_WALLET || 'utxoref-testnet',
     statePath: path.resolve(env.BETA_STATE_PATH || path.join(__dirname, 'runtime', 'state.json')),
     artifactPath: path.resolve(env.BETA_ARTIFACT_PATH || path.join(root, 'bitvm3', 'utxo_referee', 'artifacts', 'live', 'btc_testnet4_utxoref_v2_latest.json')),
@@ -36,4 +46,4 @@ function loadPolicy(env = process.env) {
   };
 }
 
-module.exports = { integer, loadPolicy };
+module.exports = { integer, basePath, loadPolicy };

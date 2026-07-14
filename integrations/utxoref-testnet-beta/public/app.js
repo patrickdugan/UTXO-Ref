@@ -85,7 +85,7 @@ function inviteToken() {
 async function refreshStatus() {
   elements['refresh-button'].disabled = true;
   try {
-    const status = await requestJson('/v1/beta/status');
+    const status = await requestJson('v1/beta/status');
     statusSnapshot = status;
     elements['checked-at'].textContent = `Checked ${new Date(status.checkedAt).toLocaleTimeString()}`;
     setValue('block-height', Number(status.chain.blocks).toLocaleString());
@@ -128,7 +128,7 @@ elements['faucet-form'].addEventListener('submit', async (event) => {
   showReceipt(elements['claim-receipt'], 'Submitting claim...');
   try {
     if (!statusSnapshot?.betaReady) throw new Error('Beta service is not ready');
-    const payload = await requestJson('/v1/faucet/claim', {
+    const payload = await requestJson('v1/faucet/claim', {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'idempotency-key': crypto.randomUUID() },
       body: JSON.stringify({ inviteToken: inviteToken(), address: elements['faucet-address'].value.trim() })
@@ -151,7 +151,7 @@ elements['stress-form'].addEventListener('submit', async (event) => {
   elements['stress-button'].disabled = true;
   showReceipt(elements['stress-receipt'], 'Running verifier...');
   try {
-    const payload = await requestJson('/v1/stress/verify', {
+    const payload = await requestJson('v1/stress/verify', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ inviteToken: inviteToken(), iterations: Number(elements['stress-iterations'].value) })
