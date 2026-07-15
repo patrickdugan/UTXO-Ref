@@ -36,6 +36,7 @@ function loadPolicy(env = process.env) {
     ipClaimsPerDay: integer(env.BETA_IP_CLAIMS_PER_DAY, 1, 1, 20, 'BETA_IP_CLAIMS_PER_DAY'),
     addressClaimsTotal: integer(env.BETA_ADDRESS_CLAIMS_TOTAL, 1, 1, 20, 'BETA_ADDRESS_CLAIMS_TOTAL'),
     postRequestsPerMinute: integer(env.BETA_POSTS_PER_MINUTE, 20, 1, 1000, 'BETA_POSTS_PER_MINUTE'),
+    postRequestsPerHour: integer(env.BETA_POSTS_PER_HOUR, 100, 1, 10000, 'BETA_POSTS_PER_HOUR'),
     maxStressIterations: integer(env.BETA_MAX_STRESS_ITERATIONS, 50, 1, 1000, 'BETA_MAX_STRESS_ITERATIONS'),
     maxStressRunsPerInvite: integer(env.BETA_MAX_STRESS_RUNS_PER_INVITE, 10, 1, 100, 'BETA_MAX_STRESS_RUNS_PER_INVITE'),
     maxConcurrentStressRuns: integer(env.BETA_MAX_CONCURRENT_STRESS_RUNS, 2, 1, 16, 'BETA_MAX_CONCURRENT_STRESS_RUNS'),

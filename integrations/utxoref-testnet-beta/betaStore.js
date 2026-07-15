@@ -14,7 +14,9 @@ function initialState() {
     privacySalt: crypto.randomBytes(32).toString('hex'),
     invitations: {},
     claims: {},
-    stressRuns: {}
+    stressRuns: {},
+    rateLimits: {},
+    guardianHeartbeats: {}
   };
 }
 
@@ -22,7 +24,7 @@ function validateState(state) {
   if (!state || state.kind !== 'utxoref_testnet_beta_state' || state.version !== 1) {
     throw new Error('wrong beta state kind or version');
   }
-  for (const field of ['invitations', 'claims', 'stressRuns']) {
+  for (const field of ['invitations', 'claims', 'stressRuns', 'rateLimits', 'guardianHeartbeats']) {
     if (!state[field] || typeof state[field] !== 'object' || Array.isArray(state[field])) {
       throw new Error(`beta state ${field} must be an object`);
     }
@@ -88,7 +90,12 @@ function loadState(filePath) {
   }
   const stat = fs.statSync(filePath);
   if (stat.size > 8 * 1024 * 1024) throw new Error('beta state exceeds 8 MiB');
-  return validateState(JSON.parse(fs.readFileSync(filePath, 'utf8')));
+  const state = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  if (state?.kind === 'utxoref_testnet_beta_state' && state.version === 1) {
+    if (state.rateLimits === undefined) state.rateLimits = {};
+    if (state.guardianHeartbeats === undefined) state.guardianHeartbeats = {};
+  }
+  return validateState(state);
 }
 
 function tokenHash(token) {

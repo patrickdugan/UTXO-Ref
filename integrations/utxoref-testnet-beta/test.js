@@ -6,7 +6,7 @@ const os = require('os');
 const path = require('path');
 const { loadPolicy } = require('./betaPolicy');
 const { StateStore, createInvitations } = require('./betaStore');
-const { createBetaService } = require('./betaService');
+const { createBetaService, requestIp } = require('./betaService');
 const { BitcoinBackend } = require('./bitcoinBackend');
 const { recoverInterruptedRuns } = require('./server');
 
@@ -203,6 +203,39 @@ async function testBasePath(root) {
   }
 }
 
+async function testPersistentRateLimits(root) {
+  const statePath = path.join(root, 'persistent-rate.json');
+  const store = new StateStore(statePath);
+  const bitcoin = fakeBitcoin(store);
+  let now = new Date('2026-07-15T12:00:00.000Z');
+  const policy = policyFor(statePath, { postRequestsPerMinute: 2, postRequestsPerHour: 3 });
+  const request = (baseUrl, suffix) => jsonRequest(baseUrl, '/v1/faucet/claim', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'idempotency-key': `persistent-rate-${suffix}` },
+    body: JSON.stringify({ inviteToken: 'ubeta_invalid_invalid_invalid_invalid', address: TEST_ADDRESS })
+  });
+
+  const first = await listen(createBetaService({ policy, store, bitcoin, clock: () => now }));
+  try {
+    assert.equal((await request(first.baseUrl, '01')).response.status, 401);
+    assert.equal((await request(first.baseUrl, '02')).response.status, 401);
+  } finally { await first.close(); }
+
+  const restarted = await listen(createBetaService({ policy, store: new StateStore(statePath), bitcoin, clock: () => now }));
+  try {
+    const blockedAfterRestart = await request(restarted.baseUrl, '03');
+    assert.equal(blockedAfterRestart.response.status, 429);
+    now = new Date(now.getTime() + 61000);
+    assert.equal((await request(restarted.baseUrl, '04')).response.status, 401);
+    assert.equal((await request(restarted.baseUrl, '05')).response.status, 429, 'hour limit must survive minute rollover');
+  } finally { await restarted.close(); }
+
+  const disk = fs.readFileSync(statePath, 'utf8');
+  assert.ok(!disk.includes('127.0.0.1'), 'rate ledger must not retain plaintext requester IPs');
+  assert.equal(requestIp({ headers: { 'x-forwarded-for': 'attacker-controlled' }, socket: { remoteAddress: '127.0.0.1' } }, { trustProxy: true }), '127.0.0.1');
+  assert.equal(requestIp({ headers: { 'x-forwarded-for': '203.0.113.8' }, socket: { remoteAddress: '127.0.0.1' } }, { trustProxy: true }), '203.0.113.8');
+}
+
 async function testCrossProcessLock(root) {
   const statePath = path.join(root, 'lock.json');
   const first = new StateStore(statePath);
@@ -252,10 +285,11 @@ async function main() {
     await testHappyPath(root);
     await testUnknownBroadcast(root);
     await testBasePath(root);
+    await testPersistentRateLimits(root);
     await testCrossProcessLock(root);
     await testBitcoinBackendCompatibility();
     testInterruptedRunRecovery();
-    console.log(JSON.stringify({ ok: true, suite: 'utxoref-testnet-beta', tests: 6 }));
+    console.log(JSON.stringify({ ok: true, suite: 'utxoref-testnet-beta', tests: 7 }));
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

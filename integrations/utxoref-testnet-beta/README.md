@@ -89,6 +89,8 @@ The separate `artifacts/public_testnet4_acceptance_2026-07-14.json` receipt reco
 
 Keep both this service and Bitcoin Core RPC on loopback. Put TLS and request limits in a reverse proxy. `deploy/Caddyfile.example` and `deploy/utxoref-testnet-beta.service` are starting templates; update the hostname, repository path, service account, and Bitcoin datadir.
 
+For Nginx, load `deploy/nginx-http-waf.example` in the `http {}` context and place `deploy/nginx-location.example` inside the TLS server. The edge uses separate shared-memory read and POST buckets plus per-IP connection caps. The application also persists salted minute/hour POST counters in its journal, so a Node restart does not reset mutation limits. These are Layer 7 controls; an origin Nginx server cannot absorb upstream link saturation, so unrestricted exposure still requires a provider edge or scrubbing service.
+
 1. Create a dedicated unprivileged `utxoref-beta` account and `/var/lib/utxoref-beta` owned by it.
 2. Install the repository read-only under `/opt/utxoref/UTXO-Ref`.
 3. Install `.env.example` as mode `0600` at `/etc/utxoref-beta.env`.

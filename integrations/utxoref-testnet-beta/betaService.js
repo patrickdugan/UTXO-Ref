@@ -1,5 +1,6 @@
 const fs = require('fs');
 const http = require('http');
+const net = require('net');
 const path = require('path');
 const { URL } = require('url');
 const { Worker } = require('worker_threads');
@@ -103,7 +104,7 @@ function loadGraph(policy) {
 function requestIp(req, policy) {
   if (policy.trustProxy) {
     const forwarded = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
-    if (forwarded) return forwarded;
+    if (net.isIP(forwarded)) return forwarded;
   }
   return req.socket.remoteAddress || 'unknown';
 }
@@ -181,7 +182,6 @@ function createBetaService(options) {
   const clock = options.clock || (() => new Date());
   const publicDir = options.publicDir || path.join(__dirname, 'public');
   const stressWorkerPath = options.stressWorkerPath || path.join(__dirname, 'stressWorker.js');
-  const postWindows = new Map();
   let graphCache = null;
   let statusCache = null;
   let statusInFlight = null;
@@ -200,17 +200,44 @@ function createBetaService(options) {
     return graphCache.value;
   }
 
-  function postRateLimit(ip, now) {
-    const minute = Math.floor(new Date(now).getTime() / 60000);
-    const key = `${ip}:${minute}`;
-    const count = (postWindows.get(key) || 0) + 1;
-    postWindows.set(key, count);
-    if (postWindows.size > 2048) {
-      for (const oldKey of postWindows.keys()) {
-        if (!oldKey.endsWith(`:${minute}`)) postWindows.delete(oldKey);
+  async function postRateLimit(ip, now) {
+    const nowMs = new Date(now).getTime();
+    await store.transact((state) => {
+      const ipHash = privateHash(state, 'rate-ip', ip);
+      const windows = [
+        {
+          key: `${ipHash}:minute:${Math.floor(nowMs / 60000)}`,
+          limit: policy.postRequestsPerMinute,
+          expiresAt: new Date((Math.floor(nowMs / 60000) + 2) * 60000).toISOString()
+        },
+        {
+          key: `${ipHash}:hour:${Math.floor(nowMs / 3600000)}`,
+          limit: policy.postRequestsPerHour,
+          expiresAt: new Date((Math.floor(nowMs / 3600000) + 2) * 3600000).toISOString()
+        }
+      ];
+      for (const window of windows) {
+        const current = state.rateLimits[window.key];
+        if (current && current.count >= window.limit) throw new HttpError(429, 'rate_limited');
       }
-    }
-    if (count > policy.postRequestsPerMinute) throw new HttpError(429, 'rate_limited');
+      for (const window of windows) {
+        const current = state.rateLimits[window.key] || {
+          count: 0,
+          createdAt: now,
+          expiresAt: window.expiresAt
+        };
+        current.count += 1;
+        current.updatedAt = now;
+        state.rateLimits[window.key] = current;
+      }
+      const keys = Object.keys(state.rateLimits);
+      if (keys.length > 4096) {
+        for (const key of keys) {
+          if (Date.parse(state.rateLimits[key].expiresAt) <= nowMs) delete state.rateLimits[key];
+        }
+      }
+      if (Object.keys(state.rateLimits).length > 8192) throw new HttpError(503, 'rate_limit_capacity');
+    });
   }
 
   async function buildBetaStatus() {
@@ -442,7 +469,7 @@ function createBetaService(options) {
       }
       const routePath = policy.basePath ? parsed.pathname.slice(policy.basePath.length) : parsed.pathname;
       const now = clock().toISOString();
-      if (req.method === 'POST') postRateLimit(requestIp(req, policy), now);
+      if (req.method === 'POST') await postRateLimit(requestIp(req, policy), now);
 
       if (req.method === 'OPTIONS' && policy.publicOrigin) {
         res.writeHead(204, {
