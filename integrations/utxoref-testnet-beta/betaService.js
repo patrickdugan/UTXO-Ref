@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const fs = require('fs');
 const http = require('http');
 const net = require('net');
@@ -6,6 +7,8 @@ const { URL } = require('url');
 const { Worker } = require('worker_threads');
 const { readJsonStrictProfile } = require('../../bitvm3/utxo_referee/strict_artifact_profiles');
 const { inspectArtifact } = require('../../bitvm3/utxo_referee/utxoref_v2_watchtower');
+const { stableStringify } = require('../../bitvm3/utxo_referee/tradelayer_pnl_route_adapter');
+const { verifyGuardianQuorumVaultManifest } = require('../../bitvm3/utxo_referee/utxoref_v2_guardian_quorum_reserve');
 const { sha256, tokenHash, privateHash } = require('./betaStore');
 
 const EXPLORER_TX = 'https://mempool.space/testnet4/tx/';
@@ -101,6 +104,118 @@ function loadGraph(policy) {
   return { artifact, trustPolicy, inspection };
 }
 
+function loadGuardianRegistry(filePath, expectedGraphHash) {
+  const registry = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  if (!registry || registry.kind !== 'utxoref_beta_guardian_registry' || registry.version !== 1) {
+    throw new Error('guardian registry has the wrong kind or version');
+  }
+  if (registry.graphHash !== expectedGraphHash || !/^[0-9a-f]{64}$/.test(registry.graphHash)) {
+    throw new Error('guardian registry graph hash is not pinned to the beta graph');
+  }
+  if (!Array.isArray(registry.guardians) || registry.guardians.length < 2 || registry.guardians.length > 15) {
+    throw new Error('guardian registry must contain 2..15 guardians');
+  }
+  if (!Number.isSafeInteger(registry.quorum) || registry.quorum < 2 || registry.quorum > registry.guardians.length) {
+    throw new Error('guardian registry quorum is invalid');
+  }
+  const ids = new Set();
+  const xonlys = new Set();
+  for (const guardian of registry.guardians) {
+    if (!/^[0-9a-f]{24}$/.test(String(guardian.guardianId || ''))) throw new Error('guardian id is invalid');
+    if (!/^[A-Za-z0-9._:-]{1,80}$/.test(String(guardian.label || ''))) throw new Error('guardian label is invalid');
+    if (!/^[0-9a-f]{64}$/.test(String(guardian.guardianXonly || ''))) throw new Error('guardian x-only key is invalid');
+    const publicKey = crypto.createPublicKey(guardian.heartbeatPublicKeyPem);
+    if (publicKey.asymmetricKeyType !== 'ed25519') throw new Error('guardian heartbeat key must be Ed25519');
+    if (ids.has(guardian.guardianId) || xonlys.has(guardian.guardianXonly)) throw new Error('guardian identities and custody keys must be unique');
+    ids.add(guardian.guardianId);
+    xonlys.add(guardian.guardianXonly);
+  }
+  return registry;
+}
+
+function guardianStatus(registry, state, now, maxAgeSeconds, clockSkewSeconds = 0) {
+  if (!registry) return { configured: 0, quorum: 0, fresh: 0, quorumHealthy: null, guardians: [] };
+  const nowMs = new Date(now).getTime();
+  const guardians = registry.guardians.map((guardian) => {
+    const heartbeat = state.guardianHeartbeats[guardian.guardianId] || null;
+    const observedMs = heartbeat ? Date.parse(heartbeat.core.observedAt) : 0;
+    const ageSeconds = heartbeat ? Math.max(0, Math.floor((nowMs - observedMs) / 1000)) : null;
+    const fresh = Boolean(
+      heartbeat &&
+      observedMs <= nowMs + clockSkewSeconds * 1000 &&
+      nowMs - observedMs <= maxAgeSeconds * 1000
+    );
+    return {
+      guardianId: guardian.guardianId,
+      label: guardian.label,
+      guardianXonly: guardian.guardianXonly,
+      fresh,
+      ageSeconds,
+      sequence: heartbeat?.core.sequence || null,
+      blockHeight: heartbeat?.core.blockHeight || null,
+      heartbeatHash: heartbeat?.heartbeatHash || null,
+      observedAt: heartbeat?.core.observedAt || null
+    };
+  });
+  const fresh = guardians.filter((guardian) => guardian.fresh).length;
+  return {
+    configured: guardians.length,
+    quorum: registry.quorum,
+    fresh,
+    quorumHealthy: fresh >= registry.quorum,
+    guardians
+  };
+}
+
+function loadGuardianReserve(filePath, registry) {
+  const deployment = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  if (!deployment || deployment.kind !== 'utxoref_beta_guardian_quorum_reserve_deployment' ||
+      deployment.version !== 1 || deployment.broadcast !== true || !deployment.manifest?.core) {
+    throw new Error('guardian reserve deployment has the wrong kind, version, or state');
+  }
+  const core = deployment.manifest.core;
+  if (deployment.graphHash !== registry.graphHash || core.bindingHash !== registry.graphHash) {
+    throw new Error('guardian reserve is not bound to the registry graph');
+  }
+  if (deployment.guardianThreshold !== registry.quorum || core.guardianThreshold !== registry.quorum ||
+      stableStringify(core.guardianXonlys) !== stableStringify(registry.guardians.map((guardian) => guardian.guardianXonly))) {
+    throw new Error('guardian reserve does not match the registry quorum');
+  }
+  return deployment;
+}
+
+function guardianReserveStatus(deployment, txout, currentHeight) {
+  if (!deployment) return { configured: false, healthy: null };
+  const manifest = deployment.manifest;
+  const verification = verifyGuardianQuorumVaultManifest(manifest, { currentHeight });
+  const expectedAmount = BigInt(manifest.core.amountSats);
+  const observedAmount = txout ? BigInt(Math.round(Number(txout.value) * 100000000)) : null;
+  const scriptMatches = Boolean(txout && txout.scriptPubKey?.hex === manifest.core.p2trScriptPubKey);
+  const amountMatches = observedAmount === expectedAmount;
+  const confirmations = Number(txout?.confirmations || 0);
+  const confirmed = confirmations >= 1;
+  const fundingHeight = confirmed ? currentHeight - confirmations + 1 : null;
+  const fundingHeightMatches = confirmed && manifest.core.observedAtHeight === fundingHeight;
+  return {
+    configured: true,
+    healthy: verification.ok && verification.countable && scriptMatches && amountMatches && fundingHeightMatches,
+    outpoint: `${manifest.core.fundingOutpoint.txid}:${manifest.core.fundingOutpoint.vout}`,
+    amountSats: manifest.core.amountSats,
+    confirmations,
+    fundingHeight,
+    fundingHeightMatches,
+    unspent: Boolean(txout),
+    scriptMatches,
+    amountMatches,
+    manifestVerified: verification.ok,
+    recoveryCountable: verification.countable,
+    guardianThreshold: manifest.core.guardianThreshold,
+    guardianCount: manifest.core.guardianXonlys.length,
+    guardianSetHash: manifest.core.guardianSetHash,
+    explorer: `${EXPLORER_TX}${manifest.core.fundingOutpoint.txid}`
+  };
+}
+
 function requestIp(req, policy) {
   if (policy.trustProxy) {
     const forwarded = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
@@ -182,10 +297,27 @@ function createBetaService(options) {
   const clock = options.clock || (() => new Date());
   const publicDir = options.publicDir || path.join(__dirname, 'public');
   const stressWorkerPath = options.stressWorkerPath || path.join(__dirname, 'stressWorker.js');
+  const pinnedGraph = currentGraphForRegistry();
+  const guardianRegistry = policy.guardianRegistryPath
+    ? loadGuardianRegistry(policy.guardianRegistryPath, pinnedGraph.inspection.graphHash)
+    : null;
+  if (policy.guardianReservePath && !guardianRegistry) {
+    throw new Error('guardian reserve requires a guardian registry');
+  }
+  const guardianReserve = policy.guardianReservePath
+    ? loadGuardianReserve(policy.guardianReservePath, guardianRegistry)
+    : null;
+  if (policy.requireGuardianQuorum && (!guardianRegistry || !guardianReserve)) {
+    throw new Error('required guardian quorum must have a registry and funded reserve');
+  }
   let graphCache = null;
   let statusCache = null;
   let statusInFlight = null;
   let activeStressRuns = 0;
+
+  function currentGraphForRegistry() {
+    return loadGraph(policy);
+  }
 
   function currentGraph() {
     const artifactStat = fs.statSync(policy.artifactPath);
@@ -245,8 +377,20 @@ function createBetaService(options) {
     const [node, graph] = await Promise.all([bitcoin.status(), Promise.resolve().then(currentGraph)]);
     const state = store.read();
     const counts = claimCounts(state, now, policy);
+    const guardians = guardianStatus(
+      guardianRegistry,
+      state,
+      now,
+      policy.guardianHeartbeatMaxAgeSeconds,
+      policy.guardianClockSkewSeconds
+    );
     const outpoint = graph.artifact.graph.assertionOutpoint;
-    const assertion = await bitcoin.getTxout(outpoint.txid, outpoint.vout);
+    const reserveOutpoint = guardianReserve?.manifest.core.fundingOutpoint;
+    const [assertion, reserveTxout] = await Promise.all([
+      bitcoin.getTxout(outpoint.txid, outpoint.vout),
+      reserveOutpoint ? bitcoin.getTxout(reserveOutpoint.txid, reserveOutpoint.vout) : Promise.resolve(null)
+    ]);
+    const reserve = guardianReserveStatus(guardianReserve, reserveTxout, node.blocks);
     const trusted = BigInt(node.walletTrustedSats);
     const available = trusted > BigInt(policy.walletReserveFloorSats)
       ? trusted - BigInt(policy.walletReserveFloorSats)
@@ -289,8 +433,76 @@ function createBetaService(options) {
         maxIterationsPerRun: policy.maxStressIterations,
         completedRuns: Object.values(state.stressRuns).filter((run) => run.status === 'complete').length
       },
+      guardians,
+      guardianReserve: reserve,
       betaReady: graphVerified && node.chain === policy.chain && !node.initialBlockDownload &&
-        node.headers - node.blocks <= policy.maxChainLagBlocks && available >= BigInt(policy.faucetAmountSats + policy.feeBufferSats)
+        node.headers - node.blocks <= policy.maxChainLagBlocks &&
+        available >= BigInt(policy.faucetAmountSats + policy.feeBufferSats) &&
+        (!policy.requireGuardianQuorum || (guardians.quorumHealthy === true && reserve.healthy === true))
+    };
+  }
+
+  async function acceptGuardianHeartbeat(body) {
+    if (!guardianRegistry) throw new HttpError(404, 'guardians_not_configured');
+    if (!body || body.kind !== 'utxoref_beta_guardian_heartbeat' || body.version !== 1 || !body.core) {
+      throw new HttpError(400, 'invalid_guardian_heartbeat');
+    }
+    const core = body.core;
+    if (core.kind !== 'utxoref_beta_guardian_heartbeat_v1' || core.version !== 1) {
+      throw new HttpError(400, 'invalid_guardian_heartbeat');
+    }
+    const guardian = guardianRegistry.guardians.find((entry) => entry.guardianId === core.guardianId);
+    if (!guardian) throw new HttpError(401, 'unknown_guardian');
+    if (core.label !== guardian.label || core.guardianXonly !== guardian.guardianXonly) {
+      throw new HttpError(401, 'guardian_identity_mismatch');
+    }
+    if (core.graphHash !== guardianRegistry.graphHash || core.chain !== 'testnet4') {
+      throw new HttpError(409, 'guardian_observation_mismatch');
+    }
+    for (const field of ['sequence', 'blockHeight', 'headerHeight', 'chainLagBlocks']) {
+      safeInteger(core[field], 0, Number.MAX_SAFE_INTEGER, field);
+    }
+    if (core.sequence < 1 || core.headerHeight < core.blockHeight || core.chainLagBlocks !== core.headerHeight - core.blockHeight) {
+      throw new HttpError(400, 'invalid_guardian_observation');
+    }
+    const now = clock().toISOString();
+    const observedMs = Date.parse(core.observedAt);
+    const nowMs = Date.parse(now);
+    if (!Number.isFinite(observedMs) || observedMs > nowMs + policy.guardianClockSkewSeconds * 1000 ||
+        nowMs - observedMs > policy.guardianHeartbeatMaxAgeSeconds * 1000) {
+      throw new HttpError(409, 'stale_guardian_heartbeat');
+    }
+    if (!/^[A-Za-z0-9+/]{86}==$/.test(String(body.signature || ''))) {
+      throw new HttpError(400, 'invalid_guardian_signature');
+    }
+    const message = Buffer.from(stableStringify(core));
+    const signature = Buffer.from(body.signature, 'base64');
+    if (!crypto.verify(null, message, guardian.heartbeatPublicKeyPem, signature)) {
+      throw new HttpError(401, 'invalid_guardian_signature');
+    }
+    const heartbeatHash = sha256(message);
+    const receipt = await store.transact((state) => {
+      const prior = state.guardianHeartbeats[core.guardianId];
+      if (prior && core.sequence < prior.core.sequence) throw new HttpError(409, 'guardian_sequence_regression');
+      if (prior && core.sequence === prior.core.sequence) {
+        if (prior.heartbeatHash !== heartbeatHash) throw new HttpError(409, 'guardian_equivocation');
+        return { accepted: true, duplicate: true, heartbeatHash, acceptedAt: prior.acceptedAt };
+      }
+      state.guardianHeartbeats[core.guardianId] = {
+        core,
+        signature: body.signature,
+        heartbeatHash,
+        acceptedAt: now
+      };
+      return { accepted: true, duplicate: false, heartbeatHash, acceptedAt: now };
+    });
+    statusCache = null;
+    return {
+      kind: 'utxoref_beta_guardian_heartbeat_receipt',
+      version: 1,
+      guardianId: core.guardianId,
+      sequence: core.sequence,
+      ...receipt
     };
   }
 
@@ -491,6 +703,9 @@ function createBetaService(options) {
       if (req.method === 'POST' && routePath === '/v1/stress/verify') {
         return sendJson(res, 201, await runStress(await readBody(req)), policy);
       }
+      if (req.method === 'POST' && routePath === '/v1/guardians/heartbeat') {
+        return sendJson(res, 201, await acceptGuardianHeartbeat(await readBody(req)), policy);
+      }
       const runMatch = routePath.match(/^\/v1\/runs\/([0-9a-f]{24})$/);
       if (req.method === 'GET' && runMatch) {
         const run = store.read().stressRuns[runMatch[1]];
@@ -522,6 +737,7 @@ function createBetaService(options) {
     betaStatus,
     claimFaucet,
     runStress,
+    acceptGuardianHeartbeat,
     createServer: () => http.createServer(handler)
   };
 }
@@ -535,6 +751,10 @@ module.exports = {
   publicStressRun,
   executeStressWorker,
   loadGraph,
+  loadGuardianRegistry,
+  guardianStatus,
+  loadGuardianReserve,
+  guardianReserveStatus,
   requestIp,
   invitationForToken,
   assertNodeReady,

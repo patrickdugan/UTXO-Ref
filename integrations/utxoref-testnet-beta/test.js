@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 const assert = require('assert');
+const crypto = require('crypto');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -9,6 +10,8 @@ const { StateStore, createInvitations } = require('./betaStore');
 const { createBetaService, requestIp } = require('./betaService');
 const { BitcoinBackend } = require('./bitcoinBackend');
 const { recoverInterruptedRuns } = require('./server');
+const { stableStringify } = require('../../bitvm3/utxo_referee/tradelayer_pnl_route_adapter');
+const { buildGuardianQuorumVaultManifest } = require('../../bitvm3/utxo_referee/utxoref_v2_guardian_quorum_reserve');
 
 const TEST_TXID = 'ab'.repeat(32);
 const TEST_ADDRESS = `tb1q${'a'.repeat(38)}`;
@@ -48,7 +51,7 @@ function fakeBitcoin(store, options = {}) {
       if (options.failSend) throw new Error('simulated RPC timeout');
       return TEST_TXID;
     },
-    async getTxout() { return null; }
+    async getTxout(txid, vout) { return options.txouts?.[`${txid}:${vout}`] || null; }
   };
 }
 
@@ -236,6 +239,139 @@ async function testPersistentRateLimits(root) {
   assert.equal(requestIp({ headers: { 'x-forwarded-for': '203.0.113.8' }, socket: { remoteAddress: '127.0.0.1' } }, { trustProxy: true }), '203.0.113.8');
 }
 
+function guardianFixture(label) {
+  const heartbeat = crypto.generateKeyPairSync('ed25519');
+  const ecdh = crypto.createECDH('secp256k1');
+  ecdh.generateKeys();
+  const publicDer = heartbeat.publicKey.export({ type: 'spki', format: 'der' });
+  return {
+    guardianId: crypto.createHash('sha256').update(publicDer.subarray(-32)).digest('hex').slice(0, 24),
+    label,
+    guardianXonly: ecdh.getPublicKey(null, 'compressed').subarray(1).toString('hex'),
+    heartbeatPublicKeyPem: heartbeat.publicKey.export({ type: 'spki', format: 'pem' }),
+    privateKey: heartbeat.privateKey
+  };
+}
+
+function signedHeartbeat(guardian, sequence, observedAt, overrides = {}) {
+  const core = {
+    kind: 'utxoref_beta_guardian_heartbeat_v1',
+    version: 1,
+    guardianId: guardian.guardianId,
+    label: guardian.label,
+    guardianXonly: guardian.guardianXonly,
+    graphHash: '34dfe4a3d05264fa54cd6d99e9a07ac784c22f3011b7704847337a0543d02eee',
+    observedAt,
+    sequence,
+    chain: 'testnet4',
+    blockHeight: 150000,
+    headerHeight: 150001,
+    chainLagBlocks: 1,
+    betaReadyObserved: false,
+    ...overrides
+  };
+  return {
+    kind: 'utxoref_beta_guardian_heartbeat',
+    version: 1,
+    core,
+    signature: crypto.sign(null, Buffer.from(stableStringify(core)), guardian.privateKey).toString('base64')
+  };
+}
+
+async function testGuardianQuorum(root) {
+  const statePath = path.join(root, 'guardians.json');
+  const registryPath = path.join(root, 'guardian-registry.json');
+  const reservePath = path.join(root, 'guardian-reserve.json');
+  const guardians = [guardianFixture('domain-one'), guardianFixture('domain-two')];
+  const operator = guardianFixture('operator');
+  const recovery = guardianFixture('recovery');
+  const registry = {
+    kind: 'utxoref_beta_guardian_registry',
+    version: 1,
+    graphHash: '34dfe4a3d05264fa54cd6d99e9a07ac784c22f3011b7704847337a0543d02eee',
+    quorum: 2,
+    guardians: guardians.map(({ privateKey, ...guardian }) => guardian)
+  };
+  fs.writeFileSync(registryPath, `${JSON.stringify(registry, null, 2)}\n`);
+  const reserveTxid = 'cd'.repeat(32);
+  const manifest = buildGuardianQuorumVaultManifest({
+    network: 'bitcoin-testnet4',
+    fundingOutpoint: { txid: reserveTxid, vout: 1 },
+    amountSats: 10000,
+    observedAtHeight: 150000,
+    reserveEpochId: 'beta-test-reserve',
+    bindingHash: registry.graphHash,
+    operatorXonly: operator.guardianXonly,
+    guardianXonlys: guardians.map((guardian) => guardian.guardianXonly),
+    guardianThreshold: registry.quorum,
+    recoveryXonly: recovery.guardianXonly,
+    recoveryCsvDelay: 2016
+  });
+  fs.writeFileSync(reservePath, `${JSON.stringify({
+    kind: 'utxoref_beta_guardian_quorum_reserve_deployment',
+    version: 1,
+    broadcast: true,
+    graphHash: registry.graphHash,
+    guardianThreshold: registry.quorum,
+    manifest
+  }, null, 2)}\n`);
+  const store = new StateStore(statePath);
+  const bitcoin = fakeBitcoin(store, { txouts: {
+    [`${reserveTxid}:1`]: {
+      value: 0.0001,
+      confirmations: 1,
+      scriptPubKey: { hex: manifest.core.p2trScriptPubKey }
+    }
+  } });
+  let now = new Date('2026-07-15T12:00:00.000Z');
+  const policy = policyFor(statePath, {
+    guardianRegistryPath: registryPath,
+    guardianReservePath: reservePath,
+    requireGuardianQuorum: true,
+    guardianHeartbeatMaxAgeSeconds: 180,
+    guardianClockSkewSeconds: 60,
+    postRequestsPerMinute: 50,
+    postRequestsPerHour: 100
+  });
+  const live = await listen(createBetaService({ policy, store, bitcoin, clock: () => now }));
+  const post = (heartbeat) => jsonRequest(live.baseUrl, '/v1/guardians/heartbeat', {
+    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(heartbeat)
+  });
+  try {
+    const before = await jsonRequest(live.baseUrl, '/v1/beta/status');
+    assert.equal(before.payload.betaReady, false);
+    assert.equal(before.payload.guardians.fresh, 0);
+    assert.equal(before.payload.guardianReserve.healthy, true);
+
+    const firstHeartbeat = signedHeartbeat(guardians[0], 1, now.toISOString());
+    const first = await post(firstHeartbeat);
+    assert.equal(first.response.status, 201);
+    assert.equal(first.payload.accepted, true);
+    assert.equal((await post(firstHeartbeat)).payload.duplicate, true, 'exact replay must be idempotent');
+
+    const equivocation = signedHeartbeat(guardians[0], 1, now.toISOString(), { blockHeight: 149999, chainLagBlocks: 2 });
+    const rejectedEquivocation = await post(equivocation);
+    assert.equal(rejectedEquivocation.response.status, 409);
+    assert.equal(rejectedEquivocation.payload.error, 'guardian_equivocation');
+
+    const badSignature = signedHeartbeat(guardians[1], 1, now.toISOString());
+    badSignature.signature = firstHeartbeat.signature;
+    assert.equal((await post(badSignature)).response.status, 401);
+
+    const withinClockSkew = new Date(now.getTime() + 30000).toISOString();
+    assert.equal((await post(signedHeartbeat(guardians[1], 1, withinClockSkew))).response.status, 201);
+    const ready = await jsonRequest(live.baseUrl, '/v1/beta/status');
+    assert.equal(ready.payload.guardians.fresh, 2);
+    assert.equal(ready.payload.guardians.quorumHealthy, true);
+    assert.equal(ready.payload.betaReady, true);
+
+    now = new Date(now.getTime() + 181000);
+    const expired = await jsonRequest(live.baseUrl, '/v1/beta/status');
+    assert.equal(expired.payload.guardians.quorumHealthy, false);
+    assert.equal(expired.payload.betaReady, false);
+  } finally { await live.close(); }
+}
+
 async function testCrossProcessLock(root) {
   const statePath = path.join(root, 'lock.json');
   const first = new StateStore(statePath);
@@ -286,10 +422,11 @@ async function main() {
     await testUnknownBroadcast(root);
     await testBasePath(root);
     await testPersistentRateLimits(root);
+    await testGuardianQuorum(root);
     await testCrossProcessLock(root);
     await testBitcoinBackendCompatibility();
     testInterruptedRunRecovery();
-    console.log(JSON.stringify({ ok: true, suite: 'utxoref-testnet-beta', tests: 7 }));
+    console.log(JSON.stringify({ ok: true, suite: 'utxoref-testnet-beta', tests: 8 }));
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

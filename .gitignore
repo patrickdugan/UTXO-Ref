@@ -4,6 +4,8 @@ desktop.ini
 # Local dependency installs
 node_modules/
 **/node_modules/
+**/__pycache__/
+*.py[cod]
 
 # Runtime logs and local sidecar output
 *.log

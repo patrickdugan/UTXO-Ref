@@ -53,6 +53,14 @@ jobs:
             .chain.lagBlocks <= 12 and
             .graph.verified == true and
             .graph.graphHash == $graph and
+            .guardians.configured >= 2 and
+            .guardians.fresh >= .guardians.quorum and
+            .guardians.quorumHealthy == true and
+            .guardianReserve.configured == true and
+            .guardianReserve.healthy == true and
+            .guardianReserve.unspent == true and
+            .guardianReserve.manifestVerified == true and
+            .guardianReserve.fundingHeightMatches == true and
             .faucet.enabled == true and
             ((.faucet.dailyRemainingSats | tonumber) >= (.faucet.amountSats | tonumber))
           ' "$status_file" >/dev/null 2>&1; then

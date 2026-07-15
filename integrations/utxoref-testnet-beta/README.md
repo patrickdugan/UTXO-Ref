@@ -13,6 +13,7 @@ The service deliberately has no generic wallet or RPC endpoint. Faucet signing r
 - `POST /v1/faucet/claim`: one fixed-size native SegWit or Taproot claim.
 - `POST /v1/stress/verify`: bounded worker-thread referee verification with a durable receipt.
 - `GET /v1/runs/:runId`: retrieve one stress receipt by id.
+- `POST /v1/guardians/heartbeat`: registry-pinned Ed25519 guardian heartbeat.
 
 The checked-in graph is `btc_testnet4_utxoref_v2_latest.json`, governed by `utxoref_v2_watchtower_trust_policy.json`. The current graph may already be settled; status reports that state and still verifies its signed graph and commitment package.
 
@@ -100,3 +101,29 @@ For Nginx, load `deploy/nginx-http-waf.example` in the `http {}` context and pla
 6. Run the 500-request status test and one self-claim before issuing invitations.
 
 Do not deploy the service on a stateless platform: the faucet requires local Core RPC and a durable claim journal. Back up the state file; it is required for idempotency and abuse limits, but it contains no invite plaintext or wallet keys.
+
+## Guardians
+
+`guardianAgent.py` creates two unrelated keys on each guardian domain: an Ed25519 key for signed health heartbeats and a secp256k1 key reserved for the Tapscript custody quorum. Private keys never leave the guardian host. The beta service accepts heartbeats only from a pinned public registry, requires monotonic sequence numbers, rejects same-sequence equivocation, and can include fresh quorum health in `betaReady`.
+
+Initialize once on each independent host:
+
+```bash
+python3 guardianAgent.py init --state-dir /var/lib/utxoref-beta-guardian --label guardian-domain-a
+```
+
+Install `deploy/utxoref-beta-guardian.service`, configure its environment file, and pin the resulting `identity.json` public records in `BETA_GUARDIAN_REGISTRY_PATH`. Never copy `heartbeat_ed25519.pem` or `guardian_secp256k1.hex` to the beta operator. A custody approval is performed independently on each guardian host and remains a manual, fail-closed operation in this beta.
+
+Create and fund the registry-bound testnet reserve once, after reviewing the dry-run address:
+
+```bash
+npm run deploy:guardians -- --registry artifacts/guardian_registry_testnet4.json --output artifacts/guardian_quorum_reserve_testnet4.json --secret-dir runtime/guardian_quorum_secrets --amount-sats 10000 --broadcast
+```
+
+Set `BETA_GUARDIAN_RESERVE_PATH` to the resulting public artifact. When guardian quorum is required, readiness fails closed unless the manifest verifies, the exact Taproot outpoint is confirmed and unspent, and the threshold heartbeat quorum is fresh.
+
+After the funding transaction confirms, bind the manifest's CSV clock to the actual Core funding height:
+
+```bash
+npm run deploy:guardians -- --registry artifacts/guardian_registry_testnet4.json --output artifacts/guardian_quorum_reserve_testnet4.json --secret-dir runtime/guardian_quorum_secrets --reconcile
+```

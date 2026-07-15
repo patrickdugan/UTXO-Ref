@@ -8,6 +8,7 @@
     "test": "node test.js",
     "invite": "node invite.js",
     "reconcile": "node reconcile.js",
+    "deploy:guardians": "node deployGuardianQuorumReserve.js",
     "load": "node load_test.js"
   }
 }

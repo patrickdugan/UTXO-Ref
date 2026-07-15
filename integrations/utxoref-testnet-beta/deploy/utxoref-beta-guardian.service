@@ -1,0 +1,23 @@
+[Unit]
+Description=UTXORef beta independent guardian
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=utxoref-guardian
+Group=utxoref-guardian
+EnvironmentFile=/etc/utxoref-beta-guardian.env
+WorkingDirectory=/opt/utxoref-beta-guardian
+ExecStart=/usr/bin/python3 /opt/utxoref-beta-guardian/guardianAgent.py run --state-dir ${GUARDIAN_STATE_DIR} --base-url ${BETA_BASE_URL} --graph-hash ${BETA_GRAPH_HASH} --interval ${GUARDIAN_INTERVAL_SECONDS}
+Restart=always
+RestartSec=10
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/utxoref-beta-guardian
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

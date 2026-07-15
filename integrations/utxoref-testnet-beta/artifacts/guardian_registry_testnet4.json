@@ -1,0 +1,22 @@
+{
+  "kind": "utxoref_beta_guardian_registry",
+  "version": 1,
+  "graphHash": "34dfe4a3d05264fa54cd6d99e9a07ac784c22f3011b7704847337a0543d02eee",
+  "quorum": 2,
+  "guardians": [
+    {
+      "guardianId": "3dc57a80d6892c131fb01af4",
+      "label": "orderbook-independent",
+      "heartbeatPublicKeyPem": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAsTdl04qSqv2lWpVr/OBZhj5nCcS6V/HpOYmhU+4n8gc=\n-----END PUBLIC KEY-----\n",
+      "guardianXonly": "a205d88c09f44181a5efc5b05ad0cf70565667201564ec960a83cf79a057bba1",
+      "createdAt": "2026-07-15T15:37:47.664Z"
+    },
+    {
+      "guardianId": "e0e53a7d87a6da57b8142c1e",
+      "label": "research-commons-independent",
+      "heartbeatPublicKeyPem": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEA1NStmJXjgRbYQ54Vbez71R9pyEBcDw1XF/HUpWhPDts=\n-----END PUBLIC KEY-----\n",
+      "guardianXonly": "1b3e7a404ebd38d97d2914e44877428b97b1bbb338a77740720ae2eb1b704bb0",
+      "createdAt": "2026-07-15T15:38:15.846Z"
+    }
+  ]
+}

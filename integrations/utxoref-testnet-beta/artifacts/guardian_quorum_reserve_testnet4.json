@@ -1,0 +1,97 @@
+{
+  "kind": "utxoref_beta_guardian_quorum_reserve_deployment",
+  "version": 1,
+  "createdAt": "2026-07-15T15:45:32.051Z",
+  "network": "bitcoin-testnet4",
+  "graphHash": "34dfe4a3d05264fa54cd6d99e9a07ac784c22f3011b7704847337a0543d02eee",
+  "guardianRegistry": "guardian_registry_testnet4.json",
+  "guardianIds": [
+    "3dc57a80d6892c131fb01af4",
+    "e0e53a7d87a6da57b8142c1e"
+  ],
+  "guardianXonlys": [
+    "a205d88c09f44181a5efc5b05ad0cf70565667201564ec960a83cf79a057bba1",
+    "1b3e7a404ebd38d97d2914e44877428b97b1bbb338a77740720ae2eb1b704bb0"
+  ],
+  "guardianThreshold": 2,
+  "guardianSetHash": "4c508dcb149c37b2cb64579aab2956f5cdb00bdedf53d01c715ecf45de4c2540",
+  "operatorXonly": "6e4e14979de84cf8fb81731138faacb2e9ffa87281a56ffc92c2295001bb0ed0",
+  "recoveryXonly": "a99ac153e6f69efc518be6b92723c41453242432d097eeaeb6c5a0c370284c30",
+  "recoveryCsvDelay": 2016,
+  "p2trAddress": "tb1p99tqr29undt76qq4nlyuh47erzxezarngdmdwhpv7z4c3j7jahwqzx42ge",
+  "p2trScriptPubKey": "5120295601a8bc9b57ed00159fc9cbd7d9188d9174734376d75c2cf0ab88cbd2eddc",
+  "amountSats": "10000",
+  "broadcast": true,
+  "funding": {
+    "txid": "d979b65670cde2ab20b69a6bb7f1597adb4e7bf74b924ab680d8eebb85f095bd",
+    "vout": 1,
+    "outpoint": "d979b65670cde2ab20b69a6bb7f1597adb4e7bf74b924ab680d8eebb85f095bd:1",
+    "explorer": "https://mempool.space/testnet4/tx/d979b65670cde2ab20b69a6bb7f1597adb4e7bf74b924ab680d8eebb85f095bd",
+    "confirmations": 0,
+    "chainTxoutPresent": true
+  },
+  "manifest": {
+    "kind": "taproot_reserve_guardian_quorum_manifest",
+    "version": 1,
+    "manifestHash": "9caa8c5e724763d9573d414bfe8a3c4865dd42703fe01087eca682bce3ff0d32",
+    "core": {
+      "kind": "taproot_reserve_guardian_quorum_manifest_v1",
+      "network": "bitcoin-testnet4",
+      "vaultId": "a58ea4173b77f017cff0755c0c9b8b81",
+      "fundingOutpoint": {
+        "txid": "d979b65670cde2ab20b69a6bb7f1597adb4e7bf74b924ab680d8eebb85f095bd",
+        "vout": 1
+      },
+      "amountSats": "10000",
+      "operatorXonly": "6e4e14979de84cf8fb81731138faacb2e9ffa87281a56ffc92c2295001bb0ed0",
+      "guardianXonlys": [
+        "a205d88c09f44181a5efc5b05ad0cf70565667201564ec960a83cf79a057bba1",
+        "1b3e7a404ebd38d97d2914e44877428b97b1bbb338a77740720ae2eb1b704bb0"
+      ],
+      "guardianThreshold": 2,
+      "guardianSetHash": "4c508dcb149c37b2cb64579aab2956f5cdb00bdedf53d01c715ecf45de4c2540",
+      "recoveryXonly": "a99ac153e6f69efc518be6b92723c41453242432d097eeaeb6c5a0c370284c30",
+      "internalXonly": "59c5b5b1b5c46b5238fca22ac69aab11cb93dc9a443db075070c6947fb4da008",
+      "p2trScriptPubKey": "5120295601a8bc9b57ed00159fc9cbd7d9188d9174734376d75c2cf0ab88cbd2eddc",
+      "observedAtHeight": 144235,
+      "recoveryCsvDelay": 2016,
+      "reserveEpochId": "beta-guardian-quorum-144235",
+      "bindingHash": "34dfe4a3d05264fa54cd6d99e9a07ac784c22f3011b7704847337a0543d02eee",
+      "merkleRoot": "176c42dd140b11ae44e6c9d5dc2f0fc69a79d60cfbb817e4ccf3d240e9a0ccb0",
+      "leaves": {
+        "immediate-operator-guardian-quorum": {
+          "kind": "immediate-operator-guardian-quorum",
+          "leafVersion": 192,
+          "scriptHex": "2034dfe4a3d05264fa54cd6d99e9a07ac784c22f3011b7704847337a0543d02eee75206e4e14979de84cf8fb81731138faacb2e9ffa87281a56ffc92c2295001bb0ed0ad20a205d88c09f44181a5efc5b05ad0cf70565667201564ec960a83cf79a057bba1ac201b3e7a404ebd38d97d2914e44877428b97b1bbb338a77740720ae2eb1b704bb0ba529c",
+          "leafHash": "f84bb526c40074e2683b27dcd91d04c6d7883df6d94d42a31b4274c8fc18759c",
+          "controlBlock": "c159c5b5b1b5c46b5238fca22ac69aab11cb93dc9a443db075070c6947fb4da008d7f1ef965c42d824e137166b4fea874f4e3930c23ad3d6cbc48db386be20fed6"
+        },
+        "recovery-refund-csv": {
+          "kind": "recovery-refund-csv",
+          "leafVersion": 192,
+          "scriptHex": "2034dfe4a3d05264fa54cd6d99e9a07ac784c22f3011b7704847337a0543d02eee7502e007b27520a99ac153e6f69efc518be6b92723c41453242432d097eeaeb6c5a0c370284c30ac",
+          "leafHash": "d7f1ef965c42d824e137166b4fea874f4e3930c23ad3d6cbc48db386be20fed6",
+          "controlBlock": "c159c5b5b1b5c46b5238fca22ac69aab11cb93dc9a443db075070c6947fb4da008f84bb526c40074e2683b27dcd91d04c6d7883df6d94d42a31b4274c8fc18759c"
+        }
+      }
+    }
+  },
+  "verification": {
+    "ok": true,
+    "countable": true,
+    "reason": null,
+    "manifestHash": "9caa8c5e724763d9573d414bfe8a3c4865dd42703fe01087eca682bce3ff0d32",
+    "guardianThreshold": 2,
+    "guardianCount": 2,
+    "guardianSetHash": "4c508dcb149c37b2cb64579aab2956f5cdb00bdedf53d01c715ecf45de4c2540",
+    "recoveryStatus": {
+      "checked": true,
+      "countable": true,
+      "reason": null,
+      "observedAtHeight": 144235,
+      "maturityHeight": 146251,
+      "remainingBlocks": 2016,
+      "riskMarginBlocks": 144
+    }
+  }
+}
