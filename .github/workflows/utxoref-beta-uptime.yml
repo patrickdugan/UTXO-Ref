@@ -1,0 +1,116 @@
+name: UTXORef beta uptime
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: utxoref-beta-uptime
+  cancel-in-progress: true
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    env:
+      BASE_URL: https://api.layerwallet.com/utxoref-beta
+      EXPECTED_GRAPH_HASH: 34dfe4a3d05264fa54cd6d99e9a07ac784c22f3011b7704847337a0543d02eee
+      ALERT_TITLE: "[monitor] UTXORef beta outage"
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Probe public beta
+        id: probe
+        shell: bash
+        run: |
+          set +e
+          health_file="${RUNNER_TEMP}/utxoref-health.json"
+          status_file="${RUNNER_TEMP}/utxoref-status.json"
+          health_code=$(curl --silent --show-error --max-time 15 --output "$health_file" --write-out '%{http_code}' "$BASE_URL/healthz")
+          health_curl=$?
+          status_code=$(curl --silent --show-error --max-time 20 --output "$status_file" --write-out '%{http_code}' "$BASE_URL/v1/beta/status")
+          status_curl=$?
+          healthy=true
+          reasons=()
+          if [[ $health_curl -ne 0 || "$health_code" != "200" ]]; then
+            healthy=false
+            reasons+=("health curl=$health_curl http=$health_code")
+          elif ! jq -e '.ok == true and .service == "utxoref-testnet-beta"' "$health_file" >/dev/null 2>&1; then
+            healthy=false
+            reasons+=("health payload rejected")
+          fi
+          if [[ $status_curl -ne 0 || "$status_code" != "200" ]]; then
+            healthy=false
+            reasons+=("status curl=$status_curl http=$status_code")
+          elif ! jq -e --arg graph "$EXPECTED_GRAPH_HASH" '
+            .betaReady == true and
+            .chain.network == "testnet4" and
+            .chain.initialBlockDownload == false and
+            .chain.lagBlocks <= 12 and
+            .graph.verified == true and
+            .graph.graphHash == $graph and
+            .faucet.enabled == true and
+            ((.faucet.dailyRemainingSats | tonumber) >= (.faucet.amountSats | tonumber))
+          ' "$status_file" >/dev/null 2>&1; then
+            healthy=false
+            reasons+=("status invariant rejected")
+          fi
+          reason=$(IFS='; '; echo "${reasons[*]:-all checks passed}")
+          echo "healthy=$healthy" >> "$GITHUB_OUTPUT"
+          {
+            echo 'reason<<EOF'
+            echo "$reason"
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+          {
+            echo "### UTXORef beta monitor"
+            echo "- Healthy: \`$healthy\`"
+            echo "- Health HTTP: \`$health_code\`"
+            echo "- Status HTTP: \`$status_code\`"
+            echo "- Result: $reason"
+            echo "- Checked: $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Open or update outage alert
+        if: steps.probe.outputs.healthy != 'true'
+        shell: bash
+        env:
+          REASON: ${{ steps.probe.outputs.reason }}
+        run: |
+          issue=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --limit 100 --json number,title \
+            --jq ".[] | select(.title == \"$ALERT_TITLE\") | .number" | head -1)
+          body=$(cat <<EOF
+          The external UTXORef beta probe failed.
+
+          **Reason:** $REASON
+          **Endpoint:** $BASE_URL
+          **Run:** $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID
+          **Observed:** $(date -u +'%Y-%m-%dT%H:%M:%SZ')
+          EOF
+          )
+          if [[ -n "$issue" ]]; then
+            gh issue comment "$issue" --repo "$GITHUB_REPOSITORY" --body "$body"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$ALERT_TITLE" --body "$body"
+          fi
+
+      - name: Close recovered outage alert
+        if: steps.probe.outputs.healthy == 'true'
+        shell: bash
+        run: |
+          issue=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --limit 100 --json number,title \
+            --jq ".[] | select(.title == \"$ALERT_TITLE\") | .number" | head -1)
+          if [[ -n "$issue" ]]; then
+            gh issue comment "$issue" --repo "$GITHUB_REPOSITORY" \
+              --body "Recovered at $(date -u +'%Y-%m-%dT%H:%M:%SZ'). Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            gh issue close "$issue" --repo "$GITHUB_REPOSITORY" --reason completed
+          fi
+
+      - name: Fail unhealthy probe
+        if: steps.probe.outputs.healthy != 'true'
+        shell: bash
+        run: exit 1
