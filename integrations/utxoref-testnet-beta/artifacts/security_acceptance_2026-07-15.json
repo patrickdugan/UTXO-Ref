@@ -1,7 +1,7 @@
 {
   "kind": "utxoref_beta_security_acceptance",
   "version": 1,
-  "observedAt": "2026-07-15T15:46:13.247Z",
+  "observedAt": "2026-07-15T16:05:36.769Z",
   "scope": "invite-only-bitcoin-testnet4-beta",
   "tests": {
     "nodeSuite": {
@@ -19,25 +19,39 @@
       "healthyRun": "https://github.com/patrickdugan/UTXO-Ref/actions/runs/29428376077",
       "outageRun": "https://github.com/patrickdugan/UTXO-Ref/actions/runs/29428445764",
       "recoveryRun": "https://github.com/patrickdugan/UTXO-Ref/actions/runs/29428469590",
-      "alertIssue": "https://github.com/patrickdugan/UTXO-Ref/issues/1"
+      "alertIssue": "https://github.com/patrickdugan/UTXO-Ref/issues/1",
+      "reserveGateFailureRun": "https://github.com/patrickdugan/UTXO-Ref/actions/runs/29430394855",
+      "reserveGateRecoveryRun": "https://github.com/patrickdugan/UTXO-Ref/actions/runs/29430994801",
+      "reserveGateAlertIssue": "https://github.com/patrickdugan/UTXO-Ref/issues/2"
     }
   },
   "guardians": {
     "configured": 2,
     "quorum": 2,
     "independentHosts": 2,
-    "signedHeartbeatsObserved": true
+    "signedHeartbeatsObserved": true,
+    "outageDrill": {
+      "freshAfterExpiry": 1,
+      "quorumHealthyAfterExpiry": false,
+      "freshAfterRecovery": 2,
+      "quorumHealthyAfterRecovery": true
+    }
   },
   "reserve": {
     "network": "bitcoin-testnet4",
     "outpoint": "d979b65670cde2ab20b69a6bb7f1597adb4e7bf74b924ab680d8eebb85f095bd:1",
     "amountSats": "10000",
+    "confirmations": 4,
+    "fundingHeight": 144237,
+    "fundingHeightMatches": true,
     "guardianThreshold": 2,
     "guardianCount": 2,
     "guardianSetHash": "4c508dcb149c37b2cb64579aab2956f5cdb00bdedf53d01c715ecf45de4c2540",
     "manifestVerified": true,
     "scriptMatches": true,
     "amountMatches": true,
+    "unspent": true,
+    "healthy": true,
     "explorer": "https://mempool.space/testnet4/tx/d979b65670cde2ab20b69a6bb7f1597adb4e7bf74b924ab680d8eebb85f095bd"
   },
   "approval": {

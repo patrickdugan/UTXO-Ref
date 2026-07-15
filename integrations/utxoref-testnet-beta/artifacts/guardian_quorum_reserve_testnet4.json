@@ -27,13 +27,14 @@
     "vout": 1,
     "outpoint": "d979b65670cde2ab20b69a6bb7f1597adb4e7bf74b924ab680d8eebb85f095bd:1",
     "explorer": "https://mempool.space/testnet4/tx/d979b65670cde2ab20b69a6bb7f1597adb4e7bf74b924ab680d8eebb85f095bd",
-    "confirmations": 0,
-    "chainTxoutPresent": true
+    "confirmations": 4,
+    "chainTxoutPresent": true,
+    "fundingHeight": 144237
   },
   "manifest": {
     "kind": "taproot_reserve_guardian_quorum_manifest",
     "version": 1,
-    "manifestHash": "9caa8c5e724763d9573d414bfe8a3c4865dd42703fe01087eca682bce3ff0d32",
+    "manifestHash": "e74f7c3a55ee241df1d1fd8d70a472d4275366844d1de8f285157f288271d1e5",
     "core": {
       "kind": "taproot_reserve_guardian_quorum_manifest_v1",
       "network": "bitcoin-testnet4",
@@ -53,7 +54,7 @@
       "recoveryXonly": "a99ac153e6f69efc518be6b92723c41453242432d097eeaeb6c5a0c370284c30",
       "internalXonly": "59c5b5b1b5c46b5238fca22ac69aab11cb93dc9a443db075070c6947fb4da008",
       "p2trScriptPubKey": "5120295601a8bc9b57ed00159fc9cbd7d9188d9174734376d75c2cf0ab88cbd2eddc",
-      "observedAtHeight": 144235,
+      "observedAtHeight": 144237,
       "recoveryCsvDelay": 2016,
       "reserveEpochId": "beta-guardian-quorum-144235",
       "bindingHash": "34dfe4a3d05264fa54cd6d99e9a07ac784c22f3011b7704847337a0543d02eee",
@@ -80,7 +81,7 @@
     "ok": true,
     "countable": true,
     "reason": null,
-    "manifestHash": "9caa8c5e724763d9573d414bfe8a3c4865dd42703fe01087eca682bce3ff0d32",
+    "manifestHash": "e74f7c3a55ee241df1d1fd8d70a472d4275366844d1de8f285157f288271d1e5",
     "guardianThreshold": 2,
     "guardianCount": 2,
     "guardianSetHash": "4c508dcb149c37b2cb64579aab2956f5cdb00bdedf53d01c715ecf45de4c2540",
@@ -88,10 +89,11 @@
       "checked": true,
       "countable": true,
       "reason": null,
-      "observedAtHeight": 144235,
-      "maturityHeight": 146251,
-      "remainingBlocks": 2016,
+      "observedAtHeight": 144237,
+      "maturityHeight": 146253,
+      "remainingBlocks": 2013,
       "riskMarginBlocks": 144
     }
-  }
+  },
+  "reconciledAt": "2026-07-15T16:02:06.354Z"
 }

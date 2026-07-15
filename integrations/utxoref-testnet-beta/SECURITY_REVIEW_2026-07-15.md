@@ -63,6 +63,9 @@ The public verifier checks a signed, deterministic artifact whose assertion tran
 - Intentional outage run: `https://github.com/patrickdugan/UTXO-Ref/actions/runs/29428445764`.
 - Recovery run: `https://github.com/patrickdugan/UTXO-Ref/actions/runs/29428469590`.
 - Alert lifecycle: `https://github.com/patrickdugan/UTXO-Ref/issues/1`.
+- Guardian-reserve launch-gate failure: `https://github.com/patrickdugan/UTXO-Ref/actions/runs/29430394855` opened `https://github.com/patrickdugan/UTXO-Ref/issues/2` while the reserve was unconfirmed.
+- Guardian-reserve recovery: `https://github.com/patrickdugan/UTXO-Ref/actions/runs/29430994801` passed and closed issue 2 after confirmation and funding-height reconciliation.
+- Live guardian outage drill: stopping one guardian for more than 180 seconds reduced freshness to 1-of-2 and made quorum unhealthy; restarting it produced sequence 18 and restored 2-of-2 freshness.
 - Guardian reserve transaction: `https://mempool.space/testnet4/tx/d979b65670cde2ab20b69a6bb7f1597adb4e7bf74b924ab680d8eebb85f095bd`.
 
 ## Launch Gate
