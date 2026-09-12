@@ -187,6 +187,12 @@ The local research implementation now:
 17. Verifies CET adaptor signatures and refund signatures against the BIP341
     sighash of those validated transactions, the funding amount and script,
     signer identity, and selected threshold-oracle subset.
+18. Requires one committed CPFP anchor as the last output of every CET and the
+    refund, and binds that policy into the transaction-set validation digest.
+19. Evaluates read-only chain snapshots against the signed transaction set and
+    exact funding outpoint, proves ancestry against the prior snapshot, and
+    halts on reorgs, unknown spends, immature refunds, or stage-inconsistent
+    CETs.
 
 The changes block the concrete exploit probes. They reduce testnet risk but do
 not promote this module to a production signer.
@@ -283,12 +289,14 @@ actions.
 ### Transaction safety
 
 - The local validators now cover exact funding outpoints, outputs, amounts,
-  fees, BIP341 CET adaptor signatures, and refund signatures. Complete the
-  remaining peer-message serial-ID rules and wire the validators to the native
-  signer before funding authorization.
+  fees, a committed last-output CPFP anchor, BIP341 CET adaptor signatures, and
+  refund signatures. Complete the remaining peer-message serial-ID rules and
+  wire the validators to the native signer before funding authorization.
 - Store and independently restore the refund transaction before broadcast.
-- Design anchor/CPFP or replacement behavior for both CET and refund fee
-  pressure, and simulate pinning and deep reorgs.
+- The read-only chain guard now detects disconnected ancestry, confirmation
+  regression, unknown spends, immature refunds, and stage-inconsistent CETs.
+  Integrate it with Bitcoin Core, validate anchor ownership and spendability,
+  test package relay, and simulate pinning and deep reorg recovery on regtest.
 - Require independent Bitcoin Core policy checks and exact transaction decode
   immediately before signing and broadcasting.
 

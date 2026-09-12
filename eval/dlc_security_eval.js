@@ -48,6 +48,7 @@ const {
   validateCetAdaptorSignatures,
   validateRefundSignature
 } = require(path.join(__dirname, '..', 'bitvm3', 'utxo_referee', 'dlc_signature_validator.js'));
+const { evaluateDlcChainSnapshot } = require(path.join(__dirname, '..', 'bitvm3', 'utxo_referee', 'dlc_chain_guard.js'));
 const validatorKeys = crypto.generateKeyPairSync('ed25519');
 const validatorSpki = validatorKeys.publicKey.export({ format: 'der', type: 'spki' }).toString('base64');
 const validatorKeyId = crypto.createHash('sha256').update(Buffer.from(validatorSpki, 'base64')).digest('hex');
@@ -498,11 +499,18 @@ check('CET and refund set is canonically bound to one funding outpoint', 'transa
     scriptPubKeyHex: `5120${'44'.repeat(32)}`
   };
   const oraclePubkeys = ['11'.repeat(32), '22'.repeat(32)];
+  const feePolicy = {
+    strategy: 'cpfp-anchor-v1',
+    anchorAmountSats: 330n,
+    anchorScriptPubKeyHex: `0014${'aa'.repeat(20)}`
+  };
+  const anchor = { valueSats: feePolicy.anchorAmountSats, scriptPubKeyHex: feePolicy.anchorScriptPubKeyHex };
   const cetOutputs = [
     { valueSats: 59000n, scriptPubKeyHex: `0014${'55'.repeat(20)}` },
-    { valueSats: 40000n, scriptPubKeyHex: `0014${'66'.repeat(20)}` }
+    { valueSats: 40000n, scriptPubKeyHex: `0014${'66'.repeat(20)}` },
+    anchor
   ];
-  const refundOutputs = [{ valueSats: 99000n, scriptPubKeyHex: `5120${'77'.repeat(32)}` }];
+  const refundOutputs = [{ valueSats: 99000n, scriptPubKeyHex: `5120${'77'.repeat(32)}` }, anchor];
   const raw = (outputs, locktime, txid = funding.txid) => serializeUnsignedTx(
     2,
     [{ outpoint: outpoint(txid, funding.vout), sequence: 0xfffffffe }],
@@ -524,15 +532,124 @@ check('CET and refund set is canonically bound to one funding outpoint', 'transa
       locktime: 200
     },
     minFeeSats: 500n,
-    maxFeeSats: 2000n
+    maxFeeSats: 2000n,
+    feePolicy
   };
   const validated = validateDlcTransactionSet(input);
   const forged = {
     ...input,
     cets: [{ ...input.cets[0], rawTxHex: raw(cetOutputs, 100, 'bb'.repeat(32)) }]
   };
-  return validated.cets.length === 1 && validated.refund.feeSats === '1000' &&
+  return validated.cets.length === 1 && validated.refund.feeSats === '670' &&
     throws(() => validateDlcTransactionSet(forged), /committed funding outpoint/);
+});
+
+check('chain guard halts on disconnected ancestry and uncommitted funding spends', 'chain-safety', 12, () => {
+  const funding = {
+    txid: 'ab'.repeat(32),
+    vout: 2,
+    valueSats: 100000n,
+    scriptPubKeyHex: `5120${'44'.repeat(32)}`
+  };
+  const feePolicy = {
+    strategy: 'cpfp-anchor-v1',
+    anchorAmountSats: 330n,
+    anchorScriptPubKeyHex: `0014${'aa'.repeat(20)}`
+  };
+  const anchor = { valueSats: feePolicy.anchorAmountSats, scriptPubKeyHex: feePolicy.anchorScriptPubKeyHex };
+  const cetOutputs = [{ valueSats: 99000n, scriptPubKeyHex: `0014${'55'.repeat(20)}` }, anchor];
+  const refundOutputs = [{ valueSats: 99000n, scriptPubKeyHex: `5120${'77'.repeat(32)}` }, anchor];
+  const raw = (outputs, locktime) => serializeUnsignedTx(
+    2,
+    [{ outpoint: outpoint(funding.txid, funding.vout), sequence: 0xfffffffe }],
+    outputs.map((item) => ({ valueSats: item.valueSats, script: item.scriptPubKeyHex })),
+    locktime
+  );
+  const transactionSet = validateDlcTransactionSet({
+    funding,
+    cets: [{
+      outcomeMessage: sha256('chain-guard:outcome').toString('hex'),
+      oraclePubkeys: ['11'.repeat(32), '22'.repeat(32)],
+      rawTxHex: raw(cetOutputs, 100),
+      expectedOutputs: cetOutputs,
+      locktime: 100
+    }],
+    refund: { rawTxHex: raw(refundOutputs, 200), expectedOutputs: refundOutputs, locktime: 200 },
+    minFeeSats: 500n,
+    maxFeeSats: 2000n,
+    feePolicy
+  });
+  let contract = createDlcContract({
+    contractId: 'eval-chain-guard',
+    network: 'bitcoin-testnet4',
+    contractDigest: sha256('eval-chain-guard:contract').toString('hex'),
+    oraclePolicy: { threshold: 2, total: 3, pinnedPubkeys: ['11'.repeat(32), '22'.repeat(32), '33'.repeat(32)] },
+    validatorPolicy
+  });
+  const stages = [
+    'AUTHENTICATED_ORACLES',
+    'CANONICAL_CETS_AND_REFUND',
+    'COUNTERPARTY_SIGNATURES_VERIFIED',
+    'LOCAL_SIGNATURES_PERSISTED',
+    'FUNDING_PSBT_APPROVED',
+    'FUNDING_BROADCAST',
+    'CONFIRMED'
+  ];
+  for (const stage of stages) {
+    const key = `eval-chain:${stage}`;
+    const overrides = stage === 'CANONICAL_CETS_AND_REFUND' ? {
+      cet_set: transactionSet.cetSetDigest,
+      funding_template: transactionSet.fundingTemplateDigest,
+      refund_transaction: transactionSet.refundTransactionDigest
+    } : {};
+    contract = transitionDlcContract(contract, {
+      to: stage,
+      idempotencyKey: key,
+      evidence: evidenceFor(contract, stage, key, overrides)
+    });
+  }
+  const fundingOutpoint = `${transactionSet.funding.txid}:${transactionSet.funding.vout}`;
+  const previous = {
+    height: 205,
+    bestBlockHash: sha256('chain-guard:block:205').toString('hex'),
+    fundingOutpoint,
+    fundingPresent: true,
+    fundingConfirmations: 6,
+    observedSpend: null
+  };
+  const current = {
+    ...previous,
+    height: 206,
+    bestBlockHash: sha256('chain-guard:block:206').toString('hex'),
+    ancestorHashAtPreviousHeight: sha256('chain-guard:foreign-ancestor').toString('hex'),
+    fundingConfirmations: 7
+  };
+  const reorg = evaluateDlcChainSnapshot({ contractState: contract, transactionSet, current, previous });
+  const unknown = evaluateDlcChainSnapshot({
+    contractState: contract,
+    transactionSet,
+    current: {
+      ...previous,
+      fundingPresent: false,
+      fundingConfirmations: 0,
+      observedSpend: { txid: 'ff'.repeat(32), height: 205 }
+    }
+  });
+  const earlyRefund = evaluateDlcChainSnapshot({
+    contractState: contract,
+    transactionSet,
+    current: {
+      ...previous,
+      height: 199,
+      bestBlockHash: sha256('chain-guard:block:199').toString('hex'),
+      fundingPresent: false,
+      fundingConfirmations: 0,
+      observedSpend: { txid: transactionSet.refund.txid, height: 199 }
+    }
+  });
+  return reorg.status === 'REORG_HALT' && reorg.halt &&
+    unknown.status === 'UNKNOWN_SPEND_HALT' && unknown.halt &&
+    earlyRefund.status === 'PREMATURE_REFUND_HALT' && earlyRefund.halt;
 });
 
 check('CET adaptor and refund signatures bind to validated BIP341 sighashes', 'signature-safety', 14, () => {
@@ -557,8 +674,20 @@ check('CET adaptor and refund signatures bind to validated BIP341 sighashes', 's
     valueSats: 100000n,
     scriptPubKeyHex: `5120${signerPubkeyX}`
   };
-  const cetOutputs = [{ valueSats: 99000n, scriptPubKeyHex: `0014${'88'.repeat(20)}` }];
-  const refundOutputs = [{ valueSats: 99000n, scriptPubKeyHex: `5120${'77'.repeat(32)}` }];
+  const feePolicy = {
+    strategy: 'cpfp-anchor-v1',
+    anchorAmountSats: 330n,
+    anchorScriptPubKeyHex: `0014${'aa'.repeat(20)}`
+  };
+  const anchor = { valueSats: feePolicy.anchorAmountSats, scriptPubKeyHex: feePolicy.anchorScriptPubKeyHex };
+  const cetOutputs = [
+    { valueSats: 99000n, scriptPubKeyHex: `0014${'88'.repeat(20)}` },
+    anchor
+  ];
+  const refundOutputs = [
+    { valueSats: 99000n, scriptPubKeyHex: `5120${'77'.repeat(32)}` },
+    anchor
+  ];
   const raw = (outputs, locktime) => serializeUnsignedTx(
     2,
     [{ outpoint: outpoint(funding.txid, funding.vout), sequence: 0xfffffffe }],
@@ -576,7 +705,8 @@ check('CET adaptor and refund signatures bind to validated BIP341 sighashes', 's
     }],
     refund: { rawTxHex: raw(refundOutputs, 200), expectedOutputs: refundOutputs, locktime: 200 },
     minFeeSats: 500n,
-    maxFeeSats: 2000n
+    maxFeeSats: 2000n,
+    feePolicy
   });
   const cet = transactionSet.cets[0];
   const cetSighash = bip341SighashDefault(
@@ -628,7 +758,7 @@ const possible = cases.reduce((sum, test) => sum + test.points, 0);
 const score = earned / possible;
 const report = {
   benchmark: 'utxoref-dlc-security',
-  version: 2,
+  version: 3,
   profile: profileName,
   seed,
   score,

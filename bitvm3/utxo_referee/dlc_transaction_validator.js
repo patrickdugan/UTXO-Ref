@@ -139,7 +139,34 @@ function validateExpectedOutputs(actual, expected, label) {
   }
 }
 
-function validateSpend({ rawTxHex, funding, expectedOutputs, expectedLocktime, minFeeSats, maxFeeSats, label }) {
+function normalizeFeePolicy(feePolicy) {
+  if (!feePolicy || feePolicy.strategy !== 'cpfp-anchor-v1' ||
+      typeof feePolicy.anchorAmountSats !== 'bigint' ||
+      feePolicy.anchorAmountSats < 330n || feePolicy.anchorAmountSats > 10000n ||
+      typeof feePolicy.anchorScriptPubKeyHex !== 'string' ||
+      !/^(0014[0-9a-f]{40}|5120[0-9a-f]{64})$/.test(feePolicy.anchorScriptPubKeyHex)) {
+    throw new Error('feePolicy must define a 330..10000 sat cpfp-anchor-v1 P2WPKH or P2TR output');
+  }
+  return Object.freeze({
+    strategy: 'cpfp-anchor-v1',
+    anchorAmountSats: feePolicy.anchorAmountSats,
+    anchorScriptPubKeyHex: feePolicy.anchorScriptPubKeyHex
+  });
+}
+
+function validateAnchor(outputs, feePolicy, label) {
+  const matches = outputs.reduce((count, output) => count + Number(
+    output.valueSats === feePolicy.anchorAmountSats &&
+    output.scriptPubKeyHex === feePolicy.anchorScriptPubKeyHex
+  ), 0);
+  const last = outputs[outputs.length - 1];
+  if (matches !== 1 || last.valueSats !== feePolicy.anchorAmountSats ||
+      last.scriptPubKeyHex !== feePolicy.anchorScriptPubKeyHex) {
+    throw new Error(`${label} must contain exactly one committed CPFP anchor as its last output`);
+  }
+}
+
+function validateSpend({ rawTxHex, funding, expectedOutputs, expectedLocktime, minFeeSats, maxFeeSats, feePolicy, label }) {
   const transaction = parseCanonicalUnsignedTransaction(rawTxHex);
   if (transaction.inputs.length !== 1 || transaction.inputs[0].txid !== funding.txid ||
       transaction.inputs[0].vout !== funding.vout) {
@@ -150,6 +177,7 @@ function validateSpend({ rawTxHex, funding, expectedOutputs, expectedLocktime, m
     throw new Error(`${label} locktime mismatch`);
   }
   validateExpectedOutputs(transaction.outputs, expectedOutputs, label);
+  validateAnchor(transaction.outputs, feePolicy, label);
   const totalOutput = transaction.outputs.reduce((sum, output) => sum + output.valueSats, 0n);
   if (totalOutput > funding.valueSats) throw new Error(`${label} spends more than the funding value`);
   const feeSats = funding.valueSats - totalOutput;
@@ -170,8 +198,9 @@ function serializeValidatedSpend(result) {
   };
 }
 
-function validateDlcTransactionSet({ funding, cets, refund, minFeeSats = 0n, maxFeeSats }) {
+function validateDlcTransactionSet({ funding, cets, refund, minFeeSats = 0n, maxFeeSats, feePolicy }) {
   const normalizedFunding = normalizeFunding(funding);
+  const normalizedFeePolicy = normalizeFeePolicy(feePolicy);
   if (typeof minFeeSats !== 'bigint' || minFeeSats < 0n || typeof maxFeeSats !== 'bigint' ||
       maxFeeSats < minFeeSats || maxFeeSats > normalizedFunding.valueSats) {
     throw new Error('DLC fee range is invalid');
@@ -198,6 +227,7 @@ function validateDlcTransactionSet({ funding, cets, refund, minFeeSats = 0n, max
       expectedLocktime: cet.locktime,
       minFeeSats,
       maxFeeSats,
+      feePolicy: normalizedFeePolicy,
       label: `CET ${index}`
     });
     return {
@@ -215,6 +245,7 @@ function validateDlcTransactionSet({ funding, cets, refund, minFeeSats = 0n, max
     expectedLocktime: refund.locktime,
     minFeeSats,
     maxFeeSats,
+    feePolicy: normalizedFeePolicy,
     label: 'refund'
   });
   if (validatedCets.some((cet) => refund.locktime <= cet.locktime)) {
@@ -230,19 +261,62 @@ function validateDlcTransactionSet({ funding, cets, refund, minFeeSats = 0n, max
   const fundingTemplateDigest = sha256Hex(canonicalJson(serializedFunding));
   const cetSetDigest = sha256Hex(canonicalJson(validatedCets));
   const refundTransactionDigest = sha256Hex(canonicalJson(serializedRefund));
+  const feePolicyDigest = sha256Hex(canonicalJson({
+    strategy: normalizedFeePolicy.strategy,
+    anchorAmountSats: normalizedFeePolicy.anchorAmountSats.toString(),
+    anchorScriptPubKeyHex: normalizedFeePolicy.anchorScriptPubKeyHex
+  }));
+  const serializedFeePolicy = {
+    strategy: normalizedFeePolicy.strategy,
+    anchorAmountSats: normalizedFeePolicy.anchorAmountSats.toString(),
+    anchorScriptPubKeyHex: normalizedFeePolicy.anchorScriptPubKeyHex
+  };
   return Object.freeze({
     fundingTemplateDigest,
     cetSetDigest,
     refundTransactionDigest,
-    validationDigest: sha256Hex(canonicalJson({ fundingTemplateDigest, cetSetDigest, refundTransactionDigest })),
+    feePolicyDigest,
+    validationDigest: sha256Hex(canonicalJson({
+      fundingTemplateDigest,
+      cetSetDigest,
+      refundTransactionDigest,
+      feePolicyDigest
+    })),
+    funding: Object.freeze(serializedFunding),
+    feePolicy: Object.freeze(serializedFeePolicy),
     cets: Object.freeze(validatedCets.map(Object.freeze)),
     refund: Object.freeze(serializedRefund)
   });
 }
 
+function validateDlcTransactionSetCommitments(transactionSet) {
+  if (!transactionSet || !transactionSet.funding || !transactionSet.feePolicy ||
+      !Array.isArray(transactionSet.cets) || !transactionSet.refund) {
+    throw new Error('validated DLC transaction set is malformed');
+  }
+  const fundingTemplateDigest = sha256Hex(canonicalJson(transactionSet.funding));
+  const cetSetDigest = sha256Hex(canonicalJson(transactionSet.cets));
+  const refundTransactionDigest = sha256Hex(canonicalJson(transactionSet.refund));
+  const feePolicyDigest = sha256Hex(canonicalJson(transactionSet.feePolicy));
+  const validationDigest = sha256Hex(canonicalJson({
+    fundingTemplateDigest,
+    cetSetDigest,
+    refundTransactionDigest,
+    feePolicyDigest
+  }));
+  if (transactionSet.fundingTemplateDigest !== fundingTemplateDigest ||
+      transactionSet.cetSetDigest !== cetSetDigest ||
+      transactionSet.refundTransactionDigest !== refundTransactionDigest ||
+      transactionSet.feePolicyDigest !== feePolicyDigest ||
+      transactionSet.validationDigest !== validationDigest) {
+    throw new Error('validated DLC transaction set commitment mismatch');
+  }
+  return true;
+}
+
 module.exports = {
   MAX_MONEY,
   parseCanonicalUnsignedTransaction,
-  validateDlcTransactionSet
+  validateDlcTransactionSet,
+  validateDlcTransactionSetCommitments
 };
-

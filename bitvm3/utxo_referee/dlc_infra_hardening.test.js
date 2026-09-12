@@ -30,6 +30,7 @@ const {
   validateCetAdaptorSignatures,
   validateRefundSignature
 } = require('./dlc_signature_validator');
+const { evaluateDlcChainSnapshot } = require('./dlc_chain_guard');
 
 let passed = 0;
 let failed = 0;
@@ -366,6 +367,12 @@ function transactionFixture() {
   const leftScript = `0014${'55'.repeat(20)}`;
   const rightScript = `0014${'66'.repeat(20)}`;
   const refundScript = `5120${'77'.repeat(32)}`;
+  const feePolicy = {
+    strategy: 'cpfp-anchor-v1',
+    anchorAmountSats: 330n,
+    anchorScriptPubKeyHex: `0014${'aa'.repeat(20)}`
+  };
+  const anchor = { valueSats: feePolicy.anchorAmountSats, scriptPubKeyHex: feePolicy.anchorScriptPubKeyHex };
   const spend = (outputs, locktime, sequence = 0xfffffffe, fundingTxid = funding.txid) => serializeUnsignedTx(
     2,
     [{ outpoint: outpoint(fundingTxid, funding.vout), sequence }],
@@ -374,13 +381,15 @@ function transactionFixture() {
   );
   const firstOutputs = [
     { valueSats: 59000n, scriptPubKeyHex: leftScript },
-    { valueSats: 40000n, scriptPubKeyHex: rightScript }
+    { valueSats: 40000n, scriptPubKeyHex: rightScript },
+    anchor
   ];
   const secondOutputs = [
     { valueSats: 39000n, scriptPubKeyHex: leftScript },
-    { valueSats: 60000n, scriptPubKeyHex: rightScript }
+    { valueSats: 60000n, scriptPubKeyHex: rightScript },
+    anchor
   ];
-  const refundOutputs = [{ valueSats: 99000n, scriptPubKeyHex: refundScript }];
+  const refundOutputs = [{ valueSats: 99000n, scriptPubKeyHex: refundScript }, anchor];
   return {
     funding,
     cets: [
@@ -404,6 +413,7 @@ function transactionFixture() {
       expectedOutputs: refundOutputs,
       locktime: 200
     },
+    feePolicy,
     spend,
     firstOutputs
   };
@@ -416,9 +426,10 @@ test('transaction validator binds every CET and refund to the funding outpoint',
     cets: fixture.cets,
     refund: fixture.refund,
     minFeeSats: 500n,
-    maxFeeSats: 2000n
+    maxFeeSats: 2000n,
+    feePolicy: fixture.feePolicy
   });
-  assert(result.cets.length === 2 && result.refund.feeSats === '1000', 'valid transaction set failed');
+  assert(result.cets.length === 2 && result.refund.feeSats === '670', 'valid transaction set failed');
   assert(/^[0-9a-f]{64}$/.test(result.validationDigest), 'transaction validation digest is not canonical');
   let contract = initialContract('validated-transaction-contract');
   contract = transitionDlcContract(contract, requestFor(contract, 'AUTHENTICATED_ORACLES'));
@@ -437,8 +448,31 @@ test('transaction validator binds every CET and refund to the funding outpoint',
     cets: [wrongOutpoint, fixture.cets[1]],
     refund: fixture.refund,
     minFeeSats: 500n,
-    maxFeeSats: 2000n
+    maxFeeSats: 2000n,
+    feePolicy: fixture.feePolicy
   }), /committed funding outpoint/);
+  const outputsWithoutAnchor = fixture.firstOutputs.slice(0, -1);
+  const missingAnchor = {
+    ...fixture.cets[0],
+    rawTxHex: fixture.spend(outputsWithoutAnchor, 100),
+    expectedOutputs: outputsWithoutAnchor
+  };
+  expectThrow(() => validateDlcTransactionSet({
+    funding: fixture.funding,
+    cets: [missingAnchor, fixture.cets[1]],
+    refund: fixture.refund,
+    minFeeSats: 500n,
+    maxFeeSats: 2000n,
+    feePolicy: fixture.feePolicy
+  }), /CPFP anchor/);
+  expectThrow(() => validateDlcTransactionSet({
+    funding: fixture.funding,
+    cets: fixture.cets,
+    refund: fixture.refund,
+    minFeeSats: 500n,
+    maxFeeSats: 2000n,
+    feePolicy: { ...fixture.feePolicy, anchorScriptPubKeyHex: '6a01ff' }
+  }), /P2WPKH or P2TR/);
 });
 
 test('transaction parser rejects noncanonical counts and ineffective locktimes', () => {
@@ -464,7 +498,14 @@ test('CET adaptor and refund signatures bind to validated BIP341 sighashes', () 
   const thresholdSets = buildThresholdOutcomeSets({ announcements, threshold: 2, pinnedPubkeys, outcomeMsg32: outcome });
   const selected = thresholdSets[0];
   const cetOutputs = [{ valueSats: 99000n, scriptPubKeyHex: `0014${'88'.repeat(20)}` }];
-  const refundOutputs = [{ valueSats: 99000n, scriptPubKeyHex: `5120${'77'.repeat(32)}` }];
+  const feePolicy = {
+    strategy: 'cpfp-anchor-v1',
+    anchorAmountSats: 330n,
+    anchorScriptPubKeyHex: `0014${'aa'.repeat(20)}`
+  };
+  const anchor = { valueSats: feePolicy.anchorAmountSats, scriptPubKeyHex: feePolicy.anchorScriptPubKeyHex };
+  cetOutputs.push(anchor);
+  const refundOutputs = [{ valueSats: 99000n, scriptPubKeyHex: `5120${'77'.repeat(32)}` }, anchor];
   const raw = (outputs, locktime) => serializeUnsignedTx(
     2,
     [{ outpoint: outpoint(funding.txid, funding.vout), sequence: 0xfffffffe }],
@@ -482,7 +523,8 @@ test('CET adaptor and refund signatures bind to validated BIP341 sighashes', () 
     }],
     refund: { rawTxHex: raw(refundOutputs, 200), expectedOutputs: refundOutputs, locktime: 200 },
     minFeeSats: 500n,
-    maxFeeSats: 2000n
+    maxFeeSats: 2000n,
+    feePolicy
   });
   const cet = validated.cets[0];
   const cetSighash = bip341SighashDefault(
@@ -528,6 +570,143 @@ test('CET adaptor and refund signatures bind to validated BIP341 sighashes', () 
       outcomePoint: selected.outcomePoint
     }]
   }), /invalid/);
+});
+
+function validatedChainFixture(contractId, targetStage) {
+  const fixture = transactionFixture();
+  const transactionSet = validateDlcTransactionSet({
+    funding: fixture.funding,
+    cets: fixture.cets,
+    refund: fixture.refund,
+    minFeeSats: 500n,
+    maxFeeSats: 2000n,
+    feePolicy: fixture.feePolicy
+  });
+  let contract = initialContract(contractId);
+  contract = transitionDlcContract(contract, requestFor(contract, 'AUTHENTICATED_ORACLES', `${contractId}:oracles`));
+  contract = transitionDlcContract(contract, requestFor(contract, 'CANONICAL_CETS_AND_REFUND', `${contractId}:transactions`, {
+    cet_set: transactionSet.cetSetDigest,
+    funding_template: transactionSet.fundingTemplateDigest,
+    refund_transaction: transactionSet.refundTransactionDigest
+  }));
+  const remaining = [
+    'COUNTERPARTY_SIGNATURES_VERIFIED',
+    'LOCAL_SIGNATURES_PERSISTED',
+    'FUNDING_PSBT_APPROVED',
+    'FUNDING_BROADCAST',
+    'CONFIRMED'
+  ];
+  for (const stage of remaining) {
+    if (contract.stage === targetStage) break;
+    contract = transitionDlcContract(contract, requestFor(contract, stage, `${contractId}:${stage}`));
+  }
+  return { contract, transactionSet };
+}
+
+function chainSnapshot(transactionSet, overrides = {}) {
+  return {
+    height: 205,
+    bestBlockHash: digest('chain:block:205'),
+    fundingOutpoint: `${transactionSet.funding.txid}:${transactionSet.funding.vout}`,
+    fundingPresent: true,
+    fundingConfirmations: 6,
+    observedSpend: null,
+    ...overrides
+  };
+}
+
+test('chain guard binds snapshots to signed transactions and halts on reorgs or unknown spends', () => {
+  const { contract, transactionSet } = validatedChainFixture('chain-guard-confirmed', 'CONFIRMED');
+  const confirmed = evaluateDlcChainSnapshot({ contractState: contract, transactionSet, current: chainSnapshot(transactionSet) });
+  assert(confirmed.ok && confirmed.status === 'FUNDING_CONFIRMED', 'confirmed funding was not accepted');
+
+  const previous = chainSnapshot(transactionSet);
+  const disconnected = chainSnapshot(transactionSet, {
+    height: 206,
+    bestBlockHash: digest('chain:block:206-reorg'),
+    ancestorHashAtPreviousHeight: digest('chain:foreign-ancestor'),
+    fundingConfirmations: 7
+  });
+  const reorg = evaluateDlcChainSnapshot({ contractState: contract, transactionSet, current: disconnected, previous });
+  assert(!reorg.ok && reorg.status === 'REORG_HALT', 'disconnected chain ancestry did not halt');
+
+  const unknown = chainSnapshot(transactionSet, {
+    fundingPresent: false,
+    fundingConfirmations: 0,
+    observedSpend: { txid: 'ff'.repeat(32), height: 205 }
+  });
+  const unknownResult = evaluateDlcChainSnapshot({ contractState: contract, transactionSet, current: unknown });
+  assert(!unknownResult.ok && unknownResult.status === 'UNKNOWN_SPEND_HALT', 'unknown funding spend did not halt');
+  const alternateSet = validateDlcTransactionSet({
+    funding: transactionFixture().funding,
+    cets: transactionFixture().cets.map((cet, index) => index === 0
+      ? { ...cet, outcomeMessage: digest('alternate-chain-outcome') }
+      : cet),
+    refund: transactionFixture().refund,
+    minFeeSats: 500n,
+    maxFeeSats: 2000n,
+    feePolicy: transactionFixture().feePolicy
+  });
+  expectThrow(() => evaluateDlcChainSnapshot({
+    contractState: contract,
+    transactionSet: alternateSet,
+    current: chainSnapshot(alternateSet)
+  }), /signed contract validation receipts/);
+  expectThrow(() => evaluateDlcChainSnapshot({
+    contractState: contract,
+    transactionSet: { ...transactionSet, funding: { ...transactionSet.funding, vout: 3 } },
+    current: chainSnapshot(transactionSet)
+  }), /commitment mismatch/);
+});
+
+test('chain guard accepts only stage-consistent CETs and mature refunds', () => {
+  const confirmedFixture = validatedChainFixture('chain-spend-confirmed', 'CONFIRMED');
+  const cetSpend = chainSnapshot(confirmedFixture.transactionSet, {
+    fundingPresent: false,
+    fundingConfirmations: 0,
+    observedSpend: { txid: confirmedFixture.transactionSet.cets[0].txid, height: 205 }
+  });
+  const cet = evaluateDlcChainSnapshot({
+    contractState: confirmedFixture.contract,
+    transactionSet: confirmedFixture.transactionSet,
+    current: cetSpend
+  });
+  assert(cet.ok && cet.status === 'CET_OBSERVED', 'confirmed CET was not recognized');
+
+  const earlyFixture = validatedChainFixture('chain-spend-early', 'CANONICAL_CETS_AND_REFUND');
+  const earlyCet = evaluateDlcChainSnapshot({
+    contractState: earlyFixture.contract,
+    transactionSet: earlyFixture.transactionSet,
+    current: chainSnapshot(earlyFixture.transactionSet, {
+      fundingPresent: false,
+      fundingConfirmations: 0,
+      observedSpend: { txid: earlyFixture.transactionSet.cets[0].txid, height: 205 }
+    })
+  });
+  assert(!earlyCet.ok && earlyCet.status === 'PREMATURE_CET_HALT', 'early CET did not halt');
+
+  const earlyRefund = evaluateDlcChainSnapshot({
+    contractState: confirmedFixture.contract,
+    transactionSet: confirmedFixture.transactionSet,
+    current: chainSnapshot(confirmedFixture.transactionSet, {
+      height: 199,
+      bestBlockHash: digest('chain:block:199'),
+      fundingPresent: false,
+      fundingConfirmations: 0,
+      observedSpend: { txid: confirmedFixture.transactionSet.refund.txid, height: 199 }
+    })
+  });
+  assert(!earlyRefund.ok && earlyRefund.status === 'PREMATURE_REFUND_HALT', 'immature refund did not halt');
+  const matureRefund = evaluateDlcChainSnapshot({
+    contractState: confirmedFixture.contract,
+    transactionSet: confirmedFixture.transactionSet,
+    current: chainSnapshot(confirmedFixture.transactionSet, {
+      fundingPresent: false,
+      fundingConfirmations: 0,
+      observedSpend: { txid: confirmedFixture.transactionSet.refund.txid, height: 205 }
+    })
+  });
+  assert(matureRefund.ok && matureRefund.status === 'REFUND_OBSERVED', 'mature refund was not recognized');
 });
 
 if (failed > 0) {

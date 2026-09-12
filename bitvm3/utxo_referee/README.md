@@ -176,7 +176,9 @@ signed contract state machine, append-only state store, enumerated threshold
 oracle combinations, encrypted restart-safe oracle state, and a crypto provider
 that defaults to disabled. Canonical Bitcoin transaction and BIP341 signature
 validators bind CET/refund evidence to the funding outpoint before signed state
-can advance. Run:
+can advance. Each spend has a committed last-output CPFP anchor. The read-only
+chain guard binds snapshots to that signed transaction set and halts on reorgs,
+unknown spends, immature refunds, and stage-inconsistent CETs. Run:
 
 ```powershell
 node bitvm3\utxo_referee\dlc_infra_hardening.test.js

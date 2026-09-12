@@ -1,5 +1,5 @@
 {
-  "schema": "utxoref_dlc_security_decision_v2",
+  "schema": "utxoref_dlc_security_decision_v3",
   "capturedAt": "2026-09-11",
   "decision": "retain_dlc_protocol_rebuild_implementation",
   "productionDlcEnabled": false,
@@ -24,7 +24,9 @@
     "disabled_by_default_crypto_provider",
     "authenticated_encrypted_oracle_restart_state",
     "canonical_cet_and_refund_transaction_validation",
-    "bip341_cet_adaptor_and_refund_signature_validation"
+    "bip341_cet_adaptor_and_refund_signature_validation",
+    "committed_last_output_cpfp_anchor_policy",
+    "signed_transaction_bound_reorg_and_spend_guard"
   ],
   "productionBlockers": [
     "replace_javascript_bigint_signer_with_reviewed_native_secp256k1_implementation",
@@ -33,7 +35,7 @@
     "use_interoperable_authenticated_dlc_messages",
     "wire_transaction_and_signature_validators_to_native_signer_and_peer_serial_ids",
     "operate_independent_threshold_oracles_with_interoperable_messages",
-    "complete_fee_bump_reorg_and_watchtower_testing"
+    "validate_anchor_spendability_package_relay_pinning_and_watchtower_recovery_on_regtest"
   ],
   "evidence": {
     "preHardeningAttacks": "dlc_adaptor_attack_pre_hardening.json",
