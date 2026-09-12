@@ -155,6 +155,12 @@ try {
   $bumpOptions = @{ fee_rate = 20; replaceable = $true } | ConvertTo-Json -Compress
   $highChild = Invoke-BitcoinCli @('bumpfee', $lowChild.txid, $bumpOptions) -Wallet | ConvertFrom-Json
   $highChildHex = (Invoke-BitcoinCli @('gettransaction', $highChild.txid) -Wallet | ConvertFrom-Json).hex
+  $pinOptions = @{ fee_rate = 200; replaceable = $false } | ConvertTo-Json -Compress
+  $pinChild = Invoke-BitcoinCli @('bumpfee', $highChild.txid, $pinOptions) -Wallet | ConvertFrom-Json
+  $pinChildHex = (Invoke-BitcoinCli @('gettransaction', $pinChild.txid) -Wallet | ConvertFrom-Json).hex
+  $rescueOptions = @{ fee_rate = 300; replaceable = $true } | ConvertTo-Json -Compress
+  $rescueChild = Invoke-BitcoinCli @('bumpfee', $pinChild.txid, $rescueOptions) -Wallet | ConvertFrom-Json
+  $rescueChildHex = (Invoke-BitcoinCli @('gettransaction', $rescueChild.txid) -Wallet | ConvertFrom-Json).hex
 
   Stop-RegtestNode
   Start-RegtestNode -ClearMempool -MinRelaySatsPerVb 2
@@ -171,9 +177,22 @@ try {
   $highPackage = Invoke-BitcoinCli @('submitpackage', $highPackageJson) | ConvertFrom-Json
   Require-Condition ($highPackage.package_msg -eq 'success') 'higher-fee recovery package was rejected'
   Require-Condition (@($highPackage.'replaced-transactions') -contains $lowChild.txid) 'higher-fee child did not replace the low-fee child'
+  $pinPackageJson = @($parentWalletTx.hex, $pinChildHex) | ConvertTo-Json -Compress
+  $pinPackage = Invoke-BitcoinCli @('submitpackage', $pinPackageJson) | ConvertFrom-Json
+  Require-Condition ($pinPackage.package_msg -eq 'success') 'fee-pin package was rejected'
+  Require-Condition (@($pinPackage.'replaced-transactions') -contains $highChild.txid) 'fee-pin child did not replace the recovery child'
+  $pinnedRecoveryRetry = Invoke-BitcoinCli @('submitpackage', $highPackageJson) | ConvertFrom-Json
+  Require-Condition ($pinnedRecoveryRetry.package_msg -ne 'success') 'cheaper recovery unexpectedly displaced the fee pin'
+  $mempoolWhilePinned = ConvertFrom-JsonArray (Invoke-BitcoinCli @('getrawmempool'))
+  Require-Condition ($mempoolWhilePinned -contains $pinChild.txid) 'fee-pin child disappeared after the cheaper recovery attempt'
+  Require-Condition (-not ($mempoolWhilePinned -contains $highChild.txid)) 'cheaper recovery entered the mempool despite the fee pin'
+  $rescuePackageJson = @($parentWalletTx.hex, $rescueChildHex) | ConvertTo-Json -Compress
+  $rescuePackage = Invoke-BitcoinCli @('submitpackage', $rescuePackageJson) | ConvertFrom-Json
+  Require-Condition ($rescuePackage.package_msg -eq 'success') 'fee-pin rescue package was rejected'
+  Require-Condition (@($rescuePackage.'replaced-transactions') -contains $pinChild.txid) 'fee-pin rescue did not replace the pin child'
   $mempoolAfterReplacement = ConvertFrom-JsonArray (Invoke-BitcoinCli @('getrawmempool'))
   Require-Condition ($mempoolAfterReplacement -contains $parentResult.txid) 'parent was absent after package recovery'
-  Require-Condition ($mempoolAfterReplacement -contains $highChild.txid) 'higher-fee child was absent after replacement'
+  Require-Condition ($mempoolAfterReplacement -contains $rescueChild.txid) 'fee-pin rescue child was absent after replacement'
   Require-Condition (-not ($mempoolAfterReplacement -contains $lowChild.txid)) 'low-fee child remained after replacement'
 
   Invoke-BitcoinCli @('loadwallet', $walletName) | Out-Null
@@ -187,7 +206,7 @@ try {
   $mempoolAfterInvalidation = ConvertFrom-JsonArray (Invoke-BitcoinCli @('getrawmempool'))
   Require-Condition ($heightAfterInvalidation -eq $heightBeforeInvalidation - 6) 'six-block invalidation did not regress the expected depth'
   Require-Condition ($mempoolAfterInvalidation -contains $parentResult.txid) 'parent was not recovered to mempool after invalidation'
-  Require-Condition ($mempoolAfterInvalidation -contains $highChild.txid) 'child was not recovered to mempool after invalidation'
+  Require-Condition ($mempoolAfterInvalidation -contains $rescueChild.txid) 'child was not recovered to mempool after invalidation'
   Invoke-BitcoinCli @('reconsiderblock', $reorgBlocks[0]) | Out-Null
   $heightAfterReconsider = [int](Invoke-BitcoinCli @('getblockcount'))
   $mempoolAfterReconsider = ConvertFrom-JsonArray (Invoke-BitcoinCli @('getrawmempool'))
@@ -211,11 +230,20 @@ try {
       parentStandaloneReject = $parentOnly[0].'reject-reason'
       lowChildTxid = $lowChild.txid
       highChildTxid = $highChild.txid
+      pinChildTxid = $pinChild.txid
+      rescueChildTxid = $rescueChild.txid
       lowPackageMessage = $lowPackage.package_msg
       highPackageMessage = $highPackage.package_msg
-      replacedTransactions = @($highPackage.'replaced-transactions')
+      pinPackageMessage = $pinPackage.package_msg
+      pinnedRecoveryRetryMessage = $pinnedRecoveryRetry.package_msg
+      rescuePackageMessage = $rescuePackage.package_msg
+      highReplacedTransactions = @($highPackage.'replaced-transactions')
+      pinReplacedTransactions = @($pinPackage.'replaced-transactions')
+      rescueReplacedTransactions = @($rescuePackage.'replaced-transactions')
       originalFeeBtc = $highChild.origfee
       replacementFeeBtc = $highChild.fee
+      pinFeeBtc = $pinChild.fee
+      rescueFeeBtc = $rescueChild.fee
     }
     reorg = [ordered]@{
       depth = 6
@@ -232,6 +260,8 @@ try {
       packageFeeRescuedParentBelowRelayFloor = $true
       packageAccepted = $true
       rbfRecoveryAccepted = $true
+      cheaperRecoveryBlockedByFeePin = $true
+      higherFeeRecoveryDisplacedPin = $true
       sixBlockDisconnectRecoveredPackage = $true
       branchRestorationClearedMempool = $true
     }
