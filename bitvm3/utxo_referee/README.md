@@ -298,6 +298,10 @@ attested runtime closure binds the public transport descriptor and broker-side
 digests. The broker never opens DPAPI blobs, and BitAgent still verifies the
 native runtime identity signature and executable digest on the returned
 pre-signature.
+Boundary V35 serializes signed clock-floor updates with an OS-backed file lock.
+The lock is released by Windows if a signer dies, and the integration launches
+16 distinct valid authorizations concurrently and requires all 16 authenticated
+responses to verify while preserving the one-winner replay race.
 The host accepts only bounded regular runtime files whose resolved paths do not
 traverse filesystem links. It hashes the complete runtime closure before and
 after every signer execution, so deletion or mutation during the process

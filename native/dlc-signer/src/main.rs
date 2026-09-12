@@ -10,8 +10,8 @@ use std::{
     ops::Deref,
     path::{Path, PathBuf},
     process::{Command, Stdio},
-    ptr,
-    time::{SystemTime, UNIX_EPOCH},
+    ptr, thread,
+    time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
 use base64::{Engine, engine::general_purpose::STANDARD as BASE64};
@@ -83,6 +83,8 @@ const PRESIGNATURE_KIND: &str = "tradelayer_dlc_adaptor_presig_v1";
 const MAX_AUTHORIZATION_TTL_SECONDS: u64 = 300;
 const MAX_AUTHORIZATION_CLOCK_SKEW_SECONDS: u64 = 30;
 const CLOCK_OBSERVATION_KIND: &str = "utxoref_dlc_signer_clock_observation_v1";
+const CLOCK_STORE_LOCK_FILE: &str = ".clock-store.lock";
+const CLOCK_STORE_LOCK_ATTEMPTS: usize = 2000;
 const MAX_CLOCK_OBSERVATIONS: usize = 4096;
 const ED25519_SPKI_PREFIX: [u8; 12] = [
     0x30, 0x2a, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70, 0x03, 0x21, 0x00,
@@ -378,6 +380,56 @@ fn verify_clock_observation(
     Ok(unix_seconds)
 }
 
+struct ClockStoreLock {
+    file: fs::File,
+}
+
+impl Drop for ClockStoreLock {
+    fn drop(&mut self) {
+        let _ = self.file.unlock();
+    }
+}
+
+fn acquire_clock_store_lock(observation_directory: &Path) -> Result<ClockStoreLock> {
+    let lock_path = observation_directory.join(CLOCK_STORE_LOCK_FILE);
+    let mut file = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .open(&lock_path)
+        .map_err(|error| format!("could not open signer clock-store lock: {error}"))?;
+    let metadata = fs::symlink_metadata(&lock_path)
+        .map_err(|error| format!("could not inspect signer clock-store lock: {error}"))?;
+    if !metadata.is_file() || metadata.file_type().is_symlink() || metadata.len() > 128 {
+        return Err(
+            "signer clock-store lock must be a bounded regular non-symlink file".to_owned(),
+        );
+    }
+    for _ in 0..CLOCK_STORE_LOCK_ATTEMPTS {
+        match file.try_lock() {
+            Ok(()) => {
+                file.set_len(0)
+                    .map_err(|error| format!("could not reset signer clock-store lock: {error}"))?;
+                file.write_all(format!("{}\n", std::process::id()).as_bytes())
+                    .map_err(|error| {
+                        format!("could not persist signer clock-store lock: {error}")
+                    })?;
+                file.sync_all()
+                    .map_err(|error| format!("could not fsync signer clock-store lock: {error}"))?;
+                return Ok(ClockStoreLock { file });
+            }
+            Err(fs::TryLockError::WouldBlock) => {
+                thread::sleep(Duration::from_millis(10));
+            }
+            Err(fs::TryLockError::Error(error)) => {
+                return Err(format!("could not lock signer clock store: {error}"));
+            }
+        }
+    }
+    Err("signer clock store remained locked for twenty seconds".to_owned())
+}
+
 fn guard_signer_clock(
     key_directory: &Path,
     runtime_key: &SigningKey,
@@ -394,14 +446,17 @@ fn guard_signer_clock(
     if !metadata.is_dir() || metadata.file_type().is_symlink() {
         return Err("signer clock store must be a regular non-symlink directory".to_owned());
     }
-    let mut paths = fs::read_dir(&observation_directory)
+    let _clock_store_lock = acquire_clock_store_lock(&observation_directory)?;
+    let mut paths = Vec::new();
+    for entry in fs::read_dir(&observation_directory)
         .map_err(|error| format!("could not read signer clock store: {error}"))?
-        .map(|entry| {
-            entry
-                .map(|value| value.path())
-                .map_err(|error| error.to_string())
-        })
-        .collect::<Result<Vec<_>>>()?;
+    {
+        let path = entry.map_err(|error| error.to_string())?.path();
+        if path.file_name().and_then(|name| name.to_str()) == Some(CLOCK_STORE_LOCK_FILE) {
+            continue;
+        }
+        paths.push(path);
+    }
     paths.sort();
     if paths.len() > MAX_CLOCK_OBSERVATIONS {
         return Err(format!(

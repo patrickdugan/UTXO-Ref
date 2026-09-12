@@ -1,8 +1,8 @@
 {
   "schema": "utxoref_dlc_native_rust_dependency_audit_evidence_v1",
-  "auditedAt": "2026-09-12T11:29:48.1420433Z",
+  "auditedAt": "2026-09-12T12:00:51.4261372Z",
   "network": "bitcoin-testnet4",
-  "sourceCommit": "36f7fc28c9f8b961a3562e5f798403332f7ad9a9",
+  "sourceCommit": "a6b9deae65fedca9776d7f1a893811ebad248803",
   "cargoLockSha256": "a5715dcfcf1eef714ffb08afe6b35fdd5db6278176ead3994286da12ba01c5e2",
   "dependencyCount": 55,
   "tool": {

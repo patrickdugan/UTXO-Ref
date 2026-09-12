@@ -91,7 +91,7 @@ function protectDpapiKey(destinationPath, secretHex) {
   }
 }
 
-function runSignerProcess(executablePath, launchArguments, envelope) {
+function runSignerProcess(executablePath, launchArguments, envelope, timeoutMs = 10000) {
   return new Promise((resolve) => {
     const environment = {};
     for (const name of ['SystemRoot', 'WINDIR']) {
@@ -108,7 +108,7 @@ function runSignerProcess(executablePath, launchArguments, envelope) {
     const timer = setTimeout(() => {
       timedOut = true;
       child.kill();
-    }, 10000);
+    }, timeoutMs);
     const append = (current, chunk) => {
       if (current.length >= 65536) return current;
       return Buffer.concat([current, chunk]).subarray(0, 65536);
@@ -608,6 +608,7 @@ try {
     const requestDigest = digest(Buffer.from(canonicalJson(request), 'utf8'));
     const challenge = crypto.randomBytes(32).toString('hex');
     return {
+      challenge,
       requestDigest,
       envelope: `${canonicalJson({ kind: PROCESS_REQUEST_KIND, challenge, requestDigest, request })}\n`
     };
@@ -631,6 +632,39 @@ try {
     issuedAtUnixSeconds: freshnessAuthorization.issuedAtUnixSeconds,
     expiresAtUnixSeconds: freshnessAuthorization.expiresAtUnixSeconds
   });
+  const distinctAttempts = Array.from({ length: 16 }, (_, index) => {
+    const distinctAuthorization = freshnessAuthorizationFor(`native-rust:parallel-distinct:${index}`, new Date());
+    const probe = directEnvelopeFor(distinctAuthorization, freshnessPayloadFor(distinctAuthorization));
+    return { ...probe, promise: runSignerProcess(binaryPath, launchSpec.arguments, probe.envelope, 30000) };
+  });
+  const distinctResults = await Promise.all(distinctAttempts.map((attempt) => attempt.promise));
+  for (let index = 0; index < distinctResults.length; index++) {
+    const result = distinctResults[index];
+    const attempt = distinctAttempts[index];
+    if (result.code !== 0 || result.signal || result.timedOut) {
+      fail(`parallel distinct signer authorization ${index} failed: ${JSON.stringify({
+        code: result.code,
+        signal: result.signal || null,
+        timedOut: result.timedOut,
+        error: result.error?.message || null,
+        stderr: result.stderr.toString('utf8')
+      })}`);
+    }
+    const response = JSON.parse(result.stdout.toString('utf8'));
+    if (response.kind !== PROCESS_RESPONSE_KIND || response.challenge !== attempt.challenge ||
+        response.requestDigest !== attempt.requestDigest || response.identityKeyId !== digest(runtimeSpki) ||
+        response.executableSha256 !== binarySha256 ||
+        !crypto.verify(null, responseSignaturePayload({
+          challenge: response.challenge,
+          requestDigest: response.requestDigest,
+          executableSha256: response.executableSha256,
+          presignature: response.presignature
+        }), runtimePublicKey, Buffer.from(response.signature, 'base64')) ||
+        !dlc.adaptorVerify(Buffer.from(signerPubkeyX, 'hex'), Buffer.from(sighash, 'hex'), response.presignature)) {
+      fail(`parallel distinct signer authorization ${index} returned an invalid authenticated pre-signature`);
+    }
+  }
+  const parallelDistinctAuthorizationsSucceeded = distinctResults.length === 16;
   const accountAuthorization = freshnessAuthorizationFor('native-rust:account-mismatch:0', new Date());
   const accountProbe = directEnvelopeFor(
     accountAuthorization,
@@ -741,6 +775,8 @@ try {
       restartReplayRejected: true,
       signerLocalReplayRejected: true,
       exactOneSignerRaceWinner: true,
+      crossProcessClockStoreLock: true,
+      parallelDistinctAuthorizationsSucceeded,
       expiredAuthorizationRejected: true,
       futureAuthorizationRejected: true,
       signedClockRollbackRejected: true,

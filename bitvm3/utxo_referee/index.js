@@ -128,7 +128,7 @@ module.exports = {
   // for production; these interfaces enforce transcript, threshold-oracle,
   // and persistence gates on regtest and Bitcoin testnet4.
   dlc: Object.freeze({
-    securityBoundaryVersion: 34,
+    securityBoundaryVersion: 35,
     createContract: dlcContractState.createDlcContract,
     validateContract: dlcContractState.validateDlcContract,
     transitionContract: dlcContractState.transitionDlcContract,
@@ -190,7 +190,7 @@ module.exports = {
       sanitizedProcessEnvironment: true,
       nativeCandidateImplementation: 'rust-k256-v1',
       nativeCandidateProtocol: 'utxoref-dlc-native-signer-process-v2',
-      nativeCandidateBinarySha256: '8fd09d948b81b6ac65ca49bd53a27970422dfd0fd007e815724eaa67a1ddcbc9',
+      nativeCandidateBinarySha256: 'e4a4041d82db69c1bc62a7117adc69a0a1d21050fa8916220705961bd8088cb6',
       nativeCandidateCargoLockSha256: 'a5715dcfcf1eef714ffb08afe6b35fdd5db6278176ead3994286da12ba01c5e2',
       lockedDirectDependencies: true,
       unsafeRustRestrictedToDpapiFfi: true,
@@ -211,6 +211,9 @@ module.exports = {
       runtimeIdentitySignedClockFloor: true,
       maxSignedClockObservations: 4096,
       clockRollbackFailsBeforeKeyUse: true,
+      crossProcessClockStoreLock: 'windows-file-lock-v1',
+      clockStoreLockTimeoutMs: 20000,
+      parallelDistinctAuthorizationsTested: 16,
       keyStorageBackend: 'windows-dpapi-current-user-v1',
       plaintextKeyFilesRejected: true,
       pinnedDpapiAccessVerifier: true,

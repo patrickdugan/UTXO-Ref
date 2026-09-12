@@ -33,6 +33,8 @@ if ([regex]::Matches($sourceText, '\bunsafe\s*\{').Count -ne 7 -or
     $sourceText -notmatch 'CryptUnprotectData' -or $sourceText -notmatch 'LocalFree' -or
     $sourceText -notmatch 'SetProcessMitigationPolicy' -or
     $sourceText -notmatch 'SetDefaultDllDirectories' -or
+    $sourceText -notmatch 'CLOCK_STORE_LOCK_FILE' -or
+    $sourceText -notmatch '\.try_lock\(\)' -or
     $sourceText -notmatch '--describe-dpapi-keyset') {
   throw 'native signer FFI surface differs from the reviewed seven-block boundary'
 }
@@ -178,6 +180,10 @@ if (-not $result.assertions.boundedNamedPipeBrokerTransport -or
     -not $result.assertions.pipeBrokerHandlesNoPrivateKeyMaterial) {
   throw 'native signer integration omitted named pipe transport assertions'
 }
+if (-not $result.assertions.crossProcessClockStoreLock -or
+    -not $result.assertions.parallelDistinctAuthorizationsSucceeded) {
+  throw 'native signer integration omitted cross-process clock-store assertions'
+}
 $commit = (git -c safe.directory=C:/projects/UTXORef/UTXO-Ref -C $repository rev-parse HEAD).Trim()
 $snapshot = [ordered]@{
   schema = 'utxoref_dlc_native_rust_signer_snapshot_v1'
@@ -199,7 +205,7 @@ $snapshotPath = Join-Path $SnapshotDirectory 'dlc-native-rust-signer-latest.json
   [System.Text.UTF8Encoding]::new($false)
 )
 $checkedEvidence = [ordered]@{
-  schema = 'utxoref_dlc_native_rust_signer_evidence_v11'
+  schema = 'utxoref_dlc_native_rust_signer_evidence_v12'
   network = 'bitcoin-testnet4'
   sourceCommit = $commit
   toolchain = [ordered]@{ rustc = $snapshot.rustc; cargo = $snapshot.cargo }
@@ -254,6 +260,8 @@ $checkedEvidence = [ordered]@{
     runtimeIdentityVerifiedByHost = [bool]$result.assertions.runtimeIdentityVerifiedByHost
     restartReplayRejected = [bool]$result.assertions.restartReplayRejected
     signerLocalReplayRejected = [bool]$result.assertions.signerLocalReplayRejected
+    crossProcessClockStoreLock = [bool]$result.assertions.crossProcessClockStoreLock
+    parallelDistinctAuthorizationsSucceeded = [bool]$result.assertions.parallelDistinctAuthorizationsSucceeded
     hostSuppliedNoSecret = [bool]$result.assertions.hostSuppliedNoSecret
   }
 }
