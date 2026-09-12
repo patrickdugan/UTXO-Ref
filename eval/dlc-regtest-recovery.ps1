@@ -40,9 +40,10 @@ $nodeProcess = $null
 $nodeRunning = $false
 
 function Invoke-BitcoinCli {
-  param([string[]]$RpcArguments, [switch]$Wallet)
+  param([string[]]$RpcArguments, [switch]$Wallet, [string]$WalletOverride = '')
   $prefix = @($script:nodeArguments)
-  if ($Wallet) { $prefix += "-rpcwallet=$script:walletName" }
+  if ($WalletOverride) { $prefix += "-rpcwallet=$WalletOverride" }
+  elseif ($Wallet) { $prefix += "-rpcwallet=$script:walletName" }
   $output = & $script:bitcoinCli @prefix @RpcArguments 2>&1
   if ($LASTEXITCODE -ne 0) {
     throw "bitcoin-cli $($RpcArguments[0]) failed: $($output -join [Environment]::NewLine)"
@@ -85,7 +86,7 @@ function Stop-RegtestNode {
 
 function ConvertFrom-JsonArray {
   param([string]$Json)
-  if ($Json.Trim() -eq '[]') {
+  if ($Json -match '^\s*\[\s*\]\s*$') {
     Write-Output -NoEnumerate @()
     return
   }
@@ -109,8 +110,14 @@ try {
   $networkInfo = Invoke-BitcoinCli @('getnetworkinfo') | ConvertFrom-Json
   Invoke-BitcoinCli @('createwallet', $walletName) | Out-Null
   $miningAddress = Invoke-BitcoinCli @('getnewaddress', 'initial-mining', 'bech32m') -Wallet
+  $burnWalletName = "maturity-mining-$runId"
+  Invoke-BitcoinCli @('createwallet', $burnWalletName) | Out-Null
+  $burnAddress = Invoke-BitcoinCli @('getnewaddress', 'maturity-mining', 'bech32m') -WalletOverride $burnWalletName
   Invoke-BitcoinCli @('unloadwallet', $walletName) | Out-Null
-  $initialBlocks = ConvertFrom-JsonArray (Invoke-BitcoinCli @('generatetoaddress', '101', $miningAddress))
+  Invoke-BitcoinCli @('unloadwallet', $burnWalletName) | Out-Null
+  $fundingBlocks = ConvertFrom-JsonArray (Invoke-BitcoinCli @('generatetoaddress', '1', $miningAddress))
+  $maturityBlocks = ConvertFrom-JsonArray (Invoke-BitcoinCli @('generatetoaddress', '100', $burnAddress))
+  $initialBlocks = @($fundingBlocks) + @($maturityBlocks)
   Require-Condition ($initialBlocks.Count -eq 101) 'failed to mine the expected initial regtest blocks'
   Invoke-BitcoinCli @('loadwallet', $walletName) | Out-Null
   Require-Condition ([decimal](Invoke-BitcoinCli @('getbalance') -Wallet) -ge [decimal]50) 'mature regtest coinbase was not restored to the wallet'
