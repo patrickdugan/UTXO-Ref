@@ -1,0 +1,37 @@
+{
+  "schema": "utxoref_dlc_adaptor_attack_probe_v1",
+  "capturedAt": "2026-09-11",
+  "commitUnderTest": "fb6caa3",
+  "allReproduced": true,
+  "syntheticKeysOnly": true,
+  "attacks": {
+    "relatedPointNonceReuse": {
+      "reproduced": true,
+      "attempt": 9,
+      "sameNoncePoint": true,
+      "signerKeyRecovered": true,
+      "adaptorPointsShareX": true,
+      "adaptorPointsHaveOppositeY": true
+    },
+    "oracleEquivocation": {
+      "reproduced": true,
+      "oracleKeyRecovered": true,
+      "oracleAcceptedConflictingOutcomes": true,
+      "secretFieldsExposed": true
+    },
+    "encodingMalleability": {
+      "reproduced": true,
+      "nonCanonicalEncodingAccepted": true,
+      "objectHashesDiffer": true
+    },
+    "malformedVerifierCrash": {
+      "reproduced": true,
+      "malformedSignatureThrowsInsteadOfReturningFalse": true
+    },
+    "uncheckedExtraction": {
+      "reproduced": true,
+      "unverifiedScalarReturned": "1",
+      "scalarDoesNotMatchAdaptorPoint": true
+    }
+  }
+}

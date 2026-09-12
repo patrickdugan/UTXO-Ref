@@ -1,0 +1,39 @@
+{
+  "schema": "utxoref_dlc_security_decision_v1",
+  "capturedAt": "2026-09-11",
+  "decision": "retain_dlc_protocol_rebuild_implementation",
+  "productionDlcEnabled": false,
+  "bitcoinTestnet4Mode": "utxoref_commitments_and_guarded_taproot_reserve",
+  "reproducedCriticalFindings": [
+    "related_adaptor_point_nonce_reuse_recovered_signer_key",
+    "cross_event_oracle_nonce_reuse_recovered_oracle_key",
+    "funding_broadcast_preceded_verified_cet_and_refund_signatures"
+  ],
+  "implementedContainment": [
+    "bind_full_adaptor_point_into_nonce",
+    "event_bound_synthetic_oracle_nonces",
+    "authenticated_oracle_announcements",
+    "single_outcome_idempotent_attestation",
+    "canonical_parsing_and_fail_closed_verification",
+    "verified_adaptor_secret_extraction",
+    "disable_milestone_funding_broadcast"
+  ],
+  "productionBlockers": [
+    "replace_javascript_bigint_signer_with_reviewed_native_secp256k1_implementation",
+    "isolate_keys_from_agent_processes",
+    "persist_nonce_and_event_state_atomically_across_restarts",
+    "use_interoperable_authenticated_dlc_messages",
+    "verify_all_cet_and_refund_signatures_before_funding",
+    "adopt_threshold_multi_oracle_policy",
+    "complete_fee_bump_reorg_and_watchtower_testing"
+  ],
+  "evidence": {
+    "preHardeningAttacks": "dlc_adaptor_attack_pre_hardening.json",
+    "postHardeningFuzz": "dlc_adaptor_fuzz_latest.json",
+    "dlcScaleEval": "dlc_security_eval_scale_latest.json",
+    "sweepScaleEval": "utxo_referee_eval_scale_latest.json",
+    "lockedAgentEval": "../../../eval/dlc_security_eval.js",
+    "hivePrompt": "../../../program-dlc-security.md",
+    "hiveConfig": "../../../hive-task-config.dlc-security.example.json"
+  }
+}

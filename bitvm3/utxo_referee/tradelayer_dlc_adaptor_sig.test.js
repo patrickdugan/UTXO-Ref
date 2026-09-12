@@ -7,7 +7,8 @@ const {
   N, G, pointMul, pointAdd,
   xOnlyPubkey, schnorrSign, schnorrVerify,
   adaptorSign, adaptorVerify, adaptorComplete, adaptorExtract,
-  buildDlcOracle, dlcOutcomePoint, dlcAttest,
+  buildDlcOracle, verifyDlcOracleAnnouncement,
+  dlcOutcomePoint, dlcAttest, verifyDlcAttestation,
   bytes32, bufToBig
 } = require('./tradelayer_dlc_adaptor_sig');
 
@@ -108,31 +109,50 @@ test('completing the adaptor reveals the oracle scalar (extractable)', () => {
   const T = pointMul(G, t);
   const presig = adaptorSign(d, msg, T);
   const sig = adaptorComplete(presig, t);
-  const extracted = adaptorExtract(presig, sig);
+  const extracted = adaptorExtract(presig, sig, xOnlyPubkey(d), msg);
   assertEq(extracted, t, 'extracted oracle scalar must equal t');
 });
 
 test('oracle attestation scalar matches the announced outcome point', () => {
-  const oracle = buildDlcOracle(randScalar(), randScalar());
   const msg = crypto.createHash('sha256').update('settle-loss').digest();
+  const oracle = buildDlcOracle(randScalar(), randScalar(), {
+    eventId: 'oracle-point-test',
+    outcomeMessages: [msg]
+  });
   const T = dlcOutcomePoint(oracle, msg);
   const t = dlcAttest(oracle, msg);
   const tG = pointMul(G, t);
+  assert(verifyDlcOracleAnnouncement(oracle), 'oracle announcement signature must verify');
+  assert(verifyDlcAttestation(oracle, msg, t), 'oracle attestation must verify');
   assert(tG.x === T.x && tG.y === T.y, 't*G must equal the announced outcome point T');
+});
+
+test('oracle announcement authentication rejects event and nonce substitution', () => {
+  const msg = crypto.createHash('sha256').update('authenticated-outcome').digest();
+  const oracle = buildDlcOracle(randScalar(), randScalar(), {
+    eventId: 'authenticated-event',
+    outcomeMessages: [msg]
+  });
+  assert(verifyDlcOracleAnnouncement(oracle), 'original announcement must verify');
+  assert(!verifyDlcOracleAnnouncement({ ...oracle, eventId: 'substituted-event' }), 'event substitution must fail');
+  assert(!verifyDlcOracleAnnouncement({ ...oracle, rx: '01'.repeat(32) }), 'nonce substitution must fail');
 });
 
 test('end-to-end DLC: only the attested outcome CET signature completes', () => {
   // party that co-signs each outcome CET
   const partySecret = randScalar();
   const partyPx = xOnlyPubkey(partySecret);
-  // oracle announcement (px, rx) published up front
-  const oracle = buildDlcOracle(randScalar(), randScalar());
-
   const outcomes = ['settle-gain', 'settle-loss', 'roll'];
+  const outcomeMessages = outcomes.map((id) => crypto.createHash('sha256').update(id).digest());
+  // oracle announcement commits to the event and complete enumerated outcome set
+  const oracle = buildDlcOracle(randScalar(), randScalar(), {
+    eventId: 'end-to-end-test',
+    outcomeMessages
+  });
   // each outcome has a distinct CET sighash message and outcome point
-  const perOutcome = outcomes.map((id) => {
+  const perOutcome = outcomes.map((id, index) => {
     const cetMsg = crypto.createHash('sha256').update(`cet:${id}`).digest();
-    const outcomeMsg = crypto.createHash('sha256').update(id).digest();
+    const outcomeMsg = outcomeMessages[index];
     const T = dlcOutcomePoint(oracle, outcomeMsg);
     const presig = adaptorSign(partySecret, cetMsg, T);
     assert(adaptorVerify(partyPx, cetMsg, presig), `${id} pre-sig must verify`);

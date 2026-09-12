@@ -132,17 +132,27 @@ class PayoutMerkleTree {
    * Verify a Merkle proof
    */
   static verifyProof(leafHash, proof, expectedRoot) {
-    let current = leafHash;
+    if (!Buffer.isBuffer(leafHash) || leafHash.length !== 32 ||
+        !Buffer.isBuffer(expectedRoot) || expectedRoot.length !== 32 ||
+        !proof || !Array.isArray(proof.siblings) ||
+        proof.siblings.length < 1 || proof.siblings.length > 64 ||
+        !Number.isSafeInteger(proof.index) || proof.index < 0 ||
+        BigInt(proof.index) >= (1n << BigInt(proof.siblings.length)) ||
+        proof.siblings.some((sibling) => !Buffer.isBuffer(sibling) || sibling.length !== 32)) {
+      return false;
+    }
+
+    let current = Buffer.from(leafHash);
     let idx = proof.index;
 
     for (const sibling of proof.siblings) {
-      const isRight = idx & 1;
+      const isRight = idx % 2 === 1;
       if (isRight) {
         current = hashPair(sibling, current);
       } else {
         current = hashPair(current, sibling);
       }
-      idx = idx >> 1;
+      idx = Math.floor(idx / 2);
     }
 
     return current.equals(expectedRoot);

@@ -166,6 +166,11 @@ Run `node bitvm3/utxo_referee/bitagent_compatibility.test.js` to verify the
 interface, deterministic funding root, confirmation threshold, and bound P2TR
 reserve template. The test uses synthetic data and does not sign or broadcast.
 
+The DLC implementation remains research-only. See
+[`DLC_SECURITY_ARCHITECTURE_REVIEW.md`](../../DLC_SECURITY_ARCHITECTURE_REVIEW.md)
+for reproduced key-extraction attacks, containment, fuzz evidence, and the
+required native-signer and protocol-state-machine redesign.
+
 ## Threat Model
 
 ### What the Referee Prevents

@@ -44,6 +44,8 @@ const N = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141n;
 const GX = 0x79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798n;
 const GY = 0x483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8n;
 const G = { x: GX, y: GY };
+const MAX_256 = 1n << 256n;
+const oracleStates = new WeakMap();
 
 function mod(a, m) {
   const r = a % m;
@@ -143,13 +145,63 @@ function onCurve(point) {
   return mod(point.y * point.y - point.x * point.x * point.x - 7n, P) === 0n;
 }
 
+function requireBuffer(value, length, fieldName) {
+  if (!Buffer.isBuffer(value) || value.length !== length) {
+    throw new Error(`${fieldName} must be exactly ${length} bytes`);
+  }
+  return value;
+}
+
+function requireScalar(value, fieldName) {
+  let scalar;
+  if (typeof value === 'bigint') scalar = value;
+  else if (Buffer.isBuffer(value) && value.length === 32) scalar = bufToBig(value);
+  else throw new Error(`${fieldName} must be a bigint or 32-byte buffer`);
+  if (scalar <= 0n || scalar >= N) throw new Error(`${fieldName} must be in 1..n-1`);
+  return scalar;
+}
+
+function requirePoint(point, fieldName) {
+  if (!point || typeof point.x !== 'bigint' || typeof point.y !== 'bigint' ||
+      point.x < 0n || point.x >= P || point.y < 0n || point.y >= P ||
+      !onCurve(point)) {
+    throw new Error(`${fieldName} must be a canonical non-infinity secp256k1 point`);
+  }
+  return point;
+}
+
+function pointBytes(point) {
+  requirePoint(point, 'point');
+  return Buffer.concat([Buffer.from([hasEvenY(point) ? 0x02 : 0x03]), bytes32(point.x)]);
+}
+
+function parseHexInteger(value, bytes, upperExclusive, fieldName) {
+  if (typeof value !== 'string' || !new RegExp(`^[0-9a-fA-F]{${bytes * 2}}$`).test(value)) {
+    throw new Error(`${fieldName} must be canonical ${bytes}-byte hex`);
+  }
+  const integer = bufToBig(Buffer.from(value, 'hex'));
+  if (integer >= upperExclusive) throw new Error(`${fieldName} is out of range`);
+  return integer;
+}
+
+function lengthPrefixed(value, fieldName) {
+  const bytes = Buffer.isBuffer(value) ? value : Buffer.from(String(value), 'utf8');
+  if (bytes.length > 0xffff) throw new Error(`${fieldName} exceeds 65535 bytes`);
+  const length = Buffer.alloc(2);
+  length.writeUInt16BE(bytes.length);
+  return Buffer.concat([length, bytes]);
+}
+
 // ---- byte helpers ----
 function bytes32(value) {
-  return Buffer.from(value.toString(16).padStart(64, '0'), 'hex');
+  const integer = BigInt(value);
+  if (integer < 0n || integer >= MAX_256) throw new Error('value must fit 32 bytes');
+  return Buffer.from(integer.toString(16).padStart(64, '0'), 'hex');
 }
 
 function bufToBig(buf) {
-  return BigInt('0x' + Buffer.from(buf).toString('hex'));
+  if (!Buffer.isBuffer(buf) || buf.length === 0) throw new Error('buffer must be non-empty');
+  return BigInt('0x' + buf.toString('hex'));
 }
 
 function liftX(x) {
@@ -173,15 +225,15 @@ function challenge(rx, px, msg32) {
 
 // ---- BIP340 Schnorr ----
 function xOnlyPubkey(secret) {
-  const d0 = mod(secret, N);
-  if (d0 === 0n) throw new Error('invalid secret');
+  const d0 = requireScalar(secret, 'secret');
   const Ppoint = pointMul(G, d0);
   return bytes32(Ppoint.x);
 }
 
-function schnorrSign(secret, msg32, aux32 = Buffer.alloc(32)) {
-  const d0 = mod(secret, N);
-  if (d0 === 0n) throw new Error('invalid secret');
+function schnorrSign(secret, msg32, aux32 = crypto.randomBytes(32)) {
+  const d0 = requireScalar(secret, 'secret');
+  requireBuffer(msg32, 32, 'msg32');
+  requireBuffer(aux32, 32, 'aux32');
   const Ppoint = pointMul(G, d0);
   const d = hasEvenY(Ppoint) ? d0 : N - d0;
   const px = Ppoint.x;
@@ -198,26 +250,33 @@ function schnorrSign(secret, msg32, aux32 = Buffer.alloc(32)) {
 }
 
 function schnorrVerify(pubkeyX, msg32, sig64) {
-  const px = typeof pubkeyX === 'bigint' ? pubkeyX : bufToBig(pubkeyX);
-  let Ppoint;
-  try { Ppoint = liftX(px); } catch (e) { return false; }
-  const rx = bufToBig(sig64.slice(0, 32));
-  const s = bufToBig(sig64.slice(32, 64));
-  if (rx >= P || s >= N) return false;
-  const e = challenge(rx, px, msg32);
-  const R = pointAdd(pointMul(G, s), pointNegate(pointMul(Ppoint, e)));
-  if (isInf(R) || !hasEvenY(R) || R.x !== rx) return false;
-  return true;
+  try {
+    requireBuffer(msg32, 32, 'msg32');
+    requireBuffer(sig64, 64, 'sig64');
+    const px = typeof pubkeyX === 'bigint'
+      ? pubkeyX
+      : bufToBig(requireBuffer(pubkeyX, 32, 'pubkeyX'));
+    const Ppoint = liftX(px);
+    const rx = bufToBig(sig64.subarray(0, 32));
+    const s = bufToBig(sig64.subarray(32, 64));
+    if (rx >= P || s >= N) return false;
+    const e = challenge(rx, px, msg32);
+    const R = pointAdd(pointMul(G, s), pointNegate(pointMul(Ppoint, e)));
+    return !isInf(R) && hasEvenY(R) && R.x === rx;
+  } catch (_error) {
+    return false;
+  }
 }
 
 // ---- Schnorr adaptor signatures ----
 // Pre-signature under adaptor point T. The nonce is rejection-sampled so the
 // effective nonce point (R0 + T) has even y, which makes the completed
 // signature a valid BIP340 signature without extra parity juggling.
-function adaptorSign(secret, msg32, T, aux32 = Buffer.alloc(32)) {
-  if (!onCurve(T) || isInf(T)) throw new Error('adaptor point T invalid');
-  const d0 = mod(secret, N);
-  if (d0 === 0n) throw new Error('invalid secret');
+function adaptorSign(secret, msg32, T, aux32 = crypto.randomBytes(32)) {
+  requirePoint(T, 'adaptor point T');
+  requireBuffer(msg32, 32, 'msg32');
+  requireBuffer(aux32, 32, 'aux32');
+  const d0 = requireScalar(secret, 'secret');
   const Ppoint = pointMul(G, d0);
   const d = hasEvenY(Ppoint) ? d0 : N - d0;
   const px = Ppoint.x;
@@ -226,7 +285,7 @@ function adaptorSign(secret, msg32, T, aux32 = Buffer.alloc(32)) {
   for (let counter = 0; counter < 64; counter++) {
     const rand = taggedHash(
       'TradeLayer/dlc/adaptor/nonce',
-      bytes32(tbase), bytes32(px), msg32, bytes32(T.x), Buffer.from([counter])
+      bytes32(tbase), bytes32(px), msg32, pointBytes(T), Buffer.from([counter])
     );
     const k0 = mod(bufToBig(rand), N);
     if (k0 === 0n) continue;
@@ -249,33 +308,46 @@ function adaptorSign(secret, msg32, T, aux32 = Buffer.alloc(32)) {
 }
 
 function presigPoints(presig) {
-  const R0 = { x: bufToBig(Buffer.from(presig.R0x, 'hex')), y: bufToBig(Buffer.from(presig.R0y, 'hex')) };
-  const T = { x: bufToBig(Buffer.from(presig.Tx, 'hex')), y: bufToBig(Buffer.from(presig.Ty, 'hex')) };
-  return { R0, T };
+  if (!presig || presig.kind !== 'tradelayer_dlc_adaptor_presig_v1') {
+    throw new Error('wrong adaptor pre-signature kind');
+  }
+  const R0 = {
+    x: parseHexInteger(presig.R0x, 32, P, 'R0x'),
+    y: parseHexInteger(presig.R0y, 32, P, 'R0y')
+  };
+  const T = {
+    x: parseHexInteger(presig.Tx, 32, P, 'Tx'),
+    y: parseHexInteger(presig.Ty, 32, P, 'Ty')
+  };
+  requirePoint(R0, 'R0');
+  requirePoint(T, 'T');
+  const rx = parseHexInteger(presig.rx, 32, P, 'rx');
+  const s0 = parseHexInteger(presig.s0, 32, N, 's0');
+  return { R0, T, rx, s0 };
 }
 
 function adaptorVerify(pubkeyX, msg32, presig) {
-  if (!presig || presig.kind !== 'tradelayer_dlc_adaptor_presig_v1') return false;
-  const px = typeof pubkeyX === 'bigint' ? pubkeyX : bufToBig(pubkeyX);
-  let Ppoint;
-  try { Ppoint = liftX(px); } catch (e) { return false; }
-  const { R0, T } = presigPoints(presig);
-  if (!onCurve(R0) || !onCurve(T)) return false;
-  const Rp = pointAdd(R0, T);
-  if (isInf(Rp) || !hasEvenY(Rp)) return false;
-  if (Rp.x !== bufToBig(Buffer.from(presig.rx, 'hex'))) return false;
-  const s0 = bufToBig(Buffer.from(presig.s0, 'hex'));
-  if (s0 >= N) return false;
-  const e = challenge(Rp.x, px, msg32);
-  // s0*G == R0 + e*P
-  const lhs = pointMul(G, s0);
-  const rhs = pointAdd(R0, pointMul(Ppoint, e));
-  return !isInf(lhs) && !isInf(rhs) && lhs.x === rhs.x && lhs.y === rhs.y;
+  try {
+    requireBuffer(msg32, 32, 'msg32');
+    const px = typeof pubkeyX === 'bigint'
+      ? pubkeyX
+      : bufToBig(requireBuffer(pubkeyX, 32, 'pubkeyX'));
+    const Ppoint = liftX(px);
+    const { R0, T, rx, s0 } = presigPoints(presig);
+    const Rp = pointAdd(R0, T);
+    if (isInf(Rp) || !hasEvenY(Rp) || Rp.x !== rx) return false;
+    const e = challenge(Rp.x, px, msg32);
+    const lhs = pointMul(G, s0);
+    const rhs = pointAdd(R0, pointMul(Ppoint, e));
+    return !isInf(lhs) && !isInf(rhs) && lhs.x === rhs.x && lhs.y === rhs.y;
+  } catch (_error) {
+    return false;
+  }
 }
 
 // Complete the pre-signature with the oracle attestation scalar t (t*G == T).
 function adaptorComplete(presig, attestationScalar) {
-  const t = mod(typeof attestationScalar === 'bigint' ? attestationScalar : bufToBig(attestationScalar), N);
+  const t = requireScalar(attestationScalar, 'attestationScalar');
   const { T } = presigPoints(presig);
   const Tcheck = pointMul(G, t);
   if (isInf(Tcheck) || Tcheck.x !== T.x || Tcheck.y !== T.y) {
@@ -287,10 +359,19 @@ function adaptorComplete(presig, attestationScalar) {
 }
 
 // Recover the oracle scalar from a pre-signature and its completed signature.
-function adaptorExtract(presig, sig64) {
-  const s = bufToBig(sig64.slice(32, 64));
-  const s0 = bufToBig(Buffer.from(presig.s0, 'hex'));
-  return mod(s - s0, N);
+function adaptorExtract(presig, sig64, pubkeyX, msg32) {
+  requireBuffer(sig64, 64, 'sig64');
+  requireBuffer(msg32, 32, 'msg32');
+  if (!adaptorVerify(pubkeyX, msg32, presig)) throw new Error('invalid adaptor pre-signature');
+  if (!schnorrVerify(pubkeyX, msg32, sig64)) throw new Error('invalid completed signature');
+  const { T, s0 } = presigPoints(presig);
+  const s = bufToBig(sig64.subarray(32, 64));
+  const extracted = mod(s - s0, N);
+  const extractedPoint = pointMul(G, extracted);
+  if (isInf(extractedPoint) || extractedPoint.x !== T.x || extractedPoint.y !== T.y) {
+    throw new Error('extracted scalar does not match adaptor point T');
+  }
+  return extracted;
 }
 
 // ---- DLC oracle (BIP340 attestation model) ----
@@ -299,35 +380,167 @@ function adaptorExtract(presig, sig64) {
 // by anyone in advance; the oracle's attestation for the realized outcome is a
 // scalar s with s*G == T (a BIP340 signature value), which completes any adaptor
 // pre-signature made under T.
-function buildDlcOracle(oracleSecret, nonceSecret) {
-  const x0 = mod(oracleSecret, N);
-  const k0 = mod(nonceSecret, N);
-  if (x0 === 0n || k0 === 0n) throw new Error('oracle/nonce secret invalid');
+function normalizeOutcomeMessages(outcomeMessages) {
+  if (!Array.isArray(outcomeMessages) || outcomeMessages.length < 1) {
+    throw new Error('outcomeMessages must be a non-empty array');
+  }
+  const values = outcomeMessages.map((message, index) =>
+    Buffer.from(requireBuffer(message, 32, `outcomeMessages[${index}]`)));
+  const hex = values.map((message) => message.toString('hex'));
+  if (new Set(hex).size !== hex.length) throw new Error('outcomeMessages must be unique');
+  return { values, hex };
+}
+
+function deriveOracleNonce(oracleSecret, nonceSecret, eventId, outcomeHex) {
+  const eventBytes = lengthPrefixed(eventId, 'eventId');
+  const outcomeBytes = Buffer.concat(outcomeHex.map((outcome, index) =>
+    lengthPrefixed(Buffer.from(outcome, 'hex'), `outcomeMessages[${index}]`)));
+  for (let counter = 0; counter < 256; counter++) {
+    const freshRandom = requireBuffer(crypto.randomBytes(32), 32, 'oracle nonce randomness');
+    const candidate = mod(bufToBig(taggedHash(
+      'TradeLayer/dlc/oracle/nonce/v2',
+      bytes32(oracleSecret),
+      bytes32(nonceSecret),
+      eventBytes,
+      outcomeBytes,
+      freshRandom,
+      Buffer.from([counter])
+    )), N);
+    if (candidate !== 0n) return candidate;
+  }
+  throw new Error('failed to derive a non-zero oracle nonce');
+}
+
+function oracleAnnouncementDigest(announcement) {
+  if (!announcement || announcement.kind !== 'tradelayer_dlc_oracle_announcement_v1') {
+    throw new Error('invalid DLC oracle announcement');
+  }
+  const eventId = String(announcement.eventId || '');
+  if (!eventId || Buffer.byteLength(eventId, 'utf8') > 256) {
+    throw new Error('announcement eventId must be 1..256 UTF-8 bytes');
+  }
+  parseHexInteger(announcement.px, 32, P, 'announcement.px');
+  parseHexInteger(announcement.rx, 32, P, 'announcement.rx');
+  if (!Array.isArray(announcement.outcomeMessages) || announcement.outcomeMessages.length < 1) {
+    throw new Error('announcement outcomeMessages must be non-empty');
+  }
+  const outcomes = announcement.outcomeMessages.map((outcome, index) => {
+    parseHexInteger(outcome, 32, MAX_256, `announcement.outcomeMessages[${index}]`);
+    return outcome.toLowerCase();
+  });
+  if (new Set(outcomes).size !== outcomes.length) throw new Error('announcement outcomes must be unique');
+  return taggedHash(
+    'TradeLayer/dlc/oracle/announcement/v1',
+    lengthPrefixed(eventId, 'eventId'),
+    Buffer.from(announcement.px, 'hex'),
+    Buffer.from(announcement.rx, 'hex'),
+    ...outcomes.map((outcome, index) =>
+      lengthPrefixed(Buffer.from(outcome, 'hex'), `outcomeMessages[${index}]`))
+  );
+}
+
+function verifyDlcOracleAnnouncement(announcement) {
+  try {
+    const digest = oracleAnnouncementDigest(announcement);
+    if (typeof announcement.signature !== 'string' || !/^[0-9a-fA-F]{128}$/.test(announcement.signature)) {
+      return false;
+    }
+    return schnorrVerify(
+      Buffer.from(announcement.px, 'hex'),
+      digest,
+      Buffer.from(announcement.signature, 'hex')
+    );
+  } catch (_error) {
+    return false;
+  }
+}
+
+function buildDlcOracle(oracleSecret, nonceSecret, options = {}) {
+  const x0 = requireScalar(oracleSecret, 'oracleSecret');
+  const nonceSeed = requireScalar(nonceSecret, 'nonceSecret');
+  const eventId = String(options.eventId || '');
+  if (!eventId || Buffer.byteLength(eventId, 'utf8') > 256) {
+    throw new Error('eventId must be 1..256 UTF-8 bytes');
+  }
+  const outcomes = normalizeOutcomeMessages(options.outcomeMessages);
+  const k0 = deriveOracleNonce(x0, nonceSeed, eventId, outcomes.hex);
   const Ppoint = pointMul(G, x0);
   const Rpoint = pointMul(G, k0);
   // BIP340 even-y adjusted secrets so the attestation scalar matches the point.
   const x = hasEvenY(Ppoint) ? x0 : N - x0;
   const k = hasEvenY(Rpoint) ? k0 : N - k0;
-  return {
+  const unsignedAnnouncement = {
+    kind: 'tradelayer_dlc_oracle_announcement_v1',
+    eventId,
     px: bytes32(Ppoint.x).toString('hex'),
     rx: bytes32(Rpoint.x).toString('hex'),
-    _x: x,
-    _k: k
+    outcomeMessages: Object.freeze(outcomes.hex)
   };
+  const signature = schnorrSign(x0, oracleAnnouncementDigest(unsignedAnnouncement));
+  const announcement = Object.freeze({
+    ...unsignedAnnouncement,
+    signature: signature.toString('hex')
+  });
+  oracleStates.set(announcement, {
+    x,
+    k,
+    allowed: new Set(outcomes.hex),
+    attestedMessage: null,
+    attestation: null
+  });
+  return announcement;
 }
 
 function dlcOutcomePoint(announcement, outcomeMsg32) {
-  const px = bufToBig(Buffer.from(announcement.px, 'hex'));
-  const rx = bufToBig(Buffer.from(announcement.rx, 'hex'));
+  requireBuffer(outcomeMsg32, 32, 'outcomeMsg32');
+  if (!verifyDlcOracleAnnouncement(announcement)) throw new Error('invalid DLC oracle announcement signature');
+  const outcomeHex = outcomeMsg32.toString('hex');
+  if (!Array.isArray(announcement.outcomeMessages) || !announcement.outcomeMessages.includes(outcomeHex)) {
+    throw new Error('outcome message is not committed by the oracle announcement');
+  }
+  const px = parseHexInteger(announcement.px, 32, P, 'announcement.px');
+  const rx = parseHexInteger(announcement.rx, 32, P, 'announcement.rx');
   const e = challenge(rx, px, outcomeMsg32);
   return pointAdd(liftX(rx), pointMul(liftX(px), e));
 }
 
 function dlcAttest(oracle, outcomeMsg32) {
-  const px = bufToBig(Buffer.from(oracle.px, 'hex'));
-  const rx = bufToBig(Buffer.from(oracle.rx, 'hex'));
+  requireBuffer(outcomeMsg32, 32, 'outcomeMsg32');
+  const state = oracleStates.get(oracle);
+  if (!state) throw new Error('oracle signer state is unavailable');
+  const outcomeHex = outcomeMsg32.toString('hex');
+  if (!state.allowed.has(outcomeHex)) throw new Error('outcome message is not committed by the oracle announcement');
+  if (state.attestedMessage && state.attestedMessage !== outcomeHex) {
+    throw new Error('oracle event already attested to a conflicting outcome');
+  }
+  if (state.attestation !== null) return state.attestation;
+  const px = parseHexInteger(oracle.px, 32, P, 'oracle.px');
+  const rx = parseHexInteger(oracle.rx, 32, P, 'oracle.rx');
   const e = challenge(rx, px, outcomeMsg32);
-  return mod(oracle._k + e * oracle._x, N); // scalar t with t*G == dlcOutcomePoint
+  const attestation = mod(state.k + e * state.x, N);
+  const signature = Buffer.concat([Buffer.from(oracle.rx, 'hex'), bytes32(attestation)]);
+  if (!schnorrVerify(Buffer.from(oracle.px, 'hex'), outcomeMsg32, signature)) {
+    throw new Error('oracle produced an invalid attestation');
+  }
+  state.attestedMessage = outcomeHex;
+  state.attestation = attestation;
+  return attestation; // scalar t with t*G == dlcOutcomePoint
+}
+
+function verifyDlcAttestation(announcement, outcomeMsg32, attestationScalar) {
+  try {
+    requireBuffer(outcomeMsg32, 32, 'outcomeMsg32');
+    if (!verifyDlcOracleAnnouncement(announcement)) return false;
+    if (!announcement.outcomeMessages.includes(outcomeMsg32.toString('hex'))) return false;
+    const scalar = requireScalar(attestationScalar, 'attestationScalar');
+    return schnorrVerify(
+      Buffer.from(announcement.px, 'hex'),
+      outcomeMsg32,
+      Buffer.concat([Buffer.from(announcement.rx, 'hex'), bytes32(scalar)])
+    );
+  } catch (_error) {
+    return false;
+  }
 }
 
 module.exports = {
@@ -347,8 +560,10 @@ module.exports = {
   adaptorComplete,
   adaptorExtract,
   buildDlcOracle,
+  verifyDlcOracleAnnouncement,
   dlcOutcomePoint,
   dlcAttest,
+  verifyDlcAttestation,
   bytes32,
   bufToBig
 };

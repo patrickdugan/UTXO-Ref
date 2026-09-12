@@ -4,7 +4,7 @@
  * Consumes m1_funding_psbt_latest.json and performs:
  * 1) walletprocesspsbt
  * 2) finalizepsbt
- * 3) optional sendrawtransaction (broadcast enabled by default)
+ * 3) write a local finalized transaction artifact
  *
  * Run:
  *   node bitvm3/utxo_referee/m1_dlc_sign_finalize.js
@@ -14,7 +14,10 @@
  *   LTC_RPC_USER=user
  *   LTC_RPC_PASS=pass
  *   LTC_WALLET=tl-wallet
- *   BROADCAST_FUNDING=1
+ *
+ * Funding broadcast is intentionally disabled. This milestone path does not
+ * yet exchange and verify every CET adaptor signature plus both refund
+ * signatures, so broadcasting could strand the funding output.
  */
 
 const fs = require('fs');
@@ -28,7 +31,7 @@ const RPC_URL = process.env.LTC_RPC_URL || 'http://127.0.0.1:19332';
 const RPC_USER = process.env.LTC_RPC_USER || 'user';
 const RPC_PASS = process.env.LTC_RPC_PASS || 'pass';
 const WALLET = process.env.LTC_WALLET || 'tl-wallet';
-const BROADCAST = (process.env.BROADCAST_FUNDING || '1') !== '0';
+const BROADCAST_REQUESTED = process.env.BROADCAST_FUNDING === '1';
 
 const ARTIFACTS_DIR = path.join(__dirname, 'artifacts');
 const FUNDING_PSBT_PATH = path.join(ARTIFACTS_DIR, 'm1_funding_psbt_latest.json');
@@ -101,6 +104,11 @@ function rpcFactory({ rpcUrl, rpcUser, rpcPass }) {
 }
 
 async function run() {
+  if (BROADCAST_REQUESTED) {
+    throw new Error(
+      'funding broadcast disabled: verified CET adaptor signatures and a fully signed refund transaction are required first'
+    );
+  }
   ensureFile(FUNDING_PSBT_PATH);
   const funding = JSON.parse(fs.readFileSync(FUNDING_PSBT_PATH, 'utf8'));
   const rpc = rpcFactory({
@@ -123,29 +131,12 @@ async function run() {
   const txid = decoded.txid;
   const wtxid = decoded.hash;
 
-  let broadcast = {
-    attempted: BROADCAST,
+  const broadcast = {
+    attempted: false,
     sent: false,
-    error: null,
+    error: 'disabled_pending_verified_cet_and_refund_signatures',
     txid: txid
   };
-
-  if (BROADCAST) {
-    try {
-      const sentTxid = await rpc('sendrawtransaction', [finalized.hex], WALLET);
-      broadcast.sent = true;
-      broadcast.txid = sentTxid;
-    } catch (e) {
-      // Accept already-in-chain / already-in-mempool as non-fatal for id reporting.
-      const msg = String(e.message || e);
-      broadcast.error = msg;
-      if (msg.includes('already in block chain') || msg.includes('txn-already-known')) {
-        broadcast.sent = true;
-      } else {
-        throw e;
-      }
-    }
-  }
 
   const out = {
     kind: 'm1_funding_finalized',

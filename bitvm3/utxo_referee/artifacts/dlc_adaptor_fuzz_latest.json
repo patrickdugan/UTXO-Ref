@@ -1,0 +1,21 @@
+{
+  "schema": "utxoref_dlc_adaptor_fuzz_v1",
+  "capturedAt": "2026-09-11",
+  "ok": true,
+  "workers": 8,
+  "elapsedMs": 265665,
+  "syntheticKeysOnly": true,
+  "rpcUsed": false,
+  "signedBitcoinTransactions": false,
+  "broadcast": false,
+  "totals": {
+    "cases": 2000,
+    "adaptorRoundTrips": 2000,
+    "relatedPointAttemptsBlocked": 2000,
+    "malformedInputsRejected": 6000,
+    "oracleEvents": 200,
+    "oracleEquivocationsBlocked": 200,
+    "crossEventNonceReusesBlocked": 200,
+    "announcementMutationsRejected": 200
+  }
+}
