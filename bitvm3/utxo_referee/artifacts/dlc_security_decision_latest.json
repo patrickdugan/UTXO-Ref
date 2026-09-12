@@ -31,7 +31,7 @@
     "authenticated_ordered_peer_transcript_and_global_serial_ids",
     "durable_atomic_peer_temporary_id_and_transcript_registry",
     "signed_append_only_restart_safe_watchtower_journal",
-    "bitcoin_core_regtest_anchor_package_rbf_and_six_block_recovery"
+    "bitcoin_core_regtest_anchor_package_feerate_rescue_rbf_and_six_block_recovery"
   ],
   "productionBlockers": [
     "replace_javascript_bigint_signer_with_reviewed_native_secp256k1_implementation",
