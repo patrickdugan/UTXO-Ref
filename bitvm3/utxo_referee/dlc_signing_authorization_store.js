@@ -3,7 +3,11 @@
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
-const { canonicalize, canonicalJson } = require('./dlc_contract_state');
+const {
+  snapshotOwnDataArguments,
+  canonicalize,
+  canonicalJson
+} = require('./dlc_canonical_json');
 const {
   assertNonSymlinkDirectory,
   ensureNonSymlinkDirectory,
@@ -52,6 +56,7 @@ function recordHash(record) {
 }
 
 function validateConsumptionRecord(record) {
+  record = canonicalize(record, 'DLC signing authorization consumption record');
   if (!record || record.kind !== KIND ||
       !['bitcoin-regtest', 'bitcoin-testnet4'].includes(record.network) ||
       record.status !== 'CONSUMED_BEFORE_SIGN' ||
@@ -104,7 +109,12 @@ class DlcSigningAuthorizationStore {
     });
   }
 
-  consume({ network, contractId, authorizationId, stateRecordHash, authorizationDigest, providerIdentity }) {
+  consume(input) {
+    const { network, contractId, authorizationId, stateRecordHash, authorizationDigest, providerIdentity } =
+      snapshotOwnDataArguments(input, [
+        'network', 'contractId', 'authorizationId', 'stateRecordHash',
+        'authorizationDigest', 'providerIdentity'
+      ], 'DLC signing authorization consumption arguments');
     if (!['bitcoin-regtest', 'bitcoin-testnet4'].includes(network)) {
       throw new Error('signing authorization store is restricted to Bitcoin regtest and testnet4');
     }

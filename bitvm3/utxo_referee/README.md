@@ -462,9 +462,14 @@ delayed `execute()` call so caller mutation cannot redirect a signature.
 Boundary V68 descriptor-snapshots provider and native-client construction,
 canonicalizes launch arrays, transport descriptors, capability manifests, and
 trusted audit keys, and accepts only exact, privately constructed, frozen
-authorization stores. An unverified
-implementation is rejected by private client identity before its properties are
-read, so configuration callbacks cannot run inside the signer trust boundary.
+authorization stores. An unverified implementation is rejected by private
+client identity before its properties are read, so configuration callbacks
+cannot run inside the signer trust boundary.
+Boundary V69 snapshots authorized native requests before runtime hashing or
+process launch, descriptor-snapshots response-attestation arguments, and
+canonicalizes returned pre-signatures. Signing-consumption arguments and stored
+records are also canonicalized before field access, preventing callbacks or
+caller mutation from crossing into durable authorization state.
 The host accepts only bounded regular runtime files whose resolved paths do not
 traverse filesystem links. It hashes the complete runtime closure before and
 after every signer execution, so deletion or mutation during the process

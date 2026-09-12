@@ -188,9 +188,17 @@ function nativeSignerExecutableDigest(launchSpec) {
   );
 }
 
-function responseSignaturePayload({ challenge, requestDigest, executableSha256, presignature }) {
-  if (typeof executableSha256 !== 'string' || !/^[0-9a-f]{64}$/.test(executableSha256)) {
-    throw new Error('native signer response executable digest is invalid');
+function responseSignaturePayload(input) {
+  const { challenge, requestDigest, executableSha256, presignature: rawPresignature } =
+    snapshotOwnDataArguments(input, [
+      'kind', 'challenge', 'requestDigest', 'executableSha256', 'identityKeyId',
+      'presignature', 'signature'
+    ], 'native signer response signature arguments');
+  const presignature = snapshotPlainData(rawPresignature, 'native signer response presignature', false);
+  if (typeof challenge !== 'string' || !/^[0-9a-f]{64}$/.test(challenge) ||
+      typeof requestDigest !== 'string' || !/^[0-9a-f]{64}$/.test(requestDigest) ||
+      typeof executableSha256 !== 'string' || !/^[0-9a-f]{64}$/.test(executableSha256)) {
+    throw new Error('native signer response binding digests are invalid');
   }
   return Buffer.from(canonicalJson({
     kind: RESPONSE_KIND,
@@ -260,6 +268,7 @@ class DlcNativeSignerProcessClient {
   }
 
   adaptorSignAuthorized(request) {
+    request = snapshotPlainData(request, 'native signer authorized request', false);
     if (nativeSignerRuntimeDigest(this.launchSpec) !== this.capabilities.binaryDigest) {
       throw new Error('native signer runtime closure changed after audit');
     }

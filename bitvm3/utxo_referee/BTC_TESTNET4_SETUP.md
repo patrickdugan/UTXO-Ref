@@ -202,8 +202,12 @@ consumption. The signed authorization is canonicalized and retained through
 after the session is approved.
 Boundary V68 applies the same callback-free input rule to provider and native
 signer-client construction. Launch specifications, native capabilities, and
-trusted audit keys are immutable snapshots; proxied or subclassed stores and unverified
-implementations fail before any attacker-controlled property access.
+trusted audit keys are immutable snapshots; proxied or subclassed stores and
+unverified implementations fail before attacker-controlled property access.
+Boundary V69 snapshots the native authorized request before runtime hashing and
+process execution. Response-attestation and durable signing-consumption inputs
+are snapshotted before field access, so getter-bearing protocol payloads fail
+without process launch or filesystem mutation.
 
 ## Agent isolation
 

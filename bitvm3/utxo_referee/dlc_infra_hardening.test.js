@@ -31,7 +31,10 @@ const {
   requireDlcSigningProvider
 } = require('./dlc_crypto_provider');
 const { DlcOracleEventStore } = require('./dlc_oracle_event_store');
-const { DlcSigningAuthorizationStore } = require('./dlc_signing_authorization_store');
+const {
+  DlcSigningAuthorizationStore,
+  validateConsumptionRecord
+} = require('./dlc_signing_authorization_store');
 const {
   DlcRefundRecoveryStore,
   refundKey: refundRecoveryKey,
@@ -42,6 +45,7 @@ const {
   RESPONSE_KIND: NATIVE_PROCESS_RESPONSE_KIND,
   nativeSignerExecutableDigest,
   nativeSignerRuntimeDigest,
+  responseSignaturePayload,
   DlcNativeSignerProcessClient
 } = require('./dlc_native_signer_process_client');
 const { serializeUnsignedTx, outpoint, bip341SighashDefault } = require('./tradelayer_taproot');
@@ -988,6 +992,39 @@ test('native provider requires an operator-pinned audit signature over its exact
       capabilities: fixture.capabilities
     }), /enumerable data property/);
     assert(launchArgumentAccessorCalls === 0, 'native signer launch argument accessor executed before rejection');
+    let nativeRequestAccessorCalls = 0;
+    const hostileNativeRequest = {};
+    Object.defineProperty(hostileNativeRequest, 'kind', {
+      enumerable: true,
+      get() { nativeRequestAccessorCalls++; return 'hostile'; }
+    });
+    expectThrow(() => fixture.client.adaptorSignAuthorized(hostileNativeRequest), /enumerable data property/);
+    assert(nativeRequestAccessorCalls === 0, 'native signer request accessor executed before rejection');
+    let responseArgumentAccessorCalls = 0;
+    const hostileResponseArguments = {
+      requestDigest: digest('response-request'),
+      executableSha256: digest('response-executable'),
+      presignature: { R: digest('response-r'), s0: digest('response-s') }
+    };
+    Object.defineProperty(hostileResponseArguments, 'challenge', {
+      enumerable: true,
+      get() { responseArgumentAccessorCalls++; return digest('response-challenge'); }
+    });
+    expectThrow(() => responseSignaturePayload(hostileResponseArguments), /enumerable data property/);
+    assert(responseArgumentAccessorCalls === 0, 'native response argument accessor executed before rejection');
+    let presignatureAccessorCalls = 0;
+    const hostilePresignature = { s0: digest('response-s') };
+    Object.defineProperty(hostilePresignature, 'R', {
+      enumerable: true,
+      get() { presignatureAccessorCalls++; return digest('response-r'); }
+    });
+    expectThrow(() => responseSignaturePayload({
+      challenge: digest('response-challenge'),
+      requestDigest: digest('response-request'),
+      executableSha256: digest('response-executable'),
+      presignature: hostilePresignature
+    }), /enumerable data property/);
+    assert(presignatureAccessorCalls === 0, 'native response presignature accessor executed before rejection');
     let manifestAccessorCalls = 0;
     const hostileManifest = { ...fixture.manifest };
     Object.defineProperty(hostileManifest, 'apiVersion', {
@@ -1078,6 +1115,28 @@ test('adaptor signing is short-lived, durably consumed, and bound to the contrac
       allowExperimental: true,
       authorizationStore: new DlcSigningAuthorizationStore(directory)
     };
+    let consumptionAccessorCalls = 0;
+    const hostileConsumption = {
+      contractId: 'hostile-consumption',
+      authorizationId: 'cet:hostile',
+      stateRecordHash: digest('hostile-consumption-state'),
+      authorizationDigest: digest('hostile-consumption-authorization'),
+      providerIdentity: digest('hostile-consumption-provider')
+    };
+    Object.defineProperty(hostileConsumption, 'network', {
+      enumerable: true,
+      get() { consumptionAccessorCalls++; return 'bitcoin-testnet4'; }
+    });
+    expectThrow(() => providerOptions.authorizationStore.consume(hostileConsumption), /enumerable data property/);
+    assert(consumptionAccessorCalls === 0, 'signing consumption argument accessor executed before rejection');
+    let consumptionRecordAccessorCalls = 0;
+    const hostileConsumptionRecord = {};
+    Object.defineProperty(hostileConsumptionRecord, 'kind', {
+      enumerable: true,
+      get() { consumptionRecordAccessorCalls++; return 'hostile'; }
+    });
+    expectThrow(() => validateConsumptionRecord(hostileConsumptionRecord), /enumerable data property/);
+    assert(consumptionRecordAccessorCalls === 0, 'signing consumption record accessor executed before rejection');
     const provider = createDlcCryptoProvider(providerOptions);
     assert(provider.operations.adaptorSign === undefined, 'raw adaptor signing escaped the provider boundary');
     assert(provider.signingAuthorizationPersistence === 'durable-before-sign', 'durable signer store was not bound');

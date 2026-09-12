@@ -54,7 +54,7 @@ const {
   nativeCapabilityAttestationPayload
 } = require(path.join(__dirname, '..', 'bitvm3', 'utxo_referee', 'dlc_crypto_provider.js'));
 const { DlcOracleEventStore } = require(path.join(__dirname, '..', 'bitvm3', 'utxo_referee', 'dlc_oracle_event_store.js'));
-const { DlcSigningAuthorizationStore } = require(path.join(
+const { DlcSigningAuthorizationStore, validateConsumptionRecord } = require(path.join(
   __dirname, '..', 'bitvm3', 'utxo_referee', 'dlc_signing_authorization_store.js'
 ));
 const {
@@ -70,6 +70,7 @@ const {
   RESPONSE_KIND: NATIVE_PROCESS_RESPONSE_KIND,
   nativeSignerExecutableDigest,
   nativeSignerRuntimeDigest,
+  responseSignaturePayload,
   DlcNativeSignerProcessClient
 } = require(nativeSignerClientPath);
 const {
@@ -1274,6 +1275,79 @@ check('provider configuration rejects callbacks before signer capability access'
   }
 });
 
+check('signer protocol payloads reject callbacks before process or durable effects', 'signer-boundary', 12, () => {
+  if (!providerConfigurationFixtureForEval) return false;
+  const { implementation } = providerConfigurationFixtureForEval;
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'utxoref-signer-protocol-input-eval-'));
+  try {
+    const store = new DlcSigningAuthorizationStore(directory);
+    let consumptionAccessorCalls = 0;
+    const hostileConsumption = {
+      contractId: 'signer-protocol-eval',
+      authorizationId: 'cet:hostile',
+      stateRecordHash: sha256('signer-protocol:state').toString('hex'),
+      authorizationDigest: sha256('signer-protocol:authorization').toString('hex'),
+      providerIdentity: sha256('signer-protocol:provider').toString('hex')
+    };
+    Object.defineProperty(hostileConsumption, 'network', {
+      enumerable: true,
+      get() { consumptionAccessorCalls++; return 'bitcoin-testnet4'; }
+    });
+    const consumptionRejected = throws(
+      () => store.consume(hostileConsumption), /enumerable data property/
+    );
+    let recordAccessorCalls = 0;
+    const hostileRecord = {};
+    Object.defineProperty(hostileRecord, 'kind', {
+      enumerable: true,
+      get() { recordAccessorCalls++; return 'hostile'; }
+    });
+    const recordRejected = throws(
+      () => validateConsumptionRecord(hostileRecord), /enumerable data property/
+    );
+    let responseArgumentAccessorCalls = 0;
+    const hostileResponse = {
+      requestDigest: sha256('signer-protocol:request').toString('hex'),
+      executableSha256: sha256('signer-protocol:executable').toString('hex'),
+      presignature: { R: sha256('signer-protocol:r').toString('hex'), s0: sha256('signer-protocol:s').toString('hex') }
+    };
+    Object.defineProperty(hostileResponse, 'challenge', {
+      enumerable: true,
+      get() { responseArgumentAccessorCalls++; return sha256('signer-protocol:challenge').toString('hex'); }
+    });
+    const responseRejected = throws(
+      () => responseSignaturePayload(hostileResponse), /enumerable data property/
+    );
+    let presignatureAccessorCalls = 0;
+    const hostilePresignature = { s0: sha256('signer-protocol:s').toString('hex') };
+    Object.defineProperty(hostilePresignature, 'R', {
+      enumerable: true,
+      get() { presignatureAccessorCalls++; return sha256('signer-protocol:r').toString('hex'); }
+    });
+    const presignatureRejected = throws(() => responseSignaturePayload({
+      challenge: sha256('signer-protocol:challenge').toString('hex'),
+      requestDigest: sha256('signer-protocol:request').toString('hex'),
+      executableSha256: sha256('signer-protocol:executable').toString('hex'),
+      presignature: hostilePresignature
+    }), /enumerable data property/);
+    let requestAccessorCalls = 0;
+    const hostileRequest = {};
+    Object.defineProperty(hostileRequest, 'kind', {
+      enumerable: true,
+      get() { requestAccessorCalls++; return 'hostile'; }
+    });
+    const requestRejected = throws(
+      () => implementation.adaptorSignAuthorized(hostileRequest), /enumerable data property/
+    );
+    return consumptionRejected && recordRejected && responseRejected && presignatureRejected &&
+      requestRejected && consumptionAccessorCalls === 0 && recordAccessorCalls === 0 &&
+      responseArgumentAccessorCalls === 0 && presignatureAccessorCalls === 0 &&
+      requestAccessorCalls === 0 && fs.readdirSync(directory).length === 0;
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+});
+
 check('signer authorization snapshots reject callbacks and survive caller mutation', 'signer-boundary', 12, () => {
   if (!signerAuthorizationFixtureForEval) return false;
   const { contract, sighash, adaptorPoint, signerSecret, signerPubkeyX } = signerAuthorizationFixtureForEval;
@@ -2418,7 +2492,7 @@ const possible = cases.reduce((sum, test) => sum + test.points, 0);
 const score = earned / possible;
 const report = {
   benchmark: 'utxoref-dlc-security',
-  version: 38,
+  version: 39,
   profile: profileName,
   seed,
   score,
