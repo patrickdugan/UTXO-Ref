@@ -4,6 +4,8 @@ param(
   [string]$SnapshotPath = 'D:\bitagent-testnet4\btc-test-snapshots\dlc-regtest-recovery-latest.json',
   [int]$RpcPort = 29443,
   [int]$P2pPort = 29444,
+  [int]$PeerRpcPort = 29445,
+  [int]$PeerP2pPort = 29446,
   [string]$RepositoryPath = $(Split-Path -Parent $PSScriptRoot)
 )
 
@@ -14,9 +16,10 @@ if (-not (Test-Path -LiteralPath $bitcoind -PathType Leaf) -or
     -not (Test-Path -LiteralPath $bitcoinCli -PathType Leaf)) {
   throw "Bitcoin Core binaries were not found in $BitcoinBin"
 }
-if ($RpcPort -lt 1024 -or $RpcPort -gt 65535 -or $P2pPort -lt 1024 -or $P2pPort -gt 65535 -or
-    $RpcPort -eq $P2pPort) {
-  throw 'RPC and P2P ports must be distinct unprivileged TCP ports'
+$ports = @($RpcPort, $P2pPort, $PeerRpcPort, $PeerP2pPort)
+if (@($ports | Where-Object { $_ -lt 1024 -or $_ -gt 65535 }).Count -ne 0 -or
+    @($ports | Sort-Object -Unique).Count -ne 4) {
+  throw 'RPC and P2P ports must be four distinct unprivileged TCP ports'
 }
 
 $workingBase = [System.IO.Path]::GetFullPath($WorkingDirectoryBase)
@@ -28,16 +31,23 @@ if ([System.IO.Path]::GetPathRoot($workingBase) -ne 'D:\' -or
 $runId = "{0}-{1}-{2}" -f [DateTime]::UtcNow.ToString('yyyyMMddTHHmmssZ'), $PID, ([Guid]::NewGuid().ToString('N').Substring(0, 8))
 $runDirectory = Join-Path $workingBase $runId
 $dataDirectory = Join-Path $runDirectory 'data'
+$peerDataDirectory = Join-Path $runDirectory 'peer-data'
 New-Item -ItemType Directory -Path $dataDirectory -Force | Out-Null
+New-Item -ItemType Directory -Path $peerDataDirectory -Force | Out-Null
 $dataDirectory = (Resolve-Path -LiteralPath $dataDirectory).Path
-if (-not $dataDirectory.StartsWith($workingBase + [System.IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) {
+$peerDataDirectory = (Resolve-Path -LiteralPath $peerDataDirectory).Path
+if (-not $dataDirectory.StartsWith($workingBase + [System.IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase) -or
+    -not $peerDataDirectory.StartsWith($workingBase + [System.IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) {
   throw 'resolved regtest data directory escaped its configured D-drive base'
 }
 
 $nodeArguments = @('-regtest', "-datadir=$dataDirectory", "-rpcport=$RpcPort")
+$peerNodeArguments = @('-regtest', "-datadir=$peerDataDirectory", "-rpcport=$PeerRpcPort")
 $walletName = "dlc-recovery-$runId"
 $nodeProcess = $null
 $nodeRunning = $false
+$peerNodeProcess = $null
+$peerNodeRunning = $false
 
 function Invoke-BitcoinCli {
   param([string[]]$RpcArguments, [switch]$Wallet, [string]$WalletOverride = '')
@@ -62,7 +72,7 @@ function Start-RegtestNode {
   )
   $arguments = @(
     '-regtest', "-datadir=$script:dataDirectory", '-server=1', "-rpcport=$script:RpcPort",
-    "-port=$script:P2pPort", '-listen=0', '-discover=0', '-dnsseed=0',
+    "-port=$script:P2pPort", '-listen=1', "-bind=127.0.0.1:$script:P2pPort", '-listenonion=0', '-discover=0', '-dnsseed=0',
     '-fallbackfee=0.00001000', "-minrelaytxfee=$minRelayBtcPerKvb", '-txindex=1', '-printtoconsole=0'
   )
   if ($ClearMempool) { $arguments += '-persistmempool=0' }
@@ -80,6 +90,67 @@ function Start-RegtestNode {
     Start-Sleep -Milliseconds 250
   }
   throw 'isolated DLC regtest node did not become ready'
+}
+
+function Invoke-PeerBitcoinCli {
+  param([string[]]$RpcArguments)
+  $output = & $script:bitcoinCli @script:peerNodeArguments @RpcArguments 2>&1
+  if ($LASTEXITCODE -ne 0) {
+    throw "peer bitcoin-cli $($RpcArguments[0]) failed: $($output -join [Environment]::NewLine)"
+  }
+  return ($output -join [Environment]::NewLine)
+}
+
+function Start-RegtestPeer {
+  $arguments = @(
+    '-regtest', "-datadir=$script:peerDataDirectory", '-server=1', "-rpcport=$script:PeerRpcPort",
+    "-port=$script:PeerP2pPort", '-listen=0', "-connect=127.0.0.1:$script:P2pPort", '-discover=0', '-dnsseed=0',
+    '-minrelaytxfee=0.00002000', '-persistmempool=0', '-printtoconsole=0'
+  )
+  $script:peerNodeProcess = Start-Process -FilePath $script:bitcoind -ArgumentList $arguments -WindowStyle Hidden -PassThru
+  for ($attempt = 0; $attempt -lt 120; $attempt++) {
+    $script:peerNodeProcess.Refresh()
+    if ($script:peerNodeProcess.HasExited) {
+      throw "isolated DLC regtest peer exited before RPC startup with code $($script:peerNodeProcess.ExitCode)"
+    }
+    & $script:bitcoinCli '-rpcclienttimeout=1' @script:peerNodeArguments getblockchaininfo 2>$null | Out-Null
+    if ($LASTEXITCODE -eq 0) {
+      $script:peerNodeRunning = $true
+      return
+    }
+    Start-Sleep -Milliseconds 250
+  }
+  throw 'isolated DLC regtest peer did not become ready'
+}
+
+function Stop-RegtestPeer {
+  if (-not $script:peerNodeRunning) { return }
+  & $script:bitcoinCli @script:peerNodeArguments stop 2>$null | Out-Null
+  if (-not $script:peerNodeProcess.WaitForExit(30000)) {
+    throw 'isolated DLC regtest peer did not stop cleanly'
+  }
+  $script:peerNodeRunning = $false
+}
+
+function Wait-PeerHeight {
+  param([int]$ExpectedHeight)
+  for ($attempt = 0; $attempt -lt 120; $attempt++) {
+    if ([int](Invoke-PeerBitcoinCli @('getblockcount')) -eq $ExpectedHeight) { return }
+    Start-Sleep -Milliseconds 250
+  }
+  throw "isolated DLC regtest peer did not reach height $ExpectedHeight"
+}
+
+function Wait-PeerMempool {
+  param([string[]]$RequiredTxids, [string[]]$ForbiddenTxids = @())
+  for ($attempt = 0; $attempt -lt 120; $attempt++) {
+    $mempool = ConvertFrom-JsonArray (Invoke-PeerBitcoinCli @('getrawmempool'))
+    $hasRequired = @($RequiredTxids | Where-Object { $mempool -notcontains $_ }).Count -eq 0
+    $hasForbidden = @($ForbiddenTxids | Where-Object { $mempool -contains $_ }).Count -ne 0
+    if ($hasRequired -and -not $hasForbidden) { return $mempool }
+    Start-Sleep -Milliseconds 250
+  }
+  throw 'isolated DLC regtest peer did not converge to the expected mempool'
 }
 
 function Stop-RegtestNode {
@@ -170,9 +241,15 @@ try {
   $parentOnly = Invoke-BitcoinCli @('testmempoolaccept', $parentOnlyJson) | ConvertFrom-Json
   Require-Condition ($parentOnly[0].allowed -eq $false) 'low-fee parent unexpectedly passed the strict relay floor alone'
   Require-Condition ($parentOnly[0].'reject-reason' -eq 'min relay fee not met') 'parent failed for a reason other than the strict relay floor'
+  Start-RegtestPeer
+  Wait-PeerHeight 101
+  $localPeers = @(Invoke-BitcoinCli @('getpeerinfo') | ConvertFrom-Json)
+  $remotePeers = @(Invoke-PeerBitcoinCli @('getpeerinfo') | ConvertFrom-Json)
+  Require-Condition ($localPeers.Count -eq 1 -and $remotePeers.Count -eq 1) 'isolated regtest peers did not form the expected topology'
   $lowPackageJson = @($parentWalletTx.hex, $lowChildHex) | ConvertTo-Json -Compress
   $lowPackage = Invoke-BitcoinCli @('submitpackage', $lowPackageJson) | ConvertFrom-Json
   Require-Condition ($lowPackage.package_msg -eq 'success') 'parent plus low-fee child package was rejected'
+  $peerMempoolAfterPackage = Wait-PeerMempool @($parentResult.txid, $lowChild.txid)
   $highPackageJson = @($parentWalletTx.hex, $highChildHex) | ConvertTo-Json -Compress
   $highPackage = Invoke-BitcoinCli @('submitpackage', $highPackageJson) | ConvertFrom-Json
   Require-Condition ($highPackage.package_msg -eq 'success') 'higher-fee recovery package was rejected'
@@ -190,6 +267,7 @@ try {
   $rescuePackage = Invoke-BitcoinCli @('submitpackage', $rescuePackageJson) | ConvertFrom-Json
   Require-Condition ($rescuePackage.package_msg -eq 'success') 'fee-pin rescue package was rejected'
   Require-Condition (@($rescuePackage.'replaced-transactions') -contains $pinChild.txid) 'fee-pin rescue did not replace the pin child'
+  $peerMempoolAfterRescue = Wait-PeerMempool @($parentResult.txid, $rescueChild.txid) @($pinChild.txid)
   $mempoolAfterReplacement = ConvertFrom-JsonArray (Invoke-BitcoinCli @('getrawmempool'))
   Require-Condition ($mempoolAfterReplacement -contains $parentResult.txid) 'parent was absent after package recovery'
   Require-Condition ($mempoolAfterReplacement -contains $rescueChild.txid) 'fee-pin rescue child was absent after replacement'
@@ -212,6 +290,7 @@ try {
   $mempoolAfterReconsider = ConvertFrom-JsonArray (Invoke-BitcoinCli @('getrawmempool'))
   Require-Condition ($heightAfterReconsider -eq $heightBeforeInvalidation) 'reconsiderblock did not restore the six-block branch'
   Require-Condition ($mempoolAfterReconsider.Count -eq 0) 'confirmed package remained in mempool after branch restoration'
+  Wait-PeerHeight $heightAfterReconsider
 
   $snapshot = [ordered]@{
     schema = 'utxoref_dlc_regtest_recovery_v1'
@@ -222,7 +301,15 @@ try {
     repository = $RepositoryPath
     commit = $repositoryCommit
     runDirectory = $runDirectory
-    ports = [ordered]@{ rpc = $RpcPort; p2p = $P2pPort }
+    ports = [ordered]@{ rpc = $RpcPort; p2p = $P2pPort; peerRpc = $PeerRpcPort; peerP2p = $PeerP2pPort }
+    peer = [ordered]@{
+      dataDirectory = $peerDataDirectory
+      localPeerCount = $localPeers.Count
+      remotePeerCount = $remotePeers.Count
+      packageMempool = $peerMempoolAfterPackage
+      rescueMempool = $peerMempoolAfterRescue
+      finalHeight = [int](Invoke-PeerBitcoinCli @('getblockcount'))
+    }
     anchor = [ordered]@{ txid = $parentResult.txid; vout = $anchorVout; amountSats = 330; address = $anchorAddress }
     package = [ordered]@{
       strictRelayFloorSatsPerVb = 2
@@ -258,6 +345,8 @@ try {
     assertions = [ordered]@{
       exactOwnedAnchor = $true
       packageFeeRescuedParentBelowRelayFloor = $true
+      strictFloorPeerReceivedPackageOverP2p = $true
+      strictFloorPeerReceivedReplacementOverP2p = $true
       packageAccepted = $true
       rbfRecoveryAccepted = $true
       cheaperRecoveryBlockedByFeePin = $true
@@ -277,5 +366,6 @@ try {
   Write-Output "passed=true"
   Write-Output "snapshot=$snapshotFile"
 } finally {
+  Stop-RegtestPeer
   Stop-RegtestNode
 }
