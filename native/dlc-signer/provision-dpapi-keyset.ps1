@@ -45,8 +45,10 @@ function Write-RandomDpapiBlob {
 
   $secret = [byte[]]::new(32)
   $protected = $null
+  $random = $null
   try {
-    [System.Security.Cryptography.RandomNumberGenerator]::Fill($secret)
+    $random = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+    $random.GetBytes($secret)
     $protected = [System.Security.Cryptography.ProtectedData]::Protect(
       $secret,
       $null,
@@ -68,6 +70,7 @@ function Write-RandomDpapiBlob {
       $stream.Dispose()
     }
   } finally {
+    if ($null -ne $random) { $random.Dispose() }
     [Array]::Clear($secret, 0, $secret.Length)
     if ($null -ne $protected) { [Array]::Clear($protected, 0, $protected.Length) }
   }

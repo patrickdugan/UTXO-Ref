@@ -12,6 +12,7 @@ const RESPONSE_KIND = 'utxoref_dlc_native_signer_process_response_v2';
 const LIVE_CLIENTS = new WeakSet();
 const MAX_EXECUTABLE_BYTES = 128 * 1024 * 1024;
 const MAX_CODE_FILE_BYTES = 16 * 1024 * 1024;
+const MAX_TRANSPORT_DESCRIPTOR_BYTES = 8192;
 
 function sha256Hex(value) {
   return crypto.createHash('sha256').update(value).digest('hex');
@@ -20,6 +21,14 @@ function sha256Hex(value) {
 function requireCanonicalBase64(value, fieldName) {
   if (typeof value !== 'string' || Buffer.from(value, 'base64').toString('base64') !== value) {
     throw new Error(`${fieldName} must be canonical base64`);
+  }
+  return value;
+}
+
+function freezeJson(value) {
+  if (value && typeof value === 'object') {
+    for (const child of Object.values(value)) freezeJson(child);
+    Object.freeze(value);
   }
   return value;
 }
@@ -43,9 +52,18 @@ function normalizeAuditedFile(value, fieldName, maximumBytes) {
   return resolved;
 }
 
-function normalizeLaunchSpec({ executablePath, arguments: launchArguments = [], codePaths = [] }) {
+function normalizeLaunchSpec({
+  executablePath,
+  attestedExecutablePath = executablePath,
+  arguments: launchArguments = [],
+  codePaths = [],
+  transportDescriptor = null
+}) {
   const normalizedExecutablePath = normalizeAuditedFile(
     executablePath, 'native signer executablePath', MAX_EXECUTABLE_BYTES
+  );
+  const normalizedAttestedExecutablePath = normalizeAuditedFile(
+    attestedExecutablePath, 'native signer attestedExecutablePath', MAX_EXECUTABLE_BYTES
   );
   if (!Array.isArray(launchArguments) || launchArguments.length > 16 || launchArguments.some((value) =>
     typeof value !== 'string' || value.length > 2048 || value.includes('\0'))) {
@@ -60,19 +78,38 @@ function normalizeLaunchSpec({ executablePath, arguments: launchArguments = [], 
   if (new Set(normalizedCodePaths.map((value) => value.toLowerCase())).size !== normalizedCodePaths.length) {
     throw new Error('native signer codePaths must be unique');
   }
+  if (transportDescriptor !== null &&
+      (typeof transportDescriptor !== 'object' || Array.isArray(transportDescriptor))) {
+    throw new Error('native signer transportDescriptor must be a JSON object or null');
+  }
+  let normalizedTransportDescriptor = null;
+  if (transportDescriptor !== null) {
+    const descriptorJson = canonicalJson(transportDescriptor);
+    if (Buffer.byteLength(descriptorJson, 'utf8') > MAX_TRANSPORT_DESCRIPTOR_BYTES) {
+      throw new Error('native signer transportDescriptor exceeds 8192 bytes');
+    }
+    normalizedTransportDescriptor = freezeJson(JSON.parse(descriptorJson));
+  }
+  if (normalizedExecutablePath !== normalizedAttestedExecutablePath && normalizedTransportDescriptor === null) {
+    throw new Error('native signer proxy launch requires an attested transportDescriptor');
+  }
   return Object.freeze({
     executablePath: normalizedExecutablePath,
+    attestedExecutablePath: normalizedAttestedExecutablePath,
     arguments: Object.freeze([...launchArguments]),
-    codePaths: Object.freeze(normalizedCodePaths)
+    codePaths: Object.freeze(normalizedCodePaths),
+    transportDescriptor: normalizedTransportDescriptor
   });
 }
 
 function nativeSignerRuntimeDigest(launchSpec) {
   const normalized = normalizeLaunchSpec(launchSpec);
   return sha256Hex(Buffer.from(canonicalJson({
-    kind: 'utxoref_dlc_native_signer_runtime_closure_v1',
-    executableDigest: sha256Hex(fs.readFileSync(normalized.executablePath)),
+    kind: 'utxoref_dlc_native_signer_runtime_closure_v3',
+    launcherExecutableDigest: sha256Hex(fs.readFileSync(normalized.executablePath)),
+    attestedExecutableDigest: sha256Hex(fs.readFileSync(normalized.attestedExecutablePath)),
     arguments: normalized.arguments,
+    transportDescriptor: normalized.transportDescriptor,
     codeFiles: normalized.codePaths.map((filePath, index) => ({
       index,
       digest: sha256Hex(fs.readFileSync(filePath))
@@ -82,7 +119,7 @@ function nativeSignerRuntimeDigest(launchSpec) {
 
 function nativeSignerExecutableDigest(launchSpec) {
   const normalized = normalizeLaunchSpec(launchSpec);
-  return sha256Hex(fs.readFileSync(normalized.executablePath));
+  return sha256Hex(fs.readFileSync(normalized.attestedExecutablePath));
 }
 
 function responseSignaturePayload({ challenge, requestDigest, executableSha256, presignature }) {
@@ -116,13 +153,21 @@ function runtimeIdentityKey(capabilities) {
 class DlcNativeSignerProcessClient {
   constructor({
     executablePath,
+    attestedExecutablePath = executablePath,
     arguments: launchArguments = [],
     codePaths = [],
+    transportDescriptor = null,
     capabilities,
     timeoutMs = 10000,
     maxResponseBytes = 65536
   }) {
-    this.launchSpec = normalizeLaunchSpec({ executablePath, arguments: launchArguments, codePaths });
+    this.launchSpec = normalizeLaunchSpec({
+      executablePath,
+      attestedExecutablePath,
+      arguments: launchArguments,
+      codePaths,
+      transportDescriptor
+    });
     if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 100 || timeoutMs > 30000) {
       throw new Error('native signer timeoutMs must be in 100..30000');
     }
@@ -181,7 +226,14 @@ class DlcNativeSignerProcessClient {
     }
     if (result.error) throw new Error(`native signer process failed: ${result.error.message}`);
     if (result.status !== 0 || result.signal) {
-      throw new Error(`native signer process exited unsuccessfully: ${result.status ?? result.signal}`);
+      const diagnostic = typeof result.stderr === 'string'
+        ? result.stderr.trim().replace(/[\r\n]+/g, ' ').slice(0, 2048)
+        : '';
+      throw new Error(
+        `native signer process exited unsuccessfully: ${result.status ?? result.signal}${
+          diagnostic ? `: ${diagnostic}` : ''
+        }`
+      );
     }
     if (typeof result.stdout !== 'string' || Buffer.byteLength(result.stdout, 'utf8') > this.maxResponseBytes) {
       throw new Error('native signer response is missing or oversized');

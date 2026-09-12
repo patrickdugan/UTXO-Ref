@@ -13,6 +13,8 @@ $lockFile = Join-Path $repository 'native\dlc-signer\Cargo.lock'
 $sourceFile = Join-Path $repository 'native\dlc-signer\src\main.rs'
 $accessVerifierFile = Join-Path $repository 'native\dlc-signer\verify-dpapi-key-access.ps1'
 $provisionerFile = Join-Path $repository 'native\dlc-signer\provision-dpapi-keyset.ps1'
+$pipeBrokerFile = Join-Path $repository 'native\dlc-signer\run-named-pipe-broker.ps1'
+$pipeInvokerFile = Join-Path $repository 'native\dlc-signer\invoke-named-pipe-signer.ps1'
 $cargoHome = Join-Path $ToolRoot 'cargo'
 $rustupHome = Join-Path $ToolRoot 'rustup'
 $cargo = Join-Path $cargoHome 'bin\cargo.exe'
@@ -24,6 +26,8 @@ if (-not (Test-Path -LiteralPath $lockFile)) { throw 'native signer Cargo.lock i
 $sourceText = Get-Content -LiteralPath $sourceFile -Raw
 $accessVerifierText = Get-Content -LiteralPath $accessVerifierFile -Raw
 $provisionerText = Get-Content -LiteralPath $provisionerFile -Raw
+$pipeBrokerText = Get-Content -LiteralPath $pipeBrokerFile -Raw
+$pipeInvokerText = Get-Content -LiteralPath $pipeInvokerFile -Raw
 if ([regex]::Matches($sourceText, '\bunsafe\s*\{').Count -ne 7 -or
     [regex]::Matches($sourceText, 'unsafe\s+extern\s+"system"').Count -ne 2 -or
     $sourceText -notmatch 'CryptUnprotectData' -or $sourceText -notmatch 'LocalFree' -or
@@ -36,9 +40,20 @@ if ($accessVerifierText -match 'ProtectedData|CryptUnprotectData|\bUnprotect\b|C
   throw 'DPAPI access verifier must not decrypt or emit key material'
 }
 if ($provisionerText -match 'Console\]::In|ReadToEnd|protect-dpapi-key\.ps1' -or
-    $provisionerText -notmatch 'RandomNumberGenerator\]::Fill' -or
+    $provisionerText -notmatch 'RandomNumberGenerator\]::Create\(\)' -or
+    $provisionerText -notmatch '\.GetBytes\(\$secret\)' -or
     $provisionerText -notmatch 'ProtectedData\]::Protect') {
   throw 'DPAPI keyset provisioner differs from the reviewed no-secret-input boundary'
+}
+if ($pipeBrokerText -match 'ProtectedData|CryptUnprotectData|\.key\.dpapi.*Read' -or
+    $pipeBrokerText -notmatch 'NamedPipeServerStream' -or
+    $pipeBrokerText -notmatch 'SetAccessRuleProtection\(\$true, \$false\)' -or
+    $pipeBrokerText -notmatch 'client SID is not authorized' -or
+    $pipeBrokerText -notmatch 'broker response envelope is oversized' -or
+    $pipeInvokerText -notmatch 'NamedPipeClientStream' -or
+    $pipeInvokerText -match 'CopyTo\(\$requestBuffer\)' -or
+    $pipeInvokerText -match 'ProtectedData|CryptUnprotectData') {
+  throw 'named pipe signer transport differs from the reviewed secretless boundary'
 }
 
 New-Item -ItemType Directory -Path $SnapshotDirectory -Force | Out-Null
@@ -156,6 +171,13 @@ if (-not $result.assertions.inAccountCsprngKeyGeneration -or
     -not $result.assertions.provisioningSecretIpcEliminated) {
   throw 'native signer integration omitted self-provisioned keyset assertions'
 }
+if (-not $result.assertions.boundedNamedPipeBrokerTransport -or
+    -not $result.assertions.pipeTransportDescriptorAttested -or
+    -not $result.assertions.unauthorizedPipeClientRejected -or
+    -not $result.assertions.runtimeSignedPipeResponse -or
+    -not $result.assertions.pipeBrokerHandlesNoPrivateKeyMaterial) {
+  throw 'native signer integration omitted named pipe transport assertions'
+}
 $commit = (git -c safe.directory=C:/projects/UTXORef/UTXO-Ref -C $repository rev-parse HEAD).Trim()
 $snapshot = [ordered]@{
   schema = 'utxoref_dlc_native_rust_signer_snapshot_v1'
@@ -177,7 +199,7 @@ $snapshotPath = Join-Path $SnapshotDirectory 'dlc-native-rust-signer-latest.json
   [System.Text.UTF8Encoding]::new($false)
 )
 $checkedEvidence = [ordered]@{
-  schema = 'utxoref_dlc_native_rust_signer_evidence_v10'
+  schema = 'utxoref_dlc_native_rust_signer_evidence_v11'
   network = 'bitcoin-testnet4'
   sourceCommit = $commit
   toolchain = [ordered]@{ rustc = $snapshot.rustc; cargo = $snapshot.cargo }
@@ -224,6 +246,11 @@ $checkedEvidence = [ordered]@{
     selfVerifiedExecutableDigest = [bool]$result.assertions.selfVerifiedExecutableDigest
     inAccountCsprngKeyGeneration = [bool]$result.assertions.inAccountCsprngKeyGeneration
     provisioningSecretIpcEliminated = [bool]$result.assertions.provisioningSecretIpcEliminated
+    boundedNamedPipeBrokerTransport = [bool]$result.assertions.boundedNamedPipeBrokerTransport
+    pipeTransportDescriptorAttested = [bool]$result.assertions.pipeTransportDescriptorAttested
+    unauthorizedPipeClientRejected = [bool]$result.assertions.unauthorizedPipeClientRejected
+    runtimeSignedPipeResponse = [bool]$result.assertions.runtimeSignedPipeResponse
+    pipeBrokerHandlesNoPrivateKeyMaterial = [bool]$result.assertions.pipeBrokerHandlesNoPrivateKeyMaterial
     runtimeIdentityVerifiedByHost = [bool]$result.assertions.runtimeIdentityVerifiedByHost
     restartReplayRejected = [bool]$result.assertions.restartReplayRejected
     signerLocalReplayRejected = [bool]$result.assertions.signerLocalReplayRejected

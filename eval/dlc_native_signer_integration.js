@@ -42,6 +42,12 @@ const initializeDpapiPath = path.resolve(
 const verifyDpapiAccessPath = path.resolve(
   __dirname, '..', 'native', 'dlc-signer', 'verify-dpapi-key-access.ps1'
 );
+const pipeBrokerPath = path.resolve(
+  __dirname, '..', 'native', 'dlc-signer', 'run-named-pipe-broker.ps1'
+);
+const pipeInvokerPath = path.resolve(
+  __dirname, '..', 'native', 'dlc-signer', 'invoke-named-pipe-signer.ps1'
+);
 
 function powershellPathAndEnvironment() {
   const systemRoot = process.env.SystemRoot || process.env.WINDIR;
@@ -132,6 +138,7 @@ const plaintextKeyDirectory = path.join(workDirectory, 'plaintext-keys');
 const looseAclKeyDirectory = path.join(workDirectory, 'loose-acl-keys');
 const authorizationDirectory = path.join(workDirectory, 'authorizations');
 const directReplayAuthorizationDirectory = path.join(workDirectory, 'direct-replay-authorizations');
+const pipeAuthorizationDirectory = path.join(workDirectory, 'pipe-authorizations');
 const unpinnedValidatorAuthorizationDirectory = path.join(workDirectory, 'unpinned-validator-authorizations');
 const unpinnedSignerAuthorizationDirectory = path.join(workDirectory, 'unpinned-signer-authorizations');
 const validatorPolicyPath = path.join(workDirectory, 'validator-policy.json');
@@ -141,10 +148,12 @@ fs.mkdirSync(plaintextKeyDirectory, { recursive: true, mode: 0o700 });
 fs.mkdirSync(looseAclKeyDirectory, { recursive: true, mode: 0o700 });
 fs.mkdirSync(authorizationDirectory, { recursive: true, mode: 0o700 });
 fs.mkdirSync(directReplayAuthorizationDirectory, { recursive: true, mode: 0o700 });
+fs.mkdirSync(pipeAuthorizationDirectory, { recursive: true, mode: 0o700 });
 fs.mkdirSync(unpinnedValidatorAuthorizationDirectory, { recursive: true, mode: 0o700 });
 fs.mkdirSync(unpinnedSignerAuthorizationDirectory, { recursive: true, mode: 0o700 });
 
 async function main() {
+let activeBroker = null;
 try {
   const signerAccountSid = initializeDpapiKeyDirectory(keyDirectory);
   const validatorKeys = crypto.generateKeyPairSync('ed25519');
@@ -373,6 +382,134 @@ try {
     Buffer.from(signerPubkeyX, 'hex'),
     Buffer.from(sighash, 'hex')
   ) !== 717n) fail('Rust signer pre-signature did not extract its adaptor scalar');
+
+  const pipeName = `utxoref-dlc-${process.pid}-${crypto.randomBytes(8).toString('hex')}`;
+  const { powershell, environment: powershellEnvironment } = powershellPathAndEnvironment();
+  const brokerArguments = [
+    '-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
+    '-File', pipeBrokerPath,
+    '-PipeName', pipeName,
+    '-SignerBinaryPath', binaryPath,
+    '-KeyDirectory', keyDirectory,
+    '-ValidatorPolicyPath', validatorPolicyPath,
+    '-ValidatorPolicySha256', validatorPolicyDigest,
+    '-AccessVerifierPath', verifyDpapiAccessPath,
+    '-AccessVerifierSha256', verifyDpapiAccessDigest,
+    '-ExpectedSignerAccountSid', signerAccountSid,
+    '-ExpectedSignerBinarySha256', binarySha256,
+    '-AllowedClientSid', signerAccountSid,
+    '-MaxRequests', '1',
+    '-IdleTimeoutSeconds', '15'
+  ];
+  const broker = spawn(powershell, brokerArguments, {
+    windowsHide: true,
+    env: powershellEnvironment,
+    stdio: ['ignore', 'pipe', 'pipe']
+  });
+  activeBroker = broker;
+  let brokerStderr = '';
+  broker.stderr.on('data', (chunk) => { brokerStderr += chunk.toString('utf8'); });
+  const pipeLaunchSpec = {
+    executablePath: powershell,
+    attestedExecutablePath: binaryPath,
+    arguments: [
+      '-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
+      '-File', pipeInvokerPath, '-PipeName', pipeName, '-TimeoutMs', '10000'
+    ],
+    codePaths: [pipeInvokerPath, pipeBrokerPath, validatorPolicyPath, verifyDpapiAccessPath],
+    transportDescriptor: {
+      kind: 'utxoref_dlc_named_pipe_transport_v1',
+      pipeName,
+      brokerScriptSha256: digest(fs.readFileSync(pipeBrokerPath)),
+      invokerScriptSha256: digest(fs.readFileSync(pipeInvokerPath)),
+      allowedClientSid: signerAccountSid,
+      expectedSignerAccountSid: signerAccountSid,
+      signerBinarySha256: binarySha256,
+      validatorPolicySha256: validatorPolicyDigest,
+      accessVerifierSha256: verifyDpapiAccessDigest,
+      requestMaxBytes: 65536,
+      responseMaxBytes: 1048576
+    }
+  };
+  const pipeCapabilities = capabilitiesFor(pipeLaunchSpec);
+  const pipeProvider = createDlcCryptoProvider({
+    network: 'bitcoin-testnet4',
+    mode: 'native-isolated',
+    implementation: new DlcNativeSignerProcessClient({
+      ...pipeLaunchSpec,
+      capabilities: pipeCapabilities,
+      timeoutMs: 15000
+    }),
+    trustedAuditKeys,
+    authorizationStore: new DlcSigningAuthorizationStore(pipeAuthorizationDirectory)
+  });
+  const pipeAuthorization = createDlcAdaptorSignAuthorization({
+    privateKey: validatorKeys.privateKey,
+    contract,
+    authorizationId: 'native-rust:pipe:0',
+    signerPubkeyX,
+    sighash,
+    adaptorPoint
+  });
+  let pipePresignature;
+  try {
+    pipePresignature = authorizeDlcAdaptorSign(pipeProvider, {
+      contract,
+      authorization: pipeAuthorization
+    }).execute();
+  } catch (error) {
+    if (broker.exitCode === null) {
+      await new Promise((resolve) => {
+        const timer = setTimeout(() => { broker.kill(); resolve(); }, 2000);
+        broker.once('exit', () => { clearTimeout(timer); resolve(); });
+      });
+    }
+    fail(`${error.message}; named pipe broker: ${brokerStderr.trim()}`);
+  }
+  if (!dlc.adaptorVerify(
+    Buffer.from(signerPubkeyX, 'hex'),
+    Buffer.from(sighash, 'hex'),
+    pipePresignature
+  )) fail('named pipe broker returned an invalid native pre-signature');
+  if (broker.exitCode === null) {
+    await new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('named pipe broker did not exit')), 5000);
+      broker.once('exit', () => { clearTimeout(timer); resolve(); });
+    });
+  }
+  if (broker.exitCode !== 0) fail(`named pipe broker failed: ${brokerStderr.trim()}`);
+  activeBroker = null;
+
+  const unauthorizedPipeName = `utxoref-dlc-denied-${process.pid}-${crypto.randomBytes(8).toString('hex')}`;
+  const wrongClientSid = signerAccountSid === 'S-1-5-18' ? 'S-1-5-32-544' : 'S-1-5-18';
+  const unauthorizedBrokerArguments = brokerArguments.map((value, index, values) => {
+    if (values[index - 1] === '-PipeName') return unauthorizedPipeName;
+    if (values[index - 1] === '-AllowedClientSid') return wrongClientSid;
+    if (values[index - 1] === '-IdleTimeoutSeconds') return '5';
+    return value;
+  });
+  const unauthorizedBroker = spawn(powershell, unauthorizedBrokerArguments, {
+    windowsHide: true,
+    env: powershellEnvironment,
+    stdio: ['ignore', 'ignore', 'pipe']
+  });
+  activeBroker = unauthorizedBroker;
+  let unauthorizedBrokerStderr = '';
+  unauthorizedBroker.stderr.on('data', (chunk) => { unauthorizedBrokerStderr += chunk.toString('utf8'); });
+  const unauthorizedResult = await runSignerProcess(powershell, [
+    '-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
+    '-File', pipeInvokerPath, '-PipeName', unauthorizedPipeName, '-TimeoutMs', '5000'
+  ], '{}\n');
+  if (unauthorizedBroker.exitCode === null) {
+    await new Promise((resolve) => {
+      const timer = setTimeout(() => { unauthorizedBroker.kill(); resolve(); }, 2000);
+      unauthorizedBroker.once('exit', () => { clearTimeout(timer); resolve(); });
+    });
+  }
+  const unauthorizedPipeClientRejected = unauthorizedResult.code !== 0 &&
+    /client SID is not authorized/.test(unauthorizedBrokerStderr);
+  if (!unauthorizedPipeClientRejected) fail('named pipe broker accepted an unauthorized client SID');
+  activeBroker = null;
   const restartedProvider = createDlcCryptoProvider({
     ...providerOptions,
     implementation: new DlcNativeSignerProcessClient({ ...launchSpec, capabilities, timeoutMs: 10000 }),
@@ -628,16 +765,23 @@ try {
       microsoftSignedImagesOnly: true,
       remoteAndLowIntegrityImagesRejected: true,
       selfVerifiedExecutableDigest: unexpectedExecutableRejected,
+      boundedNamedPipeBrokerTransport: true,
+      pipeTransportDescriptorAttested: true,
+      unauthorizedPipeClientRejected,
+      runtimeSignedPipeResponse: true,
+      pipeBrokerHandlesNoPrivateKeyMaterial: true,
       hostSuppliedNoSecret: true
     }
   };
   process.stdout.write(`${JSON.stringify(report)}\n`);
 } finally {
+  if (activeBroker && activeBroker.exitCode === null) activeBroker.kill();
   fs.rmSync(keyDirectory, { recursive: true, force: true });
   fs.rmSync(plaintextKeyDirectory, { recursive: true, force: true });
   fs.rmSync(looseAclKeyDirectory, { recursive: true, force: true });
   fs.rmSync(authorizationDirectory, { recursive: true, force: true });
   fs.rmSync(directReplayAuthorizationDirectory, { recursive: true, force: true });
+  fs.rmSync(pipeAuthorizationDirectory, { recursive: true, force: true });
   fs.rmSync(unpinnedValidatorAuthorizationDirectory, { recursive: true, force: true });
   fs.rmSync(unpinnedSignerAuthorizationDirectory, { recursive: true, force: true });
   fs.rmSync(validatorPolicyPath, { force: true });

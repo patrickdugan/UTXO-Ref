@@ -290,6 +290,14 @@ generates the DLC scalar and runtime identity with the Windows CSPRNG, protects
 both byte arrays immediately with DPAPI `CurrentUser`, clears the raw arrays,
 and obtains a public-only description from the native signer. No private key is
 accepted on standard input, a command line, or a provisioning file.
+Boundary V34 adds a bounded Windows named-pipe broker for cross-account
+deployment. The broker authorizes one configured client SID, pins the signer
+runtime closure, and forwards only the already signed public request envelope.
+The protected pipe DACL and a second SID check reject unauthorized clients. The
+attested runtime closure binds the public transport descriptor and broker-side
+digests. The broker never opens DPAPI blobs, and BitAgent still verifies the
+native runtime identity signature and executable digest on the returned
+pre-signature.
 The host accepts only bounded regular runtime files whose resolved paths do not
 traverse filesystem links. It hashes the complete runtime closure before and
 after every signer execution, so deletion or mutation during the process

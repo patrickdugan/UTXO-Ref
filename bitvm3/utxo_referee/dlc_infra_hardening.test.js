@@ -566,6 +566,25 @@ test('adaptor signing is short-lived, durably consumed, and bound to the contrac
   }
 });
 
+test('native proxy runtime closure requires and binds its public transport descriptor', () => {
+  const launchSpec = {
+    executablePath: fs.realpathSync(process.execPath),
+    attestedExecutablePath: fs.realpathSync(__filename),
+    arguments: [],
+    codePaths: []
+  };
+  expectThrow(() => nativeSignerRuntimeDigest(launchSpec), /requires an attested transportDescriptor/);
+  const first = nativeSignerRuntimeDigest({
+    ...launchSpec,
+    transportDescriptor: { kind: 'test_transport_v1', allowedClientSid: 'S-1-5-18' }
+  });
+  const second = nativeSignerRuntimeDigest({
+    ...launchSpec,
+    transportDescriptor: { kind: 'test_transport_v1', allowedClientSid: 'S-1-5-32-544' }
+  });
+  if (first === second) throw new Error('transport descriptor mutation did not change the runtime closure');
+});
+
 test('native isolated signing receives only an authenticated public request', () => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'utxoref-native-signing-'));
   try {

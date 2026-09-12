@@ -128,7 +128,7 @@ module.exports = {
   // for production; these interfaces enforce transcript, threshold-oracle,
   // and persistence gates on regtest and Bitcoin testnet4.
   dlc: Object.freeze({
-    securityBoundaryVersion: 33,
+    securityBoundaryVersion: 34,
     createContract: dlcContractState.createDlcContract,
     validateContract: dlcContractState.validateDlcContract,
     transitionContract: dlcContractState.transitionDlcContract,
@@ -233,6 +233,13 @@ module.exports = {
       selfVerifiedExecutableDigest: true,
       signerAccountKeyGeneration: 'in-account-windows-csprng-dpapi-v1',
       provisioningSecretIpcEliminated: true,
+      signerTransport: 'windows-named-pipe-broker-v1',
+      pipeRequestMaxBytes: 65536,
+      pipeResponseMaxBytes: 1048576,
+      pipeBrokerPrivateKeyAccess: false,
+      pipeTransportDescriptorAttested: true,
+      unauthorizedPipeClientsRejected: true,
+      runtimeSignedPipeResponses: true,
       rustSecAuditRequired: true,
       rustSecVulnerabilitiesAllowed: 0,
       rustSecWarningsAllowed: 0,
