@@ -41,6 +41,7 @@ const {
   validateDlcPeerTranscript
 } = require('./dlc_peer_transcript');
 const { DlcPeerSessionStore } = require('./dlc_peer_session_store');
+const { DlcWatchtowerJournal, contractKey: watchtowerContractKey } = require('./dlc_watchtower_journal');
 
 let passed = 0;
 let failed = 0;
@@ -767,6 +768,60 @@ test('Bitcoin Core observer captures a stable testnet4 tip and scans committed s
     transactionSet,
     rpc: wrongChainRpc
   }), /must report testnet4/);
+});
+
+test('signed watchtower journal preserves halt alerts and detects tampering after restart', () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'utxoref-watchtower-'));
+  try {
+    const { contract, transactionSet } = validatedChainFixture('watchtower-journal-contract', 'CONFIRMED');
+    const keys = crypto.generateKeyPairSync('ed25519');
+    const journal = new DlcWatchtowerJournal(directory, {
+      watchtowerId: 'independent-watchtower-1',
+      publicKey: keys.publicKey,
+      privateKey: keys.privateKey
+    });
+    const firstSnapshot = chainSnapshot(transactionSet);
+    const first = journal.appendObservation({ contractState: contract, transactionSet, snapshot: firstSnapshot });
+    const retry = journal.appendObservation({ contractState: contract, transactionSet, snapshot: firstSnapshot });
+    assert(retry.recordHash === first.recordHash, 'identical watchtower observation was not idempotent');
+    const reorg = journal.appendObservation({
+      contractState: contract,
+      transactionSet,
+      snapshot: chainSnapshot(transactionSet, {
+        height: 206,
+        bestBlockHash: digest('watchtower:block:206'),
+        ancestorHashAtPreviousHeight: digest('watchtower:foreign-ancestor'),
+        fundingConfirmations: 7
+      })
+    });
+    assert(reorg.evaluation.status === 'REORG_HALT' && reorg.alert.code === 'REORG_HALT',
+      'watchtower did not persist its reorg alert');
+
+    const restarted = new DlcWatchtowerJournal(directory, {
+      watchtowerId: 'independent-watchtower-1',
+      publicKey: keys.publicKey
+    });
+    const verified = restarted.verifyChain(contract.contractId);
+    assert(verified.observations === 2 && restarted.alerts(contract.contractId).length === 1,
+      'restart lost the watchtower observation or alert chain');
+    expectThrow(() => restarted.appendObservation({
+      contractState: contract,
+      transactionSet,
+      snapshot: firstSnapshot
+    }), /verification-only/);
+
+    const secondPath = path.join(
+      directory,
+      watchtowerContractKey(contract.contractId),
+      'observation-000000000001.json'
+    );
+    const forged = JSON.parse(fs.readFileSync(secondPath, 'utf8'));
+    forged.evaluation.reason = 'tampered after restart';
+    fs.writeFileSync(secondPath, `${JSON.stringify(forged, null, 2)}\n`, 'utf8');
+    expectThrow(() => restarted.verifyChain(contract.contractId), /commitment mismatch/);
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
 });
 
 function peerTranscriptFixture(overrides = {}) {

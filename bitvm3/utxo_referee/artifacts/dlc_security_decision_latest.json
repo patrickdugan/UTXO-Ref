@@ -1,5 +1,5 @@
 {
-  "schema": "utxoref_dlc_security_decision_v5",
+  "schema": "utxoref_dlc_security_decision_v6",
   "capturedAt": "2026-09-11",
   "decision": "retain_dlc_protocol_rebuild_implementation",
   "productionDlcEnabled": false,
@@ -29,7 +29,8 @@
     "signed_transaction_bound_reorg_and_spend_guard",
     "stable_read_only_bitcoin_core_chain_observer",
     "authenticated_ordered_peer_transcript_and_global_serial_ids",
-    "durable_atomic_peer_temporary_id_and_transcript_registry"
+    "durable_atomic_peer_temporary_id_and_transcript_registry",
+    "signed_append_only_restart_safe_watchtower_journal"
   ],
   "productionBlockers": [
     "replace_javascript_bigint_signer_with_reviewed_native_secp256k1_implementation",
@@ -39,7 +40,7 @@
     "wire_transaction_signature_and_funding_witness_validators_to_native_signer",
     "operate_independent_threshold_oracles_with_interoperable_messages",
     "validate_anchor_spendability_package_relay_pinning_and_watchtower_recovery_on_regtest",
-    "operate_and_alert_on_the_bitcoin_core_observer_in_an_independent_watchtower"
+    "deploy_the_observer_and_signed_journal_as_an_independent_watchtower_with_external_alert_delivery"
   ],
   "evidence": {
     "preHardeningAttacks": "dlc_adaptor_attack_pre_hardening.json",

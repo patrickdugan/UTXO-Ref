@@ -44,6 +44,7 @@ Treat `eval/`, `program-dlc-security.md`, and `prepare.sh` as locked benchmark i
 - Every CET adaptor signature and refund signature must verify against the BIP341 sighash of the already validated transaction, funding amount, funding script, signer key, and exact threshold-oracle subset.
 - Chain monitoring must bind the exact signed transaction set and funding outpoint, prove ancestry against the prior snapshot, and halt on reorgs, unknown spends, immature refunds, or CETs inconsistent with contract state.
 - The Bitcoin Core observer must verify network, chain tip, and mempool stability around every snapshot and use only read-only RPC methods.
+- Watchtower observations must be independently signed, append-only, hash-chained, transaction-set-bound, restart-verifiable, and preserve every halt alert.
 - Offer, accept, and sign messages must form an authenticated hash-chained transcript; bind the testnet4 chain hash, validated transaction set, signature-validation digests, funding witnesses, and derived contract ID; and enforce globally unique, canonically ordered u64 serial IDs.
 - Temporary contract IDs and completed transcript digests must be claimed atomically, survive restart, reject conflicting reuse, and remain idempotent for identical retries.
 

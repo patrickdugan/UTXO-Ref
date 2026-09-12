@@ -204,6 +204,10 @@ The local research implementation now:
 22. Atomically claims temporary contract IDs per peer and durably commits the
     validated transcript, with idempotent identical retries, conflicting-offer
     rejection, and restart-safe replay detection.
+23. Persists independently signed Bitcoin Core evaluations in an append-only,
+    hash-chained watchtower journal; binds each record to the contract revision
+    and validated transaction set; and preserves halt alerts and tamper evidence
+    across restart.
 
 The changes block the concrete exploit probes. They reduce testnet risk but do
 not promote this module to a production signer.
@@ -315,9 +319,11 @@ until a Taproot DLC message format is published and cross-tested.
 - The read-only chain guard now detects disconnected ancestry, confirmation
   regression, unknown spends, immature refunds, and stage-inconsistent CETs.
   Its Bitcoin Core observer now stabilizes the chain and mempool views and scans
-  a bounded recent-block window for the spender. Operate it as an independent
-  watchtower, validate anchor ownership and spendability, test package relay,
-  and simulate pinning and deep reorg recovery on regtest.
+  a bounded recent-block window for the spender. Its signed journal makes
+  independent operation and restart-safe halt alerts possible. Deploy that
+  journal as a separate watchtower service with external alert delivery,
+  validate anchor ownership and spendability, test package relay, and simulate
+  pinning and deep reorg recovery on regtest.
 - Require independent Bitcoin Core policy checks and exact transaction decode
   immediately before signing and broadcasting.
 

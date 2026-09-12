@@ -59,6 +59,7 @@ const {
   validateDlcPeerTranscript
 } = require(path.join(__dirname, '..', 'bitvm3', 'utxo_referee', 'dlc_peer_transcript.js'));
 const { DlcPeerSessionStore } = require(path.join(__dirname, '..', 'bitvm3', 'utxo_referee', 'dlc_peer_session_store.js'));
+const { DlcWatchtowerJournal } = require(path.join(__dirname, '..', 'bitvm3', 'utxo_referee', 'dlc_watchtower_journal.js'));
 const validatorKeys = crypto.generateKeyPairSync('ed25519');
 const validatorSpki = validatorKeys.publicKey.export({ format: 'der', type: 'spki' }).toString('base64');
 const validatorKeyId = crypto.createHash('sha256').update(Buffer.from(validatorSpki, 'base64')).digest('hex');
@@ -676,6 +677,53 @@ check('chain guard halts on disconnected ancestry and uncommitted funding spends
     coreObserved.evaluation.status === 'FUNDING_CONFIRMED';
 });
 
+check('independent watchtower journal survives restart and preserves signed halt alerts', 'watchtower', 12, () => {
+  if (!peerFixtureForEval) return false;
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'utxoref-eval-watchtower-'));
+  try {
+    const { transactionSet, contract } = peerFixtureForEval;
+    const keys = crypto.generateKeyPairSync('ed25519');
+    const fundingOutpoint = `${transactionSet.funding.txid}:${transactionSet.funding.vout}`;
+    const journal = new DlcWatchtowerJournal(directory, {
+      watchtowerId: 'eval-independent-watchtower',
+      publicKey: keys.publicKey,
+      privateKey: keys.privateKey
+    });
+    const stable = {
+      height: 205,
+      bestBlockHash: sha256('watchtower-eval:block:205').toString('hex'),
+      fundingOutpoint,
+      fundingPresent: true,
+      fundingConfirmations: 6,
+      observedSpend: null
+    };
+    const first = journal.appendObservation({ contractState: contract, transactionSet, snapshot: stable });
+    const retry = journal.appendObservation({ contractState: contract, transactionSet, snapshot: stable });
+    const halt = journal.appendObservation({
+      contractState: contract,
+      transactionSet,
+      snapshot: {
+        ...stable,
+        height: 206,
+        bestBlockHash: sha256('watchtower-eval:block:206').toString('hex'),
+        ancestorHashAtPreviousHeight: sha256('watchtower-eval:foreign').toString('hex'),
+        fundingConfirmations: 7
+      }
+    });
+    const verifier = new DlcWatchtowerJournal(directory, {
+      watchtowerId: 'eval-independent-watchtower',
+      publicKey: keys.publicKey
+    });
+    const chain = verifier.verifyChain(contract.contractId);
+    return first.recordHash === retry.recordHash && halt.evaluation.status === 'REORG_HALT' &&
+      halt.alert.code === 'REORG_HALT' && chain.observations === 2 &&
+      verifier.alerts(contract.contractId).length === 1 &&
+      throws(() => verifier.appendObservation({ contractState: contract, transactionSet, snapshot: stable }), /verification-only/);
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+});
+
 check('authenticated offer/accept/sign transcript enforces IDs and global serial uniqueness', 'peer-protocol', 12, () => {
   if (!peerFixtureForEval) return false;
   const { transactionSet, contract } = peerFixtureForEval;
@@ -891,7 +939,7 @@ const possible = cases.reduce((sum, test) => sum + test.points, 0);
 const score = earned / possible;
 const report = {
   benchmark: 'utxoref-dlc-security',
-  version: 5,
+  version: 6,
   profile: profileName,
   seed,
   score,

@@ -180,11 +180,12 @@ can advance. Each spend has a committed last-output CPFP anchor. The read-only
 chain guard binds snapshots to that signed transaction set and halts on reorgs,
 unknown spends, immature refunds, and stage-inconsistent CETs. A synchronous,
 injected Bitcoin Core observer captures stable chain/mempool snapshots using
-read-only RPC calls. Boundary V6 also authenticates and hash-chains the peer
-offer/accept/sign transcript, derives the contract ID, and enforces global
-serial-ID uniqueness and funding-witness validation receipts. An atomic peer
-session store preserves temporary-ID and transcript replay protection across
-restart. Run:
+read-only RPC calls. Boundary V7 persists those evaluations in an
+Ed25519-signed, append-only watchtower journal whose alerts and tamper evidence
+survive restart. It also authenticates and hash-chains the peer offer/accept/sign
+transcript, derives the contract ID, and enforces global serial-ID uniqueness
+and funding-witness validation receipts. An atomic peer session store preserves
+temporary-ID and transcript replay protection across restart. Run:
 
 ```powershell
 node bitvm3\utxo_referee\dlc_infra_hardening.test.js
