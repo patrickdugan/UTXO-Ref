@@ -10,6 +10,11 @@ const {
   readBoundedJson,
   writeJsonAppendOnce
 } = require('./dlc_durable_json_store');
+const {
+  createDlcJournalCheckpoint,
+  normalizeDlcJournalCheckpoint,
+  assertDlcJournalCheckpoint
+} = require('./dlc_journal_checkpoint');
 
 const KIND = 'utxoref_dlc_signing_authorization_consumption_v1';
 const MAX_RECORD_BYTES = 32768;
@@ -151,6 +156,28 @@ class DlcSigningAuthorizationStore {
       records++;
     }
     return Object.freeze({ ok: true, records });
+  }
+
+  checkpoint(contractId, authorizationId) {
+    const record = this.read(contractId, authorizationId);
+    return createDlcJournalCheckpoint({
+      storeKind: 'signing-authorization',
+      storeKey: consumptionKey(contractId, authorizationId),
+      recordCount: 1,
+      headRecordHash: record.recordHash
+    });
+  }
+
+  verifyCheckpoint(contractId, authorizationId, expectedCheckpoint) {
+    expectedCheckpoint = normalizeDlcJournalCheckpoint(expectedCheckpoint);
+    const record = this.read(contractId, authorizationId);
+    assertDlcJournalCheckpoint(expectedCheckpoint, {
+      storeKind: 'signing-authorization',
+      storeKey: consumptionKey(contractId, authorizationId),
+      currentRecordCount: 1,
+      recordHashAtCheckpoint: record.recordHash
+    });
+    return Object.freeze({ ok: true, records: 1, checkpointVerified: expectedCheckpoint.checkpointHash });
   }
 }
 

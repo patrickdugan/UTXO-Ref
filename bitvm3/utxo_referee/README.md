@@ -409,6 +409,11 @@ key, record count, and head hash. Restart verification requires the surviving
 history to contain that exact hash at the pinned count, so tail deletion and a
 longer fork are rejected. Store checkpoints outside the journal directory under
 an independently protected operator or coordinator trust boundary.
+Boundary V58 extends the same checkpoint contract to signing-authorization
+consumption, signed-refund recovery, and broadcast-authorization consumption.
+Checkpoint inputs are copied into frozen plain-data snapshots before validation,
+so accessors or proxies cannot change a count, store key, or head hash between
+validation and comparison.
 The host accepts only bounded regular runtime files whose resolved paths do not
 traverse filesystem links. It hashes the complete runtime closure before and
 after every signer execution, so deletion or mutation during the process

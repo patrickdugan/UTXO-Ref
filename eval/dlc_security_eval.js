@@ -559,6 +559,12 @@ check('broadcast authorization is short-lived and exactly one process can consum
       rawTxHex,
       now: new Date(policyNow.getTime() + 10000)
     });
+    const checkpoint = store.checkpoint(
+      contract.contractId, idempotencyKey, consumed.consumption.transitionRequestHash
+    );
+    const checkpointVerified = store.verifyCheckpoint(
+      contract.contractId, idempotencyKey, consumed.consumption.transitionRequestHash, checkpoint
+    ).checkpointVerified === checkpoint.checkpointHash;
     const replayRejected = throws(() => store.consume({
       contractState: contract,
       transitionRequest,
@@ -586,7 +592,8 @@ check('broadcast authorization is short-lived and exactly one process can consum
     ], { encoding: 'utf8', windowsHide: true });
     if (race.status !== 0) return race.stderr || race.stdout || 'broadcast authorization race failed';
     const report = JSON.parse(race.stdout);
-    return consumed.nextContractState.stage === 'FUNDING_BROADCAST' && store.verifyAll().records === 1 &&
+    return consumed.nextContractState.stage === 'FUNDING_BROADCAST' && checkpointVerified &&
+      store.verifyAll().records === 1 &&
       replayRejected && expiredRejected && report.passed === true && report.consumed === 1 &&
       report.rejected === 15 && report.records === 1;
   } finally {
@@ -953,6 +960,15 @@ check('signing consumption records reject filesystem aliasing, oversized data, a
       providerIdentity: sha256('signing-store:provider').toString('hex')
     });
     const restartReadable = new DlcSigningAuthorizationStore(directory).read(contractId, authorizationId);
+    const checkpoint = store.checkpoint(contractId, authorizationId);
+    const checkpointVerified = store.verifyCheckpoint(contractId, authorizationId, checkpoint).checkpointVerified ===
+      checkpoint.checkpointHash;
+    const accessorCheckpoint = { ...checkpoint };
+    Object.defineProperty(accessorCheckpoint, 'recordCount', { enumerable: true, get: () => 1 });
+    const accessorRejected = throws(
+      () => store.verifyCheckpoint(contractId, authorizationId, accessorCheckpoint),
+      /plain data properties/
+    );
     const recordDirectory = path.join(directory, restartReadable.consumptionKey);
     const recordPath = path.join(recordDirectory, 'consumed.json');
     const linkedPath = path.join(directory, 'linked-consumption.json');
@@ -966,7 +982,8 @@ check('signing consumption records reject filesystem aliasing, oversized data, a
     const incompleteDirectory = path.join(directory, sha256('signing-store:incomplete').toString('hex'));
     fs.mkdirSync(incompleteDirectory);
     const incompleteRejected = throws(() => store.verifyAll(), /incomplete consumption marker/);
-    return restartReadable.status === 'CONSUMED_BEFORE_SIGN' && linkedRejected && oversizedRejected && incompleteRejected;
+    return restartReadable.status === 'CONSUMED_BEFORE_SIGN' && checkpointVerified && accessorRejected &&
+      linkedRejected && oversizedRejected && incompleteRejected;
   } finally {
     fs.rmSync(directory, { recursive: true, force: true });
   }
@@ -1906,6 +1923,9 @@ check('signed refund recovery survives restart and rejects artifact substitution
     const store = new DlcRefundRecoveryStore(directory);
     const stored = store.store({ contractState: contract, transactionSet, signedRefundTxHex });
     const restartRestored = new DlcRefundRecoveryStore(directory).restore({ contractState: contract, transactionSet });
+    const checkpoint = store.checkpoint(contract.contractId);
+    const checkpointVerified = store.verifyCheckpoint(contract.contractId, checkpoint).checkpointVerified ===
+      checkpoint.checkpointHash;
     const raceFixturePath = path.join(directory, 'race-fixture.json');
     fs.writeFileSync(raceFixturePath, JSON.stringify({
       contractState: contract,
@@ -1949,7 +1969,7 @@ check('signed refund recovery survives restart and rejects artifact substitution
       () => store.restore({ contractState: contract, transactionSet }),
       /one bounded regular file/
     );
-    return stored.recordHash === restartRestored.restoreDigest &&
+    return stored.recordHash === restartRestored.restoreDigest && checkpointVerified &&
       postTransitionRestored.restoreDigest === stored.recordHash && racePassed && substitutionRejected && linkedRejected;
   } finally {
     fs.rmSync(directory, { recursive: true, force: true });
@@ -1961,7 +1981,7 @@ const possible = cases.reduce((sum, test) => sum + test.points, 0);
 const score = earned / possible;
 const report = {
   benchmark: 'utxoref-dlc-security',
-  version: 27,
+  version: 28,
   profile: profileName,
   seed,
   score,

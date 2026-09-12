@@ -21,7 +21,7 @@ const {
 } = require('./dlc_durable_json_store');
 const {
   createDlcJournalCheckpoint,
-  validateDlcJournalCheckpoint,
+  normalizeDlcJournalCheckpoint,
   assertDlcJournalCheckpoint
 } = require('./dlc_journal_checkpoint');
 
@@ -259,7 +259,7 @@ class DlcOracleEventStore {
   }
 
   verifyCheckpoint({ oraclePubkey, eventId }, expectedCheckpoint) {
-    validateDlcJournalCheckpoint(expectedCheckpoint);
+    expectedCheckpoint = normalizeDlcJournalCheckpoint(expectedCheckpoint);
     const key = eventKey(oraclePubkey, eventId);
     const chain = this.verifyChain({ oraclePubkey, eventId });
     let recordHashAtCheckpoint = null;

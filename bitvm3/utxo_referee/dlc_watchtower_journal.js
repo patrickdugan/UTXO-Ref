@@ -16,7 +16,7 @@ const {
 } = require('./dlc_durable_json_store');
 const {
   createDlcJournalCheckpoint,
-  validateDlcJournalCheckpoint,
+  normalizeDlcJournalCheckpoint,
   assertDlcJournalCheckpoint
 } = require('./dlc_journal_checkpoint');
 
@@ -304,7 +304,7 @@ class DlcWatchtowerJournal {
   }
 
   verifyCheckpoint(contractId, expectedCheckpoint) {
-    validateDlcJournalCheckpoint(expectedCheckpoint);
+    expectedCheckpoint = normalizeDlcJournalCheckpoint(expectedCheckpoint);
     const chain = this.verifyChain(contractId);
     const pinned = chain.observations >= expectedCheckpoint.recordCount
       ? chain.records[expectedCheckpoint.recordCount - 1]

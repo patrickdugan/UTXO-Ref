@@ -8,6 +8,9 @@ const STORE_KINDS = Object.freeze([
   'contract-state',
   'oracle-event',
   'peer-session',
+  'signing-authorization',
+  'refund-recovery',
+  'broadcast-authorization',
   'watchtower'
 ]);
 const CHECKPOINT_FIELDS = Object.freeze([
@@ -31,19 +34,35 @@ function checkpointHash(checkpoint) {
   return sha256Hex(Buffer.from(canonicalJson(unsigned), 'utf8'));
 }
 
-function validateDlcJournalCheckpoint(checkpoint) {
+function normalizeDlcJournalCheckpoint(checkpoint) {
   if (!checkpoint || typeof checkpoint !== 'object' || Array.isArray(checkpoint) ||
-      JSON.stringify(Object.keys(checkpoint).sort()) !== JSON.stringify(CHECKPOINT_FIELDS) ||
-      checkpoint.kind !== KIND || !STORE_KINDS.includes(checkpoint.storeKind) ||
-      !Number.isSafeInteger(checkpoint.recordCount) || checkpoint.recordCount < 1) {
+      ![Object.prototype, null].includes(Object.getPrototypeOf(checkpoint))) {
     throw new Error('invalid DLC journal checkpoint');
   }
-  requireHash(checkpoint.storeKey, 'checkpoint.storeKey');
-  requireHash(checkpoint.headRecordHash, 'checkpoint.headRecordHash');
-  requireHash(checkpoint.checkpointHash, 'checkpoint.checkpointHash');
-  if (checkpoint.checkpointHash !== checkpointHash(checkpoint)) {
+  const descriptors = Object.getOwnPropertyDescriptors(checkpoint);
+  if (JSON.stringify(Object.keys(descriptors).sort()) !== JSON.stringify(CHECKPOINT_FIELDS) ||
+      Object.values(descriptors).some((descriptor) => !descriptor.enumerable || !('value' in descriptor))) {
+    throw new Error('DLC journal checkpoint must contain only plain data properties');
+  }
+  const normalized = Object.freeze(Object.fromEntries(
+    CHECKPOINT_FIELDS.map((field) => [field, descriptors[field].value])
+  ));
+  if (
+      normalized.kind !== KIND || !STORE_KINDS.includes(normalized.storeKind) ||
+      !Number.isSafeInteger(normalized.recordCount) || normalized.recordCount < 1) {
+    throw new Error('invalid DLC journal checkpoint');
+  }
+  requireHash(normalized.storeKey, 'checkpoint.storeKey');
+  requireHash(normalized.headRecordHash, 'checkpoint.headRecordHash');
+  requireHash(normalized.checkpointHash, 'checkpoint.checkpointHash');
+  if (normalized.checkpointHash !== checkpointHash(normalized)) {
     throw new Error('DLC journal checkpoint hash mismatch');
   }
+  return normalized;
+}
+
+function validateDlcJournalCheckpoint(checkpoint) {
+  normalizeDlcJournalCheckpoint(checkpoint);
   return true;
 }
 
@@ -60,18 +79,18 @@ function assertDlcJournalCheckpoint(expected, {
   currentRecordCount,
   recordHashAtCheckpoint
 }) {
-  validateDlcJournalCheckpoint(expected);
-  if (expected.storeKind !== storeKind || expected.storeKey !== storeKey) {
+  const normalized = normalizeDlcJournalCheckpoint(expected);
+  if (normalized.storeKind !== storeKind || normalized.storeKey !== storeKey) {
     throw new Error('DLC journal checkpoint belongs to a different store');
   }
   if (!Number.isSafeInteger(currentRecordCount) || currentRecordCount < 0) {
     throw new Error('current journal record count is invalid');
   }
-  if (currentRecordCount < expected.recordCount) {
+  if (currentRecordCount < normalized.recordCount) {
     throw new Error('DLC journal rollback detected below the pinned checkpoint');
   }
   requireHash(recordHashAtCheckpoint, 'recordHashAtCheckpoint');
-  if (recordHashAtCheckpoint !== expected.headRecordHash) {
+  if (recordHashAtCheckpoint !== normalized.headRecordHash) {
     throw new Error('DLC journal fork detected at the pinned checkpoint');
   }
   return true;
@@ -81,6 +100,7 @@ module.exports = {
   KIND,
   STORE_KINDS,
   createDlcJournalCheckpoint,
+  normalizeDlcJournalCheckpoint,
   validateDlcJournalCheckpoint,
   assertDlcJournalCheckpoint
 };

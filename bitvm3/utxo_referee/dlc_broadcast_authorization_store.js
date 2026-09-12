@@ -10,6 +10,11 @@ const {
   readBoundedJson,
   writeJsonAppendOnce
 } = require('./dlc_durable_json_store');
+const {
+  createDlcJournalCheckpoint,
+  normalizeDlcJournalCheckpoint,
+  assertDlcJournalCheckpoint
+} = require('./dlc_journal_checkpoint');
 
 const KIND = 'utxoref_dlc_broadcast_authorization_consumption_v1';
 const MAX_RECORD_BYTES = 32768;
@@ -211,6 +216,30 @@ class DlcBroadcastAuthorizationStore {
       records++;
     }
     return Object.freeze({ ok: true, records });
+  }
+
+  checkpoint(contractId, idempotencyKey, requestHash) {
+    const key = authorizationKey(contractId, idempotencyKey, requestHash);
+    const record = this._read(key);
+    return createDlcJournalCheckpoint({
+      storeKind: 'broadcast-authorization',
+      storeKey: key,
+      recordCount: 1,
+      headRecordHash: record.recordHash
+    });
+  }
+
+  verifyCheckpoint(contractId, idempotencyKey, requestHash, expectedCheckpoint) {
+    expectedCheckpoint = normalizeDlcJournalCheckpoint(expectedCheckpoint);
+    const key = authorizationKey(contractId, idempotencyKey, requestHash);
+    const record = this._read(key);
+    assertDlcJournalCheckpoint(expectedCheckpoint, {
+      storeKind: 'broadcast-authorization',
+      storeKey: key,
+      currentRecordCount: 1,
+      recordHashAtCheckpoint: record.recordHash
+    });
+    return Object.freeze({ ok: true, records: 1, checkpointVerified: expectedCheckpoint.checkpointHash });
   }
 }
 

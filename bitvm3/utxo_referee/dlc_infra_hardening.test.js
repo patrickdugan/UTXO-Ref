@@ -575,6 +575,16 @@ test('funding broadcast requires fresh transaction-bound Bitcoin Core policy', (
     const recordPath = path.join(
       authorizationDirectory, 'single', consumed.consumption.authorizationKey, 'consumed.json'
     );
+    const checkpoint = store.checkpoint(contract.contractId, broadcastRequest.idempotencyKey, requestHash);
+    assert(store.verifyCheckpoint(
+      contract.contractId, broadcastRequest.idempotencyKey, requestHash, checkpoint
+    ).checkpointVerified === checkpoint.checkpointHash, 'broadcast authorization checkpoint did not verify');
+    const recordBytes = fs.readFileSync(recordPath);
+    fs.unlinkSync(recordPath);
+    expectThrow(() => store.verifyCheckpoint(
+      contract.contractId, broadcastRequest.idempotencyKey, requestHash, checkpoint
+    ), /incomplete consumption marker/);
+    fs.writeFileSync(recordPath, recordBytes, { flag: 'wx', mode: 0o600 });
     fs.linkSync(recordPath, path.join(authorizationDirectory, 'linked-consumption.json'));
     expectThrow(() => store.read(contract.contractId, broadcastRequest.idempotencyKey, requestHash),
       /one bounded regular file/);
@@ -814,6 +824,22 @@ test('adaptor signing is short-lived, durably consumed, and bound to the contrac
       /one bounded regular file/);
     fs.unlinkSync(linkedPath);
     const originalRecord = fs.readFileSync(consumptionPath);
+    const checkpoint = providerOptions.authorizationStore.checkpoint(
+      contract.contractId, authorization.authorizationId
+    );
+    assert(providerOptions.authorizationStore.verifyCheckpoint(
+      contract.contractId, authorization.authorizationId, checkpoint
+    ).checkpointVerified === checkpoint.checkpointHash, 'signing authorization checkpoint did not verify');
+    const accessorCheckpoint = { ...checkpoint };
+    Object.defineProperty(accessorCheckpoint, 'recordCount', { enumerable: true, get: () => 1 });
+    expectThrow(() => providerOptions.authorizationStore.verifyCheckpoint(
+      contract.contractId, authorization.authorizationId, accessorCheckpoint
+    ), /plain data properties/);
+    fs.unlinkSync(consumptionPath);
+    expectThrow(() => providerOptions.authorizationStore.verifyCheckpoint(
+      contract.contractId, authorization.authorizationId, checkpoint
+    ), /incomplete consumption marker/);
+    fs.writeFileSync(consumptionPath, originalRecord, { flag: 'wx', mode: 0o600 });
     fs.writeFileSync(consumptionPath, Buffer.alloc(32769, 0x20));
     expectThrow(() => providerOptions.authorizationStore.read(contract.contractId, authorization.authorizationId),
       /one bounded regular file/);
@@ -1650,6 +1676,12 @@ test('fully signed refund is append-once, witness-verified, and restorable befor
     expectThrow(() => store.store({ contractState: contract, transactionSet, signedRefundTxHex }), /before local signatures/);
     const recordPath = path.join(directory, refundRecoveryKey(contract.contractId), 'refund.json');
     const originalRecordBytes = fs.readFileSync(recordPath);
+    const checkpoint = store.checkpoint(contract.contractId);
+    assert(store.verifyCheckpoint(contract.contractId, checkpoint).checkpointVerified === checkpoint.checkpointHash,
+      'refund recovery checkpoint did not verify');
+    fs.unlinkSync(recordPath);
+    expectThrow(() => store.verifyCheckpoint(contract.contractId, checkpoint), /incomplete persistence marker/);
+    fs.writeFileSync(recordPath, originalRecordBytes, { flag: 'wx', mode: 0o600 });
     const replacement = JSON.parse(originalRecordBytes.toString('utf8'));
     replacement.storedAt = new Date(Date.parse(replacement.storedAt) + 1).toISOString();
     replacement.recordHash = refundRecoveryRecordHash(replacement);

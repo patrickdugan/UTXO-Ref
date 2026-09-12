@@ -13,6 +13,11 @@ const {
   readBoundedJson,
   writeJsonAppendOnce
 } = require('./dlc_durable_json_store');
+const {
+  createDlcJournalCheckpoint,
+  normalizeDlcJournalCheckpoint,
+  assertDlcJournalCheckpoint
+} = require('./dlc_journal_checkpoint');
 
 const KIND = 'utxoref_dlc_refund_recovery_record_v1';
 const MAX_RECORD_BYTES = 131072;
@@ -189,6 +194,28 @@ class DlcRefundRecoveryStore {
       throw new Error('restored refund transaction identity mismatch');
     }
     return Object.freeze({ ...record, restoreDigest: record.recordHash });
+  }
+
+  checkpoint(contractId) {
+    const record = this._read(contractId);
+    return createDlcJournalCheckpoint({
+      storeKind: 'refund-recovery',
+      storeKey: refundKey(contractId),
+      recordCount: 1,
+      headRecordHash: record.recordHash
+    });
+  }
+
+  verifyCheckpoint(contractId, expectedCheckpoint) {
+    expectedCheckpoint = normalizeDlcJournalCheckpoint(expectedCheckpoint);
+    const record = this._read(contractId);
+    assertDlcJournalCheckpoint(expectedCheckpoint, {
+      storeKind: 'refund-recovery',
+      storeKey: refundKey(contractId),
+      currentRecordCount: 1,
+      recordHashAtCheckpoint: record.recordHash
+    });
+    return Object.freeze({ ok: true, records: 1, checkpointVerified: expectedCheckpoint.checkpointHash });
   }
 }
 

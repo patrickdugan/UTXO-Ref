@@ -13,7 +13,7 @@ const {
 } = require('./dlc_durable_json_store');
 const {
   createDlcJournalCheckpoint,
-  validateDlcJournalCheckpoint,
+  normalizeDlcJournalCheckpoint,
   assertDlcJournalCheckpoint
 } = require('./dlc_journal_checkpoint');
 
@@ -189,7 +189,7 @@ class DlcPeerSessionStore {
   }
 
   verifyCheckpoint(peerId, temporaryContractId, expectedCheckpoint) {
-    validateDlcJournalCheckpoint(expectedCheckpoint);
+    expectedCheckpoint = normalizeDlcJournalCheckpoint(expectedCheckpoint);
     const state = this._checkpointState(peerId, temporaryContractId);
     const pinned = state.recordCount >= expectedCheckpoint.recordCount
       ? state.records[expectedCheckpoint.recordCount - 1]

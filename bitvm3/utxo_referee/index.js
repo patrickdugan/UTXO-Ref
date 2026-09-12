@@ -133,7 +133,7 @@ module.exports = {
   // for production; these interfaces enforce transcript, threshold-oracle,
   // and persistence gates on regtest and Bitcoin testnet4.
   dlc: Object.freeze({
-    securityBoundaryVersion: 57,
+    securityBoundaryVersion: 58,
     createContract: dlcContractState.createDlcContract,
     validateContract: dlcContractState.validateDlcContract,
     transitionContract: dlcContractState.transitionDlcContract,
@@ -226,10 +226,14 @@ module.exports = {
       directoryLinkTraversalAllowed: false,
       exactSequenceFilenamesRequired: true,
       externalCheckpointKind: 'utxoref_dlc_journal_checkpoint_v1',
-      checkpointStores: Object.freeze(['contract-state', 'oracle-event', 'peer-session', 'watchtower']),
+      checkpointStores: Object.freeze([
+        'contract-state', 'oracle-event', 'peer-session', 'signing-authorization',
+        'refund-recovery', 'broadcast-authorization', 'watchtower'
+      ]),
       checkpointBindsRecordAtPinnedCount: true,
       longerHistoryMustContainPinnedHead: true,
       checkpointStorageInsideJournalAllowed: false,
+      checkpointInputsNormalizedToFrozenPlainData: true,
       readBuffersCleared: true,
       temporaryRecordFsynced: true,
       finalRecordFsynced: true,
@@ -443,6 +447,7 @@ module.exports = {
     PeerSessionStore: DlcPeerSessionStore,
     WatchtowerJournal: DlcWatchtowerJournal,
     createJournalCheckpoint: dlcJournalCheckpoint.createDlcJournalCheckpoint,
+    normalizeJournalCheckpoint: dlcJournalCheckpoint.normalizeDlcJournalCheckpoint,
     validateJournalCheckpoint: dlcJournalCheckpoint.validateDlcJournalCheckpoint,
     settlementAnchor: dlcAnchorRecoveryGuard.settlementAnchor,
     evaluateAnchorRecovery: dlcAnchorRecoveryGuard.evaluateDlcAnchorRecovery

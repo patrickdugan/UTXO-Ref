@@ -12,7 +12,7 @@ const {
 } = require('./dlc_durable_json_store');
 const {
   createDlcJournalCheckpoint,
-  validateDlcJournalCheckpoint,
+  normalizeDlcJournalCheckpoint,
   assertDlcJournalCheckpoint
 } = require('./dlc_journal_checkpoint');
 
@@ -157,7 +157,7 @@ class DlcStateStore {
   }
 
   verifyCheckpoint(contractId, expectedCheckpoint) {
-    validateDlcJournalCheckpoint(expectedCheckpoint);
+    expectedCheckpoint = normalizeDlcJournalCheckpoint(expectedCheckpoint);
     const chain = this.verifyChain(contractId);
     let recordHashAtCheckpoint = null;
     if (chain.revisions >= expectedCheckpoint.recordCount) {

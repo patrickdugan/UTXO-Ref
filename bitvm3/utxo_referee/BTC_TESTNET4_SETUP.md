@@ -161,6 +161,10 @@ events, peer sessions, and watchtower observations. Persist each returned
 checkpoint outside its journal directory and call the corresponding
 `verifyCheckpoint` method before resuming after restart. A checkpoint stored
 beside the journal cannot protect against rollback of that entire directory.
+Boundary V58 includes the three one-shot records in this checkpoint workflow:
+signing consumption, refund recovery, and broadcast consumption. Treat every
+checkpoint as untrusted input until `normalizeJournalCheckpoint` or the store's
+`verifyCheckpoint` method returns successfully.
 
 ## Agent isolation
 
