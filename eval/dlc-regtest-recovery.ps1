@@ -60,7 +60,11 @@ function Start-RegtestNode {
   if ($ClearMempool) { $arguments += '-persistmempool=0' }
   $script:nodeProcess = Start-Process -FilePath $script:bitcoind -ArgumentList $arguments -WindowStyle Hidden -PassThru
   for ($attempt = 0; $attempt -lt 120; $attempt++) {
-    & $script:bitcoinCli @script:nodeArguments getblockchaininfo 2>$null | Out-Null
+    $script:nodeProcess.Refresh()
+    if ($script:nodeProcess.HasExited) {
+      throw "isolated DLC regtest node exited before RPC startup with code $($script:nodeProcess.ExitCode)"
+    }
+    & $script:bitcoinCli '-rpcclienttimeout=1' @script:nodeArguments getblockchaininfo 2>$null | Out-Null
     if ($LASTEXITCODE -eq 0) {
       $script:nodeRunning = $true
       return
@@ -73,15 +77,10 @@ function Start-RegtestNode {
 function Stop-RegtestNode {
   if (-not $script:nodeRunning) { return }
   & $script:bitcoinCli @script:nodeArguments stop 2>$null | Out-Null
-  for ($attempt = 0; $attempt -lt 120; $attempt++) {
-    & $script:bitcoinCli @script:nodeArguments getblockchaininfo 2>$null | Out-Null
-    if ($LASTEXITCODE -ne 0) {
-      $script:nodeRunning = $false
-      return
-    }
-    Start-Sleep -Milliseconds 250
+  if (-not $script:nodeProcess.WaitForExit(30000)) {
+    throw 'isolated DLC regtest node did not stop cleanly'
   }
-  throw 'isolated DLC regtest node did not stop cleanly'
+  $script:nodeRunning = $false
 }
 
 function ConvertFrom-JsonArray {
@@ -107,8 +106,11 @@ try {
   $networkInfo = Invoke-BitcoinCli @('getnetworkinfo') | ConvertFrom-Json
   Invoke-BitcoinCli @('createwallet', $walletName) | Out-Null
   $miningAddress = Invoke-BitcoinCli @('getnewaddress', 'initial-mining', 'bech32m') -Wallet
-  $initialBlocks = ConvertFrom-JsonArray (Invoke-BitcoinCli @('generatetoaddress', '101', $miningAddress) -Wallet)
+  Invoke-BitcoinCli @('unloadwallet', $walletName) | Out-Null
+  $initialBlocks = ConvertFrom-JsonArray (Invoke-BitcoinCli @('generatetoaddress', '101', $miningAddress))
   Require-Condition ($initialBlocks.Count -eq 101) 'failed to mine the expected initial regtest blocks'
+  Invoke-BitcoinCli @('loadwallet', $walletName) | Out-Null
+  Require-Condition ([decimal](Invoke-BitcoinCli @('getbalance') -Wallet) -ge [decimal]50) 'mature regtest coinbase was not restored to the wallet'
 
   $anchorAddress = Invoke-BitcoinCli @('getnewaddress', 'dlc-anchor', 'bech32') -Wallet
   $parentOutputs = @(@{ $anchorAddress = '0.00000330' }) | ConvertTo-Json -Compress
@@ -155,7 +157,8 @@ try {
 
   Invoke-BitcoinCli @('loadwallet', $walletName) | Out-Null
   $reorgMiningAddress = Invoke-BitcoinCli @('getnewaddress', 'reorg-mining', 'bech32m') -Wallet
-  $reorgBlocks = ConvertFrom-JsonArray (Invoke-BitcoinCli @('generatetoaddress', '6', $reorgMiningAddress) -Wallet)
+  Invoke-BitcoinCli @('unloadwallet', $walletName) | Out-Null
+  $reorgBlocks = ConvertFrom-JsonArray (Invoke-BitcoinCli @('generatetoaddress', '6', $reorgMiningAddress))
   Require-Condition ($reorgBlocks.Count -eq 6) 'failed to mine the six-block reorg branch'
   $heightBeforeInvalidation = [int](Invoke-BitcoinCli @('getblockcount'))
   Invoke-BitcoinCli @('invalidateblock', $reorgBlocks[0]) | Out-Null
