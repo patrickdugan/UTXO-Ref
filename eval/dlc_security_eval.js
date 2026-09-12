@@ -50,6 +50,14 @@ const {
 } = require(path.join(__dirname, '..', 'bitvm3', 'utxo_referee', 'dlc_signature_validator.js'));
 const { evaluateDlcChainSnapshot } = require(path.join(__dirname, '..', 'bitvm3', 'utxo_referee', 'dlc_chain_guard.js'));
 const { observeAndEvaluateDlcChain } = require(path.join(__dirname, '..', 'bitvm3', 'utxo_referee', 'dlc_bitcoin_core_observer.js'));
+const {
+  TESTNET4_CHAIN_HASH,
+  TYPES: PEER_MESSAGE_TYPES,
+  computeDlcContractId,
+  computeOraclePolicyDigest,
+  signDlcPeerMessage,
+  validateDlcPeerTranscript
+} = require(path.join(__dirname, '..', 'bitvm3', 'utxo_referee', 'dlc_peer_transcript.js'));
 const validatorKeys = crypto.generateKeyPairSync('ed25519');
 const validatorSpki = validatorKeys.publicKey.export({ format: 'der', type: 'spki' }).toString('base64');
 const validatorKeyId = crypto.createHash('sha256').update(Buffer.from(validatorSpki, 'base64')).digest('hex');
@@ -108,6 +116,7 @@ function evidenceFor(contract, stage, idempotencyKey, overrides = {}) {
 }
 
 const cases = [];
+let peerFixtureForEval;
 function check(name, category, points, run) {
   const started = process.hrtime.bigint();
   try {
@@ -609,6 +618,7 @@ check('chain guard halts on disconnected ancestry and uncommitted funding spends
       evidence: evidenceFor(contract, stage, key, overrides)
     });
   }
+  peerFixtureForEval = { transactionSet, contract };
   const fundingOutpoint = `${transactionSet.funding.txid}:${transactionSet.funding.vout}`;
   const previous = {
     height: 205,
@@ -663,6 +673,100 @@ check('chain guard halts on disconnected ancestry and uncommitted funding spends
     unknown.status === 'UNKNOWN_SPEND_HALT' && unknown.halt &&
     earlyRefund.status === 'PREMATURE_REFUND_HALT' && earlyRefund.halt &&
     coreObserved.evaluation.status === 'FUNDING_CONFIRMED';
+});
+
+check('authenticated offer/accept/sign transcript enforces IDs and global serial uniqueness', 'peer-protocol', 12, () => {
+  if (!peerFixtureForEval) return false;
+  const { transactionSet, contract } = peerFixtureForEval;
+  const offerer = crypto.generateKeyPairSync('ed25519');
+  const accepter = crypto.generateKeyPairSync('ed25519');
+  const temporaryContractId = sha256('peer-eval:temporary').toString('hex');
+  const expectedSignatures = {
+    accepterCet: sha256('peer-eval:accepter-cets').toString('hex'),
+    accepterRefund: sha256('peer-eval:accepter-refund').toString('hex'),
+    offererCet: sha256('peer-eval:offerer-cets').toString('hex'),
+    offererRefund: sha256('peer-eval:offerer-refund').toString('hex'),
+    fundingWitnesses: sha256('peer-eval:funding-witnesses').toString('hex')
+  };
+  const terms = {
+    contractDigest: contract.contractDigest,
+    oraclePolicyDigest: computeOraclePolicyDigest(contract.oraclePolicy)
+  };
+  const offer = signDlcPeerMessage({
+    messageType: PEER_MESSAGE_TYPES.OFFER,
+    peerId: 'eval-offerer',
+    body: {
+      protocolVersion: 1,
+      chainHash: TESTNET4_CHAIN_HASH,
+      temporaryContractId,
+      fundingOutputSerialId: '30',
+      payoutSerialId: '5',
+      changeSerialId: '20',
+      fundingInputSerialIds: ['2', '10'],
+      ...terms,
+      transactionValidationDigest: transactionSet.validationDigest
+    },
+    privateKey: offerer.privateKey
+  });
+  const makeAccept = (fundingInputSerialIds) => signDlcPeerMessage({
+    messageType: PEER_MESSAGE_TYPES.ACCEPT,
+    peerId: 'eval-accepter',
+    previousMessageDigest: offer.messageDigest,
+    body: {
+      protocolVersion: 1,
+      temporaryContractId,
+      payoutSerialId: '6',
+      changeSerialId: '21',
+      fundingInputSerialIds,
+      ...terms,
+      transactionValidationDigest: transactionSet.validationDigest,
+      cetSignaturesDigest: expectedSignatures.accepterCet,
+      refundSignatureDigest: expectedSignatures.accepterRefund
+    },
+    privateKey: accepter.privateKey
+  });
+  const makeSign = (accept) => signDlcPeerMessage({
+    messageType: PEER_MESSAGE_TYPES.SIGN,
+    peerId: 'eval-offerer',
+    previousMessageDigest: accept.messageDigest,
+    body: {
+      protocolVersion: 1,
+      contractId: computeDlcContractId(transactionSet.funding.txid, transactionSet.funding.vout, temporaryContractId),
+      fundingWitnessInputSerialIds: ['2', '10'],
+      fundingWitnessesDigest: expectedSignatures.fundingWitnesses,
+      ...terms,
+      transactionValidationDigest: transactionSet.validationDigest,
+      cetSignaturesDigest: expectedSignatures.offererCet,
+      refundSignatureDigest: expectedSignatures.offererRefund
+    },
+    privateKey: offerer.privateKey
+  });
+  const validate = (accept, sign, overrides = {}) => validateDlcPeerTranscript({
+    offer,
+    accept,
+    sign,
+    offererPublicKey: offerer.publicKey,
+    accepterPublicKey: accepter.publicKey,
+    transactionSet,
+    contractState: contract,
+    fundingTxid: transactionSet.funding.txid,
+    fundingOutputIndex: transactionSet.funding.vout,
+    expectedSignatures,
+    verifyFundingWitnesses: () => true,
+    ...overrides
+  });
+  const accept = makeAccept(['3', '11']);
+  const sign = makeSign(accept);
+  const valid = validate(accept, sign);
+  const duplicateAccept = makeAccept(['2', '11']);
+  const duplicateRejected = throws(() => validate(duplicateAccept, makeSign(duplicateAccept)), /globally unique/);
+  const replayRejected = throws(() => validate(accept, sign, {
+    knownTemporaryContractIds: [temporaryContractId]
+  }), /already used/);
+  const wrongFundingRejected = throws(() => validate(accept, sign, {
+    fundingTxid: 'ff'.repeat(32)
+  }), /funding outpoint/);
+  return valid.ok && duplicateRejected && replayRejected && wrongFundingRejected;
 });
 
 check('CET adaptor and refund signatures bind to validated BIP341 sighashes', 'signature-safety', 14, () => {
@@ -751,7 +855,10 @@ check('CET adaptor and refund signatures bind to validated BIP341 sighashes', 's
     signerPubkeyX,
     signature: refundSignature
   });
-  const forged = { ...presignature, s0: `00${presignature.s0.slice(2)}` };
+  const forged = {
+    ...presignature,
+    s0: `${presignature.s0.slice(0, -1)}${presignature.s0.endsWith('0') ? '1' : '0'}`
+  };
   const forgedRejected = throws(() => validateCetAdaptorSignatures({
     transactionSet,
     funding,
@@ -771,7 +878,7 @@ const possible = cases.reduce((sum, test) => sum + test.points, 0);
 const score = earned / possible;
 const report = {
   benchmark: 'utxoref-dlc-security',
-  version: 3,
+  version: 4,
   profile: profileName,
   seed,
   score,

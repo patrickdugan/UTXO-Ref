@@ -32,6 +32,14 @@ const {
 } = require('./dlc_signature_validator');
 const { evaluateDlcChainSnapshot } = require('./dlc_chain_guard');
 const { observeAndEvaluateDlcChain } = require('./dlc_bitcoin_core_observer');
+const {
+  TESTNET4_CHAIN_HASH,
+  TYPES: PEER_MESSAGE_TYPES,
+  computeDlcContractId,
+  computeOraclePolicyDigest,
+  signDlcPeerMessage,
+  validateDlcPeerTranscript
+} = require('./dlc_peer_transcript');
 
 let passed = 0;
 let failed = 0;
@@ -559,7 +567,10 @@ test('CET adaptor and refund signatures bind to validated BIP341 sighashes', () 
     signature: refundSignature
   });
   assert(/^[0-9a-f]{64}$/.test(validatedRefund.digest), 'refund signature digest missing');
-  const forged = { ...presignature, s0: `00${presignature.s0.slice(2)}` };
+  const forged = {
+    ...presignature,
+    s0: `${presignature.s0.slice(0, -1)}${presignature.s0.endsWith('0') ? '1' : '0'}`
+  };
   expectThrow(() => validateCetAdaptorSignatures({
     transactionSet: validated,
     funding,
@@ -755,6 +766,136 @@ test('Bitcoin Core observer captures a stable testnet4 tip and scans committed s
     transactionSet,
     rpc: wrongChainRpc
   }), /must report testnet4/);
+});
+
+function peerTranscriptFixture(overrides = {}) {
+  const { contract, transactionSet } = validatedChainFixture('peer-transcript-contract', 'CANONICAL_CETS_AND_REFUND');
+  const offerer = crypto.generateKeyPairSync('ed25519');
+  const accepter = crypto.generateKeyPairSync('ed25519');
+  const temporaryContractId = digest('peer-transcript:temporary-contract');
+  const signatureDigests = {
+    accepterCet: digest('peer-transcript:accepter-cets'),
+    accepterRefund: digest('peer-transcript:accepter-refund'),
+    offererCet: digest('peer-transcript:offerer-cets'),
+    offererRefund: digest('peer-transcript:offerer-refund'),
+    fundingWitnesses: digest('peer-transcript:funding-witnesses')
+  };
+  const terms = {
+    contractDigest: contract.contractDigest,
+    oraclePolicyDigest: computeOraclePolicyDigest(contract.oraclePolicy)
+  };
+  const offer = signDlcPeerMessage({
+    messageType: PEER_MESSAGE_TYPES.OFFER,
+    peerId: 'offerer-peer',
+    body: {
+      protocolVersion: 1,
+      chainHash: TESTNET4_CHAIN_HASH,
+      temporaryContractId,
+      fundingOutputSerialId: '30',
+      payoutSerialId: '5',
+      changeSerialId: '20',
+      fundingInputSerialIds: ['2', '10'],
+      ...terms,
+      transactionValidationDigest: transactionSet.validationDigest
+    },
+    privateKey: offerer.privateKey
+  });
+  const acceptBody = {
+    protocolVersion: 1,
+    temporaryContractId,
+    payoutSerialId: '6',
+    changeSerialId: '21',
+    fundingInputSerialIds: ['3', '11'],
+    ...terms,
+    transactionValidationDigest: transactionSet.validationDigest,
+    cetSignaturesDigest: signatureDigests.accepterCet,
+    refundSignatureDigest: signatureDigests.accepterRefund,
+    ...overrides.acceptBody
+  };
+  const accept = signDlcPeerMessage({
+    messageType: PEER_MESSAGE_TYPES.ACCEPT,
+    peerId: 'accepter-peer',
+    previousMessageDigest: offer.messageDigest,
+    body: acceptBody,
+    privateKey: accepter.privateKey
+  });
+  const contractId = computeDlcContractId(
+    transactionSet.funding.txid,
+    transactionSet.funding.vout,
+    temporaryContractId
+  );
+  const sign = signDlcPeerMessage({
+    messageType: PEER_MESSAGE_TYPES.SIGN,
+    peerId: 'offerer-peer',
+    previousMessageDigest: accept.messageDigest,
+    body: {
+      protocolVersion: 1,
+      contractId,
+      fundingWitnessInputSerialIds: ['2', '10'],
+      fundingWitnessesDigest: signatureDigests.fundingWitnesses,
+      ...terms,
+      transactionValidationDigest: transactionSet.validationDigest,
+      cetSignaturesDigest: signatureDigests.offererCet,
+      refundSignatureDigest: signatureDigests.offererRefund
+    },
+    privateKey: offerer.privateKey
+  });
+  return {
+    contract, transactionSet, offerer, accepter, offer, accept, sign, contractId,
+    temporaryContractId, signatureDigests
+  };
+}
+
+test('peer transcript authenticates offer/accept/sign and binds serial ordering to validated transactions', () => {
+  const fixture = peerTranscriptFixture();
+  assert(computeDlcContractId('00'.repeat(32), 513, '00'.repeat(32)).endsWith('0201'),
+    'contract ID did not XOR the big-endian funding output index');
+  const validated = validateDlcPeerTranscript({
+    offer: fixture.offer,
+    accept: fixture.accept,
+    sign: fixture.sign,
+    offererPublicKey: fixture.offerer.publicKey,
+    accepterPublicKey: fixture.accepter.publicKey,
+    transactionSet: fixture.transactionSet,
+    contractState: fixture.contract,
+    fundingTxid: fixture.transactionSet.funding.txid,
+    fundingOutputIndex: fixture.transactionSet.funding.vout,
+    expectedSignatures: fixture.signatureDigests,
+    verifyFundingWitnesses: ({ fundingWitnessesDigest }) =>
+      fundingWitnessesDigest === fixture.signatureDigests.fundingWitnesses
+  });
+  assert(validated.ok && validated.contractId === fixture.contractId, 'valid peer transcript failed');
+  assert(/^[0-9a-f]{64}$/.test(validated.transcriptDigest), 'peer transcript digest is invalid');
+
+  const duplicate = peerTranscriptFixture({ acceptBody: { fundingInputSerialIds: ['2', '11'] } });
+  expectThrow(() => validateDlcPeerTranscript({
+    offer: duplicate.offer,
+    accept: duplicate.accept,
+    sign: duplicate.sign,
+    offererPublicKey: duplicate.offerer.publicKey,
+    accepterPublicKey: duplicate.accepter.publicKey,
+    transactionSet: duplicate.transactionSet,
+    contractState: duplicate.contract,
+    fundingTxid: duplicate.transactionSet.funding.txid,
+    fundingOutputIndex: duplicate.transactionSet.funding.vout,
+    expectedSignatures: duplicate.signatureDigests,
+    verifyFundingWitnesses: () => true
+  }), /globally unique/);
+
+  expectThrow(() => validateDlcPeerTranscript({
+    offer: fixture.offer,
+    accept: fixture.accept,
+    sign: fixture.sign,
+    offererPublicKey: fixture.offerer.publicKey,
+    accepterPublicKey: fixture.accepter.publicKey,
+    transactionSet: fixture.transactionSet,
+    contractState: fixture.contract,
+    fundingTxid: fixture.transactionSet.funding.txid,
+    fundingOutputIndex: fixture.transactionSet.funding.vout,
+    expectedSignatures: fixture.signatureDigests,
+    verifyFundingWitnesses: () => true,
+    knownTemporaryContractIds: [fixture.temporaryContractId]
+  }), /already used/);
 });
 
 if (failed > 0) {

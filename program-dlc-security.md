@@ -19,6 +19,7 @@ Maximize the `score` emitted by `bash eval/dlc-security.sh`. A score of `1.0` me
 - `bitvm3/utxo_referee/dlc_signature_validator.js`
 - `bitvm3/utxo_referee/dlc_chain_guard.js`
 - `bitvm3/utxo_referee/dlc_bitcoin_core_observer.js`
+- `bitvm3/utxo_referee/dlc_peer_transcript.js`
 
 Treat `eval/`, `program-dlc-security.md`, and `prepare.sh` as locked benchmark infrastructure.
 
@@ -42,6 +43,7 @@ Treat `eval/`, `program-dlc-security.md`, and `prepare.sh` as locked benchmark i
 - Every CET adaptor signature and refund signature must verify against the BIP341 sighash of the already validated transaction, funding amount, funding script, signer key, and exact threshold-oracle subset.
 - Chain monitoring must bind the exact signed transaction set and funding outpoint, prove ancestry against the prior snapshot, and halt on reorgs, unknown spends, immature refunds, or CETs inconsistent with contract state.
 - The Bitcoin Core observer must verify network, chain tip, and mempool stability around every snapshot and use only read-only RPC methods.
+- Offer, accept, and sign messages must form an authenticated hash-chained transcript; bind the testnet4 chain hash, validated transaction set, signature-validation digests, funding witnesses, and derived contract ID; and enforce globally unique, canonically ordered u64 serial IDs.
 
 This benchmark uses synthetic keys, has no network dependency, and must never broadcast a transaction.
 

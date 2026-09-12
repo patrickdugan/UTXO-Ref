@@ -197,6 +197,10 @@ The local research implementation now:
     verifies testnet4/regtest, tip and mempool stability, checks the exact
     funding outpoint, and scans a bounded block window for its spending
     transaction without exposing any signing or broadcast method.
+21. Authenticates and hash-chains offer, accept, and sign envelopes; binds them
+    to the testnet4 genesis hash, validated transaction and signature digests,
+    funding-witness validation, and derived contract ID; and rejects replayed
+    temporary IDs, duplicated serial IDs, and noncanonical serial ordering.
 
 The changes block the concrete exploit probes. They reduce testnet risk but do
 not promote this module to a production signer.
@@ -276,6 +280,13 @@ canonical transcript hash, prior-state hash, explicit validation receipt, and
 idempotency key. Funding signing and broadcast remain separate host-owned
 actions.
 
+The local peer transcript now enforces the sequencing and serial-ID invariants
+from the [published peer protocol](https://github.com/discreetlogcontracts/dlcspecs/blob/master/Protocol.md). It is an authenticated UTXORef envelope, not
+the published binary wire codec: the current DLC wire specification uses ECDSA
+adaptor signatures and identifies Taproot DLCs as future work, while this
+research path uses BIP340. Wire interoperability therefore remains a blocker
+until a Taproot DLC message format is published and cross-tested.
+
 ### Oracle policy
 
 - Use at least 2-of-3 independent oracles for enumerated outcomes. The local
@@ -294,8 +305,9 @@ actions.
 
 - The local validators now cover exact funding outpoints, outputs, amounts,
   fees, a committed last-output CPFP anchor, BIP341 CET adaptor signatures, and
-  refund signatures. Complete the remaining peer-message serial-ID rules and
-  wire the validators to the native signer before funding authorization.
+  refund signatures, authenticated peer sequencing, and peer serial-ID rules.
+  Wire the validators and independently validated funding witnesses to the
+  native signer before funding authorization.
 - Store and independently restore the refund transaction before broadcast.
 - The read-only chain guard now detects disconnected ancestry, confirmation
   regression, unknown spends, immature refunds, and stage-inconsistent CETs.

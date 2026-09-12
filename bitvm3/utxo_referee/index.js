@@ -47,6 +47,7 @@ const dlcTransactionValidator = require('./dlc_transaction_validator');
 const dlcSignatureValidator = require('./dlc_signature_validator');
 const dlcChainGuard = require('./dlc_chain_guard');
 const dlcBitcoinCoreObserver = require('./dlc_bitcoin_core_observer');
+const dlcPeerTranscript = require('./dlc_peer_transcript');
 
 module.exports = {
   // Types
@@ -122,7 +123,7 @@ module.exports = {
   // for production; these interfaces enforce transcript, threshold-oracle,
   // and persistence gates on regtest and Bitcoin testnet4.
   dlc: Object.freeze({
-    securityBoundaryVersion: 4,
+    securityBoundaryVersion: 5,
     createContract: dlcContractState.createDlcContract,
     validateContract: dlcContractState.validateDlcContract,
     transitionContract: dlcContractState.transitionDlcContract,
@@ -141,6 +142,13 @@ module.exports = {
     validateRefundSignature: dlcSignatureValidator.validateRefundSignature,
     evaluateChainSnapshot: dlcChainGuard.evaluateDlcChainSnapshot,
     captureBitcoinCoreSnapshot: dlcBitcoinCoreObserver.captureDlcChainSnapshot,
-    observeBitcoinCoreChain: dlcBitcoinCoreObserver.observeAndEvaluateDlcChain
+    observeBitcoinCoreChain: dlcBitcoinCoreObserver.observeAndEvaluateDlcChain,
+    peerMessageTypes: dlcPeerTranscript.TYPES,
+    testnet4ChainHash: dlcPeerTranscript.TESTNET4_CHAIN_HASH,
+    computeOraclePolicyDigest: dlcPeerTranscript.computeOraclePolicyDigest,
+    computeContractId: dlcPeerTranscript.computeDlcContractId,
+    signPeerMessage: dlcPeerTranscript.signDlcPeerMessage,
+    verifyPeerMessage: dlcPeerTranscript.verifyDlcPeerMessage,
+    validatePeerTranscript: dlcPeerTranscript.validateDlcPeerTranscript
   })
 };

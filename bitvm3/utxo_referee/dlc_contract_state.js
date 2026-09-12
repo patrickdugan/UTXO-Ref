@@ -20,8 +20,12 @@ const STAGES = Object.freeze([
 const REQUIRED_EVIDENCE = Object.freeze({
   AUTHENTICATED_ORACLES: ['oracle_policy'],
   CANONICAL_CETS_AND_REFUND: ['cet_set', 'funding_template', 'refund_transaction'],
-  COUNTERPARTY_SIGNATURES_VERIFIED: ['counterparty_cet_signatures', 'counterparty_refund_signature'],
-  LOCAL_SIGNATURES_PERSISTED: ['local_cet_signatures', 'local_refund_signature', 'refund_restore_test'],
+  COUNTERPARTY_SIGNATURES_VERIFIED: [
+    'counterparty_cet_signatures', 'counterparty_refund_signature', 'peer_accept_transcript'
+  ],
+  LOCAL_SIGNATURES_PERSISTED: [
+    'local_cet_signatures', 'local_refund_signature', 'peer_sign_transcript', 'refund_restore_test'
+  ],
   FUNDING_PSBT_APPROVED: ['bitcoin_core_policy', 'funding_psbt_validation', 'signer_separation'],
   FUNDING_BROADCAST: ['broadcast_transaction', 'host_broadcast_approval'],
   CONFIRMED: ['funding_confirmation'],
