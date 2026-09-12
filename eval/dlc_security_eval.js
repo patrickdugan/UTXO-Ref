@@ -548,6 +548,71 @@ check('oracle announcement authenticates its full event commitment', 'oracle-aut
     !dlc.verifyDlcOracleAnnouncement({ ...announcement, rx: '01'.repeat(32) });
 });
 
+check('oracle envelopes and outcome arrays reject callbacks before verification', 'oracle-auth', 12, () => {
+  const yes = sha256('oracle-input-eval:yes');
+  const no = sha256('oracle-input-eval:no');
+  let buildAccessorCalls = 0;
+  const hostileBuildOptions = { outcomeMessages: [yes, no] };
+  Object.defineProperty(hostileBuildOptions, 'eventId', {
+    enumerable: true,
+    get() { buildAccessorCalls++; return 'oracle-input-eval'; }
+  });
+  const buildRejected = throws(
+    () => dlc.buildDlcOracle(scalar('oracle-input-eval:key-a'), scalar('oracle-input-eval:nonce-a'), hostileBuildOptions),
+    /enumerable data property/
+  );
+  let outcomeAccessorCalls = 0;
+  const hostileOutcomes = [];
+  Object.defineProperty(hostileOutcomes, '0', {
+    enumerable: true,
+    configurable: true,
+    get() { outcomeAccessorCalls++; return yes; }
+  });
+  hostileOutcomes.length = 1;
+  const outcomesRejected = throws(() => dlc.buildDlcOracle(
+    scalar('oracle-input-eval:key-b'), scalar('oracle-input-eval:nonce-b'),
+    { eventId: 'oracle-input-eval-outcomes', outcomeMessages: hostileOutcomes }
+  ), /enumerable data property/);
+  const oracle = dlc.buildDlcOracle(
+    scalar('oracle-input-eval:key-c'), scalar('oracle-input-eval:nonce-c'),
+    { eventId: 'oracle-input-eval-valid', outcomeMessages: [yes, no] }
+  );
+  let announcementAccessorCalls = 0;
+  const hostileAnnouncement = { ...oracle };
+  Object.defineProperty(hostileAnnouncement, 'eventId', {
+    enumerable: true,
+    get() { announcementAccessorCalls++; return oracle.eventId; }
+  });
+  const announcementRejected = dlc.verifyDlcOracleAnnouncement(hostileAnnouncement) === false &&
+    throws(() => dlc.dlcOutcomePoint(hostileAnnouncement, yes), /enumerable data property/);
+  let nestedAccessorCalls = 0;
+  const hostileAnnouncementOutcomes = [];
+  Object.defineProperty(hostileAnnouncementOutcomes, '0', {
+    enumerable: true,
+    configurable: true,
+    get() { nestedAccessorCalls++; return oracle.outcomeMessages[0]; }
+  });
+  hostileAnnouncementOutcomes.length = 1;
+  const nestedRejected = dlc.verifyDlcOracleAnnouncement({
+    ...oracle, outcomeMessages: hostileAnnouncementOutcomes
+  }) === false;
+  const wrappingKey = sha256('oracle-input-eval:wrapping');
+  const sealed = dlc.sealDlcOracleSignerState(oracle, wrappingKey);
+  let sealedAccessorCalls = 0;
+  const hostileSealed = { ...sealed };
+  Object.defineProperty(hostileSealed, 'cipher', {
+    enumerable: true,
+    get() { sealedAccessorCalls++; return sealed.cipher; }
+  });
+  const sealedRejected = throws(
+    () => dlc.restoreDlcOracleSignerState(oracle, hostileSealed, wrappingKey), /enumerable data property/
+  );
+  return buildRejected && outcomesRejected && announcementRejected && nestedRejected && sealedRejected &&
+    buildAccessorCalls === 0 && outcomeAccessorCalls === 0 && announcementAccessorCalls === 0 &&
+    nestedAccessorCalls === 0 && sealedAccessorCalls === 0 &&
+    Object.isFrozen(oracle) && Object.isFrozen(oracle.outcomeMessages);
+});
+
 check('oracle rejects outcomes absent from its announcement', 'oracle-binding', 8, () => {
   const allowed = sha256('committed:allowed');
   const injected = sha256('committed:injected');
@@ -2526,7 +2591,7 @@ const possible = cases.reduce((sum, test) => sum + test.points, 0);
 const score = earned / possible;
 const report = {
   benchmark: 'utxoref-dlc-security',
-  version: 40,
+  version: 41,
   profile: profileName,
   seed,
   score,

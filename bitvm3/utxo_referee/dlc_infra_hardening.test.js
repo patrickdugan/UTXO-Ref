@@ -385,6 +385,73 @@ test('adaptor primitives snapshot points and pre-signatures without callbacks', 
   assert(presignatureAccessorCalls === 0, 'adaptor pre-signature accessor executed before rejection');
 });
 
+test('oracle envelopes and outcome arrays are snapshotted without callbacks', () => {
+  const yes = hash('oracle-input-yes');
+  const no = hash('oracle-input-no');
+  let buildAccessorCalls = 0;
+  const hostileBuildOptions = { outcomeMessages: [yes, no] };
+  Object.defineProperty(hostileBuildOptions, 'eventId', {
+    enumerable: true,
+    get() { buildAccessorCalls++; return 'oracle-input-event'; }
+  });
+  expectThrow(() => dlc.buildDlcOracle(811n, 812n, hostileBuildOptions), /enumerable data property/);
+  assert(buildAccessorCalls === 0, 'oracle build option accessor executed before rejection');
+
+  let outcomeAccessorCalls = 0;
+  const hostileOutcomes = [];
+  Object.defineProperty(hostileOutcomes, '0', {
+    enumerable: true,
+    configurable: true,
+    get() { outcomeAccessorCalls++; return yes; }
+  });
+  hostileOutcomes.length = 1;
+  expectThrow(() => dlc.buildDlcOracle(813n, 814n, {
+    eventId: 'oracle-input-hostile-outcomes', outcomeMessages: hostileOutcomes
+  }), /enumerable data property/);
+  assert(outcomeAccessorCalls === 0, 'oracle outcome array accessor executed before rejection');
+
+  const oracle = dlc.buildDlcOracle(815n, 816n, {
+    eventId: 'oracle-input-valid', outcomeMessages: [yes, no]
+  });
+  assert(Object.isFrozen(oracle) && Object.isFrozen(oracle.outcomeMessages),
+    'oracle announcement snapshot was mutable');
+  let announcementAccessorCalls = 0;
+  const hostileAnnouncement = { ...oracle };
+  Object.defineProperty(hostileAnnouncement, 'eventId', {
+    enumerable: true,
+    get() { announcementAccessorCalls++; return oracle.eventId; }
+  });
+  assert(dlc.verifyDlcOracleAnnouncement(hostileAnnouncement) === false,
+    'getter-bearing oracle announcement verified');
+  expectThrow(() => dlc.dlcOutcomePoint(hostileAnnouncement, yes), /enumerable data property/);
+  assert(announcementAccessorCalls === 0, 'oracle announcement accessor executed before rejection');
+
+  let announcementOutcomeAccessorCalls = 0;
+  const hostileAnnouncementOutcomes = [];
+  Object.defineProperty(hostileAnnouncementOutcomes, '0', {
+    enumerable: true,
+    configurable: true,
+    get() { announcementOutcomeAccessorCalls++; return oracle.outcomeMessages[0]; }
+  });
+  hostileAnnouncementOutcomes.length = 1;
+  assert(dlc.verifyDlcOracleAnnouncement({
+    ...oracle, outcomeMessages: hostileAnnouncementOutcomes
+  }) === false, 'getter-bearing announcement outcomes verified');
+  assert(announcementOutcomeAccessorCalls === 0, 'announcement outcome accessor executed before rejection');
+
+  const wrappingKey = hash('oracle-input-wrapping-key');
+  const sealed = dlc.sealDlcOracleSignerState(oracle, wrappingKey);
+  let sealedAccessorCalls = 0;
+  const hostileSealed = { ...sealed };
+  Object.defineProperty(hostileSealed, 'cipher', {
+    enumerable: true,
+    get() { sealedAccessorCalls++; return sealed.cipher; }
+  });
+  expectThrow(() => dlc.restoreDlcOracleSignerState(oracle, hostileSealed, wrappingKey),
+    /enumerable data property/);
+  assert(sealedAccessorCalls === 0, 'sealed oracle state accessor executed before rejection');
+});
+
 test('operator-signed journal checkpoints reject forgery and untrusted keys', () => {
   const checkpoint = createDlcJournalCheckpoint({
     storeKind: 'contract-state',

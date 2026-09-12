@@ -211,6 +211,10 @@ without process launch or filesystem mutation.
 Boundary V70 applies descriptor snapshots inside the adaptor primitive itself.
 Getter-bearing points and pre-signatures are rejected without callbacks,
 verification fails closed, and generated pre-signatures are immutable.
+Boundary V71 applies descriptor snapshots to oracle build options,
+announcement envelopes, outcome arrays, and sealed signer-state restore input.
+Outcome buffers are copied into a bounded canonical snapshot and that snapshot
+is retained by later verification and attestation consumers.
 
 ## Agent isolation
 

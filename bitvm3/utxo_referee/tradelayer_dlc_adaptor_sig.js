@@ -37,7 +37,8 @@
  */
 
 const crypto = require('crypto');
-const { snapshotOwnDataArguments } = require('./dlc_canonical_json');
+const { types: utilTypes } = require('util');
+const { snapshotPlainData, snapshotOwnDataArguments } = require('./dlc_canonical_json');
 
 // secp256k1 domain parameters
 const P = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2Fn;
@@ -46,6 +47,7 @@ const GX = 0x79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798n;
 const GY = 0x483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8n;
 const G = { x: GX, y: GY };
 const MAX_256 = 1n << 256n;
+const MAX_ORACLE_OUTCOMES = 256;
 const oracleStates = new WeakMap();
 
 function mod(a, m) {
@@ -151,6 +153,36 @@ function requireBuffer(value, length, fieldName) {
     throw new Error(`${fieldName} must be exactly ${length} bytes`);
   }
   return value;
+}
+
+function snapshotBuffer(value, length, fieldName) {
+  if (utilTypes.isProxy(value) || !Buffer.isBuffer(value) || value.length !== length) {
+    throw new Error(`${fieldName} must be exactly ${length} bytes`);
+  }
+  return Buffer.from(value);
+}
+
+function snapshotDenseArray(input, fieldName, maximumLength) {
+  if (utilTypes.isProxy(input) || !Array.isArray(input) || Object.getPrototypeOf(input) !== Array.prototype) {
+    throw new Error(`${fieldName} must be a plain array`);
+  }
+  const descriptors = Object.getOwnPropertyDescriptors(input);
+  const keys = Reflect.ownKeys(descriptors);
+  const lengthDescriptor = descriptors.length;
+  const length = lengthDescriptor && lengthDescriptor.value;
+  if (!Number.isSafeInteger(length) || length < 1 || length > maximumLength ||
+      keys.some((key) => typeof key === 'symbol') || keys.length !== length + 1) {
+    throw new Error(`${fieldName} must contain 1..${maximumLength} dense entries`);
+  }
+  const values = new Array(length);
+  for (let index = 0; index < length; index++) {
+    const descriptor = descriptors[String(index)];
+    if (!descriptor || !descriptor.enumerable || !('value' in descriptor) || descriptor.value === undefined) {
+      throw new Error(`${fieldName}[${index}] must be an enumerable data property`);
+    }
+    values[index] = descriptor.value;
+  }
+  return Object.freeze(values);
 }
 
 function requireScalar(value, fieldName) {
@@ -385,14 +417,12 @@ function adaptorExtract(presig, sig64, pubkeyX, msg32) {
 // scalar s with s*G == T (a BIP340 signature value), which completes any adaptor
 // pre-signature made under T.
 function normalizeOutcomeMessages(outcomeMessages) {
-  if (!Array.isArray(outcomeMessages) || outcomeMessages.length < 1) {
-    throw new Error('outcomeMessages must be a non-empty array');
-  }
-  const values = outcomeMessages.map((message, index) =>
-    Buffer.from(requireBuffer(message, 32, `outcomeMessages[${index}]`)));
+  const inputs = snapshotDenseArray(outcomeMessages, 'outcomeMessages', MAX_ORACLE_OUTCOMES);
+  const values = inputs.map((message, index) =>
+    snapshotBuffer(message, 32, `outcomeMessages[${index}]`));
   const hex = values.map((message) => message.toString('hex'));
   if (new Set(hex).size !== hex.length) throw new Error('outcomeMessages must be unique');
-  return { values, hex };
+  return Object.freeze({ values: Object.freeze(values), hex: Object.freeze(hex) });
 }
 
 function deriveOracleNonce(oracleSecret, nonceSecret, eventId, outcomeHex) {
@@ -415,55 +445,78 @@ function deriveOracleNonce(oracleSecret, nonceSecret, eventId, outcomeHex) {
   throw new Error('failed to derive a non-zero oracle nonce');
 }
 
-function oracleAnnouncementDigest(announcement) {
-  if (!announcement || announcement.kind !== 'tradelayer_dlc_oracle_announcement_v1') {
+function normalizeDlcOracleAnnouncement(input, requireSignature) {
+  const raw = snapshotOwnDataArguments(input, [
+    'kind', 'eventId', 'px', 'rx', 'outcomeMessages', 'signature'
+  ], 'DLC oracle announcement');
+  if (raw.kind !== 'tradelayer_dlc_oracle_announcement_v1') {
     throw new Error('invalid DLC oracle announcement');
   }
-  const eventId = String(announcement.eventId || '');
-  if (!eventId || Buffer.byteLength(eventId, 'utf8') > 256) {
+  const eventId = raw.eventId;
+  if (typeof eventId !== 'string' || !eventId || Buffer.byteLength(eventId, 'utf8') > 256) {
     throw new Error('announcement eventId must be 1..256 UTF-8 bytes');
   }
-  parseHexInteger(announcement.px, 32, P, 'announcement.px');
-  parseHexInteger(announcement.rx, 32, P, 'announcement.rx');
-  if (!Array.isArray(announcement.outcomeMessages) || announcement.outcomeMessages.length < 1) {
+  parseHexInteger(raw.px, 32, P, 'announcement.px');
+  parseHexInteger(raw.rx, 32, P, 'announcement.rx');
+  const outcomeMessages = snapshotPlainData(raw.outcomeMessages, 'announcement outcomeMessages', false);
+  if (!Array.isArray(outcomeMessages) || outcomeMessages.length < 1 || outcomeMessages.length > MAX_ORACLE_OUTCOMES) {
     throw new Error('announcement outcomeMessages must be non-empty');
   }
-  const outcomes = announcement.outcomeMessages.map((outcome, index) => {
+  const outcomes = outcomeMessages.map((outcome, index) => {
     parseHexInteger(outcome, 32, MAX_256, `announcement.outcomeMessages[${index}]`);
     return outcome.toLowerCase();
   });
   if (new Set(outcomes).size !== outcomes.length) throw new Error('announcement outcomes must be unique');
+  if (requireSignature && (typeof raw.signature !== 'string' || !/^[0-9a-fA-F]{128}$/.test(raw.signature))) {
+    throw new Error('invalid DLC oracle announcement signature');
+  }
+  return Object.freeze({
+    kind: raw.kind,
+    eventId,
+    px: raw.px.toLowerCase(),
+    rx: raw.rx.toLowerCase(),
+    outcomeMessages: Object.freeze(outcomes),
+    ...(raw.signature === undefined ? {} : { signature: raw.signature.toLowerCase() })
+  });
+}
+
+function oracleAnnouncementDigestNormalized(announcement) {
   return taggedHash(
     'TradeLayer/dlc/oracle/announcement/v1',
-    lengthPrefixed(eventId, 'eventId'),
+    lengthPrefixed(announcement.eventId, 'eventId'),
     Buffer.from(announcement.px, 'hex'),
     Buffer.from(announcement.rx, 'hex'),
-    ...outcomes.map((outcome, index) =>
+    ...announcement.outcomeMessages.map((outcome, index) =>
       lengthPrefixed(Buffer.from(outcome, 'hex'), `outcomeMessages[${index}]`))
+  );
+}
+
+function oracleAnnouncementDigest(announcement) {
+  return oracleAnnouncementDigestNormalized(normalizeDlcOracleAnnouncement(announcement, false));
+}
+
+function verifyNormalizedDlcOracleAnnouncement(announcement) {
+  return schnorrVerify(
+    Buffer.from(announcement.px, 'hex'),
+    oracleAnnouncementDigestNormalized(announcement),
+    Buffer.from(announcement.signature, 'hex')
   );
 }
 
 function verifyDlcOracleAnnouncement(announcement) {
   try {
-    const digest = oracleAnnouncementDigest(announcement);
-    if (typeof announcement.signature !== 'string' || !/^[0-9a-fA-F]{128}$/.test(announcement.signature)) {
-      return false;
-    }
-    return schnorrVerify(
-      Buffer.from(announcement.px, 'hex'),
-      digest,
-      Buffer.from(announcement.signature, 'hex')
-    );
+    return verifyNormalizedDlcOracleAnnouncement(normalizeDlcOracleAnnouncement(announcement, true));
   } catch (_error) {
     return false;
   }
 }
 
 function buildDlcOracle(oracleSecret, nonceSecret, options = {}) {
+  options = snapshotOwnDataArguments(options, ['eventId', 'outcomeMessages'], 'DLC oracle build arguments');
   const x0 = requireScalar(oracleSecret, 'oracleSecret');
   const nonceSeed = requireScalar(nonceSecret, 'nonceSecret');
-  const eventId = String(options.eventId || '');
-  if (!eventId || Buffer.byteLength(eventId, 'utf8') > 256) {
+  const eventId = options.eventId;
+  if (typeof eventId !== 'string' || !eventId || Buffer.byteLength(eventId, 'utf8') > 256) {
     throw new Error('eventId must be 1..256 UTF-8 bytes');
   }
   const outcomes = normalizeOutcomeMessages(options.outcomeMessages);
@@ -497,7 +550,8 @@ function buildDlcOracle(oracleSecret, nonceSecret, options = {}) {
 
 function dlcOutcomePoint(announcement, outcomeMsg32) {
   requireBuffer(outcomeMsg32, 32, 'outcomeMsg32');
-  if (!verifyDlcOracleAnnouncement(announcement)) throw new Error('invalid DLC oracle announcement signature');
+  announcement = normalizeDlcOracleAnnouncement(announcement, true);
+  if (!verifyNormalizedDlcOracleAnnouncement(announcement)) throw new Error('invalid DLC oracle announcement signature');
   const outcomeHex = outcomeMsg32.toString('hex');
   if (!Array.isArray(announcement.outcomeMessages) || !announcement.outcomeMessages.includes(outcomeHex)) {
     throw new Error('outcome message is not committed by the oracle announcement');
@@ -534,7 +588,8 @@ function dlcAttest(oracle, outcomeMsg32) {
 function verifyDlcAttestation(announcement, outcomeMsg32, attestationScalar) {
   try {
     requireBuffer(outcomeMsg32, 32, 'outcomeMsg32');
-    if (!verifyDlcOracleAnnouncement(announcement)) return false;
+    announcement = normalizeDlcOracleAnnouncement(announcement, true);
+    if (!verifyNormalizedDlcOracleAnnouncement(announcement)) return false;
     if (!announcement.outcomeMessages.includes(outcomeMsg32.toString('hex'))) return false;
     const scalar = requireScalar(attestationScalar, 'attestationScalar');
     return schnorrVerify(
@@ -552,8 +607,9 @@ function requireWrappingKey(wrappingKey) {
 }
 
 function signerStateAad(announcement) {
+  announcement = normalizeDlcOracleAnnouncement(announcement, true);
   return Buffer.concat([
-    oracleAnnouncementDigest(announcement),
+    oracleAnnouncementDigestNormalized(announcement),
     Buffer.from(announcement.signature, 'hex')
   ]);
 }
@@ -585,13 +641,12 @@ function sealDlcOracleSignerState(announcement, wrappingKey) {
 }
 
 function restoreDlcOracleSignerState(announcementInput, sealedState, wrappingKey) {
+  const announcement = normalizeDlcOracleAnnouncement(announcementInput, true);
+  sealedState = snapshotOwnDataArguments(sealedState, [
+    'kind', 'cipher', 'iv', 'ciphertext', 'authTag'
+  ], 'sealed DLC oracle signer state');
   requireWrappingKey(wrappingKey);
-  if (!announcementInput || typeof announcementInput !== 'object') throw new Error('oracle announcement is required');
-  const announcement = Object.freeze({
-    ...announcementInput,
-    outcomeMessages: Object.freeze([...(announcementInput.outcomeMessages || [])])
-  });
-  if (!verifyDlcOracleAnnouncement(announcement)) throw new Error('cannot restore an invalid oracle announcement');
+  if (!verifyNormalizedDlcOracleAnnouncement(announcement)) throw new Error('cannot restore an invalid oracle announcement');
   if (!sealedState || sealedState.kind !== 'tradelayer_dlc_oracle_signer_sealed_v1' ||
       sealedState.cipher !== 'aes-256-gcm' ||
       typeof sealedState.iv !== 'string' || !/^[0-9a-f]{24}$/.test(sealedState.iv) ||

@@ -474,6 +474,10 @@ Boundary V70 descriptor-snapshots the adaptor point and pre-signature objects
 used by signing, verification, completion, and extraction. Point coordinates
 retain bounded `bigint` support, verification fails closed on callback-bearing
 objects, and newly created pre-signatures are frozen before returning.
+Boundary V71 extends this rule to oracle construction, announcement envelopes,
+outcome arrays, and sealed signer-state restore inputs. Outcome buffers are
+copied into a bounded canonical snapshot, consumers retain that snapshot, and
+getter-bearing or proxied inputs fail before attacker callbacks can execute.
 The host accepts only bounded regular runtime files whose resolved paths do not
 traverse filesystem links. It hashes the complete runtime closure before and
 after every signer execution, so deletion or mutation during the process
