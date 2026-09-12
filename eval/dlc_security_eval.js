@@ -653,8 +653,28 @@ check('durable DLC journals publish without replacement and reject linked or ove
       /one bounded regular file/
     );
     const traversalRejected = throws(() => new DlcStateStore(directory).read('..'), /unsafe path/);
+    const swapPath = path.join(directory, 'swap.json');
+    const displacedPath = path.join(directory, 'swap-displaced.json');
+    const replacementPath = path.join(directory, 'swap-replacement.json');
+    writeJsonAppendOnce(directory, 'swap.json', { sequence: 0 }, options);
+    fs.writeFileSync(replacementPath, `${JSON.stringify({ sequence: 1 })}\n`);
+    const originalReadSync = fs.readSync;
+    let pathSwapRejected;
+    try {
+      let swapped = false;
+      fs.readSync = function swappingReadSync(fd, buffer, offset, length, position) {
+        const count = originalReadSync(fd, buffer, offset, length, position);
+        if (!swapped && count > 0) {
+          fs.renameSync(swapPath, displacedPath);
+          fs.renameSync(replacementPath, swapPath);
+          swapped = true;
+        }
+        return count;
+      };
+      pathSwapRejected = throws(() => readBoundedJson(swapPath, options), /path changed while reading/);
+    } finally { fs.readSync = originalReadSync; }
     return firstRead.digest === first.digest && afterReplacement.digest === first.digest &&
-      replacementRejected && linkedRejected && oversizedRejected && traversalRejected;
+      replacementRejected && linkedRejected && oversizedRejected && traversalRejected && pathSwapRejected;
   } finally {
     fs.rmSync(directory, { recursive: true, force: true });
   }
@@ -1921,7 +1941,7 @@ const possible = cases.reduce((sum, test) => sum + test.points, 0);
 const score = earned / possible;
 const report = {
   benchmark: 'utxoref-dlc-security',
-  version: 25,
+  version: 26,
   profile: profileName,
   seed,
   score,

@@ -398,6 +398,11 @@ entry, or its parent directory changes while hashing; transient hash buffers are
 cleared after use. The runtime closure remains checked before and after each
 signer execution, while host ACLs protect the interval between hashing and the
 Windows path launch.
+Boundary V56 revalidates each durable record's pathname after descriptor reads
+and after the final publication flush. A record swapped by rename can no longer
+be accepted or reported durable merely because the old open descriptor and the
+parent directory kept stable identities. Durable record directories must also
+resolve without traversing symlinks or junctions.
 The host accepts only bounded regular runtime files whose resolved paths do not
 traverse filesystem links. It hashes the complete runtime closure before and
 after every signer execution, so deletion or mutation during the process

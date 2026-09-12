@@ -12,9 +12,17 @@ function requireByteLimit(maxBytes) {
 }
 
 function assertNonSymlinkDirectory(directory, label = 'durable JSON') {
-  const metadata = fs.lstatSync(directory, { bigint: true });
+  const resolved = path.resolve(directory);
+  const metadata = fs.lstatSync(resolved, { bigint: true });
   if (!metadata.isDirectory() || metadata.isSymbolicLink()) {
     throw new Error(`${label} directory must be a non-symlink directory`);
+  }
+  const realPath = fs.realpathSync.native ? fs.realpathSync.native(resolved) : fs.realpathSync(resolved);
+  const normalizeForComparison = (filePath) => process.platform === 'win32'
+    ? path.resolve(filePath).toLowerCase()
+    : path.resolve(filePath);
+  if (normalizeForComparison(realPath) !== normalizeForComparison(resolved)) {
+    throw new Error(`${label} directory must not traverse filesystem links`);
   }
   return metadata;
 }
@@ -56,6 +64,8 @@ function readBoundedJson(filePath, { maxBytes, label = 'durable JSON record' }) 
       if (count < 1) throw new Error(`${label} was truncated while reading`);
       offset += count;
     }
+    const pathAfter = fs.lstatSync(filePath, { bigint: true });
+    if (!sameOpenedFile(pathAfter, opened)) throw new Error(`${label} path changed while reading`);
     const after = fs.fstatSync(fd, { bigint: true });
     if (!sameOpenedFile(after, opened)) throw new Error(`${label} changed while reading`);
     const parentAfter = assertNonSymlinkDirectory(parentPath, label);
@@ -109,6 +119,10 @@ function writeJsonAppendOnce(directory, name, record, { maxBytes, label = 'durab
       const opened = fs.fstatSync(finalFd, { bigint: true });
       if (!sameOpenedFile(opened, before)) throw new Error(`${label} changed before final flush`);
       fs.fsyncSync(finalFd);
+      const pathAfter = fs.lstatSync(finalPath, { bigint: true });
+      if (!sameOpenedFile(pathAfter, opened)) throw new Error(`${label} path changed during final flush`);
+      const flushed = fs.fstatSync(finalFd, { bigint: true });
+      if (!sameOpenedFile(flushed, opened)) throw new Error(`${label} changed during final flush`);
     } finally { fs.closeSync(finalFd); }
     const directoryAfter = assertNonSymlinkDirectory(directory, label);
     if (!sameDirectory(directoryAfter, directoryBefore)) {

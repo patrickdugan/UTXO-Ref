@@ -132,7 +132,7 @@ module.exports = {
   // for production; these interfaces enforce transcript, threshold-oracle,
   // and persistence gates on regtest and Bitcoin testnet4.
   dlc: Object.freeze({
-    securityBoundaryVersion: 55,
+    securityBoundaryVersion: 56,
     createContract: dlcContractState.createDlcContract,
     validateContract: dlcContractState.validateDlcContract,
     transitionContract: dlcContractState.transitionDlcContract,
@@ -214,12 +214,15 @@ module.exports = {
       exactOneRaceWinner: true
     }),
     durableJournalPolicy: Object.freeze({
-      recordReadProtocol: 'lstat-open-fstat-reread-v1',
+      recordReadProtocol: 'lstat-open-fstat-lstat-v2',
       atomicNoReplacePublication: 'link-excl-then-unlink-v1',
       contractStateDirectoryKey: 'sha256-contract-id-v1',
       nonSymlinkDirectoriesRequired: true,
       linkedFinalRecordsAllowed: false,
       identityStableThroughReadRequired: true,
+      pathEntryStableThroughReadRequired: true,
+      pathEntryStableThroughFinalFlushRequired: true,
+      directoryLinkTraversalAllowed: false,
       readBuffersCleared: true,
       temporaryRecordFsynced: true,
       finalRecordFsynced: true,

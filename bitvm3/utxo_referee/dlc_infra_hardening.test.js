@@ -72,6 +72,7 @@ const { settlementAnchor, evaluateDlcAnchorRecovery } = require('./dlc_anchor_re
 const { validateFundingPrebroadcastPolicy } = require('./dlc_funding_prebroadcast_guard');
 const { validateExecutionPrebroadcastPolicy } = require('./dlc_execution_prebroadcast_guard');
 const { DlcBroadcastAuthorizationStore } = require('./dlc_broadcast_authorization_store');
+const { readBoundedJson, writeJsonAppendOnce } = require('./dlc_durable_json_store');
 
 let passed = 0;
 let failed = 0;
@@ -887,6 +888,68 @@ test('native signer runtime closure rejects hard links and mutation during hashi
     assert(mutated, 'runtime identity test did not mutate the audited file');
   } finally {
     fs.readSync = originalReadSync;
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test('durable JSON rejects pathname swaps during reads and final publication flushes', () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'utxoref-durable-path-swap-'));
+  const options = { maxBytes: 4096, label: 'path-swap durable record' };
+  const originalReadSync = fs.readSync;
+  const originalFsyncSync = fs.fsyncSync;
+  try {
+    const junctionTarget = path.join(directory, 'junction-target');
+    const junctionPath = path.join(directory, 'junction-path');
+    fs.mkdirSync(junctionTarget);
+    writeJsonAppendOnce(junctionTarget, 'record.json', { sequence: -1 }, options);
+    fs.symlinkSync(junctionTarget, junctionPath, 'junction');
+    expectThrow(
+      () => readBoundedJson(path.join(junctionPath, 'record.json'), options),
+      /directory must be a non-symlink directory|directory must not traverse filesystem links/
+    );
+
+    const recordPath = writeJsonAppendOnce(directory, 'record.json', { sequence: 0 }, options);
+    const displacedReadPath = path.join(directory, 'record-read-displaced.json');
+    const readReplacementPath = path.join(directory, 'record-read-replacement.json');
+    fs.writeFileSync(readReplacementPath, `${JSON.stringify({ sequence: 1 })}\n`);
+    let readSwapped = false;
+    fs.readSync = function swappingReadSync(fd, buffer, offset, length, position) {
+      const count = originalReadSync(fd, buffer, offset, length, position);
+      if (!readSwapped && count > 0) {
+        fs.renameSync(recordPath, displacedReadPath);
+        fs.renameSync(readReplacementPath, recordPath);
+        readSwapped = true;
+      }
+      return count;
+    };
+    expectThrow(() => readBoundedJson(recordPath, options), /path changed while reading/);
+    assert(readSwapped, 'durable read path-swap test did not replace the record');
+    fs.readSync = originalReadSync;
+
+    const publishReplacementPath = path.join(directory, 'publish-replacement.json');
+    const displacedPublishPath = path.join(directory, 'publish-displaced.json');
+    fs.writeFileSync(publishReplacementPath, `${JSON.stringify({ sequence: 3 })}\n`);
+    let fsyncCalls = 0;
+    let publishSwapped = false;
+    fs.fsyncSync = function swappingFsyncSync(fd) {
+      const result = originalFsyncSync(fd);
+      fsyncCalls++;
+      if (fsyncCalls === 2) {
+        const publishPath = path.join(directory, 'publish.json');
+        fs.renameSync(publishPath, displacedPublishPath);
+        fs.renameSync(publishReplacementPath, publishPath);
+        publishSwapped = true;
+      }
+      return result;
+    };
+    expectThrow(
+      () => writeJsonAppendOnce(directory, 'publish.json', { sequence: 2 }, options),
+      /path changed during final flush/
+    );
+    assert(publishSwapped, 'durable publication path-swap test did not replace the record');
+  } finally {
+    fs.readSync = originalReadSync;
+    fs.fsyncSync = originalFsyncSync;
     fs.rmSync(directory, { recursive: true, force: true });
   }
 });

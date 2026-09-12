@@ -152,6 +152,10 @@ Every executable and code file must have one filesystem link, and its opened
 identity, path entry, and parent directory must remain stable while it is hashed.
 Keep the pinned runtime closure read-only to the signer and coordinator accounts
 because Windows still launches the executable by path after the hash completes.
+Boundary V56 closes rename-based record substitution during durable reads and
+publication. The store revalidates the final path against the opened descriptor
+after reading and after fsync, and rejects record directories reached through a
+symlink or junction.
 
 ## Agent isolation
 
