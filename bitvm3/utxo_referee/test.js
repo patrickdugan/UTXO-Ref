@@ -114,6 +114,45 @@ test('PayoutLeaf hash includes domain tag', () => {
   assertEqual(hash.length, 32, 'Hash should be 32 bytes');
 });
 
+test('protocol objects copy caller-owned byte arrays and Merkle proofs', () => {
+  const root = Buffer.alloc(32, 0x11);
+  const residual = sampleScriptPubKey(7);
+  const commitment = new CommitmentPackage({
+    epochId: 7n,
+    withdrawalRoot: root,
+    capSats: 1000n,
+    residualDest: residual
+  });
+  const commitmentHash = commitment.hash();
+  root[0] ^= 0xff;
+  residual[0] ^= 0xff;
+  assert(commitment.hash().equals(commitmentHash), 'caller buffer mutation changed the commitment');
+
+  const payoutScript = sampleScriptPubKey(8);
+  const sibling = Buffer.alloc(32, 0x22);
+  const payout = {
+    recipientScriptPubKey: payoutScript,
+    amountSats: 500n,
+    merkleProof: { index: 0, siblings: [sibling] }
+  };
+  const residualOutput = {
+    recipientScriptPubKey: sampleScriptPubKey(9),
+    amountSats: 500n
+  };
+  const sweep = new SweepObject({
+    epochIdCommitted: 7n,
+    payoutOutputs: [payout],
+    residualOutput
+  });
+  payoutScript[0] ^= 0xff;
+  sibling[0] ^= 0xff;
+  residualOutput.recipientScriptPubKey[0] ^= 0xff;
+  assert(sweep.payoutOutputs[0].recipientScriptPubKey[0] !== payoutScript[0], 'payout script was aliased');
+  assert(sweep.payoutOutputs[0].merkleProof.siblings[0][0] !== sibling[0], 'Merkle sibling was aliased');
+  assert(sweep.residualOutput.recipientScriptPubKey[0] !== residualOutput.recipientScriptPubKey[0],
+    'residual script was aliased');
+});
+
 test('CommitmentPackage round-trip serialization', () => {
   const original = new CommitmentPackage({
     epochId: 12345,

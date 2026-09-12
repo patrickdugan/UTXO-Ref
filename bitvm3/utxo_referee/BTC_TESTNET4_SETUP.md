@@ -41,6 +41,25 @@ node bitvm3\utxo_referee\btc_testnet4_smoke.js --require-synced --json
 
 With `--require-synced`, the smoke script requires chain identity and full header sync. It brackets wallet UTXO discovery with the chain tip and mempool sequence, confirms every selected coin through `gettxout`, and runs a logical UTXORef commitment/proof probe. The logical probe does not prove that a relayable Bitcoin transaction exists. The script does not create, sign, or broadcast a transaction.
 
+Before allowing untrusted swarm workers on the host, run the fail-closed host
+preflight. Its default mode requires restricted datadir, cookie, configuration,
+and wallet ACLs plus a watch-only wallet. `-TrustedCoordinator` permits a loaded
+private-key wallet for a read-only coordinator check, but is not an agent-sandbox
+claim:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File eval\bitcoin-testnet4-host-preflight.ps1 -Json
+powershell -ExecutionPolicy Bypass -File eval\bitcoin-testnet4-host-preflight.ps1 -TrustedCoordinator -Json
+```
+
+The backup-first ACL tool prints its target set without changing it unless
+`-Apply` is present. Review the dry run and keep the emitted `icacls` backup:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File eval\lockdown-bitcoin-testnet4-acl.ps1
+powershell -ExecutionPolicy Bypass -File eval\lockdown-bitcoin-testnet4-acl.ps1 -Apply
+```
+
 ## Red-team swarm stress
 
 Run parallel verifier agents and concurrent live-UTXO freshness probes:

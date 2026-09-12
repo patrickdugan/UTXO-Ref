@@ -4,24 +4,16 @@
 const fs = require('fs');
 const { spawnSync, execFile } = require('child_process');
 const { Worker, isMainThread, parentPort, workerData } = require('worker_threads');
+const { SATS_PER_BTC, btcToSats, captureStableSnapshot } = require('./btc_testnet4_snapshot');
 
 const DEFAULT_CLI = 'D:\\Tools\\BitcoinCore-31.1\\bitcoin-31.1\\bin\\bitcoin-cli.exe';
 const DEFAULT_DATADIR = 'D:\\BitcoinTestnet';
 const DEFAULT_WALLET = 'utxoref-testnet';
-const SATS_PER_BTC = 100000000n;
 
 function parseOption(name, fallback) {
   const prefix = `--${name}=`;
   const match = process.argv.find(arg => arg.startsWith(prefix));
   return match ? match.slice(prefix.length) : fallback;
-}
-
-function btcToSats(amount) {
-  const text = String(amount);
-  const match = /^(\d+)(?:\.(\d{1,8}))?$/.exec(text);
-  if (!match) throw new Error(`invalid BTC amount: ${text}`);
-  const fraction = (match[2] || '').padEnd(8, '0');
-  return BigInt(match[1]) * SATS_PER_BTC + BigInt(fraction || '0');
 }
 
 function runVerifierAgent(data) {
@@ -218,6 +210,7 @@ if (!isMainThread) {
     const result = spawnSync(bitcoinCli, args, { encoding: 'utf8', windowsHide: true, timeout: 60000 });
     if (result.error) throw result.error;
     if (result.status !== 0) throw new Error((result.stderr || result.stdout || `RPC ${method} failed`).trim());
+    if (method === 'getbestblockhash') return result.stdout.trim();
     return JSON.parse(result.stdout);
   };
   const rpcText = (method, params = [], wallet = false) => {
@@ -239,7 +232,7 @@ if (!isMainThread) {
     });
   });
 
-  async function runRpcProbes(utxos) {
+  async function runRpcProbes(utxos, bestBlockHash) {
     let next = 0;
     const results = [];
     const worker = async () => {
@@ -250,6 +243,8 @@ if (!isMainThread) {
           const current = await rpcAsync('gettxout', [utxo.txid, utxo.vout, 'true']);
           const same = current &&
             btcToSats(current.value) === BigInt(utxo.amountSats) &&
+            current.bestblock === bestBlockHash &&
+            current.confirmations === utxo.confirmations &&
             current.scriptPubKey && current.scriptPubKey.hex === utxo.scriptPubKey;
           results.push({ found: !!current, same: !!same, error: false });
         } catch (_) {
@@ -403,51 +398,15 @@ if (!isMainThread) {
 
   async function main() {
     if (!fs.existsSync(bitcoinCli)) throw new Error(`bitcoin-cli not found: ${bitcoinCli}`);
-    const network = rpc('getnetworkinfo');
-    const wallet = rpc('getwalletinfo', [], true);
-    let chainBefore;
-    let listed;
-    let snapshotMempoolSequence;
-    let snapshotAttempts = 0;
-    for (let attempt = 1; attempt <= 3; attempt++) {
-      const candidateChain = rpc('getblockchaininfo');
-      if (candidateChain.chain !== 'testnet4') throw new Error(`wrong chain: ${candidateChain.chain}`);
-      const mempoolBefore = rpc('getrawmempool', ['false', 'true']);
-      const candidateUtxos = rpc('listunspent', ['1', '9999999'], true)
-        .filter(utxo => utxo.safe && utxo.confirmations > 0 && utxo.scriptPubKey);
-      const current = candidateUtxos.map(utxo => rpc('gettxout', [utxo.txid, utxo.vout, 'true']));
-      const mempoolAfter = rpc('getrawmempool', ['false', 'true']);
-      const chainAfterSnapshot = rpc('getblockchaininfo');
-      const coinsMatch = current.every((coin, index) => coin &&
-        coin.bestblock === candidateChain.bestblockhash &&
-        btcToSats(coin.value) === btcToSats(candidateUtxos[index].amount) &&
-        coin.scriptPubKey && coin.scriptPubKey.hex === candidateUtxos[index].scriptPubKey);
-      const walletAtTip = !wallet.lastprocessedblock ||
-        (wallet.lastprocessedblock.height === candidateChain.blocks &&
-         wallet.lastprocessedblock.hash === candidateChain.bestblockhash);
-      if (candidateChain.blocks === chainAfterSnapshot.blocks &&
-          candidateChain.bestblockhash === chainAfterSnapshot.bestblockhash &&
-          mempoolBefore.mempool_sequence === mempoolAfter.mempool_sequence &&
-          coinsMatch && walletAtTip) {
-        chainBefore = chainAfterSnapshot;
-        listed = candidateUtxos;
-        snapshotMempoolSequence = mempoolAfter.mempool_sequence;
-        snapshotAttempts = attempt;
-        break;
-      }
-    }
-    if (!chainBefore) throw new Error('could not capture a stable chain/UTXO snapshot after 3 attempts');
+    const snapshot = captureStableSnapshot(rpc);
+    const { chain: chainBefore, network, wallet, utxos: listed, anchor } = snapshot;
     if (listed.length === 0) throw new Error('no confirmed safe spendable UTXOs');
-    const liveUtxos = listed.slice(0, 8).map(utxo => ({
-      txid: utxo.txid,
-      vout: utxo.vout,
-      address: utxo.address,
-      amount: utxo.amount,
-      amountSats: btcToSats(utxo.amount).toString(),
-      scriptPubKey: utxo.scriptPubKey
-    }));
+    const liveUtxos = listed.slice(0, 8);
     const synced = !chainBefore.initialblockdownload && chainBefore.blocks === chainBefore.headers;
-    if (requireSynced && !synced) throw new Error(`not synced: ${chainBefore.blocks}/${chainBefore.headers}`);
+    if (requireSynced && (!synced || network.networkactive !== true || network.connections < 1)) {
+      throw new Error(`testnet4 is not ready: blocks=${chainBefore.blocks}, headers=${chainBefore.headers}, ` +
+        `networkactive=${network.networkactive}, peers=${network.connections}`);
+    }
 
     const activeAgents = Math.min(agents, iterations);
     const baseIterations = Math.floor(iterations / activeAgents);
@@ -455,7 +414,7 @@ if (!isMainThread) {
     const workers = Array.from({ length: activeAgents }, (_, agentId) => new Promise((resolve, reject) => {
       const agentIterations = baseIterations + (agentId < extraIterations ? 1 : 0);
       const worker = new Worker(__filename, {
-        workerData: { agentId, iterations: agentIterations, epochId: chainBefore.blocks, utxos: liveUtxos }
+        workerData: { agentId, iterations: agentIterations, epochId: anchor.epochId, utxos: liveUtxos }
       });
       worker.once('message', resolve);
       worker.once('error', reject);
@@ -463,7 +422,7 @@ if (!isMainThread) {
     }));
     const [agentReports, rpcReport] = await Promise.all([
       Promise.all(workers),
-      runRpcProbes(liveUtxos)
+      runRpcProbes(liveUtxos, chainBefore.bestblockhash)
     ]);
     const mempoolPolicy = createSignedPolicyProbe(liveUtxos.find(utxo => utxo.address) || liveUtxos[0], synced);
     const unsignedPolicy = createUnsignedPolicyProbe(
@@ -511,8 +470,11 @@ if (!isMainThread) {
         startTipStillCanonical,
         tipReorgObserved,
         snapshotStable: true,
-        snapshotAttempts,
-        snapshotMempoolSequence
+        snapshotAttempts: snapshot.attempts,
+        snapshotMempoolSequence: snapshot.mempoolSequence,
+        snapshotCommitmentHash: anchor.hash,
+        eligibleUtxoCount: listed.length,
+        omittedUtxoCount: listed.length - liveUtxos.length
       },
       wallet: {
         name: wallet.walletname,

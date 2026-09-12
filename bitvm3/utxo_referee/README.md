@@ -306,6 +306,12 @@ Boundary V36 validates the signer clock and signed authorization time window
 before creating the durable replay marker. Expired or future-dated requests now
 fail without burning an authorization that may become valid later, while every
 accepted authorization is still consumed before the signing key is unprotected.
+Boundary V37 binds testnet4 evaluation to a stable tip, mempool sequence, wallet
+cursor, and sorted `txid:vout` coin set. Same-height forks produce different
+epochs, caller-owned buffers are copied at protocol-object construction, and the
+untrusted-agent preflight fails closed on permissive datadir ACLs or a wallet
+with private keys enabled. The optional ACL tool records a restore backup before
+changing permissions.
 The host accepts only bounded regular runtime files whose resolved paths do not
 traverse filesystem links. It hashes the complete runtime closure before and
 after every signer execution, so deletion or mutation during the process

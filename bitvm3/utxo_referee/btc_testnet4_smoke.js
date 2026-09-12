@@ -10,8 +10,7 @@ const {
   buildTreeWithProofs,
   verifySweep
 } = require('./index');
-
-const SATS_PER_BTC = 100000000n;
+const { btcToSats, captureStableSnapshot } = require('./btc_testnet4_snapshot');
 const bitcoinCli = process.env.BITCOIN_CLI ||
   'D:\\Tools\\BitcoinCore-31.1\\bitcoin-31.1\\bin\\bitcoin-cli.exe';
 const dataDir = process.env.BITCOIN_DATADIR || 'D:\\BitcoinTestnet';
@@ -37,34 +36,26 @@ function rpc(method, params = [], wallet = false) {
     const detail = (result.stderr || result.stdout || '').trim();
     throw new Error(`bitcoin-cli ${method} failed: ${detail || `exit ${result.status}`}`);
   }
+  if (method === 'getbestblockhash') return result.stdout.trim();
   return JSON.parse(result.stdout);
 }
 
-function btcToSats(amount) {
-  const text = String(amount);
-  const match = /^(\d+)(?:\.(\d{1,8}))?$/.exec(text);
-  if (!match) throw new Error(`invalid BTC amount: ${text}`);
-  const fraction = (match[2] || '').padEnd(8, '0');
-  return BigInt(match[1]) * SATS_PER_BTC + BigInt(fraction || '0');
-}
-
-function buildLiveVerifierProbe(chain, utxos) {
+function buildLiveVerifierProbe(anchor, utxos) {
   const selected = utxos
-    .filter(utxo => utxo.spendable && utxo.safe && utxo.confirmations > 0 && utxo.scriptPubKey)
     .slice(0, 8);
   if (selected.length === 0) {
     return { ok: false, reason: 'wallet has no confirmed, safe, spendable UTXO' };
   }
 
   const leaves = selected.map(utxo => new PayoutLeaf({
-    epochId: BigInt(chain.blocks),
+    epochId: BigInt(anchor.epochId),
     recipientScriptPubKey: Buffer.from(utxo.scriptPubKey, 'hex'),
-    amountSats: btcToSats(utxo.amount)
+    amountSats: BigInt(utxo.amountSats)
   }));
   const { root, proofs } = buildTreeWithProofs(leaves);
   const capSats = leaves.reduce((sum, leaf) => sum + leaf.amountSats, 0n);
   const commitment = new CommitmentPackage({
-    epochId: BigInt(chain.blocks),
+    epochId: BigInt(anchor.epochId),
     withdrawalRoot: root,
     capSats,
     residualDest: Buffer.from(selected[0].scriptPubKey, 'hex')
@@ -87,58 +78,24 @@ function buildLiveVerifierProbe(chain, utxos) {
     reason: verification.reason,
     epochId: commitment.epochId.toString(),
     payoutCount: leaves.length,
+    eligibleUtxoCount: utxos.length,
+    omittedUtxoCount: utxos.length - leaves.length,
     capSats: capSats.toString(),
     withdrawalRoot: root.toString('hex'),
     commitmentHash: commitment.hash().toString('hex')
   };
 }
 
-function captureStableSnapshot(maxAttempts = 3) {
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    const chainBefore = rpc('getblockchaininfo');
-    if (chainBefore.chain !== 'testnet4') throw new Error(`wrong chain: expected testnet4, got ${chainBefore.chain}`);
-    const mempoolBefore = rpc('getrawmempool', ['false', 'true']);
-    const network = rpc('getnetworkinfo');
-    const wallet = rpc('getwalletinfo', [], true);
-    const balances = rpc('getbalances', [], true);
-    const utxos = rpc('listunspent', ['1', '9999999'], true)
-      .filter(utxo => utxo.safe && utxo.confirmations > 0 && utxo.scriptPubKey);
-    const current = utxos.map(utxo => rpc('gettxout', [utxo.txid, utxo.vout, 'true']));
-    const mempoolAfter = rpc('getrawmempool', ['false', 'true']);
-    const chainAfter = rpc('getblockchaininfo');
-    const coinsMatch = current.every((coin, index) => coin &&
-      coin.bestblock === chainBefore.bestblockhash &&
-      btcToSats(coin.value) === btcToSats(utxos[index].amount) &&
-      coin.scriptPubKey && coin.scriptPubKey.hex === utxos[index].scriptPubKey);
-    const walletAtTip = !wallet.lastprocessedblock ||
-      (wallet.lastprocessedblock.height === chainBefore.blocks &&
-       wallet.lastprocessedblock.hash === chainBefore.bestblockhash);
-    if (chainBefore.blocks === chainAfter.blocks &&
-        chainBefore.bestblockhash === chainAfter.bestblockhash &&
-        mempoolBefore.mempool_sequence === mempoolAfter.mempool_sequence &&
-        coinsMatch && walletAtTip) {
-      return {
-        chain: chainAfter,
-        network,
-        wallet,
-        balances,
-        utxos,
-        attempts: attempt,
-        mempoolSequence: mempoolAfter.mempool_sequence
-      };
-    }
-  }
-  throw new Error(`could not capture a stable chain/mempool/wallet snapshot after ${maxAttempts} attempts`);
-}
-
 function run() {
   if (!fs.existsSync(bitcoinCli)) throw new Error(`bitcoin-cli not found: ${bitcoinCli}`);
-  const { chain, network, wallet, balances, utxos, attempts, mempoolSequence } = captureStableSnapshot();
+  const { chain, network, wallet, balances, utxos, attempts, mempoolSequence, anchor } =
+    captureStableSnapshot(rpc);
   const synced = !chain.initialblockdownload && chain.blocks === chain.headers;
-  if (requireSynced && !synced) {
-    throw new Error(`testnet4 is not synced: blocks=${chain.blocks}, headers=${chain.headers}`);
+  if (requireSynced && (!synced || network.networkactive !== true || network.connections < 1)) {
+    throw new Error(`testnet4 is not ready: blocks=${chain.blocks}, headers=${chain.headers}, ` +
+      `networkactive=${network.networkactive}, peers=${network.connections}`);
   }
-  const verifierProbe = buildLiveVerifierProbe(chain, utxos);
+  const verifierProbe = buildLiveVerifierProbe(anchor, utxos);
   if (!verifierProbe.ok) throw new Error(`live verifier probe failed: ${verifierProbe.reason}`);
 
   const report = {
@@ -157,6 +114,7 @@ function run() {
     snapshotAttempts: attempts,
     snapshotStable: true,
     mempoolSequence,
+    snapshotCommitmentHash: anchor.hash,
     wallet: {
       name: wallet.walletname,
       descriptors: wallet.descriptors,

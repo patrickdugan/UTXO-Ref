@@ -10,6 +10,14 @@ const crypto = require('crypto');
 // Domain separator for leaf hashing (prevents cross-protocol attacks)
 const LEAF_TAG = Buffer.from('UTXO_REFEREE_V1');
 
+function copyBytes(value, name) {
+  if (Buffer.isBuffer(value) || value instanceof Uint8Array) return Buffer.from(value);
+  if (typeof value === 'string' && value.length % 2 === 0 && /^[0-9a-f]*$/.test(value)) {
+    return Buffer.from(value, 'hex');
+  }
+  throw new Error(`${name} must be bytes or lowercase hexadecimal`);
+}
+
 /**
  * Write u64 as little-endian 8 bytes
  */
@@ -63,13 +71,9 @@ function serializeScriptPubKey(spk) {
 class CommitmentPackage {
   constructor({ epochId, withdrawalRoot, capSats, residualDest }) {
     this.epochId = BigInt(epochId);
-    this.withdrawalRoot = Buffer.isBuffer(withdrawalRoot)
-      ? withdrawalRoot
-      : Buffer.from(withdrawalRoot, 'hex');
+    this.withdrawalRoot = copyBytes(withdrawalRoot, 'withdrawalRoot');
     this.capSats = BigInt(capSats);
-    this.residualDest = Buffer.isBuffer(residualDest)
-      ? residualDest
-      : Buffer.from(residualDest, 'hex');
+    this.residualDest = copyBytes(residualDest, 'residualDest');
 
     if (this.withdrawalRoot.length !== 32) {
       throw new Error('withdrawalRoot must be 32 bytes');
@@ -124,9 +128,7 @@ class CommitmentPackage {
 class PayoutLeaf {
   constructor({ epochId, recipientScriptPubKey, amountSats }) {
     this.epochId = BigInt(epochId);
-    this.recipientScriptPubKey = Buffer.isBuffer(recipientScriptPubKey)
-      ? recipientScriptPubKey
-      : Buffer.from(recipientScriptPubKey, 'hex');
+    this.recipientScriptPubKey = copyBytes(recipientScriptPubKey, 'recipientScriptPubKey');
     this.amountSats = BigInt(amountSats);
 
     if (this.amountSats < 0n) {
@@ -176,11 +178,16 @@ class PayoutLeaf {
  */
 class PayoutOutput {
   constructor({ recipientScriptPubKey, amountSats, merkleProof }) {
-    this.recipientScriptPubKey = Buffer.isBuffer(recipientScriptPubKey)
-      ? recipientScriptPubKey
-      : Buffer.from(recipientScriptPubKey, 'hex');
+    this.recipientScriptPubKey = copyBytes(recipientScriptPubKey, 'recipientScriptPubKey');
     this.amountSats = BigInt(amountSats);
-    this.merkleProof = merkleProof; // { siblings: Buffer[], index: number }
+    this.merkleProof = merkleProof && typeof merkleProof === 'object' && !Array.isArray(merkleProof)
+      ? {
+          ...merkleProof,
+          siblings: Array.isArray(merkleProof.siblings)
+            ? merkleProof.siblings.map(sibling => copyBytes(sibling, 'merkleProof sibling'))
+            : merkleProof.siblings
+        }
+      : merkleProof;
   }
 }
 
@@ -189,9 +196,7 @@ class PayoutOutput {
  */
 class ResidualOutput {
   constructor({ recipientScriptPubKey, amountSats }) {
-    this.recipientScriptPubKey = Buffer.isBuffer(recipientScriptPubKey)
-      ? recipientScriptPubKey
-      : Buffer.from(recipientScriptPubKey, 'hex');
+    this.recipientScriptPubKey = copyBytes(recipientScriptPubKey, 'recipientScriptPubKey');
     this.amountSats = BigInt(amountSats);
   }
 }
@@ -204,12 +209,15 @@ class ResidualOutput {
 class SweepObject {
   constructor({ epochIdCommitted, payoutOutputs, residualOutput }) {
     this.epochIdCommitted = BigInt(epochIdCommitted);
-    this.payoutOutputs = payoutOutputs.map(o =>
-      o instanceof PayoutOutput ? o : new PayoutOutput(o)
-    );
-    this.residualOutput = residualOutput instanceof ResidualOutput
-      ? residualOutput
-      : new ResidualOutput(residualOutput);
+    this.payoutOutputs = payoutOutputs.map(o => new PayoutOutput({
+      recipientScriptPubKey: o.recipientScriptPubKey,
+      amountSats: o.amountSats,
+      merkleProof: o.merkleProof
+    }));
+    this.residualOutput = new ResidualOutput({
+      recipientScriptPubKey: residualOutput.recipientScriptPubKey,
+      amountSats: residualOutput.amountSats
+    });
   }
 
   /**
