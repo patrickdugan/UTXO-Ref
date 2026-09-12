@@ -36,6 +36,8 @@ const m1ReceiptLedger = require('./m1_receipt_ledger');
 const m1Transition = require('./m1_transition');
 const m1TransitionCircuit = require('./m1_transition_circuit');
 const m1TallyMap = require('./m1_tally_map');
+const m1DepositIndexer = require('./m1_deposit_indexer');
+const utxoRefV2 = require('./utxoref_v2');
 
 module.exports = {
   // Types
@@ -76,6 +78,9 @@ module.exports = {
   validateCommitmentPackageRecord: m1Spec.validateCommitmentPackageRecord,
   templateHashHex: m1Spec.templateHashHex,
   ReceiptLedger: m1ReceiptLedger.ReceiptLedger,
+  ReceiptDepositIndexer: m1DepositIndexer.ReceiptDepositIndexer,
+  DEPOSIT_STATUSES: m1DepositIndexer.DEPOSIT_STATUSES,
+  computeConfirmations: m1DepositIndexer.computeConfirmations,
   ReceiptTallyMap: m1TallyMap.ReceiptTallyMap,
   computeRouteAmounts: m1Transition.computeRouteAmounts,
   applyBinarySettlementTransition: m1Transition.applyBinarySettlementTransition,
@@ -92,5 +97,15 @@ module.exports = {
   m1ReceiptLedger,
   m1Transition,
   m1TransitionCircuit,
-  m1TallyMap
+  m1TallyMap,
+  m1DepositIndexer,
+
+  // Stable BitAgent compatibility surface. Additional V2 settlement helpers can
+  // be added here without changing legacy referee exports.
+  v2: Object.freeze({
+    settlement: Object.freeze({
+      VERSION: utxoRefV2.VERSION,
+      buildFundingSetV2: utxoRefV2.buildFundingSetV2
+    })
+  })
 };

@@ -132,6 +132,40 @@ if (result.ok) {
 }
 ```
 
+## BitAgent testnet4 compatibility
+
+BitAgent consumes three stable CommonJS interfaces:
+
+```javascript
+const referee = require('./bitvm3/utxo_referee');
+const reserveVault = require('./bitvm3/utxo_referee/taproot_reserve_vault');
+
+const funding = referee.v2.settlement.buildFundingSetV2([{
+  txid: 'aa'.repeat(32),
+  vout: 0,
+  amountSats: '6000',
+  scriptPubKeyHex: '0014' + '11'.repeat(20)
+}]);
+
+const deposits = new referee.ReceiptDepositIndexer({
+  network: 'bitcoin-testnet4',
+  minConfirmations: 3
+});
+
+const template = reserveVault.buildTaprootReserveVaultTemplate({
+  network: 'bitcoin-testnet4',
+  operatorXonly: '...',
+  guardianXonly: '...',
+  recoveryXonly: '...',
+  recoveryCsvDelay: 2016,
+  bindingHash: '...'
+});
+```
+
+Run `node bitvm3/utxo_referee/bitagent_compatibility.test.js` to verify the
+interface, deterministic funding root, confirmation threshold, and bound P2TR
+reserve template. The test uses synthetic data and does not sign or broadcast.
+
 ## Threat Model
 
 ### What the Referee Prevents
@@ -192,6 +226,25 @@ node bitvm3/utxo_referee/m1_ltc_testnet_demo.js
 ```
 
 Litecoin testnet RPC setup is documented in `LTC_TESTNET_SETUP.md`.
+
+## Bitcoin testnet4 live smoke
+
+The active Bitcoin environment is the local Core node at `D:\BitcoinTestnet`:
+
+```powershell
+node bitvm3\utxo_referee\btc_testnet4_smoke.js
+node bitvm3\utxo_referee\btc_testnet4_smoke.js --require-synced --json
+```
+
+This is read-only and never broadcasts. Setup and operating commands are documented in `BTC_TESTNET4_SETUP.md`.
+
+For concurrent red-team stress backed by live wallet UTXOs:
+
+```powershell
+node bitvm3\utxo_referee\btc_testnet4_stress.js --agents=8 --iterations=11000 --rpc-probes=100 --require-synced --unsigned-mempool-probe
+```
+
+The sanitized baseline and release blockers are recorded in `../../BTC_TESTNET4_REDTEAM_REPORT.md`.
 
 ## M1 Transition Function
 

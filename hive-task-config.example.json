@@ -1,0 +1,26 @@
+{
+  "verify": true,
+  "verification_mode": "on_submit",
+  "mutable_paths": [
+    "bitvm3/utxo_referee/verify.js",
+    "bitvm3/utxo_referee/merkle.js",
+    "bitvm3/utxo_referee/types.js",
+    "bitvm3/utxo_referee/index.js"
+  ],
+  "prepare_timeout": 30,
+  "eval_timeout": 300,
+  "score_key": "score",
+  "direction": "maximize",
+  "result_format": "stdout_keyed",
+  "sandbox": {
+    "snapshot": "REPLACE_WITH_NODE_18_SNAPSHOT",
+    "env": {
+      "EVAL_PROFILE": "full",
+      "EVAL_SEED": "12648430"
+    },
+    "secret_env": {},
+    "volumes": [],
+    "path_links": [],
+    "network_block_all": true
+  }
+}
