@@ -23,7 +23,12 @@ const { validateFundingAuthorization } = require('./m1_dlc_sign_finalize');
 const { createDlcCryptoProvider, requireDlcSigningProvider } = require('./dlc_crypto_provider');
 const { DlcOracleEventStore } = require('./dlc_oracle_event_store');
 const { serializeUnsignedTx, outpoint, bip341SighashDefault } = require('./tradelayer_taproot');
-const { parseCanonicalUnsignedTransaction, validateDlcTransactionSet } = require('./dlc_transaction_validator');
+const {
+  P2A_SCRIPT_PUBKEY_HEX,
+  parseCanonicalUnsignedTransaction,
+  validateDlcTransactionSet,
+  validateDlcTransactionSetCommitments
+} = require('./dlc_transaction_validator');
 const {
   toBip341Transaction,
   cetIdentity,
@@ -510,6 +515,80 @@ test('transaction parser rejects noncanonical counts and ineffective locktimes',
   expectThrow(() => parseCanonicalUnsignedTransaction(finalSequence), /locktime is disabled/);
   const truncated = valid.slice(0, -2);
   expectThrow(() => parseCanonicalUnsignedTransaction(truncated), /truncated/);
+});
+
+test('TRUC transaction sets bind version 3 and a zero-sat P2A anchor', () => {
+  const funding = {
+    txid: 'bc'.repeat(32),
+    vout: 0,
+    valueSats: 100000n,
+    scriptPubKeyHex: `5120${'45'.repeat(32)}`
+  };
+  const feePolicy = {
+    strategy: 'truc-p2a-v1',
+    anchorAmountSats: 0n,
+    anchorScriptPubKeyHex: P2A_SCRIPT_PUBKEY_HEX,
+    maxRecoveryFeeSats: 150000n,
+    maxRecoveryFeerateSatPerVb: 500,
+    minRelayPeers: 2
+  };
+  const anchor = { valueSats: 0n, scriptPubKeyHex: P2A_SCRIPT_PUBKEY_HEX };
+  const cetOutputs = [
+    { valueSats: 59000n, scriptPubKeyHex: `0014${'56'.repeat(20)}` },
+    { valueSats: 40000n, scriptPubKeyHex: `0014${'67'.repeat(20)}` },
+    anchor
+  ];
+  const refundOutputs = [{ valueSats: 99000n, scriptPubKeyHex: `5120${'78'.repeat(32)}` }, anchor];
+  const raw = (version, outputs, locktime) => serializeUnsignedTx(
+    version,
+    [{ outpoint: outpoint(funding.txid, funding.vout), sequence: 0xfffffffe }],
+    outputs.map((output) => ({ valueSats: output.valueSats, script: output.scriptPubKeyHex })),
+    locktime
+  );
+  const input = {
+    funding,
+    cets: [{
+      outcomeMessage: digest('truc-transaction-outcome'),
+      oraclePubkeys: ['11'.repeat(32), '22'.repeat(32)],
+      rawTxHex: raw(3, cetOutputs, 100),
+      expectedOutputs: cetOutputs,
+      locktime: 100
+    }],
+    refund: {
+      rawTxHex: raw(3, refundOutputs, 200),
+      expectedOutputs: refundOutputs,
+      locktime: 200
+    },
+    minFeeSats: 500n,
+    maxFeeSats: 2000n,
+    feePolicy
+  };
+  const validated = validateDlcTransactionSet(input);
+  assert(validated.cets[0].version === 3 && validated.refund.version === 3, 'TRUC transaction version was not committed');
+  assert(validated.feePolicy.transactionVersion === 3 && validated.feePolicy.maxRecoveryVsize === 1000 &&
+    validated.feePolicy.maxUnconfirmedClusterTransactions === 2, 'TRUC policy limits were not committed');
+  assert(validateDlcTransactionSetCommitments(validated), 'TRUC transaction set commitments did not verify');
+
+  expectThrow(() => validateDlcTransactionSet({
+    ...input,
+    cets: [{ ...input.cets[0], rawTxHex: raw(2, cetOutputs, 100) }]
+  }), /version must be 3/);
+  expectThrow(() => validateDlcTransactionSet({
+    ...input,
+    feePolicy: { ...feePolicy, anchorAmountSats: 1n }
+  }), /zero-sat P2A anchor/);
+  expectThrow(() => validateDlcTransactionSet({
+    ...input,
+    feePolicy: {
+      ...feePolicy,
+      strategy: 'cpfp-anchor-v1',
+      anchorAmountSats: 330n,
+      anchorScriptPubKeyHex: `0014${'aa'.repeat(20)}`
+    }
+  }), /version must be 2/);
+  const tampered = JSON.parse(JSON.stringify(validated));
+  tampered.feePolicy.maxRecoveryVsize = 999;
+  expectThrow(() => validateDlcTransactionSetCommitments(tampered), /commitment mismatch/);
 });
 
 test('CET adaptor and refund signatures bind to validated BIP341 sighashes', () => {

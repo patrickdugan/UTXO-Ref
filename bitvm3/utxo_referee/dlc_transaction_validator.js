@@ -4,6 +4,11 @@ const crypto = require('crypto');
 const { canonicalJson } = require('./dlc_contract_state');
 
 const MAX_MONEY = 21000000n * 100000000n;
+const P2A_SCRIPT_PUBKEY_HEX = '51024e73';
+const TRUC_VERSION = 3;
+const TRUC_MAX_VSIZE = 10000;
+const TRUC_CHILD_MAX_VSIZE = 1000;
+const TRUC_MAX_UNCONFIRMED_CLUSTER_TRANSACTIONS = 2;
 
 function sha256(value) {
   return crypto.createHash('sha256').update(value).digest();
@@ -72,7 +77,9 @@ function parseCanonicalUnsignedTransaction(rawTxHex) {
   const bytes = Buffer.from(rawTxHex, 'hex');
   const reader = new Reader(bytes);
   const version = reader.u32('version');
-  if (version !== 2) throw new Error('DLC transaction version must be 2');
+  if (version !== 2 && version !== TRUC_VERSION) {
+    throw new Error('DLC transaction version must be 2 or TRUC version 3');
+  }
   const inputCount = reader.compactSize('input count', 16);
   if (inputCount < 1) throw new Error('DLC transaction must contain an input');
   const inputs = [];
@@ -140,20 +147,43 @@ function validateExpectedOutputs(actual, expected, label) {
 }
 
 function normalizeFeePolicy(feePolicy) {
-  if (!feePolicy || feePolicy.strategy !== 'cpfp-anchor-v1' ||
+  const commonValid = feePolicy &&
+      typeof feePolicy.maxRecoveryFeeSats === 'bigint' &&
+      feePolicy.maxRecoveryFeeSats > 0n && feePolicy.maxRecoveryFeeSats <= MAX_MONEY &&
+      Number.isSafeInteger(feePolicy.maxRecoveryFeerateSatPerVb) &&
+      feePolicy.maxRecoveryFeerateSatPerVb >= 1 && feePolicy.maxRecoveryFeerateSatPerVb <= 10000 &&
+      Number.isSafeInteger(feePolicy.minRelayPeers) && feePolicy.minRelayPeers >= 1 && feePolicy.minRelayPeers <= 16;
+  if (!commonValid) {
+    throw new Error('feePolicy must define bounded recovery fee, feerate, and relay quorum');
+  }
+  if (feePolicy.strategy === 'truc-p2a-v1') {
+    if (feePolicy.anchorAmountSats !== 0n || feePolicy.anchorScriptPubKeyHex !== P2A_SCRIPT_PUBKEY_HEX) {
+      throw new Error('truc-p2a-v1 requires one zero-sat P2A anchor with script 51024e73');
+    }
+    return Object.freeze({
+      strategy: 'truc-p2a-v1',
+      transactionVersion: TRUC_VERSION,
+      anchorAmountSats: 0n,
+      anchorScriptPubKeyHex: P2A_SCRIPT_PUBKEY_HEX,
+      maxRecoveryFeeSats: feePolicy.maxRecoveryFeeSats,
+      maxRecoveryFeerateSatPerVb: feePolicy.maxRecoveryFeerateSatPerVb,
+      minRelayPeers: feePolicy.minRelayPeers,
+      maxSettlementVsize: TRUC_MAX_VSIZE,
+      maxRecoveryVsize: TRUC_CHILD_MAX_VSIZE,
+      maxUnconfirmedClusterTransactions: TRUC_MAX_UNCONFIRMED_CLUSTER_TRANSACTIONS
+    });
+  }
+  if (feePolicy.strategy !== 'cpfp-anchor-v1' ||
       typeof feePolicy.anchorAmountSats !== 'bigint' ||
       feePolicy.anchorAmountSats < 330n || feePolicy.anchorAmountSats > 10000n ||
       typeof feePolicy.anchorScriptPubKeyHex !== 'string' ||
       !/^(0014[0-9a-f]{40}|5120[0-9a-f]{64})$/.test(feePolicy.anchorScriptPubKeyHex) ||
-      typeof feePolicy.maxRecoveryFeeSats !== 'bigint' ||
-      feePolicy.maxRecoveryFeeSats < feePolicy.anchorAmountSats || feePolicy.maxRecoveryFeeSats > MAX_MONEY ||
-      !Number.isSafeInteger(feePolicy.maxRecoveryFeerateSatPerVb) ||
-      feePolicy.maxRecoveryFeerateSatPerVb < 1 || feePolicy.maxRecoveryFeerateSatPerVb > 10000 ||
-      !Number.isSafeInteger(feePolicy.minRelayPeers) || feePolicy.minRelayPeers < 1 || feePolicy.minRelayPeers > 16) {
+      feePolicy.maxRecoveryFeeSats < feePolicy.anchorAmountSats) {
     throw new Error('feePolicy must define a 330..10000 sat P2WPKH or P2TR anchor plus bounded recovery fee, feerate, and relay quorum');
   }
   return Object.freeze({
     strategy: 'cpfp-anchor-v1',
+    transactionVersion: 2,
     anchorAmountSats: feePolicy.anchorAmountSats,
     anchorScriptPubKeyHex: feePolicy.anchorScriptPubKeyHex,
     maxRecoveryFeeSats: feePolicy.maxRecoveryFeeSats,
@@ -170,12 +200,19 @@ function validateAnchor(outputs, feePolicy, label) {
   const last = outputs[outputs.length - 1];
   if (matches !== 1 || last.valueSats !== feePolicy.anchorAmountSats ||
       last.scriptPubKeyHex !== feePolicy.anchorScriptPubKeyHex) {
-    throw new Error(`${label} must contain exactly one committed CPFP anchor as its last output`);
+    const anchorType = feePolicy.strategy === 'truc-p2a-v1' ? 'zero-sat P2A anchor' : 'CPFP anchor';
+    throw new Error(`${label} must contain exactly one committed ${anchorType} as its last output`);
   }
 }
 
 function validateSpend({ rawTxHex, funding, expectedOutputs, expectedLocktime, minFeeSats, maxFeeSats, feePolicy, label }) {
   const transaction = parseCanonicalUnsignedTransaction(rawTxHex);
+  if (transaction.version !== feePolicy.transactionVersion) {
+    throw new Error(`${label} transaction version must be ${feePolicy.transactionVersion} for ${feePolicy.strategy}`);
+  }
+  if (feePolicy.strategy === 'truc-p2a-v1' && Buffer.byteLength(rawTxHex, 'hex') > TRUC_MAX_VSIZE) {
+    throw new Error(`${label} exceeds the TRUC 10000-vB transaction limit before signing`);
+  }
   if (transaction.inputs.length !== 1 || transaction.inputs[0].txid !== funding.txid ||
       transaction.inputs[0].vout !== funding.vout) {
     throw new Error(`${label} must spend exactly the committed funding outpoint`);
@@ -197,6 +234,7 @@ function serializeValidatedSpend(result) {
   return {
     txid: result.transaction.txid,
     rawTxHex: result.transaction.rawTxHex,
+    version: result.transaction.version,
     locktime: result.transaction.locktime,
     feeSats: result.feeSats.toString(),
     outputs: result.transaction.outputs.map((output) => ({
@@ -273,22 +311,21 @@ function validateDlcTransactionSet({ funding, cets, refund, minFeeSats = 0n, max
   const fundingTemplateDigest = sha256Hex(canonicalJson(serializedFunding));
   const cetSetDigest = sha256Hex(canonicalJson(validatedCets));
   const refundTransactionDigest = sha256Hex(canonicalJson(serializedRefund));
-  const feePolicyDigest = sha256Hex(canonicalJson({
-    strategy: normalizedFeePolicy.strategy,
-    anchorAmountSats: normalizedFeePolicy.anchorAmountSats.toString(),
-    anchorScriptPubKeyHex: normalizedFeePolicy.anchorScriptPubKeyHex,
-    maxRecoveryFeeSats: normalizedFeePolicy.maxRecoveryFeeSats.toString(),
-    maxRecoveryFeerateSatPerVb: normalizedFeePolicy.maxRecoveryFeerateSatPerVb,
-    minRelayPeers: normalizedFeePolicy.minRelayPeers
-  }));
   const serializedFeePolicy = {
     strategy: normalizedFeePolicy.strategy,
+    transactionVersion: normalizedFeePolicy.transactionVersion,
     anchorAmountSats: normalizedFeePolicy.anchorAmountSats.toString(),
     anchorScriptPubKeyHex: normalizedFeePolicy.anchorScriptPubKeyHex,
     maxRecoveryFeeSats: normalizedFeePolicy.maxRecoveryFeeSats.toString(),
     maxRecoveryFeerateSatPerVb: normalizedFeePolicy.maxRecoveryFeerateSatPerVb,
     minRelayPeers: normalizedFeePolicy.minRelayPeers
   };
+  if (normalizedFeePolicy.strategy === 'truc-p2a-v1') {
+    serializedFeePolicy.maxSettlementVsize = normalizedFeePolicy.maxSettlementVsize;
+    serializedFeePolicy.maxRecoveryVsize = normalizedFeePolicy.maxRecoveryVsize;
+    serializedFeePolicy.maxUnconfirmedClusterTransactions = normalizedFeePolicy.maxUnconfirmedClusterTransactions;
+  }
+  const feePolicyDigest = sha256Hex(canonicalJson(serializedFeePolicy));
   return Object.freeze({
     fundingTemplateDigest,
     cetSetDigest,
@@ -334,6 +371,11 @@ function validateDlcTransactionSetCommitments(transactionSet) {
 
 module.exports = {
   MAX_MONEY,
+  P2A_SCRIPT_PUBKEY_HEX,
+  TRUC_VERSION,
+  TRUC_MAX_VSIZE,
+  TRUC_CHILD_MAX_VSIZE,
+  TRUC_MAX_UNCONFIRMED_CLUSTER_TRANSACTIONS,
   parseCanonicalUnsignedTransaction,
   validateDlcTransactionSet,
   validateDlcTransactionSetCommitments
