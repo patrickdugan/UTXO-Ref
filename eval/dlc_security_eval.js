@@ -58,6 +58,7 @@ const {
   signDlcPeerMessage,
   validateDlcPeerTranscript
 } = require(path.join(__dirname, '..', 'bitvm3', 'utxo_referee', 'dlc_peer_transcript.js'));
+const { DlcPeerSessionStore } = require(path.join(__dirname, '..', 'bitvm3', 'utxo_referee', 'dlc_peer_session_store.js'));
 const validatorKeys = crypto.generateKeyPairSync('ed25519');
 const validatorSpki = validatorKeys.publicKey.export({ format: 'der', type: 'spki' }).toString('base64');
 const validatorKeyId = crypto.createHash('sha256').update(Buffer.from(validatorSpki, 'base64')).digest('hex');
@@ -766,7 +767,19 @@ check('authenticated offer/accept/sign transcript enforces IDs and global serial
   const wrongFundingRejected = throws(() => validate(accept, sign, {
     fundingTxid: 'ff'.repeat(32)
   }), /funding outpoint/);
-  return valid.ok && duplicateRejected && replayRejected && wrongFundingRejected;
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'utxoref-peer-eval-'));
+  let durableReplay;
+  try {
+    const store = new DlcPeerSessionStore(directory);
+    store.claimOffer({ offer, offererPublicKey: offerer.publicKey });
+    store.commitTranscript(valid);
+    durableReplay = new DlcPeerSessionStore(directory)
+      .knownTemporaryContractIds('eval-offerer')
+      .includes(temporaryContractId);
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+  return valid.ok && duplicateRejected && replayRejected && wrongFundingRejected && durableReplay;
 });
 
 check('CET adaptor and refund signatures bind to validated BIP341 sighashes', 'signature-safety', 14, () => {
@@ -878,7 +891,7 @@ const possible = cases.reduce((sum, test) => sum + test.points, 0);
 const score = earned / possible;
 const report = {
   benchmark: 'utxoref-dlc-security',
-  version: 4,
+  version: 5,
   profile: profileName,
   seed,
   score,

@@ -1,5 +1,5 @@
 {
-  "schema": "utxoref_dlc_security_decision_v4",
+  "schema": "utxoref_dlc_security_decision_v5",
   "capturedAt": "2026-09-11",
   "decision": "retain_dlc_protocol_rebuild_implementation",
   "productionDlcEnabled": false,
@@ -28,7 +28,8 @@
     "committed_last_output_cpfp_anchor_policy",
     "signed_transaction_bound_reorg_and_spend_guard",
     "stable_read_only_bitcoin_core_chain_observer",
-    "authenticated_ordered_peer_transcript_and_global_serial_ids"
+    "authenticated_ordered_peer_transcript_and_global_serial_ids",
+    "durable_atomic_peer_temporary_id_and_transcript_registry"
   ],
   "productionBlockers": [
     "replace_javascript_bigint_signer_with_reviewed_native_secp256k1_implementation",

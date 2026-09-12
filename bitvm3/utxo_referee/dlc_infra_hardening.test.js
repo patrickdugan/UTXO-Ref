@@ -40,6 +40,7 @@ const {
   signDlcPeerMessage,
   validateDlcPeerTranscript
 } = require('./dlc_peer_transcript');
+const { DlcPeerSessionStore } = require('./dlc_peer_session_store');
 
 let passed = 0;
 let failed = 0;
@@ -896,6 +897,48 @@ test('peer transcript authenticates offer/accept/sign and binds serial ordering 
     verifyFundingWitnesses: () => true,
     knownTemporaryContractIds: [fixture.temporaryContractId]
   }), /already used/);
+});
+
+test('peer session store preserves temporary-ID replay protection across restart', () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'utxoref-peer-session-'));
+  try {
+    const fixture = peerTranscriptFixture();
+    const transcript = validateDlcPeerTranscript({
+      offer: fixture.offer,
+      accept: fixture.accept,
+      sign: fixture.sign,
+      offererPublicKey: fixture.offerer.publicKey,
+      accepterPublicKey: fixture.accepter.publicKey,
+      transactionSet: fixture.transactionSet,
+      contractState: fixture.contract,
+      fundingTxid: fixture.transactionSet.funding.txid,
+      fundingOutputIndex: fixture.transactionSet.funding.vout,
+      expectedSignatures: fixture.signatureDigests,
+      verifyFundingWitnesses: () => true
+    });
+    const first = new DlcPeerSessionStore(directory);
+    const claim = first.claimOffer({ offer: fixture.offer, offererPublicKey: fixture.offerer.publicKey });
+    const retry = first.claimOffer({ offer: fixture.offer, offererPublicKey: fixture.offerer.publicKey });
+    assert(retry.recordHash === claim.recordHash, 'identical offer claim was not idempotent');
+    const committed = first.commitTranscript(transcript);
+    assert(first.commitTranscript(transcript).recordHash === committed.recordHash, 'transcript commit was not idempotent');
+
+    const restarted = new DlcPeerSessionStore(directory);
+    assert(restarted.knownTemporaryContractIds('offerer-peer').includes(fixture.temporaryContractId),
+      'restart lost temporary contract replay protection');
+    const conflictingOffer = signDlcPeerMessage({
+      messageType: PEER_MESSAGE_TYPES.OFFER,
+      peerId: fixture.offer.peerId,
+      body: { ...fixture.offer.body, payoutSerialId: '7' },
+      privateKey: fixture.offerer.privateKey
+    });
+    expectThrow(() => restarted.claimOffer({
+      offer: conflictingOffer,
+      offererPublicKey: fixture.offerer.publicKey
+    }), /already claimed/);
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
 });
 
 if (failed > 0) {

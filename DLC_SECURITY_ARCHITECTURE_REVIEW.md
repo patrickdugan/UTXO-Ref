@@ -201,6 +201,9 @@ The local research implementation now:
     to the testnet4 genesis hash, validated transaction and signature digests,
     funding-witness validation, and derived contract ID; and rejects replayed
     temporary IDs, duplicated serial IDs, and noncanonical serial ordering.
+22. Atomically claims temporary contract IDs per peer and durably commits the
+    validated transcript, with idempotent identical retries, conflicting-offer
+    rejection, and restart-safe replay detection.
 
 The changes block the concrete exploit probes. They reduce testnet risk but do
 not promote this module to a production signer.

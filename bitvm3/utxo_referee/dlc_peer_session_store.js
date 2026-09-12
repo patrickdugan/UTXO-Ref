@@ -1,0 +1,158 @@
+'use strict';
+
+const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
+const { canonicalJson } = require('./dlc_contract_state');
+const { TYPES, verifyDlcPeerMessage } = require('./dlc_peer_transcript');
+
+const CLAIM_KIND = 'utxoref_dlc_peer_offer_claim_v1';
+const COMMIT_KIND = 'utxoref_dlc_peer_transcript_commit_v1';
+
+function hash(value) { return crypto.createHash('sha256').update(value).digest('hex'); }
+function requireHash(value, name) {
+  if (typeof value !== 'string' || !/^[0-9a-f]{64}$/.test(value)) throw new Error(`${name} must be lowercase hash`);
+  return value;
+}
+function requirePeerId(value) {
+  if (typeof value !== 'string' || !/^[A-Za-z0-9._:-]{1,128}$/.test(value)) throw new Error('peerId is invalid');
+  return value;
+}
+function recordHash(record) {
+  const value = { ...record };
+  delete value.recordHash;
+  return hash(Buffer.from(canonicalJson(value), 'utf8'));
+}
+function sessionKey(peerId, temporaryContractId) {
+  requirePeerId(peerId);
+  requireHash(temporaryContractId, 'temporaryContractId');
+  return hash(Buffer.from(`${peerId}:${temporaryContractId}`, 'utf8'));
+}
+function validateClaim(record) {
+  if (!record || record.kind !== CLAIM_KIND || record.network !== 'bitcoin-testnet4' ||
+      record.sessionKey !== sessionKey(record.peerId, record.temporaryContractId) ||
+      !/^[0-9a-f]{64}$/.test(record.offerMessageDigest || '') || record.recordHash !== recordHash(record)) {
+    throw new Error('invalid DLC peer offer claim');
+  }
+  return true;
+}
+function validateCommit(record, claim) {
+  if (!record || record.kind !== COMMIT_KIND || record.network !== 'bitcoin-testnet4' ||
+      record.sessionKey !== claim.sessionKey || record.claimRecordHash !== claim.recordHash ||
+      record.temporaryContractId !== claim.temporaryContractId ||
+      !/^[0-9a-f]{64}$/.test(record.contractId || '') ||
+      !/^[0-9a-f]{64}$/.test(record.transcriptDigest || '') || record.recordHash !== recordHash(record)) {
+    throw new Error('invalid DLC peer transcript commit');
+  }
+  return true;
+}
+
+class DlcPeerSessionStore {
+  constructor(baseDirectory) {
+    if (typeof baseDirectory !== 'string' || baseDirectory.length === 0) throw new Error('baseDirectory is required');
+    this.baseDirectory = path.resolve(baseDirectory);
+    fs.mkdirSync(this.baseDirectory, { recursive: true, mode: 0o700 });
+  }
+
+  _directory(peerId, temporaryContractId) {
+    return path.join(this.baseDirectory, sessionKey(peerId, temporaryContractId));
+  }
+
+  _writeAtomic(directory, name, record) {
+    const finalPath = path.join(directory, name);
+    const temporaryPath = path.join(directory, `.${name}.${process.pid}.${crypto.randomBytes(8).toString('hex')}.tmp`);
+    const fd = fs.openSync(temporaryPath, 'wx', 0o600);
+    try {
+      fs.writeFileSync(fd, `${JSON.stringify(record, null, 2)}\n`, 'utf8');
+      fs.fsyncSync(fd);
+    } finally {
+      fs.closeSync(fd);
+    }
+    try {
+      fs.renameSync(temporaryPath, finalPath);
+    } catch (error) {
+      try { fs.unlinkSync(temporaryPath); } catch (_cleanupError) {}
+      throw error;
+    }
+  }
+
+  _readClaim(directory) {
+    const claimPath = path.join(directory, 'claim.json');
+    if (!fs.existsSync(claimPath)) throw new Error('DLC peer offer claim is incomplete; manual recovery is required');
+    const claim = JSON.parse(fs.readFileSync(claimPath, 'utf8'));
+    validateClaim(claim);
+    return claim;
+  }
+
+  claimOffer({ offer, offererPublicKey }) {
+    verifyDlcPeerMessage(offer, offererPublicKey);
+    if (offer.messageType !== TYPES.OFFER || offer.previousMessageDigest !== null) {
+      throw new Error('only an initial offer_dlc_v0 can be claimed');
+    }
+    const temporaryContractId = offer.body.temporaryContractId;
+    const directory = this._directory(offer.peerId, temporaryContractId);
+    try {
+      fs.mkdirSync(directory, { mode: 0o700 });
+    } catch (error) {
+      if (error.code !== 'EEXIST') throw error;
+      const existing = this._readClaim(directory);
+      if (existing.offerMessageDigest === offer.messageDigest) return existing;
+      throw new Error('temporaryContractId was already claimed by a different offer from this peer');
+    }
+    const unsigned = {
+      kind: CLAIM_KIND,
+      network: 'bitcoin-testnet4',
+      sessionKey: path.basename(directory),
+      peerId: offer.peerId,
+      temporaryContractId,
+      offerMessageDigest: offer.messageDigest
+    };
+    const claim = Object.freeze({ ...unsigned, recordHash: recordHash(unsigned) });
+    this._writeAtomic(directory, 'claim.json', claim);
+    return claim;
+  }
+
+  commitTranscript(validatedTranscript) {
+    if (!validatedTranscript || validatedTranscript.ok !== true) throw new Error('validated peer transcript is required');
+    const directory = this._directory(validatedTranscript.offererPeerId, validatedTranscript.temporaryContractId);
+    const claim = this._readClaim(directory);
+    const unsigned = {
+      kind: COMMIT_KIND,
+      network: 'bitcoin-testnet4',
+      sessionKey: claim.sessionKey,
+      claimRecordHash: claim.recordHash,
+      temporaryContractId: claim.temporaryContractId,
+      contractId: requireHash(validatedTranscript.contractId, 'contractId'),
+      transcriptDigest: requireHash(validatedTranscript.transcriptDigest, 'transcriptDigest'),
+      transactionValidationDigest: requireHash(
+        validatedTranscript.transactionValidationDigest,
+        'transactionValidationDigest'
+      )
+    };
+    const commit = Object.freeze({ ...unsigned, recordHash: recordHash(unsigned) });
+    const commitPath = path.join(directory, 'commit.json');
+    if (fs.existsSync(commitPath)) {
+      const existing = JSON.parse(fs.readFileSync(commitPath, 'utf8'));
+      validateCommit(existing, claim);
+      if (existing.recordHash === commit.recordHash) return existing;
+      throw new Error('DLC peer session already committed a different transcript');
+    }
+    this._writeAtomic(directory, 'commit.json', commit);
+    return commit;
+  }
+
+  knownTemporaryContractIds(peerId) {
+    requirePeerId(peerId);
+    const ids = [];
+    for (const name of fs.readdirSync(this.baseDirectory).sort()) {
+      if (!/^[0-9a-f]{64}$/.test(name)) continue;
+      const directory = path.join(this.baseDirectory, name);
+      if (!fs.statSync(directory).isDirectory()) continue;
+      const claim = this._readClaim(directory);
+      if (claim.peerId === peerId) ids.push(claim.temporaryContractId);
+    }
+    return Object.freeze(ids.sort());
+  }
+}
+
+module.exports = { DlcPeerSessionStore, sessionKey, validateClaim, validateCommit };
