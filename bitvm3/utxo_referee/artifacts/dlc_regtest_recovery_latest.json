@@ -1,0 +1,55 @@
+{
+  "schema": "utxoref_dlc_regtest_recovery_v1",
+  "capturedAt": "2026-09-12T06:36:25.6013718Z",
+  "effect": "isolated_regtest_only",
+  "network": "bitcoin-regtest",
+  "bitcoinCore": {
+    "version": 310100,
+    "subversion": "/Satoshi:31.1.0/"
+  },
+  "repository": "C:\\projects\\UTXORef\\UTXO-Ref",
+  "commit": "7963c2b6e1505579d289f36702f3fdd8f697813f",
+  "runDirectory": "D:\\bitagent-testnet4\\dlc-regtest-recovery\\20260912T063552Z-37488-a2267e0a",
+  "ports": {
+    "rpc": 29443,
+    "p2p": 29444
+  },
+  "anchor": {
+    "txid": "dc9a6251d4276e226db67f224b929c0f7079259f822fbfc188a4868cba02a584",
+    "vout": 1,
+    "amountSats": 330,
+    "address": "bcrt1qlt3pdar68ly6qqff7e6tkyta9qvwj7f4u0ecwa"
+  },
+  "package": {
+    "lowChildTxid": "7ea7af173b1d7058a3e843d3872e1116aa39ecdc5db498eb7e4124e36ed6fc13",
+    "highChildTxid": "dc95e003e5d1b7844206f9284c697d258a159cc5821e5d92cc5d5e3b3f4ad32a",
+    "lowPackageMessage": "success",
+    "highPackageMessage": "success",
+    "replacedTransactions": [
+      "7ea7af173b1d7058a3e843d3872e1116aa39ecdc5db498eb7e4124e36ed6fc13"
+    ],
+    "originalFeeBtc": 6.74E-06,
+    "replacementFeeBtc": 9.098E-05
+  },
+  "reorg": {
+    "depth": 6,
+    "firstInvalidatedBlock": "1f4b615277d22c725a32501631bc7b0a5b2f87715e63ddb03462d652bded5b9f",
+    "previousTip": "35ad58015ca5249283478e4f33e04f0daec0b450fdd254728f84fcc455f35cef",
+    "heightBefore": 107,
+    "heightAfterInvalidation": 101,
+    "recoveredMempool": [
+      "dc9a6251d4276e226db67f224b929c0f7079259f822fbfc188a4868cba02a584",
+      "dc95e003e5d1b7844206f9284c697d258a159cc5821e5d92cc5d5e3b3f4ad32a"
+    ],
+    "heightAfterReconsider": 107,
+    "mempoolAfterReconsider": []
+  },
+  "assertions": {
+    "exactOwnedAnchor": true,
+    "packageAccepted": true,
+    "rbfRecoveryAccepted": true,
+    "sixBlockDisconnectRecoveredPackage": true,
+    "branchRestorationClearedMempool": true
+  },
+  "passed": true
+}

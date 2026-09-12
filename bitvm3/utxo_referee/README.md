@@ -190,6 +190,7 @@ temporary-ID and transcript replay protection across restart. Run:
 ```powershell
 node bitvm3\utxo_referee\dlc_infra_hardening.test.js
 .\eval\dlc-security.ps1 -Profile full
+.\eval\dlc-regtest-recovery.ps1
 ```
 
 The milestone funding finalizer also requires `DLC_STATE_PATH` to reference a

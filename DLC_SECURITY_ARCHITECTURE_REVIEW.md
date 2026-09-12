@@ -208,6 +208,11 @@ The local research implementation now:
     hash-chained watchtower journal; binds each record to the contract revision
     and validated transaction set; and preserves halt alerts and tamper evidence
     across restart.
+24. Exercises Bitcoin Core 31.1 on an isolated regtest node: spends the exact
+    330-sat anchor with added wallet input, admits a parent/child package after
+    a clean mempool restart, replaces its low-fee child, recovers both package
+    transactions after a six-block disconnect, and clears them when the branch
+    is restored.
 
 The changes block the concrete exploit probes. They reduce testnet risk but do
 not promote this module to a production signer.
@@ -222,6 +227,8 @@ Post-hardening eight-worker fuzz evidence:
 
 Latest locked benchmark evidence:
 [dlc_security_eval_scale_latest.json](bitvm3/utxo_referee/artifacts/dlc_security_eval_scale_latest.json).
+The isolated Bitcoin Core package and reorg result is
+[dlc_regtest_recovery_latest.json](bitvm3/utxo_referee/artifacts/dlc_regtest_recovery_latest.json).
 The independent sweep-boundary result is
 [utxo_referee_eval_scale_latest.json](bitvm3/utxo_referee/artifacts/utxo_referee_eval_scale_latest.json).
 
@@ -321,9 +328,11 @@ until a Taproot DLC message format is published and cross-tested.
   Its Bitcoin Core observer now stabilizes the chain and mempool views and scans
   a bounded recent-block window for the spender. Its signed journal makes
   independent operation and restart-safe halt alerts possible. Deploy that
-  journal as a separate watchtower service with external alert delivery,
-  validate anchor ownership and spendability, test package relay, and simulate
-  pinning and deep reorg recovery on regtest.
+  journal as a separate watchtower service with external alert delivery. The
+  single-node regtest harness now proves anchor spendability, local package
+  admission, RBF recovery, and a six-block disconnect/reconsider cycle. It does
+  not prove multi-node package propagation or resistance to a non-RBF
+  conflicting-spend pin; test those before funded operation.
 - Require independent Bitcoin Core policy checks and exact transaction decode
   immediately before signing and broadcasting.
 
