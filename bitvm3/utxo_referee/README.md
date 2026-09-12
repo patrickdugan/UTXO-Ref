@@ -234,7 +234,7 @@ challenge, the request digest, and the pre-signature digest. Runtime drift,
 timeouts, oversized or malformed output, stale challenges, and identity
 substitution fail closed.
 
-Boundary V24 includes the Rust `k256` signer candidate under
+Boundary V25 includes the Rust `k256` signer candidate under
 `native/dlc-signer`. Its direct dependencies are exactly pinned, unsafe Rust is
 forbidden, and the testnet4 build harness rejects byte differences between two
 independent Windows target directories. The cross-language test completes the
@@ -249,6 +249,14 @@ zeroize-on-drop guards across success and error paths.
 The signer-local replay store is also exercised by 16 simultaneous native
 processes using the same valid authorization. Evidence is accepted only when
 one authenticated pre-signature succeeds and all other consumers fail closed.
+Every validator-signed adaptor authorization carries an issuance time and
+expiry. Its lifetime cannot exceed 300 seconds, future issuance is limited to
+30 seconds of clock skew, and the host rechecks freshness immediately before
+execution. The Rust signer independently verifies the signed time window before
+creating its durable consumption marker; direct-process tests reject expired
+and future-dated authorizations. The signer host clock is a trusted input;
+production deployment still needs protected time synchronization or a reviewed
+monotonic-clock service to resist an administrator-level clock rollback.
 The host accepts only bounded regular runtime files whose resolved paths do not
 traverse filesystem links. It hashes the complete runtime closure before and
 after every signer execution, so deletion or mutation during the process

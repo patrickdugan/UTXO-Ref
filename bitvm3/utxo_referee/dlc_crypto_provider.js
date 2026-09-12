@@ -20,8 +20,11 @@ const REQUIRED_NATIVE_OPERATIONS = Object.freeze([
 const PROVIDER_OPERATIONS = new WeakMap();
 const PROVIDER_AUTHORIZATION_STORES = new WeakMap();
 const CONSUMED_AUTHORIZATIONS = new WeakMap();
-const ADAPTOR_SIGN_AUTHORIZATION_KIND = 'utxoref_dlc_adaptor_sign_authorization_v2';
+const ADAPTOR_SIGN_AUTHORIZATION_KIND = 'utxoref_dlc_adaptor_sign_authorization_v3';
 const NATIVE_ADAPTOR_SIGN_REQUEST_KIND = 'utxoref_dlc_native_adaptor_sign_request_v1';
+const DEFAULT_AUTHORIZATION_TTL_SECONDS = 120;
+const MAX_AUTHORIZATION_TTL_SECONDS = 300;
+const MAX_AUTHORIZATION_CLOCK_SKEW_SECONDS = 30;
 
 function validateNetwork(network) {
   if (!['bitcoin-regtest', 'bitcoin-testnet4', 'bitcoin-mainnet'].includes(network)) {
@@ -85,6 +88,44 @@ function requireAuthorizationId(value) {
   return value;
 }
 
+function requireUnixSeconds(value, fieldName) {
+  if (!Number.isSafeInteger(value) || value < 0) {
+    throw new Error(`${fieldName} must be a non-negative safe UNIX timestamp`);
+  }
+  return value;
+}
+
+function authorizationWindow(issuedAtUnixSeconds, expiresAtUnixSeconds) {
+  const issuedAt = requireUnixSeconds(issuedAtUnixSeconds, 'issuedAtUnixSeconds');
+  const expiresAt = requireUnixSeconds(expiresAtUnixSeconds, 'expiresAtUnixSeconds');
+  if (expiresAt <= issuedAt || expiresAt - issuedAt > MAX_AUTHORIZATION_TTL_SECONDS) {
+    throw new Error(`DLC signing authorization lifetime must be 1..${MAX_AUTHORIZATION_TTL_SECONDS} seconds`);
+  }
+  return Object.freeze({ issuedAtUnixSeconds: issuedAt, expiresAtUnixSeconds: expiresAt });
+}
+
+function authorizationNow(now) {
+  if (!(now instanceof Date) || !Number.isFinite(now.getTime())) {
+    throw new Error('DLC signing authorization clock must be a valid Date');
+  }
+  return Math.floor(now.getTime() / 1000);
+}
+
+function assertAuthorizationFreshness(authorization, now = new Date()) {
+  const window = authorizationWindow(
+    authorization && authorization.issuedAtUnixSeconds,
+    authorization && authorization.expiresAtUnixSeconds
+  );
+  const current = authorizationNow(now);
+  if (window.issuedAtUnixSeconds > current + MAX_AUTHORIZATION_CLOCK_SKEW_SECONDS) {
+    throw new Error('DLC signing authorization is not yet valid');
+  }
+  if (window.expiresAtUnixSeconds < current) {
+    throw new Error('DLC signing authorization has expired');
+  }
+  return window;
+}
+
 function cetSetDigest(contract) {
   const transition = contract.history.find((entry) => entry.to === 'CANONICAL_CETS_AND_REFUND');
   const receipt = transition && transition.evidence.find((entry) => entry.kind === 'cet_set');
@@ -106,11 +147,20 @@ function normalizeAdaptorPoint(point) {
   });
 }
 
-function adaptorSigningAuthorizationPayload({ contract, authorizationId, signerPubkeyX, sighash, adaptorPoint }) {
+function adaptorSigningAuthorizationPayload({
+  contract,
+  authorizationId,
+  signerPubkeyX,
+  sighash,
+  adaptorPoint,
+  issuedAtUnixSeconds,
+  expiresAtUnixSeconds
+}) {
   validateDlcContract(contract);
   if (contract.stage !== 'COUNTERPARTY_SIGNATURES_VERIFIED') {
     throw new Error('DLC adaptor signing requires COUNTERPARTY_SIGNATURES_VERIFIED contract state');
   }
+  const window = authorizationWindow(issuedAtUnixSeconds, expiresAtUnixSeconds);
   const normalized = {
     kind: ADAPTOR_SIGN_AUTHORIZATION_KIND,
     authorizationId: requireAuthorizationId(authorizationId),
@@ -124,7 +174,9 @@ function adaptorSigningAuthorizationPayload({ contract, authorizationId, signerP
     cetSetDigest: cetSetDigest(contract),
     signerPubkeyX: requireLowerHex(signerPubkeyX, 32, 'signerPubkeyX'),
     sighash: requireLowerHex(sighash, 32, 'sighash'),
-    adaptorPoint: normalizeAdaptorPoint(adaptorPoint)
+    adaptorPoint: normalizeAdaptorPoint(adaptorPoint),
+    issuedAtUnixSeconds: window.issuedAtUnixSeconds,
+    expiresAtUnixSeconds: window.expiresAtUnixSeconds
   };
   return Buffer.from(canonicalJson(normalized), 'utf8');
 }
@@ -135,10 +187,18 @@ function createDlcAdaptorSignAuthorization({
   authorizationId,
   signerPubkeyX,
   sighash,
-  adaptorPoint
+  adaptorPoint,
+  now = new Date(),
+  ttlSeconds = DEFAULT_AUTHORIZATION_TTL_SECONDS
 }) {
+  if (!Number.isSafeInteger(ttlSeconds) || ttlSeconds < 1 || ttlSeconds > MAX_AUTHORIZATION_TTL_SECONDS) {
+    throw new Error(`ttlSeconds must be an integer from 1 through ${MAX_AUTHORIZATION_TTL_SECONDS}`);
+  }
+  const issuedAtUnixSeconds = authorizationNow(now);
+  const expiresAtUnixSeconds = issuedAtUnixSeconds + ttlSeconds;
   const payload = adaptorSigningAuthorizationPayload({
-    contract, authorizationId, signerPubkeyX, sighash, adaptorPoint
+    contract, authorizationId, signerPubkeyX, sighash, adaptorPoint,
+    issuedAtUnixSeconds, expiresAtUnixSeconds
   });
   const publicKey = crypto.createPublicKey(privateKey);
   if (publicKey.asymmetricKeyType !== 'ed25519') throw new Error('DLC signing authorization key must be Ed25519');
@@ -154,6 +214,8 @@ function createDlcAdaptorSignAuthorization({
     signerPubkeyX,
     sighash,
     adaptorPoint: normalizeAdaptorPoint(adaptorPoint),
+    issuedAtUnixSeconds,
+    expiresAtUnixSeconds,
     validatorKeyId,
     signature: crypto.sign(null, payload, privateKey).toString('base64')
   });
@@ -170,7 +232,7 @@ function verifyAuthorizedPresignature(result, signerPubkeyX, sighash) {
   return result;
 }
 
-function authorizeDlcAdaptorSign(provider, { contract, authorization } = {}) {
+function authorizeDlcAdaptorSign(provider, { contract, authorization, now = new Date() } = {}) {
   requireDlcSigningProvider(provider);
   const authorizationStore = PROVIDER_AUTHORIZATION_STORES.get(provider);
   if (!authorizationStore) {
@@ -185,13 +247,16 @@ function authorizeDlcAdaptorSign(provider, { contract, authorization } = {}) {
       Buffer.from(authorization.signature, 'base64').toString('base64') !== authorization.signature) {
     throw new Error('DLC adaptor signing authorization is malformed or not bound to this contract state');
   }
+  assertAuthorizationFreshness(authorization, now);
   const adaptorPoint = normalizeAdaptorPoint(authorization.adaptorPoint);
   const payload = adaptorSigningAuthorizationPayload({
     contract,
     authorizationId: authorization.authorizationId,
     signerPubkeyX: authorization.signerPubkeyX,
     sighash: authorization.sighash,
-    adaptorPoint
+    adaptorPoint,
+    issuedAtUnixSeconds: authorization.issuedAtUnixSeconds,
+    expiresAtUnixSeconds: authorization.expiresAtUnixSeconds
   });
   const policy = contract.validatorPolicy.local_cet_signatures;
   const publicKey = crypto.createPublicKey({
@@ -217,6 +282,7 @@ function authorizeDlcAdaptorSign(provider, { contract, authorization } = {}) {
       if (executed || consumed.has(replayKey)) {
         throw new Error('DLC adaptor signing authorization was already consumed');
       }
+      assertAuthorizationFreshness(authorization);
       if (provider.mode === 'experimental-js') {
         if (args.length < 1 || args.length > 2 || (args[1] !== undefined &&
             (!Buffer.isBuffer(args[1]) || args[1].length !== 32))) {
@@ -454,6 +520,9 @@ function requireDlcSigningProvider(provider) {
 
 module.exports = {
   REQUIRED_NATIVE_OPERATIONS,
+  DEFAULT_AUTHORIZATION_TTL_SECONDS,
+  MAX_AUTHORIZATION_TTL_SECONDS,
+  MAX_AUTHORIZATION_CLOCK_SKEW_SECONDS,
   nativeCapabilityAttestationPayload,
   adaptorSigningAuthorizationPayload,
   createDlcAdaptorSignAuthorization,

@@ -326,7 +326,9 @@ try {
     authorizationId: raceAuthorization.authorizationId,
     signerPubkeyX,
     sighash,
-    adaptorPoint
+    adaptorPoint,
+    issuedAtUnixSeconds: raceAuthorization.issuedAtUnixSeconds,
+    expiresAtUnixSeconds: raceAuthorization.expiresAtUnixSeconds
   });
   const cetTransition = contract.history.find((entry) => entry.to === 'CANONICAL_CETS_AND_REFUND');
   const cetReceipt = cetTransition?.evidence.find((entry) => entry.kind === 'cet_set');
@@ -378,6 +380,58 @@ try {
     fail('signer race winner returned an invalid authenticated pre-signature');
   }
 
+  const directEnvelopeFor = (directAuthorization, directPayload) => {
+    const request = {
+      ...raceRequest,
+      authorizationDigest: digest(Buffer.from(canonicalJson(directAuthorization), 'utf8')),
+      authorizationPayload: directPayload.toString('base64'),
+      authorization: JSON.parse(canonicalJson(directAuthorization))
+    };
+    const requestDigest = digest(Buffer.from(canonicalJson(request), 'utf8'));
+    const challenge = crypto.randomBytes(32).toString('hex');
+    return {
+      requestDigest,
+      envelope: `${canonicalJson({ kind: PROCESS_REQUEST_KIND, challenge, requestDigest, request })}\n`
+    };
+  };
+  const freshnessAuthorizationFor = (authorizationId, now) => createDlcAdaptorSignAuthorization({
+    privateKey: validatorKeys.privateKey,
+    contract,
+    authorizationId,
+    signerPubkeyX,
+    sighash,
+    adaptorPoint,
+    now,
+    ttlSeconds: 60
+  });
+  const freshnessPayloadFor = (freshnessAuthorization) => adaptorSigningAuthorizationPayload({
+    contract,
+    authorizationId: freshnessAuthorization.authorizationId,
+    signerPubkeyX,
+    sighash,
+    adaptorPoint,
+    issuedAtUnixSeconds: freshnessAuthorization.issuedAtUnixSeconds,
+    expiresAtUnixSeconds: freshnessAuthorization.expiresAtUnixSeconds
+  });
+  const expiredAuthorization = freshnessAuthorizationFor(
+    'native-rust:expired:0',
+    new Date(Date.now() - 10 * 60 * 1000)
+  );
+  const expiredProbe = directEnvelopeFor(expiredAuthorization, freshnessPayloadFor(expiredAuthorization));
+  const expiredResult = await runSignerProcess(binaryPath, launchSpec.arguments, expiredProbe.envelope);
+  const expiredAuthorizationRejected = expiredResult.code !== 0 &&
+    /authorization has expired/.test(expiredResult.stderr.toString('utf8'));
+  if (!expiredAuthorizationRejected) fail('Rust signer accepted an expired signed authorization');
+  const futureAuthorization = freshnessAuthorizationFor(
+    'native-rust:future:0',
+    new Date(Date.now() + 2 * 60 * 1000)
+  );
+  const futureProbe = directEnvelopeFor(futureAuthorization, freshnessPayloadFor(futureAuthorization));
+  const futureResult = await runSignerProcess(binaryPath, launchSpec.arguments, futureProbe.envelope);
+  const futureAuthorizationRejected = futureResult.code !== 0 &&
+    /authorization is not yet valid/.test(futureResult.stderr.toString('utf8'));
+  if (!futureAuthorizationRejected) fail('Rust signer accepted a not-yet-valid signed authorization');
+
   const report = {
     schema: 'utxoref_dlc_native_rust_signer_integration_v1',
     network: 'bitcoin-testnet4',
@@ -405,6 +459,8 @@ try {
       restartReplayRejected: true,
       signerLocalReplayRejected: true,
       exactOneSignerRaceWinner: true,
+      expiredAuthorizationRejected: true,
+      futureAuthorizationRejected: true,
       hostSuppliedNoSecret: true
     }
   };

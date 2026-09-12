@@ -6,6 +6,7 @@ use std::{
     fs::{self, OpenOptions},
     io::{self, Read, Write},
     path::{Path, PathBuf},
+    time::{SystemTime, UNIX_EPOCH},
 };
 
 use base64::{Engine, engine::general_purpose::STANDARD as BASE64};
@@ -29,8 +30,10 @@ use zeroize::{Zeroize, Zeroizing};
 const PROCESS_REQUEST_KIND: &str = "utxoref_dlc_native_signer_process_request_v1";
 const PROCESS_RESPONSE_KIND: &str = "utxoref_dlc_native_signer_process_response_v1";
 const SIGN_REQUEST_KIND: &str = "utxoref_dlc_native_adaptor_sign_request_v1";
-const AUTHORIZATION_KIND: &str = "utxoref_dlc_adaptor_sign_authorization_v2";
+const AUTHORIZATION_KIND: &str = "utxoref_dlc_adaptor_sign_authorization_v3";
 const PRESIGNATURE_KIND: &str = "tradelayer_dlc_adaptor_presig_v1";
+const MAX_AUTHORIZATION_TTL_SECONDS: u64 = 300;
+const MAX_AUTHORIZATION_CLOCK_SKEW_SECONDS: u64 = 30;
 const ED25519_SPKI_PREFIX: [u8; 12] = [
     0x30, 0x2a, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70, 0x03, 0x21, 0x00,
 ];
@@ -144,6 +147,35 @@ fn safe_u64(object: &Map<String, Value>, name: &str) -> Result<u64> {
         return Err(format!("{name} exceeds the safe integer range"));
     }
     Ok(value)
+}
+
+fn verify_authorization_freshness(
+    payload: &Map<String, Value>,
+    authorization: &Map<String, Value>,
+) -> Result<()> {
+    let issued_at = safe_u64(payload, "issuedAtUnixSeconds")?;
+    let expires_at = safe_u64(payload, "expiresAtUnixSeconds")?;
+    if issued_at != safe_u64(authorization, "issuedAtUnixSeconds")?
+        || expires_at != safe_u64(authorization, "expiresAtUnixSeconds")?
+    {
+        return Err("authorization lifetime differs from its signed payload".to_owned());
+    }
+    if expires_at <= issued_at || expires_at - issued_at > MAX_AUTHORIZATION_TTL_SECONDS {
+        return Err(format!(
+            "signing authorization lifetime must be 1..{MAX_AUTHORIZATION_TTL_SECONDS} seconds"
+        ));
+    }
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_err(|_| "system clock is before the UNIX epoch".to_owned())?
+        .as_secs();
+    if issued_at > now.saturating_add(MAX_AUTHORIZATION_CLOCK_SKEW_SECONDS) {
+        return Err("signing authorization is not yet valid".to_owned());
+    }
+    if expires_at < now {
+        return Err("signing authorization has expired".to_owned());
+    }
+    Ok(())
 }
 
 fn decode_hex_32(value: &str, name: &str) -> Result<[u8; 32]> {
@@ -486,6 +518,7 @@ fn verify_request(
     validator
         .verify(&payload_bytes, &signature)
         .map_err(|_| "validator authorization signature is invalid".to_owned())?;
+    verify_authorization_freshness(payload_object, authorization_object)?;
     let authorization_digest = sha256_hex(canonical_json(authorization)?.as_bytes());
     if authorization_digest != string(request_object, "authorizationDigest")? {
         return Err("authorization digest mismatch".to_owned());

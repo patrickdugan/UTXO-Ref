@@ -430,7 +430,7 @@ test('native provider requires an operator-pinned audit signature over its exact
   }
 });
 
-test('adaptor signing is durably consumed before signing and bound to the contract transcript', () => {
+test('adaptor signing is short-lived, durably consumed, and bound to the contract transcript', () => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'utxoref-signing-authorizations-'));
   try {
     const providerOptions = {
@@ -469,6 +469,48 @@ test('adaptor signing is durably consumed before signing and bound to the contra
       sighash,
       adaptorPoint
     });
+    const expiredAuthorization = createDlcAdaptorSignAuthorization({
+      privateKey: validatorKeys.privateKey,
+      contract,
+      authorizationId: 'cet:expired',
+      signerPubkeyX,
+      sighash,
+      adaptorPoint,
+      now: new Date(Date.now() - 10 * 60 * 1000),
+      ttlSeconds: 60
+    });
+    expectThrow(() => authorizeDlcAdaptorSign(provider, {
+      contract, authorization: expiredAuthorization
+    }), /authorization has expired/);
+    const futureAuthorization = createDlcAdaptorSignAuthorization({
+      privateKey: validatorKeys.privateKey,
+      contract,
+      authorizationId: 'cet:future',
+      signerPubkeyX,
+      sighash,
+      adaptorPoint,
+      now: new Date(Date.now() + 2 * 60 * 1000),
+      ttlSeconds: 60
+    });
+    expectThrow(() => authorizeDlcAdaptorSign(provider, {
+      contract, authorization: futureAuthorization
+    }), /authorization is not yet valid/);
+    expectThrow(() => authorizeDlcAdaptorSign(provider, {
+      contract,
+      authorization: {
+        ...authorization,
+        expiresAtUnixSeconds: authorization.expiresAtUnixSeconds + 1
+      }
+    }), /authorization signature is invalid/);
+    expectThrow(() => createDlcAdaptorSignAuthorization({
+      privateKey: validatorKeys.privateKey,
+      contract,
+      authorizationId: 'cet:excessive-lifetime',
+      signerPubkeyX,
+      sighash,
+      adaptorPoint,
+      ttlSeconds: 301
+    }), /ttlSeconds must be an integer from 1 through 300/);
     const noStoreProvider = createDlcCryptoProvider({
       network: 'bitcoin-testnet4', mode: 'experimental-js', allowExperimental: true
     });

@@ -69,6 +69,10 @@ if (-not $result.assertions.rustProcessSigned -or -not $result.assertions.javasc
 if (-not $result.assertions.exactOneSignerRaceWinner -or $result.signerRaceWorkers -ne 16) {
   throw 'native signer integration omitted a required assertion'
 }
+if (-not $result.assertions.expiredAuthorizationRejected -or
+    -not $result.assertions.futureAuthorizationRejected) {
+  throw 'native signer integration omitted authorization freshness assertions'
+}
 $commit = (git -c safe.directory=C:/projects/UTXORef/UTXO-Ref -C $repository rev-parse HEAD).Trim()
 $snapshot = [ordered]@{
   schema = 'utxoref_dlc_native_rust_signer_snapshot_v1'
@@ -89,6 +93,43 @@ $snapshotPath = Join-Path $SnapshotDirectory 'dlc-native-rust-signer-latest.json
   ($snapshot | ConvertTo-Json -Depth 20),
   [System.Text.UTF8Encoding]::new($false)
 )
+$checkedEvidence = [ordered]@{
+  schema = 'utxoref_dlc_native_rust_signer_evidence_v2'
+  network = 'bitcoin-testnet4'
+  sourceCommit = $commit
+  toolchain = [ordered]@{ rustc = $snapshot.rustc; cargo = $snapshot.cargo }
+  cargoLockSha256 = $snapshot.cargoLockSha256
+  binarySha256 = $result.binarySha256
+  reproducibleBuild = $true
+  syntheticKeysOnly = $true
+  productionReady = $false
+  externalAuditRequired = $true
+  signerRaceWorkers = $result.signerRaceWorkers
+  assertions = [ordered]@{
+    independentCleanBuildsMatched = $true
+    rustProcessSigned = [bool]$result.assertions.rustProcessSigned
+    javascriptHostVerified = [bool]$result.assertions.javascriptHostVerified
+    bip340CompletionVerified = [bool]$result.assertions.bip340CompletionVerified
+    adaptorExtractionVerified = [bool]$result.assertions.adaptorExtractionVerified
+    validatorAuthorizationVerifiedBySigner = [bool]$result.assertions.validatorAuthorizationVerifiedBySigner
+    unpinnedValidatorRejected = [bool]$result.assertions.unpinnedValidatorRejected
+    unpinnedSignerRejected = [bool]$result.assertions.unpinnedSignerRejected
+    exactOneSignerRaceWinner = [bool]$result.assertions.exactOneSignerRaceWinner
+    expiredAuthorizationRejected = [bool]$result.assertions.expiredAuthorizationRejected
+    futureAuthorizationRejected = [bool]$result.assertions.futureAuthorizationRejected
+    runtimeIdentityVerifiedByHost = [bool]$result.assertions.runtimeIdentityVerifiedByHost
+    restartReplayRejected = [bool]$result.assertions.restartReplayRejected
+    signerLocalReplayRejected = [bool]$result.assertions.signerLocalReplayRejected
+    hostSuppliedNoSecret = [bool]$result.assertions.hostSuppliedNoSecret
+  }
+}
+$checkedEvidencePath = Join-Path $repository 'bitvm3\utxo_referee\artifacts\dlc_native_rust_signer_latest.json'
+[System.IO.File]::WriteAllText(
+  $checkedEvidencePath,
+  (($checkedEvidence | ConvertTo-Json -Depth 20) + [Environment]::NewLine),
+  [System.Text.UTF8Encoding]::new($false)
+)
 Write-Output "binary=$deployedBinary"
 Write-Output "binarySha256=$($result.binarySha256)"
+Write-Output "evidence=$checkedEvidencePath"
 Write-Output "snapshot=$snapshotPath"

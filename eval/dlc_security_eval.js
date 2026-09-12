@@ -465,7 +465,7 @@ check('contract state rejects forged and altered validation receipts', 'validato
   return alteredRejected && flagRejected;
 });
 
-check('crypto provider requires an audited challenge-bound signer subprocess', 'signer-boundary', 32, () => {
+check('crypto provider requires short-lived authorization and an audited signer subprocess', 'signer-boundary', 32, () => {
   const authorizationDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'utxoref-signer-eval-'));
   try {
   const disabled = createDlcCryptoProvider({ network: 'bitcoin-testnet4' });
@@ -585,6 +585,41 @@ process.stdout.write(JSON.stringify(response));
     sighash,
     adaptorPoint
   });
+  const expiredAuthorization = createDlcAdaptorSignAuthorization({
+    privateKey: validatorKeys.privateKey,
+    contract,
+    authorizationId: 'cet:expired',
+    signerPubkeyX,
+    sighash,
+    adaptorPoint,
+    now: new Date(Date.now() - 10 * 60 * 1000),
+    ttlSeconds: 60
+  });
+  const expiredAuthorizationRejected = throws(() => authorizeDlcAdaptorSign(explicit, {
+    contract, authorization: expiredAuthorization
+  }), /authorization has expired/);
+  const futureAuthorization = createDlcAdaptorSignAuthorization({
+    privateKey: validatorKeys.privateKey,
+    contract,
+    authorizationId: 'cet:future',
+    signerPubkeyX,
+    sighash,
+    adaptorPoint,
+    now: new Date(Date.now() + 2 * 60 * 1000),
+    ttlSeconds: 60
+  });
+  const futureAuthorizationRejected = throws(() => authorizeDlcAdaptorSign(explicit, {
+    contract, authorization: futureAuthorization
+  }), /authorization is not yet valid/);
+  const excessiveLifetimeRejected = throws(() => createDlcAdaptorSignAuthorization({
+    privateKey: validatorKeys.privateKey,
+    contract,
+    authorizationId: 'cet:excessive-lifetime',
+    signerPubkeyX,
+    sighash,
+    adaptorPoint,
+    ttlSeconds: 301
+  }), /ttlSeconds/);
   const session = authorizeDlcAdaptorSign(explicit, { contract, authorization });
   const presignature = session.execute(signerSecret, sha256('signer-eval:aux'));
   const signed = dlc.adaptorVerify(dlc.xOnlyPubkey(signerSecret), Buffer.from(sighash, 'hex'), presignature);
@@ -603,6 +638,13 @@ process.stdout.write(JSON.stringify(response));
   const tamperedRequestRejected = throws(() => authorizeDlcAdaptorSign(explicit, {
     contract,
     authorization: { ...authorization, sighash: sha256('signer-eval:wrong-sighash').toString('hex') }
+  }), /signature is invalid/);
+  const tamperedLifetimeRejected = throws(() => authorizeDlcAdaptorSign(explicit, {
+    contract,
+    authorization: {
+      ...authorization,
+      expiresAtUnixSeconds: authorization.expiresAtUnixSeconds + 1
+    }
   }), /signature is invalid/);
   const nativeSignerPubkeyX = dlc.xOnlyPubkey(nativeSecret).toString('hex');
   const nativeAuthorization = createDlcAdaptorSignAuthorization({
@@ -624,7 +666,8 @@ process.stdout.write(JSON.stringify(response));
   return disabled.mode === 'disabled' && Object.keys(disabled.operations).length === 0 &&
     explicit.productionReady === false && explicit.capabilities.nativeSecretArithmetic === false &&
     explicit.operations.adaptorSign === undefined && explicit.signingAuthorizationPersistence === 'durable-before-sign' &&
-    signed && replayRejected && restartReplayRejected && tamperedRequestRejected &&
+    signed && replayRejected && restartReplayRejected && tamperedRequestRejected && tamperedLifetimeRejected &&
+    expiredAuthorizationRejected && futureAuthorizationRejected && excessiveLifetimeRejected &&
     nativeSecretRejected && nativeResponseValid && nativeRequestPublicOnly &&
     native.capabilities.attestationVerified === true && native.productionReady === false &&
     tamperedRejected && directObjectRejected &&
@@ -1412,7 +1455,7 @@ const possible = cases.reduce((sum, test) => sum + test.points, 0);
 const score = earned / possible;
 const report = {
   benchmark: 'utxoref-dlc-security',
-  version: 16,
+  version: 17,
   profile: profileName,
   seed,
   score,

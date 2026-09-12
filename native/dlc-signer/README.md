@@ -2,7 +2,7 @@
 
 This crate is the isolated native signer used by UTXORef's Bitcoin testnet4 DLC integration. It reads one bounded canonical-JSON request from standard input, requires the Ed25519 validator identity to appear in an audited policy file, independently verifies its authorization, atomically consumes that authorization in its local replay store before signing, selects the key named by the authorized x-only public key, creates the adaptor pre-signature with `k256`, and signs its response with a runtime Ed25519 identity.
 
-The host never passes a private scalar or caller-selected key handle. Key files must be small regular non-symlink files in an absolute directory supplied when the process starts:
+The host never passes a private scalar or caller-selected key handle. Each validator-signed authorization uses schema `utxoref_dlc_adaptor_sign_authorization_v3`, expires within 300 seconds, and permits at most 30 seconds of future clock skew. The signer verifies this window against its own clock before durable consumption. Key files must be small regular non-symlink files in an absolute directory supplied when the process starts:
 
 - `<x-only-pubkey>.key` contains one 32-byte secp256k1 scalar encoded as lowercase or uppercase hexadecimal.
 - `runtime-identity.key` contains one 32-byte Ed25519 seed encoded as hexadecimal.
