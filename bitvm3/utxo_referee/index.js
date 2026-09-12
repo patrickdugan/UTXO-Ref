@@ -185,6 +185,8 @@ module.exports = {
       sanitizedProcessEnvironment: true,
       nativeCandidateImplementation: 'rust-k256-v1',
       nativeCandidateProtocol: 'utxoref-dlc-native-signer-process-v1',
+      nativeCandidateBinarySha256: '869d7d7a9fcee6b34fd167f9bbc833dd939adb2427f8c48f20ec7892dac1bd58',
+      nativeCandidateCargoLockSha256: 'a5715dcfcf1eef714ffb08afe6b35fdd5db6278176ead3994286da12ba01c5e2',
       lockedDirectDependencies: true,
       unsafeRustForbidden: true,
       reproducibleWindowsBuild: true,
