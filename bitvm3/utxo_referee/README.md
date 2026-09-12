@@ -234,6 +234,16 @@ challenge, the request digest, and the pre-signature digest. Runtime drift,
 timeouts, oversized or malformed output, stale challenges, and identity
 substitution fail closed.
 
+Boundary V17 includes the Rust `k256` signer candidate under
+`native/dlc-signer`. Its direct dependencies are exactly pinned, unsafe Rust is
+forbidden, and the testnet4 build harness rejects byte differences between two
+independent Windows target directories. The cross-language test completes the
+adaptor pre-signature into a BIP340 signature, extracts the adaptor scalar, and
+checks both host and signer-local durable replay rejection. The checked result
+is recorded in `artifacts/dlc_native_rust_signer_latest.json`. This evidence
+does not replace an independent cryptographic, dependency, key-storage, and
+deployment audit; `productionReady` remains false.
+
 Run:
 
 ```powershell
@@ -241,6 +251,7 @@ node bitvm3\utxo_referee\dlc_infra_hardening.test.js
 .\eval\dlc-security.ps1 -Profile full
 .\eval\dlc-regtest-recovery.ps1
 .\eval\dlc-truc-p2a-regtest.ps1
+.\eval\dlc-native-rust-signer.ps1
 ```
 
 The milestone funding finalizer also requires `DLC_STATE_PATH` to reference a
