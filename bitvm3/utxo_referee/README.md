@@ -459,6 +459,12 @@ Boundary V67 descriptor-snapshots signer authorization call arguments,
 canonicalizes the signed authorization envelope, and snapshots adaptor points
 with bounded `bigint` support. The frozen authorization is retained through the
 delayed `execute()` call so caller mutation cannot redirect a signature.
+Boundary V68 descriptor-snapshots provider and native-client construction,
+canonicalizes launch arrays, transport descriptors, capability manifests, and
+trusted audit keys, and accepts only exact, privately constructed, frozen
+authorization stores. An unverified
+implementation is rejected by private client identity before its properties are
+read, so configuration callbacks cannot run inside the signer trust boundary.
 The host accepts only bounded regular runtime files whose resolved paths do not
 traverse filesystem links. It hashes the complete runtime closure before and
 after every signer execution, so deletion or mutation during the process

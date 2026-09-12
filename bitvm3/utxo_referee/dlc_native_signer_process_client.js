@@ -4,7 +4,11 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
-const { canonicalJson } = require('./dlc_contract_state');
+const {
+  snapshotPlainData,
+  snapshotOwnDataArguments,
+  canonicalJson
+} = require('./dlc_canonical_json');
 const publicCrypto = require('./tradelayer_dlc_adaptor_sig');
 
 const REQUEST_KIND = 'utxoref_dlc_native_signer_process_request_v2';
@@ -78,14 +82,6 @@ function requireCanonicalBase64(value, fieldName) {
   return value;
 }
 
-function freezeJson(value) {
-  if (value && typeof value === 'object') {
-    for (const child of Object.values(value)) freezeJson(child);
-    Object.freeze(value);
-  }
-  return value;
-}
-
 function normalizeAuditedFile(value, fieldName, maximumBytes) {
   if (typeof value !== 'string' || !path.isAbsolute(value)) {
     throw new Error(`${fieldName} must name an existing absolute regular file`);
@@ -106,13 +102,21 @@ function normalizeAuditedFile(value, fieldName, maximumBytes) {
   return resolved;
 }
 
-function normalizeLaunchSpec({
-  executablePath,
-  attestedExecutablePath = executablePath,
-  arguments: launchArguments = [],
-  codePaths = [],
-  transportDescriptor = null
-}) {
+function normalizeLaunchSpec(input) {
+  const {
+    executablePath,
+    attestedExecutablePath = executablePath,
+    arguments: rawLaunchArguments = [],
+    codePaths: rawCodePaths = [],
+    transportDescriptor: rawTransportDescriptor = null
+  } = snapshotOwnDataArguments(input, [
+    'executablePath', 'attestedExecutablePath', 'arguments', 'codePaths', 'transportDescriptor'
+  ], 'native signer launch arguments');
+  const launchArguments = snapshotPlainData(rawLaunchArguments, 'native signer arguments', false);
+  const codePaths = snapshotPlainData(rawCodePaths, 'native signer codePaths', false);
+  const transportDescriptor = rawTransportDescriptor === null
+    ? null
+    : snapshotPlainData(rawTransportDescriptor, 'native signer transportDescriptor', false);
   const normalizedExecutablePath = normalizeAuditedFile(
     executablePath, 'native signer executablePath', MAX_EXECUTABLE_BYTES
   );
@@ -142,7 +146,7 @@ function normalizeLaunchSpec({
     if (Buffer.byteLength(descriptorJson, 'utf8') > MAX_TRANSPORT_DESCRIPTOR_BYTES) {
       throw new Error('native signer transportDescriptor exceeds 8192 bytes');
     }
-    normalizedTransportDescriptor = freezeJson(JSON.parse(descriptorJson));
+    normalizedTransportDescriptor = transportDescriptor;
   }
   if (normalizedExecutablePath !== normalizedAttestedExecutablePath && normalizedTransportDescriptor === null) {
     throw new Error('native signer proxy launch requires an attested transportDescriptor');
@@ -213,16 +217,21 @@ function runtimeIdentityKey(capabilities) {
 }
 
 class DlcNativeSignerProcessClient {
-  constructor({
-    executablePath,
-    attestedExecutablePath = executablePath,
-    arguments: launchArguments = [],
-    codePaths = [],
-    transportDescriptor = null,
-    capabilities,
-    timeoutMs = 10000,
-    maxResponseBytes = 65536
-  }) {
+  constructor(input) {
+    const {
+      executablePath,
+      attestedExecutablePath = executablePath,
+      arguments: launchArguments = [],
+      codePaths = [],
+      transportDescriptor = null,
+      capabilities: rawCapabilities,
+      timeoutMs = 10000,
+      maxResponseBytes = 65536
+    } = snapshotOwnDataArguments(input, [
+      'executablePath', 'attestedExecutablePath', 'arguments', 'codePaths', 'transportDescriptor',
+      'capabilities', 'timeoutMs', 'maxResponseBytes'
+    ], 'native signer client arguments');
+    const capabilities = snapshotPlainData(rawCapabilities, 'native signer capabilities', false);
     this.launchSpec = normalizeLaunchSpec({
       executablePath,
       attestedExecutablePath,
@@ -242,10 +251,7 @@ class DlcNativeSignerProcessClient {
     if (capabilities.executableSha256 !== nativeSignerExecutableDigest(this.launchSpec)) {
       throw new Error('native signer executable does not match the audited executable digest');
     }
-    this.capabilities = Object.freeze({
-      ...capabilities,
-      attestation: capabilities.attestation ? Object.freeze({ ...capabilities.attestation }) : capabilities.attestation
-    });
+    this.capabilities = capabilities;
     this.runtimeIdentityKey = runtimeIdentityKey(this.capabilities);
     this.timeoutMs = timeoutMs;
     this.maxResponseBytes = maxResponseBytes;

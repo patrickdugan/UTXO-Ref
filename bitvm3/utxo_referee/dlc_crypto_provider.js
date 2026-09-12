@@ -9,7 +9,9 @@ const {
   canonicalize,
   canonicalJson
 } = require('./dlc_canonical_json');
-const { DlcSigningAuthorizationStore } = require('./dlc_signing_authorization_store');
+const {
+  isDlcSigningAuthorizationStore
+} = require('./dlc_signing_authorization_store');
 const {
   REQUEST_KIND: NATIVE_PROCESS_REQUEST_KIND,
   RESPONSE_KIND: NATIVE_PROCESS_RESPONSE_KIND,
@@ -31,6 +33,15 @@ const NATIVE_ADAPTOR_SIGN_REQUEST_KIND = 'utxoref_dlc_native_adaptor_sign_reques
 const DEFAULT_AUTHORIZATION_TTL_SECONDS = 120;
 const MAX_AUTHORIZATION_TTL_SECONDS = 300;
 const MAX_AUTHORIZATION_CLOCK_SKEW_SECONDS = 30;
+const NATIVE_CAPABILITY_KEYS = Object.freeze([
+  'apiVersion', 'curve', 'adaptorScheme', 'nativeSecretArithmetic',
+  'constantTimeSecretOperations', 'secretZeroization', 'processIsolated',
+  'signingRequestKind', 'callerSuppliesSecret', 'keySelection',
+  'independentAuthorizationVerification', 'processRequestKind',
+  'processResponseKind', 'challengeBoundResponses', 'environmentPolicy',
+  'runtimeIdentityKeyId', 'runtimeIdentityPublicKeySpki', 'executableSha256',
+  'binaryDigest', 'auditDigest', 'attestation'
+]);
 
 function validateNetwork(network) {
   if (!['bitcoin-regtest', 'bitcoin-testnet4', 'bitcoin-mainnet'].includes(network)) {
@@ -63,7 +74,7 @@ function publicOperations(operations) {
 
 function normalizeAuthorizationStore(store) {
   if (store === undefined || store === null) return null;
-  if (!(store instanceof DlcSigningAuthorizationStore)) {
+  if (!isDlcSigningAuthorizationStore(store)) {
     throw new Error('authorizationStore must be a DlcSigningAuthorizationStore');
   }
   return store;
@@ -361,6 +372,9 @@ function authorizeDlcAdaptorSign(provider, input = {}) {
 }
 
 function nativeCapabilityAttestationPayload(capabilities) {
+  capabilities = snapshotOwnDataArguments(
+    capabilities, NATIVE_CAPABILITY_KEYS, 'native DLC capability manifest'
+  );
   if (!capabilities || capabilities.apiVersion !== 1 ||
       capabilities.curve !== 'secp256k1' ||
       capabilities.adaptorScheme !== 'bip340-schnorr' ||
@@ -411,6 +425,7 @@ function nativeCapabilityAttestationPayload(capabilities) {
 }
 
 function trustedAuditKeyMap(trustedAuditKeys) {
+  trustedAuditKeys = snapshotPlainData(trustedAuditKeys, 'trusted DLC audit keys', false);
   if (!Array.isArray(trustedAuditKeys) || trustedAuditKeys.length < 1 || trustedAuditKeys.length > 8) {
     throw new Error('native DLC provider requires 1..8 pinned audit keys');
   }
@@ -450,10 +465,13 @@ function validateNativeCapabilities(implementation, trustedAuditKeys) {
       !crypto.verify(null, payload, keys.get(attestation.keyId), signature)) {
     throw new Error('native DLC provider audit attestation is invalid');
   }
-  return Object.freeze({ ...capabilities, attestationVerified: true });
+  return canonicalize({ ...capabilities, attestationVerified: true }, 'verified native DLC capabilities');
 }
 
-function createDlcCryptoProvider(options = {}) {
+function createDlcCryptoProvider(input = {}) {
+  const options = snapshotOwnDataArguments(input, [
+    'network', 'mode', 'allowExperimental', 'implementation', 'trustedAuditKeys', 'authorizationStore'
+  ], 'DLC crypto provider arguments');
   const network = options.network;
   const mode = options.mode || 'disabled';
   validateNetwork(network);
@@ -492,10 +510,10 @@ function createDlcCryptoProvider(options = {}) {
   }
 
   if (mode === 'native-isolated') {
-    const capabilities = validateNativeCapabilities(options.implementation, options.trustedAuditKeys);
     if (!isDlcNativeSignerProcessClient(options.implementation)) {
       throw new Error('native-isolated mode requires a verified DlcNativeSignerProcessClient');
     }
+    const capabilities = validateNativeCapabilities(options.implementation, options.trustedAuditKeys);
     const operations = bindOperations(options.implementation, mode);
     const authorizationStore = normalizeAuthorizationStore(options.authorizationStore);
     const provider = Object.freeze({

@@ -200,6 +200,10 @@ Boundary V67 applies descriptor snapshots to signer authorization creation and
 consumption. The signed authorization is canonicalized and retained through
 `execute()`, preventing a caller from changing its sighash or adaptor point
 after the session is approved.
+Boundary V68 applies the same callback-free input rule to provider and native
+signer-client construction. Launch specifications, native capabilities, and
+trusted audit keys are immutable snapshots; proxied or subclassed stores and unverified
+implementations fail before any attacker-controlled property access.
 
 ## Agent isolation
 

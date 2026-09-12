@@ -58,7 +58,7 @@ function post(port, token, payload) {
 
 test('read-only RPC policy rejects wallet, signing, broadcast, and node-control methods', () => {
   const evaluationPolicy = referee.dlc.testnet4EvaluationPolicy;
-  assert.equal(referee.dlc.securityBoundaryVersion, 67);
+  assert.equal(referee.dlc.securityBoundaryVersion, 68);
   assert.equal(typeof referee.dlc.canonicalizeData, 'function');
   assert.equal(typeof referee.dlc.canonicalJson, 'function');
   assert.deepEqual(referee.dlc.canonicalSerializationPolicy, {
@@ -105,6 +105,18 @@ test('read-only RPC policy rejects wallet, signing, broadcast, and node-control 
     adaptorPointBigIntSnapshot: true,
     callbackBearingInputsAllowed: false,
     snapshotRetainedThroughExecute: true
+  });
+  assert.deepEqual(referee.dlc.providerConfigurationInputPolicy, {
+    argumentsDescriptorSnapshotted: true,
+    trustedAuditKeysCanonicalSnapshot: true,
+    nativeClientIdentityCheckedBeforeProperties: true,
+    nativeClientArgumentsDescriptorSnapshotted: true,
+    nativeClientCapabilitiesCanonicalSnapshot: true,
+    launchSpecCanonicalSnapshot: true,
+    exactAuthorizationStoreIdentityRequired: true,
+    proxiedStoresAllowed: false,
+    callbackBearingInputsAllowed: false,
+    providerStateImmutable: true
   });
   assert.equal(referee.dlc.durableJournalPolicy.recordReadProtocol, 'lstat-open-fstat-lstat-v2');
   assert.equal(referee.dlc.durableJournalPolicy.pathEntryStableThroughReadRequired, true);

@@ -231,6 +231,7 @@ const cases = [];
 let peerFixtureForEval;
 let prebroadcastFixtureForEval;
 let signerAuthorizationFixtureForEval;
+let providerConfigurationFixtureForEval;
 function check(name, category, points, run) {
   const started = process.hrtime.bigint();
   try {
@@ -1013,12 +1014,15 @@ process.stdout.write(JSON.stringify(response));
     trustedAuditKeys,
     authorizationStore: new DlcSigningAuthorizationStore(path.join(authorizationDirectory, 'native'))
   });
+  providerConfigurationFixtureForEval = { implementation, trustedAuditKeys, manifest };
+  const tamperedClient = new DlcNativeSignerProcessClient({
+    ...launchSpec,
+    capabilities: { ...capabilities, auditDigest: sha256('signer-eval:tampered').toString('hex') }
+  });
   const tamperedRejected = throws(() => createDlcCryptoProvider({
     network: 'bitcoin-testnet4',
     mode: 'native-isolated',
-    implementation: {
-      capabilities: { ...capabilities, binaryDigest: sha256('signer-eval:tampered').toString('hex') }
-    },
+    implementation: tamperedClient,
     trustedAuditKeys
   }), /attestation is invalid/);
   const directObjectRejected = throws(() => createDlcCryptoProvider({
@@ -1152,6 +1156,121 @@ process.stdout.write(JSON.stringify(response));
     }), /mainnet/);
   } finally {
     fs.rmSync(authorizationDirectory, { recursive: true, force: true });
+  }
+});
+
+check('provider configuration rejects callbacks before signer capability access', 'signer-boundary', 12, () => {
+  if (!providerConfigurationFixtureForEval) return false;
+  const { implementation, trustedAuditKeys, manifest } = providerConfigurationFixtureForEval;
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'utxoref-provider-input-eval-'));
+  try {
+    let clientArgumentAccessorCalls = 0;
+    const hostileClientArguments = {};
+    Object.defineProperty(hostileClientArguments, 'executablePath', {
+      enumerable: true,
+      get() { clientArgumentAccessorCalls++; return implementation.launchSpec.executablePath; }
+    });
+    const clientArgumentsRejected = throws(
+      () => new DlcNativeSignerProcessClient(hostileClientArguments), /enumerable data property/
+    );
+    let clientCapabilityAccessorCalls = 0;
+    const hostileClientCapabilities = { ...implementation.capabilities };
+    Object.defineProperty(hostileClientCapabilities, 'apiVersion', {
+      enumerable: true,
+      get() { clientCapabilityAccessorCalls++; return 1; }
+    });
+    const clientCapabilitiesRejected = throws(() => new DlcNativeSignerProcessClient({
+      ...implementation.launchSpec, capabilities: hostileClientCapabilities
+    }), /enumerable data property/);
+    let launchArgumentAccessorCalls = 0;
+    const hostileLaunchArguments = [];
+    Object.defineProperty(hostileLaunchArguments, '0', {
+      enumerable: true,
+      configurable: true,
+      get() { launchArgumentAccessorCalls++; return 'hostile.js'; }
+    });
+    hostileLaunchArguments.length = 1;
+    const launchArgumentsRejected = throws(() => new DlcNativeSignerProcessClient({
+      ...implementation.launchSpec,
+      arguments: hostileLaunchArguments,
+      capabilities: implementation.capabilities
+    }), /enumerable data property/);
+    let optionAccessorCalls = 0;
+    const hostileOptions = {};
+    Object.defineProperty(hostileOptions, 'network', {
+      enumerable: true,
+      get() { optionAccessorCalls++; return 'bitcoin-testnet4'; }
+    });
+    const optionRejected = throws(() => createDlcCryptoProvider(hostileOptions), /enumerable data property/);
+    let proxyTrapCalls = 0;
+    const proxyRejected = throws(() => createDlcCryptoProvider(new Proxy({ network: 'bitcoin-testnet4' }, {
+      getOwnPropertyDescriptor() { proxyTrapCalls++; return undefined; }
+    })), /plain object, not a Proxy/);
+    let manifestAccessorCalls = 0;
+    const hostileManifest = { ...manifest };
+    Object.defineProperty(hostileManifest, 'apiVersion', {
+      enumerable: true,
+      get() { manifestAccessorCalls++; return 1; }
+    });
+    const manifestRejected = throws(
+      () => nativeCapabilityAttestationPayload(hostileManifest), /enumerable data property/
+    );
+    let directCapabilityCalls = 0;
+    const hostileImplementation = {};
+    Object.defineProperty(hostileImplementation, 'capabilities', {
+      enumerable: true,
+      get() { directCapabilityCalls++; return implementation.capabilities; }
+    });
+    const unverifiedRejected = throws(() => createDlcCryptoProvider({
+      network: 'bitcoin-testnet4', mode: 'native-isolated',
+      implementation: hostileImplementation, trustedAuditKeys
+    }), /verified DlcNativeSignerProcessClient/);
+    let auditKeyAccessorCalls = 0;
+    const hostileAuditKey = { publicKeySpki: trustedAuditKeys[0].publicKeySpki };
+    Object.defineProperty(hostileAuditKey, 'keyId', {
+      enumerable: true,
+      get() { auditKeyAccessorCalls++; return trustedAuditKeys[0].keyId; }
+    });
+    const auditKeyRejected = throws(() => createDlcCryptoProvider({
+      network: 'bitcoin-testnet4', mode: 'native-isolated', implementation,
+      trustedAuditKeys: [hostileAuditKey]
+    }), /enumerable data property/);
+    const store = new DlcSigningAuthorizationStore(directory);
+    let storeProxyTrapCalls = 0;
+    const proxiedStore = new Proxy(store, {
+      getPrototypeOf(target) { storeProxyTrapCalls++; return Reflect.getPrototypeOf(target); }
+    });
+    const storeRejected = throws(() => createDlcCryptoProvider({
+      network: 'bitcoin-testnet4', mode: 'experimental-js', allowExperimental: true,
+      authorizationStore: proxiedStore
+    }), /authorizationStore/);
+    let subclassConsumeCalls = 0;
+    class HostileAuthorizationStore extends DlcSigningAuthorizationStore {
+      consume() { subclassConsumeCalls++; return {}; }
+    }
+    const hostileStore = new HostileAuthorizationStore(path.join(directory, 'hostile-store'));
+    const storeSubclassRejected = throws(() => createDlcCryptoProvider({
+      network: 'bitcoin-testnet4', mode: 'experimental-js', allowExperimental: true,
+      authorizationStore: hostileStore
+    }), /authorizationStore/);
+    const mutableOptions = {
+      network: 'bitcoin-testnet4', mode: 'experimental-js', allowExperimental: true,
+      authorizationStore: store
+    };
+    const provider = createDlcCryptoProvider(mutableOptions);
+    mutableOptions.network = 'bitcoin-mainnet';
+    mutableOptions.mode = 'disabled';
+    return clientArgumentsRejected && clientCapabilitiesRejected && launchArgumentsRejected &&
+      optionRejected && proxyRejected && manifestRejected && unverifiedRejected &&
+      auditKeyRejected && storeRejected && storeSubclassRejected && optionAccessorCalls === 0 && proxyTrapCalls === 0 &&
+      manifestAccessorCalls === 0 && directCapabilityCalls === 0 && auditKeyAccessorCalls === 0 &&
+      storeProxyTrapCalls === 0 && subclassConsumeCalls === 0 && Object.isFrozen(hostileStore) &&
+      clientArgumentAccessorCalls === 0 &&
+      clientCapabilityAccessorCalls === 0 && launchArgumentAccessorCalls === 0 &&
+      provider.network === 'bitcoin-testnet4' &&
+      provider.mode === 'experimental-js';
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
   }
 });
 
@@ -2299,7 +2418,7 @@ const possible = cases.reduce((sum, test) => sum + test.points, 0);
 const score = earned / possible;
 const report = {
   benchmark: 'utxoref-dlc-security',
-  version: 37,
+  version: 38,
   profile: profileName,
   seed,
   score,

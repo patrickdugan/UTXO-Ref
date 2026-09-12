@@ -19,6 +19,7 @@ const {
 
 const KIND = 'utxoref_dlc_signing_authorization_consumption_v1';
 const MAX_RECORD_BYTES = 32768;
+const LIVE_AUTHORIZATION_STORES = new WeakSet();
 
 function sha256Hex(value) {
   return crypto.createHash('sha256').update(value).digest('hex');
@@ -71,6 +72,8 @@ class DlcSigningAuthorizationStore {
     if (typeof baseDirectory !== 'string' || baseDirectory.length === 0) throw new Error('baseDirectory is required');
     this.baseDirectory = path.resolve(baseDirectory);
     ensureNonSymlinkDirectory(this.baseDirectory, 'DLC signing authorization base');
+    LIVE_AUTHORIZATION_STORES.add(this);
+    Object.freeze(this);
   }
 
   _directory(contractId, authorizationId) {
@@ -190,11 +193,17 @@ class DlcSigningAuthorizationStore {
   }
 }
 
+function isDlcSigningAuthorizationStore(value) {
+  return LIVE_AUTHORIZATION_STORES.has(value) &&
+    Object.getPrototypeOf(value) === DlcSigningAuthorizationStore.prototype;
+}
+
 module.exports = {
   KIND,
   MAX_RECORD_BYTES,
   consumptionKey,
   recordHash,
   validateConsumptionRecord,
+  isDlcSigningAuthorizationStore,
   DlcSigningAuthorizationStore
 };

@@ -134,7 +134,7 @@ module.exports = {
   // for production; these interfaces enforce transcript, threshold-oracle,
   // and persistence gates on regtest and Bitcoin testnet4.
   dlc: Object.freeze({
-    securityBoundaryVersion: 67,
+    securityBoundaryVersion: 68,
     canonicalizeData: dlcCanonicalJson.canonicalize,
     canonicalJson: dlcCanonicalJson.canonicalJson,
     canonicalSerializationPolicy: Object.freeze({
@@ -181,6 +181,18 @@ module.exports = {
       adaptorPointBigIntSnapshot: true,
       callbackBearingInputsAllowed: false,
       snapshotRetainedThroughExecute: true
+    }),
+    providerConfigurationInputPolicy: Object.freeze({
+      argumentsDescriptorSnapshotted: true,
+      trustedAuditKeysCanonicalSnapshot: true,
+      nativeClientIdentityCheckedBeforeProperties: true,
+      nativeClientArgumentsDescriptorSnapshotted: true,
+      nativeClientCapabilitiesCanonicalSnapshot: true,
+      launchSpecCanonicalSnapshot: true,
+      exactAuthorizationStoreIdentityRequired: true,
+      proxiedStoresAllowed: false,
+      callbackBearingInputsAllowed: false,
+      providerStateImmutable: true
     }),
     createContract: dlcContractState.createDlcContract,
     normalizeContract: dlcContractState.normalizeDlcContract,

@@ -887,6 +887,19 @@ test('funding broadcast requires fresh transaction-bound Bitcoin Core policy', (
 });
 
 test('crypto provider defaults closed and confines JavaScript secrets to explicit test mode', () => {
+  let optionAccessorCalls = 0;
+  const hostileOptions = {};
+  Object.defineProperty(hostileOptions, 'network', {
+    enumerable: true,
+    get() { optionAccessorCalls++; return 'bitcoin-testnet4'; }
+  });
+  expectThrow(() => createDlcCryptoProvider(hostileOptions), /enumerable data property/);
+  assert(optionAccessorCalls === 0, 'provider option accessor executed before rejection');
+  let proxyTrapCalls = 0;
+  expectThrow(() => createDlcCryptoProvider(new Proxy({ network: 'bitcoin-testnet4' }, {
+    getOwnPropertyDescriptor() { proxyTrapCalls++; return undefined; }
+  })), /plain object, not a Proxy/);
+  assert(proxyTrapCalls === 0, 'provider options Proxy trap executed before rejection');
   const disabled = createDlcCryptoProvider({ network: 'bitcoin-testnet4' });
   assert(disabled.mode === 'disabled' && Object.keys(disabled.operations).length === 0, 'default provider must be disabled');
   expectThrow(() => createDlcCryptoProvider({ network: 'bitcoin-testnet4', mode: 'experimental-js' }), /allowExperimental/);
@@ -902,6 +915,24 @@ test('crypto provider defaults closed and confines JavaScript secrets to explici
   });
   assert(requireDlcSigningProvider(research) === research, 'explicit research provider was rejected');
   assert(research.productionReady === false && research.capabilities.nativeSecretArithmetic === false, 'research provider overstated security');
+  const storeDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'utxoref-provider-store-'));
+  try {
+    let subclassConsumeCalls = 0;
+    class HostileAuthorizationStore extends DlcSigningAuthorizationStore {
+      consume() { subclassConsumeCalls++; return {}; }
+    }
+    const hostileStore = new HostileAuthorizationStore(storeDirectory);
+    expectThrow(() => createDlcCryptoProvider({
+      network: 'bitcoin-testnet4',
+      mode: 'experimental-js',
+      allowExperimental: true,
+      authorizationStore: hostileStore
+    }), /authorizationStore/);
+    assert(subclassConsumeCalls === 0, 'authorization store subclass callback executed');
+    assert(Object.isFrozen(hostileStore), 'authorization store instance was not frozen');
+  } finally {
+    fs.rmSync(storeDirectory, { recursive: true, force: true });
+  }
 });
 
 test('native provider rejects incomplete security capability claims', () => {
@@ -909,7 +940,7 @@ test('native provider rejects incomplete security capability claims', () => {
     network: 'bitcoin-testnet4',
     mode: 'native-isolated',
     implementation: { capabilities: { apiVersion: 1 } }
-  }), /capability manifest/);
+  }), /verified DlcNativeSignerProcessClient/);
 });
 
 test('native provider requires an operator-pinned audit signature over its exact binary capabilities', () => {
@@ -924,34 +955,106 @@ test('native provider requires an operator-pinned audit signature over its exact
     });
     assert(provider.capabilities.attestationVerified === true && provider.productionReady === false,
       'verified native candidate overstated production readiness or lost attestation state');
+    let clientArgumentAccessorCalls = 0;
+    const hostileClientArguments = {};
+    Object.defineProperty(hostileClientArguments, 'executablePath', {
+      enumerable: true,
+      get() { clientArgumentAccessorCalls++; return fixture.client.launchSpec.executablePath; }
+    });
+    expectThrow(() => new DlcNativeSignerProcessClient(hostileClientArguments), /enumerable data property/);
+    assert(clientArgumentAccessorCalls === 0, 'native client argument accessor executed before rejection');
+    let clientCapabilityAccessorCalls = 0;
+    const hostileClientCapabilities = { ...fixture.capabilities };
+    Object.defineProperty(hostileClientCapabilities, 'apiVersion', {
+      enumerable: true,
+      get() { clientCapabilityAccessorCalls++; return 1; }
+    });
+    expectThrow(() => new DlcNativeSignerProcessClient({
+      ...fixture.client.launchSpec,
+      capabilities: hostileClientCapabilities
+    }), /enumerable data property/);
+    assert(clientCapabilityAccessorCalls === 0, 'native client capability accessor executed before rejection');
+    let launchArgumentAccessorCalls = 0;
+    const hostileLaunchArguments = [];
+    Object.defineProperty(hostileLaunchArguments, '0', {
+      enumerable: true,
+      configurable: true,
+      get() { launchArgumentAccessorCalls++; return fixture.helperPath; }
+    });
+    hostileLaunchArguments.length = 1;
+    expectThrow(() => new DlcNativeSignerProcessClient({
+      ...fixture.client.launchSpec,
+      arguments: hostileLaunchArguments,
+      capabilities: fixture.capabilities
+    }), /enumerable data property/);
+    assert(launchArgumentAccessorCalls === 0, 'native signer launch argument accessor executed before rejection');
+    let manifestAccessorCalls = 0;
+    const hostileManifest = { ...fixture.manifest };
+    Object.defineProperty(hostileManifest, 'apiVersion', {
+      enumerable: true,
+      get() { manifestAccessorCalls++; return 1; }
+    });
+    expectThrow(() => nativeCapabilityAttestationPayload(hostileManifest), /enumerable data property/);
+    assert(manifestAccessorCalls === 0, 'native capability accessor executed before rejection');
     expectThrow(() => nativeCapabilityAttestationPayload({ ...fixture.manifest, callerSuppliesSecret: true }),
       /required capability manifest/);
     const directImplementation = {
       capabilities: fixture.capabilities,
       adaptorSignAuthorized() {}, adaptorVerify() {}, adaptorComplete() {}, adaptorExtract() {}, schnorrVerify() {}
     };
+    let directCapabilityCalls = 0;
+    const hostileDirectImplementation = {};
+    Object.defineProperty(hostileDirectImplementation, 'capabilities', {
+      enumerable: true,
+      get() { directCapabilityCalls++; return fixture.capabilities; }
+    });
+    expectThrow(() => createDlcCryptoProvider({
+      network: 'bitcoin-testnet4',
+      mode: 'native-isolated',
+      implementation: hostileDirectImplementation,
+      trustedAuditKeys: fixture.trustedAuditKeys
+    }), /verified DlcNativeSignerProcessClient/);
+    assert(directCapabilityCalls === 0, 'unverified implementation capability getter executed');
     expectThrow(() => createDlcCryptoProvider({
       network: 'bitcoin-testnet4',
       mode: 'native-isolated',
       implementation: directImplementation,
       trustedAuditKeys: fixture.trustedAuditKeys
     }), /verified DlcNativeSignerProcessClient/);
+    const tamperedClient = new DlcNativeSignerProcessClient({
+      ...fixture.client.launchSpec,
+      capabilities: { ...fixture.capabilities, auditDigest: digest('tampered-audit') }
+    });
     expectThrow(() => createDlcCryptoProvider({
       network: 'bitcoin-testnet4',
       mode: 'native-isolated',
-      implementation: {
-        ...directImplementation,
-        capabilities: { ...fixture.capabilities, binaryDigest: digest('tampered-binary') }
-      },
+      implementation: tamperedClient,
       trustedAuditKeys: fixture.trustedAuditKeys
     }), /attestation is invalid/);
+    const unattestedClient = new DlcNativeSignerProcessClient({
+      ...fixture.client.launchSpec,
+      capabilities: fixture.manifest
+    });
     expectThrow(() => createDlcCryptoProvider({
       network: 'bitcoin-testnet4',
       mode: 'native-isolated',
-      implementation: { ...directImplementation, capabilities: fixture.manifest },
+      implementation: unattestedClient,
       trustedAuditKeys: fixture.trustedAuditKeys
     }), /lacks a trusted audit attestation/);
     const untrustedKey = crypto.generateKeyPairSync('ed25519').publicKey.export({ format: 'der', type: 'spki' });
+    let auditKeyAccessorCalls = 0;
+    const hostileAuditKey = { publicKeySpki: fixture.trustedAuditKeys[0].publicKeySpki };
+    Object.defineProperty(hostileAuditKey, 'keyId', {
+      enumerable: true,
+      get() { auditKeyAccessorCalls++; return fixture.trustedAuditKeys[0].keyId; }
+    });
+    expectThrow(() => createDlcCryptoProvider({
+      network: 'bitcoin-testnet4',
+      mode: 'native-isolated',
+      implementation: fixture.client,
+      trustedAuditKeys: [hostileAuditKey]
+    }), /enumerable data property/);
+    assert(auditKeyAccessorCalls === 0, 'trusted audit key accessor executed before rejection');
     expectThrow(() => createDlcCryptoProvider({
       network: 'bitcoin-testnet4',
       mode: 'native-isolated',
