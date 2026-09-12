@@ -234,7 +234,7 @@ challenge, the request digest, and the pre-signature digest. Runtime drift,
 timeouts, oversized or malformed output, stale challenges, and identity
 substitution fail closed.
 
-Boundary V26 includes the Rust `k256` signer candidate under
+Boundary V27 includes the Rust `k256` signer candidate under
 `native/dlc-signer`. Its direct dependencies are exactly pinned, unsafe Rust is
 forbidden, and the testnet4 build harness rejects byte differences between two
 independent Windows target directories. The cross-language test completes the
@@ -261,8 +261,14 @@ Across ordinary restarts, the signer persists canonical clock observations
 signed by its runtime identity. It verifies every observation before key use and
 fails closed when the current clock falls more than 30 seconds below the signed
 floor. The bounded 4,096-record store requires reviewed rotation instead of
-silently discarding rollback evidence. An attacker who can delete both the clock
-store and plaintext testnet keys remains outside this candidate's protection.
+silently discarding rollback evidence. An attacker who can delete the clock
+store remains outside this candidate's protection. Testnet4 signing and
+runtime-identity keys are stored only as Windows DPAPI `CurrentUser` blobs; the
+native signer rejects legacy plaintext `.key` files and verifies the pinned
+unwrap helper before key use. DPAPI protects offline key material, while another
+process under the same Windows account can still request decryption. A dedicated
+signer service account, restrictive ACLs, and external key-storage review remain
+required.
 The host accepts only bounded regular runtime files whose resolved paths do not
 traverse filesystem links. It hashes the complete runtime closure before and
 after every signer execution, so deletion or mutation during the process

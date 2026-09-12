@@ -4,7 +4,7 @@
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
-const { spawn } = require('child_process');
+const { spawn, spawnSync } = require('child_process');
 const dlc = require('../bitvm3/utxo_referee/tradelayer_dlc_adaptor_sig');
 const {
   ALL_EVIDENCE_KINDS,
@@ -33,6 +33,30 @@ const {
 function fail(message) { throw new Error(message); }
 function sha256(value) { return crypto.createHash('sha256').update(value).digest(); }
 function digest(value) { return sha256(value).toString('hex'); }
+
+const protectDpapiPath = path.resolve(__dirname, '..', 'native', 'dlc-signer', 'protect-dpapi-key.ps1');
+const unprotectDpapiPath = path.resolve(__dirname, '..', 'native', 'dlc-signer', 'unprotect-dpapi-key.ps1');
+
+function protectDpapiKey(destinationPath, secretHex) {
+  const systemRoot = process.env.SystemRoot || process.env.WINDIR;
+  if (!systemRoot) fail('SystemRoot is required for DPAPI provisioning');
+  const powershell = path.join(
+    systemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe'
+  );
+  const result = spawnSync(powershell, [
+    '-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
+    '-File', protectDpapiPath, '-DestinationPath', destinationPath
+  ], {
+    input: secretHex,
+    encoding: 'utf8',
+    windowsHide: true,
+    env: { SystemRoot: systemRoot, WINDIR: systemRoot },
+    maxBuffer: 8192
+  });
+  if (result.error || result.status !== 0) {
+    fail(`DPAPI provisioning failed: ${result.error?.message || result.stderr.trim()}`);
+  }
+}
 
 function runSignerProcess(executablePath, launchArguments, envelope) {
   return new Promise((resolve) => {
@@ -76,6 +100,7 @@ if (!fs.existsSync(binaryPath) || !fs.statSync(binaryPath).isFile()) fail('nativ
 if (!fs.existsSync(workDirectory) || !fs.statSync(workDirectory).isDirectory()) fail('work directory is required');
 
 const keyDirectory = path.join(workDirectory, 'keys');
+const plaintextKeyDirectory = path.join(workDirectory, 'plaintext-keys');
 const authorizationDirectory = path.join(workDirectory, 'authorizations');
 const directReplayAuthorizationDirectory = path.join(workDirectory, 'direct-replay-authorizations');
 const unpinnedValidatorAuthorizationDirectory = path.join(workDirectory, 'unpinned-validator-authorizations');
@@ -84,6 +109,7 @@ const validatorPolicyPath = path.join(workDirectory, 'validator-policy.json');
 const unpinnedValidatorPolicyPath = path.join(workDirectory, 'unpinned-validator-policy.json');
 const unpinnedSignerPolicyPath = path.join(workDirectory, 'unpinned-signer-policy.json');
 fs.mkdirSync(keyDirectory, { recursive: true, mode: 0o700 });
+fs.mkdirSync(plaintextKeyDirectory, { recursive: true, mode: 0o700 });
 fs.mkdirSync(authorizationDirectory, { recursive: true, mode: 0o700 });
 fs.mkdirSync(directReplayAuthorizationDirectory, { recursive: true, mode: 0o700 });
 fs.mkdirSync(unpinnedValidatorAuthorizationDirectory, { recursive: true, mode: 0o700 });
@@ -161,36 +187,56 @@ try {
     contract = transitionDlcContract(contract, requestFor(contract, stage));
   }
 
-  fs.writeFileSync(
-    path.join(keyDirectory, `${signerPubkeyX}.key`),
-    `${dlc.bytes32(signerSecret).toString('hex')}\n`,
-    { encoding: 'utf8', mode: 0o600, flag: 'wx' }
-  );
+  const signerSecretBytes = dlc.bytes32(signerSecret);
+  const signerSecretHex = signerSecretBytes.toString('hex');
+  const signerBlobPath = path.join(keyDirectory, `${signerPubkeyX}.key.dpapi`);
+  protectDpapiKey(signerBlobPath, signerSecretHex);
   const runtimeKeys = crypto.generateKeyPairSync('ed25519');
   const runtimePrivateDer = runtimeKeys.privateKey.export({ format: 'der', type: 'pkcs8' });
   const runtimeSeed = runtimePrivateDer.subarray(runtimePrivateDer.length - 32);
   const runtimeSpki = runtimeKeys.publicKey.export({ format: 'der', type: 'spki' });
-  fs.writeFileSync(
-    path.join(keyDirectory, 'runtime-identity.key'),
-    `${runtimeSeed.toString('hex')}\n`,
-    { encoding: 'utf8', mode: 0o600, flag: 'wx' }
-  );
+  const runtimeSeedHex = runtimeSeed.toString('hex');
+  const runtimeBlobPath = path.join(keyDirectory, 'runtime-identity.key.dpapi');
+  protectDpapiKey(runtimeBlobPath, runtimeSeedHex);
+  const signerBlob = fs.readFileSync(signerBlobPath);
+  const runtimeBlob = fs.readFileSync(runtimeBlobPath);
+  const dpapiBlobsOpaque = !signerBlob.includes(signerSecretBytes) &&
+    !signerBlob.includes(Buffer.from(signerSecretHex, 'utf8')) &&
+    !runtimeBlob.includes(runtimeSeed) &&
+    !runtimeBlob.includes(Buffer.from(runtimeSeedHex, 'utf8'));
+  if (!dpapiBlobsOpaque) fail('DPAPI key blob exposed raw key material');
+
+  const unprotectDpapiDigest = digest(fs.readFileSync(unprotectDpapiPath));
 
   const launchSpec = {
     executablePath: binaryPath,
-    arguments: [keyDirectory, validatorPolicyPath, validatorPolicyDigest],
-    codePaths: [validatorPolicyPath]
+    arguments: [keyDirectory, validatorPolicyPath, validatorPolicyDigest,
+      unprotectDpapiPath, unprotectDpapiDigest],
+    codePaths: [validatorPolicyPath, unprotectDpapiPath]
   };
   const unpinnedValidatorLaunchSpec = {
     executablePath: binaryPath,
-    arguments: [keyDirectory, unpinnedValidatorPolicyPath, unpinnedValidatorPolicyDigest],
-    codePaths: [unpinnedValidatorPolicyPath]
+    arguments: [keyDirectory, unpinnedValidatorPolicyPath, unpinnedValidatorPolicyDigest,
+      unprotectDpapiPath, unprotectDpapiDigest],
+    codePaths: [unpinnedValidatorPolicyPath, unprotectDpapiPath]
   };
   const unpinnedSignerLaunchSpec = {
     executablePath: binaryPath,
-    arguments: [keyDirectory, unpinnedSignerPolicyPath, unpinnedSignerPolicyDigest],
-    codePaths: [unpinnedSignerPolicyPath]
+    arguments: [keyDirectory, unpinnedSignerPolicyPath, unpinnedSignerPolicyDigest,
+      unprotectDpapiPath, unprotectDpapiDigest],
+    codePaths: [unpinnedSignerPolicyPath, unprotectDpapiPath]
   };
+  fs.writeFileSync(
+    path.join(plaintextKeyDirectory, `${signerPubkeyX}.KEY`),
+    `${signerSecretHex}\n`,
+    { encoding: 'utf8', mode: 0o600, flag: 'wx' }
+  );
+  const plaintextLaunchArguments = [plaintextKeyDirectory, validatorPolicyPath,
+    validatorPolicyDigest, unprotectDpapiPath, unprotectDpapiDigest];
+  const plaintextResult = await runSignerProcess(binaryPath, plaintextLaunchArguments, '{}\n');
+  const plaintextKeyFilesRejected = plaintextResult.code !== 0 &&
+    /plaintext \.key files are forbidden/.test(plaintextResult.stderr.toString('utf8'));
+  if (!plaintextKeyFilesRejected) fail('Rust signer accepted a plaintext key file');
   const manifestFor = (spec) => ({
     apiVersion: 1,
     curve: 'secp256k1',
@@ -491,12 +537,16 @@ try {
       expiredAuthorizationRejected: true,
       futureAuthorizationRejected: true,
       signedClockRollbackRejected: true,
+      dpapiProtectedKeyBlobsOnly: true,
+      dpapiBlobsOpaque,
+      plaintextKeyFilesRejected,
       hostSuppliedNoSecret: true
     }
   };
   process.stdout.write(`${JSON.stringify(report)}\n`);
 } finally {
   fs.rmSync(keyDirectory, { recursive: true, force: true });
+  fs.rmSync(plaintextKeyDirectory, { recursive: true, force: true });
   fs.rmSync(authorizationDirectory, { recursive: true, force: true });
   fs.rmSync(directReplayAuthorizationDirectory, { recursive: true, force: true });
   fs.rmSync(unpinnedValidatorAuthorizationDirectory, { recursive: true, force: true });

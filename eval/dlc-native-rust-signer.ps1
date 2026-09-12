@@ -74,6 +74,11 @@ if (-not $result.assertions.expiredAuthorizationRejected -or
     -not $result.assertions.signedClockRollbackRejected) {
   throw 'native signer integration omitted authorization freshness assertions'
 }
+if (-not $result.assertions.dpapiProtectedKeyBlobsOnly -or
+    -not $result.assertions.dpapiBlobsOpaque -or
+    -not $result.assertions.plaintextKeyFilesRejected) {
+  throw 'native signer integration omitted DPAPI key-storage assertions'
+}
 $commit = (git -c safe.directory=C:/projects/UTXORef/UTXO-Ref -C $repository rev-parse HEAD).Trim()
 $snapshot = [ordered]@{
   schema = 'utxoref_dlc_native_rust_signer_snapshot_v1'
@@ -95,7 +100,7 @@ $snapshotPath = Join-Path $SnapshotDirectory 'dlc-native-rust-signer-latest.json
   [System.Text.UTF8Encoding]::new($false)
 )
 $checkedEvidence = [ordered]@{
-  schema = 'utxoref_dlc_native_rust_signer_evidence_v3'
+  schema = 'utxoref_dlc_native_rust_signer_evidence_v4'
   network = 'bitcoin-testnet4'
   sourceCommit = $commit
   toolchain = [ordered]@{ rustc = $snapshot.rustc; cargo = $snapshot.cargo }
@@ -119,6 +124,9 @@ $checkedEvidence = [ordered]@{
     expiredAuthorizationRejected = [bool]$result.assertions.expiredAuthorizationRejected
     futureAuthorizationRejected = [bool]$result.assertions.futureAuthorizationRejected
     signedClockRollbackRejected = [bool]$result.assertions.signedClockRollbackRejected
+    dpapiProtectedKeyBlobsOnly = [bool]$result.assertions.dpapiProtectedKeyBlobsOnly
+    dpapiBlobsOpaque = [bool]$result.assertions.dpapiBlobsOpaque
+    plaintextKeyFilesRejected = [bool]$result.assertions.plaintextKeyFilesRejected
     runtimeIdentityVerifiedByHost = [bool]$result.assertions.runtimeIdentityVerifiedByHost
     restartReplayRejected = [bool]$result.assertions.restartReplayRejected
     signerLocalReplayRejected = [bool]$result.assertions.signerLocalReplayRejected
