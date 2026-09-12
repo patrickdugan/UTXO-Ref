@@ -620,7 +620,18 @@ check('append-only state store rejects stale competing writes', 'state-persisten
       evidence: evidenceFor(advanced, 'CANONICAL_CETS_AND_REFUND', cetKey)
     }), /stale DLC state revision/);
     const chain = store.verifyChain(contract.contractId);
-    return staleRejected && chain.ok && chain.revisions === 2;
+    const checkpoint = store.checkpoint(contract.contractId);
+    const revisionPath = path.join(directory, crypto.createHash('sha256').update(contract.contractId).digest('hex'),
+      'revision-000000000001.json');
+    const revisionBytes = fs.readFileSync(revisionPath);
+    fs.unlinkSync(revisionPath);
+    const shorterChainAcceptedWithoutCheckpoint = store.verifyChain(contract.contractId).revisions === 1;
+    const rollbackRejected = throws(() => store.verifyCheckpoint(contract.contractId, checkpoint), /rollback detected/);
+    fs.writeFileSync(revisionPath, revisionBytes, { flag: 'wx', mode: 0o600 });
+    const checkpointVerified = store.verifyCheckpoint(contract.contractId, checkpoint).checkpointVerified ===
+      checkpoint.checkpointHash;
+    return staleRejected && chain.ok && chain.revisions === 2 && shorterChainAcceptedWithoutCheckpoint &&
+      rollbackRejected && checkpointVerified;
   } finally {
     fs.rmSync(directory, { recursive: true, force: true });
   }
@@ -1054,8 +1065,12 @@ check('sealed oracle nonce state survives restart and conflicting outcome fails'
       outcomeMsg32: no
     }), /conflicting outcome/);
     const chain = restarted.verifyChain({ oraclePubkey: announcement.px, eventId: announcement.eventId });
+    const checkpoint = restarted.checkpoint({ oraclePubkey: announcement.px, eventId: announcement.eventId });
+    const checkpointVerified = restarted.verifyCheckpoint(
+      { oraclePubkey: announcement.px, eventId: announcement.eventId }, checkpoint
+    ).checkpointVerified === checkpoint.checkpointHash;
     restarted.close();
-    return valid && conflictRejected && chain.ok && chain.revisions === 2;
+    return valid && conflictRejected && chain.ok && chain.revisions === 2 && checkpointVerified;
   } finally {
     fs.rmSync(directory, { recursive: true, force: true });
   }
@@ -1402,9 +1417,12 @@ check('independent watchtower journal survives restart and preserves signed halt
       publicKey: keys.publicKey
     });
     const chain = verifier.verifyChain(contract.contractId);
+    const checkpoint = verifier.checkpoint(contract.contractId);
+    const checkpointVerified = verifier.verifyCheckpoint(contract.contractId, checkpoint).checkpointVerified ===
+      checkpoint.checkpointHash;
     return first.recordHash === retry.recordHash && halt.evaluation.status === 'REORG_HALT' &&
       halt.alert.code === 'REORG_HALT' && chain.observations === 2 &&
-      verifier.alerts(contract.contractId).length === 1 &&
+      checkpointVerified && verifier.alerts(contract.contractId).length === 1 &&
       throws(() => verifier.appendObservation({ contractState: contract, transactionSet, snapshot: stable }), /verification-only/);
   } finally {
     fs.rmSync(directory, { recursive: true, force: true });
@@ -1693,9 +1711,11 @@ check('authenticated offer/accept/sign transcript enforces IDs and global serial
     const store = new DlcPeerSessionStore(directory);
     store.claimOffer({ offer, offererPublicKey: offerer.publicKey });
     store.commitTranscript(valid);
-    durableReplay = new DlcPeerSessionStore(directory)
-      .knownTemporaryContractIds('eval-offerer')
-      .includes(temporaryContractId);
+    const checkpoint = store.checkpoint('eval-offerer', temporaryContractId);
+    const restarted = new DlcPeerSessionStore(directory);
+    durableReplay = restarted.knownTemporaryContractIds('eval-offerer').includes(temporaryContractId) &&
+      restarted.verifyCheckpoint('eval-offerer', temporaryContractId, checkpoint).checkpointVerified ===
+        checkpoint.checkpointHash;
   } finally {
     fs.rmSync(directory, { recursive: true, force: true });
   }
@@ -1941,7 +1961,7 @@ const possible = cases.reduce((sum, test) => sum + test.points, 0);
 const score = earned / possible;
 const report = {
   benchmark: 'utxoref-dlc-security',
-  version: 26,
+  version: 27,
   profile: profileName,
   seed,
   score,

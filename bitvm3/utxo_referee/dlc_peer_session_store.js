@@ -11,6 +11,11 @@ const {
   readBoundedJson,
   writeJsonAppendOnce
 } = require('./dlc_durable_json_store');
+const {
+  createDlcJournalCheckpoint,
+  validateDlcJournalCheckpoint,
+  assertDlcJournalCheckpoint
+} = require('./dlc_journal_checkpoint');
 
 const CLAIM_KIND = 'utxoref_dlc_peer_offer_claim_v1';
 const COMMIT_KIND = 'utxoref_dlc_peer_transcript_commit_v1';
@@ -159,6 +164,47 @@ class DlcPeerSessionStore {
       if (claim.peerId === peerId) ids.push(claim.temporaryContractId);
     }
     return Object.freeze(ids.sort());
+  }
+
+  _checkpointState(peerId, temporaryContractId) {
+    const directory = this._directory(peerId, temporaryContractId);
+    const claim = this._readClaim(directory);
+    const commitPath = path.join(directory, 'commit.json');
+    const commit = fs.existsSync(commitPath) ? this._readCommit(directory, claim) : null;
+    return Object.freeze({
+      storeKey: sessionKey(peerId, temporaryContractId),
+      recordCount: commit ? 2 : 1,
+      records: Object.freeze(commit ? [claim, commit] : [claim])
+    });
+  }
+
+  checkpoint(peerId, temporaryContractId) {
+    const state = this._checkpointState(peerId, temporaryContractId);
+    return createDlcJournalCheckpoint({
+      storeKind: 'peer-session',
+      storeKey: state.storeKey,
+      recordCount: state.recordCount,
+      headRecordHash: state.records[state.recordCount - 1].recordHash
+    });
+  }
+
+  verifyCheckpoint(peerId, temporaryContractId, expectedCheckpoint) {
+    validateDlcJournalCheckpoint(expectedCheckpoint);
+    const state = this._checkpointState(peerId, temporaryContractId);
+    const pinned = state.recordCount >= expectedCheckpoint.recordCount
+      ? state.records[expectedCheckpoint.recordCount - 1]
+      : null;
+    assertDlcJournalCheckpoint(expectedCheckpoint, {
+      storeKind: 'peer-session',
+      storeKey: state.storeKey,
+      currentRecordCount: state.recordCount,
+      recordHashAtCheckpoint: pinned && pinned.recordHash
+    });
+    return Object.freeze({
+      ok: true,
+      records: state.recordCount,
+      checkpointVerified: expectedCheckpoint.checkpointHash
+    });
   }
 }
 

@@ -383,6 +383,18 @@ test('append-only store survives reload and rejects stale revisions', () => {
     const chain = store.verifyChain(initial.contractId);
     assert(chain.ok && chain.revisions === 2, 'append-only revision chain failed');
     const revisionPath = path.join(directory, stateContractKey(initial.contractId), 'revision-000000000001.json');
+    const checkpoint = store.checkpoint(initial.contractId);
+    assert(store.verifyCheckpoint(initial.contractId, checkpoint).checkpointVerified === checkpoint.checkpointHash,
+      'state checkpoint did not verify');
+    const revisionBytes = fs.readFileSync(revisionPath);
+    fs.unlinkSync(revisionPath);
+    assert(store.verifyChain(initial.contractId).revisions === 1, 'state tail deletion probe did not shorten the chain');
+    expectThrow(() => store.verifyCheckpoint(initial.contractId, checkpoint), /rollback detected/);
+    fs.writeFileSync(revisionPath, revisionBytes, { flag: 'wx', mode: 0o600 });
+    const gappedPath = path.join(directory, stateContractKey(initial.contractId), 'revision-000000000002.json');
+    fs.renameSync(revisionPath, gappedPath);
+    expectThrow(() => store.verifyChain(initial.contractId), /filename sequence is not contiguous/);
+    fs.renameSync(gappedPath, revisionPath);
     const revisionLink = path.join(directory, 'linked-state-revision.json');
     fs.linkSync(revisionPath, revisionLink);
     expectThrow(() => store.verifyChain(initial.contractId), /one bounded regular file/);
@@ -1170,8 +1182,20 @@ test('sealed oracle event survives restart and persists before attestation', () 
     }), /conflicting outcome/);
     const chain = restartedStore.verifyChain({ oraclePubkey: announcement.px, eventId: announcement.eventId });
     assert(chain.ok && chain.revisions === 2, 'oracle event state was not append-only');
+    const checkpoint = restartedStore.checkpoint({ oraclePubkey: announcement.px, eventId: announcement.eventId });
+    assert(restartedStore.verifyCheckpoint(
+      { oraclePubkey: announcement.px, eventId: announcement.eventId }, checkpoint
+    ).checkpointVerified === checkpoint.checkpointHash, 'oracle checkpoint did not verify');
     const eventDirectoryName = fs.readdirSync(directory).find((name) => /^[0-9a-f]{64}$/.test(name));
     const eventRevisionPath = path.join(directory, eventDirectoryName, 'revision-000000000001.json');
+    const eventRevisionBytes = fs.readFileSync(eventRevisionPath);
+    fs.unlinkSync(eventRevisionPath);
+    assert(restartedStore.verifyChain({ oraclePubkey: announcement.px, eventId: announcement.eventId }).revisions === 1,
+      'oracle tail deletion probe did not shorten the chain');
+    expectThrow(() => restartedStore.verifyCheckpoint(
+      { oraclePubkey: announcement.px, eventId: announcement.eventId }, checkpoint
+    ), /rollback detected/);
+    fs.writeFileSync(eventRevisionPath, eventRevisionBytes, { flag: 'wx', mode: 0o600 });
     const eventRevisionLink = path.join(directory, 'linked-oracle-revision.json');
     fs.linkSync(eventRevisionPath, eventRevisionLink);
     expectThrow(() => restartedStore.verifyChain({ oraclePubkey: announcement.px, eventId: announcement.eventId }),
@@ -2014,6 +2038,9 @@ test('signed watchtower journal preserves halt alerts and detects tampering afte
     const verified = restarted.verifyChain(contract.contractId);
     assert(verified.observations === 2 && restarted.alerts(contract.contractId).length === 1,
       'restart lost the watchtower observation or alert chain');
+    const checkpoint = restarted.checkpoint(contract.contractId);
+    assert(restarted.verifyCheckpoint(contract.contractId, checkpoint).checkpointVerified === checkpoint.checkpointHash,
+      'watchtower checkpoint did not verify');
     expectThrow(() => restarted.appendObservation({
       contractState: contract,
       transactionSet,
@@ -2025,6 +2052,12 @@ test('signed watchtower journal preserves halt alerts and detects tampering afte
       watchtowerContractKey(contract.contractId),
       'observation-000000000001.json'
     );
+    const secondBytes = fs.readFileSync(secondPath);
+    fs.unlinkSync(secondPath);
+    assert(restarted.verifyChain(contract.contractId).observations === 1,
+      'watchtower tail deletion probe did not shorten the chain');
+    expectThrow(() => restarted.verifyCheckpoint(contract.contractId, checkpoint), /rollback detected/);
+    fs.writeFileSync(secondPath, secondBytes, { flag: 'wx', mode: 0o600 });
     const linkedObservation = path.join(directory, 'linked-watchtower-observation.json');
     fs.linkSync(secondPath, linkedObservation);
     expectThrow(() => restarted.verifyChain(contract.contractId), /one bounded regular file/);
@@ -2575,6 +2608,10 @@ test('peer session store preserves temporary-ID replay protection across restart
     assert(retry.recordHash === claim.recordHash, 'identical offer claim was not idempotent');
     const committed = first.commitTranscript(transcript);
     assert(first.commitTranscript(transcript).recordHash === committed.recordHash, 'transcript commit was not idempotent');
+    const checkpoint = first.checkpoint(fixture.offer.peerId, fixture.temporaryContractId);
+    assert(first.verifyCheckpoint(
+      fixture.offer.peerId, fixture.temporaryContractId, checkpoint
+    ).checkpointVerified === checkpoint.checkpointHash, 'peer session checkpoint did not verify');
 
     const restarted = new DlcPeerSessionStore(directory);
     assert(restarted.knownTemporaryContractIds('offerer-peer').includes(fixture.temporaryContractId),
@@ -2591,6 +2628,13 @@ test('peer session store preserves temporary-ID replay protection across restart
     }), /already claimed/);
     const sessionDirectoryName = fs.readdirSync(directory).find((name) => /^[0-9a-f]{64}$/.test(name));
     const sessionDirectory = path.join(directory, sessionDirectoryName);
+    const commitPath = path.join(sessionDirectory, 'commit.json');
+    const commitBytes = fs.readFileSync(commitPath);
+    fs.unlinkSync(commitPath);
+    expectThrow(() => restarted.verifyCheckpoint(
+      fixture.offer.peerId, fixture.temporaryContractId, checkpoint
+    ), /rollback detected/);
+    fs.writeFileSync(commitPath, commitBytes, { flag: 'wx', mode: 0o600 });
     const linkedClaim = path.join(directory, 'linked-peer-claim.json');
     fs.linkSync(path.join(sessionDirectory, 'claim.json'), linkedClaim);
     expectThrow(() => restarted.knownTemporaryContractIds('offerer-peer'), /one bounded regular file/);

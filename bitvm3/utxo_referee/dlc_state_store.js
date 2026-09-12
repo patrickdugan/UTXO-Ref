@@ -10,6 +10,11 @@ const {
   readBoundedJson,
   writeJsonAppendOnce
 } = require('./dlc_durable_json_store');
+const {
+  createDlcJournalCheckpoint,
+  validateDlcJournalCheckpoint,
+  assertDlcJournalCheckpoint
+} = require('./dlc_journal_checkpoint');
 
 const MAX_REVISION_BYTES = 4194304;
 
@@ -122,6 +127,9 @@ class DlcStateStore {
     let previous = null;
     const directory = this._contractDirectory(contractId);
     for (let index = 0; index < files.length; index++) {
+      if (files[index] !== `revision-${String(index).padStart(12, '0')}.json`) {
+        throw new Error('DLC state revision filename sequence is not contiguous');
+      }
       const record = readBoundedJson(path.join(directory, files[index]), {
         maxBytes: MAX_REVISION_BYTES,
         label: 'DLC state revision'
@@ -136,6 +144,37 @@ class DlcStateStore {
       previous = record;
     }
     return { ok: true, revisions: files.length, latest: previous };
+  }
+
+  checkpoint(contractId) {
+    const chain = this.verifyChain(contractId);
+    return createDlcJournalCheckpoint({
+      storeKind: 'contract-state',
+      storeKey: contractKey(contractId),
+      recordCount: chain.revisions,
+      headRecordHash: chain.latest.recordHash
+    });
+  }
+
+  verifyCheckpoint(contractId, expectedCheckpoint) {
+    validateDlcJournalCheckpoint(expectedCheckpoint);
+    const chain = this.verifyChain(contractId);
+    let recordHashAtCheckpoint = null;
+    if (chain.revisions >= expectedCheckpoint.recordCount) {
+      const record = readBoundedJson(path.join(
+        this._contractDirectory(contractId),
+        `revision-${String(expectedCheckpoint.recordCount - 1).padStart(12, '0')}.json`
+      ), { maxBytes: MAX_REVISION_BYTES, label: 'DLC state checkpoint revision' });
+      validateDlcContract(record);
+      recordHashAtCheckpoint = record.recordHash;
+    }
+    assertDlcJournalCheckpoint(expectedCheckpoint, {
+      storeKind: 'contract-state',
+      storeKey: contractKey(contractId),
+      currentRecordCount: chain.revisions,
+      recordHashAtCheckpoint
+    });
+    return Object.freeze({ ...chain, checkpointVerified: expectedCheckpoint.checkpointHash });
   }
 }
 

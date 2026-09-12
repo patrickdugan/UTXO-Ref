@@ -156,6 +156,11 @@ Boundary V56 closes rename-based record substitution during durable reads and
 publication. The store revalidates the final path against the opened descriptor
 after reading and after fsync, and rejects record directories reached through a
 symlink or junction.
+Boundary V57 exposes external journal checkpoints for contract state, oracle
+events, peer sessions, and watchtower observations. Persist each returned
+checkpoint outside its journal directory and call the corresponding
+`verifyCheckpoint` method before resuming after restart. A checkpoint stored
+beside the journal cannot protect against rollback of that entire directory.
 
 ## Agent isolation
 

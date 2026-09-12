@@ -19,6 +19,11 @@ const {
   readBoundedJson,
   writeJsonAppendOnce
 } = require('./dlc_durable_json_store');
+const {
+  createDlcJournalCheckpoint,
+  validateDlcJournalCheckpoint,
+  assertDlcJournalCheckpoint
+} = require('./dlc_journal_checkpoint');
 
 const KIND = 'utxoref_dlc_oracle_event_record_v1';
 const MAX_RECORD_BYTES = 1048576;
@@ -147,6 +152,9 @@ class DlcOracleEventStore {
     let previous = null;
     const directory = this._directory(key);
     for (let index = 0; index < files.length; index++) {
+      if (files[index] !== `revision-${String(index).padStart(12, '0')}.json`) {
+        throw new Error('oracle event revision filename sequence is not contiguous');
+      }
       const record = readBoundedJson(path.join(directory, files[index]), {
         maxBytes: MAX_RECORD_BYTES,
         label: 'DLC oracle event record'
@@ -223,6 +231,9 @@ class DlcOracleEventStore {
     let previous = null;
     const directory = this._directory(key);
     for (let index = 0; index < files.length; index++) {
+      if (files[index] !== `revision-${String(index).padStart(12, '0')}.json`) {
+        throw new Error('oracle event revision filename sequence is not contiguous');
+      }
       const record = readBoundedJson(path.join(directory, files[index]), {
         maxBytes: MAX_RECORD_BYTES,
         label: 'DLC oracle event record'
@@ -234,6 +245,39 @@ class DlcOracleEventStore {
       previous = record;
     }
     return { ok: true, revisions: files.length, latestRecordHash: previous.recordHash };
+  }
+
+  checkpoint({ oraclePubkey, eventId }) {
+    const key = eventKey(oraclePubkey, eventId);
+    const chain = this.verifyChain({ oraclePubkey, eventId });
+    return createDlcJournalCheckpoint({
+      storeKind: 'oracle-event',
+      storeKey: key,
+      recordCount: chain.revisions,
+      headRecordHash: chain.latestRecordHash
+    });
+  }
+
+  verifyCheckpoint({ oraclePubkey, eventId }, expectedCheckpoint) {
+    validateDlcJournalCheckpoint(expectedCheckpoint);
+    const key = eventKey(oraclePubkey, eventId);
+    const chain = this.verifyChain({ oraclePubkey, eventId });
+    let recordHashAtCheckpoint = null;
+    if (chain.revisions >= expectedCheckpoint.recordCount) {
+      const record = readBoundedJson(path.join(
+        this._directory(key),
+        `revision-${String(expectedCheckpoint.recordCount - 1).padStart(12, '0')}.json`
+      ), { maxBytes: MAX_RECORD_BYTES, label: 'DLC oracle checkpoint revision' });
+      validateRecord(record);
+      recordHashAtCheckpoint = record.recordHash;
+    }
+    assertDlcJournalCheckpoint(expectedCheckpoint, {
+      storeKind: 'oracle-event',
+      storeKey: key,
+      currentRecordCount: chain.revisions,
+      recordHashAtCheckpoint
+    });
+    return Object.freeze({ ...chain, checkpointVerified: expectedCheckpoint.checkpointHash });
   }
 
   close() {

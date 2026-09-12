@@ -403,6 +403,12 @@ and after the final publication flush. A record swapped by rename can no longer
 be accepted or reported durable merely because the old open descriptor and the
 parent directory kept stable identities. Durable record directories must also
 resolve without traversing symlinks or junctions.
+Boundary V57 adds deterministic external checkpoints for contract state, oracle
+events, peer sessions, and watchtower journals. A checkpoint commits the store
+key, record count, and head hash. Restart verification requires the surviving
+history to contain that exact hash at the pinned count, so tail deletion and a
+longer fork are rejected. Store checkpoints outside the journal directory under
+an independently protected operator or coordinator trust boundary.
 The host accepts only bounded regular runtime files whose resolved paths do not
 traverse filesystem links. It hashes the complete runtime closure before and
 after every signer execution, so deletion or mutation during the process

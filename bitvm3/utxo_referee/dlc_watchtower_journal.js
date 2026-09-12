@@ -14,6 +14,11 @@ const {
   readBoundedJson,
   writeJsonAppendOnce
 } = require('./dlc_durable_json_store');
+const {
+  createDlcJournalCheckpoint,
+  validateDlcJournalCheckpoint,
+  assertDlcJournalCheckpoint
+} = require('./dlc_journal_checkpoint');
 
 const KIND = 'utxoref_dlc_watchtower_observation_v1';
 const MAX_RECORD_BYTES = 4194304;
@@ -256,6 +261,9 @@ class DlcWatchtowerJournal {
     const records = [];
     const directory = this._directory(contractId);
     for (let sequence = 0; sequence < files.length; sequence++) {
+      if (files[sequence] !== `observation-${String(sequence).padStart(12, '0')}.json`) {
+        throw new Error('DLC watchtower observation filename sequence is not contiguous');
+      }
       const record = readBoundedJson(path.join(directory, files[sequence]), {
         maxBytes: MAX_RECORD_BYTES,
         label: 'DLC watchtower observation'
@@ -282,6 +290,32 @@ class DlcWatchtowerJournal {
       latest: previous,
       records: Object.freeze(records)
     });
+  }
+
+  checkpoint(contractId) {
+    const chain = this.verifyChain(contractId);
+    if (chain.observations < 1) throw new Error('cannot checkpoint an empty DLC watchtower journal');
+    return createDlcJournalCheckpoint({
+      storeKind: 'watchtower',
+      storeKey: contractKey(contractId),
+      recordCount: chain.observations,
+      headRecordHash: chain.latest.recordHash
+    });
+  }
+
+  verifyCheckpoint(contractId, expectedCheckpoint) {
+    validateDlcJournalCheckpoint(expectedCheckpoint);
+    const chain = this.verifyChain(contractId);
+    const pinned = chain.observations >= expectedCheckpoint.recordCount
+      ? chain.records[expectedCheckpoint.recordCount - 1]
+      : null;
+    assertDlcJournalCheckpoint(expectedCheckpoint, {
+      storeKind: 'watchtower',
+      storeKey: contractKey(contractId),
+      currentRecordCount: chain.observations,
+      recordHashAtCheckpoint: pinned && pinned.recordHash
+    });
+    return Object.freeze({ ...chain, checkpointVerified: expectedCheckpoint.checkpointHash });
   }
 
   appendObservation({ contractState, transactionSet, snapshot, minConfirmations = 6 }) {

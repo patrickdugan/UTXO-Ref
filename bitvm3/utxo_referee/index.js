@@ -57,6 +57,7 @@ const dlcAnchorRecoveryGuard = require('./dlc_anchor_recovery_guard');
 const dlcFundingPrebroadcastGuard = require('./dlc_funding_prebroadcast_guard');
 const dlcExecutionPrebroadcastGuard = require('./dlc_execution_prebroadcast_guard');
 const { DlcBroadcastAuthorizationStore } = require('./dlc_broadcast_authorization_store');
+const dlcJournalCheckpoint = require('./dlc_journal_checkpoint');
 
 module.exports = {
   // Types
@@ -132,7 +133,7 @@ module.exports = {
   // for production; these interfaces enforce transcript, threshold-oracle,
   // and persistence gates on regtest and Bitcoin testnet4.
   dlc: Object.freeze({
-    securityBoundaryVersion: 56,
+    securityBoundaryVersion: 57,
     createContract: dlcContractState.createDlcContract,
     validateContract: dlcContractState.validateDlcContract,
     transitionContract: dlcContractState.transitionDlcContract,
@@ -223,6 +224,12 @@ module.exports = {
       pathEntryStableThroughReadRequired: true,
       pathEntryStableThroughFinalFlushRequired: true,
       directoryLinkTraversalAllowed: false,
+      exactSequenceFilenamesRequired: true,
+      externalCheckpointKind: 'utxoref_dlc_journal_checkpoint_v1',
+      checkpointStores: Object.freeze(['contract-state', 'oracle-event', 'peer-session', 'watchtower']),
+      checkpointBindsRecordAtPinnedCount: true,
+      longerHistoryMustContainPinnedHead: true,
+      checkpointStorageInsideJournalAllowed: false,
       readBuffersCleared: true,
       temporaryRecordFsynced: true,
       finalRecordFsynced: true,
@@ -435,6 +442,8 @@ module.exports = {
     validatePeerTranscript: dlcPeerTranscript.validateDlcPeerTranscript,
     PeerSessionStore: DlcPeerSessionStore,
     WatchtowerJournal: DlcWatchtowerJournal,
+    createJournalCheckpoint: dlcJournalCheckpoint.createDlcJournalCheckpoint,
+    validateJournalCheckpoint: dlcJournalCheckpoint.validateDlcJournalCheckpoint,
     settlementAnchor: dlcAnchorRecoveryGuard.settlementAnchor,
     evaluateAnchorRecovery: dlcAnchorRecoveryGuard.evaluateDlcAnchorRecovery
   })
