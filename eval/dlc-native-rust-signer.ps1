@@ -63,7 +63,7 @@ $result = $resultText | ConvertFrom-Json
 if (-not $result.assertions.rustProcessSigned -or -not $result.assertions.javascriptHostVerified -or
     -not $result.assertions.bip340CompletionVerified -or -not $result.assertions.adaptorExtractionVerified -or
     -not $result.assertions.restartReplayRejected -or -not $result.assertions.signerLocalReplayRejected -or
-    -not $result.assertions.unpinnedValidatorRejected) {
+    -not $result.assertions.unpinnedValidatorRejected -or -not $result.assertions.unpinnedSignerRejected) {
   throw 'native signer integration omitted a required assertion'
 }
 $commit = (git -c safe.directory=C:/projects/UTXORef/UTXO-Ref -C $repository rev-parse HEAD).Trim()

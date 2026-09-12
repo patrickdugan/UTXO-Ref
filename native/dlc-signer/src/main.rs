@@ -52,6 +52,12 @@ struct Presignature {
     ty: String,
 }
 
+struct NativeValidatorPolicy {
+    network: String,
+    validator_key_ids: Vec<String>,
+    signer_pubkeys: Vec<String>,
+}
+
 fn canonical_json(value: &Value) -> Result<String> {
     match value {
         Value::Null => Ok("null".to_owned()),
@@ -154,8 +160,11 @@ fn decode_hex_32(value: &str, name: &str) -> Result<[u8; 32]> {
         .map_err(|_| format!("{name} must contain 32 bytes"))
 }
 
-fn scalar_from_bytes(bytes: [u8; 32], name: &str) -> Result<Scalar> {
-    let scalar = Option::<Scalar>::from(Scalar::from_repr(FieldBytes::from(bytes)))
+fn scalar_from_bytes(bytes: &[u8; 32], name: &str) -> Result<Scalar> {
+    let mut representation = FieldBytes::from(*bytes);
+    let candidate = Scalar::from_repr(representation);
+    representation.zeroize();
+    let scalar = Option::<Scalar>::from(candidate)
         .ok_or_else(|| format!("{name} is outside the secp256k1 scalar field"))?;
     if bool::from(scalar.is_zero()) {
         return Err(format!("{name} must be nonzero"));
@@ -205,25 +214,24 @@ fn challenge(rx: &[u8; 32], px: &[u8; 32], message: &[u8; 32]) -> Scalar {
 }
 
 fn adaptor_sign(
-    secret_bytes: [u8; 32],
+    secret_bytes: &[u8; 32],
     message: [u8; 32],
     adaptor_x: &str,
     adaptor_y: &str,
 ) -> Result<Presignature> {
-    let mut secret = scalar_from_bytes(secret_bytes, "signer secret")?;
-    let public_point = ProjectivePoint::GENERATOR * secret;
+    let mut secret = Zeroizing::new(scalar_from_bytes(secret_bytes, "signer secret")?);
+    let public_point = ProjectivePoint::GENERATOR * *secret;
     let (public_x, public_y) = affine_coordinates(public_point, "signer public key")?;
     if public_y[31] & 1 == 1 {
-        secret = -secret;
+        *secret = -*secret;
     }
-    let mut auxiliary = [0u8; 32];
-    OsRng.fill_bytes(&mut auxiliary);
-    let aux_hash = tagged_hash("BIP0340/aux", &[&auxiliary]);
-    let mut tbase = secret.to_bytes();
-    for (left, right) in tbase.iter_mut().zip(aux_hash) {
+    let mut auxiliary = Zeroizing::new([0u8; 32]);
+    OsRng.fill_bytes(&mut auxiliary[..]);
+    let aux_hash = Zeroizing::new(tagged_hash("BIP0340/aux", &[&auxiliary[..]]));
+    let mut tbase = Zeroizing::new(secret.to_bytes());
+    for (left, right) in tbase.iter_mut().zip(aux_hash.iter().copied()) {
         *left ^= right;
     }
-    auxiliary.zeroize();
     let adaptor_point = parse_point(adaptor_x, adaptor_y)?;
     let (tx, ty) = affine_coordinates(adaptor_point, "adaptor point")?;
     let compressed_prefix = if ty[31] & 1 == 0 { 0x02 } else { 0x03 };
@@ -232,7 +240,7 @@ fn adaptor_sign(
     compressed_adaptor[1..].copy_from_slice(&tx);
 
     for counter in 0u8..64 {
-        let nonce_hash = tagged_hash(
+        let nonce_hash = Zeroizing::new(tagged_hash(
             "TradeLayer/dlc/adaptor/nonce",
             &[
                 &tbase[..],
@@ -241,12 +249,12 @@ fn adaptor_sign(
                 &compressed_adaptor,
                 &[counter],
             ],
-        );
-        let nonce = reduce_scalar(nonce_hash);
+        ));
+        let nonce = Zeroizing::new(reduce_scalar(*nonce_hash));
         if bool::from(nonce.is_zero()) {
             continue;
         }
-        let r0_point = ProjectivePoint::GENERATOR * nonce;
+        let r0_point = ProjectivePoint::GENERATOR * *nonce;
         let effective_point = r0_point + adaptor_point;
         if bool::from(effective_point.is_identity()) {
             continue;
@@ -256,21 +264,18 @@ fn adaptor_sign(
             continue;
         }
         let (r0x, r0y) = affine_coordinates(r0_point, "nonce point")?;
-        let response = nonce + challenge(&rx, &public_x, &message) * secret;
-        tbase.zeroize();
-        secret.zeroize();
+        let response = Zeroizing::new(*nonce + challenge(&rx, &public_x, &message) * *secret);
+        let response_bytes = Zeroizing::new(response.to_bytes());
         return Ok(Presignature {
             kind: PRESIGNATURE_KIND,
             rx: hex::encode(rx),
-            s0: hex::encode(response.to_bytes()),
+            s0: hex::encode(&response_bytes[..]),
             r0x: hex::encode(r0x),
             r0y: hex::encode(r0y),
             tx: hex::encode(tx),
             ty: hex::encode(ty),
         });
     }
-    tbase.zeroize();
-    secret.zeroize();
     Err("failed to derive an even-y adaptor nonce".to_owned())
 }
 
@@ -296,7 +301,37 @@ fn read_secret_file(path: &Path, name: &str) -> Result<Zeroizing<String>> {
     Ok(value)
 }
 
-fn load_validator_policy(path: &Path, expected_digest: &str) -> Result<Vec<String>> {
+fn sorted_hex_array(
+    policy_object: &Map<String, Value>,
+    name: &str,
+    maximum: usize,
+) -> Result<Vec<String>> {
+    let values = policy_object
+        .get(name)
+        .and_then(Value::as_array)
+        .ok_or_else(|| format!("validator policy {name} must be an array"))?;
+    if values.is_empty() || values.len() > maximum {
+        return Err(format!(
+            "validator policy {name} must contain between 1 and {maximum} entries"
+        ));
+    }
+    let mut normalized = Vec::with_capacity(values.len());
+    for value in values {
+        let entry = value
+            .as_str()
+            .ok_or_else(|| format!("validator policy {name} entries must be strings"))?;
+        decode_hex_32(entry, &format!("validator policy {name} entry"))?;
+        normalized.push(entry.to_owned());
+    }
+    if normalized.windows(2).any(|pair| pair[0] >= pair[1]) {
+        return Err(format!(
+            "validator policy {name} entries must be sorted and unique"
+        ));
+    }
+    Ok(normalized)
+}
+
+fn load_validator_policy(path: &Path, expected_digest: &str) -> Result<NativeValidatorPolicy> {
     decode_hex_32(expected_digest, "validator policy digest")?;
     let metadata =
         fs::symlink_metadata(path).map_err(|error| format!("validator policy: {error}"))?;
@@ -318,38 +353,25 @@ fn load_validator_policy(path: &Path, expected_digest: &str) -> Result<Vec<Strin
         return Err("validator policy is not canonical JSON".to_owned());
     }
     let policy_object = object(&policy, "validator policy")?;
-    if policy_object.len() != 2
+    if policy_object.len() != 4
         || string(policy_object, "kind")? != "utxoref_dlc_native_validator_policy_v1"
     {
         return Err("validator policy schema is invalid".to_owned());
     }
-    let ids = policy_object
-        .get("validatorKeyIds")
-        .and_then(Value::as_array)
-        .ok_or_else(|| "validator policy validatorKeyIds must be an array".to_owned())?;
-    if ids.is_empty() || ids.len() > 16 {
-        return Err("validator policy must pin between 1 and 16 validators".to_owned());
+    let network = string(policy_object, "network")?.to_owned();
+    if network != "bitcoin-testnet4" {
+        return Err("native signer policy permits only bitcoin-testnet4".to_owned());
     }
-    let mut normalized = Vec::with_capacity(ids.len());
-    for value in ids {
-        let id = value
-            .as_str()
-            .ok_or_else(|| "validator policy key IDs must be strings".to_owned())?;
-        decode_hex_32(id, "validator policy key ID")?;
-        if id != id.to_ascii_lowercase() {
-            return Err("validator policy key IDs must be lowercase hex".to_owned());
-        }
-        normalized.push(id.to_owned());
-    }
-    if normalized.windows(2).any(|pair| pair[0] >= pair[1]) {
-        return Err("validator policy key IDs must be sorted and unique".to_owned());
-    }
-    Ok(normalized)
+    Ok(NativeValidatorPolicy {
+        network,
+        validator_key_ids: sorted_hex_array(policy_object, "validatorKeyIds", 16)?,
+        signer_pubkeys: sorted_hex_array(policy_object, "signerPubkeyXs", 64)?,
+    })
 }
 
 fn verify_request(
     request: &Value,
-    pinned_validator_key_ids: &[String],
+    policy: &NativeValidatorPolicy,
 ) -> Result<(String, [u8; 32], String, String, String)> {
     let request_object = object(request, "request")?;
     if string(request_object, "kind")? != SIGN_REQUEST_KIND {
@@ -376,6 +398,18 @@ fn verify_request(
     let payload_object = object(&payload, "authorization payload")?;
     if string(payload_object, "kind")? != AUTHORIZATION_KIND {
         return Err("wrong signed authorization kind".to_owned());
+    }
+    if string(payload_object, "network")? != policy.network {
+        return Err(
+            "authorization network is not permitted by the audited signer policy".to_owned(),
+        );
+    }
+    if policy
+        .signer_pubkeys
+        .binary_search(&string(payload_object, "signerPubkeyX")?.to_owned())
+        .is_err()
+    {
+        return Err("signer public key is not pinned by the audited signer policy".to_owned());
     }
     for name in [
         "contractId",
@@ -435,7 +469,8 @@ fn verify_request(
     }
     let (validator, validator_key_id) =
         ed25519_public_from_spki(string(request_object, "validatorPublicKeySpki")?)?;
-    if pinned_validator_key_ids
+    if policy
+        .validator_key_ids
         .binary_search(&validator_key_id)
         .is_err()
     {
@@ -561,19 +596,16 @@ fn run() -> Result<()> {
     consume_authorization(&key_directory, &authorization_digest)?;
     let key_path = key_directory.join(format!("{signer_pubkey}.key"));
     let secret_hex = read_secret_file(&key_path, "DLC signer key")?;
-    let mut secret_bytes = decode_hex_32(secret_hex.trim(), "DLC signer key")?;
-    let mut secret_scalar = scalar_from_bytes(secret_bytes, "DLC signer key")?;
+    let secret_bytes = Zeroizing::new(decode_hex_32(secret_hex.trim(), "DLC signer key")?);
+    let secret_scalar = Zeroizing::new(scalar_from_bytes(&secret_bytes, "DLC signer key")?);
     let (derived_x, _) = affine_coordinates(
-        ProjectivePoint::GENERATOR * secret_scalar,
+        ProjectivePoint::GENERATOR * *secret_scalar,
         "DLC signer public key",
     )?;
-    secret_scalar.zeroize();
     if hex::encode(derived_x) != signer_pubkey {
-        secret_bytes.zeroize();
         return Err("DLC signer key does not match the authorized public key".to_owned());
     }
-    let presignature = adaptor_sign(secret_bytes, message, &adaptor_x, &adaptor_y)?;
-    secret_bytes.zeroize();
+    let presignature = adaptor_sign(&secret_bytes, message, &adaptor_x, &adaptor_y)?;
     let presignature_value =
         serde_json::to_value(&presignature).map_err(|error| error.to_string())?;
     let mut signature_payload = Map::new();

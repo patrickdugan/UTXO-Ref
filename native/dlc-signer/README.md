@@ -7,7 +7,7 @@ The host never passes a private scalar or caller-selected key handle. Key files 
 - `<x-only-pubkey>.key` contains one 32-byte secp256k1 scalar encoded as lowercase or uppercase hexadecimal.
 - `runtime-identity.key` contains one 32-byte Ed25519 seed encoded as hexadecimal.
 
-The second launch argument is an absolute canonical-JSON validator policy with schema `utxoref_dlc_native_validator_policy_v1`; its sorted `validatorKeyIds` array contains SHA-256 digests of accepted Ed25519 SPKI documents. The third argument is the policy file's SHA-256 digest. The process refuses a changed digest, an unpinned validator, symlinks, duplicate identities, and non-canonical policy bytes. The host must include the policy file in `codePaths`, which binds both its bytes and expected digest into the signed runtime closure.
+The second launch argument is an absolute canonical-JSON validator policy with schema `utxoref_dlc_native_validator_policy_v1`. It fixes `network` to `bitcoin-testnet4`; its sorted `validatorKeyIds` array contains SHA-256 digests of accepted Ed25519 SPKI documents, and `signerPubkeyXs` lists the x-only signing keys that may be used. The third argument is the policy file's SHA-256 digest. The process refuses a changed digest, an unpinned validator or signing key, symlinks, duplicate identities, and non-canonical policy bytes. The host must include the policy file in `codePaths`, which binds both its bytes and expected digest into the signed runtime closure.
 
 Builds use the committed `Cargo.lock`, exact direct dependency versions, `rust-lld`, no PE timestamp, LTO, abort-on-panic, and forbidden unsafe Rust. The Windows testnet4 harness builds twice in independent target directories and rejects different binary hashes:
 
