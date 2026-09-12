@@ -285,6 +285,11 @@ attestation, launch arguments, and runtime-identity-signed response. The signer
 hashes its current executable before it accepts a request and fails closed on a
 mismatch. This identity check is a prerequisite for moving the signer behind a
 dedicated Windows service account; it does not replace that account separation.
+Boundary V33 adds signer-account-local keyset provisioning. The provisioner
+generates the DLC scalar and runtime identity with the Windows CSPRNG, protects
+both byte arrays immediately with DPAPI `CurrentUser`, clears the raw arrays,
+and obtains a public-only description from the native signer. No private key is
+accepted on standard input, a command line, or a provisioning file.
 The host accepts only bounded regular runtime files whose resolved paths do not
 traverse filesystem links. It hashes the complete runtime closure before and
 after every signer execution, so deletion or mutation during the process

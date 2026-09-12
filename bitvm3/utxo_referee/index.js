@@ -128,7 +128,7 @@ module.exports = {
   // for production; these interfaces enforce transcript, threshold-oracle,
   // and persistence gates on regtest and Bitcoin testnet4.
   dlc: Object.freeze({
-    securityBoundaryVersion: 32,
+    securityBoundaryVersion: 33,
     createContract: dlcContractState.createDlcContract,
     validateContract: dlcContractState.validateDlcContract,
     transitionContract: dlcContractState.transitionDlcContract,
@@ -190,7 +190,7 @@ module.exports = {
       sanitizedProcessEnvironment: true,
       nativeCandidateImplementation: 'rust-k256-v1',
       nativeCandidateProtocol: 'utxoref-dlc-native-signer-process-v2',
-      nativeCandidateBinarySha256: '5c3bdb233d8b02843a7e69341337cef3f5a344ec2cb5f7479925877448d64ce9',
+      nativeCandidateBinarySha256: '8fd09d948b81b6ac65ca49bd53a27970422dfd0fd007e815724eaa67a1ddcbc9',
       nativeCandidateCargoLockSha256: 'a5715dcfcf1eef714ffb08afe6b35fdd5db6278176ead3994286da12ba01c5e2',
       lockedDirectDependencies: true,
       unsafeRustRestrictedToDpapiFfi: true,
@@ -231,6 +231,8 @@ module.exports = {
       extensionPointsDisabled: true,
       remoteAndLowIntegrityImagesRejected: true,
       selfVerifiedExecutableDigest: true,
+      signerAccountKeyGeneration: 'in-account-windows-csprng-dpapi-v1',
+      provisioningSecretIpcEliminated: true,
       rustSecAuditRequired: true,
       rustSecVulnerabilitiesAllowed: 0,
       rustSecWarningsAllowed: 0,

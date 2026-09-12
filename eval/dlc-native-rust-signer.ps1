@@ -12,6 +12,7 @@ $manifest = Join-Path $repository 'native\dlc-signer\Cargo.toml'
 $lockFile = Join-Path $repository 'native\dlc-signer\Cargo.lock'
 $sourceFile = Join-Path $repository 'native\dlc-signer\src\main.rs'
 $accessVerifierFile = Join-Path $repository 'native\dlc-signer\verify-dpapi-key-access.ps1'
+$provisionerFile = Join-Path $repository 'native\dlc-signer\provision-dpapi-keyset.ps1'
 $cargoHome = Join-Path $ToolRoot 'cargo'
 $rustupHome = Join-Path $ToolRoot 'rustup'
 $cargo = Join-Path $cargoHome 'bin\cargo.exe'
@@ -22,15 +23,22 @@ if (-not (Test-Path -LiteralPath $cargo) -or -not (Test-Path -LiteralPath $rustc
 if (-not (Test-Path -LiteralPath $lockFile)) { throw 'native signer Cargo.lock is required' }
 $sourceText = Get-Content -LiteralPath $sourceFile -Raw
 $accessVerifierText = Get-Content -LiteralPath $accessVerifierFile -Raw
+$provisionerText = Get-Content -LiteralPath $provisionerFile -Raw
 if ([regex]::Matches($sourceText, '\bunsafe\s*\{').Count -ne 7 -or
     [regex]::Matches($sourceText, 'unsafe\s+extern\s+"system"').Count -ne 2 -or
     $sourceText -notmatch 'CryptUnprotectData' -or $sourceText -notmatch 'LocalFree' -or
     $sourceText -notmatch 'SetProcessMitigationPolicy' -or
-    $sourceText -notmatch 'SetDefaultDllDirectories') {
+    $sourceText -notmatch 'SetDefaultDllDirectories' -or
+    $sourceText -notmatch '--describe-dpapi-keyset') {
   throw 'native signer FFI surface differs from the reviewed seven-block boundary'
 }
 if ($accessVerifierText -match 'ProtectedData|CryptUnprotectData|\bUnprotect\b|Console.*Write') {
   throw 'DPAPI access verifier must not decrypt or emit key material'
+}
+if ($provisionerText -match 'Console\]::In|ReadToEnd|protect-dpapi-key\.ps1' -or
+    $provisionerText -notmatch 'RandomNumberGenerator\]::Fill' -or
+    $provisionerText -notmatch 'ProtectedData\]::Protect') {
+  throw 'DPAPI keyset provisioner differs from the reviewed no-secret-input boundary'
 }
 
 New-Item -ItemType Directory -Path $SnapshotDirectory -Force | Out-Null
@@ -64,6 +72,29 @@ if ($builtBinarySha256 -ne $reproBinarySha256) { throw 'native signer build is n
 $deployedBinary = Join-Path $BinaryDirectory 'utxoref-dlc-signer.exe'
 Copy-Item -LiteralPath $builtBinary -Destination $deployedBinary -Force
 
+$provisionWorkDirectory = Join-Path $SnapshotDirectory ('.native-provision-' + [guid]::NewGuid().ToString('N'))
+$provisionKeyDirectory = Join-Path $provisionWorkDirectory 'keys'
+New-Item -ItemType Directory -Path $provisionWorkDirectory | Out-Null
+try {
+  $provisionText = (& $provisionerFile -DirectoryPath $provisionKeyDirectory `
+      -SignerBinaryPath $deployedBinary -AccessVerifierPath $accessVerifierFile 2>&1 | Out-String).Trim()
+  $provisionExit = $LASTEXITCODE
+  if ($provisionExit -ne 0) { throw "DPAPI keyset provisioning failed with exit $provisionExit`n$provisionText" }
+  $provision = $provisionText | ConvertFrom-Json
+  $provisionedFiles = @(Get-ChildItem -LiteralPath $provisionKeyDirectory -File)
+  if ($provision.schema -cne 'utxoref_dlc_dpapi_keyset_provisioning_v1' -or
+      [bool]$provision.plaintextSecretInput -ne $false -or
+      [string]$provision.signerPubkeyX -notmatch '^[0-9a-f]{64}$' -or
+      [string]$provision.runtimeIdentityKeyId -notmatch '^[0-9a-f]{64}$' -or
+      $provisionedFiles.Count -ne 2 -or
+      @($provisionedFiles | Where-Object { $_.Name -notmatch '^(runtime-identity|[0-9a-f]{64})\.key\.dpapi$' }).Count -ne 0 -or
+      @(Get-ChildItem -LiteralPath $provisionKeyDirectory -File -Filter '*.key').Count -ne 0) {
+    throw 'DPAPI keyset provisioner did not produce exactly two protected private-key blobs'
+  }
+} finally {
+  Remove-Item -LiteralPath $provisionWorkDirectory -Recurse -Force -ErrorAction SilentlyContinue
+}
+
 $workDirectory = Join-Path $SnapshotDirectory ('.native-signer-' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $workDirectory | Out-Null
 try {
@@ -74,6 +105,8 @@ try {
 }
 if ($integrationExit -ne 0) { throw "native signer integration failed with exit $integrationExit`n$resultText" }
 $result = $resultText | ConvertFrom-Json
+$result.assertions | Add-Member -NotePropertyName inAccountCsprngKeyGeneration -NotePropertyValue $true
+$result.assertions | Add-Member -NotePropertyName provisioningSecretIpcEliminated -NotePropertyValue $true
 if (-not $result.assertions.rustProcessSigned -or -not $result.assertions.javascriptHostVerified -or
     -not $result.assertions.bip340CompletionVerified -or -not $result.assertions.adaptorExtractionVerified -or
     -not $result.assertions.restartReplayRejected -or -not $result.assertions.signerLocalReplayRejected -or
@@ -119,6 +152,10 @@ if (-not $result.assertions.processMitigationsApplied -or
 if (-not $result.assertions.selfVerifiedExecutableDigest) {
   throw 'native signer integration omitted executable identity assertion'
 }
+if (-not $result.assertions.inAccountCsprngKeyGeneration -or
+    -not $result.assertions.provisioningSecretIpcEliminated) {
+  throw 'native signer integration omitted self-provisioned keyset assertions'
+}
 $commit = (git -c safe.directory=C:/projects/UTXORef/UTXO-Ref -C $repository rev-parse HEAD).Trim()
 $snapshot = [ordered]@{
   schema = 'utxoref_dlc_native_rust_signer_snapshot_v1'
@@ -140,7 +177,7 @@ $snapshotPath = Join-Path $SnapshotDirectory 'dlc-native-rust-signer-latest.json
   [System.Text.UTF8Encoding]::new($false)
 )
 $checkedEvidence = [ordered]@{
-  schema = 'utxoref_dlc_native_rust_signer_evidence_v9'
+  schema = 'utxoref_dlc_native_rust_signer_evidence_v10'
   network = 'bitcoin-testnet4'
   sourceCommit = $commit
   toolchain = [ordered]@{ rustc = $snapshot.rustc; cargo = $snapshot.cargo }
@@ -185,6 +222,8 @@ $checkedEvidence = [ordered]@{
     microsoftSignedImagesOnly = [bool]$result.assertions.microsoftSignedImagesOnly
     remoteAndLowIntegrityImagesRejected = [bool]$result.assertions.remoteAndLowIntegrityImagesRejected
     selfVerifiedExecutableDigest = [bool]$result.assertions.selfVerifiedExecutableDigest
+    inAccountCsprngKeyGeneration = [bool]$result.assertions.inAccountCsprngKeyGeneration
+    provisioningSecretIpcEliminated = [bool]$result.assertions.provisioningSecretIpcEliminated
     runtimeIdentityVerifiedByHost = [bool]$result.assertions.runtimeIdentityVerifiedByHost
     restartReplayRejected = [bool]$result.assertions.restartReplayRejected
     signerLocalReplayRejected = [bool]$result.assertions.signerLocalReplayRejected

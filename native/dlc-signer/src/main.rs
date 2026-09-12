@@ -1111,25 +1111,74 @@ fn runtime_identity(
     Ok((signing_key, sha256_hex(&spki)))
 }
 
+fn validated_key_directory(value: &str) -> Result<PathBuf> {
+    let key_directory = PathBuf::from(value);
+    let metadata = fs::symlink_metadata(&key_directory).map_err(|error| error.to_string())?;
+    if !key_directory.is_absolute() || !metadata.is_dir() || metadata.file_type().is_symlink() {
+        return Err("key directory must be an existing absolute directory".to_owned());
+    }
+    reject_plaintext_key_files(&key_directory)?;
+    Ok(key_directory)
+}
+
+fn describe_dpapi_keyset(arguments: &[String]) -> Result<()> {
+    if arguments.len() != 7 {
+        return Err(
+            "usage: utxoref-dlc-signer --describe-dpapi-keyset <absolute-key-directory> <absolute-dpapi-access-verifier> <access-verifier-sha256> <expected-windows-account-sid> <expected-executable-sha256>"
+                .to_owned(),
+        );
+    }
+    let key_directory = validated_key_directory(&arguments[2])?;
+    let access_verifier_path = Path::new(&arguments[3]);
+    validate_access_verifier(access_verifier_path, &arguments[4])?;
+    validate_windows_sid(&arguments[5])?;
+    let executable_digest = verified_executable_digest(&arguments[6])?;
+    let signer_secret = unprotect_dpapi_secret(
+        &key_directory.join("signer-candidate.key.dpapi"),
+        access_verifier_path,
+        &arguments[5],
+        "DLC signer candidate key",
+    )?;
+    let signer_scalar = Zeroizing::new(scalar_from_bytes(
+        &signer_secret,
+        "DLC signer candidate key",
+    )?);
+    let (signer_x, _) = affine_coordinates(
+        ProjectivePoint::GENERATOR * *signer_scalar,
+        "DLC signer public key",
+    )?;
+    let (runtime_key, runtime_identity_key_id) =
+        runtime_identity(&key_directory, access_verifier_path, &arguments[5])?;
+    let mut runtime_spki = Vec::with_capacity(44);
+    runtime_spki.extend_from_slice(&ED25519_SPKI_PREFIX);
+    runtime_spki.extend_from_slice(runtime_key.verifying_key().as_bytes());
+    let description = serde_json::json!({
+        "schema": "utxoref_dlc_dpapi_keyset_public_v1",
+        "signerPubkeyX": hex::encode(signer_x),
+        "runtimeIdentityKeyId": runtime_identity_key_id,
+        "runtimeIdentityPublicKeySpki": BASE64.encode(runtime_spki),
+        "executableSha256": executable_digest
+    });
+    let output = serde_json::to_vec(&description).map_err(|error| error.to_string())?;
+    io::stdout()
+        .write_all(&output)
+        .map_err(|error| error.to_string())?;
+    Ok(())
+}
+
 fn run() -> Result<()> {
     apply_process_mitigations()?;
     let arguments: Vec<String> = env::args().collect();
+    if arguments.get(1).map(String::as_str) == Some("--describe-dpapi-keyset") {
+        return describe_dpapi_keyset(&arguments);
+    }
     if arguments.len() != 8 {
         return Err(
             "usage: utxoref-dlc-signer <absolute-key-directory> <absolute-validator-policy> <policy-sha256> <absolute-dpapi-access-verifier> <access-verifier-sha256> <expected-windows-account-sid> <expected-executable-sha256>"
                 .to_owned(),
         );
     }
-    let key_directory = PathBuf::from(&arguments[1]);
-    let key_directory_metadata =
-        fs::symlink_metadata(&key_directory).map_err(|error| error.to_string())?;
-    if !key_directory.is_absolute()
-        || !key_directory_metadata.is_dir()
-        || key_directory_metadata.file_type().is_symlink()
-    {
-        return Err("key directory must be an existing absolute directory".to_owned());
-    }
-    reject_plaintext_key_files(&key_directory)?;
+    let key_directory = validated_key_directory(&arguments[1])?;
     let validator_policy = load_validator_policy(Path::new(&arguments[2]), &arguments[3])?;
     let access_verifier_path = Path::new(&arguments[4]);
     validate_access_verifier(access_verifier_path, &arguments[5])?;

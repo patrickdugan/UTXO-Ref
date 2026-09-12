@@ -22,7 +22,7 @@ if (-not [System.IO.Path]::IsPathRooted($BlobPath)) {
 $path = [System.IO.Path]::GetFullPath($BlobPath)
 $directory = [System.IO.Path]::GetDirectoryName($path)
 $allowedSids = @($currentSid, 'S-1-5-18', 'S-1-5-32-544')
-$directoryAcl = [System.IO.Directory]::GetAccessControl($directory)
+$directoryAcl = Get-Acl -LiteralPath $directory
 if (-not $directoryAcl.AreAccessRulesProtected) {
   throw 'DPAPI key directory must disable inherited ACLs'
 }
@@ -39,7 +39,7 @@ foreach ($rule in $directoryAcl.GetAccessRules(
     throw 'DPAPI key directory grants access to an unauthorized SID'
   }
 }
-$fileAcl = [System.IO.File]::GetAccessControl($path)
+$fileAcl = Get-Acl -LiteralPath $path
 if ($fileAcl.GetOwner([System.Security.Principal.SecurityIdentifier]).Value -cne $currentSid) {
   throw 'DPAPI key blob owner must match the signer account SID'
 }

@@ -32,9 +32,9 @@ $arguments = @(
 )
 & $icacls @arguments | Out-Null
 if ($LASTEXITCODE -ne 0) { throw 'failed to initialize the DPAPI key-directory ACL' }
-$acl = [System.IO.Directory]::GetAccessControl($directory)
+$acl = Get-Acl -LiteralPath $directory
 if (-not $acl.AreAccessRulesProtected) { throw 'DPAPI key-directory ACL remained inherited' }
 if ($acl.GetOwner([System.Security.Principal.SecurityIdentifier]).Value -cne $accountSid.Value) {
   throw 'DPAPI key-directory owner does not match the signer account SID'
 }
-[Console]::Out.Write($accountSid.Value)
+Write-Output $accountSid.Value
