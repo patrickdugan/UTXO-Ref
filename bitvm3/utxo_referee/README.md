@@ -447,6 +447,10 @@ Boundary V64 requires every contract consumer to retain and use that canonical
 snapshot. This includes composed Bitcoin Core observer and watchtower paths, so
 an external RPC callback cannot mutate the caller-owned record between
 validation, policy evaluation, and journal publication.
+Boundary V65 applies the same rule to validated transaction sets. Funding, fee
+policy, CET, refund, output, and oracle-subset containers are deeply frozen;
+all production consumers retain the normalized set across external Core calls
+and watchtower publication.
 The host accepts only bounded regular runtime files whose resolved paths do not
 traverse filesystem links. It hashes the complete runtime closure before and
 after every signer execution, so deletion or mutation during the process

@@ -1712,6 +1712,17 @@ test('TRUC transaction sets bind version 3 and a zero-sat P2A anchor', () => {
   assert(validated.feePolicy.transactionVersion === 3 && validated.feePolicy.maxRecoveryVsize === 1000 &&
     validated.feePolicy.maxUnconfirmedClusterTransactions === 2, 'TRUC policy limits were not committed');
   assert(validateDlcTransactionSetCommitments(validated), 'TRUC transaction set commitments did not verify');
+  assert(Object.isFrozen(validated) && Object.isFrozen(validated.cets) &&
+    Object.isFrozen(validated.cets[0]) && Object.isFrozen(validated.cets[0].outputs) &&
+    Object.isFrozen(validated.cets[0].outputs[0]), 'validated transaction set was not deeply frozen');
+  let transactionAccessorCalls = 0;
+  const hostile = { ...validated };
+  Object.defineProperty(hostile, 'funding', {
+    enumerable: true,
+    get() { transactionAccessorCalls++; return validated.funding; }
+  });
+  expectThrow(() => validateDlcTransactionSetCommitments(hostile), /enumerable data property/);
+  assert(transactionAccessorCalls === 0, 'transaction-set accessor executed before rejection');
 
   expectThrow(() => validateDlcTransactionSet({
     ...input,
@@ -2257,11 +2268,13 @@ test('Bitcoin Core observer captures a stable testnet4 tip and scans committed s
     'Core observer monitored the wrong funding outpoint');
 
   const mutableContract = JSON.parse(JSON.stringify(contract));
+  const mutableTransactionSet = JSON.parse(JSON.stringify(transactionSet));
   let mutationInjected = false;
   const mutatingRpc = (method) => {
     if (!mutationInjected) {
       mutationInjected = true;
       mutableContract.stage = 'DRAFT';
+      mutableTransactionSet.funding.vout = 99;
     }
     if (method === 'getblockchaininfo') return { chain: 'testnet4', blocks: 205, bestblockhash: bestBlockHash };
     if (method === 'getrawmempool') return { mempool_sequence: 9 };
@@ -2270,12 +2283,12 @@ test('Bitcoin Core observer captures a stable testnet4 tip and scans committed s
   };
   const mutationSafe = observeAndEvaluateDlcChain({
     contractState: mutableContract,
-    transactionSet,
+    transactionSet: mutableTransactionSet,
     rpc: mutatingRpc
   });
-  assert(mutationInjected && mutableContract.stage === 'DRAFT' &&
+  assert(mutationInjected && mutableContract.stage === 'DRAFT' && mutableTransactionSet.funding.vout === 99 &&
     mutationSafe.evaluation.status === 'FUNDING_CONFIRMED',
-  'Core callback mutated the contract snapshot after validation');
+    'Core callback mutated validated contract or transaction-set snapshots');
 
   const cetRpc = (method, params) => {
     if (method === 'getblockchaininfo') return { chain: 'testnet4', blocks: 205, bestblockhash: bestBlockHash };

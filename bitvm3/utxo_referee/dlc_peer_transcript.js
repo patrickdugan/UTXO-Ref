@@ -2,7 +2,7 @@
 
 const crypto = require('crypto');
 const { canonicalize, canonicalJson } = require('./dlc_canonical_json');
-const { validateDlcTransactionSetCommitments } = require('./dlc_transaction_validator');
+const { normalizeDlcTransactionSet } = require('./dlc_transaction_validator');
 const { normalizeDlcContract } = require('./dlc_contract_state');
 
 const KIND = 'utxoref_dlc_peer_message_v1';
@@ -226,7 +226,7 @@ function validateDlcPeerTranscript({
   knownTemporaryContractIds = []
 }) {
   contractState = normalizeDlcContract(contractState);
-  validateDlcTransactionSetCommitments(transactionSet);
+  transactionSet = normalizeDlcTransactionSet(transactionSet);
   if (!Array.isArray(knownTemporaryContractIds) ||
       knownTemporaryContractIds.some((value) => typeof value !== 'string' || !/^[0-9a-f]{64}$/.test(value))) {
     throw new Error('knownTemporaryContractIds must be an array of lowercase hashes');

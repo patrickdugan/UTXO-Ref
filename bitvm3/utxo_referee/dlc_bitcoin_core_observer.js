@@ -2,7 +2,7 @@
 
 const crypto = require('crypto');
 const { normalizeDlcContract } = require('./dlc_contract_state');
-const { validateDlcTransactionSetCommitments } = require('./dlc_transaction_validator');
+const { normalizeDlcTransactionSet } = require('./dlc_transaction_validator');
 const { evaluateDlcChainSnapshot } = require('./dlc_chain_guard');
 const { settlementAnchor, evaluateDlcAnchorRecovery } = require('./dlc_anchor_recovery_guard');
 
@@ -252,7 +252,7 @@ function captureDlcAnchorRecoverySnapshot({
   scanDepth = 12
 }) {
   contractState = normalizeDlcContract(contractState);
-  validateDlcTransactionSetCommitments(transactionSet);
+  transactionSet = normalizeDlcTransactionSet(transactionSet);
   const anchor = settlementAnchor(transactionSet, settlementTxid);
   requireNodeId(primaryNodeId, 'primaryNodeId');
   if (typeof rpc !== 'function' || !Array.isArray(peerNodes) || peerNodes.length > 15 ||
@@ -381,7 +381,7 @@ function captureDlcChainSnapshot({
   scanDepth = 12
 }) {
   contractState = normalizeDlcContract(contractState);
-  validateDlcTransactionSetCommitments(transactionSet);
+  transactionSet = normalizeDlcTransactionSet(transactionSet);
   if (typeof rpc !== 'function' || !Number.isSafeInteger(maxAttempts) || maxAttempts < 1 || maxAttempts > 10 ||
       !Number.isSafeInteger(scanDepth) || scanDepth < 1 || scanDepth > 144) {
     throw new Error('DLC Bitcoin Core observer policy is malformed');
@@ -433,7 +433,7 @@ function captureDlcChainSnapshot({
 
 function observeAndEvaluateDlcChain(options) {
   const contractState = normalizeDlcContract(options?.contractState);
-  const transactionSet = options?.transactionSet;
+  const transactionSet = normalizeDlcTransactionSet(options?.transactionSet);
   const previous = options?.previous || null;
   const minConfirmations = options?.minConfirmations === undefined ? 6 : options.minConfirmations;
   const current = captureDlcChainSnapshot({ ...options, contractState, transactionSet, previous });

@@ -190,6 +190,9 @@ deeply frozen before they leave the state store.
 Boundary V64 retains the canonical contract snapshot across Bitcoin Core RPC
 calls and watchtower publication. Never pass a caller-owned mutable record on
 to a later policy or authorization step after validating it.
+Boundary V65 also normalizes and deeply freezes validated transaction sets.
+Core RPC callbacks cannot swap a funding outpoint, CET, refund, or fee policy
+between commitment verification and the final observation or journal record.
 
 ## Agent isolation
 

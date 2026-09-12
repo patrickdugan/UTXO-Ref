@@ -1534,19 +1534,21 @@ check('chain guard halts on disconnected ancestry and uncommitted funding spends
     coreObserved.evaluation.status === 'FUNDING_CONFIRMED';
 });
 
-check('contract snapshot survives mutation during external Core RPC', 'chain-safety', 12, () => {
+check('contract and transaction snapshots survive mutation during external Core RPC', 'chain-safety', 12, () => {
   if (!peerFixtureForEval) return false;
   const { contract, transactionSet } = peerFixtureForEval;
   const mutableContract = JSON.parse(JSON.stringify(contract));
+  const mutableTransactionSet = JSON.parse(JSON.stringify(transactionSet));
   const bestBlockHash = sha256('contract-snapshot:core-tip').toString('hex');
   let mutationInjected = false;
   const observed = observeAndEvaluateDlcChain({
     contractState: mutableContract,
-    transactionSet,
+    transactionSet: mutableTransactionSet,
     rpc(method) {
       if (!mutationInjected) {
         mutationInjected = true;
         mutableContract.stage = 'DRAFT';
+        mutableTransactionSet.funding.vout = 99;
       }
       if (method === 'getblockchaininfo') return { chain: 'testnet4', blocks: 205, bestblockhash: bestBlockHash };
       if (method === 'getrawmempool') return { mempool_sequence: 11 };
@@ -1554,7 +1556,7 @@ check('contract snapshot survives mutation during external Core RPC', 'chain-saf
       throw new Error(`unexpected mocked Core RPC ${method}`);
     }
   });
-  return mutationInjected && mutableContract.stage === 'DRAFT' &&
+  return mutationInjected && mutableContract.stage === 'DRAFT' && mutableTransactionSet.funding.vout === 99 &&
     observed.evaluation.status === 'FUNDING_CONFIRMED';
 });
 
@@ -2213,7 +2215,7 @@ const possible = cases.reduce((sum, test) => sum + test.points, 0);
 const score = earned / possible;
 const report = {
   benchmark: 'utxoref-dlc-security',
-  version: 34,
+  version: 35,
   profile: profileName,
   seed,
   score,

@@ -134,7 +134,7 @@ module.exports = {
   // for production; these interfaces enforce transcript, threshold-oracle,
   // and persistence gates on regtest and Bitcoin testnet4.
   dlc: Object.freeze({
-    securityBoundaryVersion: 64,
+    securityBoundaryVersion: 65,
     canonicalizeData: dlcCanonicalJson.canonicalize,
     canonicalJson: dlcCanonicalJson.canonicalJson,
     canonicalSerializationPolicy: Object.freeze({
@@ -166,6 +166,13 @@ module.exports = {
       consumersUseCanonicalSnapshots: true,
       snapshotRetainedAcrossExternalCalls: true
     }),
+    transactionSetInputPolicy: Object.freeze({
+      normalizedBeforeFieldAccess: true,
+      callbackBearingInputsAllowed: false,
+      deeplyFrozenSnapshots: true,
+      consumersUseCanonicalSnapshots: true,
+      snapshotRetainedAcrossExternalCalls: true
+    }),
     createContract: dlcContractState.createDlcContract,
     normalizeContract: dlcContractState.normalizeDlcContract,
     validateContract: dlcContractState.validateDlcContract,
@@ -188,6 +195,7 @@ module.exports = {
     parseCanonicalUnsignedTransaction: dlcTransactionValidator.parseCanonicalUnsignedTransaction,
     parseCanonicalSignedTaprootTransaction: dlcTransactionValidator.parseCanonicalSignedTaprootTransaction,
     validateTransactionSet: dlcTransactionValidator.validateDlcTransactionSet,
+    normalizeTransactionSet: dlcTransactionValidator.normalizeDlcTransactionSet,
     validateTransactionSetCommitments: dlcTransactionValidator.validateDlcTransactionSetCommitments,
     validateFundingPrebroadcastPolicy: dlcFundingPrebroadcastGuard.validateFundingPrebroadcastPolicy,
     validateExecutionPrebroadcastPolicy: dlcExecutionPrebroadcastGuard.validateExecutionPrebroadcastPolicy,

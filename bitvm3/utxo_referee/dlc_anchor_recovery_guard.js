@@ -1,7 +1,7 @@
 'use strict';
 
 const { normalizeDlcContract } = require('./dlc_contract_state');
-const { validateDlcTransactionSetCommitments } = require('./dlc_transaction_validator');
+const { normalizeDlcTransactionSet } = require('./dlc_transaction_validator');
 const MAX_MONEY = 2100000000000000n;
 
 function requireHash(value, name) {
@@ -57,7 +57,7 @@ function proposedRecoveryCandidate(value) {
 }
 
 function settlementAnchor(transactionSet, settlementTxid) {
-  validateDlcTransactionSetCommitments(transactionSet);
+  transactionSet = normalizeDlcTransactionSet(transactionSet);
   requireHash(settlementTxid, 'settlementTxid');
   const matches = [...transactionSet.cets, transactionSet.refund].filter((spend) => spend.txid === settlementTxid);
   if (matches.length !== 1) throw new Error('settlement transaction is not uniquely committed by the DLC transaction set');
@@ -74,6 +74,7 @@ function settlementAnchor(transactionSet, settlementTxid) {
 
 function requireSignedTransactionSet(contractState, transactionSet) {
   contractState = normalizeDlcContract(contractState);
+  transactionSet = normalizeDlcTransactionSet(transactionSet);
   const canonicalTransition = contractState.history.find((entry) => entry.to === 'CANONICAL_CETS_AND_REFUND');
   if (!canonicalTransition) throw new Error('contract state has no signed canonical transaction transition');
   const receiptDigest = (kind) => canonicalTransition.evidence.find((receipt) => receipt.kind === kind)?.digest;
@@ -94,6 +95,7 @@ function evaluateDlcAnchorRecovery({
   expectedRecoveryTxids = [],
   incrementalRelayFeeSatPerVb = 1
 }) {
+  transactionSet = normalizeDlcTransactionSet(transactionSet);
   const anchor = settlementAnchor(transactionSet, settlementTxid);
   contractState = requireSignedTransactionSet(contractState, transactionSet);
   if (!snapshot || snapshot.anchorOutpoint !== anchor.outpoint || typeof snapshot.anchorPresent !== 'boolean' ||

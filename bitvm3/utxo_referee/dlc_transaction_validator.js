@@ -1,7 +1,7 @@
 'use strict';
 
 const crypto = require('crypto');
-const { canonicalJson } = require('./dlc_contract_state');
+const { canonicalize, canonicalJson } = require('./dlc_canonical_json');
 
 const MAX_MONEY = 21000000n * 100000000n;
 const P2A_SCRIPT_PUBKEY_HEX = '51024e73';
@@ -387,7 +387,7 @@ function validateDlcTransactionSet({ funding, cets, refund, minFeeSats = 0n, max
     serializedFeePolicy.maxUnconfirmedClusterTransactions = normalizedFeePolicy.maxUnconfirmedClusterTransactions;
   }
   const feePolicyDigest = sha256Hex(canonicalJson(serializedFeePolicy));
-  return Object.freeze({
+  return normalizeDlcTransactionSet({
     fundingTemplateDigest,
     cetSetDigest,
     refundTransactionDigest,
@@ -398,14 +398,14 @@ function validateDlcTransactionSet({ funding, cets, refund, minFeeSats = 0n, max
       refundTransactionDigest,
       feePolicyDigest
     })),
-    funding: Object.freeze(serializedFunding),
-    feePolicy: Object.freeze(serializedFeePolicy),
-    cets: Object.freeze(validatedCets.map(Object.freeze)),
-    refund: Object.freeze(serializedRefund)
+    funding: serializedFunding,
+    feePolicy: serializedFeePolicy,
+    cets: validatedCets,
+    refund: serializedRefund
   });
 }
 
-function validateDlcTransactionSetCommitments(transactionSet) {
+function validateNormalizedDlcTransactionSetCommitments(transactionSet) {
   if (!transactionSet || !transactionSet.funding || !transactionSet.feePolicy ||
       !Array.isArray(transactionSet.cets) || !transactionSet.refund) {
     throw new Error('validated DLC transaction set is malformed');
@@ -430,6 +430,17 @@ function validateDlcTransactionSetCommitments(transactionSet) {
   return true;
 }
 
+function normalizeDlcTransactionSet(transactionSet) {
+  const normalized = canonicalize(transactionSet, 'validated DLC transaction set');
+  validateNormalizedDlcTransactionSetCommitments(normalized);
+  return normalized;
+}
+
+function validateDlcTransactionSetCommitments(transactionSet) {
+  normalizeDlcTransactionSet(transactionSet);
+  return true;
+}
+
 module.exports = {
   MAX_MONEY,
   P2A_SCRIPT_PUBKEY_HEX,
@@ -440,5 +451,6 @@ module.exports = {
   parseCanonicalUnsignedTransaction,
   parseCanonicalSignedTaprootTransaction,
   validateDlcTransactionSet,
+  normalizeDlcTransactionSet,
   validateDlcTransactionSetCommitments
 };

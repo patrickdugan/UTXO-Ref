@@ -1,7 +1,7 @@
 'use strict';
 
 const { normalizeDlcContract } = require('./dlc_contract_state');
-const { validateDlcTransactionSetCommitments } = require('./dlc_transaction_validator');
+const { normalizeDlcTransactionSet } = require('./dlc_transaction_validator');
 
 function requireHash(value, fieldName) {
   if (typeof value !== 'string' || !/^[0-9a-f]{64}$/.test(value)) {
@@ -57,6 +57,7 @@ function result(ok, status, reason, extra = {}) {
 
 function evaluateDlcChainSnapshot({ contractState, transactionSet, current, previous = null, minConfirmations = 6 }) {
   contractState = normalizeDlcContract(contractState);
+  transactionSet = normalizeDlcTransactionSet(transactionSet);
   if (!transactionSet || !transactionSet.funding || !Array.isArray(transactionSet.cets) || !transactionSet.refund ||
       !Number.isSafeInteger(minConfirmations) || minConfirmations < 1 || minConfirmations > 1000) {
     throw new Error('chain guard policy is malformed');
@@ -64,7 +65,6 @@ function evaluateDlcChainSnapshot({ contractState, transactionSet, current, prev
   for (const name of ['fundingTemplateDigest', 'cetSetDigest', 'refundTransactionDigest', 'feePolicyDigest', 'validationDigest']) {
     requireHash(transactionSet[name], `transactionSet.${name}`);
   }
-  validateDlcTransactionSetCommitments(transactionSet);
   const canonicalTransition = contractState.history.find((entry) => entry.to === 'CANONICAL_CETS_AND_REFUND');
   if (!canonicalTransition) throw new Error('contract state has no signed canonical transaction transition');
   const receiptDigest = (kind) => canonicalTransition.evidence.find((receipt) => receipt.kind === kind)?.digest;

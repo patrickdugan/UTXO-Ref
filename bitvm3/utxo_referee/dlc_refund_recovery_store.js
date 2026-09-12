@@ -4,7 +4,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const { canonicalize, canonicalJson, normalizeDlcContract } = require('./dlc_contract_state');
-const { parseCanonicalSignedTaprootTransaction, validateDlcTransactionSetCommitments } = require('./dlc_transaction_validator');
+const { parseCanonicalSignedTaprootTransaction, normalizeDlcTransactionSet } = require('./dlc_transaction_validator');
 const { toBip341Transaction } = require('./dlc_signature_validator');
 const { bip341SighashDefault } = require('./tradelayer_taproot');
 const { schnorrVerify } = require('./tradelayer_dlc_adaptor_sig');
@@ -51,7 +51,7 @@ function recordHash(record) {
 
 function bindTransactionSet(contractState, transactionSet) {
   contractState = normalizeDlcContract(contractState);
-  validateDlcTransactionSetCommitments(transactionSet);
+  transactionSet = normalizeDlcTransactionSet(transactionSet);
   const recoveryStages = [
     'COUNTERPARTY_SIGNATURES_VERIFIED', 'LOCAL_SIGNATURES_PERSISTED', 'FUNDING_PSBT_APPROVED',
     'FUNDING_BROADCAST', 'CONFIRMED', 'CET_EXECUTED', 'REFUND_EXECUTED'
@@ -136,6 +136,7 @@ class DlcRefundRecoveryStore {
   }
 
   store({ contractState, transactionSet, signedRefundTxHex }) {
+    transactionSet = normalizeDlcTransactionSet(transactionSet);
     contractState = bindTransactionSet(contractState, transactionSet);
     if (contractState.stage !== 'COUNTERPARTY_SIGNATURES_VERIFIED') {
       throw new Error('refund must be stored before local signatures are marked persisted');
@@ -172,6 +173,7 @@ class DlcRefundRecoveryStore {
   }
 
   restore({ contractState, transactionSet }) {
+    transactionSet = normalizeDlcTransactionSet(transactionSet);
     contractState = bindTransactionSet(contractState, transactionSet);
     const record = this._read(contractState.contractId);
     const counterpartyTransition = contractState.history.find((entry) => entry.to === 'COUNTERPARTY_SIGNATURES_VERIFIED');
