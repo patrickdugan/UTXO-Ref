@@ -38,6 +38,11 @@ const m1TransitionCircuit = require('./m1_transition_circuit');
 const m1TallyMap = require('./m1_tally_map');
 const m1DepositIndexer = require('./m1_deposit_indexer');
 const utxoRefV2 = require('./utxoref_v2');
+const dlcContractState = require('./dlc_contract_state');
+const dlcThresholdOracle = require('./dlc_threshold_oracle');
+const { DlcStateStore } = require('./dlc_state_store');
+const dlcCryptoProvider = require('./dlc_crypto_provider');
+const { DlcOracleEventStore } = require('./dlc_oracle_event_store');
 
 module.exports = {
   // Types
@@ -107,5 +112,22 @@ module.exports = {
       VERSION: utxoRefV2.VERSION,
       buildFundingSetV2: utxoRefV2.buildFundingSetV2
     })
+  }),
+
+  // Experimental DLC infrastructure. Cryptographic signing remains disabled
+  // for production; these interfaces enforce transcript, threshold-oracle,
+  // and persistence gates on regtest and Bitcoin testnet4.
+  dlc: Object.freeze({
+    createContract: dlcContractState.createDlcContract,
+    validateContract: dlcContractState.validateDlcContract,
+    transitionContract: dlcContractState.transitionDlcContract,
+    requiredEvidence: dlcContractState.REQUIRED_EVIDENCE,
+    StateStore: DlcStateStore,
+    OracleEventStore: DlcOracleEventStore,
+    validateOracleSet: dlcThresholdOracle.validateOracleSet,
+    buildThresholdOutcomeSets: dlcThresholdOracle.buildThresholdOutcomeSets,
+    combineThresholdAttestations: dlcThresholdOracle.combineThresholdAttestations,
+    createCryptoProvider: dlcCryptoProvider.createDlcCryptoProvider,
+    requireSigningProvider: dlcCryptoProvider.requireDlcSigningProvider
   })
 };

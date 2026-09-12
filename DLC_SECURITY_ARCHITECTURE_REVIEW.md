@@ -167,6 +167,20 @@ The local research implementation now:
    scalar.
 9. Disables the milestone funding broadcast path until verified CET and refund
    signatures exist.
+10. Builds canonical enumerated 2-of-3 oracle subsets and validates every
+    attestation before combining the adaptor scalar.
+11. Persists contract transitions as append-only revisions with optimistic
+    concurrency, hash-chained transcripts, and idempotency keys.
+12. Requires Ed25519-signed validation receipts from keys pinned per evidence
+    kind; a caller-provided boolean cannot advance the contract.
+13. Refuses wallet funding signing unless the state is exactly
+    `FUNDING_PSBT_APPROVED` and its receipt commits to the canonical PSBT bytes
+    and Bitcoin network.
+14. Defaults the crypto-provider boundary to disabled, rejects mainnet, and
+    confines JavaScript secret operations to an explicit research mode.
+15. Seals experimental oracle signer state with AES-256-GCM, authenticates it
+    against the signed announcement, persists it before use, and restores its
+    one-outcome state after restart.
 
 The changes block the concrete exploit probes. They reduce testnet risk but do
 not promote this module to a production signer.
@@ -188,8 +202,9 @@ The locked agent benchmark is
 [`eval/dlc_security_eval.js`](eval/dlc_security_eval.js), with the Hive prompt
 and server template in [`program-dlc-security.md`](program-dlc-security.md) and
 [`hive-task-config.dlc-security.example.json`](hive-task-config.dlc-security.example.json).
-It emits an independent `score` for 11 correctness, attack, oracle-state, and
-funding-safety properties under lite, full, and scale profiles. Keeping it
+It emits an independent `score` for correctness, attack, threshold-oracle,
+signed-state, persistence, signer-boundary, and funding-safety properties under
+lite, full, and scale profiles. Keeping it
 separate from the sweep benchmark prevents one score from hiding failures at a
 different trust boundary.
 
@@ -218,8 +233,9 @@ large agent swarm.
 - Run party and oracle keys in separate signer processes or hardware-backed
   services. Agents receive typed requests and public results only.
 - Persist event creation and nonce consumption atomically before returning an
-  announcement or attestation. Enforce uniqueness across restart, failover,
-  backup restore, and concurrent signer replicas.
+  announcement or attestation. The experimental encrypted event store now
+  covers a shared local store across restart and concurrent processes; the
+  native signer must extend uniqueness across failover and backup restore.
 - Use separate keys for oracle announcements/attestations, DLC party signing,
   wallet funding, and unrelated application messages.
 
@@ -246,9 +262,11 @@ actions.
 
 ### Oracle policy
 
-- Use at least 2-of-3 independent oracles for enumerated outcomes. For numeric
-  prices, configure a bounded disagreement policy and test both honest variance
-  and collusion.
+- Use at least 2-of-3 independent oracles for enumerated outcomes. The local
+  combination primitive now enforces this shape, but production still needs
+  independent operators and interoperable messages. For numeric prices,
+  configure a bounded disagreement policy and test honest variance and
+  collusion.
 - Pin accepted oracle identities and verify announcement signatures before
   contract negotiation.
 - Monitor equivocation and publish fraud proofs, but do not treat detectability

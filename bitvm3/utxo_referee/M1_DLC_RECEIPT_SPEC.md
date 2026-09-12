@@ -1,5 +1,11 @@
 # Milestone 1: DLC Template + Receipt Token Spec
 
+> **Research-only historical milestone.** The active hardening target is
+> Bitcoin testnet4. The Litecoin scripts below cannot authorize wallet funding
+> signing: `m1_dlc_sign_finalize.js` now requires a signed, hash-chained Bitcoin
+> DLC state at `FUNDING_PSBT_APPROVED`, and transaction broadcast remains
+> disabled.
+
 This document defines the milestone-1 contract shape and canonical schemas.
 
 ## Objective

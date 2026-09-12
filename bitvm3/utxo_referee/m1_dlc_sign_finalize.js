@@ -26,12 +26,14 @@ const http = require('http');
 const https = require('https');
 const { URL } = require('url');
 const crypto = require('crypto');
+const { validateDlcContract } = require('./dlc_contract_state');
 
 const RPC_URL = process.env.LTC_RPC_URL || 'http://127.0.0.1:19332';
 const RPC_USER = process.env.LTC_RPC_USER || 'user';
 const RPC_PASS = process.env.LTC_RPC_PASS || 'pass';
 const WALLET = process.env.LTC_WALLET || 'tl-wallet';
 const BROADCAST_REQUESTED = process.env.BROADCAST_FUNDING === '1';
+const DLC_STATE_PATH = process.env.DLC_STATE_PATH || '';
 
 const ARTIFACTS_DIR = path.join(__dirname, 'artifacts');
 const FUNDING_PSBT_PATH = path.join(ARTIFACTS_DIR, 'm1_funding_psbt_latest.json');
@@ -43,6 +45,37 @@ function sha256Hex(data) {
 
 function ensureFile(p) {
   if (!fs.existsSync(p)) throw new Error(`Artifact missing: ${p}`);
+}
+
+function decodeCanonicalPsbt(psbt) {
+  if (typeof psbt !== 'string' || psbt.length < 8 || psbt.length % 4 !== 0 ||
+      !/^[A-Za-z0-9+/]+={0,2}$/.test(psbt)) {
+    throw new Error('Funding artifact PSBT must be canonical base64');
+  }
+  const bytes = Buffer.from(psbt, 'base64');
+  if (bytes.toString('base64') !== psbt || bytes.length < 5 || bytes.subarray(0, 5).toString('hex') !== '70736274ff') {
+    throw new Error('Funding artifact does not contain a canonical PSBT');
+  }
+  return bytes;
+}
+
+function validateFundingAuthorization(state, funding) {
+  validateDlcContract(state);
+  if (state.stage !== 'FUNDING_PSBT_APPROVED') {
+    throw new Error(`DLC state must be FUNDING_PSBT_APPROVED before wallet signing; current stage is ${state.stage}`);
+  }
+  const expectedChain = state.network === 'bitcoin-testnet4' ? 'testnet4' : 'regtest';
+  if (!funding || !funding.chain || funding.chain.network !== expectedChain) {
+    throw new Error(`Funding artifact network must be ${expectedChain}`);
+  }
+  const psbt = funding.funding && funding.funding.psbt;
+  const psbtDigest = sha256Hex(decodeCanonicalPsbt(psbt));
+  const approval = state.history[state.history.length - 1];
+  const receipt = approval && approval.evidence.find((item) => item.kind === 'funding_psbt_validation');
+  if (!receipt || receipt.digest !== psbtDigest) {
+    throw new Error('Funding PSBT does not match the approved validation receipt');
+  }
+  return { psbt, psbtDigest, stateRecordHash: state.recordHash };
 }
 
 function encodeBasicAuth(user, pass) {
@@ -109,16 +142,21 @@ async function run() {
       'funding broadcast disabled: verified CET adaptor signatures and a fully signed refund transaction are required first'
     );
   }
+  if (!DLC_STATE_PATH) {
+    throw new Error('DLC_STATE_PATH is required before wallet funding signing');
+  }
+  ensureFile(DLC_STATE_PATH);
   ensureFile(FUNDING_PSBT_PATH);
+  const state = JSON.parse(fs.readFileSync(DLC_STATE_PATH, 'utf8'));
   const funding = JSON.parse(fs.readFileSync(FUNDING_PSBT_PATH, 'utf8'));
+  const authorization = validateFundingAuthorization(state, funding);
   const rpc = rpcFactory({
     rpcUrl: RPC_URL,
     rpcUser: RPC_USER,
     rpcPass: RPC_PASS
   });
 
-  const psbt = funding.funding.psbt;
-  if (!psbt) throw new Error('Funding artifact has no PSBT');
+  const psbt = authorization.psbt;
 
   const processed = await rpc('walletprocesspsbt', [psbt, true, 'ALL', true], WALLET);
   const finalized = await rpc('finalizepsbt', [processed.psbt, true], WALLET);
@@ -143,6 +181,8 @@ async function run() {
     createdAt: new Date().toISOString(),
     sourceFundingArtifact: FUNDING_PSBT_PATH,
     sourceHash: sha256Hex(JSON.stringify(funding)),
+    fundingPsbtDigest: authorization.psbtDigest,
+    dlcStateRecordHash: authorization.stateRecordHash,
     wallet: WALLET,
     txid,
     wtxid,
@@ -165,8 +205,12 @@ async function run() {
   console.log(`artifactPath=${OUT_PATH}`);
 }
 
-run().catch(err => {
-  console.error('Finalize failed:', err.message);
-  process.exit(1);
-});
+if (require.main === module) {
+  run().catch(err => {
+    console.error('Finalize failed:', err.message);
+    process.exit(1);
+  });
+}
+
+module.exports = { decodeCanonicalPsbt, validateFundingAuthorization, run };
 

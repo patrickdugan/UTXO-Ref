@@ -171,6 +171,20 @@ The DLC implementation remains research-only. See
 for reproduced key-extraction attacks, containment, fuzz evidence, and the
 required native-signer and protocol-state-machine redesign.
 
+The hardened research API is available under `referee.dlc`. It includes the
+signed contract state machine, append-only state store, enumerated threshold
+oracle combinations, encrypted restart-safe oracle state, and a crypto provider
+that defaults to disabled. Run:
+
+```powershell
+node bitvm3\utxo_referee\dlc_infra_hardening.test.js
+.\eval\dlc-security.ps1 -Profile full
+```
+
+The milestone funding finalizer also requires `DLC_STATE_PATH` to reference a
+valid `FUNDING_PSBT_APPROVED` record whose signed receipt matches the exact
+Bitcoin PSBT. Litecoin artifacts and mainnet signing are rejected.
+
 ## Threat Model
 
 ### What the Referee Prevents

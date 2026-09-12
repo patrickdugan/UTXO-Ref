@@ -10,6 +10,11 @@ Maximize the `score` emitted by `bash eval/dlc-security.sh`. A score of `1.0` me
 
 - `bitvm3/utxo_referee/tradelayer_dlc_adaptor_sig.js`
 - `bitvm3/utxo_referee/m1_dlc_sign_finalize.js`
+- `bitvm3/utxo_referee/dlc_contract_state.js`
+- `bitvm3/utxo_referee/dlc_state_store.js`
+- `bitvm3/utxo_referee/dlc_threshold_oracle.js`
+- `bitvm3/utxo_referee/dlc_crypto_provider.js`
+- `bitvm3/utxo_referee/dlc_oracle_event_store.js`
 
 Treat `eval/`, `program-dlc-security.md`, and `prepare.sh` as locked benchmark infrastructure.
 
@@ -23,6 +28,12 @@ Treat `eval/`, `program-dlc-security.md`, and `prepare.sh` as locked benchmark i
 - Reusing an oracle nonce seed across distinct events must not reuse the public nonce.
 - Public oracle objects must not expose secret key or nonce scalars or allow cloned public data to act as signer state.
 - The milestone funding finalizer must reject a broadcast request before reading artifacts, contacting RPC, or invoking `sendrawtransaction` until every CET adaptor signature and a fully signed refund are verified.
+- A 2-of-3 enumerated oracle set must produce the three expected combined adaptor points and require individually valid attestations from the selected subset.
+- Contract progress must follow the ordered, hash-chained state machine with explicit validation receipts, idempotency keys, append-only revisions, and stale-write rejection.
+- Every validation receipt must be signed by the Ed25519 validator key pinned for that evidence kind and bind the contract, digest, stages, and idempotency key.
+- Wallet funding signing must require a `FUNDING_PSBT_APPROVED` record whose receipt commits to the exact canonical PSBT bytes and Bitcoin network.
+- DLC crypto must default disabled, reject mainnet, and require an explicit research flag for the JavaScript implementation. Native providers must declare constant-time, zeroization, isolation, binary, and audit capabilities.
+- Oracle nonce and attestation state must be authenticated at rest, persisted before use, restorable after restart, one-outcome, and append-only.
 
 This benchmark uses synthetic keys, has no network dependency, and must never broadcast a transaction.
 
@@ -38,4 +49,3 @@ EVAL_PROFILE=scale bash eval/dlc-security.sh
 Use `lite` during iteration, `full` before submission, and `scale` for a longer attack run. Change the deterministic fixture seed with `EVAL_SEED`. CI can append `--require-perfect` directly to the Node evaluator.
 
 This is an experimental JavaScript boundary benchmark. A perfect score does not qualify it as a production signer; the architecture review requires an audited native secp256k1 implementation and isolated, durable nonce state before value-bearing use.
-

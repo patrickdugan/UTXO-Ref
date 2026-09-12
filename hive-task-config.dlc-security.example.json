@@ -3,7 +3,12 @@
   "verification_mode": "on_submit",
   "mutable_paths": [
     "bitvm3/utxo_referee/tradelayer_dlc_adaptor_sig.js",
-    "bitvm3/utxo_referee/m1_dlc_sign_finalize.js"
+    "bitvm3/utxo_referee/m1_dlc_sign_finalize.js",
+    "bitvm3/utxo_referee/dlc_contract_state.js",
+    "bitvm3/utxo_referee/dlc_state_store.js",
+    "bitvm3/utxo_referee/dlc_threshold_oracle.js",
+    "bitvm3/utxo_referee/dlc_crypto_provider.js",
+    "bitvm3/utxo_referee/dlc_oracle_event_store.js"
   ],
   "prepare_timeout": 30,
   "eval_timeout": 300,
@@ -22,4 +27,3 @@
     "network_block_all": true
   }
 }
-

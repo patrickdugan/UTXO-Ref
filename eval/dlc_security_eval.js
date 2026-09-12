@@ -5,6 +5,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
+const os = require('os');
 
 const implementationPath = path.join(
   __dirname,
@@ -21,6 +22,28 @@ const fundingFinalizerPath = path.join(
   'm1_dlc_sign_finalize.js'
 );
 const dlc = require(implementationPath);
+const {
+  ALL_EVIDENCE_KINDS,
+  REQUIRED_EVIDENCE,
+  createDlcContract,
+  signValidationReceipt,
+  transitionDlcContract
+} = require(path.join(__dirname, '..', 'bitvm3', 'utxo_referee', 'dlc_contract_state.js'));
+const { DlcStateStore } = require(path.join(__dirname, '..', 'bitvm3', 'utxo_referee', 'dlc_state_store.js'));
+const {
+  buildThresholdOutcomeSets,
+  combineThresholdAttestations
+} = require(path.join(__dirname, '..', 'bitvm3', 'utxo_referee', 'dlc_threshold_oracle.js'));
+const { validateFundingAuthorization } = require(fundingFinalizerPath);
+const { createDlcCryptoProvider } = require(path.join(__dirname, '..', 'bitvm3', 'utxo_referee', 'dlc_crypto_provider.js'));
+const { DlcOracleEventStore } = require(path.join(__dirname, '..', 'bitvm3', 'utxo_referee', 'dlc_oracle_event_store.js'));
+const validatorKeys = crypto.generateKeyPairSync('ed25519');
+const validatorSpki = validatorKeys.publicKey.export({ format: 'der', type: 'spki' }).toString('base64');
+const validatorKeyId = crypto.createHash('sha256').update(Buffer.from(validatorSpki, 'base64')).digest('hex');
+const validatorPolicy = Object.fromEntries(ALL_EVIDENCE_KINDS.map((kind) => [kind, {
+  keyId: validatorKeyId,
+  publicKeySpki: validatorSpki
+}]));
 
 const PROFILES = {
   lite: { adversarialRuns: 8 },
@@ -56,6 +79,19 @@ function throws(fn, pattern) {
   } catch (error) {
     return pattern.test(error && error.message ? error.message : String(error));
   }
+}
+
+function evidenceFor(contract, stage, idempotencyKey, overrides = {}) {
+  return REQUIRED_EVIDENCE[stage].map((kind) => signValidationReceipt({
+    privateKey: validatorKeys.privateKey,
+    contractId: contract.contractId,
+    contractDigest: contract.contractDigest,
+    from: contract.stage,
+    to: stage,
+    idempotencyKey,
+    kind,
+    digest: overrides[kind] || sha256(`${stage}:${kind}`).toString('hex')
+  }));
 }
 
 const cases = [];
@@ -246,12 +282,209 @@ check('funding finalizer contains no transaction broadcast RPC', 'funding-safety
   return !/['\"]sendrawtransaction['\"]/.test(source);
 });
 
+check('2-of-3 oracle subsets complete only their combined adaptor points', 'threshold-oracle', 12, () => {
+  const outcome = sha256('threshold:yes');
+  const other = sha256('threshold:no');
+  const announcements = [0, 1, 2].map((index) => dlc.buildDlcOracle(
+    scalar(`threshold:${index}:key`),
+    scalar(`threshold:${index}:nonce`),
+    { eventId: 'threshold-eval-event', outcomeMessages: [outcome, other] }
+  ));
+  const pinnedPubkeys = announcements.map((announcement) => announcement.px);
+  const sets = buildThresholdOutcomeSets({ announcements, threshold: 2, pinnedPubkeys, outcomeMsg32: outcome });
+  if (sets.length !== 3) return '2-of-3 did not produce three subsets';
+  const selected = sets[0];
+  const byKey = new Map(announcements.map((announcement) => [announcement.px, announcement]));
+  const attestations = selected.oraclePubkeys.map((key) => dlc.dlcAttest(byKey.get(key), outcome));
+  const combined = combineThresholdAttestations({
+    announcements,
+    threshold: 2,
+    pinnedPubkeys,
+    outcomeMsg32: outcome,
+    attestations,
+    oraclePubkeys: selected.oraclePubkeys
+  });
+  const signerSecret = scalar('threshold:cet-signer');
+  const message = sha256('threshold:cet-message');
+  const presignature = dlc.adaptorSign(signerSecret, message, selected.outcomePoint, sha256('threshold:cet-aux'));
+  const signature = dlc.adaptorComplete(presignature, combined.scalar);
+  return dlc.schnorrVerify(dlc.xOnlyPubkey(signerSecret), message, signature) &&
+    throws(() => combineThresholdAttestations({
+      announcements,
+      threshold: 2,
+      pinnedPubkeys,
+      outcomeMsg32: outcome,
+      attestations: [attestations[0]],
+      oraclePubkeys: [selected.oraclePubkeys[0]]
+    }), /exactly 2/);
+});
+
+check('funding PSBT approval requires the complete ordered state transcript', 'state-machine', 12, () => {
+  const pinnedPubkeys = ['11'.repeat(32), '22'.repeat(32), '33'.repeat(32)];
+  let contract = createDlcContract({
+    contractId: 'eval-contract',
+    network: 'bitcoin-testnet4',
+    contractDigest: sha256('eval-contract').toString('hex'),
+    oraclePolicy: { threshold: 2, total: 3, pinnedPubkeys },
+    validatorPolicy
+  });
+  const skipKey = 'skip-to-funding';
+  if (!throws(() => transitionDlcContract(contract, {
+    to: 'FUNDING_PSBT_APPROVED',
+    idempotencyKey: skipKey,
+    evidence: evidenceFor(contract, 'FUNDING_PSBT_APPROVED', skipKey)
+  }), /invalid DLC transition/)) return 'funding stage skip was accepted';
+  const psbtBytes = Buffer.from('70736274ff01020304', 'hex');
+  const stages = [
+    'AUTHENTICATED_ORACLES',
+    'CANONICAL_CETS_AND_REFUND',
+    'COUNTERPARTY_SIGNATURES_VERIFIED',
+    'LOCAL_SIGNATURES_PERSISTED',
+    'FUNDING_PSBT_APPROVED'
+  ];
+  for (const stage of stages) {
+    const overrides = stage === 'FUNDING_PSBT_APPROVED'
+      ? { funding_psbt_validation: crypto.createHash('sha256').update(psbtBytes).digest('hex') }
+      : {};
+    const idempotencyKey = `eval:${stage}`;
+    contract = transitionDlcContract(contract, {
+      to: stage,
+      idempotencyKey,
+      evidence: evidenceFor(contract, stage, idempotencyKey, overrides)
+    });
+  }
+  const authorization = validateFundingAuthorization(contract, {
+    chain: { network: 'testnet4' },
+    funding: { psbt: psbtBytes.toString('base64') }
+  });
+  return contract.stage === 'FUNDING_PSBT_APPROVED' && authorization.stateRecordHash === contract.recordHash;
+});
+
+check('append-only state store rejects stale competing writes', 'state-persistence', 8, () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'utxoref-dlc-eval-'));
+  try {
+    const store = new DlcStateStore(directory);
+    const contract = createDlcContract({
+      contractId: 'stored-eval-contract',
+      network: 'bitcoin-testnet4',
+      contractDigest: sha256('stored-eval-contract').toString('hex'),
+      oraclePolicy: { threshold: 2, total: 3, pinnedPubkeys: ['11'.repeat(32), '22'.repeat(32), '33'.repeat(32)] },
+      validatorPolicy
+    });
+    store.create(contract);
+    const oracleKey = 'stored:oracles';
+    store.transition(contract.contractId, 0, {
+      to: 'AUTHENTICATED_ORACLES',
+      idempotencyKey: oracleKey,
+      evidence: evidenceFor(contract, 'AUTHENTICATED_ORACLES', oracleKey)
+    });
+    const advanced = store.read(contract.contractId);
+    const cetKey = 'stored:cets';
+    const staleRejected = throws(() => store.transition(contract.contractId, 0, {
+      to: 'CANONICAL_CETS_AND_REFUND',
+      idempotencyKey: cetKey,
+      evidence: evidenceFor(advanced, 'CANONICAL_CETS_AND_REFUND', cetKey)
+    }), /stale DLC state revision/);
+    const chain = store.verifyChain(contract.contractId);
+    return staleRejected && chain.ok && chain.revisions === 2;
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+check('contract state rejects forged and altered validation receipts', 'validator-auth', 10, () => {
+  const contract = createDlcContract({
+    contractId: 'receipt-auth-contract',
+    network: 'bitcoin-testnet4',
+    contractDigest: sha256('receipt-auth-contract').toString('hex'),
+    oraclePolicy: { threshold: 2, total: 3, pinnedPubkeys: ['11'.repeat(32), '22'.repeat(32), '33'.repeat(32)] },
+    validatorPolicy
+  });
+  const idempotencyKey = 'receipt-auth:oracles';
+  const validEvidence = evidenceFor(contract, 'AUTHENTICATED_ORACLES', idempotencyKey);
+  const altered = JSON.parse(JSON.stringify(validEvidence));
+  altered[0].digest = '00'.repeat(32);
+  const alteredRejected = throws(() => transitionDlcContract(contract, {
+    to: 'AUTHENTICATED_ORACLES',
+    idempotencyKey,
+    evidence: altered
+  }), /signature is invalid/);
+  const flagRejected = throws(() => transitionDlcContract(contract, {
+    to: 'AUTHENTICATED_ORACLES',
+    idempotencyKey,
+    evidence: [{
+      kind: 'oracle_policy',
+      digest: sha256('forged-flag').toString('hex'),
+      verified: true
+    }]
+  }), /pinned|signature/);
+  return alteredRejected && flagRejected;
+});
+
+check('crypto provider defaults closed and forbids mainnet JavaScript signing', 'signer-boundary', 8, () => {
+  const disabled = createDlcCryptoProvider({ network: 'bitcoin-testnet4' });
+  const explicit = createDlcCryptoProvider({
+    network: 'bitcoin-testnet4',
+    mode: 'experimental-js',
+    allowExperimental: true
+  });
+  return disabled.mode === 'disabled' && Object.keys(disabled.operations).length === 0 &&
+    explicit.productionReady === false && explicit.capabilities.nativeSecretArithmetic === false &&
+    throws(() => createDlcCryptoProvider({
+      network: 'bitcoin-mainnet',
+      mode: 'experimental-js',
+      allowExperimental: true
+    }), /mainnet/);
+});
+
+check('sealed oracle nonce state survives restart and conflicting outcome fails', 'oracle-persistence', 12, () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'utxoref-dlc-oracle-eval-'));
+  const wrappingKey = sha256('oracle-eval-wrapping-key');
+  try {
+    const first = new DlcOracleEventStore({
+      baseDirectory: directory,
+      wrappingKey,
+      network: 'bitcoin-testnet4'
+    });
+    const yes = sha256('persistent-eval:yes');
+    const no = sha256('persistent-eval:no');
+    const announcement = first.createEvent({
+      oracleSecret: scalar('persistent-eval:key'),
+      nonceSeed: scalar('persistent-eval:nonce'),
+      eventId: 'persistent-eval-event',
+      outcomeMessages: [yes, no]
+    });
+    first.close();
+    const restarted = new DlcOracleEventStore({
+      baseDirectory: directory,
+      wrappingKey,
+      network: 'bitcoin-testnet4'
+    });
+    const attestation = restarted.attest({
+      oraclePubkey: announcement.px,
+      eventId: announcement.eventId,
+      outcomeMsg32: yes
+    });
+    const valid = dlc.verifyDlcAttestation(announcement, yes, attestation);
+    const conflictRejected = throws(() => restarted.attest({
+      oraclePubkey: announcement.px,
+      eventId: announcement.eventId,
+      outcomeMsg32: no
+    }), /conflicting outcome/);
+    const chain = restarted.verifyChain({ oraclePubkey: announcement.px, eventId: announcement.eventId });
+    restarted.close();
+    return valid && conflictRejected && chain.ok && chain.revisions === 2;
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+});
+
 const earned = cases.filter((test) => test.passed).reduce((sum, test) => sum + test.points, 0);
 const possible = cases.reduce((sum, test) => sum + test.points, 0);
 const score = earned / possible;
 const report = {
   benchmark: 'utxoref-dlc-security',
-  version: 1,
+  version: 2,
   profile: profileName,
   seed,
   score,
@@ -277,4 +510,3 @@ if (jsonOnly) {
 }
 
 if (requirePerfect && report.failed !== 0) process.exitCode = 1;
-

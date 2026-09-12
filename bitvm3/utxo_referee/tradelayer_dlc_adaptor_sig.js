@@ -543,6 +543,130 @@ function verifyDlcAttestation(announcement, outcomeMsg32, attestationScalar) {
   }
 }
 
+function requireWrappingKey(wrappingKey) {
+  return requireBuffer(wrappingKey, 32, 'wrappingKey');
+}
+
+function signerStateAad(announcement) {
+  return Buffer.concat([
+    oracleAnnouncementDigest(announcement),
+    Buffer.from(announcement.signature, 'hex')
+  ]);
+}
+
+function sealDlcOracleSignerState(announcement, wrappingKey) {
+  requireWrappingKey(wrappingKey);
+  if (!verifyDlcOracleAnnouncement(announcement)) throw new Error('cannot seal an invalid oracle announcement');
+  const state = oracleStates.get(announcement);
+  if (!state) throw new Error('oracle signer state is unavailable');
+  const payload = {
+    kind: 'tradelayer_dlc_oracle_signer_state_v1',
+    announcementDigest: oracleAnnouncementDigest(announcement).toString('hex'),
+    x: bytes32(state.x).toString('hex'),
+    k: bytes32(state.k).toString('hex'),
+    attestedMessage: state.attestedMessage,
+    attestation: state.attestation === null ? null : bytes32(state.attestation).toString('hex')
+  };
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv('aes-256-gcm', wrappingKey, iv, { authTagLength: 16 });
+  cipher.setAAD(signerStateAad(announcement));
+  const ciphertext = Buffer.concat([cipher.update(JSON.stringify(payload), 'utf8'), cipher.final()]);
+  return Object.freeze({
+    kind: 'tradelayer_dlc_oracle_signer_sealed_v1',
+    cipher: 'aes-256-gcm',
+    iv: iv.toString('hex'),
+    ciphertext: ciphertext.toString('hex'),
+    authTag: cipher.getAuthTag().toString('hex')
+  });
+}
+
+function restoreDlcOracleSignerState(announcementInput, sealedState, wrappingKey) {
+  requireWrappingKey(wrappingKey);
+  if (!announcementInput || typeof announcementInput !== 'object') throw new Error('oracle announcement is required');
+  const announcement = Object.freeze({
+    ...announcementInput,
+    outcomeMessages: Object.freeze([...(announcementInput.outcomeMessages || [])])
+  });
+  if (!verifyDlcOracleAnnouncement(announcement)) throw new Error('cannot restore an invalid oracle announcement');
+  if (!sealedState || sealedState.kind !== 'tradelayer_dlc_oracle_signer_sealed_v1' ||
+      sealedState.cipher !== 'aes-256-gcm' ||
+      typeof sealedState.iv !== 'string' || !/^[0-9a-f]{24}$/.test(sealedState.iv) ||
+      typeof sealedState.authTag !== 'string' || !/^[0-9a-f]{32}$/.test(sealedState.authTag) ||
+      typeof sealedState.ciphertext !== 'string' || !/^[0-9a-f]+$/.test(sealedState.ciphertext)) {
+    throw new Error('invalid sealed oracle signer state');
+  }
+  let plaintext;
+  try {
+    const decipher = crypto.createDecipheriv(
+      'aes-256-gcm',
+      wrappingKey,
+      Buffer.from(sealedState.iv, 'hex'),
+      { authTagLength: 16 }
+    );
+    decipher.setAAD(signerStateAad(announcement));
+    decipher.setAuthTag(Buffer.from(sealedState.authTag, 'hex'));
+    plaintext = Buffer.concat([
+      decipher.update(Buffer.from(sealedState.ciphertext, 'hex')),
+      decipher.final()
+    ]);
+  } catch (_error) {
+    throw new Error('sealed oracle signer state authentication failed');
+  }
+  let payload;
+  try {
+    payload = JSON.parse(plaintext.toString('utf8'));
+  } finally {
+    plaintext.fill(0);
+  }
+  if (!payload || payload.kind !== 'tradelayer_dlc_oracle_signer_state_v1' ||
+      payload.announcementDigest !== oracleAnnouncementDigest(announcement).toString('hex')) {
+    throw new Error('sealed signer state does not match the announcement');
+  }
+  const x = parseHexInteger(payload.x, 32, N, 'sealed.x');
+  const k = parseHexInteger(payload.k, 32, N, 'sealed.k');
+  if (x === 0n || k === 0n) throw new Error('sealed signer scalars must be non-zero');
+  const publicPoint = pointMul(G, x);
+  const noncePoint = pointMul(G, k);
+  if (!publicPoint || !noncePoint || !hasEvenY(publicPoint) || !hasEvenY(noncePoint) ||
+      bytes32(publicPoint.x).toString('hex') !== announcement.px ||
+      bytes32(noncePoint.x).toString('hex') !== announcement.rx) {
+    throw new Error('sealed signer scalars do not match the announcement');
+  }
+  let attestedMessage = null;
+  let attestation = null;
+  if (payload.attestedMessage !== null || payload.attestation !== null) {
+    if (typeof payload.attestedMessage !== 'string' ||
+        !announcement.outcomeMessages.includes(payload.attestedMessage)) {
+      throw new Error('sealed attested outcome is not committed');
+    }
+    attestation = parseHexInteger(payload.attestation, 32, N, 'sealed.attestation');
+    if (attestation === 0n || !verifyDlcAttestation(
+      announcement,
+      Buffer.from(payload.attestedMessage, 'hex'),
+      attestation
+    )) {
+      throw new Error('sealed oracle attestation is invalid');
+    }
+    const challengeScalar = challenge(
+      parseHexInteger(announcement.rx, 32, P, 'announcement.rx'),
+      parseHexInteger(announcement.px, 32, P, 'announcement.px'),
+      Buffer.from(payload.attestedMessage, 'hex')
+    );
+    if (mod(k + challengeScalar * x, N) !== attestation) {
+      throw new Error('sealed attestation does not match signer scalars');
+    }
+    attestedMessage = payload.attestedMessage;
+  }
+  oracleStates.set(announcement, {
+    x,
+    k,
+    allowed: new Set(announcement.outcomeMessages),
+    attestedMessage,
+    attestation
+  });
+  return announcement;
+}
+
 module.exports = {
   N,
   G,
@@ -564,6 +688,8 @@ module.exports = {
   dlcOutcomePoint,
   dlcAttest,
   verifyDlcAttestation,
+  sealDlcOracleSignerState,
+  restoreDlcOracleSignerState,
   bytes32,
   bufToBig
 };

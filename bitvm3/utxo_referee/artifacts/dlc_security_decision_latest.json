@@ -1,5 +1,5 @@
 {
-  "schema": "utxoref_dlc_security_decision_v1",
+  "schema": "utxoref_dlc_security_decision_v2",
   "capturedAt": "2026-09-11",
   "decision": "retain_dlc_protocol_rebuild_implementation",
   "productionDlcEnabled": false,
@@ -16,15 +16,21 @@
     "single_outcome_idempotent_attestation",
     "canonical_parsing_and_fail_closed_verification",
     "verified_adaptor_secret_extraction",
-    "disable_milestone_funding_broadcast"
+    "disable_milestone_funding_broadcast",
+    "enumerated_two_of_three_oracle_combinations",
+    "signed_hash_chained_contract_state",
+    "append_only_revision_store",
+    "exact_psbt_wallet_signing_gate",
+    "disabled_by_default_crypto_provider",
+    "authenticated_encrypted_oracle_restart_state"
   ],
   "productionBlockers": [
     "replace_javascript_bigint_signer_with_reviewed_native_secp256k1_implementation",
     "isolate_keys_from_agent_processes",
-    "persist_nonce_and_event_state_atomically_across_restarts",
+    "integrate_nonce_uniqueness_with_native_signer_failover_and_backup_restore",
     "use_interoperable_authenticated_dlc_messages",
     "verify_all_cet_and_refund_signatures_before_funding",
-    "adopt_threshold_multi_oracle_policy",
+    "operate_independent_threshold_oracles_with_interoperable_messages",
     "complete_fee_bump_reorg_and_watchtower_testing"
   ],
   "evidence": {
