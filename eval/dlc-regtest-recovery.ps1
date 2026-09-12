@@ -52,11 +52,18 @@ function Invoke-BitcoinCli {
 }
 
 function Start-RegtestNode {
-  param([switch]$ClearMempool)
+  param([switch]$ClearMempool, [decimal]$MinRelaySatsPerVb = 1)
+  if ($MinRelaySatsPerVb -lt 1 -or $MinRelaySatsPerVb -gt 1000) {
+    throw 'regtest minimum relay fee must be 1..1000 sat/vB'
+  }
+  $minRelayBtcPerKvb = ($MinRelaySatsPerVb * [decimal]0.00001000).ToString(
+    '0.00000000',
+    [Globalization.CultureInfo]::InvariantCulture
+  )
   $arguments = @(
     '-regtest', "-datadir=$script:dataDirectory", '-server=1', "-rpcport=$script:RpcPort",
     "-port=$script:P2pPort", '-listen=0', '-discover=0', '-dnsseed=0',
-    '-fallbackfee=0.00001000', '-txindex=1', '-printtoconsole=0'
+    '-fallbackfee=0.00001000', "-minrelaytxfee=$minRelayBtcPerKvb", '-txindex=1', '-printtoconsole=0'
   )
   if ($ClearMempool) { $arguments += '-persistmempool=0' }
   $script:nodeProcess = Start-Process -FilePath $script:bitcoind -ArgumentList $arguments -WindowStyle Hidden -PassThru
@@ -150,9 +157,13 @@ try {
   $highChildHex = (Invoke-BitcoinCli @('gettransaction', $highChild.txid) -Wallet | ConvertFrom-Json).hex
 
   Stop-RegtestNode
-  Start-RegtestNode -ClearMempool
+  Start-RegtestNode -ClearMempool -MinRelaySatsPerVb 2
   $mempoolBefore = ConvertFrom-JsonArray (Invoke-BitcoinCli @('getrawmempool'))
   Require-Condition ($mempoolBefore.Count -eq 0) 'regtest mempool was not empty after the controlled restart'
+  $parentOnlyJson = ConvertTo-Json -InputObject @($parentWalletTx.hex) -Compress
+  $parentOnly = Invoke-BitcoinCli @('testmempoolaccept', $parentOnlyJson) | ConvertFrom-Json
+  Require-Condition ($parentOnly[0].allowed -eq $false) 'low-fee parent unexpectedly passed the strict relay floor alone'
+  Require-Condition ($parentOnly[0].'reject-reason' -eq 'min relay fee not met') 'parent failed for a reason other than the strict relay floor'
   $lowPackageJson = @($parentWalletTx.hex, $lowChildHex) | ConvertTo-Json -Compress
   $lowPackage = Invoke-BitcoinCli @('submitpackage', $lowPackageJson) | ConvertFrom-Json
   Require-Condition ($lowPackage.package_msg -eq 'success') 'parent plus low-fee child package was rejected'
@@ -195,6 +206,9 @@ try {
     ports = [ordered]@{ rpc = $RpcPort; p2p = $P2pPort }
     anchor = [ordered]@{ txid = $parentResult.txid; vout = $anchorVout; amountSats = 330; address = $anchorAddress }
     package = [ordered]@{
+      strictRelayFloorSatsPerVb = 2
+      parentStandaloneAllowed = $parentOnly[0].allowed
+      parentStandaloneReject = $parentOnly[0].'reject-reason'
       lowChildTxid = $lowChild.txid
       highChildTxid = $highChild.txid
       lowPackageMessage = $lowPackage.package_msg
@@ -215,6 +229,7 @@ try {
     }
     assertions = [ordered]@{
       exactOwnedAnchor = $true
+      packageFeeRescuedParentBelowRelayFloor = $true
       packageAccepted = $true
       rbfRecoveryAccepted = $true
       sixBlockDisconnectRecoveredPackage = $true
