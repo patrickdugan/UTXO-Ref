@@ -421,6 +421,11 @@ properties, binds own `__proto__` data, and rejects accessors, symbol fields,
 exotic prototypes, cycles, negative zero, excess depth, and excess size. Every
 normalized object and array is deeply frozen before it reaches a signature or
 hash boundary.
+Boundary V60 rejects Proxy inputs before invoking any object trap and encodes
+canonical containers with an internal recursive encoder. Inherited or polluted
+`toJSON` hooks are never consulted, so application-wide prototype mutation
+cannot execute callbacks or replace DLC signature or hash inputs through JSON
+serialization hooks.
 The host accepts only bounded regular runtime files whose resolved paths do not
 traverse filesystem links. It hashes the complete runtime closure before and
 after every signer execution, so deletion or mutation during the process

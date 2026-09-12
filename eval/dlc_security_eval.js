@@ -31,6 +31,10 @@ const {
   transitionDlcContract
 } = require(path.join(__dirname, '..', 'bitvm3', 'utxo_referee', 'dlc_contract_state.js'));
 const { DlcStateStore } = require(path.join(__dirname, '..', 'bitvm3', 'utxo_referee', 'dlc_state_store.js'));
+const {
+  createDlcJournalCheckpoint,
+  normalizeDlcJournalCheckpoint
+} = require(path.join(__dirname, '..', 'bitvm3', 'utxo_referee', 'dlc_journal_checkpoint.js'));
 const { readBoundedJson, writeJsonAppendOnce } = require(path.join(
   __dirname, '..', 'bitvm3', 'utxo_referee', 'dlc_durable_json_store.js'
 ));
@@ -318,6 +322,54 @@ check('signed canonical data rejects hidden, effectful, and ambiguous values', '
     throws(() => canonicalJson(cyclic), /cycle/) &&
     throws(() => canonicalJson(tooDeep), /depth 64/) &&
     Object.isFrozen(receipt.metadata) && Object.isFrozen(receipt.metadata.nested);
+});
+
+check('canonical encoding executes no inherited hooks or Proxy traps', 'canonical-data', 12, () => {
+  const objectHook = Object.getOwnPropertyDescriptor(Object.prototype, 'toJSON');
+  const arrayHook = Object.getOwnPropertyDescriptor(Array.prototype, 'toJSON');
+  let hookCalls = 0;
+  let hookSafe = false;
+  try {
+    Object.defineProperty(Object.prototype, 'toJSON', {
+      configurable: true,
+      value() { hookCalls++; return { forged: true }; }
+    });
+    Object.defineProperty(Array.prototype, 'toJSON', {
+      configurable: true,
+      value() { hookCalls++; return ['forged']; }
+    });
+    hookSafe = canonicalJson({ a: [1, { b: 2 }] }) === '{"a":[1,{"b":2}]}' && hookCalls === 0;
+  } finally {
+    if (objectHook) Object.defineProperty(Object.prototype, 'toJSON', objectHook);
+    else delete Object.prototype.toJSON;
+    if (arrayHook) Object.defineProperty(Array.prototype, 'toJSON', arrayHook);
+    else delete Array.prototype.toJSON;
+  }
+
+  let proxyTraps = 0;
+  const handler = {
+    getPrototypeOf(target) { proxyTraps++; return Reflect.getPrototypeOf(target); },
+    ownKeys(target) { proxyTraps++; return Reflect.ownKeys(target); },
+    getOwnPropertyDescriptor(target, key) {
+      proxyTraps++;
+      return Reflect.getOwnPropertyDescriptor(target, key);
+    }
+  };
+  const canonicalProxyRejected = throws(
+    () => canonicalJson(new Proxy({ value: 1 }, handler)),
+    /Proxy object/
+  );
+  const checkpoint = createDlcJournalCheckpoint({
+    storeKind: 'contract-state',
+    storeKey: sha256('eval-proxy-checkpoint-store').toString('hex'),
+    recordCount: 1,
+    headRecordHash: sha256('eval-proxy-checkpoint-head').toString('hex')
+  });
+  const checkpointProxyRejected = throws(
+    () => normalizeDlcJournalCheckpoint(new Proxy(checkpoint, handler)),
+    /invalid DLC journal checkpoint/
+  );
+  return hookSafe && canonicalProxyRejected && checkpointProxyRejected && proxyTraps === 0;
 });
 
 check('extraction rejects a forged completed signature', 'extraction', 8, () => {
@@ -2022,7 +2074,7 @@ const possible = cases.reduce((sum, test) => sum + test.points, 0);
 const score = earned / possible;
 const report = {
   benchmark: 'utxoref-dlc-security',
-  version: 29,
+  version: 30,
   profile: profileName,
   seed,
   score,

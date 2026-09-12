@@ -69,6 +69,10 @@ const {
 } = require('./dlc_peer_transcript');
 const { DlcPeerSessionStore } = require('./dlc_peer_session_store');
 const { DlcWatchtowerJournal, contractKey: watchtowerContractKey } = require('./dlc_watchtower_journal');
+const {
+  createDlcJournalCheckpoint,
+  normalizeDlcJournalCheckpoint
+} = require('./dlc_journal_checkpoint');
 const { settlementAnchor, evaluateDlcAnchorRecovery } = require('./dlc_anchor_recovery_guard');
 const { validateFundingPrebroadcastPolicy } = require('./dlc_funding_prebroadcast_guard');
 const { validateExecutionPrebroadcastPolicy } = require('./dlc_execution_prebroadcast_guard');
@@ -286,6 +290,49 @@ test('canonical signed data rejects effectful and ambiguous JavaScript values', 
   });
   assert(Object.isFrozen(receipt.metadata) && Object.isFrozen(receipt.metadata.nested),
     'signed metadata was not deeply frozen');
+});
+
+test('canonical signed data ignores inherited JSON hooks and rejects proxies without traps', () => {
+  const objectHook = Object.getOwnPropertyDescriptor(Object.prototype, 'toJSON');
+  const arrayHook = Object.getOwnPropertyDescriptor(Array.prototype, 'toJSON');
+  let hookCalls = 0;
+  try {
+    Object.defineProperty(Object.prototype, 'toJSON', {
+      configurable: true,
+      value() { hookCalls++; return { forged: true }; }
+    });
+    Object.defineProperty(Array.prototype, 'toJSON', {
+      configurable: true,
+      value() { hookCalls++; return ['forged']; }
+    });
+    assert(canonicalJson({ a: [1, { b: 2 }] }) === '{"a":[1,{"b":2}]}',
+      'prototype toJSON hook changed canonical output');
+    assert(hookCalls === 0, 'canonical encoding executed an inherited toJSON hook');
+  } finally {
+    if (objectHook) Object.defineProperty(Object.prototype, 'toJSON', objectHook);
+    else delete Object.prototype.toJSON;
+    if (arrayHook) Object.defineProperty(Array.prototype, 'toJSON', arrayHook);
+    else delete Array.prototype.toJSON;
+  }
+
+  let proxyTraps = 0;
+  const handler = {
+    getPrototypeOf(target) { proxyTraps++; return Reflect.getPrototypeOf(target); },
+    ownKeys(target) { proxyTraps++; return Reflect.ownKeys(target); },
+    getOwnPropertyDescriptor(target, key) {
+      proxyTraps++;
+      return Reflect.getOwnPropertyDescriptor(target, key);
+    }
+  };
+  expectThrow(() => canonicalJson(new Proxy({ value: 1 }, handler)), /Proxy object/);
+  const checkpoint = createDlcJournalCheckpoint({
+    storeKind: 'contract-state',
+    storeKey: digest('proxy-checkpoint-store'),
+    recordCount: 1,
+    headRecordHash: digest('proxy-checkpoint-head')
+  });
+  expectThrow(() => normalizeDlcJournalCheckpoint(new Proxy(checkpoint, handler)), /invalid DLC journal checkpoint/);
+  assert(proxyTraps === 0, 'Proxy trap executed before rejection');
 });
 
 function initialContract(contractId = 'contract-1') {

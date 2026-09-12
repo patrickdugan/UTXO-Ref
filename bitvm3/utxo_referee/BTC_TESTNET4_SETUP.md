@@ -170,6 +170,10 @@ receipts, peer transcripts, contract state, and durable records. It snapshots
 only enumerable data properties on dense plain objects and arrays, deeply
 freezes the result, and rejects accessors, symbols, sparse arrays, exotic
 prototypes, cycles, negative zero, and oversized or over-deep input.
+Boundary V60 also rejects JavaScript Proxy objects before any Proxy trap can
+run. Canonical object and array encoding does not call inherited `toJSON`
+methods, preventing prototype pollution elsewhere in a host process from
+changing signed or hashed DLC data.
 
 ## Agent isolation
 

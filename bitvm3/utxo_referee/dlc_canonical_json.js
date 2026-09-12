@@ -1,5 +1,7 @@
 'use strict';
 
+const { types: utilTypes } = require('util');
+
 const MAX_CANONICAL_DEPTH = 64;
 const MAX_CANONICAL_NODES = 65536;
 const MAX_CANONICAL_STRING_CODE_UNITS = 16 * 1024 * 1024;
@@ -43,6 +45,7 @@ function normalize(value, path, depth, state) {
   if (!value || typeof value !== 'object') {
     throw new Error(`${path} contains unsupported data`);
   }
+  if (utilTypes.isProxy(value)) throw new Error(`${path} must not be a Proxy object`);
   if (state.ancestors.has(value)) throw new Error(`${path} contains a cycle`);
 
   if (Array.isArray(value)) {
@@ -121,8 +124,29 @@ function canonicalize(value, path = '$') {
   });
 }
 
+function encodeCanonical(value) {
+  if (value === null) return 'null';
+  if (typeof value === 'boolean') return value ? 'true' : 'false';
+  if (typeof value === 'string' || typeof value === 'number') return JSON.stringify(value);
+  if (Array.isArray(value)) {
+    const items = new Array(value.length);
+    for (let index = 0; index < value.length; index++) items[index] = encodeCanonical(value[index]);
+    return `[${items.join(',')}]`;
+  }
+  const descriptors = Object.getOwnPropertyDescriptors(value);
+  const names = Object.keys(descriptors).sort();
+  const members = new Array(names.length);
+  for (let index = 0; index < names.length; index++) {
+    const name = names[index];
+    members[index] = `${JSON.stringify(name)}:${encodeCanonical(descriptors[name].value)}`;
+  }
+  return `{${members.join(',')}}`;
+}
+
 function canonicalJson(value) {
-  const encoded = JSON.stringify(canonicalize(value));
+  // Serialize the frozen snapshot directly so inherited or polluted toJSON
+  // hooks cannot execute or replace signed data.
+  const encoded = encodeCanonical(canonicalize(value));
   if (Buffer.byteLength(encoded, 'utf8') > MAX_CANONICAL_JSON_BYTES) {
     throw new Error(`canonical JSON exceeds ${MAX_CANONICAL_JSON_BYTES} bytes`);
   }

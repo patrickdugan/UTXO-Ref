@@ -1,6 +1,7 @@
 'use strict';
 
 const crypto = require('crypto');
+const { types: utilTypes } = require('util');
 const { canonicalJson } = require('./dlc_contract_state');
 
 const KIND = 'utxoref_dlc_journal_checkpoint_v1';
@@ -35,7 +36,7 @@ function checkpointHash(checkpoint) {
 }
 
 function normalizeDlcJournalCheckpoint(checkpoint) {
-  if (!checkpoint || typeof checkpoint !== 'object' || Array.isArray(checkpoint) ||
+  if (!checkpoint || typeof checkpoint !== 'object' || utilTypes.isProxy(checkpoint) || Array.isArray(checkpoint) ||
       ![Object.prototype, null].includes(Object.getPrototypeOf(checkpoint))) {
     throw new Error('invalid DLC journal checkpoint');
   }
