@@ -20,7 +20,11 @@ const {
   combineThresholdAttestations
 } = require('./dlc_threshold_oracle');
 const { validateFundingAuthorization } = require('./m1_dlc_sign_finalize');
-const { createDlcCryptoProvider, requireDlcSigningProvider } = require('./dlc_crypto_provider');
+const {
+  createDlcCryptoProvider,
+  nativeCapabilityAttestationPayload,
+  requireDlcSigningProvider
+} = require('./dlc_crypto_provider');
 const { DlcOracleEventStore } = require('./dlc_oracle_event_store');
 const { serializeUnsignedTx, outpoint, bip341SighashDefault } = require('./tradelayer_taproot');
 const {
@@ -286,6 +290,66 @@ test('native provider rejects incomplete security capability claims', () => {
     mode: 'native-isolated',
     implementation: { capabilities: { apiVersion: 1 } }
   }), /capability manifest/);
+});
+
+test('native provider requires an operator-pinned audit signature over its exact binary capabilities', () => {
+  const auditKey = crypto.generateKeyPairSync('ed25519');
+  const auditDer = auditKey.publicKey.export({ format: 'der', type: 'spki' });
+  const auditKeyId = crypto.createHash('sha256').update(auditDer).digest('hex');
+  const manifest = {
+    apiVersion: 1,
+    curve: 'secp256k1',
+    adaptorScheme: 'bip340-schnorr',
+    nativeSecretArithmetic: true,
+    constantTimeSecretOperations: true,
+    secretZeroization: true,
+    processIsolated: true,
+    binaryDigest: digest('native-provider:binary'),
+    auditDigest: digest('native-provider:audit')
+  };
+  const attestation = {
+    keyId: auditKeyId,
+    signature: crypto.sign(null, nativeCapabilityAttestationPayload(manifest), auditKey.privateKey).toString('base64')
+  };
+  const implementation = {
+    capabilities: { ...manifest, attestation },
+    adaptorSign() {},
+    adaptorVerify() {},
+    adaptorComplete() {},
+    adaptorExtract() {},
+    schnorrVerify() {}
+  };
+  const trustedAuditKeys = [{ keyId: auditKeyId, publicKeySpki: auditDer.toString('base64') }];
+  const provider = createDlcCryptoProvider({
+    network: 'bitcoin-testnet4',
+    mode: 'native-isolated',
+    implementation,
+    trustedAuditKeys
+  });
+  assert(provider.capabilities.attestationVerified === true && provider.productionReady === false,
+    'verified native candidate overstated production readiness or lost attestation state');
+  expectThrow(() => createDlcCryptoProvider({
+    network: 'bitcoin-testnet4',
+    mode: 'native-isolated',
+    implementation: { ...implementation, capabilities: { ...implementation.capabilities, binaryDigest: digest('tampered-binary') } },
+    trustedAuditKeys
+  }), /attestation is invalid/);
+  expectThrow(() => createDlcCryptoProvider({
+    network: 'bitcoin-testnet4',
+    mode: 'native-isolated',
+    implementation: { ...implementation, capabilities: manifest },
+    trustedAuditKeys
+  }), /lacks a trusted audit attestation/);
+  const untrustedKey = crypto.generateKeyPairSync('ed25519').publicKey.export({ format: 'der', type: 'spki' });
+  expectThrow(() => createDlcCryptoProvider({
+    network: 'bitcoin-testnet4',
+    mode: 'native-isolated',
+    implementation,
+    trustedAuditKeys: [{
+      keyId: crypto.createHash('sha256').update(untrustedKey).digest('hex'),
+      publicKeySpki: untrustedKey.toString('base64')
+    }]
+  }), /lacks a trusted audit attestation/);
 });
 
 test('sealed oracle event survives restart and persists before attestation', () => {

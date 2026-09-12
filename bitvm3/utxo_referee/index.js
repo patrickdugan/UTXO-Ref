@@ -126,7 +126,7 @@ module.exports = {
   // for production; these interfaces enforce transcript, threshold-oracle,
   // and persistence gates on regtest and Bitcoin testnet4.
   dlc: Object.freeze({
-    securityBoundaryVersion: 11,
+    securityBoundaryVersion: 12,
     createContract: dlcContractState.createDlcContract,
     validateContract: dlcContractState.validateDlcContract,
     transitionContract: dlcContractState.transitionDlcContract,
@@ -154,6 +154,13 @@ module.exports = {
       exactTxidAndWtxid: true,
       stableMempoolSequence: true,
       failClosedOnCoreRejection: true
+    }),
+    signerPolicy: Object.freeze({
+      nativeCapabilityAttestation: 'ed25519',
+      operatorPinnedAuditKeys: true,
+      binaryDigestBound: true,
+      auditDigestBound: true,
+      productionReady: false
     }),
     validateCetAdaptorSignatures: dlcSignatureValidator.validateCetAdaptorSignatures,
     validateRefundSignature: dlcSignatureValidator.validateRefundSignature,

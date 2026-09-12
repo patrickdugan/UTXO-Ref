@@ -35,7 +35,10 @@ const {
   combineThresholdAttestations
 } = require(path.join(__dirname, '..', 'bitvm3', 'utxo_referee', 'dlc_threshold_oracle.js'));
 const { validateFundingAuthorization } = require(fundingFinalizerPath);
-const { createDlcCryptoProvider } = require(path.join(__dirname, '..', 'bitvm3', 'utxo_referee', 'dlc_crypto_provider.js'));
+const {
+  createDlcCryptoProvider,
+  nativeCapabilityAttestationPayload
+} = require(path.join(__dirname, '..', 'bitvm3', 'utxo_referee', 'dlc_crypto_provider.js'));
 const { DlcOracleEventStore } = require(path.join(__dirname, '..', 'bitvm3', 'utxo_referee', 'dlc_oracle_event_store.js'));
 const {
   P2A_SCRIPT_PUBKEY_HEX,
@@ -448,15 +451,53 @@ check('contract state rejects forged and altered validation receipts', 'validato
   return alteredRejected && flagRejected;
 });
 
-check('crypto provider defaults closed and forbids mainnet JavaScript signing', 'signer-boundary', 8, () => {
+check('crypto provider defaults closed and requires a pinned native audit attestation', 'signer-boundary', 12, () => {
   const disabled = createDlcCryptoProvider({ network: 'bitcoin-testnet4' });
   const explicit = createDlcCryptoProvider({
     network: 'bitcoin-testnet4',
     mode: 'experimental-js',
     allowExperimental: true
   });
+  const auditKey = crypto.generateKeyPairSync('ed25519');
+  const auditDer = auditKey.publicKey.export({ format: 'der', type: 'spki' });
+  const auditKeyId = crypto.createHash('sha256').update(auditDer).digest('hex');
+  const manifest = {
+    apiVersion: 1,
+    curve: 'secp256k1',
+    adaptorScheme: 'bip340-schnorr',
+    nativeSecretArithmetic: true,
+    constantTimeSecretOperations: true,
+    secretZeroization: true,
+    processIsolated: true,
+    binaryDigest: sha256('signer-eval:binary').toString('hex'),
+    auditDigest: sha256('signer-eval:audit').toString('hex')
+  };
+  const implementation = {
+    capabilities: {
+      ...manifest,
+      attestation: {
+        keyId: auditKeyId,
+        signature: crypto.sign(null, nativeCapabilityAttestationPayload(manifest), auditKey.privateKey).toString('base64')
+      }
+    },
+    adaptorSign() {}, adaptorVerify() {}, adaptorComplete() {}, adaptorExtract() {}, schnorrVerify() {}
+  };
+  const trustedAuditKeys = [{ keyId: auditKeyId, publicKeySpki: auditDer.toString('base64') }];
+  const native = createDlcCryptoProvider({
+    network: 'bitcoin-testnet4', mode: 'native-isolated', implementation, trustedAuditKeys
+  });
+  const tamperedRejected = throws(() => createDlcCryptoProvider({
+    network: 'bitcoin-testnet4',
+    mode: 'native-isolated',
+    implementation: {
+      ...implementation,
+      capabilities: { ...implementation.capabilities, binaryDigest: sha256('signer-eval:tampered').toString('hex') }
+    },
+    trustedAuditKeys
+  }), /attestation is invalid/);
   return disabled.mode === 'disabled' && Object.keys(disabled.operations).length === 0 &&
     explicit.productionReady === false && explicit.capabilities.nativeSecretArithmetic === false &&
+    native.capabilities.attestationVerified === true && native.productionReady === false && tamperedRejected &&
     throws(() => createDlcCryptoProvider({
       network: 'bitcoin-mainnet',
       mode: 'experimental-js',
@@ -1189,7 +1230,7 @@ const possible = cases.reduce((sum, test) => sum + test.points, 0);
 const score = earned / possible;
 const report = {
   benchmark: 'utxoref-dlc-security',
-  version: 10,
+  version: 11,
   profile: profileName,
   seed,
   score,

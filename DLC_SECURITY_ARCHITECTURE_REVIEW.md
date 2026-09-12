@@ -286,6 +286,11 @@ large agent swarm.
   [p2pderivatives/rust-dlc](https://github.com/p2pderivatives/rust-dlc).
 - Run party and oracle keys in separate signer processes or hardware-backed
   services. Agents receive typed requests and public results only.
+- The local provider boundary now rejects self-declared native capabilities. An
+  operator-pinned Ed25519 audit key must sign the exact binary digest, audit
+  digest, and constant-time, zeroization, and process-isolation manifest. This
+  authenticates a reviewed candidate; it does not replace native implementation
+  review, reproducible builds, or runtime isolation checks.
 - Persist event creation and nonce consumption atomically before returning an
   announcement or attestation. The experimental encrypted event store now
   covers a shared local store across restart and concurrent processes; the
