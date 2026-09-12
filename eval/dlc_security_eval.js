@@ -42,6 +42,9 @@ const {
   nativeCapabilityAttestationPayload
 } = require(path.join(__dirname, '..', 'bitvm3', 'utxo_referee', 'dlc_crypto_provider.js'));
 const { DlcOracleEventStore } = require(path.join(__dirname, '..', 'bitvm3', 'utxo_referee', 'dlc_oracle_event_store.js'));
+const { DlcSigningAuthorizationStore } = require(path.join(
+  __dirname, '..', 'bitvm3', 'utxo_referee', 'dlc_signing_authorization_store.js'
+));
 const {
   P2A_SCRIPT_PUBKEY_HEX,
   parseCanonicalUnsignedTransaction,
@@ -454,11 +457,14 @@ check('contract state rejects forged and altered validation receipts', 'validato
 });
 
 check('crypto provider requires audited code and a one-shot signed contract authorization', 'signer-boundary', 18, () => {
+  const authorizationDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'utxoref-signer-eval-'));
+  try {
   const disabled = createDlcCryptoProvider({ network: 'bitcoin-testnet4' });
   const explicit = createDlcCryptoProvider({
     network: 'bitcoin-testnet4',
     mode: 'experimental-js',
-    allowExperimental: true
+    allowExperimental: true,
+    authorizationStore: new DlcSigningAuthorizationStore(authorizationDirectory)
   });
   const auditKey = crypto.generateKeyPairSync('ed25519');
   const auditDer = auditKey.publicKey.export({ format: 'der', type: 'spki' });
@@ -527,19 +533,51 @@ check('crypto provider requires audited code and a one-shot signed contract auth
   const presignature = session.execute(signerSecret, sha256('signer-eval:aux'));
   const signed = dlc.adaptorVerify(dlc.xOnlyPubkey(signerSecret), Buffer.from(sighash, 'hex'), presignature);
   const replayRejected = throws(() => session.execute(signerSecret, sha256('signer-eval:replay')), /already consumed/);
+  const restartedProvider = createDlcCryptoProvider({
+    network: 'bitcoin-testnet4',
+    mode: 'experimental-js',
+    allowExperimental: true,
+    authorizationStore: new DlcSigningAuthorizationStore(authorizationDirectory)
+  });
+  const restartedSession = authorizeDlcAdaptorSign(restartedProvider, { contract, authorization });
+  const restartReplayRejected = throws(
+    () => restartedSession.execute(signerSecret, sha256('signer-eval:restart-replay')),
+    /durably consumed/
+  );
   const tamperedRequestRejected = throws(() => authorizeDlcAdaptorSign(explicit, {
     contract,
     authorization: { ...authorization, sighash: sha256('signer-eval:wrong-sighash').toString('hex') }
   }), /signature is invalid/);
   return disabled.mode === 'disabled' && Object.keys(disabled.operations).length === 0 &&
     explicit.productionReady === false && explicit.capabilities.nativeSecretArithmetic === false &&
-    explicit.operations.adaptorSign === undefined && signed && replayRejected && tamperedRequestRejected &&
+    explicit.operations.adaptorSign === undefined && explicit.signingAuthorizationPersistence === 'durable-before-sign' &&
+    signed && replayRejected && restartReplayRejected && tamperedRequestRejected &&
     native.capabilities.attestationVerified === true && native.productionReady === false && tamperedRejected &&
     throws(() => createDlcCryptoProvider({
       network: 'bitcoin-mainnet',
       mode: 'experimental-js',
       allowExperimental: true
     }), /mainnet/);
+  } finally {
+    fs.rmSync(authorizationDirectory, { recursive: true, force: true });
+  }
+});
+
+check('16 concurrent signer workers admit exactly one authorization consumer', 'signer-concurrency', 8, () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'utxoref-signer-race-eval-'));
+  try {
+    const result = spawnSync(process.execPath, [
+      path.join(__dirname, '..', 'bitvm3', 'utxo_referee', 'dlc_signing_authorization_race.js'),
+      directory,
+      '16'
+    ], { encoding: 'utf8', windowsHide: true });
+    if (result.status !== 0) return result.stderr || result.stdout || 'signer concurrency probe failed';
+    const report = JSON.parse(result.stdout);
+    return report.passed === true && report.workers === 16 && report.consumed === 1 &&
+      report.rejected === 15 && report.records === 1;
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
 });
 
 check('sealed oracle nonce state survives restart and conflicting outcome fails', 'oracle-persistence', 12, () => {
@@ -1267,7 +1305,7 @@ const possible = cases.reduce((sum, test) => sum + test.points, 0);
 const score = earned / possible;
 const report = {
   benchmark: 'utxoref-dlc-security',
-  version: 12,
+  version: 13,
   profile: profileName,
   seed,
   score,

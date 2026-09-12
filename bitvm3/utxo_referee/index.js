@@ -43,6 +43,7 @@ const dlcThresholdOracle = require('./dlc_threshold_oracle');
 const { DlcStateStore } = require('./dlc_state_store');
 const dlcCryptoProvider = require('./dlc_crypto_provider');
 const { DlcOracleEventStore } = require('./dlc_oracle_event_store');
+const { DlcSigningAuthorizationStore } = require('./dlc_signing_authorization_store');
 const dlcTransactionValidator = require('./dlc_transaction_validator');
 const dlcSignatureValidator = require('./dlc_signature_validator');
 const dlcChainGuard = require('./dlc_chain_guard');
@@ -126,13 +127,14 @@ module.exports = {
   // for production; these interfaces enforce transcript, threshold-oracle,
   // and persistence gates on regtest and Bitcoin testnet4.
   dlc: Object.freeze({
-    securityBoundaryVersion: 13,
+    securityBoundaryVersion: 14,
     createContract: dlcContractState.createDlcContract,
     validateContract: dlcContractState.validateDlcContract,
     transitionContract: dlcContractState.transitionDlcContract,
     requiredEvidence: dlcContractState.REQUIRED_EVIDENCE,
     StateStore: DlcStateStore,
     OracleEventStore: DlcOracleEventStore,
+    SigningAuthorizationStore: DlcSigningAuthorizationStore,
     validateOracleSet: dlcThresholdOracle.validateOracleSet,
     buildThresholdOutcomeSets: dlcThresholdOracle.buildThresholdOutcomeSets,
     combineThresholdAttestations: dlcThresholdOracle.combineThresholdAttestations,
@@ -164,6 +166,9 @@ module.exports = {
       auditDigestBound: true,
       contractTranscriptBound: true,
       processOneShotAdaptorAuthorization: true,
+      durableAuthorizationStore: true,
+      consumeBeforeSign: true,
+      crossProcessSingleConsumer: true,
       rawAdaptorSignHidden: true,
       productionReady: false
     }),

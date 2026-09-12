@@ -1,6 +1,7 @@
 'use strict';
 
 const crypto = require('crypto');
+const { spawnSync } = require('child_process');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -28,6 +29,7 @@ const {
   requireDlcSigningProvider
 } = require('./dlc_crypto_provider');
 const { DlcOracleEventStore } = require('./dlc_oracle_event_store');
+const { DlcSigningAuthorizationStore } = require('./dlc_signing_authorization_store');
 const { serializeUnsignedTx, outpoint, bip341SighashDefault } = require('./tradelayer_taproot');
 const {
   P2A_SCRIPT_PUBKEY_HEX,
@@ -354,55 +356,109 @@ test('native provider requires an operator-pinned audit signature over its exact
   }), /lacks a trusted audit attestation/);
 });
 
-test('adaptor signing is one-shot and bound to the authenticated contract transcript', () => {
-  const provider = createDlcCryptoProvider({
-    network: 'bitcoin-testnet4',
-    mode: 'experimental-js',
-    allowExperimental: true
-  });
-  assert(provider.operations.adaptorSign === undefined, 'raw adaptor signing escaped the provider boundary');
-  expectThrow(() => requireDlcSigningProvider({
-    kind: 'utxoref_dlc_crypto_provider_v1',
-    mode: 'experimental-js',
-    network: 'bitcoin-testnet4'
-  }), /enabled DLC signing provider/);
+test('adaptor signing is durably consumed before signing and bound to the contract transcript', () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'utxoref-signing-authorizations-'));
+  try {
+    const providerOptions = {
+      network: 'bitcoin-testnet4',
+      mode: 'experimental-js',
+      allowExperimental: true,
+      authorizationStore: new DlcSigningAuthorizationStore(directory)
+    };
+    const provider = createDlcCryptoProvider(providerOptions);
+    assert(provider.operations.adaptorSign === undefined, 'raw adaptor signing escaped the provider boundary');
+    assert(provider.signingAuthorizationPersistence === 'durable-before-sign', 'durable signer store was not bound');
+    expectThrow(() => requireDlcSigningProvider({
+      kind: 'utxoref_dlc_crypto_provider_v1',
+      mode: 'experimental-js',
+      network: 'bitcoin-testnet4'
+    }), /enabled DLC signing provider/);
 
-  let contract = initialContract('adaptor-sign-authorization');
-  contract = transitionDlcContract(contract, requestFor(contract, 'AUTHENTICATED_ORACLES', 'signing:oracles'));
-  contract = transitionDlcContract(contract, requestFor(contract, 'CANONICAL_CETS_AND_REFUND', 'signing:cets', {
-    cet_set: digest('signing:authenticated-cet-set')
-  }));
-  contract = transitionDlcContract(contract, requestFor(
-    contract,
-    'COUNTERPARTY_SIGNATURES_VERIFIED',
-    'signing:counterparty'
-  ));
-  const sighash = digest('signing:cet-sighash');
-  const adaptorPoint = dlc.pointMul(dlc.G, 4242n);
-  const authorization = createDlcAdaptorSignAuthorization({
-    privateKey: validatorKeys.privateKey,
-    contract,
-    authorizationId: 'cet:0:oracle-set:0',
-    sighash,
-    adaptorPoint
-  });
-  const session = authorizeDlcAdaptorSign(provider, { contract, authorization });
-  const presignature = session.execute(909n, hash('signing:aux'));
-  assert(dlc.adaptorVerify(dlc.xOnlyPubkey(909n), Buffer.from(sighash, 'hex'), presignature),
-    'authorized adaptor signature did not verify');
-  expectThrow(() => session.execute(909n, hash('signing:aux:replay')), /already consumed/);
-  expectThrow(() => authorizeDlcAdaptorSign(provider, { contract, authorization }), /already consumed/);
-  expectThrow(() => authorizeDlcAdaptorSign(provider, {
-    contract,
-    authorization: { ...authorization, sighash: digest('signing:tampered-sighash') }
-  }), /signature is invalid/);
-  expectThrow(() => createDlcAdaptorSignAuthorization({
-    privateKey: validatorKeys.privateKey,
-    contract: initialContract('adaptor-sign-too-early'),
-    authorizationId: 'too-early',
-    sighash,
-    adaptorPoint
-  }), /COUNTERPARTY_SIGNATURES_VERIFIED/);
+    let contract = initialContract('adaptor-sign-authorization');
+    contract = transitionDlcContract(contract, requestFor(contract, 'AUTHENTICATED_ORACLES', 'signing:oracles'));
+    contract = transitionDlcContract(contract, requestFor(contract, 'CANONICAL_CETS_AND_REFUND', 'signing:cets', {
+      cet_set: digest('signing:authenticated-cet-set')
+    }));
+    contract = transitionDlcContract(contract, requestFor(
+      contract,
+      'COUNTERPARTY_SIGNATURES_VERIFIED',
+      'signing:counterparty'
+    ));
+    const sighash = digest('signing:cet-sighash');
+    const adaptorPoint = dlc.pointMul(dlc.G, 4242n);
+    const authorization = createDlcAdaptorSignAuthorization({
+      privateKey: validatorKeys.privateKey,
+      contract,
+      authorizationId: 'cet:0:oracle-set:0',
+      sighash,
+      adaptorPoint
+    });
+    const noStoreProvider = createDlcCryptoProvider({
+      network: 'bitcoin-testnet4', mode: 'experimental-js', allowExperimental: true
+    });
+    expectThrow(() => authorizeDlcAdaptorSign(noStoreProvider, { contract, authorization }), /durable authorizationStore/);
+    const session = authorizeDlcAdaptorSign(provider, { contract, authorization });
+    const presignature = session.execute(909n, hash('signing:aux'));
+    assert(dlc.adaptorVerify(dlc.xOnlyPubkey(909n), Buffer.from(sighash, 'hex'), presignature),
+      'authorized adaptor signature did not verify');
+    assert(providerOptions.authorizationStore.verifyAll().records === 1, 'authorization was not persisted before signing');
+    expectThrow(() => session.execute(909n, hash('signing:aux:replay')), /already consumed/);
+    expectThrow(() => authorizeDlcAdaptorSign(provider, { contract, authorization }), /already consumed/);
+    const restartedProvider = createDlcCryptoProvider({
+      ...providerOptions,
+      authorizationStore: new DlcSigningAuthorizationStore(directory)
+    });
+    const restartedSession = authorizeDlcAdaptorSign(restartedProvider, { contract, authorization });
+    expectThrow(() => restartedSession.execute(909n, hash('signing:aux:restart')), /durably consumed/);
+    const conflictingAuthorization = createDlcAdaptorSignAuthorization({
+      privateKey: validatorKeys.privateKey,
+      contract,
+      authorizationId: authorization.authorizationId,
+      sighash: digest('signing:conflicting-valid-sighash'),
+      adaptorPoint
+    });
+    const conflictingSession = authorizeDlcAdaptorSign(restartedProvider, {
+      contract,
+      authorization: conflictingAuthorization
+    });
+    expectThrow(() => conflictingSession.execute(909n, hash('signing:aux:conflict')), /conflicts with a different/);
+    expectThrow(() => authorizeDlcAdaptorSign(provider, {
+      contract,
+      authorization: { ...authorization, sighash: digest('signing:tampered-sighash') }
+    }), /signature is invalid/);
+    expectThrow(() => createDlcAdaptorSignAuthorization({
+      privateKey: validatorKeys.privateKey,
+      contract: initialContract('adaptor-sign-too-early'),
+      authorizationId: 'too-early',
+      sighash,
+      adaptorPoint
+    }), /COUNTERPARTY_SIGNATURES_VERIFIED/);
+    const consumptionDirectory = path.join(directory, fs.readdirSync(directory)[0]);
+    const consumptionPath = path.join(consumptionDirectory, 'consumed.json');
+    const tamperedRecord = JSON.parse(fs.readFileSync(consumptionPath, 'utf8'));
+    tamperedRecord.providerIdentity = 'ff'.repeat(32);
+    fs.writeFileSync(consumptionPath, JSON.stringify(tamperedRecord));
+    expectThrow(() => providerOptions.authorizationStore.verifyAll(), /invalid DLC signing authorization/);
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test('concurrent signer workers permit exactly one durable authorization consumer', () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'utxoref-signing-race-'));
+  try {
+    const result = spawnSync(process.execPath, [
+      path.join(__dirname, 'dlc_signing_authorization_race.js'),
+      directory,
+      '16'
+    ], { encoding: 'utf8', windowsHide: true });
+    assert(result.status === 0, result.stderr || result.stdout || 'signing race probe failed');
+    const report = JSON.parse(result.stdout);
+    assert(report.passed === true && report.workers === 16 && report.consumed === 1 &&
+      report.rejected === 15 && report.records === 1, 'signing race admitted multiple consumers');
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
 });
 
 test('sealed oracle event survives restart and persists before attestation', () => {

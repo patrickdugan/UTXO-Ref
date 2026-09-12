@@ -295,9 +295,12 @@ large agent swarm.
   validator must issue a one-shot authorization that binds the current signed
   contract record and transcript, authenticated CET-set digest, exact BIP341
   sighash, and adaptor point. Signing is available only after counterparty
-  signatures are verified, and a consumed authorization cannot be replayed in
-  the same provider process. A production signer must persist consumption before
-  signing so crash recovery and failover preserve the same guarantee.
+  signatures are verified. The authorization store atomically claims an
+  exclusive key and fsyncs the consumption record before signing. Restarted and
+  concurrent processes sharing that store reject replay; an incomplete crash
+  marker halts for manual recovery. Production deployments must place this
+  store on storage whose durability and single-writer semantics hold across
+  failover nodes.
 - Persist event creation and nonce consumption atomically before returning an
   announcement or attestation. The experimental encrypted event store now
   covers a shared local store across restart and concurrent processes; the

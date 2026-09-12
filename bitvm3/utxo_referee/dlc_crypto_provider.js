@@ -3,6 +3,7 @@
 const crypto = require('crypto');
 const experimental = require('./tradelayer_dlc_adaptor_sig');
 const { canonicalJson, validateDlcContract } = require('./dlc_contract_state');
+const { DlcSigningAuthorizationStore } = require('./dlc_signing_authorization_store');
 
 const REQUIRED_NATIVE_OPERATIONS = Object.freeze([
   'adaptorSign',
@@ -12,6 +13,7 @@ const REQUIRED_NATIVE_OPERATIONS = Object.freeze([
   'schnorrVerify'
 ]);
 const PROVIDER_OPERATIONS = new WeakMap();
+const PROVIDER_AUTHORIZATION_STORES = new WeakMap();
 const CONSUMED_AUTHORIZATIONS = new WeakMap();
 const ADAPTOR_SIGN_AUTHORIZATION_KIND = 'utxoref_dlc_adaptor_sign_authorization_v1';
 
@@ -39,6 +41,24 @@ function publicOperations(operations) {
     adaptorExtract: operations.adaptorExtract,
     schnorrVerify: operations.schnorrVerify
   });
+}
+
+function normalizeAuthorizationStore(store) {
+  if (store === undefined || store === null) return null;
+  if (!(store instanceof DlcSigningAuthorizationStore)) {
+    throw new Error('authorizationStore must be a DlcSigningAuthorizationStore');
+  }
+  return store;
+}
+
+function providerIdentity(provider) {
+  return crypto.createHash('sha256').update(Buffer.from(canonicalJson({
+    kind: provider.kind,
+    mode: provider.mode,
+    network: provider.network,
+    securityLevel: provider.securityLevel,
+    capabilities: provider.capabilities
+  }), 'utf8')).digest('hex');
 }
 
 function requireLowerHex(value, bytes, fieldName) {
@@ -121,6 +141,10 @@ function createDlcAdaptorSignAuthorization({ privateKey, contract, authorization
 
 function authorizeDlcAdaptorSign(provider, { contract, authorization } = {}) {
   requireDlcSigningProvider(provider);
+  const authorizationStore = PROVIDER_AUTHORIZATION_STORES.get(provider);
+  if (!authorizationStore) {
+    throw new Error('DLC adaptor signing requires a durable authorizationStore configured on the provider');
+  }
   validateDlcContract(contract);
   if (provider.network !== contract.network) throw new Error('DLC provider and contract networks differ');
   if (!authorization || authorization.kind !== ADAPTOR_SIGN_AUTHORIZATION_KIND ||
@@ -162,6 +186,15 @@ function authorizeDlcAdaptorSign(provider, { contract, authorization } = {}) {
         throw new Error('DLC adaptor signing authorization was already consumed');
       }
       executed = true;
+      authorizationStore.consume({
+        network: contract.network,
+        contractId: contract.contractId,
+        authorizationId: authorization.authorizationId,
+        stateRecordHash: contract.recordHash,
+        authorizationDigest: crypto.createHash('sha256')
+          .update(Buffer.from(canonicalJson(authorization), 'utf8')).digest('hex'),
+        providerIdentity: providerIdentity(provider)
+      });
       consumed.add(replayKey);
       return PROVIDER_OPERATIONS.get(provider).adaptorSign(
         secret,
@@ -255,12 +288,14 @@ function createDlcCryptoProvider(options = {}) {
       throw new Error('experimental JavaScript DLC crypto requires explicit allowExperimental=true');
     }
     const operations = bindOperations(experimental);
+    const authorizationStore = normalizeAuthorizationStore(options.authorizationStore);
     const provider = Object.freeze({
       kind: 'utxoref_dlc_crypto_provider_v1',
       mode,
       network,
       securityLevel: 'research-only',
       productionReady: false,
+      signingAuthorizationPersistence: authorizationStore ? 'durable-before-sign' : 'unconfigured',
       capabilities: Object.freeze({
         apiVersion: 1,
         curve: 'secp256k1',
@@ -273,6 +308,7 @@ function createDlcCryptoProvider(options = {}) {
       operations: publicOperations(operations)
     });
     PROVIDER_OPERATIONS.set(provider, operations);
+    PROVIDER_AUTHORIZATION_STORES.set(provider, authorizationStore);
     CONSUMED_AUTHORIZATIONS.set(provider, new Set());
     return provider;
   }
@@ -280,16 +316,19 @@ function createDlcCryptoProvider(options = {}) {
   if (mode === 'native-isolated') {
     const capabilities = validateNativeCapabilities(options.implementation, options.trustedAuditKeys);
     const operations = bindOperations(options.implementation);
+    const authorizationStore = normalizeAuthorizationStore(options.authorizationStore);
     const provider = Object.freeze({
       kind: 'utxoref_dlc_crypto_provider_v1',
       mode,
       network,
       securityLevel: 'production-candidate',
       productionReady: false,
+      signingAuthorizationPersistence: authorizationStore ? 'durable-before-sign' : 'unconfigured',
       capabilities,
       operations: publicOperations(operations)
     });
     PROVIDER_OPERATIONS.set(provider, operations);
+    PROVIDER_AUTHORIZATION_STORES.set(provider, authorizationStore);
     CONSUMED_AUTHORIZATIONS.set(provider, new Set());
     return provider;
   }
