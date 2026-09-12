@@ -52,6 +52,16 @@ powershell -ExecutionPolicy Bypass -File eval\bitcoin-testnet4-host-preflight.ps
 powershell -ExecutionPolicy Bypass -File eval\bitcoin-testnet4-host-preflight.ps1 -TrustedCoordinator -Json
 ```
 
+Create the separate swarm wallet with an inspection-only run followed by the
+explicit apply run. It imports public descriptors, disables private keys, waits
+for the rescan, and requires exact confirmed-UTXO parity at a stable tip:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File eval\provision-testnet4-watchonly-wallet.ps1
+powershell -ExecutionPolicy Bypass -File eval\provision-testnet4-watchonly-wallet.ps1 -Apply
+powershell -ExecutionPolicy Bypass -File eval\bitcoin-testnet4-host-preflight.ps1 -WalletName utxoref-swarm-watchonly -Json
+```
+
 The backup-first ACL tool prints its target set without changing it unless
 `-Apply` is present. Review the dry run and keep the emitted `icacls` backup:
 

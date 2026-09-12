@@ -322,6 +322,10 @@ swarm workers. It authenticates a bounded bearer capability, permits only nine
 parameter-validated read or policy methods, limits request, response, timeout,
 and concurrency resources, and rejects wallet, signing, broadcast, node-control,
 and network-control RPCs before reading the Core cookie or forwarding a request.
+Boundary V40 provisions a separate private-key-disabled descriptor wallet from
+the source wallet's public descriptors. The backup wallet is never changed; the
+provisioner performs no signing or broadcast and requires the target's confirmed
+UTXO set to match the source at one stable testnet4 tip before writing evidence.
 The host accepts only bounded regular runtime files whose resolved paths do not
 traverse filesystem links. It hashes the complete runtime closure before and
 after every signer execution, so deletion or mutation during the process

@@ -54,6 +54,15 @@ function post(port, token, payload) {
 }
 
 test('read-only RPC policy rejects wallet, signing, broadcast, and node-control methods', () => {
+  const evaluationPolicy = referee.dlc.testnet4EvaluationPolicy;
+  assert.equal(referee.dlc.securityBoundaryVersion, 40);
+  assert.equal(evaluationPolicy.watchOnlySwarmWalletRequired, true);
+  assert.equal(evaluationPolicy.watchOnlyWalletProvisioning, 'public-descriptor-import-v1');
+  assert.equal(evaluationPolicy.privateDescriptorsAccepted, false);
+  assert.equal(evaluationPolicy.exactWatchOnlyUtxoParityRequired, true);
+  assert.equal(evaluationPolicy.sourceWalletModified, false);
+  assert.equal(evaluationPolicy.watchOnlyProvisioningSigningAllowed, false);
+  assert.equal(evaluationPolicy.watchOnlyProvisioningBroadcastAllowed, false);
   assert.deepEqual(Object.keys(METHOD_POLICY).sort(), referee.dlc.testnet4EvaluationPolicy.readonlyRpcMethods);
   assert.equal(MAX_REQUEST_BYTES, referee.dlc.testnet4EvaluationPolicy.readonlyRpcMaxRequestBytes);
   assert.equal(MAX_RESPONSE_BYTES, referee.dlc.testnet4EvaluationPolicy.readonlyRpcMaxResponseBytes);
