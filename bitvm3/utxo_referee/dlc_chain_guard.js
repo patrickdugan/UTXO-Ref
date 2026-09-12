@@ -1,6 +1,6 @@
 'use strict';
 
-const { validateDlcContract } = require('./dlc_contract_state');
+const { normalizeDlcContract } = require('./dlc_contract_state');
 const { validateDlcTransactionSetCommitments } = require('./dlc_transaction_validator');
 
 function requireHash(value, fieldName) {
@@ -56,7 +56,7 @@ function result(ok, status, reason, extra = {}) {
 }
 
 function evaluateDlcChainSnapshot({ contractState, transactionSet, current, previous = null, minConfirmations = 6 }) {
-  validateDlcContract(contractState);
+  contractState = normalizeDlcContract(contractState);
   if (!transactionSet || !transactionSet.funding || !Array.isArray(transactionSet.cets) || !transactionSet.refund ||
       !Number.isSafeInteger(minConfirmations) || minConfirmations < 1 || minConfirmations > 1000) {
     throw new Error('chain guard policy is malformed');

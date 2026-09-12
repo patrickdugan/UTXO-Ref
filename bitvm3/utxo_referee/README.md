@@ -443,6 +443,10 @@ semantic field access, snapshots receipt arguments from own data-property
 descriptors, and rejects accessors or Proxy objects without executing them.
 Contract state reloaded from the append-only store is returned as a deeply
 frozen canonical snapshot.
+Boundary V64 requires every contract consumer to retain and use that canonical
+snapshot. This includes composed Bitcoin Core observer and watchtower paths, so
+an external RPC callback cannot mutate the caller-owned record between
+validation, policy evaluation, and journal publication.
 The host accepts only bounded regular runtime files whose resolved paths do not
 traverse filesystem links. It hashes the complete runtime closure before and
 after every signer execution, so deletion or mutation during the process

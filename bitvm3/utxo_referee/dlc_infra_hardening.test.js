@@ -2256,6 +2256,27 @@ test('Bitcoin Core observer captures a stable testnet4 tip and scans committed s
   assert(confirmed.snapshot.fundingOutpoint === `${transactionSet.funding.txid}:${transactionSet.funding.vout}`,
     'Core observer monitored the wrong funding outpoint');
 
+  const mutableContract = JSON.parse(JSON.stringify(contract));
+  let mutationInjected = false;
+  const mutatingRpc = (method) => {
+    if (!mutationInjected) {
+      mutationInjected = true;
+      mutableContract.stage = 'DRAFT';
+    }
+    if (method === 'getblockchaininfo') return { chain: 'testnet4', blocks: 205, bestblockhash: bestBlockHash };
+    if (method === 'getrawmempool') return { mempool_sequence: 9 };
+    if (method === 'gettxout') return { bestblock: bestBlockHash, confirmations: 6 };
+    throw new Error(`unexpected RPC ${method}`);
+  };
+  const mutationSafe = observeAndEvaluateDlcChain({
+    contractState: mutableContract,
+    transactionSet,
+    rpc: mutatingRpc
+  });
+  assert(mutationInjected && mutableContract.stage === 'DRAFT' &&
+    mutationSafe.evaluation.status === 'FUNDING_CONFIRMED',
+  'Core callback mutated the contract snapshot after validation');
+
   const cetRpc = (method, params) => {
     if (method === 'getblockchaininfo') return { chain: 'testnet4', blocks: 205, bestblockhash: bestBlockHash };
     if (method === 'getrawmempool') return { mempool_sequence: 9 };

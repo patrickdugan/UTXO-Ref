@@ -3,7 +3,7 @@
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
-const { canonicalize, canonicalJson, validateDlcContract } = require('./dlc_contract_state');
+const { canonicalize, canonicalJson, normalizeDlcContract } = require('./dlc_contract_state');
 const { validateDlcTransactionSetCommitments } = require('./dlc_transaction_validator');
 const { evaluateDlcChainSnapshot } = require('./dlc_chain_guard');
 const { captureDlcAnchorRecoverySnapshot } = require('./dlc_bitcoin_core_observer');
@@ -329,7 +329,7 @@ class DlcWatchtowerJournal {
 
   appendObservation({ contractState, transactionSet, snapshot, minConfirmations = 6 }) {
     if (!this.privateKey) throw new Error('watchtower journal is verification-only');
-    validateDlcContract(contractState);
+    contractState = normalizeDlcContract(contractState);
     validateDlcTransactionSetCommitments(transactionSet);
     return this._withLock(contractState.contractId, () => {
       const chain = this.verifyChain(contractState.contractId);
@@ -355,23 +355,25 @@ class DlcWatchtowerJournal {
 
   appendBitcoinCoreAnchorObservation(options) {
     if (!this.privateKey) throw new Error('watchtower journal is verification-only');
-    validateDlcContract(options?.contractState);
-    validateDlcTransactionSetCommitments(options?.transactionSet);
-    return this._withLock(options.contractState.contractId, () => {
-      const chain = this.verifyChain(options.contractState.contractId);
-      const snapshot = captureDlcAnchorRecoverySnapshot(options);
+    const contractState = normalizeDlcContract(options?.contractState);
+    const transactionSet = options?.transactionSet;
+    const settlementTxid = options?.settlementTxid;
+    validateDlcTransactionSetCommitments(transactionSet);
+    return this._withLock(contractState.contractId, () => {
+      const chain = this.verifyChain(contractState.contractId);
+      const snapshot = captureDlcAnchorRecoverySnapshot({ ...options, contractState, transactionSet, settlementTxid });
       const evaluation = evaluateDlcAnchorRecovery({
-        contractState: options.contractState,
-        transactionSet: options.transactionSet,
-        settlementTxid: options.settlementTxid,
+        contractState,
+        transactionSet,
+        settlementTxid,
         snapshot,
         expectedRecoveryTxids: snapshot.expectedRecoveryTxids,
         incrementalRelayFeeSatPerVb: snapshot.incrementalRelayFeeSatPerVb
       });
       return this._appendSignedRecord({
         chain,
-        contractState: options.contractState,
-        transactionSet: options.transactionSet,
+        contractState,
+        transactionSet,
         observationType: 'anchor-recovery',
         snapshot,
         evaluation

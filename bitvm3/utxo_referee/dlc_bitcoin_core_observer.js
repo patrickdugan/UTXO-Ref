@@ -1,7 +1,7 @@
 'use strict';
 
 const crypto = require('crypto');
-const { validateDlcContract } = require('./dlc_contract_state');
+const { normalizeDlcContract } = require('./dlc_contract_state');
 const { validateDlcTransactionSetCommitments } = require('./dlc_transaction_validator');
 const { evaluateDlcChainSnapshot } = require('./dlc_chain_guard');
 const { settlementAnchor, evaluateDlcAnchorRecovery } = require('./dlc_anchor_recovery_guard');
@@ -251,7 +251,7 @@ function captureDlcAnchorRecoverySnapshot({
   maxAttempts = 3,
   scanDepth = 12
 }) {
-  validateDlcContract(contractState);
+  contractState = normalizeDlcContract(contractState);
   validateDlcTransactionSetCommitments(transactionSet);
   const anchor = settlementAnchor(transactionSet, settlementTxid);
   requireNodeId(primaryNodeId, 'primaryNodeId');
@@ -380,7 +380,7 @@ function captureDlcChainSnapshot({
   maxAttempts = 3,
   scanDepth = 12
 }) {
-  validateDlcContract(contractState);
+  contractState = normalizeDlcContract(contractState);
   validateDlcTransactionSetCommitments(transactionSet);
   if (typeof rpc !== 'function' || !Number.isSafeInteger(maxAttempts) || maxAttempts < 1 || maxAttempts > 10 ||
       !Number.isSafeInteger(scanDepth) || scanDepth < 1 || scanDepth > 144) {
@@ -432,15 +432,19 @@ function captureDlcChainSnapshot({
 }
 
 function observeAndEvaluateDlcChain(options) {
-  const current = captureDlcChainSnapshot(options);
+  const contractState = normalizeDlcContract(options?.contractState);
+  const transactionSet = options?.transactionSet;
+  const previous = options?.previous || null;
+  const minConfirmations = options?.minConfirmations === undefined ? 6 : options.minConfirmations;
+  const current = captureDlcChainSnapshot({ ...options, contractState, transactionSet, previous });
   return Object.freeze({
     snapshot: current,
     evaluation: evaluateDlcChainSnapshot({
-      contractState: options.contractState,
-      transactionSet: options.transactionSet,
+      contractState,
+      transactionSet,
       current,
-      previous: options.previous || null,
-      minConfirmations: options.minConfirmations === undefined ? 6 : options.minConfirmations
+      previous,
+      minConfirmations
     })
   });
 }

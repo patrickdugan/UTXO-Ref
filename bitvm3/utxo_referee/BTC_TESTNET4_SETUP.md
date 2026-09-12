@@ -187,6 +187,9 @@ can resume.
 Boundary V63 rejects accessor-bearing and Proxy contract inputs before semantic
 validation can execute callbacks. Durable contract reads are canonicalized and
 deeply frozen before they leave the state store.
+Boundary V64 retains the canonical contract snapshot across Bitcoin Core RPC
+calls and watchtower publication. Never pass a caller-owned mutable record on
+to a later policy or authorization step after validating it.
 
 ## Agent isolation
 

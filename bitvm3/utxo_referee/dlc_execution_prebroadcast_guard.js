@@ -1,7 +1,7 @@
 'use strict';
 
 const crypto = require('crypto');
-const { canonicalJson, validateDlcContract } = require('./dlc_contract_state');
+const { canonicalJson, normalizeDlcContract } = require('./dlc_contract_state');
 const {
   parseCanonicalSignedTaprootTransaction,
   validateDlcTransactionSetCommitments
@@ -146,7 +146,7 @@ function validateExecutionPrebroadcastPolicy({
   now = new Date(),
   ttlSeconds = 15
 }) {
-  validateDlcContract(contractState);
+  contractState = normalizeDlcContract(contractState);
   validateDlcTransactionSetCommitments(transactionSet);
   if (contractState.stage !== 'CONFIRMED') {
     throw new Error('DLC execution prebroadcast policy requires the CONFIRMED stage');

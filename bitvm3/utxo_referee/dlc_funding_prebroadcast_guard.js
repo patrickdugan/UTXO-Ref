@@ -1,7 +1,7 @@
 'use strict';
 
 const crypto = require('crypto');
-const { canonicalJson, validateDlcContract } = require('./dlc_contract_state');
+const { canonicalJson, normalizeDlcContract } = require('./dlc_contract_state');
 
 const KIND = 'utxoref_dlc_funding_prebroadcast_policy_v1';
 const MAX_RAW_TRANSACTION_BYTES = 400000;
@@ -125,7 +125,7 @@ function validateFundingPrebroadcastPolicy({
   now = new Date(),
   ttlSeconds = 15
 }) {
-  validateDlcContract(contractState);
+  contractState = normalizeDlcContract(contractState);
   if (contractState.stage !== 'FUNDING_PSBT_APPROVED') {
     throw new Error('funding prebroadcast policy requires the FUNDING_PSBT_APPROVED stage');
   }

@@ -3,7 +3,7 @@
 const crypto = require('crypto');
 const { canonicalize, canonicalJson } = require('./dlc_canonical_json');
 const { validateDlcTransactionSetCommitments } = require('./dlc_transaction_validator');
-const { validateDlcContract } = require('./dlc_contract_state');
+const { normalizeDlcContract } = require('./dlc_contract_state');
 
 const KIND = 'utxoref_dlc_peer_message_v1';
 const TESTNET4_CHAIN_HASH = '00000000da84f2bafbbc53dee25a72ae507ff4914b867c565be350b0da8bf043';
@@ -225,7 +225,7 @@ function validateDlcPeerTranscript({
   expectedChainHash = TESTNET4_CHAIN_HASH,
   knownTemporaryContractIds = []
 }) {
-  validateDlcContract(contractState);
+  contractState = normalizeDlcContract(contractState);
   validateDlcTransactionSetCommitments(transactionSet);
   if (!Array.isArray(knownTemporaryContractIds) ||
       knownTemporaryContractIds.some((value) => typeof value !== 'string' || !/^[0-9a-f]{64}$/.test(value))) {

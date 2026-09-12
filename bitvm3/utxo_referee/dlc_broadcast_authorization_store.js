@@ -3,7 +3,7 @@
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
-const { canonicalize, canonicalJson, transitionDlcContract, validateDlcContract } = require('./dlc_contract_state');
+const { canonicalize, canonicalJson, transitionDlcContract, normalizeDlcContract } = require('./dlc_contract_state');
 const {
   assertNonSymlinkDirectory,
   ensureNonSymlinkDirectory,
@@ -134,7 +134,7 @@ class DlcBroadcastAuthorizationStore {
   }
 
   consume({ contractState, transitionRequest, rawTxHex, now = new Date() }) {
-    validateDlcContract(contractState);
+    contractState = normalizeDlcContract(contractState);
     if (!transitionRequest || typeof transitionRequest !== 'object') throw new Error('transitionRequest is required');
     const currentUnixSeconds = unixSeconds(now);
     const nextContractState = transitionDlcContract(contractState, transitionRequest);

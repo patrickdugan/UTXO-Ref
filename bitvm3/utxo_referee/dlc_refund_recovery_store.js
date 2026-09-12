@@ -3,7 +3,7 @@
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
-const { canonicalize, canonicalJson, validateDlcContract } = require('./dlc_contract_state');
+const { canonicalize, canonicalJson, normalizeDlcContract } = require('./dlc_contract_state');
 const { parseCanonicalSignedTaprootTransaction, validateDlcTransactionSetCommitments } = require('./dlc_transaction_validator');
 const { toBip341Transaction } = require('./dlc_signature_validator');
 const { bip341SighashDefault } = require('./tradelayer_taproot');
@@ -50,7 +50,7 @@ function recordHash(record) {
 }
 
 function bindTransactionSet(contractState, transactionSet) {
-  validateDlcContract(contractState);
+  contractState = normalizeDlcContract(contractState);
   validateDlcTransactionSetCommitments(transactionSet);
   const recoveryStages = [
     'COUNTERPARTY_SIGNATURES_VERIFIED', 'LOCAL_SIGNATURES_PERSISTED', 'FUNDING_PSBT_APPROVED',
@@ -67,6 +67,7 @@ function bindTransactionSet(contractState, transactionSet) {
       digest('refund_transaction') !== transactionSet.refundTransactionDigest) {
     throw new Error('refund recovery transaction set does not match signed contract receipts');
   }
+  return contractState;
 }
 
 function verifySignedRefund(transactionSet, signedRefundTxHex) {
@@ -135,7 +136,7 @@ class DlcRefundRecoveryStore {
   }
 
   store({ contractState, transactionSet, signedRefundTxHex }) {
-    bindTransactionSet(contractState, transactionSet);
+    contractState = bindTransactionSet(contractState, transactionSet);
     if (contractState.stage !== 'COUNTERPARTY_SIGNATURES_VERIFIED') {
       throw new Error('refund must be stored before local signatures are marked persisted');
     }
@@ -171,7 +172,7 @@ class DlcRefundRecoveryStore {
   }
 
   restore({ contractState, transactionSet }) {
-    bindTransactionSet(contractState, transactionSet);
+    contractState = bindTransactionSet(contractState, transactionSet);
     const record = this._read(contractState.contractId);
     const counterpartyTransition = contractState.history.find((entry) => entry.to === 'COUNTERPARTY_SIGNATURES_VERIFIED');
     if (!counterpartyTransition || record.contractTranscriptHash !== counterpartyTransition.transcriptHash ||

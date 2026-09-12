@@ -2,7 +2,7 @@
 
 const crypto = require('crypto');
 const experimental = require('./tradelayer_dlc_adaptor_sig');
-const { canonicalJson, validateDlcContract } = require('./dlc_contract_state');
+const { canonicalJson, normalizeDlcContract } = require('./dlc_contract_state');
 const { DlcSigningAuthorizationStore } = require('./dlc_signing_authorization_store');
 const {
   REQUEST_KIND: NATIVE_PROCESS_REQUEST_KIND,
@@ -156,7 +156,7 @@ function adaptorSigningAuthorizationPayload({
   issuedAtUnixSeconds,
   expiresAtUnixSeconds
 }) {
-  validateDlcContract(contract);
+  contract = normalizeDlcContract(contract);
   if (contract.stage !== 'COUNTERPARTY_SIGNATURES_VERIFIED') {
     throw new Error('DLC adaptor signing requires COUNTERPARTY_SIGNATURES_VERIFIED contract state');
   }
@@ -191,6 +191,7 @@ function createDlcAdaptorSignAuthorization({
   now = new Date(),
   ttlSeconds = DEFAULT_AUTHORIZATION_TTL_SECONDS
 }) {
+  contract = normalizeDlcContract(contract);
   if (!Number.isSafeInteger(ttlSeconds) || ttlSeconds < 1 || ttlSeconds > MAX_AUTHORIZATION_TTL_SECONDS) {
     throw new Error(`ttlSeconds must be an integer from 1 through ${MAX_AUTHORIZATION_TTL_SECONDS}`);
   }
@@ -238,7 +239,7 @@ function authorizeDlcAdaptorSign(provider, { contract, authorization, now = new 
   if (!authorizationStore) {
     throw new Error('DLC adaptor signing requires a durable authorizationStore configured on the provider');
   }
-  validateDlcContract(contract);
+  contract = normalizeDlcContract(contract);
   if (provider.network !== contract.network) throw new Error('DLC provider and contract networks differ');
   if (!authorization || authorization.kind !== ADAPTOR_SIGN_AUTHORIZATION_KIND ||
       authorization.stateRecordHash !== contract.recordHash ||

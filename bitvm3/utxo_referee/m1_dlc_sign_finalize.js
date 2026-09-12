@@ -26,7 +26,7 @@ const http = require('http');
 const https = require('https');
 const { URL } = require('url');
 const crypto = require('crypto');
-const { validateDlcContract } = require('./dlc_contract_state');
+const { normalizeDlcContract } = require('./dlc_contract_state');
 
 const RPC_URL = process.env.LTC_RPC_URL || 'http://127.0.0.1:19332';
 const RPC_USER = process.env.LTC_RPC_USER || 'user';
@@ -60,7 +60,7 @@ function decodeCanonicalPsbt(psbt) {
 }
 
 function validateFundingAuthorization(state, funding) {
-  validateDlcContract(state);
+  state = normalizeDlcContract(state);
   if (state.stage !== 'FUNDING_PSBT_APPROVED') {
     throw new Error(`DLC state must be FUNDING_PSBT_APPROVED before wallet signing; current stage is ${state.stage}`);
   }
