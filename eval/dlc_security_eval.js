@@ -38,8 +38,10 @@ const { validateFundingAuthorization } = require(fundingFinalizerPath);
 const { createDlcCryptoProvider } = require(path.join(__dirname, '..', 'bitvm3', 'utxo_referee', 'dlc_crypto_provider.js'));
 const { DlcOracleEventStore } = require(path.join(__dirname, '..', 'bitvm3', 'utxo_referee', 'dlc_oracle_event_store.js'));
 const {
+  P2A_SCRIPT_PUBKEY_HEX,
   parseCanonicalUnsignedTransaction,
-  validateDlcTransactionSet
+  validateDlcTransactionSet,
+  validateDlcTransactionSetCommitments
 } = require(path.join(__dirname, '..', 'bitvm3', 'utxo_referee', 'dlc_transaction_validator.js'));
 const { serializeUnsignedTx, outpoint, bip341SighashDefault } = require(path.join(__dirname, '..', 'bitvm3', 'utxo_referee', 'tradelayer_taproot.js'));
 const {
@@ -558,6 +560,58 @@ check('CET and refund set is canonically bound to one funding outpoint', 'transa
   };
   return validated.cets.length === 1 && validated.refund.feeSats === '670' &&
     throws(() => validateDlcTransactionSet(forged), /committed funding outpoint/);
+});
+
+check('TRUC settlements commit version 3, P2A, and the two-transaction cluster limits', 'pinning-safety', 14, () => {
+  const funding = {
+    txid: 'ac'.repeat(32),
+    vout: 0,
+    valueSats: 100000n,
+    scriptPubKeyHex: `5120${'46'.repeat(32)}`
+  };
+  const feePolicy = {
+    strategy: 'truc-p2a-v1',
+    anchorAmountSats: 0n,
+    anchorScriptPubKeyHex: P2A_SCRIPT_PUBKEY_HEX,
+    maxRecoveryFeeSats: 150000n,
+    maxRecoveryFeerateSatPerVb: 500,
+    minRelayPeers: 2
+  };
+  const anchor = { valueSats: 0n, scriptPubKeyHex: P2A_SCRIPT_PUBKEY_HEX };
+  const cetOutputs = [{ valueSats: 99000n, scriptPubKeyHex: `0014${'57'.repeat(20)}` }, anchor];
+  const refundOutputs = [{ valueSats: 99000n, scriptPubKeyHex: `5120${'68'.repeat(32)}` }, anchor];
+  const raw = (version, outputs, locktime) => serializeUnsignedTx(
+    version,
+    [{ outpoint: outpoint(funding.txid, funding.vout), sequence: 0xfffffffe }],
+    outputs.map((output) => ({ valueSats: output.valueSats, script: output.scriptPubKeyHex })),
+    locktime
+  );
+  const input = {
+    funding,
+    cets: [{
+      outcomeMessage: sha256('truc-eval:outcome').toString('hex'),
+      oraclePubkeys: ['11'.repeat(32), '22'.repeat(32)],
+      rawTxHex: raw(3, cetOutputs, 100),
+      expectedOutputs: cetOutputs,
+      locktime: 100
+    }],
+    refund: { rawTxHex: raw(3, refundOutputs, 200), expectedOutputs: refundOutputs, locktime: 200 },
+    minFeeSats: 500n,
+    maxFeeSats: 2000n,
+    feePolicy
+  };
+  const validated = validateDlcTransactionSet(input);
+  const v2Rejected = throws(() => validateDlcTransactionSet({
+    ...input,
+    cets: [{ ...input.cets[0], rawTxHex: raw(2, cetOutputs, 100) }]
+  }), /version must be 3/);
+  const forged = JSON.parse(JSON.stringify(validated));
+  forged.feePolicy.maxUnconfirmedClusterTransactions = 3;
+  const forgedRejected = throws(() => validateDlcTransactionSetCommitments(forged), /commitment mismatch/);
+  return validated.cets[0].version === 3 && validated.refund.version === 3 &&
+    validated.feePolicy.anchorScriptPubKeyHex === P2A_SCRIPT_PUBKEY_HEX &&
+    validated.feePolicy.maxSettlementVsize === 10000 && validated.feePolicy.maxRecoveryVsize === 1000 &&
+    validated.feePolicy.maxUnconfirmedClusterTransactions === 2 && v2Rejected && forgedRejected;
 });
 
 check('chain guard halts on disconnected ancestry and uncommitted funding spends', 'chain-safety', 12, () => {
@@ -1094,7 +1148,7 @@ const possible = cases.reduce((sum, test) => sum + test.points, 0);
 const score = earned / possible;
 const report = {
   benchmark: 'utxoref-dlc-security',
-  version: 8,
+  version: 9,
   profile: profileName,
   seed,
   score,

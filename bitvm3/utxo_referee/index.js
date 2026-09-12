@@ -126,7 +126,7 @@ module.exports = {
   // for production; these interfaces enforce transcript, threshold-oracle,
   // and persistence gates on regtest and Bitcoin testnet4.
   dlc: Object.freeze({
-    securityBoundaryVersion: 9,
+    securityBoundaryVersion: 10,
     createContract: dlcContractState.createDlcContract,
     validateContract: dlcContractState.validateDlcContract,
     transitionContract: dlcContractState.transitionDlcContract,
@@ -141,6 +141,14 @@ module.exports = {
     parseCanonicalUnsignedTransaction: dlcTransactionValidator.parseCanonicalUnsignedTransaction,
     validateTransactionSet: dlcTransactionValidator.validateDlcTransactionSet,
     validateTransactionSetCommitments: dlcTransactionValidator.validateDlcTransactionSetCommitments,
+    trucPolicy: Object.freeze({
+      strategy: 'truc-p2a-v1',
+      transactionVersion: dlcTransactionValidator.TRUC_VERSION,
+      p2aScriptPubKeyHex: dlcTransactionValidator.P2A_SCRIPT_PUBKEY_HEX,
+      maxSettlementVsize: dlcTransactionValidator.TRUC_MAX_VSIZE,
+      maxRecoveryVsize: dlcTransactionValidator.TRUC_CHILD_MAX_VSIZE,
+      maxUnconfirmedClusterTransactions: dlcTransactionValidator.TRUC_MAX_UNCONFIRMED_CLUSTER_TRANSACTIONS
+    }),
     validateCetAdaptorSignatures: dlcSignatureValidator.validateCetAdaptorSignatures,
     validateRefundSignature: dlcSignatureValidator.validateRefundSignature,
     evaluateChainSnapshot: dlcChainGuard.evaluateDlcChainSnapshot,

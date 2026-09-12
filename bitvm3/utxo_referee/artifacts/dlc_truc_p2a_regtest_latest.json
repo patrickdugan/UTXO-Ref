@@ -1,0 +1,146 @@
+{
+  "schema": "utxoref_dlc_truc_p2a_regtest_v1",
+  "capturedAt": "2026-09-12T07:40:14.1220039Z",
+  "effect": "isolated_regtest_only",
+  "network": "bitcoin-regtest",
+  "bitcoinCore": {
+    "version": 310100,
+    "subversion": "/Satoshi:31.1.0/"
+  },
+  "repository": "C:\\projects\\UTXORef\\UTXO-Ref",
+  "commit": "c85747835c7aca554f52913fc33e1a3930551c8b",
+  "runDirectory": "D:\\bitagent-testnet4\\dlc-truc-p2a-regtest\\20260912T073911Z-28696-023fbf32",
+  "ports": {
+    "rpc": 29543,
+    "p2p": 29544
+  },
+  "policy": {
+    "transactionVersion": 3,
+    "p2aScriptPubKeyHex": "51024e73",
+    "anchorAmountSats": 0,
+    "maxUnconfirmedClusterTransactions": 2,
+    "maxSettlementVsize": 10000,
+    "maxRecoveryVsize": 1000,
+    "fullRbf": true,
+    "incrementalRelayFeeBtcPerKvB": 1E-06
+  },
+  "parent": {
+    "txid": "c824c8438039667170433c06c6fdba601de48fe5758a51c43683e4560eb3e31b",
+    "vsize": 124,
+    "anchorVout": 1,
+    "standaloneReject": "min relay fee not met"
+  },
+  "firstChild": {
+    "txid": "3187691aace8bff436a6c190bf89aa7e3760237e5b35d05192dbcd097b98b2e9",
+    "vsize": 153
+  },
+  "replacementChild": {
+    "txid": "6c1f9e5a9d05d067f3d3758af464d72621344d68c5a89ade4a98551755869bf3",
+    "vsize": 153
+  },
+  "cluster": {
+    "beforeSiblingEviction": {
+      "clusterweight": 1105,
+      "txcount": 2,
+      "chunks": [
+        {
+          "chunkfee": 2E-05,
+          "chunkweight": 1105,
+          "txs": [
+            "c824c8438039667170433c06c6fdba601de48fe5758a51c43683e4560eb3e31b",
+            "3187691aace8bff436a6c190bf89aa7e3760237e5b35d05192dbcd097b98b2e9"
+          ]
+        }
+      ]
+    },
+    "afterSiblingEviction": {
+      "clusterweight": 1105,
+      "txcount": 2,
+      "chunks": [
+        {
+          "chunkfee": 5E-05,
+          "chunkweight": 1105,
+          "txs": [
+            "c824c8438039667170433c06c6fdba601de48fe5758a51c43683e4560eb3e31b",
+            "6c1f9e5a9d05d067f3d3758af464d72621344d68c5a89ade4a98551755869bf3"
+          ]
+        }
+      ]
+    },
+    "finalMempool": [
+      "c824c8438039667170433c06c6fdba601de48fe5758a51c43683e4560eb3e31b",
+      "6c1f9e5a9d05d067f3d3758af464d72621344d68c5a89ade4a98551755869bf3"
+    ],
+    "parentEntry": {
+      "vsize": 124,
+      "weight": 496,
+      "time": 1789198804,
+      "height": 103,
+      "descendantcount": 2,
+      "descendantsize": 277,
+      "ancestorcount": 1,
+      "ancestorsize": 124,
+      "wtxid": "f416ce1615edab42c04da16696e2caf62f323d0939aa12109e2ff96904d10188",
+      "chunkweight": 1105,
+      "fees": {
+        "base": 0.0,
+        "modified": 0.0,
+        "ancestor": 0.0,
+        "descendant": 5E-05,
+        "chunk": 5E-05
+      },
+      "depends": [],
+      "spentby": [
+        "6c1f9e5a9d05d067f3d3758af464d72621344d68c5a89ade4a98551755869bf3"
+      ],
+      "bip125-replaceable": true,
+      "unbroadcast": false
+    },
+    "replacementChildEntry": {
+      "vsize": 153,
+      "weight": 609,
+      "time": 1789198804,
+      "height": 103,
+      "descendantcount": 1,
+      "descendantsize": 153,
+      "ancestorcount": 2,
+      "ancestorsize": 277,
+      "wtxid": "3e1ffbeda9661942e1af8804921f837283a32ff80832dd9008669c65c4b8a620",
+      "chunkweight": 1105,
+      "fees": {
+        "base": 5E-05,
+        "modified": 5E-05,
+        "ancestor": 5E-05,
+        "descendant": 5E-05,
+        "chunk": 5E-05
+      },
+      "depends": [
+        "c824c8438039667170433c06c6fdba601de48fe5758a51c43683e4560eb3e31b"
+      ],
+      "spentby": [],
+      "bip125-replaceable": true,
+      "unbroadcast": true
+    },
+    "feerateDiagram": [
+      {
+        "weight": 0,
+        "fee": 0.0
+      },
+      {
+        "weight": 1105,
+        "fee": 5E-05
+      }
+    ],
+    "thirdTransactionReject": "TRUC-violation"
+  },
+  "assertions": {
+    "coreDecodedP2aAnchor": true,
+    "zeroFeeParentRequiredPackageRelay": true,
+    "parentChildPackageAccepted": true,
+    "recoveryChildrenUnder1000Vb": true,
+    "higherFeeSiblingEvictedFirstChild": true,
+    "unconfirmedClusterLimitedToTwoTransactions": true,
+    "coreClusterAndFeerateDiagramCaptured": true
+  },
+  "passed": true
+}

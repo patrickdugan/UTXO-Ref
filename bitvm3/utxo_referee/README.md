@@ -177,12 +177,15 @@ oracle combinations, encrypted restart-safe oracle state, and a crypto provider
 that defaults to disabled. Canonical Bitcoin transaction and BIP341 signature
 validators bind CET/refund evidence to the funding outpoint before signed state
 can advance. Each spend has a unique transaction ID and committed last-output
-CPFP anchor. Its signed fee policy fixes the absolute recovery-fee ceiling,
-feerate ceiling, and relay-peer quorum. The read-only
+anchor. Boundary V10 supports the legacy version-2 owned CPFP anchor and a
+version-3 TRUC policy with an exact zero-sat P2A `51024e73` anchor. The TRUC
+policy commits Core's 10,000-vB settlement limit, 1,000-vB recovery-child limit,
+and two-transaction unconfirmed cluster limit. Every signed fee policy fixes the
+absolute recovery-fee ceiling, feerate ceiling, and relay-peer quorum. The read-only
 chain guard binds snapshots to that signed transaction set and halts on reorgs,
 unknown spends, immature refunds, and stage-inconsistent CETs. A synchronous,
 injected Bitcoin Core observer captures stable chain/mempool snapshots using
-read-only RPC calls. Boundary V9 persists those evaluations in an
+read-only RPC calls. The boundary persists those evaluations in an
 Ed25519-signed, append-only watchtower journal whose alerts and tamper evidence
 survive restart. It also authenticates and hash-chains the peer offer/accept/sign
 transcript, derives the contract ID, and enforces global serial-ID uniqueness
@@ -202,6 +205,7 @@ across restart. Run:
 node bitvm3\utxo_referee\dlc_infra_hardening.test.js
 .\eval\dlc-security.ps1 -Profile full
 .\eval\dlc-regtest-recovery.ps1
+.\eval\dlc-truc-p2a-regtest.ps1
 ```
 
 The milestone funding finalizer also requires `DLC_STATE_PATH` to reference a
