@@ -11,6 +11,7 @@ const {
   REQUIRED_EVIDENCE,
   canonicalJson,
   createDlcContract,
+  normalizeDlcContract,
   signValidationReceipt,
   validateDlcContract,
   transitionDlcContract
@@ -521,7 +522,7 @@ test('state machine reaches funding approval only through every required gate', 
   assert(contract.stage === 'FUNDING_PSBT_APPROVED' && contract.revision === 5, 'funding approval ordering failed');
   assert(validateDlcContract(contract), 'ordered contract did not validate');
   const repeated = transitionDlcContract(contract, oracleRequest);
-  assert(repeated === contract, 'identical transition retry must be idempotent');
+  assert(repeated.recordHash === contract.recordHash, 'identical transition retry must be idempotent');
   const altered = JSON.parse(JSON.stringify(oracleRequest));
   altered.evidence[0].digest = digest('different-policy');
   expectThrow(() => transitionDlcContract(contract, altered), /signature is invalid|idempotency key/);
@@ -533,6 +534,76 @@ test('state hash detects transition evidence tampering', () => {
   const tampered = JSON.parse(JSON.stringify(advanced));
   tampered.history[0].evidence[0].digest = '00'.repeat(32);
   expectThrow(() => validateDlcContract(tampered), /hash mismatch|request or prior transcript/);
+});
+
+test('contract entry points reject callbacks and durable reads return frozen snapshots', () => {
+  let accessorCalls = 0;
+  const contract = initialContract('callback-boundary-contract');
+  const hostileRecord = { ...contract };
+  Object.defineProperty(hostileRecord, 'stage', {
+    enumerable: true,
+    get() { accessorCalls++; return contract.stage; }
+  });
+  expectThrow(() => validateDlcContract(hostileRecord), /enumerable data property/);
+  assert(accessorCalls === 0, 'contract record accessor executed before rejection');
+
+  let requestAccessorCalls = 0;
+  const request = requestFor(contract, 'AUTHENTICATED_ORACLES');
+  const hostileRequest = { ...request };
+  Object.defineProperty(hostileRequest, 'to', {
+    enumerable: true,
+    get() { requestAccessorCalls++; return request.to; }
+  });
+  expectThrow(() => transitionDlcContract(contract, hostileRequest), /enumerable data property/);
+  assert(requestAccessorCalls === 0, 'transition request accessor executed before rejection');
+
+  let creationAccessorCalls = 0;
+  const creation = {
+    contractId: 'hostile-create',
+    network: 'bitcoin-testnet4',
+    contractDigest: digest('hostile-create'),
+    oraclePolicy: { threshold: 2, total: 3, pinnedPubkeys },
+    validatorPolicy
+  };
+  Object.defineProperty(creation, 'network', {
+    enumerable: true,
+    get() { creationAccessorCalls++; return 'bitcoin-testnet4'; }
+  });
+  expectThrow(() => createDlcContract(creation), /enumerable data property/);
+  assert(creationAccessorCalls === 0, 'contract creation accessor executed before rejection');
+
+  let receiptAccessorCalls = 0;
+  const receiptArguments = {
+    privateKey: validatorKeys.privateKey,
+    contractId: contract.contractId,
+    contractDigest: contract.contractDigest,
+    from: contract.stage,
+    to: 'AUTHENTICATED_ORACLES',
+    idempotencyKey: 'transition:hostile-receipt',
+    kind: 'oracle_policy',
+    digest: digest('hostile-receipt')
+  };
+  Object.defineProperty(receiptArguments, 'kind', {
+    enumerable: true,
+    get() { receiptAccessorCalls++; return 'oracle_policy'; }
+  });
+  expectThrow(() => signValidationReceipt(receiptArguments), /enumerable data property/);
+  assert(receiptAccessorCalls === 0, 'receipt argument accessor executed before rejection');
+
+  expectThrow(() => normalizeDlcContract(new Proxy(contract, {
+    get() { throw new Error('proxy trap executed'); }
+  })), /Proxy object/);
+
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'utxoref-frozen-state-'));
+  try {
+    const store = new DlcStateStore(directory);
+    store.create(contract);
+    const reloaded = new DlcStateStore(directory).read(contract.contractId);
+    assert(Object.isFrozen(reloaded) && Object.isFrozen(reloaded.history) && Object.isFrozen(reloaded.oraclePolicy),
+      'durable contract read did not return a deeply frozen snapshot');
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
 });
 
 test('append-only store survives reload and rejects stale revisions', () => {

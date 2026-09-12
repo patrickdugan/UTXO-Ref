@@ -58,7 +58,7 @@ function post(port, token, payload) {
 
 test('read-only RPC policy rejects wallet, signing, broadcast, and node-control methods', () => {
   const evaluationPolicy = referee.dlc.testnet4EvaluationPolicy;
-  assert.equal(referee.dlc.securityBoundaryVersion, 62);
+  assert.equal(referee.dlc.securityBoundaryVersion, 63);
   assert.equal(typeof referee.dlc.canonicalizeData, 'function');
   assert.equal(typeof referee.dlc.canonicalJson, 'function');
   assert.deepEqual(referee.dlc.canonicalSerializationPolicy, {
@@ -80,6 +80,13 @@ test('read-only RPC policy rejects wallet, signing, broadcast, and node-control 
     maxNodes: 65536,
     maxStringCodeUnits: 16777216,
     maxJsonBytes: 16777216
+  });
+  assert.deepEqual(referee.dlc.contractInputPolicy, {
+    recordsNormalizedBeforeFieldAccess: true,
+    transitionRequestsNormalizedBeforeFieldAccess: true,
+    receiptArgumentsDescriptorSnapshotted: true,
+    callbackBearingInputsAllowed: false,
+    durableReadsDeeplyFrozen: true
   });
   assert.equal(referee.dlc.durableJournalPolicy.recordReadProtocol, 'lstat-open-fstat-lstat-v2');
   assert.equal(referee.dlc.durableJournalPolicy.pathEntryStableThroughReadRequired, true);

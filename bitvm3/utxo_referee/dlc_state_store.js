@@ -3,7 +3,7 @@
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
-const { validateDlcContract, transitionDlcContract } = require('./dlc_contract_state');
+const { normalizeDlcContract, transitionDlcContract } = require('./dlc_contract_state');
 const {
   assertNonSymlinkDirectory,
   ensureNonSymlinkDirectory,
@@ -79,7 +79,7 @@ class DlcStateStore {
   }
 
   _writeRevision(record) {
-    validateDlcContract(record);
+    record = normalizeDlcContract(record);
     const directory = this._contractDirectory(record.contractId);
     ensureNonSymlinkDirectory(directory, 'DLC state contract');
     const name = `revision-${String(record.revision).padStart(12, '0')}.json`;
@@ -95,7 +95,7 @@ class DlcStateStore {
   }
 
   create(record) {
-    validateDlcContract(record);
+    record = normalizeDlcContract(record);
     return this._withLock(record.contractId, () => {
       if (this._revisionFiles(record.contractId).length !== 0) throw new Error('DLC contract already exists');
       this._writeRevision(record);
@@ -113,7 +113,7 @@ class DlcStateStore {
     return this._withLock(contractId, () => {
       const current = this.read(contractId);
       const next = transitionDlcContract(current, request);
-      if (next === current) return current;
+      if (next.recordHash === current.recordHash) return current;
       if (current.revision !== expectedRevision) {
         throw new Error(`stale DLC state revision: expected ${expectedRevision}, current ${current.revision}`);
       }
@@ -131,11 +131,10 @@ class DlcStateStore {
       if (files[index] !== `revision-${String(index).padStart(12, '0')}.json`) {
         throw new Error('DLC state revision filename sequence is not contiguous');
       }
-      const record = readBoundedJson(path.join(directory, files[index]), {
+      const record = normalizeDlcContract(readBoundedJson(path.join(directory, files[index]), {
         maxBytes: MAX_REVISION_BYTES,
         label: 'DLC state revision'
-      });
-      validateDlcContract(record);
+      }));
       if (record.revision !== index) throw new Error('DLC state revision file sequence is not contiguous');
       if (previous && (record.history.length !== previous.history.length + 1 ||
           record.history.slice(0, -1).map((entry) => entry.requestHash).join(':') !==
@@ -162,11 +161,10 @@ class DlcStateStore {
     const chain = this.verifyChain(contractId);
     let recordHashAtCheckpoint = null;
     if (chain.revisions >= expectedCheckpoint.recordCount) {
-      const record = readBoundedJson(path.join(
+      const record = normalizeDlcContract(readBoundedJson(path.join(
         this._contractDirectory(contractId),
         `revision-${String(expectedCheckpoint.recordCount - 1).padStart(12, '0')}.json`
-      ), { maxBytes: MAX_REVISION_BYTES, label: 'DLC state checkpoint revision' });
-      validateDlcContract(record);
+      ), { maxBytes: MAX_REVISION_BYTES, label: 'DLC state checkpoint revision' }));
       recordHashAtCheckpoint = record.recordHash;
     }
     assertDlcJournalCheckpoint(expectedCheckpoint, {

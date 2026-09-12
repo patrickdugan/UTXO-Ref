@@ -1,6 +1,7 @@
 'use strict';
 
 const crypto = require('crypto');
+const { types: utilTypes } = require('util');
 const { canonicalize, canonicalJson } = require('./dlc_canonical_json');
 
 const KIND = 'utxoref_dlc_contract_state_v1';
@@ -120,17 +121,36 @@ function receiptPayload(receipt, context) {
   return Buffer.from(canonicalJson(payload), 'utf8');
 }
 
-function signValidationReceipt({
-  privateKey,
-  contractId,
-  contractDigest,
-  from,
-  to,
-  idempotencyKey,
-  kind,
-  digest,
-  metadata
-}) {
+function snapshotReceiptArguments(input) {
+  if (!input || typeof input !== 'object' || utilTypes.isProxy(input) ||
+      (Object.getPrototypeOf(input) !== Object.prototype && Object.getPrototypeOf(input) !== null)) {
+    throw new Error('validation receipt arguments must be a plain object, not a Proxy');
+  }
+  const descriptors = Object.getOwnPropertyDescriptors(input);
+  const allowed = new Set([
+    'privateKey', 'contractId', 'contractDigest', 'from', 'to', 'idempotencyKey', 'kind', 'digest', 'metadata'
+  ]);
+  for (const key of Reflect.ownKeys(descriptors)) {
+    if (typeof key === 'symbol' || !allowed.has(key)) {
+      throw new Error('validation receipt arguments contain an unsupported property');
+    }
+    const descriptor = descriptors[key];
+    if (!descriptor.enumerable || !('value' in descriptor)) {
+      throw new Error(`validation receipt arguments[${JSON.stringify(String(key))}] must be an enumerable data property`);
+    }
+  }
+  const result = {};
+  for (const key of allowed) {
+    const descriptor = descriptors[key];
+    if (descriptor && descriptor.value !== undefined) result[key] = descriptor.value;
+  }
+  return Object.freeze(result);
+}
+
+function signValidationReceipt(input) {
+  const {
+    privateKey, contractId, contractDigest, from, to, idempotencyKey, kind, digest, metadata
+  } = snapshotReceiptArguments(input);
   requireId(contractId, 'contractId');
   requireHex(contractDigest, 32, 'contractDigest');
   requireId(idempotencyKey, 'idempotencyKey');
@@ -309,7 +329,9 @@ function initialTranscriptHash(record) {
   }));
 }
 
-function createDlcContract({ contractId, network, contractDigest, oraclePolicy, validatorPolicy }) {
+function createDlcContract(input) {
+  const { contractId, network, contractDigest, oraclePolicy, validatorPolicy } =
+    canonicalize(input, 'DLC contract creation arguments');
   requireId(contractId, 'contractId');
   if (!NETWORKS.has(network)) throw new Error('network must be bitcoin-regtest or bitcoin-testnet4');
   requireHex(contractDigest, 32, 'contractDigest');
@@ -329,7 +351,7 @@ function createDlcContract({ contractId, network, contractDigest, oraclePolicy, 
   return Object.freeze({ ...record, recordHash: recordHash(record) });
 }
 
-function validateDlcContract(record) {
+function validateNormalizedDlcContract(record) {
   if (!record || record.kind !== KIND) throw new Error('invalid DLC contract state kind');
   requireId(record.contractId, 'contractId');
   if (!NETWORKS.has(record.network)) throw new Error('invalid DLC contract network');
@@ -401,6 +423,17 @@ function validateDlcContract(record) {
   return true;
 }
 
+function normalizeDlcContract(record) {
+  const normalized = canonicalize(record, 'DLC contract record');
+  validateNormalizedDlcContract(normalized);
+  return normalized;
+}
+
+function validateDlcContract(record) {
+  normalizeDlcContract(record);
+  return true;
+}
+
 function nextAllowedStage(from, requested) {
   if (from === 'CONFIRMED' && (requested === 'CET_EXECUTED' || requested === 'REFUND_EXECUTED')) return requested;
   const index = STAGES.indexOf(from);
@@ -409,8 +442,11 @@ function nextAllowedStage(from, requested) {
 }
 
 function transitionDlcContract(record, request) {
-  validateDlcContract(record);
-  if (!request || typeof request !== 'object') throw new Error('transition request must be an object');
+  record = normalizeDlcContract(record);
+  request = canonicalize(request, 'DLC transition request');
+  if (!request || typeof request !== 'object' || Array.isArray(request)) {
+    throw new Error('transition request must be an object');
+  }
   requireId(request.idempotencyKey, 'idempotencyKey');
   if (!STAGES.includes(request.to)) throw new Error('invalid target DLC stage');
   const prior = record.history.find((entry) => entry.idempotencyKey === request.idempotencyKey);
@@ -476,6 +512,7 @@ module.exports = {
   recordHash,
   signValidationReceipt,
   createDlcContract,
+  normalizeDlcContract,
   validateDlcContract,
   transitionDlcContract
 };

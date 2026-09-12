@@ -184,6 +184,9 @@ Boundary V62 additionally requires the expected value from
 hash in trusted monotonic coordinator state outside the checkpoint storage
 domain. Replaying any other valid signed envelope then fails before the journal
 can resume.
+Boundary V63 rejects accessor-bearing and Proxy contract inputs before semantic
+validation can execute callbacks. Durable contract reads are canonicalized and
+deeply frozen before they leave the state store.
 
 ## Agent isolation
 

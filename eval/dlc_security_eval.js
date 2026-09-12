@@ -27,6 +27,7 @@ const {
   REQUIRED_EVIDENCE,
   canonicalJson,
   createDlcContract,
+  normalizeDlcContract,
   signValidationReceipt,
   transitionDlcContract
 } = require(path.join(__dirname, '..', 'bitvm3', 'utxo_referee', 'dlc_contract_state.js'));
@@ -380,6 +381,49 @@ check('canonical encoding executes no inherited hooks or Proxy traps', 'canonica
     /invalid DLC journal checkpoint/
   );
   return hookSafe && canonicalProxyRejected && checkpointProxyRejected && proxyTraps === 0;
+});
+
+check('contract APIs reject callbacks before semantic field access', 'canonical-data', 12, () => {
+  const pinnedPubkeys = [0, 1, 2].map((index) => sha256(`contract-input-oracle:${index}`).toString('hex'));
+  const contract = createDlcContract({
+    contractId: 'eval-contract-input-boundary',
+    network: 'bitcoin-testnet4',
+    contractDigest: sha256('eval-contract-input-boundary').toString('hex'),
+    oraclePolicy: { threshold: 2, total: 3, pinnedPubkeys },
+    validatorPolicy
+  });
+  let recordAccessorCalls = 0;
+  const hostileRecord = { ...contract };
+  Object.defineProperty(hostileRecord, 'stage', {
+    enumerable: true,
+    get() { recordAccessorCalls++; return 'DRAFT'; }
+  });
+  let requestAccessorCalls = 0;
+  const hostileRequest = { idempotencyKey: 'eval-hostile-transition', evidence: [] };
+  Object.defineProperty(hostileRequest, 'to', {
+    enumerable: true,
+    get() { requestAccessorCalls++; return 'AUTHENTICATED_ORACLES'; }
+  });
+  let receiptAccessorCalls = 0;
+  const hostileReceiptArguments = {
+    privateKey: validatorKeys.privateKey,
+    contractId: contract.contractId,
+    contractDigest: contract.contractDigest,
+    from: 'DRAFT',
+    to: 'AUTHENTICATED_ORACLES',
+    idempotencyKey: 'eval-hostile-receipt',
+    digest: sha256('eval-hostile-receipt').toString('hex')
+  };
+  Object.defineProperty(hostileReceiptArguments, 'kind', {
+    enumerable: true,
+    get() { receiptAccessorCalls++; return 'oracle_policy'; }
+  });
+  const proxy = new Proxy(contract, { get() { throw new Error('contract proxy trap executed'); } });
+  return throws(() => normalizeDlcContract(hostileRecord), /enumerable data property/) &&
+    throws(() => transitionDlcContract(contract, hostileRequest), /enumerable data property/) &&
+    throws(() => signValidationReceipt(hostileReceiptArguments), /enumerable data property/) &&
+    throws(() => normalizeDlcContract(proxy), /Proxy object/) &&
+    recordAccessorCalls === 0 && requestAccessorCalls === 0 && receiptAccessorCalls === 0;
 });
 
 check('operator signatures authenticate external journal checkpoints', 'state-persistence', 14, () => {
@@ -2145,7 +2189,7 @@ const possible = cases.reduce((sum, test) => sum + test.points, 0);
 const score = earned / possible;
 const report = {
   benchmark: 'utxoref-dlc-security',
-  version: 32,
+  version: 33,
   profile: profileName,
   seed,
   score,

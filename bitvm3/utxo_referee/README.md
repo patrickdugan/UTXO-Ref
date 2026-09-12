@@ -438,6 +438,11 @@ in a separate trusted monotonic boundary and supplies it to every
 `verifySignedCheckpoint` call. Verification rejects a mismatched envelope
 before accepting its signer or comparing journal history. Never store this
 small current-envelope pin beside the untrusted checkpoint it protects.
+Boundary V63 normalizes contract records and transition requests before any
+semantic field access, snapshots receipt arguments from own data-property
+descriptors, and rejects accessors or Proxy objects without executing them.
+Contract state reloaded from the append-only store is returned as a deeply
+frozen canonical snapshot.
 The host accepts only bounded regular runtime files whose resolved paths do not
 traverse filesystem links. It hashes the complete runtime closure before and
 after every signer execution, so deletion or mutation during the process
