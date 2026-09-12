@@ -451,6 +451,10 @@ Boundary V65 applies the same rule to validated transaction sets. Funding, fee
 policy, CET, refund, output, and oracle-subset containers are deeply frozen;
 all production consumers retain the normalized set across external Core calls
 and watchtower publication.
+Boundary V66 snapshots raw transaction-set construction input from property
+descriptors before destructuring or nested field access. The bounded snapshot
+supports Bitcoin amount `bigint` values while rejecting accessors, Proxy traps,
+symbols, exotic prototypes, sparse arrays, cycles, and oversized input.
 The host accepts only bounded regular runtime files whose resolved paths do not
 traverse filesystem links. It hashes the complete runtime closure before and
 after every signer execution, so deletion or mutation during the process

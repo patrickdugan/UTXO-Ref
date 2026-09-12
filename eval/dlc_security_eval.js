@@ -329,6 +329,7 @@ check('signed canonical data rejects hidden, effectful, and ambiguous values', '
     throws(() => canonicalJson(symbolBearing), /symbol properties/) &&
     throws(() => canonicalJson(new Date(0)), /plain objects and arrays/) &&
     throws(() => canonicalJson(-0), /unambiguous safe integers/) &&
+    throws(() => canonicalJson(1n), /unsupported data/) &&
     throws(() => canonicalJson(sparse), /dense array/) &&
     throws(() => canonicalJson(cyclic), /cycle/) &&
     throws(() => canonicalJson(tooDeep), /depth 64/) &&
@@ -1409,6 +1410,23 @@ check('TRUC settlements commit version 3, P2A, and the two-transaction cluster l
     validated.feePolicy.maxUnconfirmedClusterTransactions === 2 && v2Rejected && forgedRejected;
 });
 
+check('transaction construction rejects getters and Proxy traps before validation', 'canonical-data', 12, () => {
+  let accessorCalls = 0;
+  const funding = { txid: 'ab'.repeat(32), valueSats: 100000n, scriptPubKeyHex: `5120${'44'.repeat(32)}` };
+  Object.defineProperty(funding, 'vout', {
+    enumerable: true,
+    get() { accessorCalls++; return 0; }
+  });
+  const input = { funding, cets: [], refund: {}, minFeeSats: 0n, maxFeeSats: 1000n, feePolicy: {} };
+  let proxyTraps = 0;
+  const proxy = new Proxy(input, {
+    getPrototypeOf(target) { proxyTraps++; return Reflect.getPrototypeOf(target); },
+    ownKeys(target) { proxyTraps++; return Reflect.ownKeys(target); }
+  });
+  return throws(() => validateDlcTransactionSet(input), /enumerable data property/) && accessorCalls === 0 &&
+    throws(() => validateDlcTransactionSet(proxy), /Proxy object/) && proxyTraps === 0;
+});
+
 check('chain guard halts on disconnected ancestry and uncommitted funding spends', 'chain-safety', 12, () => {
   const funding = {
     txid: 'ab'.repeat(32),
@@ -2215,7 +2233,7 @@ const possible = cases.reduce((sum, test) => sum + test.points, 0);
 const score = earned / possible;
 const report = {
   benchmark: 'utxoref-dlc-security',
-  version: 35,
+  version: 36,
   profile: profileName,
   seed,
   score,

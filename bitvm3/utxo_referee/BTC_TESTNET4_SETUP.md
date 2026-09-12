@@ -193,6 +193,9 @@ to a later policy or authorization step after validating it.
 Boundary V65 also normalizes and deeply freezes validated transaction sets.
 Core RPC callbacks cannot swap a funding outpoint, CET, refund, or fee policy
 between commitment verification and the final observation or journal record.
+Boundary V66 also snapshots raw transaction construction arguments before any
+semantic field access. Getter-bearing and Proxy input fails without executing
+attacker callbacks, including on nested funding and payout objects.
 
 ## Agent isolation
 

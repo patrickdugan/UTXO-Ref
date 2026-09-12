@@ -275,6 +275,7 @@ test('canonical signed data rejects effectful and ambiguous JavaScript values', 
   expectThrow(() => canonicalJson(symbolBearing), /symbol properties/);
   expectThrow(() => canonicalJson(new Date(0)), /plain objects and arrays/);
   expectThrow(() => canonicalJson(-0), /unambiguous safe integers/);
+  expectThrow(() => canonicalJson(1n), /unsupported data/);
 
   const sparse = new Array(2);
   sparse[1] = 1;
@@ -1723,6 +1724,21 @@ test('TRUC transaction sets bind version 3 and a zero-sat P2A anchor', () => {
   });
   expectThrow(() => validateDlcTransactionSetCommitments(hostile), /enumerable data property/);
   assert(transactionAccessorCalls === 0, 'transaction-set accessor executed before rejection');
+  let constructionAccessorCalls = 0;
+  const hostileFunding = { ...funding };
+  Object.defineProperty(hostileFunding, 'vout', {
+    enumerable: true,
+    get() { constructionAccessorCalls++; return funding.vout; }
+  });
+  expectThrow(() => validateDlcTransactionSet({ ...input, funding: hostileFunding }), /enumerable data property/);
+  assert(constructionAccessorCalls === 0, 'transaction construction accessor executed before rejection');
+  let constructionProxyTraps = 0;
+  const constructionProxy = new Proxy(input, {
+    getPrototypeOf(target) { constructionProxyTraps++; return Reflect.getPrototypeOf(target); },
+    ownKeys(target) { constructionProxyTraps++; return Reflect.ownKeys(target); }
+  });
+  expectThrow(() => validateDlcTransactionSet(constructionProxy), /Proxy object/);
+  assert(constructionProxyTraps === 0, 'transaction construction Proxy trap executed before rejection');
 
   expectThrow(() => validateDlcTransactionSet({
     ...input,

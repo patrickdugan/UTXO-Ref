@@ -1,7 +1,7 @@
 'use strict';
 
 const crypto = require('crypto');
-const { canonicalize, canonicalJson } = require('./dlc_canonical_json');
+const { snapshotPlainData, canonicalize, canonicalJson } = require('./dlc_canonical_json');
 
 const MAX_MONEY = 21000000n * 100000000n;
 const P2A_SCRIPT_PUBKEY_HEX = '51024e73';
@@ -305,7 +305,9 @@ function serializeValidatedSpend(result) {
   };
 }
 
-function validateDlcTransactionSet({ funding, cets, refund, minFeeSats = 0n, maxFeeSats, feePolicy }) {
+function validateDlcTransactionSet(input) {
+  const { funding, cets, refund, minFeeSats = 0n, maxFeeSats, feePolicy } =
+    snapshotPlainData(input, 'DLC transaction set construction arguments', true);
   const normalizedFunding = normalizeFunding(funding);
   const normalizedFeePolicy = normalizeFeePolicy(feePolicy);
   if (typeof minFeeSats !== 'bigint' || minFeeSats < 0n || typeof maxFeeSats !== 'bigint' ||

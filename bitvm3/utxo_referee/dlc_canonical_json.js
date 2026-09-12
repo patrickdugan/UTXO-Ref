@@ -42,6 +42,7 @@ function normalize(value, path, depth, state) {
     }
     return value;
   }
+  if (typeof value === 'bigint' && state.allowBigInt) return value;
   if (!value || typeof value !== 'object') {
     throw new Error(`${path} contains unsupported data`);
   }
@@ -115,13 +116,19 @@ function normalize(value, path, depth, state) {
   }
 }
 
-function canonicalize(value, path = '$') {
+function snapshotPlainData(value, path = '$', allowBigInt = false) {
   if (typeof path !== 'string' || path.length < 1) throw new Error('canonical data path is required');
+  if (typeof allowBigInt !== 'boolean') throw new Error('allowBigInt must be boolean');
   return normalize(value, path, 0, {
     ancestors: new WeakSet(),
     nodes: 0,
-    stringCodeUnits: 0
+    stringCodeUnits: 0,
+    allowBigInt
   });
+}
+
+function canonicalize(value, path = '$') {
+  return snapshotPlainData(value, path, false);
 }
 
 function encodeCanonical(value) {
@@ -158,6 +165,7 @@ module.exports = {
   MAX_CANONICAL_NODES,
   MAX_CANONICAL_STRING_CODE_UNITS,
   MAX_CANONICAL_JSON_BYTES,
+  snapshotPlainData,
   canonicalize,
   canonicalJson
 };
