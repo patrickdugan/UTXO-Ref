@@ -1,6 +1,7 @@
 'use strict';
 
 const crypto = require('crypto');
+const { canonicalize, canonicalJson } = require('./dlc_canonical_json');
 const { validateDlcTransactionSetCommitments } = require('./dlc_transaction_validator');
 const { validateDlcContract } = require('./dlc_contract_state');
 
@@ -40,28 +41,6 @@ const TYPE_POLICY = Object.freeze({
 
 function sha256Hex(value) {
   return crypto.createHash('sha256').update(value).digest('hex');
-}
-
-function canonicalize(value, path = '$') {
-  if (value === null || typeof value === 'boolean' || typeof value === 'string') return value;
-  if (typeof value === 'number') {
-    if (!Number.isSafeInteger(value)) throw new Error(`${path} must contain only safe integers`);
-    return value;
-  }
-  if (Array.isArray(value)) return value.map((item, index) => canonicalize(item, `${path}[${index}]`));
-  if (value && typeof value === 'object') {
-    const result = {};
-    for (const key of Object.keys(value).sort()) {
-      if (value[key] === undefined) throw new Error(`${path}.${key} must not be undefined`);
-      result[key] = canonicalize(value[key], `${path}.${key}`);
-    }
-    return result;
-  }
-  throw new Error(`${path} contains unsupported data`);
-}
-
-function canonicalJson(value) {
-  return JSON.stringify(canonicalize(value));
 }
 
 function computeOraclePolicyDigest(oraclePolicy) {
@@ -115,6 +94,7 @@ function normalizeSerials(values, fieldName) {
 }
 
 function normalizeBody(messageType, body) {
+  body = canonicalize(body, `${messageType} body`);
   const policy = TYPE_POLICY[messageType];
   if (!policy || !body || typeof body !== 'object' || Array.isArray(body)) {
     throw new Error('unsupported DLC peer message type or body');

@@ -3,7 +3,7 @@
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
-const { canonicalJson, validateDlcContract } = require('./dlc_contract_state');
+const { canonicalize, canonicalJson, validateDlcContract } = require('./dlc_contract_state');
 const { parseCanonicalSignedTaprootTransaction, validateDlcTransactionSetCommitments } = require('./dlc_transaction_validator');
 const { toBip341Transaction } = require('./dlc_signature_validator');
 const { bip341SighashDefault } = require('./tradelayer_taproot');
@@ -43,7 +43,7 @@ function refundKey(contractId) {
 }
 
 function recordHash(record) {
-  const unsigned = { ...record };
+  const unsigned = { ...canonicalize(record, 'DLC refund recovery record') };
   delete unsigned.recordHash;
   return sha256Hex(Buffer.from(canonicalJson(unsigned), 'utf8'));
 }

@@ -12,7 +12,7 @@ const {
   restoreDlcOracleSignerState,
   bytes32
 } = require('./tradelayer_dlc_adaptor_sig');
-const { canonicalJson } = require('./dlc_contract_state');
+const { canonicalize, canonicalJson } = require('./dlc_contract_state');
 const {
   assertNonSymlinkDirectory,
   ensureNonSymlinkDirectory,
@@ -46,7 +46,7 @@ function eventKey(oraclePubkey, eventId) {
 }
 
 function recordHash(record) {
-  const copy = { ...record };
+  const copy = { ...canonicalize(record, 'DLC oracle event record') };
   delete copy.recordHash;
   return sha256Hex(canonicalJson(copy));
 }

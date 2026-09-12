@@ -9,6 +9,7 @@ const dlc = require('./tradelayer_dlc_adaptor_sig');
 const {
   ALL_EVIDENCE_KINDS,
   REQUIRED_EVIDENCE,
+  canonicalJson,
   createDlcContract,
   signValidationReceipt,
   validateDlcContract,
@@ -235,6 +236,56 @@ test('threshold policy rejects one attestation, duplicates, and unpinned sets', 
     oraclePubkeys: [announcements[0].px, announcements[0].px]
   }), /duplicate/);
   expectThrow(() => validateOracleSet(announcements, 2, [pinnedPubkeys[0], pinnedPubkeys[1], '11'.repeat(32)]), /pinned/);
+});
+
+test('canonical signed data rejects effectful and ambiguous JavaScript values', () => {
+  const ownProto = JSON.parse('{"__proto__":{"polluted":true},"b":2,"a":1}');
+  assert(canonicalJson(ownProto) === '{"__proto__":{"polluted":true},"a":1,"b":2}',
+    'own __proto__ data was omitted or reordered ambiguously');
+  assert(Object.prototype.polluted === undefined, 'canonicalization polluted Object.prototype');
+
+  let getterCalls = 0;
+  const accessor = {};
+  Object.defineProperty(accessor, 'value', {
+    enumerable: true,
+    get() { getterCalls++; return 1; }
+  });
+  expectThrow(() => canonicalJson(accessor), /enumerable data property/);
+  assert(getterCalls === 0, 'canonicalization executed an accessor');
+
+  const symbolBearing = { value: 1 };
+  symbolBearing[Symbol('hidden')] = 2;
+  expectThrow(() => canonicalJson(symbolBearing), /symbol properties/);
+  expectThrow(() => canonicalJson(new Date(0)), /plain objects and arrays/);
+  expectThrow(() => canonicalJson(-0), /unambiguous safe integers/);
+
+  const sparse = new Array(2);
+  sparse[1] = 1;
+  expectThrow(() => canonicalJson(sparse), /dense array/);
+  const decorated = [1];
+  decorated.extra = true;
+  expectThrow(() => canonicalJson(decorated), /dense array/);
+
+  const cyclic = {};
+  cyclic.self = cyclic;
+  expectThrow(() => canonicalJson(cyclic), /cycle/);
+  let tooDeep = true;
+  for (let index = 0; index < 65; index++) tooDeep = { next: tooDeep };
+  expectThrow(() => canonicalJson(tooDeep), /depth 64/);
+
+  const receipt = signValidationReceipt({
+    privateKey: validatorKeys.privateKey,
+    contractId: 'canonical-data-contract',
+    contractDigest: digest('canonical-data-contract'),
+    from: 'DRAFT',
+    to: 'AUTHENTICATED_ORACLES',
+    idempotencyKey: 'canonical-data-transition',
+    kind: 'oracle_policy',
+    digest: digest('canonical-data-policy'),
+    metadata: { nested: { accepted: true } }
+  });
+  assert(Object.isFrozen(receipt.metadata) && Object.isFrozen(receipt.metadata.nested),
+    'signed metadata was not deeply frozen');
 });
 
 function initialContract(contractId = 'contract-1') {
@@ -2585,6 +2636,20 @@ test('peer transcript authenticates offer/accept/sign and binds serial ordering 
   });
   assert(validated.ok && validated.contractId === fixture.contractId, 'valid peer transcript failed');
   assert(/^[0-9a-f]{64}$/.test(validated.transcriptDigest), 'peer transcript digest is invalid');
+
+  let accessorCalls = 0;
+  const accessorBody = { ...fixture.offer.body };
+  Object.defineProperty(accessorBody, 'payoutSerialId', {
+    enumerable: true,
+    get() { accessorCalls++; return fixture.offer.body.payoutSerialId; }
+  });
+  expectThrow(() => signDlcPeerMessage({
+    messageType: PEER_MESSAGE_TYPES.OFFER,
+    peerId: fixture.offer.peerId,
+    body: accessorBody,
+    privateKey: fixture.offerer.privateKey
+  }), /enumerable data property/);
+  assert(accessorCalls === 0, 'peer body accessor executed before rejection');
 
   const duplicate = peerTranscriptFixture({ acceptBody: { fundingInputSerialIds: ['2', '11'] } });
   expectThrow(() => validateDlcPeerTranscript({

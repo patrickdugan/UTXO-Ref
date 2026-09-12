@@ -25,6 +25,7 @@ const dlc = require(implementationPath);
 const {
   ALL_EVIDENCE_KINDS,
   REQUIRED_EVIDENCE,
+  canonicalJson,
   createDlcContract,
   signValidationReceipt,
   transitionDlcContract
@@ -277,6 +278,46 @@ check('malformed signatures and pre-signatures fail closed', 'parsing', 8, () =>
     dlc.schnorrVerify(Buffer.alloc(0), message, Buffer.alloc(64)) === false &&
     dlc.adaptorVerify(publicKey, message, { ...presignature, s0: `00${presignature.s0}` }) === false &&
     dlc.adaptorVerify(publicKey, message, { ...presignature, R0x: 'zz'.repeat(32) }) === false;
+});
+
+check('signed canonical data rejects hidden, effectful, and ambiguous values', 'canonical-data', 12, () => {
+  const ownProto = JSON.parse('{"__proto__":{"polluted":true},"b":2,"a":1}');
+  const ownProtoBound = canonicalJson(ownProto) ===
+    '{"__proto__":{"polluted":true},"a":1,"b":2}' && Object.prototype.polluted === undefined;
+  let getterCalls = 0;
+  const accessor = {};
+  Object.defineProperty(accessor, 'value', {
+    enumerable: true,
+    get() { getterCalls++; return 1; }
+  });
+  const symbolBearing = { value: 1 };
+  symbolBearing[Symbol('hidden')] = 2;
+  const sparse = new Array(2);
+  sparse[1] = 1;
+  const cyclic = {};
+  cyclic.self = cyclic;
+  let tooDeep = true;
+  for (let index = 0; index < 65; index++) tooDeep = { next: tooDeep };
+  const receipt = signValidationReceipt({
+    privateKey: validatorKeys.privateKey,
+    contractId: 'eval-canonical-data',
+    contractDigest: sha256('eval-canonical-contract').toString('hex'),
+    from: 'DRAFT',
+    to: 'AUTHENTICATED_ORACLES',
+    idempotencyKey: 'eval-canonical-transition',
+    kind: 'oracle_policy',
+    digest: sha256('eval-canonical-policy').toString('hex'),
+    metadata: { nested: { accepted: true } }
+  });
+  return ownProtoBound &&
+    throws(() => canonicalJson(accessor), /enumerable data property/) && getterCalls === 0 &&
+    throws(() => canonicalJson(symbolBearing), /symbol properties/) &&
+    throws(() => canonicalJson(new Date(0)), /plain objects and arrays/) &&
+    throws(() => canonicalJson(-0), /unambiguous safe integers/) &&
+    throws(() => canonicalJson(sparse), /dense array/) &&
+    throws(() => canonicalJson(cyclic), /cycle/) &&
+    throws(() => canonicalJson(tooDeep), /depth 64/) &&
+    Object.isFrozen(receipt.metadata) && Object.isFrozen(receipt.metadata.nested);
 });
 
 check('extraction rejects a forged completed signature', 'extraction', 8, () => {
@@ -1981,7 +2022,7 @@ const possible = cases.reduce((sum, test) => sum + test.points, 0);
 const score = earned / possible;
 const report = {
   benchmark: 'utxoref-dlc-security',
-  version: 28,
+  version: 29,
   profile: profileName,
   seed,
   score,

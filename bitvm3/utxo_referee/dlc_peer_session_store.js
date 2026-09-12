@@ -3,7 +3,7 @@
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
-const { canonicalJson } = require('./dlc_contract_state');
+const { canonicalize, canonicalJson } = require('./dlc_contract_state');
 const { TYPES, verifyDlcPeerMessage } = require('./dlc_peer_transcript');
 const {
   assertNonSymlinkDirectory,
@@ -31,7 +31,7 @@ function requirePeerId(value) {
   return value;
 }
 function recordHash(record) {
-  const value = { ...record };
+  const value = { ...canonicalize(record, 'DLC peer session record') };
   delete value.recordHash;
   return hash(Buffer.from(canonicalJson(value), 'utf8'));
 }

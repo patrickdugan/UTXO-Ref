@@ -3,7 +3,7 @@
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
-const { canonicalJson } = require('./dlc_contract_state');
+const { canonicalize, canonicalJson } = require('./dlc_contract_state');
 const {
   assertNonSymlinkDirectory,
   ensureNonSymlinkDirectory,
@@ -44,7 +44,7 @@ function consumptionKey(contractId, authorizationId) {
 }
 
 function recordHash(record) {
-  const unsigned = { ...record };
+  const unsigned = { ...canonicalize(record, 'DLC signing authorization record') };
   delete unsigned.recordHash;
   return sha256Hex(Buffer.from(canonicalJson(unsigned), 'utf8'));
 }

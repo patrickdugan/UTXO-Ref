@@ -165,6 +165,11 @@ Boundary V58 includes the three one-shot records in this checkpoint workflow:
 signing consumption, refund recovery, and broadcast consumption. Treat every
 checkpoint as untrusted input until `normalizeJournalCheckpoint` or the store's
 `verifyCheckpoint` method returns successfully.
+Boundary V59 uses a single bounded canonical-data serializer for signed
+receipts, peer transcripts, contract state, and durable records. It snapshots
+only enumerable data properties on dense plain objects and arrays, deeply
+freezes the result, and rejects accessors, symbols, sparse arrays, exotic
+prototypes, cycles, negative zero, and oversized or over-deep input.
 
 ## Agent isolation
 

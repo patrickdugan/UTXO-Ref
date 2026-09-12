@@ -38,6 +38,7 @@ const m1TransitionCircuit = require('./m1_transition_circuit');
 const m1TallyMap = require('./m1_tally_map');
 const m1DepositIndexer = require('./m1_deposit_indexer');
 const utxoRefV2 = require('./utxoref_v2');
+const dlcCanonicalJson = require('./dlc_canonical_json');
 const dlcContractState = require('./dlc_contract_state');
 const dlcThresholdOracle = require('./dlc_threshold_oracle');
 const { DlcStateStore } = require('./dlc_state_store');
@@ -133,7 +134,26 @@ module.exports = {
   // for production; these interfaces enforce transcript, threshold-oracle,
   // and persistence gates on regtest and Bitcoin testnet4.
   dlc: Object.freeze({
-    securityBoundaryVersion: 58,
+    securityBoundaryVersion: 59,
+    canonicalizeData: dlcCanonicalJson.canonicalize,
+    canonicalJson: dlcCanonicalJson.canonicalJson,
+    canonicalSerializationPolicy: Object.freeze({
+      algorithm: 'utxoref-dlc-canonical-json-v2',
+      sortedOwnStringKeys: true,
+      plainObjectsAndArraysOnly: true,
+      enumerableDataPropertiesOnly: true,
+      accessorPropertiesAllowed: false,
+      symbolPropertiesAllowed: false,
+      sparseArraysAllowed: false,
+      arrayExtraPropertiesAllowed: false,
+      negativeZeroAllowed: false,
+      ownProtoDataBound: true,
+      deeplyFrozenSnapshots: true,
+      maxDepth: dlcCanonicalJson.MAX_CANONICAL_DEPTH,
+      maxNodes: dlcCanonicalJson.MAX_CANONICAL_NODES,
+      maxStringCodeUnits: dlcCanonicalJson.MAX_CANONICAL_STRING_CODE_UNITS,
+      maxJsonBytes: dlcCanonicalJson.MAX_CANONICAL_JSON_BYTES
+    }),
     createContract: dlcContractState.createDlcContract,
     validateContract: dlcContractState.validateDlcContract,
     transitionContract: dlcContractState.transitionDlcContract,

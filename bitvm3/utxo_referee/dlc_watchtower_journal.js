@@ -3,7 +3,7 @@
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
-const { canonicalJson, validateDlcContract } = require('./dlc_contract_state');
+const { canonicalize, canonicalJson, validateDlcContract } = require('./dlc_contract_state');
 const { validateDlcTransactionSetCommitments } = require('./dlc_transaction_validator');
 const { evaluateDlcChainSnapshot } = require('./dlc_chain_guard');
 const { captureDlcAnchorRecoverySnapshot } = require('./dlc_bitcoin_core_observer');
@@ -34,7 +34,7 @@ function requireId(value, name) {
   }
   return value;
 }
-function normalize(value) { return JSON.parse(canonicalJson(value)); }
+function normalize(value) { return canonicalize(value, 'DLC watchtower input'); }
 function asPublicKey(key) {
   return key && key.type === 'public' ? key : crypto.createPublicKey(key);
 }
@@ -44,14 +44,14 @@ function publicKeyDer(key) {
   return publicKey.export({ format: 'der', type: 'spki' });
 }
 function recordDigest(record) {
-  const unsigned = { ...record };
+  const unsigned = { ...canonicalize(record, 'DLC watchtower record') };
   delete unsigned.recordDigest;
   delete unsigned.signature;
   delete unsigned.recordHash;
   return hash(Buffer.from(canonicalJson(unsigned), 'utf8'));
 }
 function recordHash(record) {
-  const value = { ...record };
+  const value = { ...canonicalize(record, 'DLC watchtower record') };
   delete value.recordHash;
   return hash(Buffer.from(canonicalJson(value), 'utf8'));
 }

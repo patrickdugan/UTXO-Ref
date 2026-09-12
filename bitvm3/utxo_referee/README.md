@@ -414,6 +414,13 @@ consumption, signed-refund recovery, and broadcast-authorization consumption.
 Checkpoint inputs are copied into frozen plain-data snapshots before validation,
 so accessors or proxies cannot change a count, store key, or head hash between
 validation and comparison.
+Boundary V59 moves contract records, signed receipt metadata, peer messages,
+and durable record hashes onto one bounded canonical-data implementation. It
+accepts only dense plain arrays and plain objects with enumerable data
+properties, binds own `__proto__` data, and rejects accessors, symbol fields,
+exotic prototypes, cycles, negative zero, excess depth, and excess size. Every
+normalized object and array is deeply frozen before it reaches a signature or
+hash boundary.
 The host accepts only bounded regular runtime files whose resolved paths do not
 traverse filesystem links. It hashes the complete runtime closure before and
 after every signer execution, so deletion or mutation during the process

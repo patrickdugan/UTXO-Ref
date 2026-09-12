@@ -1,6 +1,7 @@
 'use strict';
 
 const crypto = require('crypto');
+const { canonicalize, canonicalJson } = require('./dlc_canonical_json');
 
 const KIND = 'utxoref_dlc_contract_state_v1';
 const NETWORKS = new Set(['bitcoin-regtest', 'bitcoin-testnet4']);
@@ -40,28 +41,6 @@ const ALL_EVIDENCE_KINDS = Object.freeze([...new Set(Object.values(REQUIRED_EVID
 
 function sha256Hex(value) {
   return crypto.createHash('sha256').update(value).digest('hex');
-}
-
-function canonicalize(value, path = '$') {
-  if (value === null || typeof value === 'boolean' || typeof value === 'string') return value;
-  if (typeof value === 'number') {
-    if (!Number.isSafeInteger(value)) throw new Error(`${path} must contain only safe integers`);
-    return value;
-  }
-  if (Array.isArray(value)) return value.map((item, index) => canonicalize(item, `${path}[${index}]`));
-  if (typeof value === 'object') {
-    const result = {};
-    for (const key of Object.keys(value).sort()) {
-      if (value[key] === undefined) throw new Error(`${path}.${key} must not be undefined`);
-      result[key] = canonicalize(value[key], `${path}.${key}`);
-    }
-    return result;
-  }
-  throw new Error(`${path} contains an unsupported value`);
-}
-
-function canonicalJson(value) {
-  return JSON.stringify(canonicalize(value));
 }
 
 function requireHex(value, bytes, fieldName) {
@@ -121,7 +100,7 @@ function normalizeValidatorPolicy(policy) {
 }
 
 function recordHash(record) {
-  const copy = { ...record };
+  const copy = { ...canonicalize(record, 'DLC contract record') };
   delete copy.recordHash;
   return sha256Hex(canonicalJson(copy));
 }
@@ -492,6 +471,7 @@ module.exports = {
   STAGES,
   REQUIRED_EVIDENCE,
   ALL_EVIDENCE_KINDS,
+  canonicalize,
   canonicalJson,
   recordHash,
   signValidationReceipt,

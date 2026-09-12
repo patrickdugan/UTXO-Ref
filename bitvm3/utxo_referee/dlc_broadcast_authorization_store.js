@@ -3,7 +3,7 @@
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
-const { canonicalJson, transitionDlcContract, validateDlcContract } = require('./dlc_contract_state');
+const { canonicalize, canonicalJson, transitionDlcContract, validateDlcContract } = require('./dlc_contract_state');
 const {
   assertNonSymlinkDirectory,
   ensureNonSymlinkDirectory,
@@ -45,7 +45,7 @@ function authorizationKey(contractId, idempotencyKey, requestHash) {
 }
 
 function recordHash(record) {
-  const unsigned = { ...record };
+  const unsigned = { ...canonicalize(record, 'DLC broadcast authorization record') };
   delete unsigned.recordHash;
   return sha256Hex(Buffer.from(canonicalJson(unsigned), 'utf8'));
 }
