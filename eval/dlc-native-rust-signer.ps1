@@ -184,6 +184,9 @@ if (-not $result.assertions.crossProcessClockStoreLock -or
     -not $result.assertions.parallelDistinctAuthorizationsSucceeded) {
   throw 'native signer integration omitted cross-process clock-store assertions'
 }
+if (-not $result.assertions.invalidFreshnessAuthorizationsNotConsumed) {
+  throw 'native signer integration consumed an authorization before freshness validation'
+}
 $commit = (git -c safe.directory=C:/projects/UTXORef/UTXO-Ref -C $repository rev-parse HEAD).Trim()
 $snapshot = [ordered]@{
   schema = 'utxoref_dlc_native_rust_signer_snapshot_v1'
@@ -205,7 +208,7 @@ $snapshotPath = Join-Path $SnapshotDirectory 'dlc-native-rust-signer-latest.json
   [System.Text.UTF8Encoding]::new($false)
 )
 $checkedEvidence = [ordered]@{
-  schema = 'utxoref_dlc_native_rust_signer_evidence_v12'
+  schema = 'utxoref_dlc_native_rust_signer_evidence_v13'
   network = 'bitcoin-testnet4'
   sourceCommit = $commit
   toolchain = [ordered]@{ rustc = $snapshot.rustc; cargo = $snapshot.cargo }
@@ -262,6 +265,7 @@ $checkedEvidence = [ordered]@{
     signerLocalReplayRejected = [bool]$result.assertions.signerLocalReplayRejected
     crossProcessClockStoreLock = [bool]$result.assertions.crossProcessClockStoreLock
     parallelDistinctAuthorizationsSucceeded = [bool]$result.assertions.parallelDistinctAuthorizationsSucceeded
+    invalidFreshnessAuthorizationsNotConsumed = [bool]$result.assertions.invalidFreshnessAuthorizationsNotConsumed
     hostSuppliedNoSecret = [bool]$result.assertions.hostSuppliedNoSecret
   }
 }

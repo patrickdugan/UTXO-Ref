@@ -599,15 +599,17 @@ try {
   }
 
   const directEnvelopeFor = (directAuthorization, directPayload) => {
+    const authorizationDigest = digest(Buffer.from(canonicalJson(directAuthorization), 'utf8'));
     const request = {
       ...raceRequest,
-      authorizationDigest: digest(Buffer.from(canonicalJson(directAuthorization), 'utf8')),
+      authorizationDigest,
       authorizationPayload: directPayload.toString('base64'),
       authorization: JSON.parse(canonicalJson(directAuthorization))
     };
     const requestDigest = digest(Buffer.from(canonicalJson(request), 'utf8'));
     const challenge = crypto.randomBytes(32).toString('hex');
     return {
+      authorizationDigest,
       challenge,
       requestDigest,
       envelope: `${canonicalJson({ kind: PROCESS_REQUEST_KIND, challenge, requestDigest, request })}\n`
@@ -718,6 +720,12 @@ try {
   const futureAuthorizationRejected = futureResult.code !== 0 &&
     /authorization is not yet valid/.test(futureResult.stderr.toString('utf8'));
   if (!futureAuthorizationRejected) fail('Rust signer accepted a not-yet-valid signed authorization');
+  const invalidFreshnessAuthorizationsNotConsumed = [expiredProbe, futureProbe].every((probe) =>
+    !fs.existsSync(path.join(keyDirectory, 'consumed-authorizations', `${probe.authorizationDigest}.used`))
+  );
+  if (!invalidFreshnessAuthorizationsNotConsumed) {
+    fail('Rust signer consumed an authorization before validating its signed time window');
+  }
   const futureClockUnixSeconds = Math.floor(Date.now() / 1000) + 120;
   const clockPayload = {
     kind: 'utxoref_dlc_signer_clock_observation_v1',
@@ -779,6 +787,7 @@ try {
       parallelDistinctAuthorizationsSucceeded,
       expiredAuthorizationRejected: true,
       futureAuthorizationRejected: true,
+      invalidFreshnessAuthorizationsNotConsumed,
       signedClockRollbackRejected: true,
       dpapiProtectedKeyBlobsOnly: true,
       dpapiBlobsOpaque,

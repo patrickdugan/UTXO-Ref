@@ -302,6 +302,10 @@ Boundary V35 serializes signed clock-floor updates with an OS-backed file lock.
 The lock is released by Windows if a signer dies, and the integration launches
 16 distinct valid authorizations concurrently and requires all 16 authenticated
 responses to verify while preserving the one-winner replay race.
+Boundary V36 validates the signer clock and signed authorization time window
+before creating the durable replay marker. Expired or future-dated requests now
+fail without burning an authorization that may become valid later, while every
+accepted authorization is still consumed before the signing key is unprotected.
 The host accepts only bounded regular runtime files whose resolved paths do not
 traverse filesystem links. It hashes the complete runtime closure before and
 after every signer execution, so deletion or mutation during the process

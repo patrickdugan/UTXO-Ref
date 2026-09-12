@@ -1263,11 +1263,11 @@ fn run() -> Result<()> {
         return Err("process request digest mismatch".to_owned());
     }
     let verified = verify_request(request, &validator_policy)?;
-    consume_authorization(&key_directory, &verified.authorization_digest)?;
     let (runtime_key, identity_key_id) =
         runtime_identity(&key_directory, access_verifier_path, &arguments[6])?;
     let guarded_now = guard_signer_clock(&key_directory, &runtime_key, &identity_key_id)?;
     verify_authorization_freshness(verified.issued_at, verified.expires_at, guarded_now)?;
+    consume_authorization(&key_directory, &verified.authorization_digest)?;
     let key_path = key_directory.join(format!("{}.key.dpapi", verified.signer_pubkey));
     let secret_bytes = unprotect_dpapi_secret(
         &key_path,
