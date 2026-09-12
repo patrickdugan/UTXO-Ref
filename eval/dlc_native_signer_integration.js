@@ -17,6 +17,7 @@ const {
 const { DlcSigningAuthorizationStore } = require('../bitvm3/utxo_referee/dlc_signing_authorization_store');
 const {
   DlcNativeSignerProcessClient,
+  nativeSignerExecutableDigest,
   nativeSignerRuntimeDigest,
   responseSignaturePayload,
   REQUEST_KIND: PROCESS_REQUEST_KIND,
@@ -124,6 +125,7 @@ const binaryPath = path.resolve(process.argv[2] || '');
 const workDirectory = path.resolve(process.argv[3] || '');
 if (!fs.existsSync(binaryPath) || !fs.statSync(binaryPath).isFile()) fail('native signer binary is required');
 if (!fs.existsSync(workDirectory) || !fs.statSync(workDirectory).isDirectory()) fail('work directory is required');
+const binarySha256 = digest(fs.readFileSync(binaryPath));
 
 const keyDirectory = path.join(workDirectory, 'keys');
 const plaintextKeyDirectory = path.join(workDirectory, 'plaintext-keys');
@@ -241,19 +243,19 @@ try {
   const launchSpec = {
     executablePath: binaryPath,
     arguments: [keyDirectory, validatorPolicyPath, validatorPolicyDigest,
-      verifyDpapiAccessPath, verifyDpapiAccessDigest, signerAccountSid],
+      verifyDpapiAccessPath, verifyDpapiAccessDigest, signerAccountSid, binarySha256],
     codePaths: [validatorPolicyPath, verifyDpapiAccessPath]
   };
   const unpinnedValidatorLaunchSpec = {
     executablePath: binaryPath,
     arguments: [keyDirectory, unpinnedValidatorPolicyPath, unpinnedValidatorPolicyDigest,
-      verifyDpapiAccessPath, verifyDpapiAccessDigest, signerAccountSid],
+      verifyDpapiAccessPath, verifyDpapiAccessDigest, signerAccountSid, binarySha256],
     codePaths: [unpinnedValidatorPolicyPath, verifyDpapiAccessPath]
   };
   const unpinnedSignerLaunchSpec = {
     executablePath: binaryPath,
     arguments: [keyDirectory, unpinnedSignerPolicyPath, unpinnedSignerPolicyDigest,
-      verifyDpapiAccessPath, verifyDpapiAccessDigest, signerAccountSid],
+      verifyDpapiAccessPath, verifyDpapiAccessDigest, signerAccountSid, binarySha256],
     codePaths: [unpinnedSignerPolicyPath, verifyDpapiAccessPath]
   };
   fs.writeFileSync(
@@ -262,7 +264,7 @@ try {
     { encoding: 'utf8', mode: 0o600, flag: 'wx' }
   );
   const plaintextLaunchArguments = [plaintextKeyDirectory, validatorPolicyPath,
-    validatorPolicyDigest, verifyDpapiAccessPath, verifyDpapiAccessDigest, signerAccountSid];
+    validatorPolicyDigest, verifyDpapiAccessPath, verifyDpapiAccessDigest, signerAccountSid, binarySha256];
   const plaintextResult = await runSignerProcess(binaryPath, plaintextLaunchArguments, '{}\n');
   const plaintextKeyFilesRejected = plaintextResult.code !== 0 &&
     /plaintext \.key files are forbidden/.test(plaintextResult.stderr.toString('utf8'));
@@ -285,6 +287,7 @@ try {
     environmentPolicy: 'systemroot-only',
     runtimeIdentityKeyId: digest(runtimeSpki),
     runtimeIdentityPublicKeySpki: runtimeSpki.toString('base64'),
+    executableSha256: nativeSignerExecutableDigest(spec),
     binaryDigest: nativeSignerRuntimeDigest(spec),
     auditDigest: digest('native-rust-candidate-external-audit-pending')
   });
@@ -447,9 +450,11 @@ try {
   const runtimePublicKey = crypto.createPublicKey({ key: runtimeSpki, format: 'der', type: 'spki' });
   if (raceResponse.kind !== PROCESS_RESPONSE_KIND || raceResponse.challenge !== winners[0].challenge ||
       raceResponse.requestDigest !== raceRequestDigest || raceResponse.identityKeyId !== digest(runtimeSpki) ||
+      raceResponse.executableSha256 !== binarySha256 ||
       !crypto.verify(null, responseSignaturePayload({
         challenge: raceResponse.challenge,
         requestDigest: raceResponse.requestDigest,
+        executableSha256: raceResponse.executableSha256,
         presignature: raceResponse.presignature
       }), runtimePublicKey, Buffer.from(raceResponse.signature, 'base64')) ||
       !dlc.adaptorVerify(Buffer.from(signerPubkeyX, 'hex'), Buffer.from(sighash, 'hex'), raceResponse.presignature)) {
@@ -495,7 +500,8 @@ try {
     freshnessPayloadFor(accountAuthorization)
   );
   const wrongAccountSid = signerAccountSid === 'S-1-5-18' ? 'S-1-5-32-544' : 'S-1-5-18';
-  const wrongAccountArguments = [...launchSpec.arguments.slice(0, -1), wrongAccountSid];
+  const wrongAccountArguments = [...launchSpec.arguments];
+  wrongAccountArguments[5] = wrongAccountSid;
   const accountResult = await runSignerProcess(
     binaryPath,
     wrongAccountArguments,
@@ -504,6 +510,13 @@ try {
   const unexpectedSignerAccountRejected = accountResult.code !== 0 &&
     /unexpected Windows account SID/.test(accountResult.stderr.toString('utf8'));
   if (!unexpectedSignerAccountRejected) fail('Rust signer accepted an unexpected Windows account SID');
+
+  const wrongExecutableArguments = [...launchSpec.arguments];
+  wrongExecutableArguments[6] = '00'.repeat(32);
+  const executableResult = await runSignerProcess(binaryPath, wrongExecutableArguments, '{}\n');
+  const unexpectedExecutableRejected = executableResult.code !== 0 &&
+    /executable digest differs/.test(executableResult.stderr.toString('utf8'));
+  if (!unexpectedExecutableRejected) fail('Rust signer accepted an unexpected executable digest');
 
   const looseAclAuthorization = freshnessAuthorizationFor('native-rust:loose-acl:0', new Date());
   const looseAclProbe = directEnvelopeFor(
@@ -571,7 +584,7 @@ try {
     productionReady: false,
     externalAuditRequired: true,
     binaryPath,
-    binarySha256: digest(fs.readFileSync(binaryPath)),
+    binarySha256,
     runtimeClosureDigest: capabilities.binaryDigest,
     validatorPolicyDigest,
     signerRaceWorkers: raceResults.length,
@@ -614,6 +627,7 @@ try {
       extensionPointsDisabled: true,
       microsoftSignedImagesOnly: true,
       remoteAndLowIntegrityImagesRejected: true,
+      selfVerifiedExecutableDigest: unexpectedExecutableRejected,
       hostSuppliedNoSecret: true
     }
   };

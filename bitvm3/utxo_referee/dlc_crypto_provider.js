@@ -365,6 +365,8 @@ function nativeCapabilityAttestationPayload(capabilities) {
       typeof capabilities.runtimeIdentityKeyId !== 'string' ||
       !/^[0-9a-f]{64}$/.test(capabilities.runtimeIdentityKeyId) ||
       typeof capabilities.runtimeIdentityPublicKeySpki !== 'string' ||
+      typeof capabilities.executableSha256 !== 'string' ||
+      !/^[0-9a-f]{64}$/.test(capabilities.executableSha256) ||
       typeof capabilities.binaryDigest !== 'string' || !/^[0-9a-f]{64}$/.test(capabilities.binaryDigest) ||
       typeof capabilities.auditDigest !== 'string' || !/^[0-9a-f]{64}$/.test(capabilities.auditDigest)) {
     throw new Error('native DLC provider does not satisfy the required capability manifest');
@@ -388,6 +390,7 @@ function nativeCapabilityAttestationPayload(capabilities) {
     environmentPolicy: capabilities.environmentPolicy,
     runtimeIdentityKeyId: capabilities.runtimeIdentityKeyId,
     runtimeIdentityPublicKeySpki: capabilities.runtimeIdentityPublicKeySpki,
+    executableSha256: capabilities.executableSha256,
     binaryDigest: capabilities.binaryDigest,
     auditDigest: capabilities.auditDigest
   }), 'utf8');

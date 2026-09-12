@@ -51,6 +51,7 @@ const nativeSignerClientPath = path.join(
 const {
   REQUEST_KIND: NATIVE_PROCESS_REQUEST_KIND,
   RESPONSE_KIND: NATIVE_PROCESS_RESPONSE_KIND,
+  nativeSignerExecutableDigest,
   nativeSignerRuntimeDigest,
   DlcNativeSignerProcessClient
 } = require(nativeSignerClientPath);
@@ -494,7 +495,7 @@ if (!crypto.verify(null, Buffer.from(request.authorizationPayload, 'base64'), va
 const signedPayload = JSON.parse(Buffer.from(request.authorizationPayload, 'base64').toString('utf8'));
 if (signedPayload.stateRecordHash !== request.stateRecordHash || signedPayload.signerPubkeyX !== request.signerPubkeyX || signedPayload.sighash !== request.sighash) throw new Error('signed request mismatch');
 const presignature = dlc.adaptorSign(${nativeSecret}n, Buffer.from(request.sighash, 'hex'), { x: BigInt('0x' + request.adaptorPoint.x), y: BigInt('0x' + request.adaptorPoint.y) }, Buffer.alloc(32, 19));
-const response = { kind: RESPONSE_KIND, challenge: envelope.challenge, requestDigest: envelope.requestDigest, identityKeyId: ${JSON.stringify(crypto.createHash('sha256').update(runtimePublicDer).digest('hex'))}, presignature };
+const response = { kind: RESPONSE_KIND, challenge: envelope.challenge, requestDigest: envelope.requestDigest, executableSha256: crypto.createHash('sha256').update(fs.readFileSync(process.execPath)).digest('hex'), identityKeyId: ${JSON.stringify(crypto.createHash('sha256').update(runtimePublicDer).digest('hex'))}, presignature };
 const runtimeKey = crypto.createPrivateKey({ key: Buffer.from(${JSON.stringify(runtimePrivateDer.toString('base64'))}, 'base64'), format: 'der', type: 'pkcs8' });
 response.signature = crypto.sign(null, responseSignaturePayload(response), runtimeKey).toString('base64');
 process.stdout.write(JSON.stringify(response));
@@ -518,6 +519,7 @@ process.stdout.write(JSON.stringify(response));
     environmentPolicy: 'systemroot-only',
     runtimeIdentityKeyId: crypto.createHash('sha256').update(runtimePublicDer).digest('hex'),
     runtimeIdentityPublicKeySpki: runtimePublicDer.toString('base64'),
+    executableSha256: nativeSignerExecutableDigest(launchSpec),
     binaryDigest: nativeSignerRuntimeDigest(launchSpec),
     auditDigest: sha256('signer-eval:audit').toString('hex')
   };
@@ -700,6 +702,7 @@ process.stdout.write('{}');
     };
     const capabilities = {
       binaryDigest: nativeSignerRuntimeDigest(launchSpec),
+      executableSha256: nativeSignerExecutableDigest(launchSpec),
       runtimeIdentityKeyId: crypto.createHash('sha256').update(runtimePublicDer).digest('hex'),
       runtimeIdentityPublicKeySpki: runtimePublicDer.toString('base64')
     };

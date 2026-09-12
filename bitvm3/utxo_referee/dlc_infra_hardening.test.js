@@ -33,6 +33,7 @@ const { DlcSigningAuthorizationStore } = require('./dlc_signing_authorization_st
 const {
   REQUEST_KIND: NATIVE_PROCESS_REQUEST_KIND,
   RESPONSE_KIND: NATIVE_PROCESS_RESPONSE_KIND,
+  nativeSignerExecutableDigest,
   nativeSignerRuntimeDigest,
   DlcNativeSignerProcessClient
 } = require('./dlc_native_signer_process_client');
@@ -208,7 +209,7 @@ ${options.hang ? "Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 6
 ${options.selfMutate ? "fs.appendFileSync(__filename, '\\n// mutation during signer execution\\n');" : ''}
 const validPresignature = dlc.adaptorSign(${signerSecret}n, Buffer.from(request.sighash, 'hex'), { x: BigInt('0x' + request.adaptorPoint.x), y: BigInt('0x' + request.adaptorPoint.y) }, Buffer.alloc(32, 42));
 const presignature = ${options.corruptResponse ? "{ ...validPresignature, s0: '00'.repeat(32) }" : 'validPresignature'};
-const response = { kind: RESPONSE_KIND, challenge: ${options.wrongChallenge ? "'00'.repeat(32)" : 'envelope.challenge'}, requestDigest: envelope.requestDigest, identityKeyId: ${JSON.stringify(crypto.createHash('sha256').update(runtimePublicDer).digest('hex'))}, presignature };
+const response = { kind: RESPONSE_KIND, challenge: ${options.wrongChallenge ? "'00'.repeat(32)" : 'envelope.challenge'}, requestDigest: envelope.requestDigest, executableSha256: ${options.wrongExecutableDigest ? "'00'.repeat(32)" : "crypto.createHash('sha256').update(fs.readFileSync(process.execPath)).digest('hex')"}, identityKeyId: ${JSON.stringify(crypto.createHash('sha256').update(runtimePublicDer).digest('hex'))}, presignature };
 const runtimeKey = crypto.createPrivateKey({ key: Buffer.from(${JSON.stringify(runtimePrivateDer.toString('base64'))}, 'base64'), format: 'der', type: 'pkcs8' });
 response.signature = crypto.sign(null, responseSignaturePayload(response), runtimeKey).toString('base64');
 process.stdout.write(JSON.stringify(response));
@@ -233,6 +234,7 @@ process.stdout.write(JSON.stringify(response));
     environmentPolicy: 'systemroot-only',
     runtimeIdentityKeyId: crypto.createHash('sha256').update(runtimePublicDer).digest('hex'),
     runtimeIdentityPublicKeySpki: runtimePublicDer.toString('base64'),
+    executableSha256: nativeSignerExecutableDigest(launchSpec),
     binaryDigest: nativeSignerRuntimeDigest(launchSpec),
     auditDigest: digest(`${label}:audit`)
   };
@@ -641,6 +643,27 @@ test('native isolated signing receives only an authenticated public request', ()
     expectThrow(() => authorizeDlcAdaptorSign(challengeProvider, {
       contract, authorization: challengeAuthorization
     }).execute(), /not bound to this request challenge/);
+
+    const executableDirectory = path.join(directory, 'wrong-executable');
+    fs.mkdirSync(executableDirectory);
+    const executableFixture = nativeSignerFixture(
+      executableDirectory,
+      nativeSecret,
+      'wrong-executable-signer',
+      { wrongExecutableDigest: true }
+    );
+    const executableProvider = createDlcCryptoProvider({
+      network: 'bitcoin-testnet4', mode: 'native-isolated', implementation: executableFixture.client,
+      trustedAuditKeys: executableFixture.trustedAuditKeys,
+      authorizationStore: new DlcSigningAuthorizationStore(executableDirectory)
+    });
+    const executableAuthorization = createDlcAdaptorSignAuthorization({
+      privateKey: validatorKeys.privateKey, contract, authorizationId: 'native:cet:wrong-executable',
+      signerPubkeyX, sighash, adaptorPoint
+    });
+    expectThrow(() => authorizeDlcAdaptorSign(executableProvider, {
+      contract, authorization: executableAuthorization
+    }).execute(), /response executable digest does not match/);
 
     const timeoutDirectory = path.join(directory, 'timeout');
     fs.mkdirSync(timeoutDirectory);

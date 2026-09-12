@@ -269,7 +269,7 @@ unwrap helper before key use. The runtime closure binds the expected Windows
 account SID, and the helper rejects identity mismatch, inherited ACLs, owner
 mismatch, or key-directory access granted outside the signer account, `SYSTEM`,
 and `Administrators`. DPAPI decryption now occurs directly inside the Rust
-signer through six documented FFI blocks. The DPAPI allocation and copied raw
+signer through seven documented FFI blocks. The DPAPI allocation and copied raw
 key buffer are locked against paging before use, with fail-closed lock errors
 and zero-before-unlock cleanup. The PowerShell access verifier is
 silent, so decrypted keys no longer traverse a child-process stdout pipe.
@@ -280,6 +280,11 @@ DPAPI protects offline key material, while another
 process under the same Windows account can still request decryption. A dedicated
 signer service account, restrictive ACLs, and external key-storage review remain
 required.
+Boundary V32 also binds the audited signer executable SHA-256 into the capability
+attestation, launch arguments, and runtime-identity-signed response. The signer
+hashes its current executable before it accepts a request and fails closed on a
+mismatch. This identity check is a prerequisite for moving the signer behind a
+dedicated Windows service account; it does not replace that account separation.
 The host accepts only bounded regular runtime files whose resolved paths do not
 traverse filesystem links. It hashes the complete runtime closure before and
 after every signer execution, so deletion or mutation during the process

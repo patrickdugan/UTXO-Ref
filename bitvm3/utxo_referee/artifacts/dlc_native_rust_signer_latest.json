@@ -1,13 +1,13 @@
 {
-  "schema": "utxoref_dlc_native_rust_signer_evidence_v8",
+  "schema": "utxoref_dlc_native_rust_signer_evidence_v9",
   "network": "bitcoin-testnet4",
-  "sourceCommit": "328e4f6db976e73f1ded44db8e1241e2fe3ab780",
+  "sourceCommit": "4683e4c0d384653a503350d42823e41e1a260ab8",
   "toolchain": {
     "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)",
     "cargo": "cargo 1.98.1 (797e8a9bc 2026-08-05)"
   },
   "cargoLockSha256": "a5715dcfcf1eef714ffb08afe6b35fdd5db6278176ead3994286da12ba01c5e2",
-  "binarySha256": "4acb64d0a2328d0bad8baf71508af726117240bed49403a0e8e6a4abed6eb4a1",
+  "binarySha256": "5c3bdb233d8b02843a7e69341337cef3f5a344ec2cb5f7479925877448d64ce9",
   "reproducibleBuild": true,
   "syntheticKeysOnly": true,
   "productionReady": false,
@@ -46,6 +46,7 @@
     "extensionPointsDisabled": true,
     "microsoftSignedImagesOnly": true,
     "remoteAndLowIntegrityImagesRejected": true,
+    "selfVerifiedExecutableDigest": true,
     "runtimeIdentityVerifiedByHost": true,
     "restartReplayRejected": true,
     "signerLocalReplayRejected": true,

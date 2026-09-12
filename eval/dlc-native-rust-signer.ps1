@@ -116,6 +116,9 @@ if (-not $result.assertions.processMitigationsApplied -or
     -not $result.assertions.remoteAndLowIntegrityImagesRejected) {
   throw 'native signer integration omitted process mitigation assertions'
 }
+if (-not $result.assertions.selfVerifiedExecutableDigest) {
+  throw 'native signer integration omitted executable identity assertion'
+}
 $commit = (git -c safe.directory=C:/projects/UTXORef/UTXO-Ref -C $repository rev-parse HEAD).Trim()
 $snapshot = [ordered]@{
   schema = 'utxoref_dlc_native_rust_signer_snapshot_v1'
@@ -137,7 +140,7 @@ $snapshotPath = Join-Path $SnapshotDirectory 'dlc-native-rust-signer-latest.json
   [System.Text.UTF8Encoding]::new($false)
 )
 $checkedEvidence = [ordered]@{
-  schema = 'utxoref_dlc_native_rust_signer_evidence_v8'
+  schema = 'utxoref_dlc_native_rust_signer_evidence_v9'
   network = 'bitcoin-testnet4'
   sourceCommit = $commit
   toolchain = [ordered]@{ rustc = $snapshot.rustc; cargo = $snapshot.cargo }
@@ -181,6 +184,7 @@ $checkedEvidence = [ordered]@{
     extensionPointsDisabled = [bool]$result.assertions.extensionPointsDisabled
     microsoftSignedImagesOnly = [bool]$result.assertions.microsoftSignedImagesOnly
     remoteAndLowIntegrityImagesRejected = [bool]$result.assertions.remoteAndLowIntegrityImagesRejected
+    selfVerifiedExecutableDigest = [bool]$result.assertions.selfVerifiedExecutableDigest
     runtimeIdentityVerifiedByHost = [bool]$result.assertions.runtimeIdentityVerifiedByHost
     restartReplayRejected = [bool]$result.assertions.restartReplayRejected
     signerLocalReplayRejected = [bool]$result.assertions.signerLocalReplayRejected

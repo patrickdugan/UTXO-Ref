@@ -74,8 +74,9 @@ const PROCESS_EXTENSION_POINT_DISABLE_POLICY: i32 = 6;
 const PROCESS_SIGNATURE_POLICY: i32 = 8;
 const PROCESS_IMAGE_LOAD_POLICY: i32 = 10;
 
-const PROCESS_REQUEST_KIND: &str = "utxoref_dlc_native_signer_process_request_v1";
-const PROCESS_RESPONSE_KIND: &str = "utxoref_dlc_native_signer_process_response_v1";
+const PROCESS_REQUEST_KIND: &str = "utxoref_dlc_native_signer_process_request_v2";
+const PROCESS_RESPONSE_KIND: &str = "utxoref_dlc_native_signer_process_response_v2";
+const MAX_EXECUTABLE_BYTES: u64 = 128 * 1024 * 1024;
 const SIGN_REQUEST_KIND: &str = "utxoref_dlc_native_adaptor_sign_request_v1";
 const AUTHORIZATION_KIND: &str = "utxoref_dlc_adaptor_sign_authorization_v3";
 const PRESIGNATURE_KIND: &str = "tradelayer_dlc_adaptor_presig_v1";
@@ -229,6 +230,31 @@ fn sha256(bytes: &[u8]) -> [u8; 32] {
 
 fn sha256_hex(bytes: &[u8]) -> String {
     hex::encode(sha256(bytes))
+}
+
+fn verified_executable_digest(expected_digest: &str) -> Result<String> {
+    decode_hex_32(expected_digest, "expected executable digest")?;
+    let executable = env::current_exe().map_err(|error| format!("current executable: {error}"))?;
+    let metadata = fs::symlink_metadata(&executable)
+        .map_err(|error| format!("current executable: {error}"))?;
+    if !executable.is_absolute()
+        || !metadata.is_file()
+        || metadata.file_type().is_symlink()
+        || metadata.len() == 0
+        || metadata.len() > MAX_EXECUTABLE_BYTES
+    {
+        return Err(
+            "current executable must be a bounded absolute regular non-symlink file".to_owned(),
+        );
+    }
+    let bytes = fs::read(&executable).map_err(|error| format!("current executable: {error}"))?;
+    let observed = sha256_hex(&bytes);
+    if observed != expected_digest {
+        return Err(
+            "current executable digest differs from the audited launch argument".to_owned(),
+        );
+    }
+    Ok(observed)
 }
 
 fn tagged_hash(tag: &str, parts: &[&[u8]]) -> [u8; 32] {
@@ -1088,9 +1114,9 @@ fn runtime_identity(
 fn run() -> Result<()> {
     apply_process_mitigations()?;
     let arguments: Vec<String> = env::args().collect();
-    if arguments.len() != 7 {
+    if arguments.len() != 8 {
         return Err(
-            "usage: utxoref-dlc-signer <absolute-key-directory> <absolute-validator-policy> <policy-sha256> <absolute-dpapi-access-verifier> <access-verifier-sha256> <expected-windows-account-sid>"
+            "usage: utxoref-dlc-signer <absolute-key-directory> <absolute-validator-policy> <policy-sha256> <absolute-dpapi-access-verifier> <access-verifier-sha256> <expected-windows-account-sid> <expected-executable-sha256>"
                 .to_owned(),
         );
     }
@@ -1108,6 +1134,7 @@ fn run() -> Result<()> {
     let access_verifier_path = Path::new(&arguments[4]);
     validate_access_verifier(access_verifier_path, &arguments[5])?;
     validate_windows_sid(&arguments[6])?;
+    let executable_digest = verified_executable_digest(&arguments[7])?;
     let mut input = Vec::new();
     io::stdin()
         .take(65_537)
@@ -1171,6 +1198,10 @@ fn run() -> Result<()> {
         Value::String(request_digest.clone()),
     );
     signature_payload.insert(
+        "executableSha256".to_owned(),
+        Value::String(executable_digest.clone()),
+    );
+    signature_payload.insert(
         "presignatureDigest".to_owned(),
         Value::String(sha256_hex(canonical_json(&presignature_value)?.as_bytes())),
     );
@@ -1179,6 +1210,7 @@ fn run() -> Result<()> {
         "kind": PROCESS_RESPONSE_KIND,
         "challenge": challenge,
         "requestDigest": request_digest,
+        "executableSha256": executable_digest,
         "identityKeyId": identity_key_id,
         "presignature": presignature,
         "signature": BASE64.encode(signature.to_bytes())

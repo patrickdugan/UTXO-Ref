@@ -7,8 +7,8 @@ const { spawnSync } = require('child_process');
 const { canonicalJson } = require('./dlc_contract_state');
 const publicCrypto = require('./tradelayer_dlc_adaptor_sig');
 
-const REQUEST_KIND = 'utxoref_dlc_native_signer_process_request_v1';
-const RESPONSE_KIND = 'utxoref_dlc_native_signer_process_response_v1';
+const REQUEST_KIND = 'utxoref_dlc_native_signer_process_request_v2';
+const RESPONSE_KIND = 'utxoref_dlc_native_signer_process_response_v2';
 const LIVE_CLIENTS = new WeakSet();
 const MAX_EXECUTABLE_BYTES = 128 * 1024 * 1024;
 const MAX_CODE_FILE_BYTES = 16 * 1024 * 1024;
@@ -80,11 +80,20 @@ function nativeSignerRuntimeDigest(launchSpec) {
   }), 'utf8'));
 }
 
-function responseSignaturePayload({ challenge, requestDigest, presignature }) {
+function nativeSignerExecutableDigest(launchSpec) {
+  const normalized = normalizeLaunchSpec(launchSpec);
+  return sha256Hex(fs.readFileSync(normalized.executablePath));
+}
+
+function responseSignaturePayload({ challenge, requestDigest, executableSha256, presignature }) {
+  if (typeof executableSha256 !== 'string' || !/^[0-9a-f]{64}$/.test(executableSha256)) {
+    throw new Error('native signer response executable digest is invalid');
+  }
   return Buffer.from(canonicalJson({
     kind: RESPONSE_KIND,
     challenge,
     requestDigest,
+    executableSha256,
     presignatureDigest: sha256Hex(Buffer.from(canonicalJson(presignature), 'utf8'))
   }), 'utf8');
 }
@@ -122,6 +131,9 @@ class DlcNativeSignerProcessClient {
     }
     if (!capabilities || capabilities.binaryDigest !== nativeSignerRuntimeDigest(this.launchSpec)) {
       throw new Error('native signer runtime closure does not match the audited binary digest');
+    }
+    if (capabilities.executableSha256 !== nativeSignerExecutableDigest(this.launchSpec)) {
+      throw new Error('native signer executable does not match the audited executable digest');
     }
     this.capabilities = Object.freeze({
       ...capabilities,
@@ -183,11 +195,19 @@ class DlcNativeSignerProcessClient {
         typeof response.signature !== 'string') {
       throw new Error('native signer response is not bound to this request challenge');
     }
+    if (response.executableSha256 !== this.capabilities.executableSha256) {
+      throw new Error('native signer response executable digest does not match the audited executable');
+    }
     requireCanonicalBase64(response.signature, 'native signer response signature');
     const signature = Buffer.from(response.signature, 'base64');
     if (signature.length !== 64 || !crypto.verify(
       null,
-      responseSignaturePayload({ challenge, requestDigest, presignature: response.presignature }),
+      responseSignaturePayload({
+        challenge,
+        requestDigest,
+        executableSha256: response.executableSha256,
+        presignature: response.presignature
+      }),
       this.runtimeIdentityKey,
       signature
     )) throw new Error('native signer response identity signature is invalid');
@@ -208,6 +228,7 @@ module.exports = {
   REQUEST_KIND,
   RESPONSE_KIND,
   nativeSignerRuntimeDigest,
+  nativeSignerExecutableDigest,
   responseSignaturePayload,
   DlcNativeSignerProcessClient,
   isDlcNativeSignerProcessClient
