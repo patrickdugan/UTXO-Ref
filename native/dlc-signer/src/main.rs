@@ -6,6 +6,7 @@ use std::{
     ffi::c_void,
     fs::{self, OpenOptions},
     io::{self, Read, Write},
+    mem::size_of,
     ops::Deref,
     path::{Path, PathBuf},
     process::{Command, Stdio},
@@ -52,12 +53,26 @@ unsafe extern "system" {
 
 #[link(name = "kernel32")]
 unsafe extern "system" {
+    fn GetCurrentProcess() -> *mut c_void;
+    fn GetProcessMitigationPolicy(
+        process: *mut c_void,
+        policy: i32,
+        buffer: *mut c_void,
+        length: usize,
+    ) -> i32;
     fn LocalFree(memory: *mut c_void) -> *mut c_void;
+    fn SetDefaultDllDirectories(flags: u32) -> i32;
+    fn SetProcessMitigationPolicy(policy: i32, buffer: *const c_void, length: usize) -> i32;
     fn VirtualLock(address: *const c_void, size: usize) -> i32;
     fn VirtualUnlock(address: *const c_void, size: usize) -> i32;
 }
 
 const CRYPTPROTECT_UI_FORBIDDEN: u32 = 1;
+const LOAD_LIBRARY_SEARCH_SYSTEM32: u32 = 0x0000_0800;
+const PROCESS_DYNAMIC_CODE_POLICY: i32 = 2;
+const PROCESS_EXTENSION_POINT_DISABLE_POLICY: i32 = 6;
+const PROCESS_SIGNATURE_POLICY: i32 = 8;
+const PROCESS_IMAGE_LOAD_POLICY: i32 = 10;
 
 const PROCESS_REQUEST_KIND: &str = "utxoref_dlc_native_signer_process_request_v1";
 const PROCESS_RESPONSE_KIND: &str = "utxoref_dlc_native_signer_process_response_v1";
@@ -71,6 +86,64 @@ const MAX_CLOCK_OBSERVATIONS: usize = 4096;
 const ED25519_SPKI_PREFIX: [u8; 12] = [
     0x30, 0x2a, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70, 0x03, 0x21, 0x00,
 ];
+
+fn apply_process_mitigations() -> Result<()> {
+    let policies = [
+        (
+            "dynamic-code prohibition",
+            PROCESS_DYNAMIC_CODE_POLICY,
+            0x1u32,
+        ),
+        (
+            "extension-point disablement",
+            PROCESS_EXTENSION_POINT_DISABLE_POLICY,
+            0x1u32,
+        ),
+        (
+            "Microsoft-signed image restriction",
+            PROCESS_SIGNATURE_POLICY,
+            0x1u32,
+        ),
+        (
+            "remote and low-integrity image restriction",
+            PROCESS_IMAGE_LOAD_POLICY,
+            0x7u32,
+        ),
+    ];
+    // SAFETY: each policy buffer is a live u32 matching the documented Flags
+    // union layout; the pseudo-handle is valid for the process lifetime.
+    unsafe {
+        if SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_SYSTEM32) == 0 {
+            return Err(format!(
+                "could not restrict DLL search to System32: {}",
+                io::Error::last_os_error()
+            ));
+        }
+        let process = GetCurrentProcess();
+        for (name, policy, flags) in policies {
+            if SetProcessMitigationPolicy(policy, (&flags as *const u32).cast(), size_of::<u32>())
+                == 0
+            {
+                return Err(format!(
+                    "could not apply process {name}: {}",
+                    io::Error::last_os_error()
+                ));
+            }
+            let mut observed = 0u32;
+            if GetProcessMitigationPolicy(
+                process,
+                policy,
+                (&mut observed as *mut u32).cast(),
+                size_of::<u32>(),
+            ) == 0
+                || observed & flags != flags
+            {
+                return Err(format!("process {name} did not remain enabled"));
+            }
+        }
+    }
+    Ok(())
+}
 
 type Result<T> = std::result::Result<T, String>;
 
@@ -1013,6 +1086,7 @@ fn runtime_identity(
 }
 
 fn run() -> Result<()> {
+    apply_process_mitigations()?;
     let arguments: Vec<String> = env::args().collect();
     if arguments.len() != 7 {
         return Err(

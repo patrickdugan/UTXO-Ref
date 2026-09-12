@@ -234,7 +234,7 @@ challenge, the request digest, and the pre-signature digest. Runtime drift,
 timeouts, oversized or malformed output, stale challenges, and identity
 substitution fail closed.
 
-Boundary V30 includes the Rust `k256` signer candidate under
+Boundary V31 includes the Rust `k256` signer candidate under
 `native/dlc-signer`. Its direct dependencies are exactly pinned, unsafe Rust is
 forbidden, and the testnet4 build harness rejects byte differences between two
 independent Windows target directories. The cross-language test completes the
@@ -273,6 +273,9 @@ signer through six documented FFI blocks. The DPAPI allocation and copied raw
 key buffer are locked against paging before use, with fail-closed lock errors
 and zero-before-unlock cleanup. The PowerShell access verifier is
 silent, so decrypted keys no longer traverse a child-process stdout pipe.
+Before request parsing, the signer restricts DLL search to System32 and
+enables fail-closed dynamic-code, extension-point, Microsoft-signature, remote
+image, and low-integrity image mitigations, then reads each policy back.
 DPAPI protects offline key material, while another
 process under the same Windows account can still request decryption. A dedicated
 signer service account, restrictive ACLs, and external key-storage review remain

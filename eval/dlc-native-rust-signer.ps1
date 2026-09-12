@@ -22,10 +22,12 @@ if (-not (Test-Path -LiteralPath $cargo) -or -not (Test-Path -LiteralPath $rustc
 if (-not (Test-Path -LiteralPath $lockFile)) { throw 'native signer Cargo.lock is required' }
 $sourceText = Get-Content -LiteralPath $sourceFile -Raw
 $accessVerifierText = Get-Content -LiteralPath $accessVerifierFile -Raw
-if ([regex]::Matches($sourceText, '\bunsafe\s*\{').Count -ne 6 -or
+if ([regex]::Matches($sourceText, '\bunsafe\s*\{').Count -ne 7 -or
     [regex]::Matches($sourceText, 'unsafe\s+extern\s+"system"').Count -ne 2 -or
-    $sourceText -notmatch 'CryptUnprotectData' -or $sourceText -notmatch 'LocalFree') {
-  throw 'native signer DPAPI FFI surface differs from the reviewed six-block boundary'
+    $sourceText -notmatch 'CryptUnprotectData' -or $sourceText -notmatch 'LocalFree' -or
+    $sourceText -notmatch 'SetProcessMitigationPolicy' -or
+    $sourceText -notmatch 'SetDefaultDllDirectories') {
+  throw 'native signer FFI surface differs from the reviewed seven-block boundary'
 }
 if ($accessVerifierText -match 'ProtectedData|CryptUnprotectData|\bUnprotect\b|Console.*Write') {
   throw 'DPAPI access verifier must not decrypt or emit key material'
@@ -100,11 +102,19 @@ if (-not $result.assertions.expectedWindowsAccountSidBound -or
 if (-not $result.assertions.nativeDpapiDecryption -or
     -not $result.assertions.decryptionSecretIpcEliminated -or
     -not $result.assertions.dpapiAccessVerifierSilent -or
-    $result.assertions.unsafeDpapiFfiBlocks -ne 6 -or
+    $result.assertions.unsafeDpapiFfiBlocks -ne 7 -or
     -not $result.assertions.dpapiOutputMemoryLocked -or
     -not $result.assertions.decryptedKeyBufferMemoryLocked -or
     -not $result.assertions.memoryLockFailureFailsClosed) {
   throw 'native signer integration omitted native DPAPI boundary assertions'
+}
+if (-not $result.assertions.processMitigationsApplied -or
+    -not $result.assertions.system32OnlyDllSearch -or
+    -not $result.assertions.dynamicCodeProhibited -or
+    -not $result.assertions.extensionPointsDisabled -or
+    -not $result.assertions.microsoftSignedImagesOnly -or
+    -not $result.assertions.remoteAndLowIntegrityImagesRejected) {
+  throw 'native signer integration omitted process mitigation assertions'
 }
 $commit = (git -c safe.directory=C:/projects/UTXORef/UTXO-Ref -C $repository rev-parse HEAD).Trim()
 $snapshot = [ordered]@{
@@ -127,7 +137,7 @@ $snapshotPath = Join-Path $SnapshotDirectory 'dlc-native-rust-signer-latest.json
   [System.Text.UTF8Encoding]::new($false)
 )
 $checkedEvidence = [ordered]@{
-  schema = 'utxoref_dlc_native_rust_signer_evidence_v7'
+  schema = 'utxoref_dlc_native_rust_signer_evidence_v8'
   network = 'bitcoin-testnet4'
   sourceCommit = $commit
   toolchain = [ordered]@{ rustc = $snapshot.rustc; cargo = $snapshot.cargo }
@@ -165,6 +175,12 @@ $checkedEvidence = [ordered]@{
     dpapiOutputMemoryLocked = [bool]$result.assertions.dpapiOutputMemoryLocked
     decryptedKeyBufferMemoryLocked = [bool]$result.assertions.decryptedKeyBufferMemoryLocked
     memoryLockFailureFailsClosed = [bool]$result.assertions.memoryLockFailureFailsClosed
+    processMitigationsApplied = [bool]$result.assertions.processMitigationsApplied
+    system32OnlyDllSearch = [bool]$result.assertions.system32OnlyDllSearch
+    dynamicCodeProhibited = [bool]$result.assertions.dynamicCodeProhibited
+    extensionPointsDisabled = [bool]$result.assertions.extensionPointsDisabled
+    microsoftSignedImagesOnly = [bool]$result.assertions.microsoftSignedImagesOnly
+    remoteAndLowIntegrityImagesRejected = [bool]$result.assertions.remoteAndLowIntegrityImagesRejected
     runtimeIdentityVerifiedByHost = [bool]$result.assertions.runtimeIdentityVerifiedByHost
     restartReplayRejected = [bool]$result.assertions.restartReplayRejected
     signerLocalReplayRejected = [bool]$result.assertions.signerLocalReplayRejected

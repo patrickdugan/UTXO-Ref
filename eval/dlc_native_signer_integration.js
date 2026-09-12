@@ -604,10 +604,16 @@ try {
       nativeDpapiDecryption: true,
       decryptionSecretIpcEliminated: true,
       dpapiAccessVerifierSilent: true,
-      unsafeDpapiFfiBlocks: 6,
+      unsafeDpapiFfiBlocks: 7,
       dpapiOutputMemoryLocked: true,
       decryptedKeyBufferMemoryLocked: true,
       memoryLockFailureFailsClosed: true,
+      processMitigationsApplied: true,
+      system32OnlyDllSearch: true,
+      dynamicCodeProhibited: true,
+      extensionPointsDisabled: true,
+      microsoftSignedImagesOnly: true,
+      remoteAndLowIntegrityImagesRejected: true,
       hostSuppliedNoSecret: true
     }
   };
