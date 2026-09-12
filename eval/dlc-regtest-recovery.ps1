@@ -85,7 +85,10 @@ function Stop-RegtestNode {
 
 function ConvertFrom-JsonArray {
   param([string]$Json)
-  if ($Json.Trim() -eq '[]') { return @() }
+  if ($Json.Trim() -eq '[]') {
+    Write-Output -NoEnumerate @()
+    return
+  }
   return @(ConvertFrom-Json -InputObject $Json)
 }
 
@@ -176,7 +179,7 @@ try {
   $snapshot = [ordered]@{
     schema = 'utxoref_dlc_regtest_recovery_v1'
     capturedAt = [DateTime]::UtcNow.ToString('o')
-    effect = 'isolated_regtest_value_only'
+    effect = 'isolated_regtest_only'
     network = 'bitcoin-regtest'
     bitcoinCore = [ordered]@{ version = $networkInfo.version; subversion = $networkInfo.subversion }
     repository = $RepositoryPath
