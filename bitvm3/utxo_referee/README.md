@@ -182,13 +182,19 @@ feerate ceiling, and relay-peer quorum. The read-only
 chain guard binds snapshots to that signed transaction set and halts on reorgs,
 unknown spends, immature refunds, and stage-inconsistent CETs. A synchronous,
 injected Bitcoin Core observer captures stable chain/mempool snapshots using
-read-only RPC calls. Boundary V8 persists those evaluations in an
+read-only RPC calls. Boundary V9 persists those evaluations in an
 Ed25519-signed, append-only watchtower journal whose alerts and tamper evidence
 survive restart. It also authenticates and hash-chains the peer offer/accept/sign
 transcript, derives the contract ID, and enforces global serial-ID uniqueness
 and funding-witness validation receipts. It also evaluates authenticated anchor
 observations against the exact committed outpoint, signed budgets, relay quorum,
-and observed replacement policy before a fee-pin rescue can proceed. An atomic
+and observed replacement policy before a fee-pin rescue can proceed. Anchor
+observations come directly from stable Core chain and mempool views; relay counts
+carry uniquely named same-tip node views and mempool sequences in the signed
+journal. The observer derives proposal txid, wtxid, vsize, RBF signaling, and
+fee from the Core-decoded raw transaction and its observed inputs. Pre-broadcast
+proposals need the signed fee budget, while observed recoveries need the signed
+relay quorum. An atomic
 peer session store preserves temporary-ID and transcript replay protection
 across restart. Run:
 

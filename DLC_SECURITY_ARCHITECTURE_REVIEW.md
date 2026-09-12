@@ -223,6 +223,13 @@ The local research implementation now:
     feerate, and relay-peer quorum. The recovery guard binds the exact committed
     anchor outpoint and halts a non-RBF conflict unless the observation confirms
     full-RBF policy; it then enforces the incremental replacement-fee delta.
+27. Captures the exact anchor UTXO or spender directly from stable Bitcoin Core
+    chain and mempool views, derives full-RBF and incremental-relay policy from
+    Core, and counts propagation only across uniquely named Core nodes with the
+    same stable tip and stable mempool sequences. The watchtower signs these node
+    views, Core-decoded proposal txid/wtxid/vsize and input-derived fee, fee-pin
+    decisions, and confirmed-spend alerts in the same durable journal while
+    preserving idempotency across mixed observation types.
 
 The changes block the concrete exploit probes. They reduce testnet risk but do
 not promote this module to a production signer.
@@ -336,17 +343,18 @@ until a Taproot DLC message format is published and cross-tested.
 - Store and independently restore the refund transaction before broadcast.
 - The read-only chain guard now detects disconnected ancestry, confirmation
   regression, unknown spends, immature refunds, and stage-inconsistent CETs.
-  Its Bitcoin Core observer now stabilizes the chain and mempool views and scans
-  a bounded recent-block window for the spender. Its signed journal makes
-  independent operation and restart-safe halt alerts possible. Deploy that
-  journal as a separate watchtower service with external alert delivery. The
+  Its Bitcoin Core observer now stabilizes the chain and mempool views, scans a
+  bounded recent-block window for the spender, captures anchor replacement
+  policy, and verifies relay inventory across configured same-network nodes.
+  The signed journal records both chain and anchor observations with restart-safe
+  halt alerts. Deploy that journal as a separate watchtower service with
+  authenticated Core RPC channels and external alert delivery. The
   regtest harness now proves anchor spendability, package-feerate rescue below
   the standalone relay floor, propagation between two strict-floor peers,
   economic full-RBF pinning and higher-fee rescue, and a six-block
-  disconnect/reconsider cycle. The exported recovery guard consumes an
-  authenticated observation and halts
-  outside that signed budget or replacement policy. Wire direct Core anchor
-  observations into the signed journal, then test heterogeneous peer policies,
+  disconnect/reconsider cycle. The recovery guard applies the signed fee budget
+  before broadcast, the relay quorum after observation, and halts outside the
+  observed replacement policy. Test heterogeneous peer policies,
   descendant/cluster pins, and v3/TRUC policy before funded operation.
 - Require independent Bitcoin Core policy checks and exact transaction decode
   immediately before signing and broadcasting.

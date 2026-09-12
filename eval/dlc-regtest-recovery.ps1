@@ -258,6 +258,16 @@ try {
   $pinPackage = Invoke-BitcoinCli @('submitpackage', $pinPackageJson) | ConvertFrom-Json
   Require-Condition ($pinPackage.package_msg -eq 'success') 'fee-pin package was rejected'
   Require-Condition (@($pinPackage.'replaced-transactions') -contains $highChild.txid) 'fee-pin child did not replace the recovery child'
+  $peerMempoolWhilePinned = Wait-PeerMempool @($parentResult.txid, $pinChild.txid) @($highChild.txid)
+  $mempoolPolicy = Invoke-BitcoinCli @('getmempoolinfo') | ConvertFrom-Json
+  $peerMempoolPolicy = Invoke-PeerBitcoinCli @('getmempoolinfo') | ConvertFrom-Json
+  $pinEntry = Invoke-BitcoinCli @('getmempoolentry', $pinChild.txid) | ConvertFrom-Json
+  $peerPinEntry = Invoke-PeerBitcoinCli @('getmempoolentry', $pinChild.txid) | ConvertFrom-Json
+  Require-Condition ($mempoolPolicy.fullrbf -eq $true -and $peerMempoolPolicy.fullrbf -eq $true) 'Core did not expose full-RBF on both observer nodes'
+  Require-Condition ([decimal]$mempoolPolicy.incrementalrelayfee -gt 0 -and [decimal]$peerMempoolPolicy.incrementalrelayfee -gt 0) 'Core did not expose incremental relay fees'
+  Require-Condition ([int]$pinEntry.vsize -gt 0 -and [decimal]$pinEntry.fees.base -eq [decimal]$pinChild.fee) 'primary pin mempool entry fee or vsize mismatch'
+  Require-Condition ($pinEntry.'bip125-replaceable' -eq $false) 'non-RBF pin unexpectedly signaled BIP125 replacement'
+  Require-Condition ([int]$peerPinEntry.vsize -eq [int]$pinEntry.vsize -and [decimal]$peerPinEntry.fees.base -eq [decimal]$pinEntry.fees.base) 'peer pin mempool entry did not match primary'
   $pinnedRecoveryRetry = Invoke-BitcoinCli @('submitpackage', $highPackageJson) | ConvertFrom-Json
   Require-Condition ($pinnedRecoveryRetry.package_msg -ne 'success') 'cheaper recovery unexpectedly displaced the fee pin'
   $mempoolWhilePinned = ConvertFrom-JsonArray (Invoke-BitcoinCli @('getrawmempool'))
@@ -311,6 +321,18 @@ try {
       finalHeight = [int](Invoke-PeerBitcoinCli @('getblockcount'))
     }
     anchor = [ordered]@{ txid = $parentResult.txid; vout = $anchorVout; amountSats = 330; address = $anchorAddress }
+    observerRpc = [ordered]@{
+      primaryFullRbf = $mempoolPolicy.fullrbf
+      peerFullRbf = $peerMempoolPolicy.fullrbf
+      primaryIncrementalRelayFeeBtcPerKvB = $mempoolPolicy.incrementalrelayfee
+      peerIncrementalRelayFeeBtcPerKvB = $peerMempoolPolicy.incrementalrelayfee
+      pinVsize = [int]$pinEntry.vsize
+      pinFeeBtc = $pinEntry.fees.base
+      pinBip125Replaceable = $pinEntry.'bip125-replaceable'
+      peerPinVsize = [int]$peerPinEntry.vsize
+      peerPinFeeBtc = $peerPinEntry.fees.base
+      peerMempoolWhilePinned = $peerMempoolWhilePinned
+    }
     package = [ordered]@{
       strictRelayFloorSatsPerVb = 2
       parentStandaloneAllowed = $parentOnly[0].allowed
@@ -351,6 +373,7 @@ try {
       rbfRecoveryAccepted = $true
       cheaperRecoveryBlockedByFeePin = $true
       higherFeeRecoveryDisplacedPin = $true
+      coreObserverRpcFieldsVerified = $true
       sixBlockDisconnectRecoveredPackage = $true
       branchRestorationClearedMempool = $true
     }

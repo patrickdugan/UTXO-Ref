@@ -31,7 +31,7 @@ const {
   validateRefundSignature
 } = require('./dlc_signature_validator');
 const { evaluateDlcChainSnapshot } = require('./dlc_chain_guard');
-const { observeAndEvaluateDlcChain } = require('./dlc_bitcoin_core_observer');
+const { captureDlcAnchorRecoverySnapshot, observeAndEvaluateDlcChain } = require('./dlc_bitcoin_core_observer');
 const {
   TESTNET4_CHAIN_HASH,
   TYPES: PEER_MESSAGE_TYPES,
@@ -843,6 +843,186 @@ test('signed watchtower journal preserves halt alerts and detects tampering afte
   }
 });
 
+test('watchtower signs direct Bitcoin Core anchor, replacement-policy, and peer relay observations', () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'utxoref-anchor-watchtower-'));
+  try {
+    const { contract, transactionSet } = validatedChainFixture('anchor-watchtower-contract', 'CONFIRMED');
+    const settlementTxid = transactionSet.cets[0].txid;
+    const anchor = settlementAnchor(transactionSet, settlementTxid);
+    const pinTxid = digest('anchor-watchtower:pin');
+    const bestBlockHash = digest('anchor-watchtower:block:205');
+    const walletTxid = digest('anchor-watchtower:wallet-input');
+    const walletValue = 200000n;
+    const recoveryRaw = (feeSats) => serializeUnsignedTx(
+      2,
+      [
+        { outpoint: outpoint(anchor.txid, anchor.vout), sequence: 0xfffffffd },
+        { outpoint: outpoint(walletTxid, 0), sequence: 0xfffffffd }
+      ],
+      [{ valueSats: 330n + walletValue - feeSats, script: `0014${'98'.repeat(20)}` }],
+      0
+    );
+    const cheapRecoveryRaw = recoveryRaw(9098n);
+    const rescueRaw = recoveryRaw(100000n);
+    const decodedRecovery = (rawTxHex) => {
+      const parsed = parseCanonicalUnsignedTransaction(rawTxHex);
+      return {
+        txid: parsed.txid,
+        hash: parsed.txid,
+        vsize: 300,
+        vin: parsed.inputs,
+        vout: parsed.outputs.map((output) => ({ value: Number(output.valueSats) / 100000000 }))
+      };
+    };
+    const primaryRpc = (method, params) => {
+      if (method === 'getblockchaininfo') return { chain: 'testnet4', blocks: 205, bestblockhash: bestBlockHash };
+      if (method === 'getrawmempool') return { mempool_sequence: 17 };
+      if (method === 'getmempoolinfo') return { fullrbf: true, incrementalrelayfee: 0.00001 };
+      if (method === 'gettxout' && params[0] === walletTxid) {
+        return { bestblock: bestBlockHash, confirmations: 6, value: 0.002, scriptPubKey: { hex: `0014${'97'.repeat(20)}` } };
+      }
+      if (method === 'gettxout') return null;
+      if (method === 'gettxspendingprevout') return [{ spendingtxid: pinTxid }];
+      if (method === 'getmempoolentry') {
+        return { vsize: 467, fees: { base: 0.00093338 }, 'bip125-replaceable': false };
+      }
+      if (method === 'decoderawtransaction') return decodedRecovery(params[0]);
+      throw new Error(`unexpected primary anchor RPC ${method}`);
+    };
+    const peerRpc = (method, params) => {
+      if (method === 'getblockchaininfo') return { chain: 'testnet4', blocks: 205, bestblockhash: bestBlockHash };
+      if (method === 'getrawmempool' && params[1] === true) return { mempool_sequence: 9 };
+      if (method === 'getrawmempool') return [pinTxid];
+      throw new Error(`unexpected peer anchor RPC ${method}`);
+    };
+    const captured = captureDlcAnchorRecoverySnapshot({
+      contractState: contract,
+      transactionSet,
+      settlementTxid,
+      rpc: primaryRpc,
+      peerNodes: [{ nodeId: 'peer-1', rpc: peerRpc }],
+      proposedRecoveryRawTxHex: cheapRecoveryRaw
+    });
+    assert(captured.observedSpend.txid === pinTxid && captured.observedSpend.relayPeers === 2,
+      'Core observer did not count the primary and peer mempools');
+    assert(captured.fullRbf && captured.incrementalRelayFeeSatPerVb === 1,
+      'Core observer did not bind replacement policy');
+    expectThrow(() => captureDlcAnchorRecoverySnapshot({
+      contractState: contract,
+      transactionSet,
+      settlementTxid,
+      rpc: primaryRpc,
+      primaryNodeId: 'peer-1',
+      peerNodes: [{ nodeId: 'peer-1', rpc: peerRpc }],
+      proposedRecoveryRawTxHex: cheapRecoveryRaw
+    }), /node IDs must be unique/);
+    expectThrow(() => captureDlcAnchorRecoverySnapshot({
+      contractState: contract,
+      transactionSet,
+      settlementTxid,
+      rpc: primaryRpc,
+      peerNodes: [{
+        nodeId: 'wrong-chain',
+        rpc(method) {
+          if (method === 'getblockchaininfo') return { chain: 'main', blocks: 205, bestblockhash: bestBlockHash };
+          throw new Error(`unexpected wrong-chain RPC ${method}`);
+        }
+      }],
+      proposedRecoveryRawTxHex: cheapRecoveryRaw,
+      maxAttempts: 1
+    }), /must report testnet4/);
+
+    const confirmedRecoveryTxid = digest('anchor-watchtower:confirmed-recovery');
+    const confirmedRpc = (method) => {
+      if (method === 'getblockchaininfo') return { chain: 'testnet4', blocks: 205, bestblockhash: bestBlockHash };
+      if (method === 'getrawmempool') return { mempool_sequence: 18 };
+      if (method === 'getmempoolinfo') return { fullrbf: true, incrementalrelayfee: 0.00001 };
+      if (method === 'gettxout') return null;
+      if (method === 'gettxspendingprevout') return [{}];
+      if (method === 'getblockhash') return bestBlockHash;
+      if (method === 'getblock') return {
+        tx: [{
+          txid: confirmedRecoveryTxid,
+          fee: 0.00001,
+          vsize: 200,
+          vin: [{ txid: anchor.txid, vout: anchor.vout, sequence: 0xfffffffe }]
+        }]
+      };
+      throw new Error(`unexpected confirmed anchor RPC ${method}`);
+    };
+    const confirmedSnapshot = captureDlcAnchorRecoverySnapshot({
+      contractState: contract,
+      transactionSet,
+      settlementTxid,
+      rpc: confirmedRpc,
+      expectedRecoveryTxids: [confirmedRecoveryTxid],
+      scanDepth: 1
+    });
+    const confirmedEvaluation = evaluateDlcAnchorRecovery({
+      contractState: contract,
+      transactionSet,
+      settlementTxid,
+      snapshot: confirmedSnapshot,
+      expectedRecoveryTxids: confirmedSnapshot.expectedRecoveryTxids,
+      incrementalRelayFeeSatPerVb: confirmedSnapshot.incrementalRelayFeeSatPerVb
+    });
+    assert(confirmedEvaluation.status === 'RECOVERY_CONFIRMED',
+      'Core block scan did not accept the confirmed expected recovery');
+
+    const keys = crypto.generateKeyPairSync('ed25519');
+    const journal = new DlcWatchtowerJournal(directory, {
+      watchtowerId: 'anchor-watchtower-1',
+      publicKey: keys.publicKey,
+      privateKey: keys.privateKey
+    });
+    const pinned = journal.appendBitcoinCoreAnchorObservation({
+      contractState: contract,
+      transactionSet,
+      settlementTxid,
+      rpc: primaryRpc,
+      peerNodes: [{ nodeId: 'peer-1', rpc: peerRpc }],
+      proposedRecoveryRawTxHex: cheapRecoveryRaw
+    });
+    assert(pinned.observationType === 'anchor-recovery' && pinned.evaluation.status === 'FEE_PIN_HALT' &&
+      pinned.alert.code === 'FEE_PIN_HALT', 'watchtower did not persist the directly observed fee pin');
+    const rescued = journal.appendBitcoinCoreAnchorObservation({
+      contractState: contract,
+      transactionSet,
+      settlementTxid,
+      rpc: primaryRpc,
+      peerNodes: [{ nodeId: 'peer-1', rpc: peerRpc }],
+      proposedRecoveryRawTxHex: rescueRaw
+    });
+    assert(rescued.evaluation.status === 'FEE_PIN_RESCUE_READY' && rescued.alert === null,
+      'watchtower did not authorize the in-budget replacement from direct Core evidence');
+    const chainRecord = journal.appendObservation({
+      contractState: contract,
+      transactionSet,
+      snapshot: chainSnapshot(transactionSet)
+    });
+    const rescueRetry = journal.appendBitcoinCoreAnchorObservation({
+      contractState: contract,
+      transactionSet,
+      settlementTxid,
+      rpc: primaryRpc,
+      peerNodes: [{ nodeId: 'peer-1', rpc: peerRpc }],
+      proposedRecoveryRawTxHex: rescueRaw
+    });
+    assert(chainRecord.observationType === 'chain' && rescueRetry.recordHash === rescued.recordHash,
+      'mixed observation types broke anchor idempotency');
+
+    const restarted = new DlcWatchtowerJournal(directory, {
+      watchtowerId: 'anchor-watchtower-1',
+      publicKey: keys.publicKey
+    });
+    const verified = restarted.verifyChain(contract.contractId);
+    assert(verified.observations === 3 && restarted.alerts(contract.contractId).length === 1,
+      'direct Core anchor observations did not survive journal restart');
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+});
+
 test('anchor recovery guard enforces signed budgets, relay quorum, and full-RBF fee-pin deltas', () => {
   const { contract, transactionSet } = validatedChainFixture('anchor-recovery-contract', 'CANONICAL_CETS_AND_REFUND');
   const settlementTxid = transactionSet.cets[0].txid;
@@ -853,21 +1033,24 @@ test('anchor recovery guard enforces signed budgets, relay quorum, and full-RBF 
     feeSats: '93338',
     vsize: 467,
     relayPeers: 2,
-    signalsRbf: false
+    signalsRbf: false,
+    confirmed: false
   };
   const cheapRecovery = {
     txid: digest('anchor-guard:cheap-recovery'),
     feeSats: '9098',
     vsize: 467,
-    relayPeers: 2,
-    signalsRbf: true
+    relayPeers: 0,
+    signalsRbf: true,
+    confirmed: false
   };
   const rescue = {
     txid: digest('anchor-guard:rescue'),
     feeSats: '140138',
     vsize: 467,
-    relayPeers: 2,
-    signalsRbf: true
+    relayPeers: 0,
+    signalsRbf: true,
+    confirmed: false
   };
   const pinned = evaluateDlcAnchorRecovery({
     contractState: contract,
@@ -890,6 +1073,20 @@ test('anchor recovery guard enforces signed budgets, relay quorum, and full-RBF 
     snapshot: { anchorOutpoint: anchor.outpoint, anchorPresent: false, fullRbf: false, observedSpend: pin, proposedRecovery: rescue }
   });
   assert(!noFullRbf.ok && noFullRbf.status === 'FEE_PIN_HALT', 'non-RBF pin bypassed the observed replacement policy');
+  const confirmedConflict = evaluateDlcAnchorRecovery({
+    contractState: contract,
+    transactionSet,
+    settlementTxid,
+    snapshot: {
+      anchorOutpoint: anchor.outpoint,
+      anchorPresent: false,
+      fullRbf: true,
+      observedSpend: { ...pin, confirmed: true, relayPeers: 0 },
+      proposedRecovery: rescue
+    }
+  });
+  assert(!confirmedConflict.ok && confirmedConflict.status === 'ANCHOR_SPENT_HALT',
+    'confirmed conflicting anchor spend was treated as replaceable');
   const overBudget = evaluateDlcAnchorRecovery({
     contractState: contract,
     transactionSet,

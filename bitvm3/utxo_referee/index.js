@@ -126,7 +126,7 @@ module.exports = {
   // for production; these interfaces enforce transcript, threshold-oracle,
   // and persistence gates on regtest and Bitcoin testnet4.
   dlc: Object.freeze({
-    securityBoundaryVersion: 8,
+    securityBoundaryVersion: 9,
     createContract: dlcContractState.createDlcContract,
     validateContract: dlcContractState.validateDlcContract,
     transitionContract: dlcContractState.transitionDlcContract,
@@ -145,6 +145,7 @@ module.exports = {
     validateRefundSignature: dlcSignatureValidator.validateRefundSignature,
     evaluateChainSnapshot: dlcChainGuard.evaluateDlcChainSnapshot,
     captureBitcoinCoreSnapshot: dlcBitcoinCoreObserver.captureDlcChainSnapshot,
+    captureBitcoinCoreAnchorSnapshot: dlcBitcoinCoreObserver.captureDlcAnchorRecoverySnapshot,
     observeBitcoinCoreChain: dlcBitcoinCoreObserver.observeAndEvaluateDlcChain,
     peerMessageTypes: dlcPeerTranscript.TYPES,
     testnet4ChainHash: dlcPeerTranscript.TESTNET4_CHAIN_HASH,

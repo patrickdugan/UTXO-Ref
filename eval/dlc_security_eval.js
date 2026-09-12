@@ -732,6 +732,84 @@ check('independent watchtower journal survives restart and preserves signed halt
   }
 });
 
+check('watchtower signs direct Core anchor and independent peer relay evidence', 'anchor-observer', 14, () => {
+  if (!peerFixtureForEval) return false;
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'utxoref-eval-anchor-observer-'));
+  try {
+    const { transactionSet, contract } = peerFixtureForEval;
+    const settlementTxid = transactionSet.cets[0].txid;
+    const anchorVout = transactionSet.cets[0].outputs.length - 1;
+    const pinTxid = sha256('anchor-observer-eval:pin').toString('hex');
+    const bestBlockHash = sha256('anchor-observer-eval:tip').toString('hex');
+    const walletTxid = sha256('anchor-observer-eval:wallet-input').toString('hex');
+    const proposedRecoveryRawTxHex = serializeUnsignedTx(
+      2,
+      [
+        { outpoint: outpoint(settlementTxid, anchorVout), sequence: 0xfffffffd },
+        { outpoint: outpoint(walletTxid, 0), sequence: 0xfffffffd }
+      ],
+      [{ valueSats: 191232n, script: `0014${'98'.repeat(20)}` }],
+      0
+    );
+    const primaryRpc = (method, params) => {
+      if (method === 'getblockchaininfo') return { chain: 'testnet4', blocks: 205, bestblockhash: bestBlockHash };
+      if (method === 'getrawmempool') return { mempool_sequence: 21 };
+      if (method === 'getmempoolinfo') return { fullrbf: true, incrementalrelayfee: 0.00001 };
+      if (method === 'gettxout' && params[0] === walletTxid) {
+        return { bestblock: bestBlockHash, confirmations: 6, value: 0.002 };
+      }
+      if (method === 'gettxout') return null;
+      if (method === 'gettxspendingprevout') return [{ spendingtxid: pinTxid }];
+      if (method === 'getmempoolentry') {
+        return { vsize: 467, fees: { base: 0.00093338 }, 'bip125-replaceable': false };
+      }
+      if (method === 'decoderawtransaction') {
+        const parsed = parseCanonicalUnsignedTransaction(params[0]);
+        return {
+          txid: parsed.txid,
+          hash: parsed.txid,
+          vsize: 300,
+          vin: parsed.inputs,
+          vout: parsed.outputs.map((output) => ({ value: Number(output.valueSats) / 100000000 }))
+        };
+      }
+      throw new Error(`unexpected anchor observer RPC ${method}`);
+    };
+    const peerRpc = (method, params) => {
+      if (method === 'getblockchaininfo') return { chain: 'testnet4', blocks: 205, bestblockhash: bestBlockHash };
+      if (method === 'getrawmempool' && params[1] === true) return { mempool_sequence: 8 };
+      if (method === 'getrawmempool') return [pinTxid];
+      throw new Error(`unexpected anchor peer RPC ${method}`);
+    };
+    const keys = crypto.generateKeyPairSync('ed25519');
+    const journal = new DlcWatchtowerJournal(directory, {
+      watchtowerId: 'eval-anchor-observer',
+      publicKey: keys.publicKey,
+      privateKey: keys.privateKey
+    });
+    const record = journal.appendBitcoinCoreAnchorObservation({
+      contractState: contract,
+      transactionSet,
+      settlementTxid,
+      rpc: primaryRpc,
+      peerNodes: [{ nodeId: 'peer-1', rpc: peerRpc }],
+      proposedRecoveryRawTxHex
+    });
+    const verifier = new DlcWatchtowerJournal(directory, {
+      watchtowerId: 'eval-anchor-observer',
+      publicKey: keys.publicKey
+    });
+    const verified = verifier.verifyChain(contract.contractId);
+    return record.observationType === 'anchor-recovery' && record.snapshot.observer === 'bitcoin-core-rpc-v1' &&
+      record.snapshot.observedSpend.txid === pinTxid && record.snapshot.observedSpend.relayPeers === 2 &&
+      record.snapshot.proposedRecovery.feeSats === '9098' &&
+      record.snapshot.incrementalRelayFeeSatPerVb === 1 && record.evaluation.status === 'FEE_PIN_HALT' &&
+      record.alert.code === 'FEE_PIN_HALT' && verified.observations === 1;
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+});
+
 check('signed anchor policy contains economic fee pins and enforces recovery relay quorum', 'anchor-recovery', 12, () => {
   if (!peerFixtureForEval) return false;
   const { transactionSet, contract } = peerFixtureForEval;
@@ -742,21 +820,24 @@ check('signed anchor policy contains economic fee pins and enforces recovery rel
     feeSats: '93338',
     vsize: 467,
     relayPeers: 2,
-    signalsRbf: false
+    signalsRbf: false,
+    confirmed: false
   };
   const cheap = {
     txid: sha256('anchor-eval:cheap').toString('hex'),
     feeSats: '9098',
     vsize: 467,
-    relayPeers: 2,
-    signalsRbf: true
+    relayPeers: 0,
+    signalsRbf: true,
+    confirmed: false
   };
   const rescue = {
     txid: sha256('anchor-eval:rescue').toString('hex'),
     feeSats: '140138',
     vsize: 467,
-    relayPeers: 2,
-    signalsRbf: true
+    relayPeers: 0,
+    signalsRbf: true,
+    confirmed: false
   };
   const pinned = evaluateDlcAnchorRecovery({
     contractState: contract,
@@ -1013,7 +1094,7 @@ const possible = cases.reduce((sum, test) => sum + test.points, 0);
 const score = earned / possible;
 const report = {
   benchmark: 'utxoref-dlc-security',
-  version: 7,
+  version: 8,
   profile: profileName,
   seed,
   score,

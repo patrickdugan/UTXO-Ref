@@ -46,11 +46,11 @@ Treat `eval/`, `program-dlc-security.md`, and `prepare.sh` as locked benchmark i
 - The signed transaction transition must bind the anchor policy, maximum recovery fee, maximum recovery feerate, and minimum relay-peer quorum as a dedicated validation receipt.
 - Every CET adaptor signature and refund signature must verify against the BIP341 sighash of the already validated transaction, funding amount, funding script, signer key, and exact threshold-oracle subset.
 - Chain monitoring must bind the exact signed transaction set and funding outpoint, prove ancestry against the prior snapshot, and halt on reorgs, unknown spends, immature refunds, or CETs inconsistent with contract state.
-- The Bitcoin Core observer must verify network, chain tip, and mempool stability around every snapshot and use only read-only RPC methods.
+- The Bitcoin Core observer must verify network, chain tip, and mempool stability around every snapshot and use only read-only RPC methods. Anchor observations must derive the exact outpoint state, spender fee and vsize, full-RBF setting, and incremental relay fee from Core; relay counts must bind unique configured node IDs to stable views of the same tip and mempool. Proposed recovery txid, wtxid, vsize, RBF signaling, and fee must be derived from the Core-decoded raw transaction, the committed anchor amount, and observed additional inputs.
 - Watchtower observations must be independently signed, append-only, hash-chained, transaction-set-bound, restart-verifiable, and preserve every halt alert.
 - Offer, accept, and sign messages must form an authenticated hash-chained transcript; bind the testnet4 chain hash, validated transaction set, signature-validation digests, funding witnesses, and derived contract ID; and enforce globally unique, canonically ordered u64 serial IDs.
 - Temporary contract IDs and completed transcript digests must be claimed atomically, survive restart, reject conflicting reuse, and remain idempotent for identical retries.
-- Anchor recovery evaluation must bind the exact committed settlement outpoint, halt outside the signed fee or relay limits, and require observed full-RBF policy or an RBF-signaling conflict plus the incremental replacement-fee delta before authorizing a fee-pin rescue.
+- Anchor recovery evaluation must bind the exact committed settlement outpoint, apply the signed fee limits before broadcast and relay quorum after observation, halt confirmed uncommitted spends, and require observed full-RBF policy or an RBF-signaling conflict plus the incremental replacement-fee delta before authorizing a fee-pin rescue.
 
 This benchmark uses synthetic keys, has no network dependency, and must never broadcast a transaction.
 
