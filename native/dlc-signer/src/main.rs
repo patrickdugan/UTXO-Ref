@@ -6,6 +6,7 @@ use std::{
     ffi::c_void,
     fs::{self, OpenOptions},
     io::{self, Read, Write},
+    ops::Deref,
     path::{Path, PathBuf},
     process::{Command, Stdio},
     ptr,
@@ -52,6 +53,8 @@ unsafe extern "system" {
 #[link(name = "kernel32")]
 unsafe extern "system" {
     fn LocalFree(memory: *mut c_void) -> *mut c_void;
+    fn VirtualLock(address: *const c_void, size: usize) -> i32;
+    fn VirtualUnlock(address: *const c_void, size: usize) -> i32;
 }
 
 const CRYPTPROTECT_UI_FORBIDDEN: u32 = 1;
@@ -615,17 +618,80 @@ fn verify_dpapi_key_access(
     Ok(())
 }
 
-struct LocalDpapiSecret(DataBlob);
+struct LocalDpapiSecret {
+    blob: DataBlob,
+    locked: bool,
+}
+
+impl LocalDpapiSecret {
+    fn new(blob: DataBlob) -> Self {
+        Self {
+            blob,
+            locked: false,
+        }
+    }
+
+    fn lock(&mut self, name: &str) -> Result<()> {
+        // SAFETY: the successful DPAPI call returned blob.length live bytes.
+        // The allocation remains owned by secret until Drop.
+        let status = unsafe { VirtualLock(self.blob.data.cast(), self.blob.length as usize) };
+        if status == 0 {
+            return Err(format!(
+                "{name} DPAPI output could not be locked in memory: {}",
+                io::Error::last_os_error()
+            ));
+        }
+        self.locked = true;
+        Ok(())
+    }
+}
 
 impl Drop for LocalDpapiSecret {
     fn drop(&mut self) {
-        if !self.0.data.is_null() {
+        if !self.blob.data.is_null() {
             // SAFETY: CryptUnprotectData allocated cbData bytes with LocalAlloc and
             // transferred ownership through this DATA_BLOB. This guard owns it once.
             unsafe {
-                ptr::write_bytes(self.0.data, 0, self.0.length as usize);
-                let _ = LocalFree(self.0.data.cast());
+                ptr::write_bytes(self.blob.data, 0, self.blob.length as usize);
+                if self.locked {
+                    let _ = VirtualUnlock(self.blob.data.cast(), self.blob.length as usize);
+                }
+                let _ = LocalFree(self.blob.data.cast());
             }
+        }
+    }
+}
+
+struct LockedSecret(Box<[u8; 32]>);
+
+impl LockedSecret {
+    fn zeroed(name: &str) -> Result<Self> {
+        let mut secret = Box::new([0u8; 32]);
+        // SAFETY: secret owns a stable 32-byte heap allocation for this guard's lifetime.
+        let status = unsafe { VirtualLock(secret.as_ptr().cast(), secret.len()) };
+        if status == 0 {
+            let error = io::Error::last_os_error();
+            secret.zeroize();
+            return Err(format!("{name} could not be locked in memory: {error}"));
+        }
+        Ok(Self(secret))
+    }
+}
+
+impl Deref for LockedSecret {
+    type Target = [u8; 32];
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl Drop for LockedSecret {
+    fn drop(&mut self) {
+        self.0.zeroize();
+        // SAFETY: this is the same live allocation successfully passed to VirtualLock.
+        unsafe {
+            let _ = VirtualUnlock(self.0.as_ptr().cast(), self.0.len());
         }
     }
 }
@@ -635,7 +701,7 @@ fn unprotect_dpapi_secret(
     verifier_path: &Path,
     expected_account_sid: &str,
     name: &str,
-) -> Result<Zeroizing<[u8; 32]>> {
+) -> Result<LockedSecret> {
     let metadata = fs::symlink_metadata(blob_path).map_err(|error| format!("{name}: {error}"))?;
     if !blob_path.is_absolute()
         || !metadata.is_file()
@@ -679,14 +745,15 @@ fn unprotect_dpapi_secret(
             io::Error::last_os_error()
         ));
     }
-    let output = LocalDpapiSecret(output);
-    if output.0.length != 32 || output.0.data.is_null() {
+    let mut output = LocalDpapiSecret::new(output);
+    if output.blob.length != 32 || output.blob.data.is_null() {
         return Err(format!("{name} DPAPI blob did not contain a 32-byte key"));
     }
-    let mut secret = Zeroizing::new([0u8; 32]);
+    output.lock(name)?;
+    let mut secret = LockedSecret::zeroed(name)?;
     // SAFETY: the successful API call returned exactly 32 live bytes and secret
     // owns a distinct 32-byte destination. LocalDpapiSecret remains alive here.
-    unsafe { ptr::copy_nonoverlapping(output.0.data, secret.as_mut_ptr(), 32) };
+    unsafe { ptr::copy_nonoverlapping(output.blob.data, secret.0.as_mut_ptr(), 32) };
     Ok(secret)
 }
 
@@ -931,14 +998,14 @@ fn runtime_identity(
     access_verifier_path: &Path,
     expected_account_sid: &str,
 ) -> Result<(SigningKey, String)> {
-    let mut seed = unprotect_dpapi_secret(
+    let seed = unprotect_dpapi_secret(
         &key_directory.join("runtime-identity.key.dpapi"),
         access_verifier_path,
         expected_account_sid,
         "runtime identity seed",
     )?;
     let signing_key = SigningKey::from_bytes(&seed);
-    seed.zeroize();
+    drop(seed);
     let mut spki = Vec::with_capacity(44);
     spki.extend_from_slice(&ED25519_SPKI_PREFIX);
     spki.extend_from_slice(signing_key.verifying_key().as_bytes());

@@ -604,7 +604,10 @@ try {
       nativeDpapiDecryption: true,
       decryptionSecretIpcEliminated: true,
       dpapiAccessVerifierSilent: true,
-      unsafeDpapiFfiBlocks: 3,
+      unsafeDpapiFfiBlocks: 6,
+      dpapiOutputMemoryLocked: true,
+      decryptedKeyBufferMemoryLocked: true,
+      memoryLockFailureFailsClosed: true,
       hostSuppliedNoSecret: true
     }
   };

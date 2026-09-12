@@ -1,13 +1,13 @@
 {
-  "schema": "utxoref_dlc_native_rust_signer_evidence_v6",
+  "schema": "utxoref_dlc_native_rust_signer_evidence_v7",
   "network": "bitcoin-testnet4",
-  "sourceCommit": "faf0a4ee58bd36a0ba41fac4fd7aaea9f4a0e9b4",
+  "sourceCommit": "a867cdc6334796fb31dcbe80325f54d5c1b44abc",
   "toolchain": {
     "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)",
     "cargo": "cargo 1.98.1 (797e8a9bc 2026-08-05)"
   },
   "cargoLockSha256": "a5715dcfcf1eef714ffb08afe6b35fdd5db6278176ead3994286da12ba01c5e2",
-  "binarySha256": "2fc18a41c78b4a76c039912ac95201137b7240dd63fd7b0803e75b985d08fcd6",
+  "binarySha256": "e0986b6ef1c6217d867abe3924c471c2c5583cc7ce33ea07a519557385d6cd05",
   "reproducibleBuild": true,
   "syntheticKeysOnly": true,
   "productionReady": false,
@@ -36,7 +36,10 @@
     "nativeDpapiDecryption": true,
     "decryptionSecretIpcEliminated": true,
     "dpapiAccessVerifierSilent": true,
-    "unsafeDpapiFfiBlocks": 3,
+    "unsafeDpapiFfiBlocks": 6,
+    "dpapiOutputMemoryLocked": true,
+    "decryptedKeyBufferMemoryLocked": true,
+    "memoryLockFailureFailsClosed": true,
     "runtimeIdentityVerifiedByHost": true,
     "restartReplayRejected": true,
     "signerLocalReplayRejected": true,
