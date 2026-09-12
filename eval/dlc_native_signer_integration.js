@@ -4,10 +4,12 @@
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
+const { spawn } = require('child_process');
 const dlc = require('../bitvm3/utxo_referee/tradelayer_dlc_adaptor_sig');
 const {
   ALL_EVIDENCE_KINDS,
   REQUIRED_EVIDENCE,
+  canonicalJson,
   createDlcContract,
   signValidationReceipt,
   transitionDlcContract
@@ -16,11 +18,13 @@ const { DlcSigningAuthorizationStore } = require('../bitvm3/utxo_referee/dlc_sig
 const {
   DlcNativeSignerProcessClient,
   nativeSignerRuntimeDigest,
+  responseSignaturePayload,
   REQUEST_KIND: PROCESS_REQUEST_KIND,
   RESPONSE_KIND: PROCESS_RESPONSE_KIND
 } = require('../bitvm3/utxo_referee/dlc_native_signer_process_client');
 const {
   nativeCapabilityAttestationPayload,
+  adaptorSigningAuthorizationPayload,
   createDlcAdaptorSignAuthorization,
   authorizeDlcAdaptorSign,
   createDlcCryptoProvider
@@ -29,6 +33,42 @@ const {
 function fail(message) { throw new Error(message); }
 function sha256(value) { return crypto.createHash('sha256').update(value).digest(); }
 function digest(value) { return sha256(value).toString('hex'); }
+
+function runSignerProcess(executablePath, launchArguments, envelope) {
+  return new Promise((resolve) => {
+    const environment = {};
+    for (const name of ['SystemRoot', 'WINDIR']) {
+      if (typeof process.env[name] === 'string') environment[name] = process.env[name];
+    }
+    const child = spawn(executablePath, launchArguments, {
+      env: environment,
+      windowsHide: true,
+      stdio: ['pipe', 'pipe', 'pipe']
+    });
+    let stdout = Buffer.alloc(0);
+    let stderr = Buffer.alloc(0);
+    let timedOut = false;
+    const timer = setTimeout(() => {
+      timedOut = true;
+      child.kill();
+    }, 10000);
+    const append = (current, chunk) => {
+      if (current.length >= 65536) return current;
+      return Buffer.concat([current, chunk]).subarray(0, 65536);
+    };
+    child.stdout.on('data', (chunk) => { stdout = append(stdout, chunk); });
+    child.stderr.on('data', (chunk) => { stderr = append(stderr, chunk); });
+    child.on('error', (error) => {
+      clearTimeout(timer);
+      resolve({ code: null, timedOut, stdout, stderr, error });
+    });
+    child.on('close', (code, signal) => {
+      clearTimeout(timer);
+      resolve({ code, signal, timedOut, stdout, stderr });
+    });
+    child.stdin.end(envelope);
+  });
+}
 
 const binaryPath = path.resolve(process.argv[2] || '');
 const workDirectory = path.resolve(process.argv[3] || '');
@@ -49,6 +89,7 @@ fs.mkdirSync(directReplayAuthorizationDirectory, { recursive: true, mode: 0o700 
 fs.mkdirSync(unpinnedValidatorAuthorizationDirectory, { recursive: true, mode: 0o700 });
 fs.mkdirSync(unpinnedSignerAuthorizationDirectory, { recursive: true, mode: 0o700 });
 
+async function main() {
 try {
   const validatorKeys = crypto.generateKeyPairSync('ed25519');
   const validatorSpki = validatorKeys.publicKey.export({ format: 'der', type: 'spki' });
@@ -272,6 +313,71 @@ try {
   catch (error) { signerLocalReplayRejected = /native signer process exited unsuccessfully/.test(error.message); }
   if (!signerLocalReplayRejected) fail('Rust signer local replay store accepted a consumed authorization');
 
+  const raceAuthorization = createDlcAdaptorSignAuthorization({
+    privateKey: validatorKeys.privateKey,
+    contract,
+    authorizationId: 'native-rust:race:0',
+    signerPubkeyX,
+    sighash,
+    adaptorPoint
+  });
+  const racePayload = adaptorSigningAuthorizationPayload({
+    contract,
+    authorizationId: raceAuthorization.authorizationId,
+    signerPubkeyX,
+    sighash,
+    adaptorPoint
+  });
+  const cetTransition = contract.history.find((entry) => entry.to === 'CANONICAL_CETS_AND_REFUND');
+  const cetReceipt = cetTransition?.evidence.find((entry) => entry.kind === 'cet_set');
+  if (!cetReceipt) fail('race probe could not resolve the authenticated CET set digest');
+  const raceAuthorizationDigest = digest(Buffer.from(canonicalJson(raceAuthorization), 'utf8'));
+  const raceRequest = {
+    kind: 'utxoref_dlc_native_adaptor_sign_request_v1',
+    network: contract.network,
+    contractId: contract.contractId,
+    contractDigest: contract.contractDigest,
+    stateRecordHash: contract.recordHash,
+    transcriptHash: contract.transcriptHash,
+    revision: contract.revision,
+    stage: contract.stage,
+    cetSetDigest: cetReceipt.digest,
+    authorizationDigest: raceAuthorizationDigest,
+    authorizationPayload: racePayload.toString('base64'),
+    authorization: JSON.parse(canonicalJson(raceAuthorization)),
+    validatorPublicKeySpki: contract.validatorPolicy.local_cet_signatures.publicKeySpki,
+    signerPubkeyX,
+    sighash,
+    adaptorPoint: { x: dlc.bytes32(adaptorPoint.x).toString('hex'), y: dlc.bytes32(adaptorPoint.y).toString('hex') }
+  };
+  const raceRequestDigest = digest(Buffer.from(canonicalJson(raceRequest), 'utf8'));
+  const raceAttempts = Array.from({ length: 16 }, () => {
+    const challenge = crypto.randomBytes(32).toString('hex');
+    const envelope = `${canonicalJson({
+      kind: PROCESS_REQUEST_KIND,
+      challenge,
+      requestDigest: raceRequestDigest,
+      request: raceRequest
+    })}\n`;
+    return { challenge, promise: runSignerProcess(binaryPath, launchSpec.arguments, envelope) };
+  });
+  const raceResults = await Promise.all(raceAttempts.map((attempt) => attempt.promise));
+  const winners = raceResults.map((result, index) => ({ result, challenge: raceAttempts[index].challenge }))
+    .filter(({ result }) => result.code === 0 && !result.signal && !result.timedOut);
+  if (winners.length !== 1) fail(`signer race admitted ${winners.length} of 16 workers`);
+  const raceResponse = JSON.parse(winners[0].result.stdout.toString('utf8'));
+  const runtimePublicKey = crypto.createPublicKey({ key: runtimeSpki, format: 'der', type: 'spki' });
+  if (raceResponse.kind !== PROCESS_RESPONSE_KIND || raceResponse.challenge !== winners[0].challenge ||
+      raceResponse.requestDigest !== raceRequestDigest || raceResponse.identityKeyId !== digest(runtimeSpki) ||
+      !crypto.verify(null, responseSignaturePayload({
+        challenge: raceResponse.challenge,
+        requestDigest: raceResponse.requestDigest,
+        presignature: raceResponse.presignature
+      }), runtimePublicKey, Buffer.from(raceResponse.signature, 'base64')) ||
+      !dlc.adaptorVerify(Buffer.from(signerPubkeyX, 'hex'), Buffer.from(sighash, 'hex'), raceResponse.presignature)) {
+    fail('signer race winner returned an invalid authenticated pre-signature');
+  }
+
   const report = {
     schema: 'utxoref_dlc_native_rust_signer_integration_v1',
     network: 'bitcoin-testnet4',
@@ -282,6 +388,7 @@ try {
     binarySha256: digest(fs.readFileSync(binaryPath)),
     runtimeClosureDigest: capabilities.binaryDigest,
     validatorPolicyDigest,
+    signerRaceWorkers: raceResults.length,
     signerPubkeyX,
     contractRecordHash: contract.recordHash,
     authorizationDigest: digest(Buffer.from(JSON.stringify(authorization))),
@@ -297,6 +404,7 @@ try {
       runtimeIdentityVerifiedByHost: true,
       restartReplayRejected: true,
       signerLocalReplayRejected: true,
+      exactOneSignerRaceWinner: true,
       hostSuppliedNoSecret: true
     }
   };
@@ -311,3 +419,9 @@ try {
   fs.rmSync(unpinnedValidatorPolicyPath, { force: true });
   fs.rmSync(unpinnedSignerPolicyPath, { force: true });
 }
+}
+
+main().catch((error) => {
+  process.stderr.write(`${error.stack || error.message}\n`);
+  process.exitCode = 1;
+});

@@ -15,6 +15,6 @@ Builds use the committed `Cargo.lock`, exact direct dependency versions, `rust-l
 powershell -ExecutionPolicy Bypass -File eval\dlc-native-rust-signer.ps1
 ```
 
-The harness deploys the verified binary to `D:\bitagent-testnet4\bin`, runs a cross-language adaptor-signature completion and extraction test, tests durable replay rejection after host restart, and writes its evidence to `D:\bitagent-testnet4\btc-test-snapshots`.
+The harness deploys the verified binary to `D:\bitagent-testnet4\bin`, runs a cross-language adaptor-signature completion and extraction test, tests durable replay rejection after host restart, launches 16 signer processes against one fresh authorization and requires exactly one authenticated winner, and writes its evidence to `D:\bitagent-testnet4\btc-test-snapshots`.
 
 This implementation is a production candidate, not an audited production signer. `productionReady` remains false until independent cryptographic, dependency, build, key-storage, and deployment review is complete. The current key-directory backend is intended for testnet4 evaluation and must be replaced or isolated with an audited production key service before mainnet use.

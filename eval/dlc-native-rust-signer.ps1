@@ -66,6 +66,9 @@ if (-not $result.assertions.rustProcessSigned -or -not $result.assertions.javasc
     -not $result.assertions.unpinnedValidatorRejected -or -not $result.assertions.unpinnedSignerRejected) {
   throw 'native signer integration omitted a required assertion'
 }
+if (-not $result.assertions.exactOneSignerRaceWinner -or $result.signerRaceWorkers -ne 16) {
+  throw 'native signer integration omitted a required assertion'
+}
 $commit = (git -c safe.directory=C:/projects/UTXORef/UTXO-Ref -C $repository rev-parse HEAD).Trim()
 $snapshot = [ordered]@{
   schema = 'utxoref_dlc_native_rust_signer_snapshot_v1'
