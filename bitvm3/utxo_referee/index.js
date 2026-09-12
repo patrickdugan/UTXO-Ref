@@ -128,7 +128,7 @@ module.exports = {
   // for production; these interfaces enforce transcript, threshold-oracle,
   // and persistence gates on regtest and Bitcoin testnet4.
   dlc: Object.freeze({
-    securityBoundaryVersion: 17,
+    securityBoundaryVersion: 18,
     createContract: dlcContractState.createDlcContract,
     validateContract: dlcContractState.validateDlcContract,
     transitionContract: dlcContractState.transitionDlcContract,
@@ -185,13 +185,14 @@ module.exports = {
       sanitizedProcessEnvironment: true,
       nativeCandidateImplementation: 'rust-k256-v1',
       nativeCandidateProtocol: 'utxoref-dlc-native-signer-process-v1',
-      nativeCandidateBinarySha256: '869d7d7a9fcee6b34fd167f9bbc833dd939adb2427f8c48f20ec7892dac1bd58',
+      nativeCandidateBinarySha256: 'a92d81c10582e377130613ac02fd3fec5fa32b8108bcb5b62c58fb5816d7d5a6',
       nativeCandidateCargoLockSha256: 'a5715dcfcf1eef714ffb08afe6b35fdd5db6278176ead3994286da12ba01c5e2',
       lockedDirectDependencies: true,
       unsafeRustForbidden: true,
       reproducibleWindowsBuild: true,
       crossLanguageAdaptorVerification: true,
       signerLocalDurableReplayStore: true,
+      validatorPolicyClosureBound: true,
       testnetKeyFileBackend: true,
       externalAuditRequired: true,
       productionReady: false
