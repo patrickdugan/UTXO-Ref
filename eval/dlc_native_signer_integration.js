@@ -38,14 +38,32 @@ if (!fs.existsSync(workDirectory) || !fs.statSync(workDirectory).isDirectory()) 
 const keyDirectory = path.join(workDirectory, 'keys');
 const authorizationDirectory = path.join(workDirectory, 'authorizations');
 const directReplayAuthorizationDirectory = path.join(workDirectory, 'direct-replay-authorizations');
+const unpinnedValidatorAuthorizationDirectory = path.join(workDirectory, 'unpinned-validator-authorizations');
+const validatorPolicyPath = path.join(workDirectory, 'validator-policy.json');
+const unpinnedValidatorPolicyPath = path.join(workDirectory, 'unpinned-validator-policy.json');
 fs.mkdirSync(keyDirectory, { recursive: true, mode: 0o700 });
 fs.mkdirSync(authorizationDirectory, { recursive: true, mode: 0o700 });
 fs.mkdirSync(directReplayAuthorizationDirectory, { recursive: true, mode: 0o700 });
+fs.mkdirSync(unpinnedValidatorAuthorizationDirectory, { recursive: true, mode: 0o700 });
 
 try {
   const validatorKeys = crypto.generateKeyPairSync('ed25519');
   const validatorSpki = validatorKeys.publicKey.export({ format: 'der', type: 'spki' });
   const validatorKeyId = digest(validatorSpki);
+  const validatorPolicyText = JSON.stringify({
+    kind: 'utxoref_dlc_native_validator_policy_v1',
+    validatorKeyIds: [validatorKeyId]
+  });
+  const unpinnedValidatorPolicyText = JSON.stringify({
+    kind: 'utxoref_dlc_native_validator_policy_v1',
+    validatorKeyIds: [digest('deliberately-unpinned-validator')]
+  });
+  fs.writeFileSync(validatorPolicyPath, validatorPolicyText, { encoding: 'utf8', mode: 0o600, flag: 'wx' });
+  fs.writeFileSync(unpinnedValidatorPolicyPath, unpinnedValidatorPolicyText, {
+    encoding: 'utf8', mode: 0o600, flag: 'wx'
+  });
+  const validatorPolicyDigest = digest(Buffer.from(validatorPolicyText, 'utf8'));
+  const unpinnedValidatorPolicyDigest = digest(Buffer.from(unpinnedValidatorPolicyText, 'utf8'));
   const validatorPolicy = Object.fromEntries(ALL_EVIDENCE_KINDS.map((kind) => [kind, {
     keyId: validatorKeyId,
     publicKeySpki: validatorSpki.toString('base64')
@@ -100,8 +118,17 @@ try {
     { encoding: 'utf8', mode: 0o600, flag: 'wx' }
   );
 
-  const launchSpec = { executablePath: binaryPath, arguments: [keyDirectory], codePaths: [] };
-  const manifest = {
+  const launchSpec = {
+    executablePath: binaryPath,
+    arguments: [keyDirectory, validatorPolicyPath, validatorPolicyDigest],
+    codePaths: [validatorPolicyPath]
+  };
+  const unpinnedValidatorLaunchSpec = {
+    executablePath: binaryPath,
+    arguments: [keyDirectory, unpinnedValidatorPolicyPath, unpinnedValidatorPolicyDigest],
+    codePaths: [unpinnedValidatorPolicyPath]
+  };
+  const manifestFor = (spec) => ({
     apiVersion: 1,
     curve: 'secp256k1',
     adaptorScheme: 'bip340-schnorr',
@@ -119,22 +146,27 @@ try {
     environmentPolicy: 'systemroot-only',
     runtimeIdentityKeyId: digest(runtimeSpki),
     runtimeIdentityPublicKeySpki: runtimeSpki.toString('base64'),
-    binaryDigest: nativeSignerRuntimeDigest(launchSpec),
+    binaryDigest: nativeSignerRuntimeDigest(spec),
     auditDigest: digest('native-rust-candidate-external-audit-pending')
-  };
+  });
   const auditKeys = crypto.generateKeyPairSync('ed25519');
   const auditSpki = auditKeys.publicKey.export({ format: 'der', type: 'spki' });
-  const capabilities = {
-    ...manifest,
-    attestation: {
-      keyId: digest(auditSpki),
-      signature: crypto.sign(
-        null,
-        nativeCapabilityAttestationPayload(manifest),
-        auditKeys.privateKey
-      ).toString('base64')
-    }
+  const capabilitiesFor = (spec) => {
+    const manifest = manifestFor(spec);
+    return {
+      ...manifest,
+      attestation: {
+        keyId: digest(auditSpki),
+        signature: crypto.sign(
+          null,
+          nativeCapabilityAttestationPayload(manifest),
+          auditKeys.privateKey
+        ).toString('base64')
+      }
+    };
   };
+  const capabilities = capabilitiesFor(launchSpec);
+  const unpinnedValidatorCapabilities = capabilitiesFor(unpinnedValidatorLaunchSpec);
   const trustedAuditKeys = [{ keyId: digest(auditSpki), publicKeySpki: auditSpki.toString('base64') }];
   const providerOptions = {
     network: 'bitcoin-testnet4',
@@ -154,6 +186,21 @@ try {
     sighash,
     adaptorPoint
   });
+  const unpinnedValidatorProvider = createDlcCryptoProvider({
+    network: 'bitcoin-testnet4',
+    mode: 'native-isolated',
+    implementation: new DlcNativeSignerProcessClient({
+      ...unpinnedValidatorLaunchSpec,
+      capabilities: unpinnedValidatorCapabilities,
+      timeoutMs: 10000
+    }),
+    trustedAuditKeys,
+    authorizationStore: new DlcSigningAuthorizationStore(unpinnedValidatorAuthorizationDirectory)
+  });
+  let unpinnedValidatorRejected = false;
+  try { authorizeDlcAdaptorSign(unpinnedValidatorProvider, { contract, authorization }).execute(); }
+  catch (error) { unpinnedValidatorRejected = /native signer process exited unsuccessfully/.test(error.message); }
+  if (!unpinnedValidatorRejected) fail('Rust signer accepted a validator absent from its audited policy');
   const presignature = authorizeDlcAdaptorSign(provider, { contract, authorization }).execute();
   if (!dlc.adaptorVerify(Buffer.from(signerPubkeyX, 'hex'), Buffer.from(sighash, 'hex'), presignature)) {
     fail('Rust signer pre-signature failed JavaScript verification');
@@ -195,7 +242,8 @@ try {
     externalAuditRequired: true,
     binaryPath,
     binarySha256: digest(fs.readFileSync(binaryPath)),
-    runtimeClosureDigest: manifest.binaryDigest,
+    runtimeClosureDigest: capabilities.binaryDigest,
+    validatorPolicyDigest,
     signerPubkeyX,
     contractRecordHash: contract.recordHash,
     authorizationDigest: digest(Buffer.from(JSON.stringify(authorization))),
@@ -206,6 +254,7 @@ try {
       bip340CompletionVerified: true,
       adaptorExtractionVerified: true,
       validatorAuthorizationVerifiedBySigner: true,
+      unpinnedValidatorRejected: true,
       runtimeIdentityVerifiedByHost: true,
       restartReplayRejected: true,
       signerLocalReplayRejected: true,
@@ -217,4 +266,7 @@ try {
   fs.rmSync(keyDirectory, { recursive: true, force: true });
   fs.rmSync(authorizationDirectory, { recursive: true, force: true });
   fs.rmSync(directReplayAuthorizationDirectory, { recursive: true, force: true });
+  fs.rmSync(unpinnedValidatorAuthorizationDirectory, { recursive: true, force: true });
+  fs.rmSync(validatorPolicyPath, { force: true });
+  fs.rmSync(unpinnedValidatorPolicyPath, { force: true });
 }

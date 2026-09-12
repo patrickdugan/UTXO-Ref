@@ -1,11 +1,13 @@
 # UTXORef DLC signer candidate
 
-This crate is the isolated native signer used by UTXORef's Bitcoin testnet4 DLC integration. It reads one bounded canonical-JSON request from standard input, independently verifies the validator's Ed25519 authorization, atomically consumes that authorization in its local replay store before signing, selects the key named by the authorized x-only public key, creates the adaptor pre-signature with `k256`, and signs its response with a runtime Ed25519 identity.
+This crate is the isolated native signer used by UTXORef's Bitcoin testnet4 DLC integration. It reads one bounded canonical-JSON request from standard input, requires the Ed25519 validator identity to appear in an audited policy file, independently verifies its authorization, atomically consumes that authorization in its local replay store before signing, selects the key named by the authorized x-only public key, creates the adaptor pre-signature with `k256`, and signs its response with a runtime Ed25519 identity.
 
 The host never passes a private scalar or caller-selected key handle. Key files must be small regular non-symlink files in an absolute directory supplied when the process starts:
 
 - `<x-only-pubkey>.key` contains one 32-byte secp256k1 scalar encoded as lowercase or uppercase hexadecimal.
 - `runtime-identity.key` contains one 32-byte Ed25519 seed encoded as hexadecimal.
+
+The second launch argument is an absolute canonical-JSON validator policy with schema `utxoref_dlc_native_validator_policy_v1`; its sorted `validatorKeyIds` array contains SHA-256 digests of accepted Ed25519 SPKI documents. The third argument is the policy file's SHA-256 digest. The process refuses a changed digest, an unpinned validator, symlinks, duplicate identities, and non-canonical policy bytes. The host must include the policy file in `codePaths`, which binds both its bytes and expected digest into the signed runtime closure.
 
 Builds use the committed `Cargo.lock`, exact direct dependency versions, `rust-lld`, no PE timestamp, LTO, abort-on-panic, and forbidden unsafe Rust. The Windows testnet4 harness builds twice in independent target directories and rejects different binary hashes:
 

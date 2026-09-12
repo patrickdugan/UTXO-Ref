@@ -274,7 +274,7 @@ fn adaptor_sign(
     Err("failed to derive an even-y adaptor nonce".to_owned())
 }
 
-fn ed25519_public_from_spki(value: &str) -> Result<VerifyingKey> {
+fn ed25519_public_from_spki(value: &str) -> Result<(VerifyingKey, String)> {
     let decoded = BASE64.decode(value).map_err(|error| error.to_string())?;
     if decoded.len() != 44 || decoded[..12] != ED25519_SPKI_PREFIX {
         return Err("validator public key is not canonical Ed25519 SPKI".to_owned());
@@ -282,7 +282,8 @@ fn ed25519_public_from_spki(value: &str) -> Result<VerifyingKey> {
     let key: [u8; 32] = decoded[12..]
         .try_into()
         .map_err(|_| "validator Ed25519 key is malformed".to_owned())?;
-    VerifyingKey::from_bytes(&key).map_err(|error| error.to_string())
+    let verifying_key = VerifyingKey::from_bytes(&key).map_err(|error| error.to_string())?;
+    Ok((verifying_key, sha256_hex(&decoded)))
 }
 
 fn read_secret_file(path: &Path, name: &str) -> Result<Zeroizing<String>> {
@@ -295,7 +296,61 @@ fn read_secret_file(path: &Path, name: &str) -> Result<Zeroizing<String>> {
     Ok(value)
 }
 
-fn verify_request(request: &Value) -> Result<(String, [u8; 32], String, String, String)> {
+fn load_validator_policy(path: &Path, expected_digest: &str) -> Result<Vec<String>> {
+    decode_hex_32(expected_digest, "validator policy digest")?;
+    let metadata =
+        fs::symlink_metadata(path).map_err(|error| format!("validator policy: {error}"))?;
+    if !path.is_absolute()
+        || !metadata.is_file()
+        || metadata.file_type().is_symlink()
+        || metadata.len() > 65_536
+    {
+        return Err(
+            "validator policy must be a bounded absolute regular non-symlink file".to_owned(),
+        );
+    }
+    let bytes = fs::read(path).map_err(|error| format!("validator policy: {error}"))?;
+    if sha256_hex(&bytes) != expected_digest {
+        return Err("validator policy digest differs from the audited launch argument".to_owned());
+    }
+    let policy: Value = serde_json::from_slice(&bytes).map_err(|error| error.to_string())?;
+    if canonical_json(&policy)?.as_bytes() != bytes {
+        return Err("validator policy is not canonical JSON".to_owned());
+    }
+    let policy_object = object(&policy, "validator policy")?;
+    if policy_object.len() != 2
+        || string(policy_object, "kind")? != "utxoref_dlc_native_validator_policy_v1"
+    {
+        return Err("validator policy schema is invalid".to_owned());
+    }
+    let ids = policy_object
+        .get("validatorKeyIds")
+        .and_then(Value::as_array)
+        .ok_or_else(|| "validator policy validatorKeyIds must be an array".to_owned())?;
+    if ids.is_empty() || ids.len() > 16 {
+        return Err("validator policy must pin between 1 and 16 validators".to_owned());
+    }
+    let mut normalized = Vec::with_capacity(ids.len());
+    for value in ids {
+        let id = value
+            .as_str()
+            .ok_or_else(|| "validator policy key IDs must be strings".to_owned())?;
+        decode_hex_32(id, "validator policy key ID")?;
+        if id != id.to_ascii_lowercase() {
+            return Err("validator policy key IDs must be lowercase hex".to_owned());
+        }
+        normalized.push(id.to_owned());
+    }
+    if normalized.windows(2).any(|pair| pair[0] >= pair[1]) {
+        return Err("validator policy key IDs must be sorted and unique".to_owned());
+    }
+    Ok(normalized)
+}
+
+fn verify_request(
+    request: &Value,
+    pinned_validator_key_ids: &[String],
+) -> Result<(String, [u8; 32], String, String, String)> {
     let request_object = object(request, "request")?;
     if string(request_object, "kind")? != SIGN_REQUEST_KIND {
         return Err("wrong native adaptor signing request kind".to_owned());
@@ -378,7 +433,17 @@ fn verify_request(request: &Value) -> Result<(String, [u8; 32], String, String, 
             ));
         }
     }
-    let validator = ed25519_public_from_spki(string(request_object, "validatorPublicKeySpki")?)?;
+    let (validator, validator_key_id) =
+        ed25519_public_from_spki(string(request_object, "validatorPublicKeySpki")?)?;
+    if pinned_validator_key_ids
+        .binary_search(&validator_key_id)
+        .is_err()
+    {
+        return Err("validator identity is not pinned by the audited signer policy".to_owned());
+    }
+    if string(authorization_object, "validatorKeyId")? != validator_key_id {
+        return Err("authorization validator key ID differs from its public key".to_owned());
+    }
     let signature_bytes = BASE64
         .decode(string(authorization_object, "signature")?)
         .map_err(|error| error.to_string())?;
@@ -452,8 +517,11 @@ fn runtime_identity(key_directory: &Path) -> Result<(SigningKey, String)> {
 
 fn run() -> Result<()> {
     let arguments: Vec<String> = env::args().collect();
-    if arguments.len() != 2 {
-        return Err("usage: utxoref-dlc-signer <absolute-key-directory>".to_owned());
+    if arguments.len() != 4 {
+        return Err(
+            "usage: utxoref-dlc-signer <absolute-key-directory> <absolute-validator-policy> <policy-sha256>"
+                .to_owned(),
+        );
     }
     let key_directory = PathBuf::from(&arguments[1]);
     let key_directory_metadata =
@@ -464,6 +532,7 @@ fn run() -> Result<()> {
     {
         return Err("key directory must be an existing absolute directory".to_owned());
     }
+    let validator_policy = load_validator_policy(Path::new(&arguments[2]), &arguments[3])?;
     let mut input = Vec::new();
     io::stdin()
         .take(65_537)
@@ -488,7 +557,7 @@ fn run() -> Result<()> {
         return Err("process request digest mismatch".to_owned());
     }
     let (signer_pubkey, message, adaptor_x, adaptor_y, authorization_digest) =
-        verify_request(request)?;
+        verify_request(request, &validator_policy)?;
     consume_authorization(&key_directory, &authorization_digest)?;
     let key_path = key_directory.join(format!("{signer_pubkey}.key"));
     let secret_hex = read_secret_file(&key_path, "DLC signer key")?;
