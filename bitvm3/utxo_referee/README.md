@@ -234,7 +234,7 @@ challenge, the request digest, and the pre-signature digest. Runtime drift,
 timeouts, oversized or malformed output, stale challenges, and identity
 substitution fail closed.
 
-Boundary V23 includes the Rust `k256` signer candidate under
+Boundary V24 includes the Rust `k256` signer candidate under
 `native/dlc-signer`. Its direct dependencies are exactly pinned, unsafe Rust is
 forbidden, and the testnet4 build harness rejects byte differences between two
 independent Windows target directories. The cross-language test completes the
@@ -262,8 +262,15 @@ The manifest walks every literal relative CommonJS dependency reachable from
 the exact `index.js` and reserve-vault entry points, then adds the standalone
 funding tools, Rust build inputs, and signer evidence. This prevents an omitted
 transitive module from escaping the source pin.
+The exact `Cargo.lock` is also scanned by pinned `cargo-audit` 0.22.2 with
+`--deny warnings` for Windows x86-64. The gate rejects known vulnerabilities,
+unmaintained or unsound crates, notices, and yanked dependencies. BitAgent binds
+the lockfile hash, RustSec database revision, zero finding counts, audit harness,
+and checked evidence into the critical surface. This result is point-in-time;
+rerun it whenever the lockfile or advisory database changes.
 The checked result
-is recorded in `artifacts/dlc_native_rust_signer_latest.json`. This evidence
+is recorded in `artifacts/dlc_native_rust_signer_latest.json` and
+`artifacts/dlc_native_rust_dependency_audit_latest.json`. This evidence
 does not replace an independent cryptographic, dependency, key-storage, and
 deployment audit; `productionReady` remains false.
 
@@ -275,6 +282,7 @@ node bitvm3\utxo_referee\dlc_infra_hardening.test.js
 .\eval\dlc-regtest-recovery.ps1
 .\eval\dlc-truc-p2a-regtest.ps1
 .\eval\dlc-native-rust-signer.ps1
+.\eval\dlc-native-rust-dependency-audit.ps1
 ```
 
 The milestone funding finalizer also requires `DLC_STATE_PATH` to reference a

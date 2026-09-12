@@ -1,0 +1,40 @@
+{
+  "schema": "utxoref_dlc_native_rust_dependency_audit_evidence_v1",
+  "auditedAt": "2026-09-12T09:39:27.5788560Z",
+  "network": "bitcoin-testnet4",
+  "sourceCommit": "16894052afd228672f5e4f2ebac6436e30624b25",
+  "cargoLockSha256": "a5715dcfcf1eef714ffb08afe6b35fdd5db6278176ead3994286da12ba01c5e2",
+  "dependencyCount": 55,
+  "tool": {
+    "version": "cargo-audit 0.22.2",
+    "binarySha256": "0157f5ce1ce9fd4fb0a1f7c79af1229771d1f80b6c2613ddb0d9200a8ba73946",
+    "officialReleaseArchiveSha256": "0a7316540862c13d954f648917ceacca593747baed6eec180fafa590be2710ab"
+  },
+  "advisoryDatabase": {
+    "commit": "b50980aad8b8f14f77e25a97b32dd94bf008b0af",
+    "advisoryCount": 1243,
+    "lastUpdated": "2026-09-09T12:49:52+02:00"
+  },
+  "policy": {
+    "deny": "warnings",
+    "targetOs": [
+      "windows"
+    ],
+    "targetArch": [
+      "x86_64"
+    ],
+    "allowedVulnerabilities": 0,
+    "allowedWarnings": 0
+  },
+  "vulnerabilities": {
+    "found": false,
+    "count": 0
+  },
+  "warnings": {
+    "count": 0,
+    "categories": []
+  },
+  "pointInTime": true,
+  "productionReady": false,
+  "externalAuditRequired": true
+}
