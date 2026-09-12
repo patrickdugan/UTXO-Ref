@@ -31,6 +31,7 @@ const {
   validateRefundSignature
 } = require('./dlc_signature_validator');
 const { evaluateDlcChainSnapshot } = require('./dlc_chain_guard');
+const { observeAndEvaluateDlcChain } = require('./dlc_bitcoin_core_observer');
 
 let passed = 0;
 let failed = 0;
@@ -707,6 +708,53 @@ test('chain guard accepts only stage-consistent CETs and mature refunds', () => 
     })
   });
   assert(matureRefund.ok && matureRefund.status === 'REFUND_OBSERVED', 'mature refund was not recognized');
+});
+
+test('Bitcoin Core observer captures a stable testnet4 tip and scans committed spends', () => {
+  const { contract, transactionSet } = validatedChainFixture('core-observer-confirmed', 'CONFIRMED');
+  const bestBlockHash = digest('core-observer:block:205');
+  const confirmedRpc = (method) => {
+    if (method === 'getblockchaininfo') return { chain: 'testnet4', blocks: 205, bestblockhash: bestBlockHash };
+    if (method === 'getrawmempool') return { mempool_sequence: 9 };
+    if (method === 'gettxout') return { bestblock: bestBlockHash, confirmations: 6 };
+    throw new Error(`unexpected RPC ${method}`);
+  };
+  const confirmed = observeAndEvaluateDlcChain({ contractState: contract, transactionSet, rpc: confirmedRpc });
+  assert(confirmed.evaluation.status === 'FUNDING_CONFIRMED', 'Core observer lost confirmed funding');
+  assert(confirmed.snapshot.fundingOutpoint === `${transactionSet.funding.txid}:${transactionSet.funding.vout}`,
+    'Core observer monitored the wrong funding outpoint');
+
+  const cetRpc = (method, params) => {
+    if (method === 'getblockchaininfo') return { chain: 'testnet4', blocks: 205, bestblockhash: bestBlockHash };
+    if (method === 'getrawmempool') return { mempool_sequence: 9 };
+    if (method === 'gettxout') return null;
+    if (method === 'gettxspendingprevout') return [{}];
+    if (method === 'getblockhash') return bestBlockHash;
+    if (method === 'getblock') return {
+      tx: [{
+        txid: transactionSet.cets[0].txid,
+        vin: [{ txid: transactionSet.funding.txid, vout: transactionSet.funding.vout }]
+      }]
+    };
+    throw new Error(`unexpected RPC ${method} ${JSON.stringify(params)}`);
+  };
+  const cet = observeAndEvaluateDlcChain({
+    contractState: contract,
+    transactionSet,
+    rpc: cetRpc,
+    scanDepth: 1
+  });
+  assert(cet.evaluation.status === 'CET_OBSERVED', 'Core block scan did not recognize the committed CET');
+
+  const wrongChainRpc = (method) => {
+    if (method === 'getblockchaininfo') return { chain: 'main', blocks: 205, bestblockhash: bestBlockHash };
+    throw new Error(`unexpected RPC ${method}`);
+  };
+  expectThrow(() => observeAndEvaluateDlcChain({
+    contractState: contract,
+    transactionSet,
+    rpc: wrongChainRpc
+  }), /must report testnet4/);
 });
 
 if (failed > 0) {

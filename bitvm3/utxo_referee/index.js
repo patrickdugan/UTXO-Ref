@@ -46,6 +46,7 @@ const { DlcOracleEventStore } = require('./dlc_oracle_event_store');
 const dlcTransactionValidator = require('./dlc_transaction_validator');
 const dlcSignatureValidator = require('./dlc_signature_validator');
 const dlcChainGuard = require('./dlc_chain_guard');
+const dlcBitcoinCoreObserver = require('./dlc_bitcoin_core_observer');
 
 module.exports = {
   // Types
@@ -121,7 +122,7 @@ module.exports = {
   // for production; these interfaces enforce transcript, threshold-oracle,
   // and persistence gates on regtest and Bitcoin testnet4.
   dlc: Object.freeze({
-    securityBoundaryVersion: 3,
+    securityBoundaryVersion: 4,
     createContract: dlcContractState.createDlcContract,
     validateContract: dlcContractState.validateDlcContract,
     transitionContract: dlcContractState.transitionDlcContract,
@@ -138,6 +139,8 @@ module.exports = {
     validateTransactionSetCommitments: dlcTransactionValidator.validateDlcTransactionSetCommitments,
     validateCetAdaptorSignatures: dlcSignatureValidator.validateCetAdaptorSignatures,
     validateRefundSignature: dlcSignatureValidator.validateRefundSignature,
-    evaluateChainSnapshot: dlcChainGuard.evaluateDlcChainSnapshot
+    evaluateChainSnapshot: dlcChainGuard.evaluateDlcChainSnapshot,
+    captureBitcoinCoreSnapshot: dlcBitcoinCoreObserver.captureDlcChainSnapshot,
+    observeBitcoinCoreChain: dlcBitcoinCoreObserver.observeAndEvaluateDlcChain
   })
 };

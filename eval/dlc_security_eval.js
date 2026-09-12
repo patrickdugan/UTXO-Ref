@@ -49,6 +49,7 @@ const {
   validateRefundSignature
 } = require(path.join(__dirname, '..', 'bitvm3', 'utxo_referee', 'dlc_signature_validator.js'));
 const { evaluateDlcChainSnapshot } = require(path.join(__dirname, '..', 'bitvm3', 'utxo_referee', 'dlc_chain_guard.js'));
+const { observeAndEvaluateDlcChain } = require(path.join(__dirname, '..', 'bitvm3', 'utxo_referee', 'dlc_bitcoin_core_observer.js'));
 const validatorKeys = crypto.generateKeyPairSync('ed25519');
 const validatorSpki = validatorKeys.publicKey.export({ format: 'der', type: 'spki' }).toString('base64');
 const validatorKeyId = crypto.createHash('sha256').update(Buffer.from(validatorSpki, 'base64')).digest('hex');
@@ -647,9 +648,21 @@ check('chain guard halts on disconnected ancestry and uncommitted funding spends
       observedSpend: { txid: transactionSet.refund.txid, height: 199 }
     }
   });
+  const coreBestHash = sha256('chain-guard:core-tip').toString('hex');
+  const coreObserved = observeAndEvaluateDlcChain({
+    contractState: contract,
+    transactionSet,
+    rpc(method) {
+      if (method === 'getblockchaininfo') return { chain: 'testnet4', blocks: 205, bestblockhash: coreBestHash };
+      if (method === 'getrawmempool') return { mempool_sequence: 11 };
+      if (method === 'gettxout') return { bestblock: coreBestHash, confirmations: 6 };
+      throw new Error(`unexpected mocked Core RPC ${method}`);
+    }
+  });
   return reorg.status === 'REORG_HALT' && reorg.halt &&
     unknown.status === 'UNKNOWN_SPEND_HALT' && unknown.halt &&
-    earlyRefund.status === 'PREMATURE_REFUND_HALT' && earlyRefund.halt;
+    earlyRefund.status === 'PREMATURE_REFUND_HALT' && earlyRefund.halt &&
+    coreObserved.evaluation.status === 'FUNDING_CONFIRMED';
 });
 
 check('CET adaptor and refund signatures bind to validated BIP341 sighashes', 'signature-safety', 14, () => {

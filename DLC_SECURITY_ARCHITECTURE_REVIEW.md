@@ -193,6 +193,10 @@ The local research implementation now:
     exact funding outpoint, proves ancestry against the prior snapshot, and
     halts on reorgs, unknown spends, immature refunds, or stage-inconsistent
     CETs.
+20. Captures stable snapshots from an injected Bitcoin Core RPC boundary,
+    verifies testnet4/regtest, tip and mempool stability, checks the exact
+    funding outpoint, and scans a bounded block window for its spending
+    transaction without exposing any signing or broadcast method.
 
 The changes block the concrete exploit probes. They reduce testnet risk but do
 not promote this module to a production signer.
@@ -295,8 +299,10 @@ actions.
 - Store and independently restore the refund transaction before broadcast.
 - The read-only chain guard now detects disconnected ancestry, confirmation
   regression, unknown spends, immature refunds, and stage-inconsistent CETs.
-  Integrate it with Bitcoin Core, validate anchor ownership and spendability,
-  test package relay, and simulate pinning and deep reorg recovery on regtest.
+  Its Bitcoin Core observer now stabilizes the chain and mempool views and scans
+  a bounded recent-block window for the spender. Operate it as an independent
+  watchtower, validate anchor ownership and spendability, test package relay,
+  and simulate pinning and deep reorg recovery on regtest.
 - Require independent Bitcoin Core policy checks and exact transaction decode
   immediately before signing and broadcasting.
 

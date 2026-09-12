@@ -11,7 +11,8 @@
     "bitvm3/utxo_referee/dlc_oracle_event_store.js",
     "bitvm3/utxo_referee/dlc_transaction_validator.js",
     "bitvm3/utxo_referee/dlc_signature_validator.js",
-    "bitvm3/utxo_referee/dlc_chain_guard.js"
+    "bitvm3/utxo_referee/dlc_chain_guard.js",
+    "bitvm3/utxo_referee/dlc_bitcoin_core_observer.js"
   ],
   "prepare_timeout": 30,
   "eval_timeout": 300,

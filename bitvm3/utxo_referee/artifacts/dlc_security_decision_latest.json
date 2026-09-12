@@ -26,7 +26,8 @@
     "canonical_cet_and_refund_transaction_validation",
     "bip341_cet_adaptor_and_refund_signature_validation",
     "committed_last_output_cpfp_anchor_policy",
-    "signed_transaction_bound_reorg_and_spend_guard"
+    "signed_transaction_bound_reorg_and_spend_guard",
+    "stable_read_only_bitcoin_core_chain_observer"
   ],
   "productionBlockers": [
     "replace_javascript_bigint_signer_with_reviewed_native_secp256k1_implementation",
@@ -35,7 +36,8 @@
     "use_interoperable_authenticated_dlc_messages",
     "wire_transaction_and_signature_validators_to_native_signer_and_peer_serial_ids",
     "operate_independent_threshold_oracles_with_interoperable_messages",
-    "validate_anchor_spendability_package_relay_pinning_and_watchtower_recovery_on_regtest"
+    "validate_anchor_spendability_package_relay_pinning_and_watchtower_recovery_on_regtest",
+    "operate_and_alert_on_the_bitcoin_core_observer_in_an_independent_watchtower"
   ],
   "evidence": {
     "preHardeningAttacks": "dlc_adaptor_attack_pre_hardening.json",

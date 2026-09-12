@@ -178,7 +178,9 @@ that defaults to disabled. Canonical Bitcoin transaction and BIP341 signature
 validators bind CET/refund evidence to the funding outpoint before signed state
 can advance. Each spend has a committed last-output CPFP anchor. The read-only
 chain guard binds snapshots to that signed transaction set and halts on reorgs,
-unknown spends, immature refunds, and stage-inconsistent CETs. Run:
+unknown spends, immature refunds, and stage-inconsistent CETs. A synchronous,
+injected Bitcoin Core observer captures stable chain/mempool snapshots using
+read-only RPC calls. Run:
 
 ```powershell
 node bitvm3\utxo_referee\dlc_infra_hardening.test.js
