@@ -24,6 +24,8 @@ The public evaluator is suitable for development, not a hostile leaderboard boun
 
 The `scale` profile does not simulate concurrent agents, chain reorgs, UTXO races, network faults, Bitcoin transaction parsing, or broadcasts. Those require a separate regtest fault harness and the read-only Bitcoin testnet4 smoke lane in `bitvm3/utxo_referee/btc_testnet4_smoke.js`. See `REDTEAM_FINDINGS.md` for the first swarm's attack backlog.
 
+`dlc-regtest-recovery.ps1` runs an isolated Bitcoin Core node with valueless regtest coins. It proves that the committed 330-sat anchor is wallet-spendable, submits a parent/child package after a clean mempool restart, replaces the child at a higher fee, disconnects the six-block branch containing the package, verifies both transactions return to the mempool, and restores the branch. Every run uses a fresh D-drive datadir and stops its daemon in `finally`.
+
 `dlc_security_eval.js` is a separate locked benchmark for the experimental DLC adaptor-signature boundary. It checks nonce separation, canonical parsing, validated extraction, authenticated and one-shot oracle behavior, and the funding-broadcast guard. Run it with `eval/dlc-security.ps1` on Windows or `eval/dlc-security.sh` on POSIX. Its Hive prompt and config are `program-dlc-security.md` and `hive-task-config.dlc-security.example.json`. Keep its score separate from the sweep score because the mutable implementation and security contract differ.
 
 There is no public specification for a tool named BitVMArena that could be verified while this harness was written. Arena integrations should invoke the JSON command above and ingest `score`, `cases`, `seed`, and `profile`; this keeps results reproducible without claiming compatibility with an undocumented schema.
