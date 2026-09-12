@@ -161,6 +161,26 @@ function findConfirmedAnchorSpend({ rpc, anchor, height, scanDepth }) {
   return null;
 }
 
+function testProposedRecoveryPolicy(rpc, rawTxHex, txid, wtxid) {
+  const response = callRpc(rpc, 'testmempoolaccept', [[rawTxHex], 0]);
+  if (!Array.isArray(response) || response.length !== 1 || !response[0] ||
+      response[0].txid !== txid || response[0].wtxid !== wtxid ||
+      typeof response[0].allowed !== 'boolean') {
+    throw new Error('Bitcoin Core testmempoolaccept response is malformed or identifies a different proposal');
+  }
+  const rejectReason = response[0].allowed
+    ? null
+    : (response[0]['reject-reason'] || response[0]['package-error'] || response[0]['reject-details']);
+  if (!response[0].allowed && (typeof rejectReason !== 'string' || rejectReason.length < 1 || rejectReason.length > 512)) {
+    throw new Error('Bitcoin Core rejected the proposal without a bounded policy reason');
+  }
+  return Object.freeze({
+    method: 'testmempoolaccept',
+    allowed: response[0].allowed,
+    rejectReason
+  });
+}
+
 function decodeProposedRecovery({ rpc, rawTxHex, anchor, bestBlockHash }) {
   if (typeof rawTxHex !== 'string' || rawTxHex.length < 20 || rawTxHex.length > 800000 ||
       rawTxHex.length % 2 !== 0 || !/^[0-9a-f]+$/.test(rawTxHex)) {
@@ -168,6 +188,7 @@ function decodeProposedRecovery({ rpc, rawTxHex, anchor, bestBlockHash }) {
   }
   const transaction = callRpc(rpc, 'decoderawtransaction', [rawTxHex]);
   if (!transaction || !Number.isSafeInteger(transaction.vsize) || transaction.vsize < 1 || transaction.vsize > 400000 ||
+      !Number.isSafeInteger(transaction.version) || transaction.version < 1 || transaction.version > 3 ||
       !Array.isArray(transaction.vin) || transaction.vin.length < 1 || transaction.vin.length > 1024 ||
       !Array.isArray(transaction.vout) || transaction.vout.length < 1 || transaction.vout.length > 1000) {
     throw new Error('decoded proposed recovery transaction is malformed');
@@ -203,15 +224,18 @@ function decodeProposedRecovery({ rpc, rawTxHex, anchor, bestBlockHash }) {
     if (outputValue > MAX_MONEY) throw new Error('proposed recovery outputs exceed maximum Bitcoin supply');
   }
   if (outputValue >= inputValue) throw new Error('proposed recovery must pay a positive fee');
+  const corePolicy = testProposedRecoveryPolicy(rpc, rawTxHex, txid, wtxid);
   return Object.freeze({
     txid,
     wtxid,
+    version: transaction.version,
     rawTxDigest: crypto.createHash('sha256').update(Buffer.from(rawTxHex, 'hex')).digest('hex'),
     feeSats: (inputValue - outputValue).toString(),
     vsize: transaction.vsize,
     relayPeers: 0,
     signalsRbf: transaction.vin.some((input) => input.sequence < 0xfffffffe),
-    confirmed: false
+    confirmed: false,
+    corePolicy
   });
 }
 

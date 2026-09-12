@@ -948,6 +948,7 @@ test('watchtower signs direct Bitcoin Core anchor, replacement-policy, and peer 
       return {
         txid: parsed.txid,
         hash: parsed.txid,
+        version: parsed.version,
         vsize: 300,
         vin: parsed.inputs,
         vout: parsed.outputs.map((output) => ({ value: Number(output.valueSats) / 100000000 }))
@@ -966,6 +967,10 @@ test('watchtower signs direct Bitcoin Core anchor, replacement-policy, and peer 
         return { vsize: 467, fees: { base: 0.00093338 }, 'bip125-replaceable': false };
       }
       if (method === 'decoderawtransaction') return decodedRecovery(params[0]);
+      if (method === 'testmempoolaccept') {
+        const decoded = decodedRecovery(params[0][0]);
+        return [{ txid: decoded.txid, wtxid: decoded.hash, allowed: true }];
+      }
       throw new Error(`unexpected primary anchor RPC ${method}`);
     };
     const peerRpc = (method, params) => {
@@ -986,6 +991,23 @@ test('watchtower signs direct Bitcoin Core anchor, replacement-policy, and peer 
       'Core observer did not count the primary and peer mempools');
     assert(captured.fullRbf && captured.incrementalRelayFeeSatPerVb === 1,
       'Core observer did not bind replacement policy');
+    assert(captured.proposedRecovery.version === 2 && captured.proposedRecovery.corePolicy.allowed === true &&
+      captured.proposedRecovery.corePolicy.method === 'testmempoolaccept',
+    'Core observer did not bind direct proposal acceptance');
+    expectThrow(() => captureDlcAnchorRecoverySnapshot({
+      contractState: contract,
+      transactionSet,
+      settlementTxid,
+      rpc(method, params) {
+        if (method === 'testmempoolaccept') {
+          return [{ txid: digest('wrong-policy-txid'), wtxid: digest('wrong-policy-wtxid'), allowed: true }];
+        }
+        return primaryRpc(method, params);
+      },
+      peerNodes: [{ nodeId: 'peer-1', rpc: peerRpc }],
+      proposedRecoveryRawTxHex: cheapRecoveryRaw,
+      maxAttempts: 1
+    }), /different proposal/);
     expectThrow(() => captureDlcAnchorRecoverySnapshot({
       contractState: contract,
       transactionSet,
@@ -1117,19 +1139,23 @@ test('anchor recovery guard enforces signed budgets, relay quorum, and full-RBF 
   };
   const cheapRecovery = {
     txid: digest('anchor-guard:cheap-recovery'),
+    version: 2,
     feeSats: '9098',
     vsize: 467,
     relayPeers: 0,
     signalsRbf: true,
-    confirmed: false
+    confirmed: false,
+    corePolicy: { method: 'testmempoolaccept', allowed: true, rejectReason: null }
   };
   const rescue = {
     txid: digest('anchor-guard:rescue'),
+    version: 2,
     feeSats: '140138',
     vsize: 467,
     relayPeers: 0,
     signalsRbf: true,
-    confirmed: false
+    confirmed: false,
+    corePolicy: { method: 'testmempoolaccept', allowed: true, rejectReason: null }
   };
   const pinned = evaluateDlcAnchorRecovery({
     contractState: contract,
@@ -1194,6 +1220,90 @@ test('anchor recovery guard enforces signed budgets, relay quorum, and full-RBF 
   });
   assert(!underReplicated.ok && underReplicated.status === 'RECOVERY_PROPAGATION_HALT',
     'recovery without the signed relay quorum was accepted');
+});
+
+test('TRUC recovery requires direct Core acceptance, version 3, and a child no larger than 1000 vB', () => {
+  const funding = {
+    txid: 'bd'.repeat(32),
+    vout: 0,
+    valueSats: 100000n,
+    scriptPubKeyHex: `5120${'49'.repeat(32)}`
+  };
+  const feePolicy = {
+    strategy: 'truc-p2a-v1',
+    anchorAmountSats: 0n,
+    anchorScriptPubKeyHex: P2A_SCRIPT_PUBKEY_HEX,
+    maxRecoveryFeeSats: 150000n,
+    maxRecoveryFeerateSatPerVb: 500,
+    minRelayPeers: 2
+  };
+  const anchorOutput = { valueSats: 0n, scriptPubKeyHex: P2A_SCRIPT_PUBKEY_HEX };
+  const cetOutputs = [{ valueSats: 99000n, scriptPubKeyHex: `0014${'59'.repeat(20)}` }, anchorOutput];
+  const refundOutputs = [{ valueSats: 99000n, scriptPubKeyHex: `5120${'69'.repeat(32)}` }, anchorOutput];
+  const raw = (outputs, locktime) => serializeUnsignedTx(
+    3,
+    [{ outpoint: outpoint(funding.txid, funding.vout), sequence: 0xfffffffd }],
+    outputs.map((output) => ({ valueSats: output.valueSats, script: output.scriptPubKeyHex })),
+    locktime
+  );
+  const transactionSet = validateDlcTransactionSet({
+    funding,
+    cets: [{
+      outcomeMessage: digest('truc-recovery:outcome'),
+      oraclePubkeys: ['11'.repeat(32), '22'.repeat(32)],
+      rawTxHex: raw(cetOutputs, 100),
+      expectedOutputs: cetOutputs,
+      locktime: 100
+    }],
+    refund: { rawTxHex: raw(refundOutputs, 200), expectedOutputs: refundOutputs, locktime: 200 },
+    minFeeSats: 500n,
+    maxFeeSats: 2000n,
+    feePolicy
+  });
+  let contract = initialContract('truc-core-policy-contract');
+  contract = transitionDlcContract(contract, requestFor(contract, 'AUTHENTICATED_ORACLES', 'truc-core-policy:oracles'));
+  contract = transitionDlcContract(contract, requestFor(contract, 'CANONICAL_CETS_AND_REFUND', 'truc-core-policy:transactions', {
+    cet_set: transactionSet.cetSetDigest,
+    fee_policy: transactionSet.feePolicyDigest,
+    funding_template: transactionSet.fundingTemplateDigest,
+    refund_transaction: transactionSet.refundTransactionDigest
+  }));
+  const settlementTxid = transactionSet.cets[0].txid;
+  const anchor = settlementAnchor(transactionSet, settlementTxid);
+  const candidate = {
+    txid: digest('truc-core-policy:recovery'),
+    version: 3,
+    feeSats: '5000',
+    vsize: 153,
+    relayPeers: 0,
+    signalsRbf: true,
+    confirmed: false,
+    corePolicy: { method: 'testmempoolaccept', allowed: true, rejectReason: null }
+  };
+  const evaluate = (proposedRecovery) => evaluateDlcAnchorRecovery({
+    contractState: contract,
+    transactionSet,
+    settlementTxid,
+    snapshot: {
+      anchorOutpoint: anchor.outpoint,
+      anchorPresent: true,
+      fullRbf: true,
+      observedSpend: null,
+      proposedRecovery
+    }
+  });
+  assert(evaluate(candidate).status === 'RECOVERY_READY', 'Core-accepted TRUC recovery did not pass');
+  const rejected = evaluate({
+    ...candidate,
+    corePolicy: { method: 'testmempoolaccept', allowed: false, rejectReason: 'TRUC-violation' }
+  });
+  assert(!rejected.ok && rejected.status === 'RECOVERY_POLICY_HALT' &&
+    rejected.coreRejectReason === 'TRUC-violation', 'Core policy rejection did not halt recovery');
+  assert(evaluate({ ...candidate, version: 2 }).status === 'RECOVERY_POLICY_HALT',
+    'wrong-version TRUC child did not halt');
+  assert(evaluate({ ...candidate, vsize: 1001 }).status === 'RECOVERY_POLICY_HALT',
+    'oversized TRUC child did not halt');
+  expectThrow(() => evaluate({ ...candidate, corePolicy: undefined }), /lacks canonical Bitcoin Core policy evidence/);
 });
 
 function peerTranscriptFixture(overrides = {}) {

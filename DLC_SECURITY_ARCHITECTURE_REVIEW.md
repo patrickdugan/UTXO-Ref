@@ -338,7 +338,8 @@ until a Taproot DLC message format is published and cross-tested.
 ### Transaction safety
 
 - The local validators now cover exact funding outpoints, outputs, amounts,
-  fees, unique settlement transaction IDs, a committed last-output CPFP anchor,
+  fees, unique settlement transaction IDs, either a committed version-2 owned
+  CPFP anchor or a version-3 zero-sat P2A anchor,
   a signed recovery-fee and relay-quorum policy, BIP341 CET adaptor signatures,
   refund signatures, authenticated peer sequencing, and peer serial-ID rules.
   Wire the validators and independently validated funding witnesses to the
@@ -355,12 +356,15 @@ until a Taproot DLC message format is published and cross-tested.
   regtest harness now proves anchor spendability, package-feerate rescue below
   the standalone relay floor, propagation between two strict-floor peers,
   economic full-RBF pinning and higher-fee rescue, and a six-block
-  disconnect/reconsider cycle. The recovery guard applies the signed fee budget
-  before broadcast, the relay quorum after observation, and halts outside the
-  observed replacement policy. Test heterogeneous peer policies,
-  descendant/cluster pins, and v3/TRUC policy before funded operation.
-- Require independent Bitcoin Core policy checks and exact transaction decode
-  immediately before signing and broadcasting.
+  disconnect/reconsider cycle. A second Core 31.1 harness proves zero-fee TRUC
+  package admission, direct policy acceptance, sibling eviction, the
+  two-transaction cluster bound, and rejection of a third transaction. The
+  recovery guard applies the signed fee budget and stable `testmempoolaccept`
+  result before broadcast, the relay quorum after observation, and halts outside
+  the observed replacement policy. Test heterogeneous peer policies and
+  adversarial cluster-feerate diagrams before funded operation.
+- Repeat the exact Core decode and policy check immediately before the external
+  signer or wallet broadcasts; signed watchtower evidence does not grant keys.
 
 ## Alternative designs
 

@@ -822,10 +822,15 @@ check('watchtower signs direct Core anchor and independent peer relay evidence',
         return {
           txid: parsed.txid,
           hash: parsed.txid,
+          version: parsed.version,
           vsize: 300,
           vin: parsed.inputs,
           vout: parsed.outputs.map((output) => ({ value: Number(output.valueSats) / 100000000 }))
         };
+      }
+      if (method === 'testmempoolaccept') {
+        const parsed = parseCanonicalUnsignedTransaction(params[0][0]);
+        return [{ txid: parsed.txid, wtxid: parsed.txid, allowed: true }];
       }
       throw new Error(`unexpected anchor observer RPC ${method}`);
     };
@@ -857,6 +862,9 @@ check('watchtower signs direct Core anchor and independent peer relay evidence',
     return record.observationType === 'anchor-recovery' && record.snapshot.observer === 'bitcoin-core-rpc-v1' &&
       record.snapshot.observedSpend.txid === pinTxid && record.snapshot.observedSpend.relayPeers === 2 &&
       record.snapshot.proposedRecovery.feeSats === '9098' &&
+      record.snapshot.proposedRecovery.version === 2 &&
+      record.snapshot.proposedRecovery.corePolicy.method === 'testmempoolaccept' &&
+      record.snapshot.proposedRecovery.corePolicy.allowed === true &&
       record.snapshot.incrementalRelayFeeSatPerVb === 1 && record.evaluation.status === 'FEE_PIN_HALT' &&
       record.alert.code === 'FEE_PIN_HALT' && verified.observations === 1;
   } finally {
@@ -864,7 +872,7 @@ check('watchtower signs direct Core anchor and independent peer relay evidence',
   }
 });
 
-check('signed anchor policy contains economic fee pins and enforces recovery relay quorum', 'anchor-recovery', 12, () => {
+check('signed anchor policy requires Core acceptance, economic fee safety, and relay quorum', 'anchor-recovery', 14, () => {
   if (!peerFixtureForEval) return false;
   const { transactionSet, contract } = peerFixtureForEval;
   const settlementTxid = transactionSet.cets[0].txid;
@@ -879,19 +887,23 @@ check('signed anchor policy contains economic fee pins and enforces recovery rel
   };
   const cheap = {
     txid: sha256('anchor-eval:cheap').toString('hex'),
+    version: 2,
     feeSats: '9098',
     vsize: 467,
     relayPeers: 0,
     signalsRbf: true,
-    confirmed: false
+    confirmed: false,
+    corePolicy: { method: 'testmempoolaccept', allowed: true, rejectReason: null }
   };
   const rescue = {
     txid: sha256('anchor-eval:rescue').toString('hex'),
+    version: 2,
     feeSats: '140138',
     vsize: 467,
     relayPeers: 0,
     signalsRbf: true,
-    confirmed: false
+    confirmed: false,
+    corePolicy: { method: 'testmempoolaccept', allowed: true, rejectReason: null }
   };
   const pinned = evaluateDlcAnchorRecovery({
     contractState: contract,
@@ -924,10 +936,39 @@ check('signed anchor policy contains economic fee pins and enforces recovery rel
       proposedRecovery: null
     }
   });
+  const coreRejected = evaluateDlcAnchorRecovery({
+    contractState: contract,
+    transactionSet,
+    settlementTxid,
+    snapshot: {
+      anchorOutpoint,
+      anchorPresent: true,
+      fullRbf: true,
+      observedSpend: null,
+      proposedRecovery: {
+        ...rescue,
+        corePolicy: { method: 'testmempoolaccept', allowed: false, rejectReason: 'insufficient fee' }
+      }
+    }
+  });
+  const missingPolicyRejected = throws(() => evaluateDlcAnchorRecovery({
+    contractState: contract,
+    transactionSet,
+    settlementTxid,
+    snapshot: {
+      anchorOutpoint,
+      anchorPresent: true,
+      fullRbf: true,
+      observedSpend: null,
+      proposedRecovery: { ...rescue, corePolicy: undefined }
+    }
+  }), /lacks canonical Bitcoin Core policy evidence/);
   return pinned.status === 'FEE_PIN_HALT' && pinned.halt &&
     rescued.status === 'FEE_PIN_RESCUE_READY' && rescued.ok &&
     noFullRbf.status === 'FEE_PIN_HALT' && noFullRbf.halt &&
-    underReplicated.status === 'RECOVERY_PROPAGATION_HALT' && underReplicated.halt;
+    underReplicated.status === 'RECOVERY_PROPAGATION_HALT' && underReplicated.halt &&
+    coreRejected.status === 'RECOVERY_POLICY_HALT' && coreRejected.coreRejectReason === 'insufficient fee' &&
+    missingPolicyRejected;
 });
 
 check('authenticated offer/accept/sign transcript enforces IDs and global serial uniqueness', 'peer-protocol', 12, () => {
@@ -1148,7 +1189,7 @@ const possible = cases.reduce((sum, test) => sum + test.points, 0);
 const score = earned / possible;
 const report = {
   benchmark: 'utxoref-dlc-security',
-  version: 9,
+  version: 10,
   profile: profileName,
   seed,
   score,

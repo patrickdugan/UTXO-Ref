@@ -160,6 +160,10 @@ try {
   $mempoolBefore = ConvertFrom-JsonArray (Invoke-BitcoinCli @('getrawmempool'))
   Require-Condition ($mempoolBefore -contains $parent.txid -and $mempoolBefore -contains $firstChild.decoded.txid) 'initial TRUC cluster was incomplete'
 
+  $replacementPolicyJson = ConvertTo-Json -InputObject @($replacementChild.hex) -Compress
+  $replacementPolicy = Invoke-BitcoinCli @('testmempoolaccept', $replacementPolicyJson, '0') | ConvertFrom-Json
+  Require-Condition ($replacementPolicy.Count -eq 1 -and $replacementPolicy[0].allowed -eq $true -and
+    $replacementPolicy[0].txid -eq $replacementChild.decoded.txid) 'Core policy probe did not authorize the higher-fee TRUC sibling'
   $replacementTxid = Invoke-BitcoinCli @('sendrawtransaction', $replacementChild.hex)
   Require-Condition ($replacementTxid -eq $replacementChild.decoded.txid) 'Core returned an unexpected replacement child txid'
   $mempoolAfter = ConvertFrom-JsonArray (Invoke-BitcoinCli @('getrawmempool'))
@@ -210,6 +214,7 @@ try {
       finalMempool = $mempoolAfter
       parentEntry = $parentEntry
       replacementChildEntry = $childEntry
+      replacementTestMempoolAccept = $replacementPolicy[0]
       feerateDiagram = $feeDiagram
       thirdTransactionReject = $grandchildTest[0].'reject-reason'
     }
@@ -219,6 +224,7 @@ try {
       parentChildPackageAccepted = $true
       recoveryChildrenUnder1000Vb = $true
       higherFeeSiblingEvictedFirstChild = $true
+      directCorePolicyAcceptedReplacement = $true
       unconfirmedClusterLimitedToTwoTransactions = $true
       coreClusterAndFeerateDiagramCaptured = $true
     }

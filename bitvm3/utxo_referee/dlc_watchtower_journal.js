@@ -111,6 +111,15 @@ function validateObservationRecord(record, publicKey, expected = {}) {
     if (snapshot.proposedRecovery) {
       requireHash(snapshot.proposedRecovery.wtxid, 'proposedRecovery.wtxid');
       requireHash(snapshot.proposedRecovery.rawTxDigest, 'proposedRecovery.rawTxDigest');
+      const corePolicy = snapshot.proposedRecovery.corePolicy;
+      if (!Number.isSafeInteger(snapshot.proposedRecovery.version) || snapshot.proposedRecovery.version < 1 ||
+          snapshot.proposedRecovery.version > 3 || !corePolicy || corePolicy.method !== 'testmempoolaccept' ||
+          typeof corePolicy.allowed !== 'boolean' ||
+          (corePolicy.allowed && corePolicy.rejectReason !== null) ||
+          (!corePolicy.allowed && (typeof corePolicy.rejectReason !== 'string' ||
+            corePolicy.rejectReason.length < 1 || corePolicy.rejectReason.length > 512))) {
+        throw new Error('DLC watchtower proposed recovery policy evidence is malformed');
+      }
     }
     if (snapshot.observedSpend && !snapshot.observedSpend.confirmed) {
       const relayNodeIds = snapshot.observedSpend.relayNodeIds;

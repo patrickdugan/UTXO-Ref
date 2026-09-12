@@ -35,6 +35,27 @@ function recoveryCandidate(value, name) {
   });
 }
 
+function proposedRecoveryCandidate(value) {
+  const candidate = recoveryCandidate(value, 'proposedRecovery');
+  const corePolicy = value?.corePolicy;
+  if (!Number.isSafeInteger(value?.version) || value.version < 1 || value.version > 3 ||
+      !corePolicy || corePolicy.method !== 'testmempoolaccept' || typeof corePolicy.allowed !== 'boolean' ||
+      (corePolicy.allowed && corePolicy.rejectReason !== null) ||
+      (!corePolicy.allowed && (typeof corePolicy.rejectReason !== 'string' ||
+        corePolicy.rejectReason.length < 1 || corePolicy.rejectReason.length > 512))) {
+    throw new Error('proposedRecovery lacks canonical Bitcoin Core policy evidence');
+  }
+  return Object.freeze({
+    ...candidate,
+    version: value.version,
+    corePolicy: Object.freeze({
+      method: 'testmempoolaccept',
+      allowed: corePolicy.allowed,
+      rejectReason: corePolicy.rejectReason
+    })
+  });
+}
+
 function settlementAnchor(transactionSet, settlementTxid) {
   validateDlcTransactionSetCommitments(transactionSet);
   requireHash(settlementTxid, 'settlementTxid');
@@ -83,7 +104,7 @@ function evaluateDlcAnchorRecovery({
   }
   const expected = new Set(expectedRecoveryTxids.map((txid, index) => requireHash(txid, `expectedRecoveryTxids[${index}]`)));
   const observedSpend = snapshot.observedSpend === null ? null : recoveryCandidate(snapshot.observedSpend, 'observedSpend');
-  const proposedRecovery = snapshot.proposedRecovery === null ? null : recoveryCandidate(snapshot.proposedRecovery, 'proposedRecovery');
+  const proposedRecovery = snapshot.proposedRecovery === null ? null : proposedRecoveryCandidate(snapshot.proposedRecovery);
   if (snapshot.anchorPresent && observedSpend) throw new Error('anchor cannot be both present and spent');
   if (proposedRecovery?.confirmed) throw new Error('proposed recovery cannot already be confirmed');
 
@@ -110,11 +131,36 @@ function evaluateDlcAnchorRecovery({
     }
     return null;
   };
+  const proposalPolicyCheck = (candidate) => {
+    if (candidate.version !== transactionSet.feePolicy.transactionVersion) {
+      return result(false, 'RECOVERY_POLICY_HALT', 'recovery transaction version does not match the signed fee policy', {
+        txid: candidate.txid,
+        transactionVersion: candidate.version,
+        requiredTransactionVersion: transactionSet.feePolicy.transactionVersion
+      });
+    }
+    if (transactionSet.feePolicy.strategy === 'truc-p2a-v1' &&
+        candidate.vsize > transactionSet.feePolicy.maxRecoveryVsize) {
+      return result(false, 'RECOVERY_POLICY_HALT', 'TRUC recovery child exceeds the signed 1000-vB limit', {
+        txid: candidate.txid,
+        vsize: candidate.vsize,
+        maxRecoveryVsize: transactionSet.feePolicy.maxRecoveryVsize
+      });
+    }
+    if (!candidate.corePolicy.allowed) {
+      return result(false, 'RECOVERY_POLICY_HALT', 'Bitcoin Core rejected the recovery proposal under the stable observed mempool policy', {
+        txid: candidate.txid,
+        coreRejectReason: candidate.corePolicy.rejectReason
+      });
+    }
+    return null;
+  };
 
   if (snapshot.anchorPresent) {
     if (!proposedRecovery) return result(true, 'ANCHOR_AVAILABLE', 'committed settlement anchor remains unspent', anchor);
     const rejected = budgetCheck(proposedRecovery, false);
-    return rejected || result(true, 'RECOVERY_READY', 'recovery transaction is inside the signed pre-broadcast fee budget', {
+    const policyRejected = rejected || proposalPolicyCheck(proposedRecovery);
+    return policyRejected || result(true, 'RECOVERY_READY', 'recovery clears the signed fee budget and Bitcoin Core mempool policy', {
       txid: proposedRecovery.txid,
       anchorOutpoint: anchor.outpoint
     });
@@ -143,6 +189,8 @@ function evaluateDlcAnchorRecovery({
   }
   const rejected = budgetCheck(proposedRecovery, false);
   if (rejected) return rejected;
+  const policyRejected = proposalPolicyCheck(proposedRecovery);
+  if (policyRejected) return policyRejected;
   if (!snapshot.fullRbf && !observedSpend.signalsRbf) {
     return result(false, 'FEE_PIN_HALT', 'conflicting anchor spend is not replaceable under the observed node policy', {
       pinTxid: observedSpend.txid,
@@ -157,7 +205,7 @@ function evaluateDlcAnchorRecovery({
       minimumReplacementFeeSats: minimumReplacementFee.toString()
     });
   }
-  return result(true, 'FEE_PIN_RESCUE_READY', 'recovery clears the signed budget and observed replacement-policy fee delta', {
+  return result(true, 'FEE_PIN_RESCUE_READY', 'recovery clears the signed budget, Core policy, and observed replacement fee delta', {
     pinTxid: observedSpend.txid,
     recoveryTxid: proposedRecovery.txid,
     minimumReplacementFeeSats: minimumReplacementFee.toString()

@@ -177,7 +177,7 @@ oracle combinations, encrypted restart-safe oracle state, and a crypto provider
 that defaults to disabled. Canonical Bitcoin transaction and BIP341 signature
 validators bind CET/refund evidence to the funding outpoint before signed state
 can advance. Each spend has a unique transaction ID and committed last-output
-anchor. Boundary V10 supports the legacy version-2 owned CPFP anchor and a
+anchor. Boundary V11 supports the legacy version-2 owned CPFP anchor and a
 version-3 TRUC policy with an exact zero-sat P2A `51024e73` anchor. The TRUC
 policy commits Core's 10,000-vB settlement limit, 1,000-vB recovery-child limit,
 and two-transaction unconfirmed cluster limit. Every signed fee policy fixes the
@@ -195,9 +195,11 @@ and observed replacement policy before a fee-pin rescue can proceed. Anchor
 observations come directly from stable Core chain and mempool views; relay counts
 carry uniquely named same-tip node views and mempool sequences in the signed
 journal. The observer derives proposal txid, wtxid, vsize, RBF signaling, and
-fee from the Core-decoded raw transaction and its observed inputs. Pre-broadcast
-proposals need the signed fee budget, while observed recoveries need the signed
-relay quorum. An atomic
+fee from the Core-decoded raw transaction and its observed inputs. Every
+pre-broadcast proposal also carries a stable, read-only Core
+`testmempoolaccept` result. Recovery halts when Core rejects the exact txid/wtxid,
+when its version differs from the signed policy, or when a TRUC child exceeds
+1,000 vB. Observed recoveries need the signed relay quorum. An atomic
 peer session store preserves temporary-ID and transcript replay protection
 across restart. Run:
 
