@@ -132,7 +132,7 @@ module.exports = {
   // for production; these interfaces enforce transcript, threshold-oracle,
   // and persistence gates on regtest and Bitcoin testnet4.
   dlc: Object.freeze({
-    securityBoundaryVersion: 54,
+    securityBoundaryVersion: 55,
     createContract: dlcContractState.createDlcContract,
     validateContract: dlcContractState.validateDlcContract,
     transitionContract: dlcContractState.transitionDlcContract,
@@ -336,6 +336,10 @@ module.exports = {
       runtimeClosureRehashedPerRequest: true,
       runtimeClosureRegularFilesOnly: true,
       runtimeClosureRejectsLinkedPaths: true,
+      runtimeClosureRejectsHardLinks: true,
+      runtimeClosureIdentityBoundReads: 'lstat-open-fstat-lstat-v1',
+      runtimeClosureParentIdentityBound: true,
+      runtimeClosureReadBuffersCleared: true,
       runtimeClosureCheckedAfterExecution: true,
       maxAuditedExecutableBytes: 134217728,
       maxAuditedCodeFileBytes: 16777216,

@@ -18,6 +18,59 @@ function sha256Hex(value) {
   return crypto.createHash('sha256').update(value).digest('hex');
 }
 
+function sameFileIdentity(metadata, expected) {
+  return metadata.isFile() && !metadata.isSymbolicLink() && metadata.nlink === 1n &&
+    metadata.dev === expected.dev && metadata.ino === expected.ino &&
+    metadata.size === expected.size && metadata.mtimeNs === expected.mtimeNs &&
+    metadata.ctimeNs === expected.ctimeNs;
+}
+
+function sameDirectoryIdentity(metadata, expected) {
+  return metadata.isDirectory() && !metadata.isSymbolicLink() &&
+    metadata.dev === expected.dev && metadata.ino === expected.ino;
+}
+
+function identityBoundFileSha256(filePath, fieldName, maximumBytes) {
+  const parentPath = path.dirname(filePath);
+  const parentBefore = fs.lstatSync(parentPath, { bigint: true });
+  if (!parentBefore.isDirectory() || parentBefore.isSymbolicLink()) {
+    throw new Error(`${fieldName} parent must be a non-symlink directory`);
+  }
+  const before = fs.lstatSync(filePath, { bigint: true });
+  if (!before.isFile() || before.isSymbolicLink() || before.nlink !== 1n ||
+      before.size > BigInt(maximumBytes)) {
+    throw new Error(`${fieldName} must name a bounded regular file with one filesystem link`);
+  }
+  const fd = fs.openSync(filePath, fs.constants.O_RDONLY | (fs.constants.O_NOFOLLOW || 0));
+  const hash = crypto.createHash('sha256');
+  const chunk = Buffer.alloc(Math.min(65536, Math.max(1, Number(before.size))));
+  try {
+    const opened = fs.fstatSync(fd, { bigint: true });
+    if (!sameFileIdentity(opened, before)) throw new Error(`${fieldName} changed while opening`);
+    let offset = 0;
+    while (offset < Number(opened.size)) {
+      const requested = Math.min(chunk.length, Number(opened.size) - offset);
+      const count = fs.readSync(fd, chunk, 0, requested, offset);
+      if (count < 1) throw new Error(`${fieldName} was truncated while hashing`);
+      hash.update(chunk.subarray(0, count));
+      chunk.fill(0, 0, count);
+      offset += count;
+    }
+    const after = fs.fstatSync(fd, { bigint: true });
+    if (!sameFileIdentity(after, opened)) throw new Error(`${fieldName} changed while hashing`);
+    const pathAfter = fs.lstatSync(filePath, { bigint: true });
+    if (!sameFileIdentity(pathAfter, opened)) throw new Error(`${fieldName} path changed while hashing`);
+    const parentAfter = fs.lstatSync(parentPath, { bigint: true });
+    if (!sameDirectoryIdentity(parentAfter, parentBefore)) {
+      throw new Error(`${fieldName} parent changed while hashing`);
+    }
+    return hash.digest('hex');
+  } finally {
+    chunk.fill(0);
+    fs.closeSync(fd);
+  }
+}
+
 function requireCanonicalBase64(value, fieldName) {
   if (typeof value !== 'string' || Buffer.from(value, 'base64').toString('base64') !== value) {
     throw new Error(`${fieldName} must be canonical base64`);
@@ -38,9 +91,10 @@ function normalizeAuditedFile(value, fieldName, maximumBytes) {
     throw new Error(`${fieldName} must name an existing absolute regular file`);
   }
   const resolved = path.resolve(value);
-  const metadata = fs.lstatSync(resolved);
-  if (!metadata.isFile() || metadata.isSymbolicLink() || metadata.size > maximumBytes) {
-    throw new Error(`${fieldName} must name a bounded regular non-symlink file`);
+  const metadata = fs.lstatSync(resolved, { bigint: true });
+  if (!metadata.isFile() || metadata.isSymbolicLink() || metadata.nlink !== 1n ||
+      metadata.size > BigInt(maximumBytes)) {
+    throw new Error(`${fieldName} must name a bounded regular non-symlink file with one filesystem link`);
   }
   const realPath = fs.realpathSync.native ? fs.realpathSync.native(resolved) : fs.realpathSync(resolved);
   const normalizeForComparison = (filePath) => process.platform === 'win32'
@@ -106,20 +160,28 @@ function nativeSignerRuntimeDigest(launchSpec) {
   const normalized = normalizeLaunchSpec(launchSpec);
   return sha256Hex(Buffer.from(canonicalJson({
     kind: 'utxoref_dlc_native_signer_runtime_closure_v3',
-    launcherExecutableDigest: sha256Hex(fs.readFileSync(normalized.executablePath)),
-    attestedExecutableDigest: sha256Hex(fs.readFileSync(normalized.attestedExecutablePath)),
+    launcherExecutableDigest: identityBoundFileSha256(
+      normalized.executablePath, 'native signer executablePath', MAX_EXECUTABLE_BYTES
+    ),
+    attestedExecutableDigest: identityBoundFileSha256(
+      normalized.attestedExecutablePath, 'native signer attestedExecutablePath', MAX_EXECUTABLE_BYTES
+    ),
     arguments: normalized.arguments,
     transportDescriptor: normalized.transportDescriptor,
     codeFiles: normalized.codePaths.map((filePath, index) => ({
       index,
-      digest: sha256Hex(fs.readFileSync(filePath))
+      digest: identityBoundFileSha256(
+        filePath, `native signer codePaths[${index}]`, MAX_CODE_FILE_BYTES
+      )
     }))
   }), 'utf8'));
 }
 
 function nativeSignerExecutableDigest(launchSpec) {
   const normalized = normalizeLaunchSpec(launchSpec);
-  return sha256Hex(fs.readFileSync(normalized.attestedExecutablePath));
+  return identityBoundFileSha256(
+    normalized.attestedExecutablePath, 'native signer attestedExecutablePath', MAX_EXECUTABLE_BYTES
+  );
 }
 
 function responseSignaturePayload({ challenge, requestDigest, executableSha256, presignature }) {

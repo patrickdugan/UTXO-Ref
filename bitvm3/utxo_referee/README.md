@@ -392,6 +392,12 @@ broadcast-authorization consumption onto that same primitive. Every one-shot
 security record now binds parent-directory identity, publishes without
 replacing an existing record, clears temporary JSON buffers, and flushes the
 final single-link file before reporting durable success.
+Boundary V55 hashes every native signer runtime file through an identity-bound
+descriptor read. It rejects hard links and fails if the opened file, its path
+entry, or its parent directory changes while hashing; transient hash buffers are
+cleared after use. The runtime closure remains checked before and after each
+signer execution, while host ACLs protect the interval between hashing and the
+Windows path launch.
 The host accepts only bounded regular runtime files whose resolved paths do not
 traverse filesystem links. It hashes the complete runtime closure before and
 after every signer execution, so deletion or mutation during the process

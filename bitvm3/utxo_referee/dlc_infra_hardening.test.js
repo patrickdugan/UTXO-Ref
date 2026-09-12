@@ -858,6 +858,39 @@ test('native proxy runtime closure requires and binds its public transport descr
   if (first === second) throw new Error('transport descriptor mutation did not change the runtime closure');
 });
 
+test('native signer runtime closure rejects hard links and mutation during hashing', () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'utxoref-runtime-identity-'));
+  const codePath = path.join(directory, 'signer-code.js');
+  const linkedPath = path.join(directory, 'signer-code-link.js');
+  const originalReadSync = fs.readSync;
+  try {
+    fs.writeFileSync(codePath, Buffer.alloc(131072, 0x61));
+    fs.linkSync(codePath, linkedPath);
+    expectThrow(() => nativeSignerRuntimeDigest({
+      executablePath: fs.realpathSync(process.execPath), arguments: [], codePaths: [codePath]
+    }), /one filesystem link/);
+    fs.unlinkSync(linkedPath);
+    const identity = fs.lstatSync(codePath, { bigint: true });
+    let mutated = false;
+    fs.readSync = function patchedReadSync(fd, buffer, offset, length, position) {
+      const count = originalReadSync(fd, buffer, offset, length, position);
+      const opened = fs.fstatSync(fd, { bigint: true });
+      if (!mutated && opened.dev === identity.dev && opened.ino === identity.ino && count > 0) {
+        fs.appendFileSync(codePath, 'b');
+        mutated = true;
+      }
+      return count;
+    };
+    expectThrow(() => nativeSignerRuntimeDigest({
+      executablePath: fs.realpathSync(process.execPath), arguments: [], codePaths: [codePath]
+    }), /changed while hashing/);
+    assert(mutated, 'runtime identity test did not mutate the audited file');
+  } finally {
+    fs.readSync = originalReadSync;
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+});
+
 test('native isolated signing receives only an authenticated public request', () => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'utxoref-native-signing-'));
   try {

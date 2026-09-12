@@ -147,6 +147,11 @@ Boundary V54 applies the same durable-record implementation to signer
 authorization consumption, signed-refund recovery, and external broadcast
 authorization. These one-shot records therefore cannot be replaced during
 publication or accepted after parent-directory identity changes.
+Boundary V55 additionally requires identity-bound native signer runtime reads.
+Every executable and code file must have one filesystem link, and its opened
+identity, path entry, and parent directory must remain stable while it is hashed.
+Keep the pinned runtime closure read-only to the signer and coordinator accounts
+because Windows still launches the executable by path after the hash completes.
 
 ## Agent isolation
 

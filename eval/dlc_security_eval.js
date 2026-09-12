@@ -941,7 +941,7 @@ check('signing consumption records reject filesystem aliasing, oversized data, a
   }
 });
 
-check('signer runtime closure detects mutation during execution', 'signer-boundary', 8, () => {
+check('signer runtime closure binds file identity and detects mutation during execution', 'signer-boundary', 8, () => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'utxoref-signer-midflight-eval-'));
   try {
     const runtimeKey = crypto.generateKeyPairSync('ed25519');
@@ -953,6 +953,14 @@ fs.readFileSync(0, 'utf8');
 fs.appendFileSync(__filename, '\\n// midflight mutation\\n');
 process.stdout.write('{}');
 `, { encoding: 'utf8', mode: 0o600 });
+    const linkedPath = path.join(directory, 'linked-signer.js');
+    fs.linkSync(helperPath, linkedPath);
+    const linkedRejected = throws(() => nativeSignerRuntimeDigest({
+      executablePath: fs.realpathSync(process.execPath),
+      arguments: [helperPath],
+      codePaths: [helperPath]
+    }), /one filesystem link/);
+    fs.unlinkSync(linkedPath);
     const launchSpec = {
       executablePath: fs.realpathSync(process.execPath),
       arguments: [helperPath],
@@ -965,7 +973,7 @@ process.stdout.write('{}');
       runtimeIdentityPublicKeySpki: runtimePublicDer.toString('base64')
     };
     const client = new DlcNativeSignerProcessClient({ ...launchSpec, capabilities });
-    return throws(
+    return linkedRejected && throws(
       () => client.adaptorSignAuthorized({ kind: 'midflight-runtime-drift-probe' }),
       /runtime closure changed during execution/
     );
@@ -1913,7 +1921,7 @@ const possible = cases.reduce((sum, test) => sum + test.points, 0);
 const score = earned / possible;
 const report = {
   benchmark: 'utxoref-dlc-security',
-  version: 24,
+  version: 25,
   profile: profileName,
   seed,
   score,

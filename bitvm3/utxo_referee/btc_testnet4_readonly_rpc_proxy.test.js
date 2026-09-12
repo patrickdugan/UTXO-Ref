@@ -58,7 +58,7 @@ function post(port, token, payload) {
 
 test('read-only RPC policy rejects wallet, signing, broadcast, and node-control methods', () => {
   const evaluationPolicy = referee.dlc.testnet4EvaluationPolicy;
-  assert.equal(referee.dlc.securityBoundaryVersion, 54);
+  assert.equal(referee.dlc.securityBoundaryVersion, 55);
   assert.equal(referee.dlc.durableJournalPolicy.recordReadProtocol, 'lstat-open-fstat-reread-v1');
   assert.equal(referee.dlc.durableJournalPolicy.linkedFinalRecordsAllowed, false);
   assert.equal(referee.dlc.signerPolicy.signingConsumptionIdentityBound, true);
