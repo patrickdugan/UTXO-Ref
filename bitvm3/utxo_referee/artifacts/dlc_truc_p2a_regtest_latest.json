@@ -1,6 +1,6 @@
 {
   "schema": "utxoref_dlc_truc_p2a_regtest_v1",
-  "capturedAt": "2026-09-12T07:40:14.1220039Z",
+  "capturedAt": "2026-09-12T07:51:12.7036295Z",
   "effect": "isolated_regtest_only",
   "network": "bitcoin-regtest",
   "bitcoinCore": {
@@ -8,8 +8,8 @@
     "subversion": "/Satoshi:31.1.0/"
   },
   "repository": "C:\\projects\\UTXORef\\UTXO-Ref",
-  "commit": "c85747835c7aca554f52913fc33e1a3930551c8b",
-  "runDirectory": "D:\\bitagent-testnet4\\dlc-truc-p2a-regtest\\20260912T073911Z-28696-023fbf32",
+  "commit": "9d0f8ced779b79534f5c2308ea43d5866542edc8",
+  "runDirectory": "D:\\bitagent-testnet4\\dlc-truc-p2a-regtest\\20260912T075102Z-1268-18db9134",
   "ports": {
     "rpc": 29543,
     "p2p": 29544
@@ -25,17 +25,17 @@
     "incrementalRelayFeeBtcPerKvB": 1E-06
   },
   "parent": {
-    "txid": "c824c8438039667170433c06c6fdba601de48fe5758a51c43683e4560eb3e31b",
+    "txid": "fcd8b4f5e90ed609ec811620203452a6f1cdc3817c4bd078a8c7567caa34aba5",
     "vsize": 124,
     "anchorVout": 1,
     "standaloneReject": "min relay fee not met"
   },
   "firstChild": {
-    "txid": "3187691aace8bff436a6c190bf89aa7e3760237e5b35d05192dbcd097b98b2e9",
+    "txid": "a9eed29bb52d6766ac9b210712ac366e6c798a03914a24ad06c1e0807714ebf4",
     "vsize": 153
   },
   "replacementChild": {
-    "txid": "6c1f9e5a9d05d067f3d3758af464d72621344d68c5a89ade4a98551755869bf3",
+    "txid": "d3d5ab16fb650c0d9af9122def3966566fe6f8c94c370abe37563d75ebba93e6",
     "vsize": 153
   },
   "cluster": {
@@ -47,8 +47,8 @@
           "chunkfee": 2E-05,
           "chunkweight": 1105,
           "txs": [
-            "c824c8438039667170433c06c6fdba601de48fe5758a51c43683e4560eb3e31b",
-            "3187691aace8bff436a6c190bf89aa7e3760237e5b35d05192dbcd097b98b2e9"
+            "fcd8b4f5e90ed609ec811620203452a6f1cdc3817c4bd078a8c7567caa34aba5",
+            "a9eed29bb52d6766ac9b210712ac366e6c798a03914a24ad06c1e0807714ebf4"
           ]
         }
       ]
@@ -61,26 +61,26 @@
           "chunkfee": 5E-05,
           "chunkweight": 1105,
           "txs": [
-            "c824c8438039667170433c06c6fdba601de48fe5758a51c43683e4560eb3e31b",
-            "6c1f9e5a9d05d067f3d3758af464d72621344d68c5a89ade4a98551755869bf3"
+            "fcd8b4f5e90ed609ec811620203452a6f1cdc3817c4bd078a8c7567caa34aba5",
+            "d3d5ab16fb650c0d9af9122def3966566fe6f8c94c370abe37563d75ebba93e6"
           ]
         }
       ]
     },
     "finalMempool": [
-      "c824c8438039667170433c06c6fdba601de48fe5758a51c43683e4560eb3e31b",
-      "6c1f9e5a9d05d067f3d3758af464d72621344d68c5a89ade4a98551755869bf3"
+      "fcd8b4f5e90ed609ec811620203452a6f1cdc3817c4bd078a8c7567caa34aba5",
+      "d3d5ab16fb650c0d9af9122def3966566fe6f8c94c370abe37563d75ebba93e6"
     ],
     "parentEntry": {
       "vsize": 124,
       "weight": 496,
-      "time": 1789198804,
+      "time": 1789199471,
       "height": 103,
       "descendantcount": 2,
       "descendantsize": 277,
       "ancestorcount": 1,
       "ancestorsize": 124,
-      "wtxid": "f416ce1615edab42c04da16696e2caf62f323d0939aa12109e2ff96904d10188",
+      "wtxid": "cfacb92a163aeb4eac65464f7dae896048f2ab71ad3763719d86ae6593625ec1",
       "chunkweight": 1105,
       "fees": {
         "base": 0.0,
@@ -91,7 +91,7 @@
       },
       "depends": [],
       "spentby": [
-        "6c1f9e5a9d05d067f3d3758af464d72621344d68c5a89ade4a98551755869bf3"
+        "d3d5ab16fb650c0d9af9122def3966566fe6f8c94c370abe37563d75ebba93e6"
       ],
       "bip125-replaceable": true,
       "unbroadcast": false
@@ -99,13 +99,13 @@
     "replacementChildEntry": {
       "vsize": 153,
       "weight": 609,
-      "time": 1789198804,
+      "time": 1789199471,
       "height": 103,
       "descendantcount": 1,
       "descendantsize": 153,
       "ancestorcount": 2,
       "ancestorsize": 277,
-      "wtxid": "3e1ffbeda9661942e1af8804921f837283a32ff80832dd9008669c65c4b8a620",
+      "wtxid": "e97cffd900c01a9c72a8c8964266dc083e8cacac14f802cd65aa89451c95ac86",
       "chunkweight": 1105,
       "fees": {
         "base": 5E-05,
@@ -115,11 +115,24 @@
         "chunk": 5E-05
       },
       "depends": [
-        "c824c8438039667170433c06c6fdba601de48fe5758a51c43683e4560eb3e31b"
+        "fcd8b4f5e90ed609ec811620203452a6f1cdc3817c4bd078a8c7567caa34aba5"
       ],
       "spentby": [],
       "bip125-replaceable": true,
       "unbroadcast": true
+    },
+    "replacementTestMempoolAccept": {
+      "txid": "d3d5ab16fb650c0d9af9122def3966566fe6f8c94c370abe37563d75ebba93e6",
+      "wtxid": "e97cffd900c01a9c72a8c8964266dc083e8cacac14f802cd65aa89451c95ac86",
+      "allowed": true,
+      "vsize": 153,
+      "fees": {
+        "base": 5E-05,
+        "effective-feerate": 0.00032679,
+        "effective-includes": [
+          "e97cffd900c01a9c72a8c8964266dc083e8cacac14f802cd65aa89451c95ac86"
+        ]
+      }
     },
     "feerateDiagram": [
       {
@@ -139,6 +152,7 @@
     "parentChildPackageAccepted": true,
     "recoveryChildrenUnder1000Vb": true,
     "higherFeeSiblingEvictedFirstChild": true,
+    "directCorePolicyAcceptedReplacement": true,
     "unconfirmedClusterLimitedToTwoTransactions": true,
     "coreClusterAndFeerateDiagramCaptured": true
   },

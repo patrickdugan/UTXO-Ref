@@ -149,6 +149,12 @@ module.exports = {
       maxRecoveryVsize: dlcTransactionValidator.TRUC_CHILD_MAX_VSIZE,
       maxUnconfirmedClusterTransactions: dlcTransactionValidator.TRUC_MAX_UNCONFIRMED_CLUSTER_TRANSACTIONS
     }),
+    recoveryPolicy: Object.freeze({
+      proposalPolicyRpc: 'testmempoolaccept',
+      exactTxidAndWtxid: true,
+      stableMempoolSequence: true,
+      failClosedOnCoreRejection: true
+    }),
     validateCetAdaptorSignatures: dlcSignatureValidator.validateCetAdaptorSignatures,
     validateRefundSignature: dlcSignatureValidator.validateRefundSignature,
     evaluateChainSnapshot: dlcChainGuard.evaluateDlcChainSnapshot,
