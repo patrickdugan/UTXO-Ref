@@ -208,6 +208,9 @@ Boundary V69 snapshots the native authorized request before runtime hashing and
 process execution. Response-attestation and durable signing-consumption inputs
 are snapshotted before field access, so getter-bearing protocol payloads fail
 without process launch or filesystem mutation.
+Boundary V70 applies descriptor snapshots inside the adaptor primitive itself.
+Getter-bearing points and pre-signatures are rejected without callbacks,
+verification fails closed, and generated pre-signatures are immutable.
 
 ## Agent isolation
 

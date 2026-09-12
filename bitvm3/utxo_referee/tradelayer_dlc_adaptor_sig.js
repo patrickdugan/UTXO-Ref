@@ -37,6 +37,7 @@
  */
 
 const crypto = require('crypto');
+const { snapshotOwnDataArguments } = require('./dlc_canonical_json');
 
 // secp256k1 domain parameters
 const P = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2Fn;
@@ -162,6 +163,7 @@ function requireScalar(value, fieldName) {
 }
 
 function requirePoint(point, fieldName) {
+  point = snapshotOwnDataArguments(point, ['x', 'y'], fieldName);
   if (!point || typeof point.x !== 'bigint' || typeof point.y !== 'bigint' ||
       point.x < 0n || point.x >= P || point.y < 0n || point.y >= P ||
       !onCurve(point)) {
@@ -171,7 +173,7 @@ function requirePoint(point, fieldName) {
 }
 
 function pointBytes(point) {
-  requirePoint(point, 'point');
+  point = requirePoint(point, 'point');
   return Buffer.concat([Buffer.from([hasEvenY(point) ? 0x02 : 0x03]), bytes32(point.x)]);
 }
 
@@ -273,7 +275,7 @@ function schnorrVerify(pubkeyX, msg32, sig64) {
 // effective nonce point (R0 + T) has even y, which makes the completed
 // signature a valid BIP340 signature without extra parity juggling.
 function adaptorSign(secret, msg32, T, aux32 = crypto.randomBytes(32)) {
-  requirePoint(T, 'adaptor point T');
+  T = requirePoint(T, 'adaptor point T');
   requireBuffer(msg32, 32, 'msg32');
   requireBuffer(aux32, 32, 'aux32');
   const d0 = requireScalar(secret, 'secret');
@@ -294,7 +296,7 @@ function adaptorSign(secret, msg32, T, aux32 = crypto.randomBytes(32)) {
     if (isInf(Rp) || !hasEvenY(Rp)) continue; // need even y for BIP340 completion
     const e = challenge(Rp.x, px, msg32);
     const s0 = mod(k0 + e * d, N);
-    return {
+    return Object.freeze({
       kind: 'tradelayer_dlc_adaptor_presig_v1',
       rx: bytes32(Rp.x).toString('hex'),       // r of the eventual signature
       s0: bytes32(s0).toString('hex'),          // pre-signature scalar
@@ -302,12 +304,15 @@ function adaptorSign(secret, msg32, T, aux32 = crypto.randomBytes(32)) {
       R0y: bytes32(R0.y).toString('hex'),
       Tx: bytes32(T.x).toString('hex'),
       Ty: bytes32(T.y).toString('hex')
-    };
+    });
   }
   throw new Error('adaptorSign: failed to find even-y nonce');
 }
 
 function presigPoints(presig) {
+  presig = snapshotOwnDataArguments(presig, [
+    'kind', 'rx', 's0', 'R0x', 'R0y', 'Tx', 'Ty'
+  ], 'DLC adaptor pre-signature');
   if (!presig || presig.kind !== 'tradelayer_dlc_adaptor_presig_v1') {
     throw new Error('wrong adaptor pre-signature kind');
   }
@@ -348,14 +353,13 @@ function adaptorVerify(pubkeyX, msg32, presig) {
 // Complete the pre-signature with the oracle attestation scalar t (t*G == T).
 function adaptorComplete(presig, attestationScalar) {
   const t = requireScalar(attestationScalar, 'attestationScalar');
-  const { T } = presigPoints(presig);
+  const { T, rx, s0 } = presigPoints(presig);
   const Tcheck = pointMul(G, t);
   if (isInf(Tcheck) || Tcheck.x !== T.x || Tcheck.y !== T.y) {
     throw new Error('attestation scalar does not match adaptor point T');
   }
-  const s0 = bufToBig(Buffer.from(presig.s0, 'hex'));
   const s = mod(s0 + t, N);
-  return Buffer.concat([Buffer.from(presig.rx, 'hex'), bytes32(s)]);
+  return Buffer.concat([bytes32(rx), bytes32(s)]);
 }
 
 // Recover the oracle scalar from a pre-signature and its completed signature.

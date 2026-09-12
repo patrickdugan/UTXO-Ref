@@ -353,6 +353,38 @@ test('canonical signed data ignores inherited JSON hooks and rejects proxies wit
   assert(proxyTraps === 0, 'Proxy trap executed before rejection');
 });
 
+test('adaptor primitives snapshot points and pre-signatures without callbacks', () => {
+  const signerSecret = 707n;
+  const message = hash('adaptor-input-message');
+  const adaptorSecret = 808n;
+  const adaptorPoint = dlc.pointMul(dlc.G, adaptorSecret);
+  let pointAccessorCalls = 0;
+  const hostilePoint = { y: adaptorPoint.y };
+  Object.defineProperty(hostilePoint, 'x', {
+    enumerable: true,
+    get() { pointAccessorCalls++; return adaptorPoint.x; }
+  });
+  expectThrow(() => dlc.adaptorSign(
+    signerSecret, message, hostilePoint, hash('adaptor-input-aux')
+  ), /enumerable data property/);
+  assert(pointAccessorCalls === 0, 'adaptor point accessor executed before rejection');
+
+  const presignature = dlc.adaptorSign(
+    signerSecret, message, adaptorPoint, hash('adaptor-input-valid-aux')
+  );
+  assert(Object.isFrozen(presignature), 'adaptor pre-signature output was mutable');
+  let presignatureAccessorCalls = 0;
+  const hostilePresignature = { ...presignature };
+  Object.defineProperty(hostilePresignature, 'R0x', {
+    enumerable: true,
+    get() { presignatureAccessorCalls++; return presignature.R0x; }
+  });
+  assert(dlc.adaptorVerify(dlc.xOnlyPubkey(signerSecret), message, hostilePresignature) === false,
+    'adaptor verification accepted a getter-bearing pre-signature');
+  expectThrow(() => dlc.adaptorComplete(hostilePresignature, adaptorSecret), /enumerable data property/);
+  assert(presignatureAccessorCalls === 0, 'adaptor pre-signature accessor executed before rejection');
+});
+
 test('operator-signed journal checkpoints reject forgery and untrusted keys', () => {
   const checkpoint = createDlcJournalCheckpoint({
     storeKind: 'contract-state',

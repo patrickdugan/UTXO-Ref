@@ -470,6 +470,10 @@ process launch, descriptor-snapshots response-attestation arguments, and
 canonicalizes returned pre-signatures. Signing-consumption arguments and stored
 records are also canonicalized before field access, preventing callbacks or
 caller mutation from crossing into durable authorization state.
+Boundary V70 descriptor-snapshots the adaptor point and pre-signature objects
+used by signing, verification, completion, and extraction. Point coordinates
+retain bounded `bigint` support, verification fails closed on callback-bearing
+objects, and newly created pre-signatures are frozen before returning.
 The host accepts only bounded regular runtime files whose resolved paths do not
 traverse filesystem links. It hashes the complete runtime closure before and
 after every signer execution, so deletion or mutation during the process

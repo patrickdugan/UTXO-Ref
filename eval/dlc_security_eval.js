@@ -298,6 +298,40 @@ check('malformed signatures and pre-signatures fail closed', 'parsing', 8, () =>
     dlc.adaptorVerify(publicKey, message, { ...presignature, R0x: 'zz'.repeat(32) }) === false;
 });
 
+check('adaptor primitives snapshot points and pre-signatures without callbacks', 'canonical-data', 12, () => {
+  const signerSecret = scalar('adaptor-input-eval:signer');
+  const message = sha256('adaptor-input-eval:message');
+  const adaptorSecret = scalar('adaptor-input-eval:secret');
+  const adaptorPoint = dlc.pointMul(dlc.G, adaptorSecret);
+  let pointAccessorCalls = 0;
+  const hostilePoint = { y: adaptorPoint.y };
+  Object.defineProperty(hostilePoint, 'x', {
+    enumerable: true,
+    get() { pointAccessorCalls++; return adaptorPoint.x; }
+  });
+  const pointRejected = throws(
+    () => dlc.adaptorSign(signerSecret, message, hostilePoint, sha256('adaptor-input-eval:aux')),
+    /enumerable data property/
+  );
+  const presignature = dlc.adaptorSign(
+    signerSecret, message, adaptorPoint, sha256('adaptor-input-eval:valid-aux')
+  );
+  let presignatureAccessorCalls = 0;
+  const hostilePresignature = { ...presignature };
+  Object.defineProperty(hostilePresignature, 'R0x', {
+    enumerable: true,
+    get() { presignatureAccessorCalls++; return presignature.R0x; }
+  });
+  const verificationRejected = dlc.adaptorVerify(
+    dlc.xOnlyPubkey(signerSecret), message, hostilePresignature
+  ) === false;
+  const completionRejected = throws(
+    () => dlc.adaptorComplete(hostilePresignature, adaptorSecret), /enumerable data property/
+  );
+  return pointRejected && verificationRejected && completionRejected &&
+    pointAccessorCalls === 0 && presignatureAccessorCalls === 0 && Object.isFrozen(presignature);
+});
+
 check('signed canonical data rejects hidden, effectful, and ambiguous values', 'canonical-data', 12, () => {
   const ownProto = JSON.parse('{"__proto__":{"polluted":true},"b":2,"a":1}');
   const ownProtoBound = canonicalJson(ownProto) ===
@@ -2492,7 +2526,7 @@ const possible = cases.reduce((sum, test) => sum + test.points, 0);
 const score = earned / possible;
 const report = {
   benchmark: 'utxoref-dlc-security',
-  version: 39,
+  version: 40,
   profile: profileName,
   seed,
   score,
