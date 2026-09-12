@@ -1,7 +1,7 @@
 {
   "schema": "utxoref_dlc_native_rust_signer_evidence_v1",
   "network": "bitcoin-testnet4",
-  "sourceCommit": "8e82936c1d5cfba26feb4064be3d3635c0faf835",
+  "sourceCommit": "5cbf8a3f68ed0a76ae8824d35efcd075d552999b",
   "toolchain": {
     "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)",
     "cargo": "cargo 1.98.1 (797e8a9bc 2026-08-05)"
@@ -12,6 +12,7 @@
   "syntheticKeysOnly": true,
   "productionReady": false,
   "externalAuditRequired": true,
+  "signerRaceWorkers": 16,
   "assertions": {
     "independentCleanBuildsMatched": true,
     "rustProcessSigned": true,
@@ -21,6 +22,7 @@
     "validatorAuthorizationVerifiedBySigner": true,
     "unpinnedValidatorRejected": true,
     "unpinnedSignerRejected": true,
+    "exactOneSignerRaceWinner": true,
     "runtimeIdentityVerifiedByHost": true,
     "restartReplayRejected": true,
     "signerLocalReplayRejected": true,
