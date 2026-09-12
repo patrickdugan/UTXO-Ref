@@ -10,6 +10,9 @@ const {
   SweepObject,
   PayoutMerkleTree,
   buildTreeWithProofs,
+  computeWithdrawalRoot,
+  LEAF_TAG,
+  ZERO_HASH,
   verifySweep,
   verifyRules
 } = require('./index');
@@ -126,7 +129,39 @@ test('protocol objects copy caller-owned byte arrays and Merkle proofs', () => {
   const commitmentHash = commitment.hash();
   root[0] ^= 0xff;
   residual[0] ^= 0xff;
+  commitment.withdrawalRoot[1] ^= 0xff;
+  commitment.residualDest[1] ^= 0xff;
+  commitment.capSats = 1n;
   assert(commitment.hash().equals(commitmentHash), 'caller buffer mutation changed the commitment');
+  assert(Object.isFrozen(commitment), 'commitment object is not frozen');
+
+  const leafInput = sampleScriptPubKey(10);
+  const leaf = new PayoutLeaf({ epochId: 7n, recipientScriptPubKey: leafInput, amountSats: 500n });
+  const leafHash = leaf.hash();
+  leafInput[0] ^= 0xff;
+  leaf.recipientScriptPubKey[0] ^= 0xff;
+  LEAF_TAG[0] ^= 0xff;
+  assert(leaf.hash().equals(leafHash), 'public byte mutation changed the payout leaf');
+  assert(Object.isFrozen(leaf), 'payout leaf is not frozen');
+  LEAF_TAG[0] ^= 0xff;
+
+  const zeroHashCopy = Buffer.from(ZERO_HASH);
+  ZERO_HASH[0] ^= 0xff;
+  assert(computeWithdrawalRoot([]).equals(zeroHashCopy), 'exported zero hash mutated internal Merkle state');
+  ZERO_HASH[0] ^= 0xff;
+
+  const tree = new PayoutMerkleTree([
+    leaf,
+    new PayoutLeaf({ epochId: 7n, recipientScriptPubKey: sampleScriptPubKey(11), amountSats: 500n })
+  ]);
+  const exposedTreeRoot = tree.getRoot();
+  const expectedTreeRoot = Buffer.from(exposedTreeRoot);
+  const exposedProof = tree.getProof(0);
+  const expectedSibling = Buffer.from(exposedProof.siblings[0]);
+  exposedTreeRoot[0] ^= 0xff;
+  exposedProof.siblings[0][0] ^= 0xff;
+  assert(tree.getRoot().equals(expectedTreeRoot), 'returned Merkle root aliased internal tree state');
+  assert(tree.getProof(0).siblings[0].equals(expectedSibling), 'returned Merkle proof aliased internal tree state');
 
   const payoutScript = sampleScriptPubKey(8);
   const sibling = Buffer.alloc(32, 0x22);

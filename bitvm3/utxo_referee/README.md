@@ -312,6 +312,11 @@ epochs, caller-owned buffers are copied at protocol-object construction, and the
 untrusted-agent preflight fails closed on permissive datadir ACLs or a wallet
 with private keys enabled. The optional ACL tool records a restore backup before
 changing permissions.
+Boundary V38 stores trusted commitment and payout-leaf state in private fields,
+freezes those objects, and returns byte copies from public accessors. Exported
+domain and zero-hash constants, Merkle roots, and proof siblings are detached
+from internal hashing state so an evaluator cannot substitute a commitment by
+mutating a shared `Buffer` after construction.
 The host accepts only bounded regular runtime files whose resolved paths do not
 traverse filesystem links. It hashes the complete runtime closure before and
 after every signer execution, so deletion or mutation during the process

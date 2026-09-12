@@ -7,7 +7,7 @@
  */
 
 const crypto = require('crypto');
-const { PayoutLeaf, LEAF_TAG } = require('./types');
+const { PayoutLeaf } = require('./types');
 
 /**
  * SHA256 hash
@@ -65,7 +65,7 @@ class PayoutMerkleTree {
   }
 
   _computeZeroHashes(depth) {
-    const zeros = [ZERO_HASH];
+    const zeros = [Buffer.from(ZERO_HASH)];
     for (let i = 1; i <= depth; i++) {
       zeros.push(hashPair(zeros[i - 1], zeros[i - 1]));
     }
@@ -96,7 +96,7 @@ class PayoutMerkleTree {
    * Get the Merkle root
    */
   getRoot() {
-    return this.tree[this.depth][0];
+    return Buffer.from(this.tree[this.depth][0]);
   }
 
   /**
@@ -114,7 +114,7 @@ class PayoutMerkleTree {
     for (let level = 0; level < this.depth; level++) {
       const siblingIdx = idx ^ 1; // Flip last bit
       const sibling = this.tree[level][siblingIdx] || this.zeroHashes[level];
-      siblings.push(sibling);
+      siblings.push(Buffer.from(sibling));
       idx = idx >> 1;
     }
 
@@ -164,7 +164,7 @@ class PayoutMerkleTree {
  */
 function computeWithdrawalRoot(leaves) {
   if (leaves.length === 0) {
-    return ZERO_HASH;
+    return Buffer.from(ZERO_HASH);
   }
   const tree = new PayoutMerkleTree(leaves);
   return tree.getRoot();
@@ -191,7 +191,7 @@ function buildTreeWithProofs(leaves) {
 module.exports = {
   sha256,
   hashPair,
-  ZERO_HASH,
+  ZERO_HASH: Buffer.from(ZERO_HASH),
   PayoutMerkleTree,
   computeWithdrawalRoot,
   buildTreeWithProofs

@@ -69,29 +69,40 @@ function serializeScriptPubKey(spk) {
  *   residualDest: bytes - scriptPubKey where residual must go
  */
 class CommitmentPackage {
-  constructor({ epochId, withdrawalRoot, capSats, residualDest }) {
-    this.epochId = BigInt(epochId);
-    this.withdrawalRoot = copyBytes(withdrawalRoot, 'withdrawalRoot');
-    this.capSats = BigInt(capSats);
-    this.residualDest = copyBytes(residualDest, 'residualDest');
+  #epochId;
+  #withdrawalRoot;
+  #capSats;
+  #residualDest;
 
-    if (this.withdrawalRoot.length !== 32) {
+  constructor({ epochId, withdrawalRoot, capSats, residualDest }) {
+    this.#epochId = BigInt(epochId);
+    this.#withdrawalRoot = copyBytes(withdrawalRoot, 'withdrawalRoot');
+    this.#capSats = BigInt(capSats);
+    this.#residualDest = copyBytes(residualDest, 'residualDest');
+
+    if (this.#withdrawalRoot.length !== 32) {
       throw new Error('withdrawalRoot must be 32 bytes');
     }
-    if (this.capSats < 0n) {
+    if (this.#capSats < 0n) {
       throw new Error('capSats must be non-negative');
     }
+    Object.freeze(this);
   }
+
+  get epochId() { return this.#epochId; }
+  get withdrawalRoot() { return Buffer.from(this.#withdrawalRoot); }
+  get capSats() { return this.#capSats; }
+  get residualDest() { return Buffer.from(this.#residualDest); }
 
   /**
    * Deterministic serialization for commitment
    */
   serialize() {
     return Buffer.concat([
-      writeU64LE(this.epochId),
-      this.withdrawalRoot,
-      writeU64LE(this.capSats),
-      serializeScriptPubKey(this.residualDest)
+      writeU64LE(this.#epochId),
+      this.#withdrawalRoot,
+      writeU64LE(this.#capSats),
+      serializeScriptPubKey(this.#residualDest)
     ]);
   }
 
@@ -126,15 +137,24 @@ class CommitmentPackage {
  *   amountSats: u64 - Amount in satoshis
  */
 class PayoutLeaf {
-  constructor({ epochId, recipientScriptPubKey, amountSats }) {
-    this.epochId = BigInt(epochId);
-    this.recipientScriptPubKey = copyBytes(recipientScriptPubKey, 'recipientScriptPubKey');
-    this.amountSats = BigInt(amountSats);
+  #epochId;
+  #recipientScriptPubKey;
+  #amountSats;
 
-    if (this.amountSats < 0n) {
+  constructor({ epochId, recipientScriptPubKey, amountSats }) {
+    this.#epochId = BigInt(epochId);
+    this.#recipientScriptPubKey = copyBytes(recipientScriptPubKey, 'recipientScriptPubKey');
+    this.#amountSats = BigInt(amountSats);
+
+    if (this.#amountSats < 0n) {
       throw new Error('amountSats must be non-negative');
     }
+    Object.freeze(this);
   }
+
+  get epochId() { return this.#epochId; }
+  get recipientScriptPubKey() { return Buffer.from(this.#recipientScriptPubKey); }
+  get amountSats() { return this.#amountSats; }
 
   /**
    * Deterministic serialization for leaf
@@ -142,9 +162,9 @@ class PayoutLeaf {
    */
   serialize() {
     return Buffer.concat([
-      writeU64LE(this.epochId),
-      writeU64LE(this.amountSats),
-      serializeScriptPubKey(this.recipientScriptPubKey)
+      writeU64LE(this.#epochId),
+      writeU64LE(this.#amountSats),
+      serializeScriptPubKey(this.#recipientScriptPubKey)
     ]);
   }
 
@@ -167,8 +187,8 @@ class PayoutLeaf {
       ? output.recipientScriptPubKey
       : Buffer.from(output.recipientScriptPubKey, 'hex');
     return (
-      this.recipientScriptPubKey.equals(outSpk) &&
-      this.amountSats === BigInt(output.amountSats)
+      this.#recipientScriptPubKey.equals(outSpk) &&
+      this.#amountSats === BigInt(output.amountSats)
     );
   }
 }
@@ -232,7 +252,7 @@ class SweepObject {
 }
 
 module.exports = {
-  LEAF_TAG,
+  LEAF_TAG: Buffer.from(LEAF_TAG),
   writeU64LE,
   readU64LE,
   writeU32LE,
