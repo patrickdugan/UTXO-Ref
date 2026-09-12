@@ -22,7 +22,8 @@ const {
 const {
   createDlcJournalCheckpoint,
   normalizeDlcJournalCheckpoint,
-  assertDlcJournalCheckpoint
+  assertDlcJournalCheckpoint,
+  verifySignedDlcJournalCheckpoint
 } = require('./dlc_journal_checkpoint');
 
 const KIND = 'utxoref_dlc_oracle_event_record_v1';
@@ -278,6 +279,14 @@ class DlcOracleEventStore {
       recordHashAtCheckpoint
     });
     return Object.freeze({ ...chain, checkpointVerified: expectedCheckpoint.checkpointHash });
+  }
+
+  verifySignedCheckpoint(event, signedCheckpoint, trustedKeys) {
+    const signed = verifySignedDlcJournalCheckpoint(signedCheckpoint, trustedKeys);
+    return Object.freeze({
+      ...this.verifyCheckpoint(event, signed.checkpoint),
+      checkpointSignerKeyId: signed.signerKeyId
+    });
   }
 
   close() {

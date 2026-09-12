@@ -71,7 +71,9 @@ const { DlcPeerSessionStore } = require('./dlc_peer_session_store');
 const { DlcWatchtowerJournal, contractKey: watchtowerContractKey } = require('./dlc_watchtower_journal');
 const {
   createDlcJournalCheckpoint,
-  normalizeDlcJournalCheckpoint
+  normalizeDlcJournalCheckpoint,
+  signDlcJournalCheckpoint,
+  verifySignedDlcJournalCheckpoint
 } = require('./dlc_journal_checkpoint');
 const { settlementAnchor, evaluateDlcAnchorRecovery } = require('./dlc_anchor_recovery_guard');
 const { validateFundingPrebroadcastPolicy } = require('./dlc_funding_prebroadcast_guard');
@@ -106,6 +108,15 @@ const validatorPolicy = Object.fromEntries(ALL_EVIDENCE_KINDS.map((kind) => [kin
   keyId: validatorKeyId,
   publicKeySpki: validatorPublicKeySpki
 }]));
+const checkpointSignerKeys = crypto.generateKeyPairSync('ed25519');
+const checkpointSignerPublicKeySpki = checkpointSignerKeys.publicKey
+  .export({ format: 'der', type: 'spki' }).toString('base64');
+const checkpointSignerKeyId = crypto.createHash('sha256')
+  .update(Buffer.from(checkpointSignerPublicKeySpki, 'base64')).digest('hex');
+const trustedCheckpointKeys = Object.freeze([Object.freeze({
+  keyId: checkpointSignerKeyId,
+  publicKeySpki: checkpointSignerPublicKeySpki
+})]);
 
 function requestFor(contract, to, suffix = to, overrides = {}) {
   const idempotencyKey = `transition:${suffix}`;
@@ -335,6 +346,51 @@ test('canonical signed data ignores inherited JSON hooks and rejects proxies wit
   assert(proxyTraps === 0, 'Proxy trap executed before rejection');
 });
 
+test('operator-signed journal checkpoints reject forgery and untrusted keys', () => {
+  const checkpoint = createDlcJournalCheckpoint({
+    storeKind: 'contract-state',
+    storeKey: digest('signed-checkpoint-store'),
+    recordCount: 3,
+    headRecordHash: digest('signed-checkpoint-head')
+  });
+  const signed = signDlcJournalCheckpoint(checkpoint, checkpointSignerKeys.privateKey);
+  const verified = verifySignedDlcJournalCheckpoint(signed, trustedCheckpointKeys);
+  assert(verified.checkpoint.checkpointHash === checkpoint.checkpointHash &&
+    verified.signerKeyId === checkpointSignerKeyId, 'signed checkpoint lost its identity binding');
+  assert(Object.isFrozen(verified) && Object.isFrozen(verified.checkpoint),
+    'verified signed checkpoint was mutable');
+
+  const forgedBytes = Buffer.from(signed.signature, 'base64');
+  forgedBytes[0] ^= 1;
+  expectThrow(() => verifySignedDlcJournalCheckpoint({
+    ...signed,
+    signature: forgedBytes.toString('base64')
+  }, trustedCheckpointKeys), /signature is invalid/);
+  const otherKeys = crypto.generateKeyPairSync('ed25519');
+  const otherDer = otherKeys.publicKey.export({ format: 'der', type: 'spki' });
+  expectThrow(() => verifySignedDlcJournalCheckpoint(signed, [{
+    keyId: crypto.createHash('sha256').update(otherDer).digest('hex'),
+    publicKeySpki: otherDer.toString('base64')
+  }]), /key is not trusted/);
+  expectThrow(() => verifySignedDlcJournalCheckpoint(
+    signed, [trustedCheckpointKeys[0], trustedCheckpointKeys[0]]
+  ), /duplicate/);
+  expectThrow(() => verifySignedDlcJournalCheckpoint({
+    ...signed,
+    checkpoint: { ...signed.checkpoint, recordCount: signed.checkpoint.recordCount + 1 }
+  }, trustedCheckpointKeys), /checkpoint hash mismatch/);
+
+  let accessorCalls = 0;
+  const accessorEnvelope = { ...signed };
+  Object.defineProperty(accessorEnvelope, 'signature', {
+    enumerable: true,
+    get() { accessorCalls++; return signed.signature; }
+  });
+  expectThrow(() => verifySignedDlcJournalCheckpoint(accessorEnvelope, trustedCheckpointKeys),
+    /enumerable data property/);
+  assert(accessorCalls === 0, 'signed checkpoint accessor executed before rejection');
+});
+
 function initialContract(contractId = 'contract-1') {
   return createDlcContract({
     contractId,
@@ -484,6 +540,10 @@ test('append-only store survives reload and rejects stale revisions', () => {
     const checkpoint = store.checkpoint(initial.contractId);
     assert(store.verifyCheckpoint(initial.contractId, checkpoint).checkpointVerified === checkpoint.checkpointHash,
       'state checkpoint did not verify');
+    const signedCheckpoint = signDlcJournalCheckpoint(checkpoint, checkpointSignerKeys.privateKey);
+    assert(store.verifySignedCheckpoint(
+      initial.contractId, signedCheckpoint, trustedCheckpointKeys
+    ).checkpointSignerKeyId === checkpointSignerKeyId, 'signed state checkpoint did not verify');
     const revisionBytes = fs.readFileSync(revisionPath);
     fs.unlinkSync(revisionPath);
     assert(store.verifyChain(initial.contractId).revisions === 1, 'state tail deletion probe did not shorten the chain');
@@ -928,6 +988,11 @@ test('adaptor signing is short-lived, durably consumed, and bound to the contrac
     assert(providerOptions.authorizationStore.verifyCheckpoint(
       contract.contractId, authorization.authorizationId, checkpoint
     ).checkpointVerified === checkpoint.checkpointHash, 'signing authorization checkpoint did not verify');
+    const signedCheckpoint = signDlcJournalCheckpoint(checkpoint, checkpointSignerKeys.privateKey);
+    assert(providerOptions.authorizationStore.verifySignedCheckpoint(
+      contract.contractId, authorization.authorizationId, signedCheckpoint, trustedCheckpointKeys
+    ).checkpointSignerKeyId === checkpointSignerKeyId,
+    'signed signing-authorization checkpoint did not verify');
     const accessorCheckpoint = { ...checkpoint };
     Object.defineProperty(accessorCheckpoint, 'recordCount', { enumerable: true, get: () => 1 });
     expectThrow(() => providerOptions.authorizationStore.verifyCheckpoint(

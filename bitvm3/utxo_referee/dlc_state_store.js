@@ -13,7 +13,8 @@ const {
 const {
   createDlcJournalCheckpoint,
   normalizeDlcJournalCheckpoint,
-  assertDlcJournalCheckpoint
+  assertDlcJournalCheckpoint,
+  verifySignedDlcJournalCheckpoint
 } = require('./dlc_journal_checkpoint');
 
 const MAX_REVISION_BYTES = 4194304;
@@ -175,6 +176,14 @@ class DlcStateStore {
       recordHashAtCheckpoint
     });
     return Object.freeze({ ...chain, checkpointVerified: expectedCheckpoint.checkpointHash });
+  }
+
+  verifySignedCheckpoint(contractId, signedCheckpoint, trustedKeys) {
+    const signed = verifySignedDlcJournalCheckpoint(signedCheckpoint, trustedKeys);
+    return Object.freeze({
+      ...this.verifyCheckpoint(contractId, signed.checkpoint),
+      checkpointSignerKeyId: signed.signerKeyId
+    });
   }
 }
 

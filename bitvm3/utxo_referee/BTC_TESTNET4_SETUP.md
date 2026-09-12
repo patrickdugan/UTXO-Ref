@@ -174,6 +174,11 @@ Boundary V60 also rejects JavaScript Proxy objects before any Proxy trap can
 run. Canonical object and array encoding does not call inherited `toJSON`
 methods, preventing prototype pollution elsewhere in a host process from
 changing signed or hashed DLC data.
+Boundary V61 supports operator-authenticated external checkpoints. Sign a
+checkpoint with `signJournalCheckpoint`, retain only the trusted Ed25519 public
+SPKI in the coordinator policy, and resume through the store's
+`verifySignedCheckpoint` method. An unsigned checkpoint remains suitable only
+when an independent boundary guarantees its integrity.
 
 ## Agent isolation
 

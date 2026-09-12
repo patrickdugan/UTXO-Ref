@@ -14,7 +14,8 @@ const {
 const {
   createDlcJournalCheckpoint,
   normalizeDlcJournalCheckpoint,
-  assertDlcJournalCheckpoint
+  assertDlcJournalCheckpoint,
+  verifySignedDlcJournalCheckpoint
 } = require('./dlc_journal_checkpoint');
 
 const CLAIM_KIND = 'utxoref_dlc_peer_offer_claim_v1';
@@ -204,6 +205,14 @@ class DlcPeerSessionStore {
       ok: true,
       records: state.recordCount,
       checkpointVerified: expectedCheckpoint.checkpointHash
+    });
+  }
+
+  verifySignedCheckpoint(peerId, temporaryContractId, signedCheckpoint, trustedKeys) {
+    const signed = verifySignedDlcJournalCheckpoint(signedCheckpoint, trustedKeys);
+    return Object.freeze({
+      ...this.verifyCheckpoint(peerId, temporaryContractId, signed.checkpoint),
+      checkpointSignerKeyId: signed.signerKeyId
     });
   }
 }

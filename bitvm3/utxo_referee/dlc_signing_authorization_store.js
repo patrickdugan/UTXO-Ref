@@ -13,7 +13,8 @@ const {
 const {
   createDlcJournalCheckpoint,
   normalizeDlcJournalCheckpoint,
-  assertDlcJournalCheckpoint
+  assertDlcJournalCheckpoint,
+  verifySignedDlcJournalCheckpoint
 } = require('./dlc_journal_checkpoint');
 
 const KIND = 'utxoref_dlc_signing_authorization_consumption_v1';
@@ -178,6 +179,14 @@ class DlcSigningAuthorizationStore {
       recordHashAtCheckpoint: record.recordHash
     });
     return Object.freeze({ ok: true, records: 1, checkpointVerified: expectedCheckpoint.checkpointHash });
+  }
+
+  verifySignedCheckpoint(contractId, authorizationId, signedCheckpoint, trustedKeys) {
+    const signed = verifySignedDlcJournalCheckpoint(signedCheckpoint, trustedKeys);
+    return Object.freeze({
+      ...this.verifyCheckpoint(contractId, authorizationId, signed.checkpoint),
+      checkpointSignerKeyId: signed.signerKeyId
+    });
   }
 }
 

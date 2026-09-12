@@ -17,7 +17,8 @@ const {
 const {
   createDlcJournalCheckpoint,
   normalizeDlcJournalCheckpoint,
-  assertDlcJournalCheckpoint
+  assertDlcJournalCheckpoint,
+  verifySignedDlcJournalCheckpoint
 } = require('./dlc_journal_checkpoint');
 
 const KIND = 'utxoref_dlc_watchtower_observation_v1';
@@ -316,6 +317,14 @@ class DlcWatchtowerJournal {
       recordHashAtCheckpoint: pinned && pinned.recordHash
     });
     return Object.freeze({ ...chain, checkpointVerified: expectedCheckpoint.checkpointHash });
+  }
+
+  verifySignedCheckpoint(contractId, signedCheckpoint, trustedKeys) {
+    const signed = verifySignedDlcJournalCheckpoint(signedCheckpoint, trustedKeys);
+    return Object.freeze({
+      ...this.verifyCheckpoint(contractId, signed.checkpoint),
+      checkpointSignerKeyId: signed.signerKeyId
+    });
   }
 
   appendObservation({ contractState, transactionSet, snapshot, minConfirmations = 6 }) {

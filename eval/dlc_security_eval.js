@@ -33,7 +33,9 @@ const {
 const { DlcStateStore } = require(path.join(__dirname, '..', 'bitvm3', 'utxo_referee', 'dlc_state_store.js'));
 const {
   createDlcJournalCheckpoint,
-  normalizeDlcJournalCheckpoint
+  normalizeDlcJournalCheckpoint,
+  signDlcJournalCheckpoint,
+  verifySignedDlcJournalCheckpoint
 } = require(path.join(__dirname, '..', 'bitvm3', 'utxo_referee', 'dlc_journal_checkpoint.js'));
 const { readBoundedJson, writeJsonAppendOnce } = require(path.join(
   __dirname, '..', 'bitvm3', 'utxo_referee', 'dlc_durable_json_store.js'
@@ -111,6 +113,13 @@ const validatorPolicy = Object.fromEntries(ALL_EVIDENCE_KINDS.map((kind) => [kin
   keyId: validatorKeyId,
   publicKeySpki: validatorSpki
 }]));
+const checkpointSignerKeys = crypto.generateKeyPairSync('ed25519');
+const checkpointSignerSpki = checkpointSignerKeys.publicKey.export({ format: 'der', type: 'spki' });
+const checkpointSignerKeyId = crypto.createHash('sha256').update(checkpointSignerSpki).digest('hex');
+const trustedCheckpointKeys = [{
+  keyId: checkpointSignerKeyId,
+  publicKeySpki: checkpointSignerSpki.toString('base64')
+}];
 
 const PROFILES = {
   lite: { adversarialRuns: 8 },
@@ -370,6 +379,37 @@ check('canonical encoding executes no inherited hooks or Proxy traps', 'canonica
     /invalid DLC journal checkpoint/
   );
   return hookSafe && canonicalProxyRejected && checkpointProxyRejected && proxyTraps === 0;
+});
+
+check('operator signatures authenticate external journal checkpoints', 'state-persistence', 14, () => {
+  const checkpoint = createDlcJournalCheckpoint({
+    storeKind: 'contract-state',
+    storeKey: sha256('eval-signed-checkpoint-store').toString('hex'),
+    recordCount: 3,
+    headRecordHash: sha256('eval-signed-checkpoint-head').toString('hex')
+  });
+  const signed = signDlcJournalCheckpoint(checkpoint, checkpointSignerKeys.privateKey);
+  const verified = verifySignedDlcJournalCheckpoint(signed, trustedCheckpointKeys);
+  const forged = Buffer.from(signed.signature, 'base64');
+  forged[0] ^= 1;
+  const forgedRejected = throws(() => verifySignedDlcJournalCheckpoint({
+    ...signed,
+    signature: forged.toString('base64')
+  }, trustedCheckpointKeys), /signature is invalid/);
+  const otherKeys = crypto.generateKeyPairSync('ed25519');
+  const otherSpki = otherKeys.publicKey.export({ format: 'der', type: 'spki' });
+  const untrustedRejected = throws(() => verifySignedDlcJournalCheckpoint(signed, [{
+    keyId: crypto.createHash('sha256').update(otherSpki).digest('hex'),
+    publicKeySpki: otherSpki.toString('base64')
+  }]), /key is not trusted/);
+  const checkpointMutationRejected = throws(() => verifySignedDlcJournalCheckpoint({
+    ...signed,
+    checkpoint: { ...signed.checkpoint, recordCount: 4 }
+  }, trustedCheckpointKeys), /checkpoint hash mismatch/);
+  return verified.signerKeyId === checkpointSignerKeyId &&
+    verified.checkpoint.checkpointHash === checkpoint.checkpointHash &&
+    Object.isFrozen(verified) && Object.isFrozen(verified.checkpoint) &&
+    forgedRejected && untrustedRejected && checkpointMutationRejected;
 });
 
 check('extraction rejects a forged completed signature', 'extraction', 8, () => {
@@ -730,8 +770,12 @@ check('append-only state store rejects stale competing writes', 'state-persisten
     fs.writeFileSync(revisionPath, revisionBytes, { flag: 'wx', mode: 0o600 });
     const checkpointVerified = store.verifyCheckpoint(contract.contractId, checkpoint).checkpointVerified ===
       checkpoint.checkpointHash;
+    const signedCheckpoint = signDlcJournalCheckpoint(checkpoint, checkpointSignerKeys.privateKey);
+    const signedCheckpointVerified = store.verifySignedCheckpoint(
+      contract.contractId, signedCheckpoint, trustedCheckpointKeys
+    ).checkpointSignerKeyId === checkpointSignerKeyId;
     return staleRejected && chain.ok && chain.revisions === 2 && shorterChainAcceptedWithoutCheckpoint &&
-      rollbackRejected && checkpointVerified;
+      rollbackRejected && checkpointVerified && signedCheckpointVerified;
   } finally {
     fs.rmSync(directory, { recursive: true, force: true });
   }
@@ -2074,7 +2118,7 @@ const possible = cases.reduce((sum, test) => sum + test.points, 0);
 const score = earned / possible;
 const report = {
   benchmark: 'utxoref-dlc-security',
-  version: 30,
+  version: 31,
   profile: profileName,
   seed,
   score,

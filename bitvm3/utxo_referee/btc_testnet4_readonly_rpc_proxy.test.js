@@ -58,7 +58,7 @@ function post(port, token, payload) {
 
 test('read-only RPC policy rejects wallet, signing, broadcast, and node-control methods', () => {
   const evaluationPolicy = referee.dlc.testnet4EvaluationPolicy;
-  assert.equal(referee.dlc.securityBoundaryVersion, 60);
+  assert.equal(referee.dlc.securityBoundaryVersion, 61);
   assert.equal(typeof referee.dlc.canonicalizeData, 'function');
   assert.equal(typeof referee.dlc.canonicalJson, 'function');
   assert.deepEqual(referee.dlc.canonicalSerializationPolicy, {
@@ -87,6 +87,14 @@ test('read-only RPC policy rejects wallet, signing, broadcast, and node-control 
   assert.equal(referee.dlc.durableJournalPolicy.directoryLinkTraversalAllowed, false);
   assert.equal(referee.dlc.durableJournalPolicy.exactSequenceFilenamesRequired, true);
   assert.equal(referee.dlc.durableJournalPolicy.externalCheckpointKind, 'utxoref_dlc_journal_checkpoint_v1');
+  assert.equal(referee.dlc.durableJournalPolicy.signedExternalCheckpointKind,
+    'utxoref_dlc_signed_journal_checkpoint_v1');
+  assert.equal(referee.dlc.durableJournalPolicy.signedCheckpointAlgorithm, 'ed25519');
+  assert.equal(referee.dlc.durableJournalPolicy.signedCheckpointSignerKeyId, 'sha256-spki-der-v1');
+  assert.equal(referee.dlc.durableJournalPolicy.trustedCheckpointKeysPinned, true);
+  assert.equal(referee.dlc.durableJournalPolicy.signedCheckpointRequiredForUntrustedStorage, true);
+  assert.equal(referee.dlc.durableJournalPolicy.unsignedCheckpointStorageRequiresIndependentIntegrity, true);
+  assert.equal(referee.dlc.durableJournalPolicy.verifySignedCheckpointOnAllStores, true);
   assert.deepEqual(referee.dlc.durableJournalPolicy.checkpointStores,
     ['contract-state', 'oracle-event', 'peer-session', 'signing-authorization',
       'refund-recovery', 'broadcast-authorization', 'watchtower']);
@@ -94,6 +102,18 @@ test('read-only RPC policy rejects wallet, signing, broadcast, and node-control 
   assert.equal(referee.dlc.durableJournalPolicy.longerHistoryMustContainPinnedHead, true);
   assert.equal(referee.dlc.durableJournalPolicy.checkpointStorageInsideJournalAllowed, false);
   assert.equal(referee.dlc.durableJournalPolicy.checkpointInputsNormalizedToFrozenPlainData, true);
+  assert.equal(typeof referee.dlc.signJournalCheckpoint, 'function');
+  assert.equal(typeof referee.dlc.normalizeSignedJournalCheckpoint, 'function');
+  assert.equal(typeof referee.dlc.verifySignedJournalCheckpoint, 'function');
+  for (const Store of [
+    referee.dlc.StateStore,
+    referee.dlc.OracleEventStore,
+    referee.dlc.PeerSessionStore,
+    referee.dlc.SigningAuthorizationStore,
+    referee.dlc.RefundRecoveryStore,
+    referee.dlc.BroadcastAuthorizationStore,
+    referee.dlc.WatchtowerJournal
+  ]) assert.equal(typeof Store.prototype.verifySignedCheckpoint, 'function');
   assert.equal(referee.dlc.durableJournalPolicy.linkedFinalRecordsAllowed, false);
   assert.equal(referee.dlc.signerPolicy.signingConsumptionIdentityBound, true);
   assert.equal(referee.dlc.signerPolicy.signingConsumptionHardLinksAllowed, false);

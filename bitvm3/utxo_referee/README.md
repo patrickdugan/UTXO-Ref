@@ -426,6 +426,12 @@ canonical containers with an internal recursive encoder. Inherited or polluted
 `toJSON` hooks are never consulted, so application-wide prototype mutation
 cannot execute callbacks or replace DLC signature or hash inputs through JSON
 serialization hooks.
+Boundary V61 adds Ed25519 operator signatures to external journal checkpoints.
+The signature binds the complete normalized checkpoint and the SHA-256 identity
+of the signer's canonical SPKI. Every durable store exposes
+`verifySignedCheckpoint`, which requires an explicitly pinned trusted-key set
+before checking the journal. Use signed checkpoints whenever the checkpoint
+file itself is stored outside an independently integrity-protected boundary.
 The host accepts only bounded regular runtime files whose resolved paths do not
 traverse filesystem links. It hashes the complete runtime closure before and
 after every signer execution, so deletion or mutation during the process
