@@ -79,6 +79,12 @@ if (-not $result.assertions.dpapiProtectedKeyBlobsOnly -or
     -not $result.assertions.plaintextKeyFilesRejected) {
   throw 'native signer integration omitted DPAPI key-storage assertions'
 }
+if (-not $result.assertions.expectedWindowsAccountSidBound -or
+    -not $result.assertions.unexpectedSignerAccountRejected -or
+    -not $result.assertions.protectedKeyDirectoryAclRequired -or
+    -not $result.assertions.inheritedKeyDirectoryAclRejected) {
+  throw 'native signer integration omitted account or ACL isolation assertions'
+}
 $commit = (git -c safe.directory=C:/projects/UTXORef/UTXO-Ref -C $repository rev-parse HEAD).Trim()
 $snapshot = [ordered]@{
   schema = 'utxoref_dlc_native_rust_signer_snapshot_v1'
@@ -100,7 +106,7 @@ $snapshotPath = Join-Path $SnapshotDirectory 'dlc-native-rust-signer-latest.json
   [System.Text.UTF8Encoding]::new($false)
 )
 $checkedEvidence = [ordered]@{
-  schema = 'utxoref_dlc_native_rust_signer_evidence_v4'
+  schema = 'utxoref_dlc_native_rust_signer_evidence_v5'
   network = 'bitcoin-testnet4'
   sourceCommit = $commit
   toolchain = [ordered]@{ rustc = $snapshot.rustc; cargo = $snapshot.cargo }
@@ -127,6 +133,10 @@ $checkedEvidence = [ordered]@{
     dpapiProtectedKeyBlobsOnly = [bool]$result.assertions.dpapiProtectedKeyBlobsOnly
     dpapiBlobsOpaque = [bool]$result.assertions.dpapiBlobsOpaque
     plaintextKeyFilesRejected = [bool]$result.assertions.plaintextKeyFilesRejected
+    expectedWindowsAccountSidBound = [bool]$result.assertions.expectedWindowsAccountSidBound
+    unexpectedSignerAccountRejected = [bool]$result.assertions.unexpectedSignerAccountRejected
+    protectedKeyDirectoryAclRequired = [bool]$result.assertions.protectedKeyDirectoryAclRequired
+    inheritedKeyDirectoryAclRejected = [bool]$result.assertions.inheritedKeyDirectoryAclRejected
     runtimeIdentityVerifiedByHost = [bool]$result.assertions.runtimeIdentityVerifiedByHost
     restartReplayRejected = [bool]$result.assertions.restartReplayRejected
     signerLocalReplayRejected = [bool]$result.assertions.signerLocalReplayRejected

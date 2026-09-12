@@ -35,14 +35,38 @@ function sha256(value) { return crypto.createHash('sha256').update(value).digest
 function digest(value) { return sha256(value).toString('hex'); }
 
 const protectDpapiPath = path.resolve(__dirname, '..', 'native', 'dlc-signer', 'protect-dpapi-key.ps1');
+const initializeDpapiPath = path.resolve(
+  __dirname, '..', 'native', 'dlc-signer', 'initialize-dpapi-key-directory.ps1'
+);
 const unprotectDpapiPath = path.resolve(__dirname, '..', 'native', 'dlc-signer', 'unprotect-dpapi-key.ps1');
 
-function protectDpapiKey(destinationPath, secretHex) {
+function powershellPathAndEnvironment() {
   const systemRoot = process.env.SystemRoot || process.env.WINDIR;
   if (!systemRoot) fail('SystemRoot is required for DPAPI provisioning');
-  const powershell = path.join(
-    systemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe'
-  );
+  return {
+    powershell: path.join(systemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe'),
+    environment: { SystemRoot: systemRoot, WINDIR: systemRoot, PATHEXT: '.COM;.EXE;.BAT;.CMD' }
+  };
+}
+
+function initializeDpapiKeyDirectory(directoryPath) {
+  const { powershell, environment } = powershellPathAndEnvironment();
+  const result = spawnSync(powershell, [
+    '-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
+    '-File', initializeDpapiPath, '-DirectoryPath', directoryPath
+  ], {
+    encoding: 'utf8', windowsHide: true, env: environment, maxBuffer: 8192
+  });
+  if (result.error || result.status !== 0) {
+    fail(`DPAPI directory initialization failed: ${result.error?.message || result.stderr.trim()}`);
+  }
+  const accountSid = result.stdout.trim();
+  if (!/^S-1-[0-9]+(?:-[0-9]+)+$/.test(accountSid)) fail('DPAPI initializer returned no account SID');
+  return accountSid;
+}
+
+function protectDpapiKey(destinationPath, secretHex) {
+  const { powershell, environment } = powershellPathAndEnvironment();
   const result = spawnSync(powershell, [
     '-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
     '-File', protectDpapiPath, '-DestinationPath', destinationPath
@@ -50,7 +74,7 @@ function protectDpapiKey(destinationPath, secretHex) {
     input: secretHex,
     encoding: 'utf8',
     windowsHide: true,
-    env: { SystemRoot: systemRoot, WINDIR: systemRoot },
+    env: environment,
     maxBuffer: 8192
   });
   if (result.error || result.status !== 0) {
@@ -101,6 +125,7 @@ if (!fs.existsSync(workDirectory) || !fs.statSync(workDirectory).isDirectory()) 
 
 const keyDirectory = path.join(workDirectory, 'keys');
 const plaintextKeyDirectory = path.join(workDirectory, 'plaintext-keys');
+const looseAclKeyDirectory = path.join(workDirectory, 'loose-acl-keys');
 const authorizationDirectory = path.join(workDirectory, 'authorizations');
 const directReplayAuthorizationDirectory = path.join(workDirectory, 'direct-replay-authorizations');
 const unpinnedValidatorAuthorizationDirectory = path.join(workDirectory, 'unpinned-validator-authorizations');
@@ -108,8 +133,8 @@ const unpinnedSignerAuthorizationDirectory = path.join(workDirectory, 'unpinned-
 const validatorPolicyPath = path.join(workDirectory, 'validator-policy.json');
 const unpinnedValidatorPolicyPath = path.join(workDirectory, 'unpinned-validator-policy.json');
 const unpinnedSignerPolicyPath = path.join(workDirectory, 'unpinned-signer-policy.json');
-fs.mkdirSync(keyDirectory, { recursive: true, mode: 0o700 });
 fs.mkdirSync(plaintextKeyDirectory, { recursive: true, mode: 0o700 });
+fs.mkdirSync(looseAclKeyDirectory, { recursive: true, mode: 0o700 });
 fs.mkdirSync(authorizationDirectory, { recursive: true, mode: 0o700 });
 fs.mkdirSync(directReplayAuthorizationDirectory, { recursive: true, mode: 0o700 });
 fs.mkdirSync(unpinnedValidatorAuthorizationDirectory, { recursive: true, mode: 0o700 });
@@ -117,6 +142,7 @@ fs.mkdirSync(unpinnedSignerAuthorizationDirectory, { recursive: true, mode: 0o70
 
 async function main() {
 try {
+  const signerAccountSid = initializeDpapiKeyDirectory(keyDirectory);
   const validatorKeys = crypto.generateKeyPairSync('ed25519');
   const validatorSpki = validatorKeys.publicKey.export({ format: 'der', type: 'spki' });
   const validatorKeyId = digest(validatorSpki);
@@ -198,6 +224,8 @@ try {
   const runtimeSeedHex = runtimeSeed.toString('hex');
   const runtimeBlobPath = path.join(keyDirectory, 'runtime-identity.key.dpapi');
   protectDpapiKey(runtimeBlobPath, runtimeSeedHex);
+  fs.copyFileSync(signerBlobPath, path.join(looseAclKeyDirectory, path.basename(signerBlobPath)));
+  fs.copyFileSync(runtimeBlobPath, path.join(looseAclKeyDirectory, path.basename(runtimeBlobPath)));
   const signerBlob = fs.readFileSync(signerBlobPath);
   const runtimeBlob = fs.readFileSync(runtimeBlobPath);
   const dpapiBlobsOpaque = !signerBlob.includes(signerSecretBytes) &&
@@ -211,19 +239,19 @@ try {
   const launchSpec = {
     executablePath: binaryPath,
     arguments: [keyDirectory, validatorPolicyPath, validatorPolicyDigest,
-      unprotectDpapiPath, unprotectDpapiDigest],
+      unprotectDpapiPath, unprotectDpapiDigest, signerAccountSid],
     codePaths: [validatorPolicyPath, unprotectDpapiPath]
   };
   const unpinnedValidatorLaunchSpec = {
     executablePath: binaryPath,
     arguments: [keyDirectory, unpinnedValidatorPolicyPath, unpinnedValidatorPolicyDigest,
-      unprotectDpapiPath, unprotectDpapiDigest],
+      unprotectDpapiPath, unprotectDpapiDigest, signerAccountSid],
     codePaths: [unpinnedValidatorPolicyPath, unprotectDpapiPath]
   };
   const unpinnedSignerLaunchSpec = {
     executablePath: binaryPath,
     arguments: [keyDirectory, unpinnedSignerPolicyPath, unpinnedSignerPolicyDigest,
-      unprotectDpapiPath, unprotectDpapiDigest],
+      unprotectDpapiPath, unprotectDpapiDigest, signerAccountSid],
     codePaths: [unpinnedSignerPolicyPath, unprotectDpapiPath]
   };
   fs.writeFileSync(
@@ -232,7 +260,7 @@ try {
     { encoding: 'utf8', mode: 0o600, flag: 'wx' }
   );
   const plaintextLaunchArguments = [plaintextKeyDirectory, validatorPolicyPath,
-    validatorPolicyDigest, unprotectDpapiPath, unprotectDpapiDigest];
+    validatorPolicyDigest, unprotectDpapiPath, unprotectDpapiDigest, signerAccountSid];
   const plaintextResult = await runSignerProcess(binaryPath, plaintextLaunchArguments, '{}\n');
   const plaintextKeyFilesRejected = plaintextResult.code !== 0 &&
     /plaintext \.key files are forbidden/.test(plaintextResult.stderr.toString('utf8'));
@@ -459,6 +487,33 @@ try {
     issuedAtUnixSeconds: freshnessAuthorization.issuedAtUnixSeconds,
     expiresAtUnixSeconds: freshnessAuthorization.expiresAtUnixSeconds
   });
+  const accountAuthorization = freshnessAuthorizationFor('native-rust:account-mismatch:0', new Date());
+  const accountProbe = directEnvelopeFor(
+    accountAuthorization,
+    freshnessPayloadFor(accountAuthorization)
+  );
+  const wrongAccountSid = signerAccountSid === 'S-1-5-18' ? 'S-1-5-32-544' : 'S-1-5-18';
+  const wrongAccountArguments = [...launchSpec.arguments.slice(0, -1), wrongAccountSid];
+  const accountResult = await runSignerProcess(
+    binaryPath,
+    wrongAccountArguments,
+    accountProbe.envelope
+  );
+  const unexpectedSignerAccountRejected = accountResult.code !== 0 &&
+    /unexpected Windows account SID/.test(accountResult.stderr.toString('utf8'));
+  if (!unexpectedSignerAccountRejected) fail('Rust signer accepted an unexpected Windows account SID');
+
+  const looseAclAuthorization = freshnessAuthorizationFor('native-rust:loose-acl:0', new Date());
+  const looseAclProbe = directEnvelopeFor(
+    looseAclAuthorization,
+    freshnessPayloadFor(looseAclAuthorization)
+  );
+  const looseAclArguments = [looseAclKeyDirectory, ...launchSpec.arguments.slice(1)];
+  const looseAclResult = await runSignerProcess(binaryPath, looseAclArguments, looseAclProbe.envelope);
+  const inheritedKeyDirectoryAclRejected = looseAclResult.code !== 0 &&
+    /must disable inherited ACLs/.test(looseAclResult.stderr.toString('utf8'));
+  if (!inheritedKeyDirectoryAclRejected) fail('Rust signer accepted an inherited key-directory ACL');
+
   const expiredAuthorization = freshnessAuthorizationFor(
     'native-rust:expired:0',
     new Date(Date.now() - 10 * 60 * 1000)
@@ -540,6 +595,10 @@ try {
       dpapiProtectedKeyBlobsOnly: true,
       dpapiBlobsOpaque,
       plaintextKeyFilesRejected,
+      expectedWindowsAccountSidBound: true,
+      unexpectedSignerAccountRejected,
+      protectedKeyDirectoryAclRequired: true,
+      inheritedKeyDirectoryAclRejected,
       hostSuppliedNoSecret: true
     }
   };
@@ -547,6 +606,7 @@ try {
 } finally {
   fs.rmSync(keyDirectory, { recursive: true, force: true });
   fs.rmSync(plaintextKeyDirectory, { recursive: true, force: true });
+  fs.rmSync(looseAclKeyDirectory, { recursive: true, force: true });
   fs.rmSync(authorizationDirectory, { recursive: true, force: true });
   fs.rmSync(directReplayAuthorizationDirectory, { recursive: true, force: true });
   fs.rmSync(unpinnedValidatorAuthorizationDirectory, { recursive: true, force: true });

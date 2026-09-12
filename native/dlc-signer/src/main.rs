@@ -489,6 +489,25 @@ fn validate_unwrapper(path: &Path, expected_digest: &str) -> Result<()> {
     Ok(())
 }
 
+fn validate_windows_sid(value: &str) -> Result<()> {
+    if value.len() < 7 || value.len() > 184 || !value.starts_with("S-1-") {
+        return Err("expected Windows account SID is malformed".to_owned());
+    }
+    let mut components = value.split('-');
+    if components.next() != Some("S") || components.next() != Some("1") {
+        return Err("expected Windows account SID is malformed".to_owned());
+    }
+    let remaining: Vec<&str> = components.collect();
+    if remaining.len() < 2
+        || remaining.iter().any(|component| {
+            component.is_empty() || !component.bytes().all(|byte| byte.is_ascii_digit())
+        })
+    {
+        return Err("expected Windows account SID is malformed".to_owned());
+    }
+    Ok(())
+}
+
 fn reject_plaintext_key_files(key_directory: &Path) -> Result<()> {
     for entry in fs::read_dir(key_directory).map_err(|error| error.to_string())? {
         let entry = entry.map_err(|error| error.to_string())?;
@@ -527,6 +546,7 @@ fn powershell_path() -> Result<(PathBuf, String)> {
 fn unprotect_dpapi_secret(
     blob_path: &Path,
     unwrapper_path: &Path,
+    expected_account_sid: &str,
     name: &str,
 ) -> Result<Zeroizing<[u8; 32]>> {
     let metadata = fs::symlink_metadata(blob_path).map_err(|error| format!("{name}: {error}"))?;
@@ -553,6 +573,8 @@ fn unprotect_dpapi_secret(
         .arg(unwrapper_path)
         .arg("-BlobPath")
         .arg(blob_path)
+        .arg("-ExpectedAccountSid")
+        .arg(expected_account_sid)
         .env_clear()
         .env("SystemRoot", &system_root)
         .env("WINDIR", &system_root)
@@ -811,10 +833,15 @@ fn consume_authorization(key_directory: &Path, authorization_digest: &str) -> Re
     Ok(())
 }
 
-fn runtime_identity(key_directory: &Path, unwrapper_path: &Path) -> Result<(SigningKey, String)> {
+fn runtime_identity(
+    key_directory: &Path,
+    unwrapper_path: &Path,
+    expected_account_sid: &str,
+) -> Result<(SigningKey, String)> {
     let mut seed = unprotect_dpapi_secret(
         &key_directory.join("runtime-identity.key.dpapi"),
         unwrapper_path,
+        expected_account_sid,
         "runtime identity seed",
     )?;
     let signing_key = SigningKey::from_bytes(&seed);
@@ -827,9 +854,9 @@ fn runtime_identity(key_directory: &Path, unwrapper_path: &Path) -> Result<(Sign
 
 fn run() -> Result<()> {
     let arguments: Vec<String> = env::args().collect();
-    if arguments.len() != 6 {
+    if arguments.len() != 7 {
         return Err(
-            "usage: utxoref-dlc-signer <absolute-key-directory> <absolute-validator-policy> <policy-sha256> <absolute-dpapi-unwrapper> <unwrapper-sha256>"
+            "usage: utxoref-dlc-signer <absolute-key-directory> <absolute-validator-policy> <policy-sha256> <absolute-dpapi-unwrapper> <unwrapper-sha256> <expected-windows-account-sid>"
                 .to_owned(),
         );
     }
@@ -846,6 +873,7 @@ fn run() -> Result<()> {
     let validator_policy = load_validator_policy(Path::new(&arguments[2]), &arguments[3])?;
     let unwrapper_path = Path::new(&arguments[4]);
     validate_unwrapper(unwrapper_path, &arguments[5])?;
+    validate_windows_sid(&arguments[6])?;
     let mut input = Vec::new();
     io::stdin()
         .take(65_537)
@@ -871,11 +899,13 @@ fn run() -> Result<()> {
     }
     let verified = verify_request(request, &validator_policy)?;
     consume_authorization(&key_directory, &verified.authorization_digest)?;
-    let (runtime_key, identity_key_id) = runtime_identity(&key_directory, unwrapper_path)?;
+    let (runtime_key, identity_key_id) =
+        runtime_identity(&key_directory, unwrapper_path, &arguments[6])?;
     let guarded_now = guard_signer_clock(&key_directory, &runtime_key, &identity_key_id)?;
     verify_authorization_freshness(verified.issued_at, verified.expires_at, guarded_now)?;
     let key_path = key_directory.join(format!("{}.key.dpapi", verified.signer_pubkey));
-    let secret_bytes = unprotect_dpapi_secret(&key_path, unwrapper_path, "DLC signer key")?;
+    let secret_bytes =
+        unprotect_dpapi_secret(&key_path, unwrapper_path, &arguments[6], "DLC signer key")?;
     let secret_scalar = Zeroizing::new(scalar_from_bytes(&secret_bytes, "DLC signer key")?);
     let (derived_x, _) = affine_coordinates(
         ProjectivePoint::GENERATOR * *secret_scalar,

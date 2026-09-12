@@ -128,7 +128,7 @@ module.exports = {
   // for production; these interfaces enforce transcript, threshold-oracle,
   // and persistence gates on regtest and Bitcoin testnet4.
   dlc: Object.freeze({
-    securityBoundaryVersion: 27,
+    securityBoundaryVersion: 28,
     createContract: dlcContractState.createDlcContract,
     validateContract: dlcContractState.validateDlcContract,
     transitionContract: dlcContractState.transitionDlcContract,
@@ -190,7 +190,7 @@ module.exports = {
       sanitizedProcessEnvironment: true,
       nativeCandidateImplementation: 'rust-k256-v1',
       nativeCandidateProtocol: 'utxoref-dlc-native-signer-process-v1',
-      nativeCandidateBinarySha256: 'fdc73b4d1b6259629e14fa631b360b8e7dd5a3a22983b6978370f2f8499957a3',
+      nativeCandidateBinarySha256: 'f376dec821d2103c112b2a760607a4b6a1067b6e6186bee110ac3001c2f1e706',
       nativeCandidateCargoLockSha256: 'a5715dcfcf1eef714ffb08afe6b35fdd5db6278176ead3994286da12ba01c5e2',
       lockedDirectDependencies: true,
       unsafeRustForbidden: true,
@@ -214,6 +214,9 @@ module.exports = {
       plaintextKeyFilesRejected: true,
       pinnedDpapiUnwrapper: true,
       dedicatedSignerAccountRequired: true,
+      expectedWindowsAccountSidBound: true,
+      protectedKeyDirectoryAclRequired: true,
+      allowedKeyDirectoryPrincipals: Object.freeze(['signer-account', 'SYSTEM', 'Administrators']),
       rustSecAuditRequired: true,
       rustSecVulnerabilitiesAllowed: 0,
       rustSecWarningsAllowed: 0,
