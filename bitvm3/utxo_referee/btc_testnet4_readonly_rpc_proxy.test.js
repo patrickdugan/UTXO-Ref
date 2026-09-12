@@ -57,7 +57,7 @@ function post(port, token, payload) {
 
 test('read-only RPC policy rejects wallet, signing, broadcast, and node-control methods', () => {
   const evaluationPolicy = referee.dlc.testnet4EvaluationPolicy;
-  assert.equal(referee.dlc.securityBoundaryVersion, 41);
+  assert.equal(referee.dlc.securityBoundaryVersion, 42);
   assert.equal(evaluationPolicy.watchOnlySwarmWalletRequired, true);
   assert.equal(evaluationPolicy.watchOnlyWalletProvisioning, 'public-descriptor-import-v1');
   assert.equal(evaluationPolicy.privateDescriptorsAccepted, false);

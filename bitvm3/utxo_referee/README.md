@@ -329,6 +329,10 @@ UTXO set to match the source at one stable testnet4 tip before writing evidence.
 Boundary V41 adds a token-bucket ceiling of 120 authenticated proxy requests per
 minute and caps the loopback server at 16 sockets. Clock rollback cannot refill
 the bucket, limiting sustained policy-RPC load from a compromised swarm worker.
+Boundary V42 makes the untrusted-agent preflight require a distinct, non-admin
+Windows identity and a protected 256-bit proxy-token file. The worker must have
+read access to that token but no write access; Core data remains restricted to
+the coordinator, SYSTEM, and Administrators.
 The host accepts only bounded regular runtime files whose resolved paths do not
 traverse filesystem links. It hashes the complete runtime closure before and
 after every signer execution, so deletion or mutation during the process

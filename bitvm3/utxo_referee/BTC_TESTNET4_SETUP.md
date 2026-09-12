@@ -62,6 +62,17 @@ powershell -ExecutionPolicy Bypass -File eval\provision-testnet4-watchonly-walle
 powershell -ExecutionPolicy Bypass -File eval\bitcoin-testnet4-host-preflight.ps1 -WalletName utxoref-swarm-watchonly -Json
 ```
 
+The untrusted-agent gate also requires the dedicated worker identity and its
+protected proxy token. Supply an account name or SID and the absolute token path:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File eval\bitcoin-testnet4-host-preflight.ps1 `
+  -WalletName utxoref-swarm-watchonly `
+  -AgentIdentity BitAgentSwarm `
+  -ProxyTokenFile D:\bitagent-testnet4\secrets\readonly-rpc.token `
+  -Json
+```
+
 The backup-first ACL tool prints its target set without changing it unless
 `-Apply` is present. Review the dry run and keep the emitted `icacls` backup:
 
