@@ -1,0 +1,25 @@
+[package]
+name = "utxoref-dlc-signer"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+publish = false
+
+[dependencies]
+base64 = "=0.22.1"
+ed25519-dalek = { version = "=2.2.0", features = ["zeroize"] }
+hex = "=0.4.3"
+k256 = { version = "=0.13.4", features = ["arithmetic"] }
+rand_core = { version = "=0.6.4", features = ["getrandom"] }
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = "=1.0.151"
+sha2 = "=0.10.9"
+zeroize = { version = "=1.9.0", features = ["derive"] }
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = 3
+panic = "abort"
+strip = "symbols"
+overflow-checks = true

@@ -1,0 +1,90 @@
+param(
+  [string]$SnapshotDirectory = 'D:\bitagent-testnet4\btc-test-snapshots',
+  [string]$ToolRoot = 'D:\Tools\Rust',
+  [string]$BuildRoot = 'D:\bitagent-testnet4\build\dlc-signer-target',
+  [string]$ReproBuildRoot = 'D:\bitagent-testnet4\build\dlc-signer-repro',
+  [string]$BinaryDirectory = 'D:\bitagent-testnet4\bin'
+)
+
+$ErrorActionPreference = 'Stop'
+$repository = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
+$manifest = Join-Path $repository 'native\dlc-signer\Cargo.toml'
+$lockFile = Join-Path $repository 'native\dlc-signer\Cargo.lock'
+$cargoHome = Join-Path $ToolRoot 'cargo'
+$rustupHome = Join-Path $ToolRoot 'rustup'
+$cargo = Join-Path $cargoHome 'bin\cargo.exe'
+$rustc = Join-Path $cargoHome 'bin\rustc.exe'
+if (-not (Test-Path -LiteralPath $cargo) -or -not (Test-Path -LiteralPath $rustc)) {
+  throw "Rust toolchain is missing under $ToolRoot"
+}
+if (-not (Test-Path -LiteralPath $lockFile)) { throw 'native signer Cargo.lock is required' }
+
+New-Item -ItemType Directory -Path $SnapshotDirectory -Force | Out-Null
+New-Item -ItemType Directory -Path $BuildRoot -Force | Out-Null
+New-Item -ItemType Directory -Path $BinaryDirectory -Force | Out-Null
+$env:CARGO_HOME = $cargoHome
+$env:RUSTUP_HOME = $rustupHome
+$env:CARGO_TARGET_DIR = $BuildRoot
+$env:SOURCE_DATE_EPOCH = '1'
+$env:PATH = (Join-Path $cargoHome 'bin') + ';' + $env:PATH
+
+& $cargo build --manifest-path $manifest --release --locked --offline
+if ($LASTEXITCODE -ne 0) { throw "native signer cargo build failed with exit $LASTEXITCODE" }
+$builtBinary = Join-Path $BuildRoot 'release\utxoref-dlc-signer.exe'
+if (-not (Test-Path -LiteralPath $builtBinary)) { throw 'native signer build produced no executable' }
+$reproRoot = [System.IO.Path]::GetFullPath($ReproBuildRoot)
+$expectedBuildParent = [System.IO.Path]::GetFullPath('D:\bitagent-testnet4\build') + [System.IO.Path]::DirectorySeparatorChar
+if (-not $reproRoot.StartsWith($expectedBuildParent, [System.StringComparison]::OrdinalIgnoreCase)) {
+  throw 'reproducibility build root must remain under D:\bitagent-testnet4\build'
+}
+if (Test-Path -LiteralPath $reproRoot) { Remove-Item -LiteralPath $reproRoot -Recurse -Force }
+New-Item -ItemType Directory -Path $reproRoot -Force | Out-Null
+$env:CARGO_TARGET_DIR = $reproRoot
+& $cargo build --manifest-path $manifest --release --locked --offline
+if ($LASTEXITCODE -ne 0) { throw "native signer reproducibility build failed with exit $LASTEXITCODE" }
+$reproBinary = Join-Path $reproRoot 'release\utxoref-dlc-signer.exe'
+if (-not (Test-Path -LiteralPath $reproBinary)) { throw 'reproducibility build produced no executable' }
+$builtBinarySha256 = (Get-FileHash -LiteralPath $builtBinary -Algorithm SHA256).Hash.ToLowerInvariant()
+$reproBinarySha256 = (Get-FileHash -LiteralPath $reproBinary -Algorithm SHA256).Hash.ToLowerInvariant()
+if ($builtBinarySha256 -ne $reproBinarySha256) { throw 'native signer build is not byte reproducible' }
+$deployedBinary = Join-Path $BinaryDirectory 'utxoref-dlc-signer.exe'
+Copy-Item -LiteralPath $builtBinary -Destination $deployedBinary -Force
+
+$workDirectory = Join-Path $SnapshotDirectory ('.native-signer-' + [guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Path $workDirectory | Out-Null
+try {
+  $resultText = (& node (Join-Path $PSScriptRoot 'dlc_native_signer_integration.js') $deployedBinary $workDirectory 2>&1 | Out-String).Trim()
+  $integrationExit = $LASTEXITCODE
+} finally {
+  Remove-Item -LiteralPath $workDirectory -Recurse -Force -ErrorAction SilentlyContinue
+}
+if ($integrationExit -ne 0) { throw "native signer integration failed with exit $integrationExit`n$resultText" }
+$result = $resultText | ConvertFrom-Json
+if (-not $result.assertions.rustProcessSigned -or -not $result.assertions.javascriptHostVerified -or
+    -not $result.assertions.bip340CompletionVerified -or -not $result.assertions.adaptorExtractionVerified -or
+    -not $result.assertions.restartReplayRejected -or -not $result.assertions.signerLocalReplayRejected) {
+  throw 'native signer integration omitted a required assertion'
+}
+$commit = (git -c safe.directory=C:/projects/UTXORef/UTXO-Ref -C $repository rev-parse HEAD).Trim()
+$snapshot = [ordered]@{
+  schema = 'utxoref_dlc_native_rust_signer_snapshot_v1'
+  capturedAt = [DateTime]::UtcNow.ToString('o')
+  network = 'bitcoin-testnet4'
+  repository = $repository
+  commit = $commit
+  rustc = (& $rustc --version | Out-String).Trim()
+  cargo = (& $cargo --version | Out-String).Trim()
+  cargoLockSha256 = (Get-FileHash -LiteralPath $lockFile -Algorithm SHA256).Hash.ToLowerInvariant()
+  reproducibleBuild = $true
+  reproducibleBinarySha256 = $builtBinarySha256
+  result = $result
+}
+$snapshotPath = Join-Path $SnapshotDirectory 'dlc-native-rust-signer-latest.json'
+[System.IO.File]::WriteAllText(
+  $snapshotPath,
+  ($snapshot | ConvertTo-Json -Depth 20),
+  [System.Text.UTF8Encoding]::new($false)
+)
+Write-Output "binary=$deployedBinary"
+Write-Output "binarySha256=$($result.binarySha256)"
+Write-Output "snapshot=$snapshotPath"
