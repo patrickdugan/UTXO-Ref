@@ -155,8 +155,24 @@ if ($TrustedCoordinator) {
           }
         }
       } while ($added)
+      $privilegedGroupSids = @(
+        'S-1-5-32-544', # Administrators
+        'S-1-5-32-547', # Power Users
+        'S-1-5-32-548', # Account Operators
+        'S-1-5-32-549', # Server Operators
+        'S-1-5-32-550', # Print Operators
+        'S-1-5-32-551', # Backup Operators
+        'S-1-5-32-555', # Remote Desktop Users
+        'S-1-5-32-556', # Network Configuration Operators
+        'S-1-5-32-559', # Performance Log Users
+        'S-1-5-32-562', # Distributed COM Users
+        'S-1-5-32-569', # Cryptographic Operators
+        'S-1-5-32-573', # Event Log Readers
+        'S-1-5-32-578', # Hyper-V Administrators
+        'S-1-5-32-580'  # Remote Management Users
+      )
       $unexpectedLocalGroups = @($groupRecords | Where-Object {
-        $reachableSids.Contains($_.Sid) -and $_.Sid -ne 'S-1-5-32-545'
+        $reachableSids.Contains($_.Sid) -and $_.Sid -in $privilegedGroupSids
       })
     } catch {
       $accountDistinct = $false
@@ -168,7 +184,7 @@ if ($TrustedCoordinator) {
     if (-not $agentSid) { 'AgentIdentity is required and must resolve to a Windows SID' }
     elseif (-not $accountDistinct) { 'agent identity is privileged, matches the coordinator, or could not be audited' }
     elseif (-not $localAccountEnabled) { 'agent identity is not an enabled local user' }
-    elseif ($unexpectedLocalGroups.Count -ne 0) { "agent has disallowed explicit local-group memberships=$($unexpectedLocalGroups.Count)" }
+    elseif ($unexpectedLocalGroups.Count -ne 0) { "agent has privileged direct or nested local-group memberships=$($unexpectedLocalGroups.Count)" }
     else { "distinct enabled low-privilege local agent SID=$agentSid" }
   )
   Test-ProxyTokenBoundary $ProxyTokenFile $agentSid

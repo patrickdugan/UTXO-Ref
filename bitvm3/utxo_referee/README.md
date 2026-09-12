@@ -332,7 +332,9 @@ the bucket, limiting sustained policy-RPC load from a compromised swarm worker.
 Boundary V42 makes the untrusted-agent preflight require a distinct, non-admin
 Windows identity and a protected 256-bit proxy-token file. The worker must have
 read access to that token but no write access; Core data remains restricted to
-the coordinator, SYSTEM, and Administrators.
+the coordinator, SYSTEM, and Administrators. Nested membership in privileged
+local groups is rejected while purpose-built non-privileged sandbox groups are
+allowed.
 The host accepts only bounded regular runtime files whose resolved paths do not
 traverse filesystem links. It hashes the complete runtime closure before and
 after every signer execution, so deletion or mutation during the process
