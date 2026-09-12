@@ -317,6 +317,11 @@ freezes those objects, and returns byte copies from public accessors. Exported
 domain and zero-hash constants, Merkle roots, and proof siblings are detached
 from internal hashing state so an evaluator cannot substitute a commitment by
 mutating a shared `Buffer` after construction.
+Boundary V39 adds a loopback Bitcoin Core capability firewall for low-privilege
+swarm workers. It authenticates a bounded bearer capability, permits only nine
+parameter-validated read or policy methods, limits request, response, timeout,
+and concurrency resources, and rejects wallet, signing, broadcast, node-control,
+and network-control RPCs before reading the Core cookie or forwarding a request.
 The host accepts only bounded regular runtime files whose resolved paths do not
 traverse filesystem links. It hashes the complete runtime closure before and
 after every signer execution, so deletion or mutation during the process

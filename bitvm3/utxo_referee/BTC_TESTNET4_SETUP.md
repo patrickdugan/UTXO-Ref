@@ -60,6 +60,16 @@ powershell -ExecutionPolicy Bypass -File eval\lockdown-bitcoin-testnet4-acl.ps1
 powershell -ExecutionPolicy Bypass -File eval\lockdown-bitcoin-testnet4-acl.ps1 -Apply
 ```
 
+After the host ACL and account separation preflight passes, expose Core to swarm
+workers only through `btc_testnet4_readonly_rpc_proxy.js`. The proxy token must be
+stored in a bounded regular file readable by the worker account; the Core cookie
+remains readable only by the trusted coordinator. Verify the live deny boundary
+without signing or broadcasting:
+
+```powershell
+node eval\bitcoin-testnet4-readonly-rpc-probe.js
+```
+
 ## Red-team swarm stress
 
 Run parallel verifier agents and concurrent live-UTXO freshness probes:

@@ -128,7 +128,7 @@ module.exports = {
   // for production; these interfaces enforce transcript, threshold-oracle,
   // and persistence gates on regtest and Bitcoin testnet4.
   dlc: Object.freeze({
-    securityBoundaryVersion: 38,
+    securityBoundaryVersion: 39,
     createContract: dlcContractState.createDlcContract,
     validateContract: dlcContractState.validateDlcContract,
     transitionContract: dlcContractState.transitionDlcContract,
@@ -178,7 +178,20 @@ module.exports = {
       merkleRootsAndProofsCopiedOnRead: true,
       hostAclPreflightRequiredForUntrustedAgents: true,
       untrustedAgentWalletPrivateKeysAllowed: false,
-      broadcastDefault: false
+      broadcastDefault: false,
+      readonlyRpcProxy: 'loopback-capability-firewall-v1',
+      readonlyRpcMethods: Object.freeze([
+        'decoderawtransaction', 'getbestblockhash', 'getblockchaininfo', 'getblockhash',
+        'getblockheader', 'getnetworkinfo', 'getrawmempool', 'gettxout', 'testmempoolaccept'
+      ]),
+      readonlyRpcMaxConcurrentRequests: 4,
+      readonlyRpcMaxRequestBytes: 1048576,
+      readonlyRpcMaxResponseBytes: 4194304,
+      walletRpcAllowedThroughProxy: false,
+      signingRpcAllowedThroughProxy: false,
+      broadcastRpcAllowedThroughProxy: false,
+      nodeControlRpcAllowedThroughProxy: false,
+      networkControlRpcAllowedThroughProxy: false
     }),
     signerPolicy: Object.freeze({
       nativeCapabilityAttestation: 'ed25519',
