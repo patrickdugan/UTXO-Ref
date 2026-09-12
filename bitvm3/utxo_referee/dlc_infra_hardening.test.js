@@ -21,6 +21,8 @@ const {
 } = require('./dlc_threshold_oracle');
 const { validateFundingAuthorization } = require('./m1_dlc_sign_finalize');
 const {
+  authorizeDlcAdaptorSign,
+  createDlcAdaptorSignAuthorization,
   createDlcCryptoProvider,
   nativeCapabilityAttestationPayload,
   requireDlcSigningProvider
@@ -350,6 +352,57 @@ test('native provider requires an operator-pinned audit signature over its exact
       publicKeySpki: untrustedKey.toString('base64')
     }]
   }), /lacks a trusted audit attestation/);
+});
+
+test('adaptor signing is one-shot and bound to the authenticated contract transcript', () => {
+  const provider = createDlcCryptoProvider({
+    network: 'bitcoin-testnet4',
+    mode: 'experimental-js',
+    allowExperimental: true
+  });
+  assert(provider.operations.adaptorSign === undefined, 'raw adaptor signing escaped the provider boundary');
+  expectThrow(() => requireDlcSigningProvider({
+    kind: 'utxoref_dlc_crypto_provider_v1',
+    mode: 'experimental-js',
+    network: 'bitcoin-testnet4'
+  }), /enabled DLC signing provider/);
+
+  let contract = initialContract('adaptor-sign-authorization');
+  contract = transitionDlcContract(contract, requestFor(contract, 'AUTHENTICATED_ORACLES', 'signing:oracles'));
+  contract = transitionDlcContract(contract, requestFor(contract, 'CANONICAL_CETS_AND_REFUND', 'signing:cets', {
+    cet_set: digest('signing:authenticated-cet-set')
+  }));
+  contract = transitionDlcContract(contract, requestFor(
+    contract,
+    'COUNTERPARTY_SIGNATURES_VERIFIED',
+    'signing:counterparty'
+  ));
+  const sighash = digest('signing:cet-sighash');
+  const adaptorPoint = dlc.pointMul(dlc.G, 4242n);
+  const authorization = createDlcAdaptorSignAuthorization({
+    privateKey: validatorKeys.privateKey,
+    contract,
+    authorizationId: 'cet:0:oracle-set:0',
+    sighash,
+    adaptorPoint
+  });
+  const session = authorizeDlcAdaptorSign(provider, { contract, authorization });
+  const presignature = session.execute(909n, hash('signing:aux'));
+  assert(dlc.adaptorVerify(dlc.xOnlyPubkey(909n), Buffer.from(sighash, 'hex'), presignature),
+    'authorized adaptor signature did not verify');
+  expectThrow(() => session.execute(909n, hash('signing:aux:replay')), /already consumed/);
+  expectThrow(() => authorizeDlcAdaptorSign(provider, { contract, authorization }), /already consumed/);
+  expectThrow(() => authorizeDlcAdaptorSign(provider, {
+    contract,
+    authorization: { ...authorization, sighash: digest('signing:tampered-sighash') }
+  }), /signature is invalid/);
+  expectThrow(() => createDlcAdaptorSignAuthorization({
+    privateKey: validatorKeys.privateKey,
+    contract: initialContract('adaptor-sign-too-early'),
+    authorizationId: 'too-early',
+    sighash,
+    adaptorPoint
+  }), /COUNTERPARTY_SIGNATURES_VERIFIED/);
 });
 
 test('sealed oracle event survives restart and persists before attestation', () => {

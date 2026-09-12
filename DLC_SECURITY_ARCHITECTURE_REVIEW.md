@@ -291,6 +291,13 @@ large agent swarm.
   digest, and constant-time, zeroization, and process-isolation manifest. This
   authenticates a reviewed candidate; it does not replace native implementation
   review, reproducible builds, or runtime isolation checks.
+- Raw adaptor signing is no longer exposed on the provider. The pinned local-CET
+  validator must issue a one-shot authorization that binds the current signed
+  contract record and transcript, authenticated CET-set digest, exact BIP341
+  sighash, and adaptor point. Signing is available only after counterparty
+  signatures are verified, and a consumed authorization cannot be replayed in
+  the same provider process. A production signer must persist consumption before
+  signing so crash recovery and failover preserve the same guarantee.
 - Persist event creation and nonce consumption atomically before returning an
   announcement or attestation. The experimental encrypted event store now
   covers a shared local store across restart and concurrent processes; the

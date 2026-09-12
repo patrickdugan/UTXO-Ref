@@ -36,6 +36,8 @@ const {
 } = require(path.join(__dirname, '..', 'bitvm3', 'utxo_referee', 'dlc_threshold_oracle.js'));
 const { validateFundingAuthorization } = require(fundingFinalizerPath);
 const {
+  authorizeDlcAdaptorSign,
+  createDlcAdaptorSignAuthorization,
   createDlcCryptoProvider,
   nativeCapabilityAttestationPayload
 } = require(path.join(__dirname, '..', 'bitvm3', 'utxo_referee', 'dlc_crypto_provider.js'));
@@ -451,7 +453,7 @@ check('contract state rejects forged and altered validation receipts', 'validato
   return alteredRejected && flagRejected;
 });
 
-check('crypto provider defaults closed and requires a pinned native audit attestation', 'signer-boundary', 12, () => {
+check('crypto provider requires audited code and a one-shot signed contract authorization', 'signer-boundary', 18, () => {
   const disabled = createDlcCryptoProvider({ network: 'bitcoin-testnet4' });
   const explicit = createDlcCryptoProvider({
     network: 'bitcoin-testnet4',
@@ -495,8 +497,43 @@ check('crypto provider defaults closed and requires a pinned native audit attest
     },
     trustedAuditKeys
   }), /attestation is invalid/);
+
+  let contract = createDlcContract({
+    contractId: 'signer-authorization-eval',
+    network: 'bitcoin-testnet4',
+    contractDigest: sha256('signer-authorization-eval').toString('hex'),
+    oraclePolicy: { threshold: 2, total: 3, pinnedPubkeys: ['11'.repeat(32), '22'.repeat(32), '33'.repeat(32)] },
+    validatorPolicy
+  });
+  for (const stage of ['AUTHENTICATED_ORACLES', 'CANONICAL_CETS_AND_REFUND', 'COUNTERPARTY_SIGNATURES_VERIFIED']) {
+    const idempotencyKey = `signer-eval:${stage}`;
+    contract = transitionDlcContract(contract, {
+      to: stage,
+      idempotencyKey,
+      evidence: evidenceFor(contract, stage, idempotencyKey)
+    });
+  }
+  const sighash = sha256('signer-eval:cet-sighash').toString('hex');
+  const adaptorPoint = dlc.pointMul(dlc.G, scalar('signer-eval:adaptor'));
+  const authorization = createDlcAdaptorSignAuthorization({
+    privateKey: validatorKeys.privateKey,
+    contract,
+    authorizationId: 'cet:0:oracle-set:0',
+    sighash,
+    adaptorPoint
+  });
+  const session = authorizeDlcAdaptorSign(explicit, { contract, authorization });
+  const signerSecret = scalar('signer-eval:secret');
+  const presignature = session.execute(signerSecret, sha256('signer-eval:aux'));
+  const signed = dlc.adaptorVerify(dlc.xOnlyPubkey(signerSecret), Buffer.from(sighash, 'hex'), presignature);
+  const replayRejected = throws(() => session.execute(signerSecret, sha256('signer-eval:replay')), /already consumed/);
+  const tamperedRequestRejected = throws(() => authorizeDlcAdaptorSign(explicit, {
+    contract,
+    authorization: { ...authorization, sighash: sha256('signer-eval:wrong-sighash').toString('hex') }
+  }), /signature is invalid/);
   return disabled.mode === 'disabled' && Object.keys(disabled.operations).length === 0 &&
     explicit.productionReady === false && explicit.capabilities.nativeSecretArithmetic === false &&
+    explicit.operations.adaptorSign === undefined && signed && replayRejected && tamperedRequestRejected &&
     native.capabilities.attestationVerified === true && native.productionReady === false && tamperedRejected &&
     throws(() => createDlcCryptoProvider({
       network: 'bitcoin-mainnet',
@@ -1230,7 +1267,7 @@ const possible = cases.reduce((sum, test) => sum + test.points, 0);
 const score = earned / possible;
 const report = {
   benchmark: 'utxoref-dlc-security',
-  version: 11,
+  version: 12,
   profile: profileName,
   seed,
   score,

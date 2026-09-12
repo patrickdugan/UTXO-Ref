@@ -177,7 +177,7 @@ oracle combinations, encrypted restart-safe oracle state, and a crypto provider
 that defaults to disabled. Canonical Bitcoin transaction and BIP341 signature
 validators bind CET/refund evidence to the funding outpoint before signed state
 can advance. Each spend has a unique transaction ID and committed last-output
-anchor. Boundary V12 supports the legacy version-2 owned CPFP anchor and a
+anchor. Boundary V13 supports the legacy version-2 owned CPFP anchor and a
 version-3 TRUC policy with an exact zero-sat P2A `51024e73` anchor. The TRUC
 policy commits Core's 10,000-vB settlement limit, 1,000-vB recovery-child limit,
 and two-transaction unconfirmed cluster limit. Every signed fee policy fixes the
@@ -207,6 +207,12 @@ Native signer candidates remain non-production. A candidate capability manifest
 must now be signed by an operator-pinned Ed25519 audit key, binding the reviewed
 binary and audit digests plus the constant-time, zeroization, and process
 isolation claims. Self-declared native capability flags are rejected.
+The provider no longer exposes raw adaptor signing. Each adaptor signature
+requires a one-shot Ed25519 authorization from the contract's pinned local-CET
+validator. That authorization binds the authenticated CET-set digest, exact
+BIP341 sighash, adaptor point, current record hash, and transcript at
+`COUNTERPARTY_SIGNATURES_VERIFIED`; replay, stage drift, and request mutation
+fail closed.
 
 Run:
 
