@@ -326,6 +326,9 @@ Boundary V40 provisions a separate private-key-disabled descriptor wallet from
 the source wallet's public descriptors. The backup wallet is never changed; the
 provisioner performs no signing or broadcast and requires the target's confirmed
 UTXO set to match the source at one stable testnet4 tip before writing evidence.
+Boundary V41 adds a token-bucket ceiling of 120 authenticated proxy requests per
+minute and caps the loopback server at 16 sockets. Clock rollback cannot refill
+the bucket, limiting sustained policy-RPC load from a compromised swarm worker.
 The host accepts only bounded regular runtime files whose resolved paths do not
 traverse filesystem links. It hashes the complete runtime closure before and
 after every signer execution, so deletion or mutation during the process

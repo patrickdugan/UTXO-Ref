@@ -128,7 +128,7 @@ module.exports = {
   // for production; these interfaces enforce transcript, threshold-oracle,
   // and persistence gates on regtest and Bitcoin testnet4.
   dlc: Object.freeze({
-    securityBoundaryVersion: 40,
+    securityBoundaryVersion: 41,
     createContract: dlcContractState.createDlcContract,
     validateContract: dlcContractState.validateDlcContract,
     transitionContract: dlcContractState.transitionDlcContract,
@@ -192,6 +192,8 @@ module.exports = {
         'getblockheader', 'getnetworkinfo', 'getrawmempool', 'gettxout', 'testmempoolaccept'
       ]),
       readonlyRpcMaxConcurrentRequests: 4,
+      readonlyRpcMaxAuthenticatedRequestsPerMinute: 120,
+      readonlyRpcMaxConnections: 16,
       readonlyRpcMaxRequestBytes: 1048576,
       readonlyRpcMaxResponseBytes: 4194304,
       walletRpcAllowedThroughProxy: false,

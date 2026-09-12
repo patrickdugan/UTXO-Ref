@@ -8,6 +8,8 @@ const path = require('path');
 const MAX_REQUEST_BYTES = 1048576;
 const MAX_RESPONSE_BYTES = 4194304;
 const MAX_CONCURRENT_REQUESTS = 4;
+const MAX_AUTHENTICATED_REQUESTS_PER_MINUTE = 120;
+const MAX_CONNECTIONS = 16;
 const UPSTREAM_TIMEOUT_MS = 10000;
 const TXID = /^[0-9a-f]{64}$/;
 const HEX = /^(?:[0-9a-f]{2})+$/;
@@ -122,12 +124,37 @@ function forwardToCore({ rpcPort, cookie, request }) {
   });
 }
 
-function createReadonlyRpcProxy({ cookiePath, token, rpcPort = 48332, maxConcurrent = MAX_CONCURRENT_REQUESTS }) {
+function createReadonlyRpcProxy({
+  cookiePath,
+  token,
+  rpcPort = 48332,
+  maxConcurrent = MAX_CONCURRENT_REQUESTS,
+  maxRequestsPerMinute = MAX_AUTHENTICATED_REQUESTS_PER_MINUTE,
+  now = Date.now
+}) {
   if (!path.isAbsolute(cookiePath) || typeof token !== 'string' || token.length < 32 || token.length > 256 ||
       !Number.isSafeInteger(rpcPort) || rpcPort < 1 || rpcPort > 65535 ||
-      !Number.isSafeInteger(maxConcurrent) || maxConcurrent < 1 || maxConcurrent > 16) {
+      !Number.isSafeInteger(maxConcurrent) || maxConcurrent < 1 || maxConcurrent > MAX_CONNECTIONS ||
+      !Number.isSafeInteger(maxRequestsPerMinute) || maxRequestsPerMinute < 1 || maxRequestsPerMinute > 3600 ||
+      typeof now !== 'function') {
     throw new Error('invalid read-only RPC proxy configuration');
   }
+  let lastRefillMs = Number(now());
+  if (!Number.isFinite(lastRefillMs)) throw new Error('invalid read-only RPC proxy clock');
+  let requestTokens = maxRequestsPerMinute;
+  const consumeRequestToken = () => {
+    const currentMs = Number(now());
+    if (!Number.isFinite(currentMs)) return false;
+    const elapsedMs = Math.max(0, currentMs - lastRefillMs);
+    requestTokens = Math.min(
+      maxRequestsPerMinute,
+      requestTokens + elapsedMs * maxRequestsPerMinute / 60000
+    );
+    if (currentMs > lastRefillMs) lastRefillMs = currentMs;
+    if (requestTokens < 1) return false;
+    requestTokens -= 1;
+    return true;
+  };
   let active = 0;
   const stats = { accepted: 0, denied: 0, failed: 0 };
   const server = http.createServer((incoming, outgoing) => {
@@ -139,6 +166,11 @@ function createReadonlyRpcProxy({ cookiePath, token, rpcPort = 48332, maxConcurr
         !timingSafeToken(incoming.headers.authorization, token)) {
       stats.denied++;
       send(403, jsonRpcError(null, -32001, 'proxy capability authentication failed'));
+      return;
+    }
+    if (!consumeRequestToken()) {
+      stats.denied++;
+      send(429, jsonRpcError(null, -32004, 'proxy authenticated request rate exceeded'));
       return;
     }
     if (active >= maxConcurrent) {
@@ -204,6 +236,7 @@ function createReadonlyRpcProxy({ cookiePath, token, rpcPort = 48332, maxConcurr
   server.headersTimeout = 5000;
   server.keepAliveTimeout = 1000;
   server.maxRequestsPerSocket = 100;
+  server.maxConnections = MAX_CONNECTIONS;
   return { server, stats, methods: Object.freeze(Object.keys(METHOD_POLICY).sort()) };
 }
 
@@ -234,6 +267,8 @@ if (require.main === module) {
         maxRequestBytes: MAX_REQUEST_BYTES,
         maxResponseBytes: MAX_RESPONSE_BYTES,
         maxConcurrentRequests: MAX_CONCURRENT_REQUESTS,
+        maxAuthenticatedRequestsPerMinute: MAX_AUTHENTICATED_REQUESTS_PER_MINUTE,
+        maxConnections: MAX_CONNECTIONS,
         broadcastAllowed: false,
         walletRpcAllowed: false
       })}\n`);
@@ -249,6 +284,8 @@ module.exports = {
   MAX_REQUEST_BYTES,
   MAX_RESPONSE_BYTES,
   MAX_CONCURRENT_REQUESTS,
+  MAX_AUTHENTICATED_REQUESTS_PER_MINUTE,
+  MAX_CONNECTIONS,
   validateRpcRequest,
   createReadonlyRpcProxy
 };

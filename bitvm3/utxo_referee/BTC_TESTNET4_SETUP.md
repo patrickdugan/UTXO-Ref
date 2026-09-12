@@ -74,7 +74,8 @@ After the host ACL and account separation preflight passes, expose Core to swarm
 workers only through `btc_testnet4_readonly_rpc_proxy.js`. The proxy token must be
 stored in a bounded regular file readable by the worker account; the Core cookie
 remains readable only by the trusted coordinator. Verify the live deny boundary
-without signing or broadcasting:
+without signing or broadcasting. The proxy permits at most 120 authenticated
+requests per minute, four concurrent requests, and 16 connected sockets:
 
 ```powershell
 node eval\bitcoin-testnet4-readonly-rpc-probe.js

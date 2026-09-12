@@ -12,6 +12,8 @@ const {
   MAX_REQUEST_BYTES,
   MAX_RESPONSE_BYTES,
   MAX_CONCURRENT_REQUESTS,
+  MAX_AUTHENTICATED_REQUESTS_PER_MINUTE,
+  MAX_CONNECTIONS,
   validateRpcRequest,
   createReadonlyRpcProxy
 } = require('./btc_testnet4_readonly_rpc_proxy');
@@ -55,7 +57,7 @@ function post(port, token, payload) {
 
 test('read-only RPC policy rejects wallet, signing, broadcast, and node-control methods', () => {
   const evaluationPolicy = referee.dlc.testnet4EvaluationPolicy;
-  assert.equal(referee.dlc.securityBoundaryVersion, 40);
+  assert.equal(referee.dlc.securityBoundaryVersion, 41);
   assert.equal(evaluationPolicy.watchOnlySwarmWalletRequired, true);
   assert.equal(evaluationPolicy.watchOnlyWalletProvisioning, 'public-descriptor-import-v1');
   assert.equal(evaluationPolicy.privateDescriptorsAccepted, false);
@@ -67,6 +69,9 @@ test('read-only RPC policy rejects wallet, signing, broadcast, and node-control 
   assert.equal(MAX_REQUEST_BYTES, referee.dlc.testnet4EvaluationPolicy.readonlyRpcMaxRequestBytes);
   assert.equal(MAX_RESPONSE_BYTES, referee.dlc.testnet4EvaluationPolicy.readonlyRpcMaxResponseBytes);
   assert.equal(MAX_CONCURRENT_REQUESTS, referee.dlc.testnet4EvaluationPolicy.readonlyRpcMaxConcurrentRequests);
+  assert.equal(MAX_AUTHENTICATED_REQUESTS_PER_MINUTE,
+    referee.dlc.testnet4EvaluationPolicy.readonlyRpcMaxAuthenticatedRequestsPerMinute);
+  assert.equal(MAX_CONNECTIONS, referee.dlc.testnet4EvaluationPolicy.readonlyRpcMaxConnections);
   for (const method of [
     'getwalletinfo', 'listunspent', 'walletpassphrase', 'signrawtransactionwithwallet',
     'sendrawtransaction', 'submitblock', 'stop', 'setnetworkactive', 'addnode', 'pruneblockchain'
@@ -168,6 +173,48 @@ test('proxy enforces its cross-request concurrency bound', async () => {
     releaseUpstream();
     assert.equal((await first).status, 200);
     assert.deepEqual(proxy.stats, { accepted: 1, denied: 1, failed: 0 });
+  } finally {
+    await close(proxy.server);
+    await close(upstream);
+    fs.rmSync(temporary, { recursive: true, force: true });
+  }
+});
+
+test('proxy token bucket bounds authenticated request rate and refills over time', async () => {
+  const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'utxoref-rpc-rate-'));
+  const cookiePath = path.join(temporary, '.cookie');
+  fs.writeFileSync(cookiePath, '__cookie__:test-only-secret\n', { encoding: 'utf8', flag: 'wx' });
+  const upstream = http.createServer((request, response) => {
+    const chunks = [];
+    request.on('data', chunk => chunks.push(chunk));
+    request.on('end', () => {
+      const incoming = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+      const body = Buffer.from(JSON.stringify({ jsonrpc: '2.0', id: incoming.id, result: true }), 'utf8');
+      response.writeHead(200, { 'Content-Type': 'application/json', 'Content-Length': body.length });
+      response.end(body);
+    });
+  });
+  const rpcPort = await listen(upstream);
+  const token = '12'.repeat(32);
+  let clock = 1000;
+  const proxy = createReadonlyRpcProxy({
+    cookiePath, token, rpcPort, maxRequestsPerMinute: 2, now: () => clock
+  });
+  const proxyPort = await listen(proxy.server);
+  const request = id => post(proxyPort, token, {
+    jsonrpc: '2.0', id, method: 'getbestblockhash', params: []
+  });
+  try {
+    assert.equal((await request(1)).status, 200);
+    assert.equal((await request(2)).status, 200);
+    const limited = await request(3);
+    assert.equal(limited.status, 429);
+    assert.equal(limited.value.error.code, -32004);
+    clock += 30000;
+    assert.equal((await request(4)).status, 200);
+    clock -= 60000;
+    assert.equal((await request(5)).status, 429);
+    assert.deepEqual(proxy.stats, { accepted: 3, denied: 2, failed: 0 });
   } finally {
     await close(proxy.server);
     await close(upstream);
