@@ -230,6 +230,9 @@ The local research implementation now:
     views, Core-decoded proposal txid/wtxid/vsize and input-derived fee, fee-pin
     decisions, and confirmed-spend alerts in the same durable journal while
     preserving idempotency across mixed observation types.
+    The two-node Core 31.1 harness confirms the observer-facing RPC fields on
+    both nodes, including full-RBF, incremental relay fee, pin fee/vsize,
+    non-BIP125 status, and peer mempool inventory.
 
 The changes block the concrete exploit probes. They reduce testnet risk but do
 not promote this module to a production signer.

@@ -40,7 +40,8 @@
     "signed_multinode_anchor_relay_evidence",
     "separate_prebroadcast_budget_and_postbroadcast_quorum_gates",
     "confirmed_unknown_anchor_spend_halt",
-    "core_decoded_recovery_fee_and_wtxid_binding"
+    "core_decoded_recovery_fee_and_wtxid_binding",
+    "bitcoin_core_31_1_observer_rpc_field_evidence"
   ],
   "productionBlockers": [
     "replace_javascript_bigint_signer_with_reviewed_native_secp256k1_implementation",
