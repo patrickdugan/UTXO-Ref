@@ -2,6 +2,8 @@ param(
   [string]$DataDirectory = 'D:\BitcoinTestnet',
   [string]$WalletName = 'utxoref-testnet',
   [string]$BitcoinCli = 'D:\Tools\BitcoinCore-31.1\bitcoin-31.1\bin\bitcoin-cli.exe',
+  [string]$BitcoinDaemon = 'D:\Tools\BitcoinCore-31.1\bitcoin-31.1\bin\bitcoind.exe',
+  [ValidateRange(1, 65535)][int]$RpcPort = 48332,
   [string]$AgentIdentity = '',
   [string]$ProxyTokenFile = '',
   [switch]$TrustedCoordinator,
@@ -10,6 +12,10 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
+$expectedSignerSubject = 'CN=Bitcoin Core Code Signing LLC, O=Bitcoin Core Code Signing LLC, L=Lewes, S=Delaware, C=US'
+$expectedSignerThumbprint = '3A31CC9595E7A30096A8EA77F9DA2A6CB63F766F'
+$expectedBitcoindSha256 = 'f79eeb94e1379986df9f7be4c78c8fc8e18dc9be64a31cbaa8acad249d3db77a'
+$expectedBitcoinCliSha256 = 'f6ff1c850fd812c88afd817daac488dfac48b1a12eb99090ce541a663787698b'
 
 function Add-Check {
   param([string]$Name, [bool]$Passed, [string]$Detail)
@@ -54,6 +60,53 @@ function Test-RestrictedAcl {
   Add-Check "acl:$Path" $passed $detail
 }
 
+function Test-PinnedBitcoinBinary {
+  param([string]$Name, [string]$Path, [string]$ExpectedSha256)
+  if (-not [System.IO.Path]::IsPathFullyQualified($Path) -or
+      -not (Test-Path -LiteralPath $Path -PathType Leaf)) {
+    Add-Check "binary:$Name" $false 'pinned absolute binary path is missing'
+    return $false
+  }
+  $item = Get-Item -LiteralPath $Path -Force
+  $signature = Get-AuthenticodeSignature -LiteralPath $Path
+  $sha256 = (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant()
+  $linked = ($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0
+  $passed = -not $linked -and $signature.Status -eq 'Valid' -and
+    $signature.SignerCertificate.Subject -ceq $expectedSignerSubject -and
+    $signature.SignerCertificate.Thumbprint -ceq $expectedSignerThumbprint -and
+    $sha256 -ceq $ExpectedSha256
+  Add-Check "binary:$Name" $passed "linked=$linked; signature=$($signature.Status); signerPinned=$($signature.SignerCertificate.Thumbprint -ceq $expectedSignerThumbprint); sha256Pinned=$($sha256 -ceq $ExpectedSha256)"
+  return $passed
+}
+
+function Test-ActualRpcListener {
+  param([int]$Port, [string]$ExpectedDaemon)
+  $netstat = Join-Path $env:SystemRoot 'System32\netstat.exe'
+  if (-not (Test-Path -LiteralPath $netstat -PathType Leaf)) {
+    Add-Check 'actual-loopback-rpc-listener' $false 'netstat is unavailable'
+    return
+  }
+  $listeners = @(& $netstat -ano -p tcp | ForEach-Object {
+    $parts = $_.Trim() -split '\s+'
+    if ($parts.Count -ge 5 -and $parts[0] -eq 'TCP' -and $parts[3] -eq 'LISTENING' -and
+        $parts[1] -match ":$Port$") {
+      [pscustomobject]@{ LocalAddress = $parts[1]; OwningProcess = [int]$parts[4] }
+    }
+  })
+  $allowedEndpoints = @("127.0.0.1:$Port", "[::1]:$Port")
+  $ownerPids = @($listeners.OwningProcess | Sort-Object -Unique)
+  $ownerPath = $null
+  if ($ownerPids.Count -eq 1) {
+    try { $ownerPath = (Get-Process -Id $ownerPids[0] -ErrorAction Stop).Path } catch { $ownerPath = $null }
+  }
+  $expectedPath = [System.IO.Path]::GetFullPath($ExpectedDaemon)
+  $ownerMatches = $ownerPath -and [System.IO.Path]::GetFullPath($ownerPath) -ieq $expectedPath
+  $passed = $listeners.Count -gt 0 -and
+    @($listeners | Where-Object { $_.LocalAddress -notin $allowedEndpoints }).Count -eq 0 -and
+    $ownerPids.Count -eq 1 -and $ownerMatches
+  Add-Check 'actual-loopback-rpc-listener' $passed "listeners=$($listeners.Count); nonLoopback=$(@($listeners | Where-Object { $_.LocalAddress -notin $allowedEndpoints }).Count); ownerPids=$($ownerPids.Count); ownerBinaryPinned=$ownerMatches"
+}
+
 function Test-ProxyTokenBoundary {
   param([string]$Path, [string]$AgentSid)
   if (-not $Path -or -not [System.IO.Path]::IsPathFullyQualified($Path) -or
@@ -85,10 +138,32 @@ function Test-ProxyTokenBoundary {
     ($_.FileSystemRights -band [System.Security.AccessControl.FileSystemRights]::ReadData) -ne 0
   }).Count -gt 0
   $agentCanWrite = @($agentAllows | Where-Object { ($_.FileSystemRights -band $writeMask) -ne 0 }).Count -gt 0
+  $parentPath = Split-Path -Parent ([System.IO.Path]::GetFullPath($Path))
+  $parentAcl = Get-Acl -LiteralPath $parentPath
+  $parentOwnerSid = Resolve-Sid $parentAcl.Owner
+  $parentUnexpected = @($parentAcl.Access | Where-Object {
+    $_.AccessControlType -eq [System.Security.AccessControl.AccessControlType]::Allow -and
+    (Resolve-Sid $_.IdentityReference) -notin $tokenAllowedSids
+  })
+  $agentParentAllows = @($parentAcl.Access | Where-Object {
+    $_.AccessControlType -eq [System.Security.AccessControl.AccessControlType]::Allow -and
+    (Resolve-Sid $_.IdentityReference) -eq $AgentSid
+  })
+  $agentCanTraverseParent = @($agentParentAllows | Where-Object {
+    ($_.FileSystemRights -band [System.Security.AccessControl.FileSystemRights]::ReadAndExecute) -eq
+      [System.Security.AccessControl.FileSystemRights]::ReadAndExecute
+  }).Count -gt 0
+  $agentCanWriteParent = @($agentParentAllows | Where-Object {
+    ($_.FileSystemRights -band $writeMask) -ne 0 -or
+    ($_.FileSystemRights -band [System.Security.AccessControl.FileSystemRights]::CreateFiles) -ne 0 -or
+    ($_.FileSystemRights -band [System.Security.AccessControl.FileSystemRights]::DeleteSubdirectoriesAndFiles) -ne 0
+  }).Count -gt 0
   $passed = -not $linked -and $token -match '^[0-9a-f]{64}$' -and
     $acl.AreAccessRulesProtected -and $ownerSid -in $allowedSids -and
-    $unexpected.Count -eq 0 -and $agentCanRead -and -not $agentCanWrite
-  $detail = "linked=$linked; protected=$($acl.AreAccessRulesProtected); ownerAllowed=$($ownerSid -in $allowedSids); unexpectedAllowRules=$($unexpected.Count); agentCanRead=$agentCanRead; agentCanWrite=$agentCanWrite"
+    $unexpected.Count -eq 0 -and $agentCanRead -and -not $agentCanWrite -and
+    $parentAcl.AreAccessRulesProtected -and $parentOwnerSid -in $allowedSids -and
+    $parentUnexpected.Count -eq 0 -and $agentCanTraverseParent -and -not $agentCanWriteParent
+  $detail = "linked=$linked; protected=$($acl.AreAccessRulesProtected); ownerAllowed=$($ownerSid -in $allowedSids); unexpectedAllowRules=$($unexpected.Count); agentCanRead=$agentCanRead; agentCanWrite=$agentCanWrite; parentProtected=$($parentAcl.AreAccessRulesProtected); parentOwnerAllowed=$($parentOwnerSid -in $allowedSids); parentUnexpectedAllowRules=$($parentUnexpected.Count); agentCanTraverseParent=$agentCanTraverseParent; agentCanWriteParent=$agentCanWriteParent"
   Add-Check 'proxy-token-boundary' $passed $detail
 }
 
@@ -114,7 +189,9 @@ $walletDirectory = Join-Path $chainDirectory (Join-Path 'wallets' $WalletName)
 $walletDatabase = Join-Path $walletDirectory 'wallet.dat'
 $configurationPath = Join-Path $dataDirectoryPath 'bitcoin.conf'
 
-Add-Check 'bitcoin-cli' (Test-Path -LiteralPath $BitcoinCli -PathType Leaf) 'pinned CLI path exists'
+$cliPinned = Test-PinnedBitcoinBinary 'bitcoin-cli' $BitcoinCli $expectedBitcoinCliSha256
+$daemonPinned = Test-PinnedBitcoinBinary 'bitcoind' $BitcoinDaemon $expectedBitcoindSha256
+Test-ActualRpcListener $RpcPort $BitcoinDaemon
 if ($TrustedCoordinator) {
   Add-Check 'dedicated-swarm-account' $true 'not required for the trusted-coordinator inspection mode'
   Add-Check 'proxy-token-boundary' $true 'not required for the trusted-coordinator inspection mode'

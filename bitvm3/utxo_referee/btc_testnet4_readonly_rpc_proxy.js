@@ -13,6 +13,7 @@ const MAX_CONNECTIONS = 16;
 const UPSTREAM_TIMEOUT_MS = 10000;
 const TXID = /^[0-9a-f]{64}$/;
 const HEX = /^(?:[0-9a-f]{2})+$/;
+const TOKEN = /^[0-9a-f]{64}$/;
 
 function exactParams(params, length) {
   return Array.isArray(params) && params.length === length;
@@ -59,24 +60,59 @@ function isLoopback(address) {
 }
 
 function readBoundedRegularFile(filePath, maximumBytes, label) {
-  const metadata = fs.lstatSync(filePath);
+  const metadata = fs.lstatSync(filePath, { bigint: true });
   const resolved = path.resolve(filePath);
   const real = fs.realpathSync.native(filePath);
   const samePath = process.platform === 'win32'
     ? resolved.toLowerCase() === real.toLowerCase()
     : resolved === real;
-  if (!metadata.isFile() || metadata.isSymbolicLink() || metadata.size < 1 || metadata.size > maximumBytes ||
+  if (!metadata.isFile() || metadata.isSymbolicLink() || metadata.nlink !== 1n ||
+      metadata.size < 1n || metadata.size > BigInt(maximumBytes) ||
       !samePath) {
     throw new Error(`${label} must be a bounded regular non-linked file`);
   }
-  return fs.readFileSync(filePath, 'utf8').trim();
+  const descriptor = fs.openSync(filePath, fs.constants.O_RDONLY | (fs.constants.O_NOFOLLOW || 0));
+  let bytes;
+  try {
+    const opened = fs.fstatSync(descriptor, { bigint: true });
+    if (!opened.isFile() || opened.nlink !== 1n || opened.dev !== metadata.dev ||
+        opened.ino !== metadata.ino || opened.size !== metadata.size ||
+        opened.mtimeNs !== metadata.mtimeNs || opened.ctimeNs !== metadata.ctimeNs) {
+      throw new Error(`${label} identity changed while opening`);
+    }
+    bytes = fs.readFileSync(descriptor);
+    if (BigInt(bytes.length) !== opened.size) throw new Error(`${label} changed while reading`);
+    return bytes.toString('utf8').trim();
+  } finally {
+    if (bytes) bytes.fill(0);
+    fs.closeSync(descriptor);
+  }
+}
+
+function createFileTokenProvider(tokenFile) {
+  if (!path.isAbsolute(tokenFile)) throw new Error('proxy token file must be absolute');
+  const provider = () => {
+    const value = readBoundedRegularFile(tokenFile, 256, 'proxy token');
+    if (!TOKEN.test(value)) throw new Error('proxy token must be 256-bit lowercase hex');
+    return value;
+  };
+  provider();
+  return provider;
 }
 
 function timingSafeToken(received, expected) {
-  if (typeof received !== 'string' || !received.startsWith('Bearer ')) return false;
-  const actual = Buffer.from(received.slice(7), 'utf8');
+  if (typeof received !== 'string' || !received.startsWith('Bearer ') ||
+      typeof expected !== 'string' || !TOKEN.test(expected)) return false;
+  const actualText = received.slice(7);
+  if (!TOKEN.test(actualText)) return false;
+  const actual = Buffer.from(actualText, 'utf8');
   const wanted = Buffer.from(expected, 'utf8');
-  return actual.length === wanted.length && require('crypto').timingSafeEqual(actual, wanted);
+  try {
+    return require('crypto').timingSafeEqual(actual, wanted);
+  } finally {
+    actual.fill(0);
+    wanted.fill(0);
+  }
 }
 
 function forwardToCore({ rpcPort, cookie, request }) {
@@ -127,12 +163,16 @@ function forwardToCore({ rpcPort, cookie, request }) {
 function createReadonlyRpcProxy({
   cookiePath,
   token,
+  tokenProvider,
   rpcPort = 48332,
   maxConcurrent = MAX_CONCURRENT_REQUESTS,
   maxRequestsPerMinute = MAX_AUTHENTICATED_REQUESTS_PER_MINUTE,
   now = Date.now
 }) {
-  if (!path.isAbsolute(cookiePath) || typeof token !== 'string' || token.length < 32 || token.length > 256 ||
+  const hasStaticToken = typeof token === 'string';
+  const hasTokenProvider = typeof tokenProvider === 'function';
+  if (!path.isAbsolute(cookiePath) || hasStaticToken === hasTokenProvider ||
+      (hasStaticToken && !TOKEN.test(token)) ||
       !Number.isSafeInteger(rpcPort) || rpcPort < 1 || rpcPort > 65535 ||
       !Number.isSafeInteger(maxConcurrent) || maxConcurrent < 1 || maxConcurrent > MAX_CONNECTIONS ||
       !Number.isSafeInteger(maxRequestsPerMinute) || maxRequestsPerMinute < 1 || maxRequestsPerMinute > 3600 ||
@@ -162,8 +202,18 @@ function createReadonlyRpcProxy({
       outgoing.writeHead(status, { 'Content-Type': 'application/json', 'Content-Length': body.length });
       outgoing.end(body);
     };
-    if (!isLoopback(incoming.socket.remoteAddress) || incoming.method !== 'POST' || incoming.url !== '/' ||
-        !timingSafeToken(incoming.headers.authorization, token)) {
+    if (!isLoopback(incoming.socket.remoteAddress) || incoming.method !== 'POST' || incoming.url !== '/') {
+      stats.denied++;
+      send(403, jsonRpcError(null, -32001, 'proxy capability authentication failed'));
+      return;
+    }
+    let expectedToken;
+    try {
+      expectedToken = hasTokenProvider ? tokenProvider() : token;
+    } catch (_) {
+      expectedToken = null;
+    }
+    if (!timingSafeToken(incoming.headers.authorization, expectedToken)) {
       stats.denied++;
       send(403, jsonRpcError(null, -32001, 'proxy capability authentication failed'));
       return;
@@ -256,8 +306,8 @@ if (require.main === module) {
         !Number.isSafeInteger(port) || port < 1 || port > 65535) {
       throw new Error('--token-file must be absolute and --port must be in 1..65535');
     }
-    const token = readBoundedRegularFile(tokenFile, 256, 'proxy token');
-    const proxy = createReadonlyRpcProxy({ cookiePath, token, rpcPort });
+    const tokenProvider = createFileTokenProvider(tokenFile);
+    const proxy = createReadonlyRpcProxy({ cookiePath, tokenProvider, rpcPort });
     proxy.server.listen(port, '127.0.0.1', () => {
       process.stdout.write(`${JSON.stringify({
         schema: 'utxoref_bitcoin_testnet4_readonly_rpc_proxy_v1',
@@ -269,6 +319,8 @@ if (require.main === module) {
         maxConcurrentRequests: MAX_CONCURRENT_REQUESTS,
         maxAuthenticatedRequestsPerMinute: MAX_AUTHENTICATED_REQUESTS_PER_MINUTE,
         maxConnections: MAX_CONNECTIONS,
+        tokenFormat: 'lowercase-hex-256-bit',
+        tokenRevalidatedPerRequest: true,
         broadcastAllowed: false,
         walletRpcAllowed: false
       })}\n`);
@@ -286,6 +338,7 @@ module.exports = {
   MAX_CONCURRENT_REQUESTS,
   MAX_AUTHENTICATED_REQUESTS_PER_MINUTE,
   MAX_CONNECTIONS,
+  createFileTokenProvider,
   validateRpcRequest,
   createReadonlyRpcProxy
 };

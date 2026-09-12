@@ -119,6 +119,67 @@ function parseCanonicalUnsignedTransaction(rawTxHex) {
   });
 }
 
+function parseCanonicalSignedTaprootTransaction(rawTxHex) {
+  if (typeof rawTxHex !== 'string' || rawTxHex.length < 24 || rawTxHex.length % 2 !== 0 ||
+      rawTxHex.length > 40000 || !/^[0-9a-f]+$/.test(rawTxHex)) {
+    throw new Error('signed transaction must be bounded canonical lowercase hex');
+  }
+  const bytes = Buffer.from(rawTxHex, 'hex');
+  const reader = new Reader(bytes);
+  const versionStart = reader.offset;
+  const version = reader.u32('version');
+  if (version !== 2 && version !== TRUC_VERSION) throw new Error('signed DLC transaction version must be 2 or 3');
+  const versionBytes = bytes.subarray(versionStart, reader.offset);
+  if (reader.read(1, 'segwit marker')[0] !== 0 || reader.read(1, 'segwit flag')[0] !== 1) {
+    throw new Error('signed refund must use canonical SegWit marker and flag');
+  }
+  const strippedBodyStart = reader.offset;
+  const inputCount = reader.compactSize('input count', 16);
+  if (inputCount < 1) throw new Error('signed DLC transaction must contain an input');
+  for (let index = 0; index < inputCount; index++) {
+    reader.read(32, `input ${index} txid`);
+    reader.u32(`input ${index} vout`);
+    const scriptLength = reader.compactSize(`input ${index} script length`, 10000);
+    if (scriptLength !== 0) throw new Error(`signed DLC input ${index} scriptSig must be empty`);
+    reader.u32(`input ${index} sequence`);
+  }
+  const outputCount = reader.compactSize('output count', 1000);
+  if (outputCount < 1) throw new Error('signed DLC transaction must contain an output');
+  for (let index = 0; index < outputCount; index++) {
+    const value = reader.u64(`output ${index} value`);
+    if (value > MAX_MONEY) throw new Error(`signed DLC output ${index} exceeds MAX_MONEY`);
+    const scriptLength = reader.compactSize(`output ${index} script length`, 10000);
+    if (scriptLength < 2) throw new Error(`signed DLC output ${index} scriptPubKey is too short`);
+    reader.read(scriptLength, `output ${index} scriptPubKey`);
+  }
+  const strippedBodyEnd = reader.offset;
+  const witness = [];
+  for (let index = 0; index < inputCount; index++) {
+    const itemCount = reader.compactSize(`input ${index} witness item count`, 16);
+    if (itemCount !== 1) throw new Error('signed refund must contain one Taproot key-path witness item per input');
+    const itemLength = reader.compactSize(`input ${index} witness item length`, 65);
+    if (itemLength !== 64) throw new Error('signed refund must use one 64-byte SIGHASH_DEFAULT Schnorr signature');
+    witness.push(Object.freeze([reader.read(itemLength, `input ${index} witness signature`).toString('hex')]));
+  }
+  const locktimeStart = reader.offset;
+  reader.u32('locktime');
+  if (reader.remaining() !== 0) throw new Error('signed transaction has trailing bytes');
+  const stripped = Buffer.concat([
+    versionBytes,
+    bytes.subarray(strippedBodyStart, strippedBodyEnd),
+    bytes.subarray(locktimeStart)
+  ]);
+  const unsignedTransaction = parseCanonicalUnsignedTransaction(stripped.toString('hex'));
+  return Object.freeze({
+    ...unsignedTransaction,
+    wtxid: Buffer.from(sha256(sha256(bytes))).reverse().toString('hex'),
+    strippedRawTxHex: unsignedTransaction.rawTxHex,
+    signedRawTxHex: rawTxHex,
+    witness: Object.freeze(witness),
+    unsignedTransaction
+  });
+}
+
 function normalizeFunding(funding) {
   if (!funding || !Number.isSafeInteger(funding.vout) || funding.vout < 0 || funding.vout > 0xffffffff ||
       typeof funding.valueSats !== 'bigint' || funding.valueSats < 1n || funding.valueSats > MAX_MONEY) {
@@ -377,6 +438,7 @@ module.exports = {
   TRUC_CHILD_MAX_VSIZE,
   TRUC_MAX_UNCONFIRMED_CLUSTER_TRANSACTIONS,
   parseCanonicalUnsignedTransaction,
+  parseCanonicalSignedTaprootTransaction,
   validateDlcTransactionSet,
   validateDlcTransactionSetCommitments
 };

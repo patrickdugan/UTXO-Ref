@@ -4,31 +4,45 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const { validateDlcContract, transitionDlcContract } = require('./dlc_contract_state');
+const {
+  assertNonSymlinkDirectory,
+  ensureNonSymlinkDirectory,
+  readBoundedJson,
+  writeJsonAppendOnce
+} = require('./dlc_durable_json_store');
+
+const MAX_REVISION_BYTES = 4194304;
 
 function requireContractId(value) {
-  if (typeof value !== 'string' || !/^[A-Za-z0-9._:-]{1,128}$/.test(value)) {
+  if (typeof value !== 'string' || value === '.' || value === '..' ||
+      !/^[A-Za-z0-9._:-]{1,128}$/.test(value)) {
     throw new Error('contractId contains unsafe path characters');
   }
   return value;
+}
+
+function contractKey(contractId) {
+  return crypto.createHash('sha256').update(Buffer.from(requireContractId(contractId), 'utf8')).digest('hex');
 }
 
 class DlcStateStore {
   constructor(baseDirectory) {
     if (typeof baseDirectory !== 'string' || baseDirectory.length === 0) throw new Error('baseDirectory is required');
     this.baseDirectory = path.resolve(baseDirectory);
-    fs.mkdirSync(this.baseDirectory, { recursive: true, mode: 0o700 });
+    ensureNonSymlinkDirectory(this.baseDirectory, 'DLC state store');
   }
 
   _contractDirectory(contractId) {
-    return path.join(this.baseDirectory, requireContractId(contractId));
+    return path.join(this.baseDirectory, contractKey(contractId));
   }
 
   _lockDirectory(contractId) {
-    return path.join(this.baseDirectory, `.${requireContractId(contractId)}.lock`);
+    return path.join(this.baseDirectory, `.${contractKey(contractId)}.lock`);
   }
 
   _withLock(contractId, run) {
     const lockDirectory = this._lockDirectory(contractId);
+    const ownerPath = path.join(lockDirectory, 'owner.json');
     try {
       fs.mkdirSync(lockDirectory, { mode: 0o700 });
     } catch (error) {
@@ -36,21 +50,23 @@ class DlcStateStore {
       throw error;
     }
     try {
-      fs.writeFileSync(path.join(lockDirectory, 'owner.json'), JSON.stringify({ pid: process.pid }), { mode: 0o600, flag: 'wx' });
+      fs.writeFileSync(ownerPath, JSON.stringify({ pid: process.pid }), { mode: 0o600, flag: 'wx' });
     } catch (error) {
-      fs.rmSync(lockDirectory, { recursive: true, force: true });
+      try { fs.unlinkSync(ownerPath); } catch (_cleanupError) {}
+      try { fs.rmdirSync(lockDirectory); } catch (_cleanupError) {}
       throw error;
     }
     try {
       return run();
     } finally {
-      fs.rmSync(lockDirectory, { recursive: true, force: true });
+      try { fs.unlinkSync(ownerPath); } finally { fs.rmdirSync(lockDirectory); }
     }
   }
 
   _revisionFiles(contractId) {
     const directory = this._contractDirectory(contractId);
     if (!fs.existsSync(directory)) return [];
+    assertNonSymlinkDirectory(directory, 'DLC state contract');
     return fs.readdirSync(directory)
       .filter((name) => /^revision-[0-9]{12}\.json$/.test(name))
       .sort();
@@ -59,22 +75,15 @@ class DlcStateStore {
   _writeRevision(record) {
     validateDlcContract(record);
     const directory = this._contractDirectory(record.contractId);
-    fs.mkdirSync(directory, { recursive: true, mode: 0o700 });
+    ensureNonSymlinkDirectory(directory, 'DLC state contract');
     const name = `revision-${String(record.revision).padStart(12, '0')}.json`;
-    const finalPath = path.join(directory, name);
-    if (fs.existsSync(finalPath)) throw new Error(`DLC state revision ${record.revision} already exists`);
-    const tempPath = path.join(directory, `.${name}.${process.pid}.${crypto.randomBytes(8).toString('hex')}.tmp`);
-    const fd = fs.openSync(tempPath, 'wx', 0o600);
     try {
-      fs.writeFileSync(fd, `${JSON.stringify(record, null, 2)}\n`, 'utf8');
-      fs.fsyncSync(fd);
-    } finally {
-      fs.closeSync(fd);
-    }
-    try {
-      fs.renameSync(tempPath, finalPath);
+      writeJsonAppendOnce(directory, name, record, {
+        maxBytes: MAX_REVISION_BYTES,
+        label: 'DLC state revision'
+      });
     } catch (error) {
-      try { fs.unlinkSync(tempPath); } catch (_cleanupError) {}
+      if (error.code === 'EEXIST') throw new Error(`DLC state revision ${record.revision} already exists`);
       throw error;
     }
   }
@@ -111,8 +120,12 @@ class DlcStateStore {
     const files = this._revisionFiles(contractId);
     if (files.length === 0) throw new Error(`DLC contract ${contractId} does not exist`);
     let previous = null;
+    const directory = this._contractDirectory(contractId);
     for (let index = 0; index < files.length; index++) {
-      const record = JSON.parse(fs.readFileSync(path.join(this._contractDirectory(contractId), files[index]), 'utf8'));
+      const record = readBoundedJson(path.join(directory, files[index]), {
+        maxBytes: MAX_REVISION_BYTES,
+        label: 'DLC state revision'
+      });
       validateDlcContract(record);
       if (record.revision !== index) throw new Error('DLC state revision file sequence is not contiguous');
       if (previous && (record.history.length !== previous.history.length + 1 ||
@@ -126,4 +139,4 @@ class DlcStateStore {
   }
 }
 
-module.exports = { DlcStateStore };
+module.exports = { MAX_REVISION_BYTES, contractKey, DlcStateStore };

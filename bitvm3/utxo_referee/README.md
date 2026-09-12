@@ -335,6 +335,63 @@ read access to that token but no write access; Core data remains restricted to
 the coordinator, SYSTEM, and Administrators. Nested membership in privileged
 local groups is rejected while purpose-built non-privileged sandbox groups are
 allowed.
+Boundary V43 revalidates the protected 256-bit proxy-token file on every request.
+Replacing or deleting the file rotates or revokes a running proxy immediately;
+token comparison buffers are cleared after constant-time comparison.
+Boundary V44 binds cookie and token reads to one opened file identity, rejects
+hard links and changes between metadata inspection and reading, and clears the
+raw read buffer. The host gate also requires the worker to lack create, write,
+and delete rights on the token's protected parent directory.
+Boundary V45 pins the Authenticode signer and SHA-256 digests of Bitcoin Core
+31.1's daemon and CLI. The preflight parses the actual Windows listening socket,
+requires every RPC listener to be loopback-only, and binds its sole owning PID
+to the pinned `bitcoind.exe` path.
+Boundary V46 refuses compatibility and scale evidence from a dirty worktree and
+requires the source commit and clean status to remain unchanged across the full
+evaluation. Evidence can no longer attribute uncommitted code to `HEAD`.
+Boundary V47 removes the saved watch-only wallet JSON from the compatibility
+trust boundary. BitAgent runs a fresh read-only Core audit, requires both wallets
+to be loaded already, and verifies exact public-descriptor and confirmed-UTXO
+parity at one stable tip. The audit fails if it would need to create or load a
+wallet or import a descriptor.
+Boundary V48 requires the fully signed refund to be stored before local
+signatures are marked persistent. The append-once recovery store binds the
+contract transcript and validated transaction set, parses the canonical SegWit
+transaction, verifies its SIGHASH_DEFAULT Taproot key-path witness, flushes the
+record before returning, and revalidates it after an independent restore.
+Boundary V49 requires fresh Bitcoin Core decode and mempool-policy evidence for
+the exact finalized funding bytes. The signed receipt binds the approved PSBT
+and current contract transcript, and the state transition rejects transaction
+substitution. The guard cannot sign or broadcast.
+Boundary V50 applies the same exact-byte Core policy gate to CET and refund
+execution. It binds the selected committed settlement, threshold-oracle or
+refund-maturity evidence, stable chain view, and current contract transcript.
+Core and the local parser must agree on transaction identity and serialized
+size metrics; neither execution path can sign or broadcast.
+Boundary V51 limits every signed prebroadcast policy to at most 30 seconds and
+requires `DlcBroadcastAuthorizationStore` to consume it durably before an
+external broadcaster receives authority. Consumption revalidates the complete
+state transition and exact transaction bytes. Cross-process replay, stale or
+future capabilities, incomplete markers, and linked records fail closed.
+Boundary V52 applies the same filesystem identity discipline to consumed
+adaptor-signing authorizations. Records are bounded to 32 KiB, may have exactly
+one link, are opened without following links, and must retain the same device,
+inode, size, and timestamps across open. Read buffers are cleared, and both the
+temporary and renamed final record are flushed before the authorization is
+treated as consumed.
+Boundary V53 moves contract-state revisions, sealed oracle events, peer-session
+claims and commits, and watchtower observations onto a shared durable JSON
+primitive. Reads bind both file and parent-directory identity, reject links and
+oversized records, and clear temporary buffers. Publication uses an exclusive
+link operation so it cannot replace an existing record, then flushes the final
+single-link file. State-store contract IDs are SHA-256 mapped before revision
+and lock paths are constructed, and lock cleanup never recursively deletes a
+path.
+Boundary V54 moves signing-authorization consumption, refund recovery, and
+broadcast-authorization consumption onto that same primitive. Every one-shot
+security record now binds parent-directory identity, publishes without
+replacing an existing record, clears temporary JSON buffers, and flushes the
+final single-link file before reporting durable success.
 The host accepts only bounded regular runtime files whose resolved paths do not
 traverse filesystem links. It hashes the complete runtime closure before and
 after every signer execution, so deletion or mutation during the process
@@ -435,6 +492,22 @@ node bitvm3/utxo_referee/m1_ltc_testnet_demo.js
 ```
 
 Litecoin testnet RPC setup is documented in `LTC_TESTNET_SETUP.md`.
+
+## DLC funding prebroadcast gate
+
+`dlc_funding_prebroadcast_guard.js` performs the final read-only Bitcoin Core
+check for a fully signed funding transaction. It requires the
+`FUNDING_PSBT_APPROVED` state, calls `decoderawtransaction` and
+`testmempoolaccept` inside a stable tip/mempool bracket, and returns signed
+receipt metadata bound to the raw transaction, txid, wtxid, approved PSBT, and
+contract transcript. The `FUNDING_BROADCAST` transition rejects transaction
+substitution. This module cannot sign or broadcast, and the funding finalizer
+continues to reject broadcast requests.
+`dlc_execution_prebroadcast_guard.js` applies the same boundary before a CET or
+refund execution receipt can advance the signed contract state.
+`DlcBroadcastAuthorizationStore` must then consume the signed transition within
+its short validity window. It records intent before broadcast and returns the
+validated next contract state, but never sends a transaction itself.
 
 ## Bitcoin testnet4 live smoke
 

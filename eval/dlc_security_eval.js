@@ -30,6 +30,9 @@ const {
   transitionDlcContract
 } = require(path.join(__dirname, '..', 'bitvm3', 'utxo_referee', 'dlc_contract_state.js'));
 const { DlcStateStore } = require(path.join(__dirname, '..', 'bitvm3', 'utxo_referee', 'dlc_state_store.js'));
+const { readBoundedJson, writeJsonAppendOnce } = require(path.join(
+  __dirname, '..', 'bitvm3', 'utxo_referee', 'dlc_durable_json_store.js'
+));
 const {
   buildThresholdOutcomeSets,
   combineThresholdAttestations
@@ -45,6 +48,11 @@ const { DlcOracleEventStore } = require(path.join(__dirname, '..', 'bitvm3', 'ut
 const { DlcSigningAuthorizationStore } = require(path.join(
   __dirname, '..', 'bitvm3', 'utxo_referee', 'dlc_signing_authorization_store.js'
 ));
+const {
+  DlcRefundRecoveryStore,
+  refundKey: refundRecoveryKey,
+  recordHash: refundRecoveryRecordHash
+} = require(path.join(__dirname, '..', 'bitvm3', 'utxo_referee', 'dlc_refund_recovery_store.js'));
 const nativeSignerClientPath = path.join(
   __dirname, '..', 'bitvm3', 'utxo_referee', 'dlc_native_signer_process_client.js'
 );
@@ -57,6 +65,7 @@ const {
 } = require(nativeSignerClientPath);
 const {
   P2A_SCRIPT_PUBKEY_HEX,
+  parseCanonicalSignedTaprootTransaction,
   parseCanonicalUnsignedTransaction,
   validateDlcTransactionSet,
   validateDlcTransactionSetCommitments
@@ -81,6 +90,15 @@ const {
 const { DlcPeerSessionStore } = require(path.join(__dirname, '..', 'bitvm3', 'utxo_referee', 'dlc_peer_session_store.js'));
 const { DlcWatchtowerJournal } = require(path.join(__dirname, '..', 'bitvm3', 'utxo_referee', 'dlc_watchtower_journal.js'));
 const { evaluateDlcAnchorRecovery } = require(path.join(__dirname, '..', 'bitvm3', 'utxo_referee', 'dlc_anchor_recovery_guard.js'));
+const { validateFundingPrebroadcastPolicy } = require(path.join(
+  __dirname, '..', 'bitvm3', 'utxo_referee', 'dlc_funding_prebroadcast_guard.js'
+));
+const { validateExecutionPrebroadcastPolicy } = require(path.join(
+  __dirname, '..', 'bitvm3', 'utxo_referee', 'dlc_execution_prebroadcast_guard.js'
+));
+const { DlcBroadcastAuthorizationStore } = require(path.join(
+  __dirname, '..', 'bitvm3', 'utxo_referee', 'dlc_broadcast_authorization_store.js'
+));
 const validatorKeys = crypto.generateKeyPairSync('ed25519');
 const validatorSpki = validatorKeys.publicKey.export({ format: 'der', type: 'spki' }).toString('base64');
 const validatorKeyId = crypto.createHash('sha256').update(Buffer.from(validatorSpki, 'base64')).digest('hex');
@@ -126,20 +144,76 @@ function throws(fn, pattern) {
 }
 
 function evidenceFor(contract, stage, idempotencyKey, overrides = {}) {
-  return REQUIRED_EVIDENCE[stage].map((kind) => signValidationReceipt({
-    privateKey: validatorKeys.privateKey,
-    contractId: contract.contractId,
-    contractDigest: contract.contractDigest,
-    from: contract.stage,
-    to: stage,
-    idempotencyKey,
-    kind,
-    digest: overrides[kind] || sha256(`${stage}:${kind}`).toString('hex')
-  }));
+  const historicalEvidence = contract.history.flatMap((entry) => entry.evidence);
+  const historicalDigest = (kind) => historicalEvidence.find((receipt) => receipt.kind === kind)?.digest;
+  const digestFor = (kind) => {
+    const override = overrides[kind];
+    return typeof override === 'object'
+      ? override.digest
+      : (override || sha256(`${stage}:${kind}`).toString('hex'));
+  };
+  return REQUIRED_EVIDENCE[stage].map((kind) => {
+    const override = overrides[kind];
+    let metadata = typeof override === 'object' ? override.metadata : undefined;
+    if (metadata === undefined && kind === 'prebroadcast_bitcoin_core_policy') {
+      const issuedAtUnixSeconds = Math.floor(Date.now() / 1000);
+      metadata = {
+        rawTransactionSha256: digestFor('broadcast_transaction'),
+        txid: sha256(`${idempotencyKey}:prebroadcast:txid`).toString('hex'),
+        wtxid: sha256(`${idempotencyKey}:prebroadcast:wtxid`).toString('hex'),
+        contractRevision: contract.revision,
+        contractTranscriptHash: contract.transcriptHash,
+        fundingPsbtDigest: historicalDigest('funding_psbt_validation'),
+        issuedAtUnixSeconds,
+        expiresAtUnixSeconds: issuedAtUnixSeconds + 30,
+        chainTip: sha256(`${idempotencyKey}:prebroadcast:chain-tip`).toString('hex'),
+        chainHeight: 250,
+        mempoolSequence: 1,
+        corePolicyAllowed: true,
+        signingAllowed: false,
+        sendRawTransactionAllowed: false
+      };
+    }
+    if (metadata === undefined && (kind === 'cet_prebroadcast_bitcoin_core_policy' ||
+        kind === 'refund_prebroadcast_bitcoin_core_policy')) {
+      const cet = kind.startsWith('cet_');
+      const issuedAtUnixSeconds = Math.floor(Date.now() / 1000);
+      metadata = {
+        executionType: cet ? 'cet' : 'refund',
+        rawTransactionSha256: digestFor(cet ? 'cet_broadcast_transaction' : 'refund_broadcast_transaction'),
+        txid: sha256(`${idempotencyKey}:${cet ? 'cet' : 'refund'}:txid`).toString('hex'),
+        wtxid: sha256(`${idempotencyKey}:${cet ? 'cet' : 'refund'}:wtxid`).toString('hex'),
+        contractRevision: contract.revision,
+        contractTranscriptHash: contract.transcriptHash,
+        settlementCommitmentDigest: historicalDigest(cet ? 'cet_set' : 'refund_transaction'),
+        executionEvidenceDigest: digestFor(cet ? 'oracle_threshold_attestation' : 'refund_maturity'),
+        issuedAtUnixSeconds,
+        expiresAtUnixSeconds: issuedAtUnixSeconds + 30,
+        chainTip: sha256(`${idempotencyKey}:${cet ? 'cet' : 'refund'}:chain-tip`).toString('hex'),
+        chainHeight: 250,
+        mempoolSequence: 1,
+        corePolicyAllowed: true,
+        signingAllowed: false,
+        sendRawTransactionAllowed: false
+      };
+    }
+    return signValidationReceipt({
+      privateKey: validatorKeys.privateKey,
+      contractId: contract.contractId,
+      contractDigest: contract.contractDigest,
+      from: contract.stage,
+      to: stage,
+      idempotencyKey,
+      kind,
+      digest: digestFor(kind),
+      ...(metadata === undefined ? {} : { metadata })
+    });
+  });
 }
 
 const cases = [];
 let peerFixtureForEval;
+let prebroadcastFixtureForEval;
 function check(name, category, points, run) {
   const started = process.hrtime.bigint();
   try {
@@ -405,6 +479,121 @@ check('funding PSBT approval requires the complete ordered state transcript', 's
   return contract.stage === 'FUNDING_PSBT_APPROVED' && authorization.stateRecordHash === contract.recordHash;
 });
 
+check('fresh Core policy binds the exact funding transaction before broadcast', 'funding-safety', 10, () => {
+  const pinnedPubkeys = ['11'.repeat(32), '22'.repeat(32), '33'.repeat(32)];
+  const psbtDigest = sha256('prebroadcast-eval:psbt').toString('hex');
+  let contract = createDlcContract({
+    contractId: 'prebroadcast-eval-contract',
+    network: 'bitcoin-testnet4',
+    contractDigest: sha256('prebroadcast-eval-contract').toString('hex'),
+    oraclePolicy: { threshold: 2, total: 3, pinnedPubkeys },
+    validatorPolicy
+  });
+  for (const stage of [
+    'AUTHENTICATED_ORACLES',
+    'CANONICAL_CETS_AND_REFUND',
+    'COUNTERPARTY_SIGNATURES_VERIFIED',
+    'LOCAL_SIGNATURES_PERSISTED',
+    'FUNDING_PSBT_APPROVED'
+  ]) {
+    const idempotencyKey = `prebroadcast-eval:${stage}`;
+    contract = transitionDlcContract(contract, {
+      to: stage,
+      idempotencyKey,
+      evidence: evidenceFor(contract, stage, idempotencyKey,
+        stage === 'FUNDING_PSBT_APPROVED' ? { funding_psbt_validation: psbtDigest } : {})
+    });
+  }
+  const rawTxHex = '0200000000010100000000000000000000';
+  const txid = sha256('prebroadcast-eval:txid').toString('hex');
+  const wtxid = sha256('prebroadcast-eval:wtxid').toString('hex');
+  const bestBlockHash = sha256('prebroadcast-eval:block').toString('hex');
+  const methods = [];
+  const rpc = (method) => {
+    methods.push(method);
+    if (method === 'getblockchaininfo') return { chain: 'testnet4', blocks: 250, bestblockhash: bestBlockHash };
+    if (method === 'getrawmempool') return { mempool_sequence: 52 };
+    if (method === 'decoderawtransaction') {
+      return { txid, hash: wtxid, version: 2, size: 17, vsize: 17, weight: 68, locktime: 0 };
+    }
+    if (method === 'testmempoolaccept') return [{ txid, wtxid, allowed: true }];
+    throw new Error(`unexpected prebroadcast RPC ${method}`);
+  };
+  const policyNow = new Date('2030-01-02T03:04:05.000Z');
+  const checked = validateFundingPrebroadcastPolicy({
+    contractState: contract, rawTxHex, rpc, now: policyNow, ttlSeconds: 30
+  });
+  const denied = throws(() => validateFundingPrebroadcastPolicy({
+    contractState: contract,
+    rawTxHex,
+    rpc(method) {
+      if (method === 'testmempoolaccept') return [{ txid, wtxid, allowed: false, 'reject-reason': 'policy denial' }];
+      return rpc(method);
+    }
+  }), /rejected.*policy denial/);
+  prebroadcastFixtureForEval = { contract, rawTxHex, checked, policyNow };
+  return checked.record.contractRecordHash === contract.recordHash &&
+    checked.record.fundingPsbtDigest === psbtDigest && checked.record.txid === txid && checked.record.wtxid === wtxid &&
+    checked.record.signingAllowed === false && checked.record.sendRawTransactionAllowed === false &&
+    methods.every((method) => method !== 'sendrawtransaction') && denied;
+});
+
+check('broadcast authorization is short-lived and exactly one process can consume it', 'funding-safety', 12, () => {
+  if (!prebroadcastFixtureForEval) return false;
+  const { contract, rawTxHex, checked, policyNow } = prebroadcastFixtureForEval;
+  const idempotencyKey = 'prebroadcast-eval:broadcast';
+  const transitionRequest = {
+    to: 'FUNDING_BROADCAST',
+    idempotencyKey,
+    evidence: evidenceFor(contract, 'FUNDING_BROADCAST', idempotencyKey, {
+      broadcast_transaction: checked.record.rawTransactionSha256,
+      prebroadcast_bitcoin_core_policy: { digest: checked.policyDigest, metadata: checked.receiptMetadata }
+    })
+  };
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'utxoref-broadcast-eval-'));
+  try {
+    const store = new DlcBroadcastAuthorizationStore(path.join(directory, 'single'));
+    const consumed = store.consume({
+      contractState: contract,
+      transitionRequest,
+      rawTxHex,
+      now: new Date(policyNow.getTime() + 10000)
+    });
+    const replayRejected = throws(() => store.consume({
+      contractState: contract,
+      transitionRequest,
+      rawTxHex,
+      now: new Date(policyNow.getTime() + 11000)
+    }), /already durably consumed/);
+    const expiredRejected = throws(() => new DlcBroadcastAuthorizationStore(path.join(directory, 'expired')).consume({
+      contractState: contract,
+      transitionRequest,
+      rawTxHex,
+      now: new Date(policyNow.getTime() + 31000)
+    }), /has expired/);
+    const fixturePath = path.join(directory, 'race-fixture.json');
+    fs.writeFileSync(fixturePath, JSON.stringify({
+      contractState: contract,
+      transitionRequest,
+      rawTxHex,
+      now: new Date(policyNow.getTime() + 10000).toISOString()
+    }));
+    const race = spawnSync(process.execPath, [
+      path.join(__dirname, '..', 'bitvm3', 'utxo_referee', 'dlc_broadcast_authorization_race.js'),
+      path.join(directory, 'race'),
+      fixturePath,
+      '16'
+    ], { encoding: 'utf8', windowsHide: true });
+    if (race.status !== 0) return race.stderr || race.stdout || 'broadcast authorization race failed';
+    const report = JSON.parse(race.stdout);
+    return consumed.nextContractState.stage === 'FUNDING_BROADCAST' && store.verifyAll().records === 1 &&
+      replayRejected && expiredRejected && report.passed === true && report.consumed === 1 &&
+      report.rejected === 15 && report.records === 1;
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+});
+
 check('append-only state store rejects stale competing writes', 'state-persistence', 8, () => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'utxoref-dlc-eval-'));
   try {
@@ -432,6 +621,40 @@ check('append-only state store rejects stale competing writes', 'state-persisten
     }), /stale DLC state revision/);
     const chain = store.verifyChain(contract.contractId);
     return staleRejected && chain.ok && chain.revisions === 2;
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+check('durable DLC journals publish without replacement and reject linked or oversized records',
+  'state-persistence', 10, () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'utxoref-durable-json-eval-'));
+  const options = { maxBytes: 1024, label: 'eval durable record' };
+  try {
+    const first = { kind: 'eval_durable_record_v1', sequence: 0, digest: sha256('durable:first').toString('hex') };
+    writeJsonAppendOnce(directory, 'record.json', first, options);
+    const firstRead = readBoundedJson(path.join(directory, 'record.json'), options);
+    const replacementRejected = throws(
+      () => writeJsonAppendOnce(directory, 'record.json', { ...first, sequence: 1 }, options),
+      /EEXIST|exist/i
+    );
+    const afterReplacement = readBoundedJson(path.join(directory, 'record.json'), options);
+    const linkedPath = path.join(directory, 'record-link.json');
+    fs.linkSync(path.join(directory, 'record.json'), linkedPath);
+    const linkedRejected = throws(
+      () => readBoundedJson(path.join(directory, 'record.json'), options),
+      /one bounded regular file/
+    );
+    fs.unlinkSync(linkedPath);
+    const oversizedPath = path.join(directory, 'oversized.json');
+    fs.writeFileSync(oversizedPath, Buffer.alloc(1025, 0x20));
+    const oversizedRejected = throws(
+      () => readBoundedJson(oversizedPath, options),
+      /one bounded regular file/
+    );
+    const traversalRejected = throws(() => new DlcStateStore(directory).read('..'), /unsafe path/);
+    return firstRead.digest === first.digest && afterReplacement.digest === first.digest &&
+      replacementRejected && linkedRejected && oversizedRejected && traversalRejected;
   } finally {
     fs.rmSync(directory, { recursive: true, force: true });
   }
@@ -680,6 +903,41 @@ process.stdout.write(JSON.stringify(response));
     }), /mainnet/);
   } finally {
     fs.rmSync(authorizationDirectory, { recursive: true, force: true });
+  }
+});
+
+check('signing consumption records reject filesystem aliasing, oversized data, and incomplete markers',
+  'signer-boundary', 8, () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'utxoref-signing-store-eval-'));
+  try {
+    const store = new DlcSigningAuthorizationStore(directory);
+    const contractId = 'signing-store-filesystem-eval';
+    const authorizationId = 'cet:filesystem-boundary';
+    store.consume({
+      network: 'bitcoin-testnet4',
+      contractId,
+      authorizationId,
+      stateRecordHash: sha256('signing-store:state').toString('hex'),
+      authorizationDigest: sha256('signing-store:authorization').toString('hex'),
+      providerIdentity: sha256('signing-store:provider').toString('hex')
+    });
+    const restartReadable = new DlcSigningAuthorizationStore(directory).read(contractId, authorizationId);
+    const recordDirectory = path.join(directory, restartReadable.consumptionKey);
+    const recordPath = path.join(recordDirectory, 'consumed.json');
+    const linkedPath = path.join(directory, 'linked-consumption.json');
+    fs.linkSync(recordPath, linkedPath);
+    const linkedRejected = throws(() => store.read(contractId, authorizationId), /one bounded regular file/);
+    fs.unlinkSync(linkedPath);
+    const original = fs.readFileSync(recordPath);
+    fs.writeFileSync(recordPath, Buffer.alloc(32769, 0x20));
+    const oversizedRejected = throws(() => store.read(contractId, authorizationId), /one bounded regular file/);
+    fs.writeFileSync(recordPath, original);
+    const incompleteDirectory = path.join(directory, sha256('signing-store:incomplete').toString('hex'));
+    fs.mkdirSync(incompleteDirectory);
+    const incompleteRejected = throws(() => store.verifyAll(), /incomplete consumption marker/);
+    return restartReadable.status === 'CONSUMED_BEFORE_SIGN' && linkedRejected && oversizedRejected && incompleteRejected;
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
   }
 });
 
@@ -1006,6 +1264,76 @@ check('chain guard halts on disconnected ancestry and uncommitted funding spends
     unknown.status === 'UNKNOWN_SPEND_HALT' && unknown.halt &&
     earlyRefund.status === 'PREMATURE_REFUND_HALT' && earlyRefund.halt &&
     coreObserved.evaluation.status === 'FUNDING_CONFIRMED';
+});
+
+check('CET and refund policy receipts bind exact committed execution bytes', 'funding-safety', 10, () => {
+  if (!peerFixtureForEval) return false;
+  const { contract, transactionSet } = peerFixtureForEval;
+  const signed = (unsigned, label) =>
+    `${unsigned.slice(0, 8)}0001${unsigned.slice(8, -8)}0140${sha256(label).toString('hex')}${sha256(`${label}:two`).toString('hex')}${unsigned.slice(-8)}`;
+  const checkExecution = (executionType, transaction, executionEvidenceDigest) => {
+    const signedTxHex = signed(transaction.rawTxHex, `execution-eval:${executionType}`);
+    const parsed = parseCanonicalSignedTaprootTransaction(signedTxHex);
+    const bestBlockHash = sha256(`execution-eval:${executionType}:block`).toString('hex');
+    return validateExecutionPrebroadcastPolicy({
+      contractState: contract,
+      transactionSet,
+      executionType,
+      ...(executionType === 'cet' ? { cetTxid: transaction.txid } : {}),
+      signedTxHex,
+      executionEvidenceDigest,
+      rpc(method) {
+        if (method === 'getblockchaininfo') return { chain: 'testnet4', blocks: 205, bestblockhash: bestBlockHash };
+        if (method === 'getrawmempool') return { mempool_sequence: 71 };
+        if (method === 'decoderawtransaction') {
+          const strippedSize = parsed.strippedRawTxHex.length / 2;
+          const totalSize = signedTxHex.length / 2;
+          const weight = strippedSize * 4 + totalSize - strippedSize;
+          return {
+            txid: parsed.txid, hash: parsed.wtxid, version: parsed.version,
+            size: totalSize, vsize: Math.ceil(weight / 4), weight, locktime: parsed.locktime
+          };
+        }
+        if (method === 'testmempoolaccept') return [{ txid: parsed.txid, wtxid: parsed.wtxid, allowed: true }];
+        throw new Error(`unexpected execution eval RPC ${method}`);
+      }
+    });
+  };
+  const oracleDigest = sha256('execution-eval:oracle').toString('hex');
+  const cet = checkExecution('cet', transactionSet.cets[0], oracleDigest);
+  const cetKey = 'execution-eval:cet';
+  const cetExecuted = transitionDlcContract(contract, {
+    to: 'CET_EXECUTED',
+    idempotencyKey: cetKey,
+    evidence: evidenceFor(contract, 'CET_EXECUTED', cetKey, {
+      cet_broadcast_transaction: cet.record.rawTransactionSha256,
+      oracle_threshold_attestation: oracleDigest,
+      cet_prebroadcast_bitcoin_core_policy: { digest: cet.policyDigest, metadata: cet.receiptMetadata }
+    })
+  });
+  const maturityDigest = sha256('execution-eval:maturity').toString('hex');
+  const refund = checkExecution('refund', transactionSet.refund, maturityDigest);
+  const refundKey = 'execution-eval:refund';
+  const refundExecuted = transitionDlcContract(contract, {
+    to: 'REFUND_EXECUTED',
+    idempotencyKey: refundKey,
+    evidence: evidenceFor(contract, 'REFUND_EXECUTED', refundKey, {
+      refund_broadcast_transaction: refund.record.rawTransactionSha256,
+      refund_maturity: maturityDigest,
+      refund_prebroadcast_bitcoin_core_policy: { digest: refund.policyDigest, metadata: refund.receiptMetadata }
+    })
+  });
+  const substitutionRejected = throws(() => transitionDlcContract(contract, {
+    to: 'CET_EXECUTED',
+    idempotencyKey: 'execution-eval:substitution',
+    evidence: evidenceFor(contract, 'CET_EXECUTED', 'execution-eval:substitution', {
+      cet_broadcast_transaction: sha256('execution-eval:different-bytes').toString('hex'),
+      oracle_threshold_attestation: oracleDigest,
+      cet_prebroadcast_bitcoin_core_policy: { digest: cet.policyDigest, metadata: cet.receiptMetadata }
+    })
+  }), /does not bind the broadcast transaction digest/);
+  return cetExecuted.stage === 'CET_EXECUTED' && refundExecuted.stage === 'REFUND_EXECUTED' && substitutionRejected &&
+    cet.record.sendRawTransactionAllowed === false && refund.record.sendRawTransactionAllowed === false;
 });
 
 check('independent watchtower journal survives restart and preserves signed halt alerts', 'watchtower', 12, () => {
@@ -1453,12 +1781,139 @@ check('CET adaptor and refund signatures bind to validated BIP341 sighashes', 's
   return /^[0-9a-f]{64}$/.test(cetResult.digest) && /^[0-9a-f]{64}$/.test(refundResult.digest) && forgedRejected;
 });
 
+check('signed refund recovery survives restart and rejects artifact substitution', 'funding-safety', 16, () => {
+  const signerSecret = scalar('refund-recovery-eval:signer');
+  const signerPubkeyX = dlc.xOnlyPubkey(signerSecret).toString('hex');
+  const funding = {
+    txid: '98'.repeat(32),
+    vout: 0,
+    valueSats: 100000n,
+    scriptPubKeyHex: `5120${signerPubkeyX}`
+  };
+  const feePolicy = {
+    strategy: 'cpfp-anchor-v1',
+    anchorAmountSats: 330n,
+    anchorScriptPubKeyHex: `0014${'a9'.repeat(20)}`,
+    maxRecoveryFeeSats: 150000n,
+    maxRecoveryFeerateSatPerVb: 500,
+    minRelayPeers: 2
+  };
+  const anchor = { valueSats: 330n, scriptPubKeyHex: feePolicy.anchorScriptPubKeyHex };
+  const raw = (outputs, locktime) => serializeUnsignedTx(
+    2,
+    [{ outpoint: outpoint(funding.txid, funding.vout), sequence: 0xfffffffe }],
+    outputs.map((item) => ({ valueSats: item.valueSats, script: item.scriptPubKeyHex })),
+    locktime
+  );
+  const cetOutputs = [{ valueSats: 99000n, scriptPubKeyHex: `0014${'b9'.repeat(20)}` }, anchor];
+  const refundOutputs = [{ valueSats: 99000n, scriptPubKeyHex: `5120${'c9'.repeat(32)}` }, anchor];
+  const transactionSet = validateDlcTransactionSet({
+    funding,
+    cets: [{
+      outcomeMessage: sha256('refund-recovery-eval:outcome').toString('hex'),
+      oraclePubkeys: ['11'.repeat(32), '22'.repeat(32)],
+      rawTxHex: raw(cetOutputs, 100),
+      expectedOutputs: cetOutputs,
+      locktime: 100
+    }],
+    refund: { rawTxHex: raw(refundOutputs, 200), expectedOutputs: refundOutputs, locktime: 200 },
+    minFeeSats: 500n,
+    maxFeeSats: 2000n,
+    feePolicy
+  });
+  let contract = createDlcContract({
+    contractId: 'refund-recovery-eval',
+    network: 'bitcoin-testnet4',
+    contractDigest: sha256('refund-recovery-eval:contract').toString('hex'),
+    oraclePolicy: { threshold: 2, total: 3, pinnedPubkeys: ['11'.repeat(32), '22'.repeat(32), '33'.repeat(32)] },
+    validatorPolicy
+  });
+  for (const stage of ['AUTHENTICATED_ORACLES', 'CANONICAL_CETS_AND_REFUND', 'COUNTERPARTY_SIGNATURES_VERIFIED']) {
+    const idempotencyKey = `refund-recovery-eval:${stage}`;
+    const overrides = stage === 'CANONICAL_CETS_AND_REFUND' ? {
+      cet_set: transactionSet.cetSetDigest,
+      fee_policy: transactionSet.feePolicyDigest,
+      funding_template: transactionSet.fundingTemplateDigest,
+      refund_transaction: transactionSet.refundTransactionDigest
+    } : {};
+    contract = transitionDlcContract(contract, {
+      to: stage,
+      idempotencyKey,
+      evidence: evidenceFor(contract, stage, idempotencyKey, overrides)
+    });
+  }
+  const sighash = bip341SighashDefault(
+    toBip341Transaction(parseCanonicalUnsignedTransaction(transactionSet.refund.rawTxHex)),
+    [{ amountSats: funding.valueSats, scriptPubKey: funding.scriptPubKeyHex }],
+    0
+  );
+  const signed = (auxiliary) => {
+    const signature = dlc.schnorrSign(signerSecret, sighash, sha256(auxiliary)).toString('hex');
+    const unsigned = transactionSet.refund.rawTxHex;
+    return `${unsigned.slice(0, 8)}0001${unsigned.slice(8, -8)}0140${signature}${unsigned.slice(-8)}`;
+  };
+  const signedRefundTxHex = signed('refund-recovery-eval:aux:one');
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'utxoref-refund-recovery-eval-'));
+  try {
+    const store = new DlcRefundRecoveryStore(directory);
+    const stored = store.store({ contractState: contract, transactionSet, signedRefundTxHex });
+    const restartRestored = new DlcRefundRecoveryStore(directory).restore({ contractState: contract, transactionSet });
+    const raceFixturePath = path.join(directory, 'race-fixture.json');
+    fs.writeFileSync(raceFixturePath, JSON.stringify({
+      contractState: contract,
+      transactionSet,
+      signedRefunds: Array.from({ length: 16 }, (_, index) => signed(`refund-recovery-eval:race:${index}`))
+    }));
+    const race = spawnSync(process.execPath, [
+      path.join(__dirname, '..', 'bitvm3', 'utxo_referee', 'dlc_refund_recovery_race.js'),
+      path.join(directory, 'race-store'),
+      raceFixturePath,
+      '16'
+    ], { encoding: 'utf8', windowsHide: true });
+    if (race.status !== 0) return race.stderr || race.stdout || 'refund recovery race failed';
+    const raceReport = JSON.parse(race.stdout);
+    const racePassed = raceReport.passed === true && raceReport.stored === 1 &&
+      raceReport.rejected === 15 && raceReport.records === 1;
+    const idempotencyKey = 'refund-recovery-eval:LOCAL_SIGNATURES_PERSISTED';
+    contract = transitionDlcContract(contract, {
+      to: 'LOCAL_SIGNATURES_PERSISTED',
+      idempotencyKey,
+      evidence: evidenceFor(contract, 'LOCAL_SIGNATURES_PERSISTED', idempotencyKey, {
+        refund_restore_test: restartRestored.restoreDigest
+      })
+    });
+    const postTransitionRestored = new DlcRefundRecoveryStore(directory).restore({ contractState: contract, transactionSet });
+    const recordPath = path.join(directory, refundRecoveryKey(contract.contractId), 'refund.json');
+    const original = fs.readFileSync(recordPath);
+    const replacement = JSON.parse(original.toString('utf8'));
+    replacement.signedRefundTxHex = signed('refund-recovery-eval:aux:two');
+    replacement.refundWtxid = parseCanonicalSignedTaprootTransaction(replacement.signedRefundTxHex).wtxid;
+    replacement.recordHash = refundRecoveryRecordHash(replacement);
+    fs.writeFileSync(recordPath, `${JSON.stringify(replacement, null, 2)}\n`);
+    const substitutionRejected = throws(
+      () => store.restore({ contractState: contract, transactionSet }),
+      /restore receipt digest/
+    );
+    fs.writeFileSync(recordPath, original);
+    const linkedPath = path.join(directory, 'refund-link.json');
+    fs.linkSync(recordPath, linkedPath);
+    const linkedRejected = throws(
+      () => store.restore({ contractState: contract, transactionSet }),
+      /one bounded regular file/
+    );
+    return stored.recordHash === restartRestored.restoreDigest &&
+      postTransitionRestored.restoreDigest === stored.recordHash && racePassed && substitutionRejected && linkedRejected;
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+});
+
 const earned = cases.filter((test) => test.passed).reduce((sum, test) => sum + test.points, 0);
 const possible = cases.reduce((sum, test) => sum + test.points, 0);
 const score = earned / possible;
 const report = {
   benchmark: 'utxoref-dlc-security',
-  version: 17,
+  version: 24,
   profile: profileName,
   seed,
   score,

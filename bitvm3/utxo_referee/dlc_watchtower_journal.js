@@ -8,8 +8,15 @@ const { validateDlcTransactionSetCommitments } = require('./dlc_transaction_vali
 const { evaluateDlcChainSnapshot } = require('./dlc_chain_guard');
 const { captureDlcAnchorRecoverySnapshot } = require('./dlc_bitcoin_core_observer');
 const { evaluateDlcAnchorRecovery } = require('./dlc_anchor_recovery_guard');
+const {
+  assertNonSymlinkDirectory,
+  ensureNonSymlinkDirectory,
+  readBoundedJson,
+  writeJsonAppendOnce
+} = require('./dlc_durable_json_store');
 
 const KIND = 'utxoref_dlc_watchtower_observation_v1';
+const MAX_RECORD_BYTES = 4194304;
 
 function hash(value) { return crypto.createHash('sha256').update(value).digest('hex'); }
 function requireHash(value, name) {
@@ -170,13 +177,14 @@ class DlcWatchtowerJournal {
     this.publicKey = asPublicKey(effectivePublicKey);
     this.privateKey = privateKey;
     this.watchtowerKeyId = hash(der);
-    fs.mkdirSync(this.baseDirectory, { recursive: true, mode: 0o700 });
+    ensureNonSymlinkDirectory(this.baseDirectory, 'DLC watchtower journal');
   }
 
   _directory(contractId) { return path.join(this.baseDirectory, contractKey(contractId)); }
   _files(contractId) {
     const directory = this._directory(contractId);
     if (!fs.existsSync(directory)) return [];
+    assertNonSymlinkDirectory(directory, 'DLC watchtower contract');
     return fs.readdirSync(directory).filter((name) => /^observation-[0-9]{12}\.json$/.test(name)).sort();
   }
   _withLock(contractId, run) {
@@ -187,23 +195,20 @@ class DlcWatchtowerJournal {
       throw error;
     }
     try { return run(); }
-    finally { fs.rmSync(lock, { recursive: true, force: true }); }
+    finally { fs.rmdirSync(lock); }
   }
   _write(record) {
     const directory = this._directory(record.contractId);
-    fs.mkdirSync(directory, { recursive: true, mode: 0o700 });
+    ensureNonSymlinkDirectory(directory, 'DLC watchtower contract');
     const name = `observation-${String(record.sequence).padStart(12, '0')}.json`;
-    const finalPath = path.join(directory, name);
-    if (fs.existsSync(finalPath)) throw new Error(`DLC watchtower observation ${record.sequence} already exists`);
-    const temporaryPath = path.join(directory, `.${name}.${process.pid}.${crypto.randomBytes(8).toString('hex')}.tmp`);
-    const fd = fs.openSync(temporaryPath, 'wx', 0o600);
     try {
-      fs.writeFileSync(fd, `${JSON.stringify(record, null, 2)}\n`, 'utf8');
-      fs.fsyncSync(fd);
-    } finally { fs.closeSync(fd); }
-    try { fs.renameSync(temporaryPath, finalPath); }
+      writeJsonAppendOnce(directory, name, record, {
+        maxBytes: MAX_RECORD_BYTES,
+        label: 'DLC watchtower observation'
+      });
+    }
     catch (error) {
-      try { fs.unlinkSync(temporaryPath); } catch (_cleanupError) {}
+      if (error.code === 'EEXIST') throw new Error(`DLC watchtower observation ${record.sequence} already exists`);
       throw error;
     }
   }
@@ -249,8 +254,12 @@ class DlcWatchtowerJournal {
     const files = this._files(contractId);
     let previous = null;
     const records = [];
+    const directory = this._directory(contractId);
     for (let sequence = 0; sequence < files.length; sequence++) {
-      const record = JSON.parse(fs.readFileSync(path.join(this._directory(contractId), files[sequence]), 'utf8'));
+      const record = readBoundedJson(path.join(directory, files[sequence]), {
+        maxBytes: MAX_RECORD_BYTES,
+        label: 'DLC watchtower observation'
+      });
       validateObservationRecord(record, this.publicKey, {
         watchtowerId: this.watchtowerId,
         watchtowerKeyId: this.watchtowerKeyId,
@@ -339,4 +348,4 @@ class DlcWatchtowerJournal {
   }
 }
 
-module.exports = { KIND, DlcWatchtowerJournal, contractKey, validateObservationRecord };
+module.exports = { KIND, MAX_RECORD_BYTES, DlcWatchtowerJournal, contractKey, validateObservationRecord };

@@ -14,6 +14,7 @@ const {
   MAX_CONCURRENT_REQUESTS,
   MAX_AUTHENTICATED_REQUESTS_PER_MINUTE,
   MAX_CONNECTIONS,
+  createFileTokenProvider,
   validateRpcRequest,
   createReadonlyRpcProxy
 } = require('./btc_testnet4_readonly_rpc_proxy');
@@ -57,12 +58,28 @@ function post(port, token, payload) {
 
 test('read-only RPC policy rejects wallet, signing, broadcast, and node-control methods', () => {
   const evaluationPolicy = referee.dlc.testnet4EvaluationPolicy;
-  assert.equal(referee.dlc.securityBoundaryVersion, 42);
+  assert.equal(referee.dlc.securityBoundaryVersion, 54);
+  assert.equal(referee.dlc.durableJournalPolicy.recordReadProtocol, 'lstat-open-fstat-reread-v1');
+  assert.equal(referee.dlc.durableJournalPolicy.linkedFinalRecordsAllowed, false);
+  assert.equal(referee.dlc.signerPolicy.signingConsumptionIdentityBound, true);
+  assert.equal(referee.dlc.signerPolicy.signingConsumptionHardLinksAllowed, false);
+  assert.equal(referee.dlc.signerPolicy.signingConsumptionMaxRecordBytes, 32768);
+  assert.equal(typeof referee.dlc.RefundRecoveryStore, 'function');
+  assert.equal(referee.dlc.signerPolicy.fullySignedRefundRecoveryRequired, true);
+  assert.equal(referee.dlc.signerPolicy.refundRecoveryAppendOnce, true);
+  assert.equal(referee.dlc.signerPolicy.refundRecoveryTaprootWitnessVerified, true);
+  assert.equal(referee.dlc.signerPolicy.refundRecoveryRestoredBeforeFunding, true);
+  assert.equal(referee.dlc.signerPolicy.refundRecoveryReceiptDigestBound, true);
+  assert.equal(referee.dlc.signerPolicy.refundRecoveryRaceWorkers, 16);
+  assert.equal(referee.dlc.signerPolicy.exactOneRefundArtifactRaceWinner, true);
   assert.equal(evaluationPolicy.watchOnlySwarmWalletRequired, true);
   assert.equal(evaluationPolicy.watchOnlyWalletProvisioning, 'public-descriptor-import-v1');
   assert.equal(evaluationPolicy.privateDescriptorsAccepted, false);
   assert.equal(evaluationPolicy.exactWatchOnlyUtxoParityRequired, true);
   assert.equal(evaluationPolicy.sourceWalletModified, false);
+  assert.equal(evaluationPolicy.watchOnlyEvidenceLiveRevalidated, true);
+  assert.equal(evaluationPolicy.watchOnlyEvidenceFileTrusted, false);
+  assert.equal(evaluationPolicy.watchOnlyAuditMutationAllowed, false);
   assert.equal(evaluationPolicy.watchOnlyProvisioningSigningAllowed, false);
   assert.equal(evaluationPolicy.watchOnlyProvisioningBroadcastAllowed, false);
   assert.deepEqual(Object.keys(METHOD_POLICY).sort(), referee.dlc.testnet4EvaluationPolicy.readonlyRpcMethods);
@@ -72,6 +89,20 @@ test('read-only RPC policy rejects wallet, signing, broadcast, and node-control 
   assert.equal(MAX_AUTHENTICATED_REQUESTS_PER_MINUTE,
     referee.dlc.testnet4EvaluationPolicy.readonlyRpcMaxAuthenticatedRequestsPerMinute);
   assert.equal(MAX_CONNECTIONS, referee.dlc.testnet4EvaluationPolicy.readonlyRpcMaxConnections);
+  assert.equal(referee.dlc.testnet4EvaluationPolicy.readonlyRpcTokenFormat, 'lowercase-hex-256-bit');
+  assert.equal(referee.dlc.testnet4EvaluationPolicy.readonlyRpcTokenRevalidatedPerRequest, true);
+  assert.equal(referee.dlc.testnet4EvaluationPolicy.readonlyRpcTokenRotationRevokesImmediately, true);
+  assert.equal(referee.dlc.testnet4EvaluationPolicy.readonlyRpcTokenComparisonBuffersCleared, true);
+  assert.equal(referee.dlc.testnet4EvaluationPolicy.readonlyRpcCredentialReadIdentityBound, true);
+  assert.equal(referee.dlc.testnet4EvaluationPolicy.readonlyRpcCredentialHardLinksAllowed, false);
+  assert.equal(referee.dlc.testnet4EvaluationPolicy.readonlyRpcCredentialReadBuffersCleared, true);
+  assert.equal(referee.dlc.testnet4EvaluationPolicy.bitcoinCoreBinaryProvenance, 'authenticode-sha256-v1');
+  assert.equal(referee.dlc.testnet4EvaluationPolicy.actualRpcListenerLoopbackRequired, true);
+  assert.equal(referee.dlc.testnet4EvaluationPolicy.rpcListenerOwnerBinaryPinned, true);
+  assert.equal(referee.dlc.testnet4EvaluationPolicy.evidenceRequiresCleanWorktree, true);
+  assert.equal(referee.dlc.testnet4EvaluationPolicy.compatibilitySnapshotDirtyTreeAllowed, false);
+  assert.equal(referee.dlc.testnet4EvaluationPolicy.scaleSnapshotDirtyTreeAllowed, false);
+  assert.equal(referee.dlc.testnet4EvaluationPolicy.evidenceCommitMustRemainStable, true);
   for (const method of [
     'getwalletinfo', 'listunspent', 'walletpassphrase', 'signrawtransactionwithwallet',
     'sendrawtransaction', 'submitblock', 'stop', 'setnetworkactive', 'addnode', 'pruneblockchain'
@@ -87,6 +118,9 @@ test('read-only RPC policy rejects wallet, signing, broadcast, and node-control 
   assert.equal(validateRpcRequest({
     jsonrpc: '2.0', id: 1, method: 'testmempoolaccept', params: [["00"], 0]
   }).ok, true);
+  assert.throws(() => createReadonlyRpcProxy({
+    cookiePath: path.resolve('unused-cookie'), token: 'not-a-256-bit-token'
+  }), /invalid read-only RPC proxy configuration/);
 });
 
 test('proxy forwards an allowed call and never forwards denied methods', async () => {
@@ -218,6 +252,67 @@ test('proxy token bucket bounds authenticated request rate and refills over time
   } finally {
     await close(proxy.server);
     await close(upstream);
+    fs.rmSync(temporary, { recursive: true, force: true });
+  }
+});
+
+test('proxy token-file provider applies rotation and revocation on the next request', async () => {
+  const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'utxoref-rpc-token-'));
+  const cookiePath = path.join(temporary, '.cookie');
+  const tokenPath = path.join(temporary, 'proxy.token');
+  const firstToken = '34'.repeat(32);
+  const secondToken = '56'.repeat(32);
+  fs.writeFileSync(cookiePath, '__cookie__:test-only-secret\n', { encoding: 'utf8', flag: 'wx' });
+  fs.writeFileSync(tokenPath, firstToken, { encoding: 'utf8', flag: 'wx' });
+  let upstreamCalls = 0;
+  const upstream = http.createServer((request, response) => {
+    const chunks = [];
+    request.on('data', chunk => chunks.push(chunk));
+    request.on('end', () => {
+      upstreamCalls++;
+      const incoming = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+      const body = Buffer.from(JSON.stringify({ jsonrpc: '2.0', id: incoming.id, result: true }), 'utf8');
+      response.writeHead(200, { 'Content-Type': 'application/json', 'Content-Length': body.length });
+      response.end(body);
+    });
+  });
+  const rpcPort = await listen(upstream);
+  const proxy = createReadonlyRpcProxy({
+    cookiePath,
+    tokenProvider: createFileTokenProvider(tokenPath),
+    rpcPort
+  });
+  const proxyPort = await listen(proxy.server);
+  const request = token => post(proxyPort, token, {
+    jsonrpc: '2.0', id: token.slice(0, 2), method: 'getbestblockhash', params: []
+  });
+  try {
+    assert.equal((await request(firstToken)).status, 200);
+    fs.writeFileSync(tokenPath, secondToken, 'utf8');
+    assert.equal((await request(firstToken)).status, 403);
+    assert.equal((await request(secondToken)).status, 200);
+    fs.rmSync(tokenPath);
+    assert.equal((await request(secondToken)).status, 403);
+    assert.equal(upstreamCalls, 2);
+    assert.deepEqual(proxy.stats, { accepted: 2, denied: 2, failed: 0 });
+  } finally {
+    await close(proxy.server);
+    await close(upstream);
+    fs.rmSync(temporary, { recursive: true, force: true });
+  }
+});
+
+test('file token provider rejects malformed and multiply-linked credential files', () => {
+  const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'utxoref-rpc-token-file-'));
+  const tokenPath = path.join(temporary, 'proxy.token');
+  const hardLinkPath = path.join(temporary, 'proxy-token-link');
+  try {
+    fs.writeFileSync(tokenPath, 'malformed', { encoding: 'utf8', flag: 'wx' });
+    assert.throws(() => createFileTokenProvider(tokenPath), /256-bit lowercase hex/);
+    fs.writeFileSync(tokenPath, '78'.repeat(32), 'utf8');
+    fs.linkSync(tokenPath, hardLinkPath);
+    assert.throws(() => createFileTokenProvider(tokenPath), /bounded regular non-linked file/);
+  } finally {
     fs.rmSync(temporary, { recursive: true, force: true });
   }
 });

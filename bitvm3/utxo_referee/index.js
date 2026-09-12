@@ -44,6 +44,7 @@ const { DlcStateStore } = require('./dlc_state_store');
 const dlcCryptoProvider = require('./dlc_crypto_provider');
 const { DlcOracleEventStore } = require('./dlc_oracle_event_store');
 const { DlcSigningAuthorizationStore } = require('./dlc_signing_authorization_store');
+const { DlcRefundRecoveryStore } = require('./dlc_refund_recovery_store');
 const dlcNativeSignerProcessClient = require('./dlc_native_signer_process_client');
 const dlcTransactionValidator = require('./dlc_transaction_validator');
 const dlcSignatureValidator = require('./dlc_signature_validator');
@@ -53,6 +54,9 @@ const dlcPeerTranscript = require('./dlc_peer_transcript');
 const { DlcPeerSessionStore } = require('./dlc_peer_session_store');
 const { DlcWatchtowerJournal } = require('./dlc_watchtower_journal');
 const dlcAnchorRecoveryGuard = require('./dlc_anchor_recovery_guard');
+const dlcFundingPrebroadcastGuard = require('./dlc_funding_prebroadcast_guard');
+const dlcExecutionPrebroadcastGuard = require('./dlc_execution_prebroadcast_guard');
+const { DlcBroadcastAuthorizationStore } = require('./dlc_broadcast_authorization_store');
 
 module.exports = {
   // Types
@@ -128,7 +132,7 @@ module.exports = {
   // for production; these interfaces enforce transcript, threshold-oracle,
   // and persistence gates on regtest and Bitcoin testnet4.
   dlc: Object.freeze({
-    securityBoundaryVersion: 42,
+    securityBoundaryVersion: 54,
     createContract: dlcContractState.createDlcContract,
     validateContract: dlcContractState.validateDlcContract,
     transitionContract: dlcContractState.transitionDlcContract,
@@ -136,6 +140,8 @@ module.exports = {
     StateStore: DlcStateStore,
     OracleEventStore: DlcOracleEventStore,
     SigningAuthorizationStore: DlcSigningAuthorizationStore,
+    RefundRecoveryStore: DlcRefundRecoveryStore,
+    BroadcastAuthorizationStore: DlcBroadcastAuthorizationStore,
     NativeSignerProcessClient: dlcNativeSignerProcessClient.DlcNativeSignerProcessClient,
     nativeSignerRuntimeDigest: dlcNativeSignerProcessClient.nativeSignerRuntimeDigest,
     validateOracleSet: dlcThresholdOracle.validateOracleSet,
@@ -146,8 +152,11 @@ module.exports = {
     createAdaptorSignAuthorization: dlcCryptoProvider.createDlcAdaptorSignAuthorization,
     authorizeAdaptorSign: dlcCryptoProvider.authorizeDlcAdaptorSign,
     parseCanonicalUnsignedTransaction: dlcTransactionValidator.parseCanonicalUnsignedTransaction,
+    parseCanonicalSignedTaprootTransaction: dlcTransactionValidator.parseCanonicalSignedTaprootTransaction,
     validateTransactionSet: dlcTransactionValidator.validateDlcTransactionSet,
     validateTransactionSetCommitments: dlcTransactionValidator.validateDlcTransactionSetCommitments,
+    validateFundingPrebroadcastPolicy: dlcFundingPrebroadcastGuard.validateFundingPrebroadcastPolicy,
+    validateExecutionPrebroadcastPolicy: dlcExecutionPrebroadcastGuard.validateExecutionPrebroadcastPolicy,
     trucPolicy: Object.freeze({
       strategy: 'truc-p2a-v1',
       transactionVersion: dlcTransactionValidator.TRUC_VERSION,
@@ -161,6 +170,66 @@ module.exports = {
       exactTxidAndWtxid: true,
       stableMempoolSequence: true,
       failClosedOnCoreRejection: true
+    }),
+    fundingPrebroadcastPolicy: Object.freeze({
+      receiptKind: 'prebroadcast_bitcoin_core_policy',
+      policyRpc: 'testmempoolaccept',
+      decodeRpc: 'decoderawtransaction',
+      exactTxidAndWtxid: true,
+      stableTipAndMempoolSequence: true,
+      contractAndApprovedPsbtBound: true,
+      signingAllowed: false,
+      sendRawTransactionAllowed: false
+    }),
+    executionPrebroadcastPolicy: Object.freeze({
+      receiptKinds: Object.freeze([
+        'cet_prebroadcast_bitcoin_core_policy',
+        'refund_prebroadcast_bitcoin_core_policy'
+      ]),
+      executionTypes: dlcExecutionPrebroadcastGuard.EXECUTION_TYPES,
+      policyRpc: 'testmempoolaccept',
+      decodeRpc: 'decoderawtransaction',
+      exactTxidAndWtxid: true,
+      committedSettlementBound: true,
+      executionEvidenceBound: true,
+      stableTipAndMempoolSequence: true,
+      signingAllowed: false,
+      sendRawTransactionAllowed: false
+    }),
+    broadcastAuthorizationPolicy: Object.freeze({
+      maxPolicyTtlSeconds: 30,
+      defaultPolicyTtlSeconds: 15,
+      maxFutureClockSkewSeconds: 5,
+      durableConsumeBeforeBroadcast: true,
+      crossProcessSingleConsumer: true,
+      transactionBytesRehashedAtConsumption: true,
+      transitionSignaturesRevalidatedAtConsumption: true,
+      linkedConsumptionRecordsAllowed: false,
+      sharedDurableRecordPrimitive: true,
+      consumptionParentIdentityBound: true,
+      atomicNoReplacePublication: true,
+      signingAllowed: false,
+      sendRawTransactionAllowed: false,
+      raceWorkers: 16,
+      exactOneRaceWinner: true
+    }),
+    durableJournalPolicy: Object.freeze({
+      recordReadProtocol: 'lstat-open-fstat-reread-v1',
+      atomicNoReplacePublication: 'link-excl-then-unlink-v1',
+      contractStateDirectoryKey: 'sha256-contract-id-v1',
+      nonSymlinkDirectoriesRequired: true,
+      linkedFinalRecordsAllowed: false,
+      identityStableThroughReadRequired: true,
+      readBuffersCleared: true,
+      temporaryRecordFsynced: true,
+      finalRecordFsynced: true,
+      recursiveLockCleanupAllowed: false,
+      maxRecordBytes: Object.freeze({
+        contractState: 4194304,
+        oracleEvent: 1048576,
+        peerSession: 131072,
+        watchtowerObservation: 4194304
+      })
     }),
     testnet4EvaluationPolicy: Object.freeze({
       stableSnapshotProtocol: 'tip-mempool-wallet-outpoints-v1',
@@ -177,17 +246,32 @@ module.exports = {
       exportedHashConstantsDetached: true,
       merkleRootsAndProofsCopiedOnRead: true,
       hostAclPreflightRequiredForUntrustedAgents: true,
+      bitcoinCoreBinaryProvenance: 'authenticode-sha256-v1',
+      bitcoinCoreSignerThumbprint: '3A31CC9595E7A30096A8EA77F9DA2A6CB63F766F',
+      bitcoinCoreDaemonSha256: 'f79eeb94e1379986df9f7be4c78c8fc8e18dc9be64a31cbaa8acad249d3db77a',
+      bitcoinCoreCliSha256: 'f6ff1c850fd812c88afd817daac488dfac48b1a12eb99090ce541a663787698b',
+      actualRpcListenerLoopbackRequired: true,
+      rpcListenerOwnerBinaryPinned: true,
+      evidenceRequiresCleanWorktree: true,
+      compatibilitySnapshotDirtyTreeAllowed: false,
+      scaleSnapshotDirtyTreeAllowed: false,
+      evidenceCommitMustRemainStable: true,
       dedicatedSwarmAccountRequired: true,
       swarmAccountMustDifferFromCoordinator: true,
       swarmAccountAdministratorAllowed: false,
       proxyTokenAclRequired: true,
+      proxyTokenParentAclRequired: true,
       proxyTokenWritableBySwarmAllowed: false,
+      proxyTokenParentWritableBySwarmAllowed: false,
       untrustedAgentWalletPrivateKeysAllowed: false,
       watchOnlySwarmWalletRequired: true,
       watchOnlyWalletProvisioning: 'public-descriptor-import-v1',
       privateDescriptorsAccepted: false,
       exactWatchOnlyUtxoParityRequired: true,
       sourceWalletModified: false,
+      watchOnlyEvidenceLiveRevalidated: true,
+      watchOnlyEvidenceFileTrusted: false,
+      watchOnlyAuditMutationAllowed: false,
       watchOnlyProvisioningSigningAllowed: false,
       watchOnlyProvisioningBroadcastAllowed: false,
       broadcastDefault: false,
@@ -199,6 +283,13 @@ module.exports = {
       readonlyRpcMaxConcurrentRequests: 4,
       readonlyRpcMaxAuthenticatedRequestsPerMinute: 120,
       readonlyRpcMaxConnections: 16,
+      readonlyRpcTokenFormat: 'lowercase-hex-256-bit',
+      readonlyRpcTokenRevalidatedPerRequest: true,
+      readonlyRpcTokenRotationRevokesImmediately: true,
+      readonlyRpcTokenComparisonBuffersCleared: true,
+      readonlyRpcCredentialReadIdentityBound: true,
+      readonlyRpcCredentialHardLinksAllowed: false,
+      readonlyRpcCredentialReadBuffersCleared: true,
       readonlyRpcMaxRequestBytes: 1048576,
       readonlyRpcMaxResponseBytes: 4194304,
       walletRpcAllowedThroughProxy: false,
@@ -217,6 +308,24 @@ module.exports = {
       durableAuthorizationStore: true,
       consumeBeforeSign: true,
       crossProcessSingleConsumer: true,
+      signingConsumptionIdentityBound: true,
+      signingConsumptionParentIdentityBound: true,
+      signingConsumptionHardLinksAllowed: false,
+      signingConsumptionReadBuffersCleared: true,
+      signingConsumptionFinalRecordFsynced: true,
+      signingConsumptionAtomicNoReplacePublication: true,
+      signingConsumptionMaxRecordBytes: 32768,
+      fullySignedRefundRecoveryRequired: true,
+      refundRecoveryAppendOnce: true,
+      refundRecoveryTaprootWitnessVerified: true,
+      refundRecoveryRestoredBeforeFunding: true,
+      refundRecoveryReceiptDigestBound: true,
+      refundRecoverySharedDurableRecordPrimitive: true,
+      refundRecoveryParentIdentityBound: true,
+      refundRecoveryReadBuffersCleared: true,
+      refundRecoveryAtomicNoReplacePublication: true,
+      refundRecoveryRaceWorkers: 16,
+      exactOneRefundArtifactRaceWinner: true,
       rawAdaptorSignHidden: true,
       nativeSigningRequestKind: 'utxoref_dlc_native_adaptor_sign_request_v1',
       callerSuppliesNativeSecret: false,

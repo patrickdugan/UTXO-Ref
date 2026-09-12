@@ -27,10 +27,14 @@ const REQUIRED_EVIDENCE = Object.freeze({
     'local_cet_signatures', 'local_refund_signature', 'peer_sign_transcript', 'refund_restore_test'
   ],
   FUNDING_PSBT_APPROVED: ['bitcoin_core_policy', 'funding_psbt_validation', 'signer_separation'],
-  FUNDING_BROADCAST: ['broadcast_transaction', 'host_broadcast_approval'],
+  FUNDING_BROADCAST: ['broadcast_transaction', 'host_broadcast_approval', 'prebroadcast_bitcoin_core_policy'],
   CONFIRMED: ['funding_confirmation'],
-  CET_EXECUTED: ['cet_broadcast_transaction', 'oracle_threshold_attestation'],
-  REFUND_EXECUTED: ['refund_broadcast_transaction', 'refund_maturity']
+  CET_EXECUTED: [
+    'cet_broadcast_transaction', 'oracle_threshold_attestation', 'cet_prebroadcast_bitcoin_core_policy'
+  ],
+  REFUND_EXECUTED: [
+    'refund_broadcast_transaction', 'refund_maturity', 'refund_prebroadcast_bitcoin_core_policy'
+  ]
 });
 const ALL_EVIDENCE_KINDS = Object.freeze([...new Set(Object.values(REQUIRED_EVIDENCE).flat())].sort());
 
@@ -173,6 +177,105 @@ function signValidationReceipt({
   return Object.freeze(receipt);
 }
 
+function validatePrebroadcastPolicyWindow(metadata, label) {
+  if (!Number.isSafeInteger(metadata.issuedAtUnixSeconds) || metadata.issuedAtUnixSeconds < 0 ||
+      !Number.isSafeInteger(metadata.expiresAtUnixSeconds) ||
+      metadata.expiresAtUnixSeconds <= metadata.issuedAtUnixSeconds ||
+      metadata.expiresAtUnixSeconds - metadata.issuedAtUnixSeconds > 30) {
+    throw new Error(`${label} prebroadcast policy validity window is invalid`);
+  }
+  requireHex(metadata.chainTip, 32, `${label} prebroadcast policy chainTip`);
+  if (!Number.isSafeInteger(metadata.chainHeight) || metadata.chainHeight < 0 ||
+      !Number.isSafeInteger(metadata.mempoolSequence) || metadata.mempoolSequence < 0) {
+    throw new Error(`${label} prebroadcast policy chain observation is invalid`);
+  }
+}
+
+function validateFundingBroadcastEvidence(evidence, context) {
+  const broadcast = evidence.find((receipt) => receipt.kind === 'broadcast_transaction');
+  const prebroadcast = evidence.find((receipt) => receipt.kind === 'prebroadcast_bitcoin_core_policy');
+  if (!broadcast || !prebroadcast || !prebroadcast.metadata || typeof prebroadcast.metadata !== 'object' ||
+      Array.isArray(prebroadcast.metadata)) {
+    throw new Error('funding broadcast requires transaction-bound prebroadcast policy metadata');
+  }
+  const metadata = prebroadcast.metadata;
+  validatePrebroadcastPolicyWindow(metadata, 'funding');
+  requireHex(metadata.rawTransactionSha256, 32, 'prebroadcast policy rawTransactionSha256');
+  requireHex(metadata.txid, 32, 'prebroadcast policy txid');
+  requireHex(metadata.wtxid, 32, 'prebroadcast policy wtxid');
+  requireHex(metadata.contractTranscriptHash, 32, 'prebroadcast policy contractTranscriptHash');
+  requireHex(metadata.fundingPsbtDigest, 32, 'prebroadcast policy fundingPsbtDigest');
+  if (!Number.isSafeInteger(metadata.contractRevision) || metadata.contractRevision < 0) {
+    throw new Error('prebroadcast policy contractRevision is invalid');
+  }
+  if (metadata.rawTransactionSha256 !== broadcast.digest) {
+    throw new Error('prebroadcast policy does not bind the broadcast transaction digest');
+  }
+  if (metadata.contractTranscriptHash !== context.contractTranscriptHash ||
+      metadata.contractRevision !== context.contractRevision) {
+    throw new Error('prebroadcast policy does not bind the current contract state');
+  }
+  if (metadata.fundingPsbtDigest !== context.approvedFundingPsbtDigest) {
+    throw new Error('prebroadcast policy does not bind the approved funding PSBT');
+  }
+  if (metadata.corePolicyAllowed !== true || metadata.signingAllowed !== false ||
+      metadata.sendRawTransactionAllowed !== false) {
+    throw new Error('prebroadcast policy metadata grants authority or lacks Core acceptance');
+  }
+}
+
+function findHistoricalEvidenceDigest(history, kind) {
+  for (let index = history.length - 1; index >= 0; index--) {
+    const receipt = history[index].evidence.find((entry) => entry.kind === kind);
+    if (receipt) return receipt.digest;
+  }
+  return null;
+}
+
+function validateExecutionBroadcastEvidence(evidence, targetStage, context) {
+  const cet = targetStage === 'CET_EXECUTED';
+  const executionType = cet ? 'cet' : 'refund';
+  const broadcastKind = cet ? 'cet_broadcast_transaction' : 'refund_broadcast_transaction';
+  const policyKind = cet ? 'cet_prebroadcast_bitcoin_core_policy' : 'refund_prebroadcast_bitcoin_core_policy';
+  const evidenceKind = cet ? 'oracle_threshold_attestation' : 'refund_maturity';
+  const broadcast = evidence.find((receipt) => receipt.kind === broadcastKind);
+  const policy = evidence.find((receipt) => receipt.kind === policyKind);
+  const prerequisite = evidence.find((receipt) => receipt.kind === evidenceKind);
+  if (!broadcast || !policy || !prerequisite || !policy.metadata || typeof policy.metadata !== 'object' ||
+      Array.isArray(policy.metadata)) {
+    throw new Error(`${executionType} execution requires transaction-bound prebroadcast policy metadata`);
+  }
+  const metadata = policy.metadata;
+  validatePrebroadcastPolicyWindow(metadata, executionType);
+  requireHex(metadata.rawTransactionSha256, 32, `${executionType} policy rawTransactionSha256`);
+  requireHex(metadata.txid, 32, `${executionType} policy txid`);
+  requireHex(metadata.wtxid, 32, `${executionType} policy wtxid`);
+  requireHex(metadata.contractTranscriptHash, 32, `${executionType} policy contractTranscriptHash`);
+  requireHex(metadata.settlementCommitmentDigest, 32, `${executionType} policy settlementCommitmentDigest`);
+  requireHex(metadata.executionEvidenceDigest, 32, `${executionType} policy executionEvidenceDigest`);
+  if (!Number.isSafeInteger(metadata.contractRevision) || metadata.contractRevision < 0) {
+    throw new Error(`${executionType} policy contractRevision is invalid`);
+  }
+  if (metadata.executionType !== executionType || metadata.rawTransactionSha256 !== broadcast.digest) {
+    throw new Error(`${executionType} prebroadcast policy does not bind the broadcast transaction digest`);
+  }
+  if (metadata.contractTranscriptHash !== context.contractTranscriptHash ||
+      metadata.contractRevision !== context.contractRevision) {
+    throw new Error(`${executionType} prebroadcast policy does not bind the current contract state`);
+  }
+  const expectedCommitment = cet ? context.cetSetDigest : context.refundTransactionDigest;
+  if (metadata.settlementCommitmentDigest !== expectedCommitment) {
+    throw new Error(`${executionType} prebroadcast policy does not bind the committed settlement set`);
+  }
+  if (metadata.executionEvidenceDigest !== prerequisite.digest) {
+    throw new Error(`${executionType} prebroadcast policy does not bind its execution evidence`);
+  }
+  if (metadata.corePolicyAllowed !== true || metadata.signingAllowed !== false ||
+      metadata.sendRawTransactionAllowed !== false) {
+    throw new Error(`${executionType} prebroadcast policy metadata grants authority or lacks Core acceptance`);
+  }
+}
+
 function validateEvidence(evidence, targetStage, context) {
   if (!Array.isArray(evidence) || evidence.length < 1 || evidence.length > 32) {
     throw new Error('evidence must contain 1..32 validation receipts');
@@ -208,6 +311,10 @@ function validateEvidence(evidence, targetStage, context) {
   if (new Set(kinds).size !== kinds.length) throw new Error('evidence receipt kinds must be unique per transition');
   for (const required of REQUIRED_EVIDENCE[targetStage] || []) {
     if (!kinds.includes(required)) throw new Error(`transition to ${targetStage} requires ${required} evidence`);
+  }
+  if (targetStage === 'FUNDING_BROADCAST') validateFundingBroadcastEvidence(normalized, context);
+  if (targetStage === 'CET_EXECUTED' || targetStage === 'REFUND_EXECUTED') {
+    validateExecutionBroadcastEvidence(normalized, targetStage, context);
   }
   return normalized.sort((left, right) => left.kind.localeCompare(right.kind));
 }
@@ -260,6 +367,9 @@ function validateDlcContract(record) {
   let expectedFrom = 'DRAFT';
   let expectedRevision = 1;
   let expectedTranscriptHash = initialTranscriptHash(record);
+  let approvedFundingPsbtDigest = null;
+  let cetSetDigest = null;
+  let refundTransactionDigest = null;
   const idempotencyKeys = new Set();
   for (const entry of record.history) {
     if (entry.revision !== expectedRevision || entry.from !== expectedFrom || entry.to !== nextAllowedStage(expectedFrom, entry.to)) {
@@ -275,7 +385,12 @@ function validateDlcContract(record) {
       from: entry.from,
       to: entry.to,
       idempotencyKey: entry.idempotencyKey,
-      validatorPolicy
+      validatorPolicy,
+      contractRevision: entry.revision - 1,
+      contractTranscriptHash: entry.priorTranscriptHash,
+      approvedFundingPsbtDigest,
+      cetSetDigest,
+      refundTransactionDigest
     });
     const expectedRequestHash = sha256Hex(canonicalJson({
       to: entry.to,
@@ -292,6 +407,13 @@ function validateDlcContract(record) {
     if (entry.transcriptHash !== expectedTranscriptHash) throw new Error('DLC transition transcript hash mismatch');
     if (idempotencyKeys.has(entry.idempotencyKey)) throw new Error('duplicate transition idempotency key');
     idempotencyKeys.add(entry.idempotencyKey);
+    if (entry.to === 'FUNDING_PSBT_APPROVED') {
+      approvedFundingPsbtDigest = evidence.find((receipt) => receipt.kind === 'funding_psbt_validation').digest;
+    }
+    if (entry.to === 'CANONICAL_CETS_AND_REFUND') {
+      cetSetDigest = evidence.find((receipt) => receipt.kind === 'cet_set').digest;
+      refundTransactionDigest = evidence.find((receipt) => receipt.kind === 'refund_transaction').digest;
+    }
     expectedFrom = entry.to;
     expectedRevision++;
   }
@@ -319,7 +441,12 @@ function transitionDlcContract(record, request) {
     from: prior ? prior.from : record.stage,
     to: request.to,
     idempotencyKey: request.idempotencyKey,
-    validatorPolicy: normalizeValidatorPolicy(record.validatorPolicy)
+    validatorPolicy: normalizeValidatorPolicy(record.validatorPolicy),
+    contractRevision: record.revision,
+    contractTranscriptHash: record.transcriptHash,
+    approvedFundingPsbtDigest: findHistoricalEvidenceDigest(record.history, 'funding_psbt_validation'),
+    cetSetDigest: findHistoricalEvidenceDigest(record.history, 'cet_set'),
+    refundTransactionDigest: findHistoricalEvidenceDigest(record.history, 'refund_transaction')
   });
   const normalizedRequest = { to: request.to, idempotencyKey: request.idempotencyKey, evidence };
   const requestHash = sha256Hex(canonicalJson(normalizedRequest));

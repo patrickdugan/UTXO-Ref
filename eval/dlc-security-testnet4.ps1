@@ -14,11 +14,18 @@ if (-not (Test-Path -LiteralPath $evaluator -PathType Leaf)) {
 
 Push-Location $RepositoryPath
 try {
+  $commit = (& git -c "safe.directory=$($RepositoryPath -replace '\\','/')" rev-parse HEAD).Trim()
+  if ($LASTEXITCODE -ne 0 -or $commit -notmatch '^[0-9a-f]{40}$') { throw 'Unable to resolve UTXORef commit before evaluation' }
+  $statusBefore = @(& git -c "safe.directory=$($RepositoryPath -replace '\\','/')" status --porcelain=v1 --untracked-files=normal)
+  if ($LASTEXITCODE -ne 0 -or $statusBefore.Count -ne 0) { throw 'UTXORef worktree must be clean before evidence capture' }
   $json = & node $evaluator "--profile=$Profile" "--seed=$Seed" --require-perfect --json
   if ($LASTEXITCODE -ne 0) { throw "DLC evaluator exited $LASTEXITCODE" }
   $result = $json | ConvertFrom-Json
-  $commit = (& git -c "safe.directory=$($RepositoryPath -replace '\\','/')" rev-parse HEAD).Trim()
-  if ($LASTEXITCODE -ne 0) { throw 'Unable to resolve UTXORef commit' }
+  $commitAfter = (& git -c "safe.directory=$($RepositoryPath -replace '\\','/')" rev-parse HEAD).Trim()
+  $statusAfter = @(& git -c "safe.directory=$($RepositoryPath -replace '\\','/')" status --porcelain=v1 --untracked-files=normal)
+  if ($LASTEXITCODE -ne 0 -or $commitAfter -cne $commit -or $statusAfter.Count -ne 0) {
+    throw 'UTXORef commit or worktree changed during evidence capture'
+  }
 } finally {
   Pop-Location
 }
@@ -33,6 +40,8 @@ $snapshot = [ordered]@{
   broadcastAttempted = $false
   repository = $RepositoryPath
   commit = $commit
+  sourceWorktreeClean = $true
+  sourceCommitStable = $true
   result = $result
 }
 
@@ -45,4 +54,3 @@ Write-Output "score=$($result.score)"
 Write-Output "passed=$($result.passed)"
 Write-Output "failed=$($result.failed)"
 Write-Output "snapshot=$outputPath"
-

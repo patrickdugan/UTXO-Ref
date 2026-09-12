@@ -43,7 +43,9 @@ With `--require-synced`, the smoke script requires chain identity and full heade
 
 Before allowing untrusted swarm workers on the host, run the fail-closed host
 preflight. Its default mode requires restricted datadir, cookie, configuration,
-and wallet ACLs plus a watch-only wallet. `-TrustedCoordinator` permits a loaded
+and wallet ACLs plus a watch-only wallet. It also pins the signed Bitcoin Core
+31.1 binaries and verifies the actual RPC listener is owned by that daemon and
+bound only to loopback. `-TrustedCoordinator` permits a loaded
 private-key wallet for a read-only coordinator check, but is not an agent-sandbox
 claim:
 
@@ -59,8 +61,13 @@ for the rescan, and requires exact confirmed-UTXO parity at a stable tip:
 ```powershell
 powershell -ExecutionPolicy Bypass -File eval\provision-testnet4-watchonly-wallet.ps1
 powershell -ExecutionPolicy Bypass -File eval\provision-testnet4-watchonly-wallet.ps1 -Apply
+powershell -ExecutionPolicy Bypass -File eval\provision-testnet4-watchonly-wallet.ps1 -Audit
 powershell -ExecutionPolicy Bypass -File eval\bitcoin-testnet4-host-preflight.ps1 -WalletName utxoref-swarm-watchonly -Json
 ```
+
+`-Audit` is read-only and fails when the target wallet is absent, unloaded, or
+would need a descriptor import. Compatibility capture uses this live audit and
+does not trust the prior D-drive wallet evidence file.
 
 The untrusted-agent gate also requires the dedicated worker identity and its
 protected proxy token. Supply an account name or SID and the absolute token path:
@@ -87,6 +94,10 @@ stored in a bounded regular file readable by the worker account; the Core cookie
 remains readable only by the trusted coordinator. Verify the live deny boundary
 without signing or broadcasting. The proxy permits at most 120 authenticated
 requests per minute, four concurrent requests, and 16 connected sockets:
+The token is 64 lowercase hexadecimal characters and is re-read for every
+request, so an atomic replacement rotates it and deletion revokes the proxy.
+The token's parent directory must also be protected and non-writable by the
+worker; rotation is performed by the trusted coordinator while preserving ACLs.
 
 ```powershell
 node eval\bitcoin-testnet4-readonly-rpc-probe.js
@@ -106,6 +117,36 @@ node bitvm3\utxo_referee\btc_testnet4_stress.js `
 ```
 
 The unsigned policy lane creates raw candidates and checks them with `testmempoolaccept`; every candidate remains unsigned and nothing is broadcast. The optional `--signed-mempool-probe` creates and signs one self-spend candidate, checks it and parseable mutations, and discards every raw transaction without broadcasting. Use it only from a trusted coordinator. Add `--require-clean` when verifier violations should make the process fail.
+
+The DLC funding boundary separately requires
+`validateFundingPrebroadcastPolicy`. It re-decodes the exact finalized funding
+transaction and calls `testmempoolaccept` while the Core tip and mempool
+sequence remain stable. Its signed receipt metadata must match the transaction
+digest used by the `FUNDING_BROADCAST` transition. The check is read-only;
+`sendrawtransaction` is absent and funding broadcast remains disabled.
+The same rule applies to CET and refund transactions through
+`validateExecutionPrebroadcastPolicy`. It locally checks the committed signed
+settlement, binds the oracle-attestation or maturity evidence, and requires
+Core to agree on transaction identity and serialized size metrics before the
+execution-state receipt is accepted.
+Every funding, CET, or refund prebroadcast result expires within 30 seconds.
+The external broadcaster must call `DlcBroadcastAuthorizationStore.consume`
+with the exact raw transaction and signed transition request immediately before
+its host-owned send. The append-once consumption marker is written first, so
+parallel workers cannot reuse the same authorization.
+Adaptor-signing authorization consumption uses a separate append-once store.
+Boundary V52 requires each `consumed.json` marker to remain a single-link,
+bounded regular file with stable filesystem identity while it is opened. This
+prevents a swarm worker from aliasing or swapping a durable replay marker at
+the final signing boundary.
+Boundary V53 extends identity-bound persistence to contract state, sealed
+oracle events, peer negotiation sessions, and watchtower observations. Existing
+records are published with no-replace semantics and cannot be accepted through
+a hard link, symlink directory, oversized file, or raw contract-ID path alias.
+Boundary V54 applies the same durable-record implementation to signer
+authorization consumption, signed-refund recovery, and external broadcast
+authorization. These one-shot records therefore cannot be replaced during
+publication or accepted after parent-directory identity changes.
 
 ## Agent isolation
 

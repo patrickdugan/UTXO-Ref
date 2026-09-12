@@ -5,11 +5,13 @@ param(
   [string]$BitcoinCli = 'D:\Tools\BitcoinCore-31.1\bitcoin-31.1\bin\bitcoin-cli.exe',
   [string]$SnapshotDirectory = 'D:\bitagent-testnet4\btc-test-snapshots',
   [ValidateRange(600, 86400)][int]$LookbackSeconds = 7200,
+  [switch]$Audit,
   [switch]$Apply
 )
 
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
+if ($Audit -and $Apply) { throw 'Audit and Apply are mutually exclusive' }
 if ($SourceWallet -notmatch '^[A-Za-z0-9._-]{1,64}$' -or
     $TargetWallet -notmatch '^[A-Za-z0-9._-]{1,64}$' -or
     $SourceWallet -eq $TargetWallet) {
@@ -86,7 +88,7 @@ $loaded = @((Invoke-BitcoinJson 'listwallets'))
 $walletDirectoryResult = Invoke-BitcoinJson 'listwalletdir'
 $walletDirectory = @($walletDirectoryResult.wallets | ForEach-Object { $_.name })
 $targetExists = $TargetWallet -in $walletDirectory
-if (-not $Apply) {
+if (-not $Apply -and -not $Audit) {
   [ordered]@{
     schema = 'utxoref_testnet4_watchonly_wallet_plan_v1'
     mode = 'plan'
@@ -108,11 +110,16 @@ if (-not $Apply) {
 }
 
 $created = $false
-if (-not $targetExists) {
+$loadedThisRun = $false
+if ($Audit) {
+  if (-not $targetExists) { throw 'watch-only audit requires the target wallet to exist' }
+  if ($TargetWallet -notin $loaded) { throw 'watch-only audit requires the target wallet to be loaded' }
+} elseif (-not $targetExists) {
   [void](Invoke-BitcoinJson 'createwallet' @($TargetWallet, 'true', 'true', '', 'false', 'true', 'false', 'false'))
   $created = $true
 } elseif ($TargetWallet -notin $loaded) {
   [void](Invoke-BitcoinJson 'loadwallet' @($TargetWallet))
+  $loadedThisRun = $true
 }
 $targetInfo = Invoke-BitcoinJson -Method 'getwalletinfo' -Wallet $TargetWallet
 if ($targetInfo.private_keys_enabled -ne $false -or $targetInfo.descriptors -ne $true) {
@@ -130,6 +137,10 @@ if (@($targetDescriptorNames | Where-Object { $_ -notin $sourceDescriptorNames }
   throw 'target wallet contains a descriptor outside the source public descriptor set'
 }
 $missingDescriptors = @($descriptors | Where-Object { $_.desc -notin $targetDescriptorNames })
+$mutationRequired = $missingDescriptors.Count -ne 0
+if ($Audit -and $mutationRequired) {
+  throw 'watch-only audit found missing target descriptors; provisioning mutation would be required'
+}
 $imports = @($missingDescriptors | ForEach-Object {
   $entry = [ordered]@{
     desc = $_.desc
@@ -142,7 +153,7 @@ $imports = @($missingDescriptors | ForEach-Object {
   $entry
 })
 $importResult = @()
-if ($imports.Count -gt 0) {
+if (-not $Audit -and $imports.Count -gt 0) {
   $importJson = $imports | ConvertTo-Json -Depth 5 -Compress
   try {
     $importResult = @(Invoke-BitcoinJson -Method 'importdescriptors' -Parameters @($importJson) -Wallet $TargetWallet)
@@ -190,7 +201,8 @@ if ($sourceCanonical -cne $targetCanonical) {
 }
 
 $report = [ordered]@{
-  schema = 'utxoref_testnet4_watchonly_wallet_evidence_v1'
+  schema = 'utxoref_testnet4_watchonly_wallet_evidence_v2'
+  mode = $(if ($Audit) { 'live_readonly_audit' } else { 'provision_and_verify' })
   capturedAt = [DateTime]::UtcNow.ToString('o')
   network = 'bitcoin-testnet4'
   sourceWallet = $SourceWallet
@@ -206,8 +218,14 @@ $report = [ordered]@{
   targetConfirmedUtxos = $targetUtxos.Count
   utxoSetSha256 = Get-Sha256 $sourceCanonical
   exactUtxoSetMatch = $true
+  mutationRequired = $(if ($Audit) { $false } else { $created -or $loadedThisRun -or $importResult.Count -gt 0 })
+  mutationPerformed = $(if ($Audit) { $false } else { $created -or $loadedThisRun -or $importResult.Count -gt 0 })
   signingUsed = $false
   broadcastAttempted = $false
+}
+if ($Audit) {
+  $report | ConvertTo-Json -Depth 5
+  return
 }
 [System.IO.Directory]::CreateDirectory($SnapshotDirectory) | Out-Null
 $snapshotPath = Join-Path $SnapshotDirectory 'watchonly-wallet-latest.json'

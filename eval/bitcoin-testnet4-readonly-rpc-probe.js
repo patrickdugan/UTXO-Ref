@@ -2,9 +2,14 @@
 'use strict';
 
 const crypto = require('crypto');
+const fs = require('fs');
 const http = require('http');
+const os = require('os');
 const path = require('path');
-const { createReadonlyRpcProxy } = require('../bitvm3/utxo_referee/btc_testnet4_readonly_rpc_proxy');
+const {
+  createFileTokenProvider,
+  createReadonlyRpcProxy
+} = require('../bitvm3/utxo_referee/btc_testnet4_readonly_rpc_proxy');
 
 const cookiePath = process.env.BITCOIN_COOKIE || 'D:\\BitcoinTestnet\\testnet4\\.cookie';
 const rpcPort = Number(process.env.BITCOIN_RPC_PORT || '48332');
@@ -55,7 +60,15 @@ async function run() {
   }
   const token = crypto.randomBytes(32).toString('hex');
   const wrongToken = crypto.randomBytes(32).toString('hex');
-  const proxy = createReadonlyRpcProxy({ cookiePath, token, rpcPort });
+  const rotatedToken = crypto.randomBytes(32).toString('hex');
+  const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'utxoref-live-proxy-token-'));
+  const tokenFile = path.join(temporary, 'proxy.token');
+  fs.writeFileSync(tokenFile, token, { encoding: 'utf8', flag: 'wx' });
+  const proxy = createReadonlyRpcProxy({
+    cookiePath,
+    tokenProvider: createFileTokenProvider(tokenFile),
+    rpcPort
+  });
   const port = await listen(proxy.server);
   try {
     const allowedCalls = [
@@ -82,6 +95,17 @@ async function run() {
     const unauthenticated = await post(port, wrongToken, {
       jsonrpc: '2.0', id: 'wrong-token', method: 'getblockchaininfo', params: []
     });
+    fs.writeFileSync(tokenFile, rotatedToken, 'utf8');
+    const rotatedOld = await post(port, token, {
+      jsonrpc: '2.0', id: 'rotated-old', method: 'getbestblockhash', params: []
+    });
+    const rotatedNew = await post(port, rotatedToken, {
+      jsonrpc: '2.0', id: 'rotated-new', method: 'getbestblockhash', params: []
+    });
+    fs.rmSync(tokenFile);
+    const revoked = await post(port, rotatedToken, {
+      jsonrpc: '2.0', id: 'revoked', method: 'getbestblockhash', params: []
+    });
     const result = {
       schema: 'utxoref_bitcoin_testnet4_readonly_rpc_probe_v1',
       capturedAt: new Date().toISOString(),
@@ -91,6 +115,8 @@ async function run() {
       deniedCallsPassed: denied.filter(Boolean).length,
       deniedCallsExpected: denied.length,
       unauthenticatedRejected: unauthenticated.status === 403,
+      liveTokenRotationPassed: rotatedOld.status === 403 && rotatedNew.status === 200,
+      liveTokenRevocationPassed: revoked.status === 403,
       upstreamAccepted: proxy.stats.accepted,
       proxyDenied: proxy.stats.denied,
       proxyFailed: proxy.stats.failed,
@@ -100,12 +126,14 @@ async function run() {
     };
     if (result.allowedCallsPassed !== result.allowedCallsExpected ||
         result.deniedCallsPassed !== result.deniedCallsExpected ||
-        !result.unauthenticatedRejected || result.proxyFailed !== 0) {
+        !result.unauthenticatedRejected || !result.liveTokenRotationPassed ||
+        !result.liveTokenRevocationPassed || result.proxyFailed !== 0) {
       throw new Error(`live read-only proxy assertions failed: ${JSON.stringify(result)}`);
     }
     process.stdout.write(`${JSON.stringify(result)}\n`);
   } finally {
     await close(proxy.server);
+    fs.rmSync(temporary, { recursive: true, force: true });
   }
 }
 

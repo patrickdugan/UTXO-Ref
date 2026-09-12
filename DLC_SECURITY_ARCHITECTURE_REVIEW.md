@@ -233,6 +233,11 @@ The local research implementation now:
     The two-node Core 31.1 harness confirms the observer-facing RPC fields on
     both nodes, including full-RBF, incremental relay fee, pin fee/vsize,
     non-BIP125 status, and peer mempool inventory.
+28. Stores the fully signed refund in an append-once, bounded recovery record
+    before local signatures can be marked persistent. Independent restore binds
+    the signed contract transcript and validated transaction set, reconstructs
+    the unsigned transaction ID, verifies the SIGHASH_DEFAULT Taproot key-path
+    witness, and rejects linked, conflicting, incomplete, or changed records.
 
 The changes block the concrete exploit probes. They reduce testnet risk but do
 not promote this module to a production signer.
@@ -390,8 +395,46 @@ until a Taproot DLC message format is published and cross-tested.
   result before broadcast, the relay quorum after observation, and halts outside
   the observed replacement policy. Test heterogeneous peer policies and
   adversarial cluster-feerate diagrams before funded operation.
-- Repeat the exact Core decode and policy check immediately before the external
-  signer or wallet broadcasts; signed watchtower evidence does not grant keys.
+- The funding-broadcast transition now requires a fresh, signed
+  `prebroadcast_bitcoin_core_policy` receipt. The prebroadcast guard brackets
+  `decoderawtransaction` and `testmempoolaccept` with a stable Core tip and
+  mempool sequence, then binds the exact raw-transaction hash, txid, wtxid,
+  approved PSBT digest, and current contract transcript. The state machine
+  rejects a broadcast receipt for different transaction bytes. The guard has
+  no signing or send RPC, and the current finalizer still disables broadcast;
+  a future external signer or wallet integration must invoke this guard as its
+  final synchronous authorization step.
+- CET and refund execution now use the same fail-closed boundary. The execution
+  guard locally reconstructs the committed signed settlement transaction,
+  requires Core to agree on txid, wtxid, version, locktime, size, weight, and
+  vsize, and brackets `testmempoolaccept` with a stable tip and mempool
+  sequence. CET receipts bind the threshold-oracle evidence; refund receipts
+  bind maturity evidence and enforce the refund height. Both state transitions
+  reject transaction, settlement-set, evidence, or transcript substitution.
+- Prebroadcast results are now short-lived capabilities rather than timeless
+  receipts. Their signed validity window is limited to 30 seconds. A dedicated
+  append-once store revalidates the complete signed transition, rehashes the
+  exact transaction bytes, and durably consumes the capability before any
+  caller can broadcast. A 16-process race admits one consumer; replay,
+  expiration, future dating, hard-linked records, and incomplete markers fail
+  closed. The store itself exposes no broadcast RPC.
+- Durable adaptor-signing consumption now uses identity-bound reads. A marker
+  must be a single-link regular file no larger than 32 KiB, and its device,
+  inode, size, and timestamps must remain stable across open. Read buffers are
+  cleared and the final renamed record is flushed, so filesystem aliasing,
+  replacement, truncation, and incomplete-marker attacks fail before reuse.
+- Contract revisions, sealed oracle events, peer-session claims/commits, and
+  watchtower observations now share the same identity-bound durable-record
+  primitive. It checks file and parent-directory identity through each read,
+  rejects linked and oversized files, publishes with an exclusive no-replace
+  link, flushes the final record, and never recursively removes lock paths.
+  The state store SHA-256 maps contract IDs before constructing revision and
+  lock directories, eliminating raw platform-specific path aliases.
+- Signing consumption, signed-refund recovery, and broadcast consumption now
+  use that same shared primitive. Their parent-directory identity is checked
+  through reads, JSON buffers are cleared, existing final files cannot be
+  replaced during publication, and the final single-link record is flushed
+  before the one-shot operation reports durable success.
 
 ## Alternative designs
 

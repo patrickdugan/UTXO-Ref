@@ -4,8 +4,15 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const { canonicalJson } = require('./dlc_contract_state');
+const {
+  assertNonSymlinkDirectory,
+  ensureNonSymlinkDirectory,
+  readBoundedJson,
+  writeJsonAppendOnce
+} = require('./dlc_durable_json_store');
 
 const KIND = 'utxoref_dlc_signing_authorization_consumption_v1';
+const MAX_RECORD_BYTES = 32768;
 
 function sha256Hex(value) {
   return crypto.createHash('sha256').update(value).digest('hex');
@@ -57,7 +64,7 @@ class DlcSigningAuthorizationStore {
   constructor(baseDirectory) {
     if (typeof baseDirectory !== 'string' || baseDirectory.length === 0) throw new Error('baseDirectory is required');
     this.baseDirectory = path.resolve(baseDirectory);
-    fs.mkdirSync(this.baseDirectory, { recursive: true, mode: 0o700 });
+    ensureNonSymlinkDirectory(this.baseDirectory, 'DLC signing authorization base');
   }
 
   _directory(contractId, authorizationId) {
@@ -65,34 +72,27 @@ class DlcSigningAuthorizationStore {
   }
 
   _readDirectory(directory) {
+    assertNonSymlinkDirectory(directory, 'DLC signing authorization consumption marker');
     const recordPath = path.join(directory, 'consumed.json');
     if (!fs.existsSync(recordPath)) {
       throw new Error('DLC signing authorization has an incomplete consumption marker; manual recovery is required');
     }
-    const record = JSON.parse(fs.readFileSync(recordPath, 'utf8'));
+    const record = readBoundedJson(recordPath, {
+      maxBytes: MAX_RECORD_BYTES,
+      label: 'DLC signing authorization consumption record'
+    });
     validateConsumptionRecord(record);
+    if (record.consumptionKey !== path.basename(directory)) {
+      throw new Error('DLC signing consumption directory key mismatch');
+    }
     return record;
   }
 
   _writeAtomic(directory, record) {
-    const finalPath = path.join(directory, 'consumed.json');
-    const temporaryPath = path.join(
-      directory,
-      `.consumed.${process.pid}.${crypto.randomBytes(8).toString('hex')}.tmp`
-    );
-    const fd = fs.openSync(temporaryPath, 'wx', 0o600);
-    try {
-      fs.writeFileSync(fd, `${JSON.stringify(record, null, 2)}\n`, 'utf8');
-      fs.fsyncSync(fd);
-    } finally {
-      fs.closeSync(fd);
-    }
-    try {
-      fs.renameSync(temporaryPath, finalPath);
-    } catch (error) {
-      try { fs.unlinkSync(temporaryPath); } catch (_cleanupError) {}
-      throw error;
-    }
+    writeJsonAppendOnce(directory, 'consumed.json', record, {
+      maxBytes: MAX_RECORD_BYTES,
+      label: 'DLC signing authorization consumption record'
+    });
   }
 
   consume({ network, contractId, authorizationId, stateRecordHash, authorizationDigest, providerIdentity }) {
@@ -146,9 +146,8 @@ class DlcSigningAuthorizationStore {
     for (const name of fs.readdirSync(this.baseDirectory).sort()) {
       if (!/^[0-9a-f]{64}$/.test(name)) continue;
       const directory = path.join(this.baseDirectory, name);
-      if (!fs.statSync(directory).isDirectory()) continue;
+      assertNonSymlinkDirectory(directory, 'DLC signing authorization consumption marker');
       const record = this._readDirectory(directory);
-      if (record.consumptionKey !== name) throw new Error('DLC signing consumption directory key mismatch');
       records++;
     }
     return Object.freeze({ ok: true, records });
@@ -157,6 +156,7 @@ class DlcSigningAuthorizationStore {
 
 module.exports = {
   KIND,
+  MAX_RECORD_BYTES,
   consumptionKey,
   recordHash,
   validateConsumptionRecord,

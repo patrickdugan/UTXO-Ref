@@ -13,8 +13,15 @@ const {
   bytes32
 } = require('./tradelayer_dlc_adaptor_sig');
 const { canonicalJson } = require('./dlc_contract_state');
+const {
+  assertNonSymlinkDirectory,
+  ensureNonSymlinkDirectory,
+  readBoundedJson,
+  writeJsonAppendOnce
+} = require('./dlc_durable_json_store');
 
 const KIND = 'utxoref_dlc_oracle_event_record_v1';
+const MAX_RECORD_BYTES = 1048576;
 
 function sha256Hex(value) {
   return crypto.createHash('sha256').update(value).digest('hex');
@@ -77,7 +84,7 @@ class DlcOracleEventStore {
     this.wrappingKey = Buffer.from(wrappingKey);
     this.network = network;
     this.closed = false;
-    fs.mkdirSync(this.baseDirectory, { recursive: true, mode: 0o700 });
+    ensureNonSymlinkDirectory(this.baseDirectory, 'DLC oracle event store');
   }
 
   _requireOpen() {
@@ -90,6 +97,7 @@ class DlcOracleEventStore {
   _withLock(key, run) {
     this._requireOpen();
     const lockDirectory = this._lockDirectory(key);
+    const ownerPath = path.join(lockDirectory, 'owner.json');
     try {
       fs.mkdirSync(lockDirectory, { mode: 0o700 });
     } catch (error) {
@@ -97,43 +105,38 @@ class DlcOracleEventStore {
       throw error;
     }
     try {
-      fs.writeFileSync(path.join(lockDirectory, 'owner.json'), JSON.stringify({ pid: process.pid }), { mode: 0o600, flag: 'wx' });
+      fs.writeFileSync(ownerPath, JSON.stringify({ pid: process.pid }), { mode: 0o600, flag: 'wx' });
     } catch (error) {
-      fs.rmSync(lockDirectory, { recursive: true, force: true });
+      try { fs.unlinkSync(ownerPath); } catch (_cleanupError) {}
+      try { fs.rmdirSync(lockDirectory); } catch (_cleanupError) {}
       throw error;
     }
     try {
       return run();
     } finally {
-      fs.rmSync(lockDirectory, { recursive: true, force: true });
+      try { fs.unlinkSync(ownerPath); } finally { fs.rmdirSync(lockDirectory); }
     }
   }
 
   _files(key) {
     const directory = this._directory(key);
     if (!fs.existsSync(directory)) return [];
+    assertNonSymlinkDirectory(directory, 'DLC oracle event');
     return fs.readdirSync(directory).filter((name) => /^revision-[0-9]{12}\.json$/.test(name)).sort();
   }
 
   _write(record) {
     validateRecord(record);
     const directory = this._directory(record.eventKey);
-    fs.mkdirSync(directory, { recursive: true, mode: 0o700 });
+    ensureNonSymlinkDirectory(directory, 'DLC oracle event');
     const name = `revision-${String(record.revision).padStart(12, '0')}.json`;
-    const finalPath = path.join(directory, name);
-    if (fs.existsSync(finalPath)) throw new Error(`oracle event revision ${record.revision} already exists`);
-    const temporaryPath = path.join(directory, `.${name}.${process.pid}.${crypto.randomBytes(8).toString('hex')}.tmp`);
-    const fd = fs.openSync(temporaryPath, 'wx', 0o600);
     try {
-      fs.writeFileSync(fd, `${JSON.stringify(record, null, 2)}\n`, 'utf8');
-      fs.fsyncSync(fd);
-    } finally {
-      fs.closeSync(fd);
-    }
-    try {
-      fs.renameSync(temporaryPath, finalPath);
+      writeJsonAppendOnce(directory, name, record, {
+        maxBytes: MAX_RECORD_BYTES,
+        label: 'DLC oracle event record'
+      });
     } catch (error) {
-      try { fs.unlinkSync(temporaryPath); } catch (_cleanupError) {}
+      if (error.code === 'EEXIST') throw new Error(`oracle event revision ${record.revision} already exists`);
       throw error;
     }
   }
@@ -142,8 +145,12 @@ class DlcOracleEventStore {
     const files = this._files(key);
     if (files.length === 0) throw new Error('oracle event does not exist');
     let previous = null;
+    const directory = this._directory(key);
     for (let index = 0; index < files.length; index++) {
-      const record = JSON.parse(fs.readFileSync(path.join(this._directory(key), files[index]), 'utf8'));
+      const record = readBoundedJson(path.join(directory, files[index]), {
+        maxBytes: MAX_RECORD_BYTES,
+        label: 'DLC oracle event record'
+      });
       validateRecord(record);
       if (record.revision !== index || (previous && record.previousRecordHash !== previous.recordHash)) {
         throw new Error('oracle event revision chain is not contiguous');
@@ -214,8 +221,12 @@ class DlcOracleEventStore {
     const files = this._files(key);
     if (files.length === 0) throw new Error('oracle event does not exist');
     let previous = null;
+    const directory = this._directory(key);
     for (let index = 0; index < files.length; index++) {
-      const record = JSON.parse(fs.readFileSync(path.join(this._directory(key), files[index]), 'utf8'));
+      const record = readBoundedJson(path.join(directory, files[index]), {
+        maxBytes: MAX_RECORD_BYTES,
+        label: 'DLC oracle event record'
+      });
       validateRecord(record);
       if (record.revision !== index || (previous && record.previousRecordHash !== previous.recordHash)) {
         throw new Error('oracle event revision chain is not contiguous');
@@ -231,4 +242,4 @@ class DlcOracleEventStore {
   }
 }
 
-module.exports = { KIND, eventKey, validateRecord, DlcOracleEventStore };
+module.exports = { KIND, MAX_RECORD_BYTES, eventKey, validateRecord, DlcOracleEventStore };

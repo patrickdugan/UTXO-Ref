@@ -5,9 +5,16 @@ const fs = require('fs');
 const path = require('path');
 const { canonicalJson } = require('./dlc_contract_state');
 const { TYPES, verifyDlcPeerMessage } = require('./dlc_peer_transcript');
+const {
+  assertNonSymlinkDirectory,
+  ensureNonSymlinkDirectory,
+  readBoundedJson,
+  writeJsonAppendOnce
+} = require('./dlc_durable_json_store');
 
 const CLAIM_KIND = 'utxoref_dlc_peer_offer_claim_v1';
 const COMMIT_KIND = 'utxoref_dlc_peer_transcript_commit_v1';
+const MAX_RECORD_BYTES = 131072;
 
 function hash(value) { return crypto.createHash('sha256').update(value).digest('hex'); }
 function requireHash(value, name) {
@@ -51,7 +58,7 @@ class DlcPeerSessionStore {
   constructor(baseDirectory) {
     if (typeof baseDirectory !== 'string' || baseDirectory.length === 0) throw new Error('baseDirectory is required');
     this.baseDirectory = path.resolve(baseDirectory);
-    fs.mkdirSync(this.baseDirectory, { recursive: true, mode: 0o700 });
+    ensureNonSymlinkDirectory(this.baseDirectory, 'DLC peer session store');
   }
 
   _directory(peerId, temporaryContractId) {
@@ -59,29 +66,29 @@ class DlcPeerSessionStore {
   }
 
   _writeAtomic(directory, name, record) {
-    const finalPath = path.join(directory, name);
-    const temporaryPath = path.join(directory, `.${name}.${process.pid}.${crypto.randomBytes(8).toString('hex')}.tmp`);
-    const fd = fs.openSync(temporaryPath, 'wx', 0o600);
-    try {
-      fs.writeFileSync(fd, `${JSON.stringify(record, null, 2)}\n`, 'utf8');
-      fs.fsyncSync(fd);
-    } finally {
-      fs.closeSync(fd);
-    }
-    try {
-      fs.renameSync(temporaryPath, finalPath);
-    } catch (error) {
-      try { fs.unlinkSync(temporaryPath); } catch (_cleanupError) {}
-      throw error;
-    }
+    return writeJsonAppendOnce(directory, name, record, {
+      maxBytes: MAX_RECORD_BYTES,
+      label: 'DLC peer session record'
+    });
   }
 
   _readClaim(directory) {
+    assertNonSymlinkDirectory(directory, 'DLC peer session');
     const claimPath = path.join(directory, 'claim.json');
     if (!fs.existsSync(claimPath)) throw new Error('DLC peer offer claim is incomplete; manual recovery is required');
-    const claim = JSON.parse(fs.readFileSync(claimPath, 'utf8'));
+    const claim = readBoundedJson(claimPath, { maxBytes: MAX_RECORD_BYTES, label: 'DLC peer offer claim' });
     validateClaim(claim);
+    if (claim.sessionKey !== path.basename(directory)) throw new Error('DLC peer session directory key mismatch');
     return claim;
+  }
+
+  _readCommit(directory, claim) {
+    const commit = readBoundedJson(path.join(directory, 'commit.json'), {
+      maxBytes: MAX_RECORD_BYTES,
+      label: 'DLC peer transcript commit'
+    });
+    validateCommit(commit, claim);
+    return commit;
   }
 
   claimOffer({ offer, offererPublicKey }) {
@@ -130,15 +137,15 @@ class DlcPeerSessionStore {
       )
     };
     const commit = Object.freeze({ ...unsigned, recordHash: recordHash(unsigned) });
-    const commitPath = path.join(directory, 'commit.json');
-    if (fs.existsSync(commitPath)) {
-      const existing = JSON.parse(fs.readFileSync(commitPath, 'utf8'));
-      validateCommit(existing, claim);
+    try {
+      this._writeAtomic(directory, 'commit.json', commit);
+      return commit;
+    } catch (error) {
+      if (error.code !== 'EEXIST') throw error;
+      const existing = this._readCommit(directory, claim);
       if (existing.recordHash === commit.recordHash) return existing;
       throw new Error('DLC peer session already committed a different transcript');
     }
-    this._writeAtomic(directory, 'commit.json', commit);
-    return commit;
   }
 
   knownTemporaryContractIds(peerId) {
@@ -147,7 +154,7 @@ class DlcPeerSessionStore {
     for (const name of fs.readdirSync(this.baseDirectory).sort()) {
       if (!/^[0-9a-f]{64}$/.test(name)) continue;
       const directory = path.join(this.baseDirectory, name);
-      if (!fs.statSync(directory).isDirectory()) continue;
+      assertNonSymlinkDirectory(directory, 'DLC peer session');
       const claim = this._readClaim(directory);
       if (claim.peerId === peerId) ids.push(claim.temporaryContractId);
     }
@@ -155,4 +162,4 @@ class DlcPeerSessionStore {
   }
 }
 
-module.exports = { DlcPeerSessionStore, sessionKey, validateClaim, validateCommit };
+module.exports = { MAX_RECORD_BYTES, DlcPeerSessionStore, sessionKey, validateClaim, validateCommit };
