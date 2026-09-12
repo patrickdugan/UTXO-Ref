@@ -177,7 +177,7 @@ oracle combinations, encrypted restart-safe oracle state, and a crypto provider
 that defaults to disabled. Canonical Bitcoin transaction and BIP341 signature
 validators bind CET/refund evidence to the funding outpoint before signed state
 can advance. Each spend has a unique transaction ID and committed last-output
-anchor. Boundary V22 supports the legacy version-2 owned CPFP anchor and a
+anchor. Boundary V23 supports the legacy version-2 owned CPFP anchor and a
 version-3 TRUC policy with an exact zero-sat P2A `51024e73` anchor. The TRUC
 policy commits Core's 10,000-vB settlement limit, 1,000-vB recovery-child limit,
 and two-transaction unconfirmed cluster limit. Every signed fee policy fixes the
@@ -234,7 +234,7 @@ challenge, the request digest, and the pre-signature digest. Runtime drift,
 timeouts, oversized or malformed output, stale challenges, and identity
 substitution fail closed.
 
-Boundary V22 includes the Rust `k256` signer candidate under
+Boundary V23 includes the Rust `k256` signer candidate under
 `native/dlc-signer`. Its direct dependencies are exactly pinned, unsafe Rust is
 forbidden, and the testnet4 build harness rejects byte differences between two
 independent Windows target directories. The cross-language test completes the
@@ -258,6 +258,10 @@ helpers, Rust source and build lock, and checked signer evidence. Text line
 endings are normalized before hashing so the same reviewed surface has one
 cross-platform digest. A modified sibling checkout fails compatibility before
 its exports are loaded.
+The manifest walks every literal relative CommonJS dependency reachable from
+the exact `index.js` and reserve-vault entry points, then adds the standalone
+funding tools, Rust build inputs, and signer evidence. This prevents an omitted
+transitive module from escaping the source pin.
 The checked result
 is recorded in `artifacts/dlc_native_rust_signer_latest.json`. This evidence
 does not replace an independent cryptographic, dependency, key-storage, and

@@ -128,7 +128,7 @@ module.exports = {
   // for production; these interfaces enforce transcript, threshold-oracle,
   // and persistence gates on regtest and Bitcoin testnet4.
   dlc: Object.freeze({
-    securityBoundaryVersion: 22,
+    securityBoundaryVersion: 23,
     createContract: dlcContractState.createDlcContract,
     validateContract: dlcContractState.validateDlcContract,
     transitionContract: dlcContractState.transitionDlcContract,
@@ -207,7 +207,9 @@ module.exports = {
       productionReady: false
     }),
     bitAgentCriticalSurface: Object.freeze({
-      manifest: 'utxoref-bitagent-critical-surface-v1',
+      manifest: 'utxoref-bitagent-critical-surface-v2',
+      dependencyDiscovery: 'static-commonjs-relative-require-v1',
+      entryPoints: Object.freeze(['index.js', 'taproot_reserve_vault.js']),
       normalizedTextLineEndings: 'lf',
       regularFilesOnly: true,
       maxFileBytes: 4194304
