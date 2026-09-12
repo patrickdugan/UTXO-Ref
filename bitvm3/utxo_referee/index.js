@@ -127,7 +127,7 @@ module.exports = {
   // for production; these interfaces enforce transcript, threshold-oracle,
   // and persistence gates on regtest and Bitcoin testnet4.
   dlc: Object.freeze({
-    securityBoundaryVersion: 14,
+    securityBoundaryVersion: 15,
     createContract: dlcContractState.createDlcContract,
     validateContract: dlcContractState.validateDlcContract,
     transitionContract: dlcContractState.transitionDlcContract,
@@ -170,6 +170,11 @@ module.exports = {
       consumeBeforeSign: true,
       crossProcessSingleConsumer: true,
       rawAdaptorSignHidden: true,
+      nativeSigningRequestKind: 'utxoref_dlc_native_adaptor_sign_request_v1',
+      callerSuppliesNativeSecret: false,
+      nativeKeySelection: 'authorized-xonly-pubkey',
+      nativeVerifiesAuthorization: true,
+      hostSecretInputRejected: true,
       productionReady: false
     }),
     validateCetAdaptorSignatures: dlcSignatureValidator.validateCetAdaptorSignatures,

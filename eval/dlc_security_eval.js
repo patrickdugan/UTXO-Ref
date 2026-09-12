@@ -456,7 +456,7 @@ check('contract state rejects forged and altered validation receipts', 'validato
   return alteredRejected && flagRejected;
 });
 
-check('crypto provider requires audited code and a one-shot signed contract authorization', 'signer-boundary', 18, () => {
+check('crypto provider requires audited secretless native requests and durable authorization', 'signer-boundary', 24, () => {
   const authorizationDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'utxoref-signer-eval-'));
   try {
   const disabled = createDlcCryptoProvider({ network: 'bitcoin-testnet4' });
@@ -477,9 +477,15 @@ check('crypto provider requires audited code and a one-shot signed contract auth
     constantTimeSecretOperations: true,
     secretZeroization: true,
     processIsolated: true,
+    signingRequestKind: 'utxoref_dlc_native_adaptor_sign_request_v1',
+    callerSuppliesSecret: false,
+    keySelection: 'authorized-xonly-pubkey',
+    independentAuthorizationVerification: true,
     binaryDigest: sha256('signer-eval:binary').toString('hex'),
     auditDigest: sha256('signer-eval:audit').toString('hex')
   };
+  const nativeSecret = scalar('signer-eval:native-secret');
+  let capturedNativeRequest = null;
   const implementation = {
     capabilities: {
       ...manifest,
@@ -488,11 +494,27 @@ check('crypto provider requires audited code and a one-shot signed contract auth
         signature: crypto.sign(null, nativeCapabilityAttestationPayload(manifest), auditKey.privateKey).toString('base64')
       }
     },
-    adaptorSign() {}, adaptorVerify() {}, adaptorComplete() {}, adaptorExtract() {}, schnorrVerify() {}
+    adaptorSignAuthorized(request) {
+      capturedNativeRequest = request;
+      return dlc.adaptorSign(
+        nativeSecret,
+        Buffer.from(request.sighash, 'hex'),
+        { x: BigInt(`0x${request.adaptorPoint.x}`), y: BigInt(`0x${request.adaptorPoint.y}`) },
+        sha256('signer-eval:native-aux')
+      );
+    },
+    adaptorVerify: dlc.adaptorVerify,
+    adaptorComplete: dlc.adaptorComplete,
+    adaptorExtract: dlc.adaptorExtract,
+    schnorrVerify: dlc.schnorrVerify
   };
   const trustedAuditKeys = [{ keyId: auditKeyId, publicKeySpki: auditDer.toString('base64') }];
   const native = createDlcCryptoProvider({
-    network: 'bitcoin-testnet4', mode: 'native-isolated', implementation, trustedAuditKeys
+    network: 'bitcoin-testnet4',
+    mode: 'native-isolated',
+    implementation,
+    trustedAuditKeys,
+    authorizationStore: new DlcSigningAuthorizationStore(path.join(authorizationDirectory, 'native'))
   });
   const tamperedRejected = throws(() => createDlcCryptoProvider({
     network: 'bitcoin-testnet4',
@@ -521,15 +543,17 @@ check('crypto provider requires audited code and a one-shot signed contract auth
   }
   const sighash = sha256('signer-eval:cet-sighash').toString('hex');
   const adaptorPoint = dlc.pointMul(dlc.G, scalar('signer-eval:adaptor'));
+  const signerSecret = scalar('signer-eval:secret');
+  const signerPubkeyX = dlc.xOnlyPubkey(signerSecret).toString('hex');
   const authorization = createDlcAdaptorSignAuthorization({
     privateKey: validatorKeys.privateKey,
     contract,
     authorizationId: 'cet:0:oracle-set:0',
+    signerPubkeyX,
     sighash,
     adaptorPoint
   });
   const session = authorizeDlcAdaptorSign(explicit, { contract, authorization });
-  const signerSecret = scalar('signer-eval:secret');
   const presignature = session.execute(signerSecret, sha256('signer-eval:aux'));
   const signed = dlc.adaptorVerify(dlc.xOnlyPubkey(signerSecret), Buffer.from(sighash, 'hex'), presignature);
   const replayRejected = throws(() => session.execute(signerSecret, sha256('signer-eval:replay')), /already consumed/);
@@ -548,10 +572,30 @@ check('crypto provider requires audited code and a one-shot signed contract auth
     contract,
     authorization: { ...authorization, sighash: sha256('signer-eval:wrong-sighash').toString('hex') }
   }), /signature is invalid/);
+  const nativeSignerPubkeyX = dlc.xOnlyPubkey(nativeSecret).toString('hex');
+  const nativeAuthorization = createDlcAdaptorSignAuthorization({
+    privateKey: validatorKeys.privateKey,
+    contract,
+    authorizationId: 'native:cet:0:oracle-set:0',
+    signerPubkeyX: nativeSignerPubkeyX,
+    sighash,
+    adaptorPoint
+  });
+  const nativeSession = authorizeDlcAdaptorSign(native, { contract, authorization: nativeAuthorization });
+  const nativeSecretRejected = throws(() => nativeSession.execute(nativeSecret), /accepts no host-supplied secret/);
+  const nativePresignature = nativeSession.execute();
+  const nativeResponseValid = dlc.adaptorVerify(
+    Buffer.from(nativeSignerPubkeyX, 'hex'), Buffer.from(sighash, 'hex'), nativePresignature
+  );
+  const nativeRequestPublicOnly = capturedNativeRequest &&
+    capturedNativeRequest.kind === 'utxoref_dlc_native_adaptor_sign_request_v1' &&
+    capturedNativeRequest.secret === undefined && capturedNativeRequest.keyHandle === undefined &&
+    typeof capturedNativeRequest.authorizationPayload === 'string';
   return disabled.mode === 'disabled' && Object.keys(disabled.operations).length === 0 &&
     explicit.productionReady === false && explicit.capabilities.nativeSecretArithmetic === false &&
     explicit.operations.adaptorSign === undefined && explicit.signingAuthorizationPersistence === 'durable-before-sign' &&
     signed && replayRejected && restartReplayRejected && tamperedRequestRejected &&
+    nativeSecretRejected && nativeResponseValid && nativeRequestPublicOnly &&
     native.capabilities.attestationVerified === true && native.productionReady === false && tamperedRejected &&
     throws(() => createDlcCryptoProvider({
       network: 'bitcoin-mainnet',
@@ -1305,7 +1349,7 @@ const possible = cases.reduce((sum, test) => sum + test.points, 0);
 const score = earned / possible;
 const report = {
   benchmark: 'utxoref-dlc-security',
-  version: 13,
+  version: 14,
   profile: profileName,
   seed,
   score,

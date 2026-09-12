@@ -286,6 +286,12 @@ large agent swarm.
   [p2pderivatives/rust-dlc](https://github.com/p2pderivatives/rust-dlc).
 - Run party and oracle keys in separate signer processes or hardware-backed
   services. Agents receive typed requests and public results only.
+- The native adapter no longer accepts party secret scalars or caller-selected
+  key handles. Its audited request API carries the complete signed
+  authorization and selects an internally held key by the authorized x-only
+  public key. The signer must verify the validator signature itself, and the
+  host independently verifies the returned adaptor pre-signature. A reviewed
+  native implementation of that interface is still required.
 - The local provider boundary now rejects self-declared native capabilities. An
   operator-pinned Ed25519 audit key must sign the exact binary digest, audit
   digest, and constant-time, zeroization, and process-isolation manifest. This
@@ -294,10 +300,10 @@ large agent swarm.
 - Raw adaptor signing is no longer exposed on the provider. The pinned local-CET
   validator must issue a one-shot authorization that binds the current signed
   contract record and transcript, authenticated CET-set digest, exact BIP341
-  sighash, and adaptor point. Signing is available only after counterparty
-  signatures are verified. The authorization store atomically claims an
-  exclusive key and fsyncs the consumption record before signing. Restarted and
-  concurrent processes sharing that store reject replay; an incomplete crash
+  sighash, signer x-only public key, and adaptor point. Signing is available
+  only after counterparty signatures are verified. The authorization store
+  atomically claims an exclusive key and fsyncs the consumption record before
+  signing. Restarted and concurrent processes sharing that store reject replay; an incomplete crash
   marker halts for manual recovery. Production deployments must place this
   store on storage whose durability and single-writer semantics hold across
   failover nodes.

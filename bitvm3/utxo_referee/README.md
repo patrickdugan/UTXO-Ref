@@ -177,7 +177,7 @@ oracle combinations, encrypted restart-safe oracle state, and a crypto provider
 that defaults to disabled. Canonical Bitcoin transaction and BIP341 signature
 validators bind CET/refund evidence to the funding outpoint before signed state
 can advance. Each spend has a unique transaction ID and committed last-output
-anchor. Boundary V14 supports the legacy version-2 owned CPFP anchor and a
+anchor. Boundary V15 supports the legacy version-2 owned CPFP anchor and a
 version-3 TRUC policy with an exact zero-sat P2A `51024e73` anchor. The TRUC
 policy commits Core's 10,000-vB settlement limit, 1,000-vB recovery-child limit,
 and two-transaction unconfirmed cluster limit. Every signed fee policy fixes the
@@ -217,6 +217,14 @@ creates and fsyncs an exclusive consumption record before invoking the signer,
 so restart and concurrent processes sharing the store cannot consume the same
 authorization twice. An incomplete crash marker fails closed for manual
 recovery.
+
+The native provider interface accepts only
+`utxoref_dlc_native_adaptor_sign_request_v1`. The host supplies the signed
+authorization payload, validator public key, contract commitments, approved
+signer x-only public key, sighash, and adaptor point. It cannot supply a secret
+scalar or key handle. The signer service must independently verify that payload,
+select its internally held key by the authorized public key, and return a
+pre-signature that the host verifies before accepting.
 
 Run:
 

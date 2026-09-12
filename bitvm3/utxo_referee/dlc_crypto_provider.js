@@ -6,7 +6,7 @@ const { canonicalJson, validateDlcContract } = require('./dlc_contract_state');
 const { DlcSigningAuthorizationStore } = require('./dlc_signing_authorization_store');
 
 const REQUIRED_NATIVE_OPERATIONS = Object.freeze([
-  'adaptorSign',
+  'adaptorSignAuthorized',
   'adaptorVerify',
   'adaptorComplete',
   'adaptorExtract',
@@ -15,7 +15,8 @@ const REQUIRED_NATIVE_OPERATIONS = Object.freeze([
 const PROVIDER_OPERATIONS = new WeakMap();
 const PROVIDER_AUTHORIZATION_STORES = new WeakMap();
 const CONSUMED_AUTHORIZATIONS = new WeakMap();
-const ADAPTOR_SIGN_AUTHORIZATION_KIND = 'utxoref_dlc_adaptor_sign_authorization_v1';
+const ADAPTOR_SIGN_AUTHORIZATION_KIND = 'utxoref_dlc_adaptor_sign_authorization_v2';
+const NATIVE_ADAPTOR_SIGN_REQUEST_KIND = 'utxoref_dlc_native_adaptor_sign_request_v1';
 
 function validateNetwork(network) {
   if (!['bitcoin-regtest', 'bitcoin-testnet4', 'bitcoin-mainnet'].includes(network)) {
@@ -23,9 +24,12 @@ function validateNetwork(network) {
   }
 }
 
-function bindOperations(implementation) {
+function bindOperations(implementation, mode) {
+  const required = mode === 'native-isolated'
+    ? REQUIRED_NATIVE_OPERATIONS
+    : ['adaptorSign', 'adaptorVerify', 'adaptorComplete', 'adaptorExtract', 'schnorrVerify'];
   const operations = {};
-  for (const name of REQUIRED_NATIVE_OPERATIONS) {
+  for (const name of required) {
     if (!implementation || typeof implementation[name] !== 'function') {
       throw new Error(`DLC crypto provider is missing ${name}`);
     }
@@ -97,7 +101,7 @@ function normalizeAdaptorPoint(point) {
   });
 }
 
-function adaptorSigningAuthorizationPayload({ contract, authorizationId, sighash, adaptorPoint }) {
+function adaptorSigningAuthorizationPayload({ contract, authorizationId, signerPubkeyX, sighash, adaptorPoint }) {
   validateDlcContract(contract);
   if (contract.stage !== 'COUNTERPARTY_SIGNATURES_VERIFIED') {
     throw new Error('DLC adaptor signing requires COUNTERPARTY_SIGNATURES_VERIFIED contract state');
@@ -113,14 +117,24 @@ function adaptorSigningAuthorizationPayload({ contract, authorizationId, sighash
     revision: contract.revision,
     stage: contract.stage,
     cetSetDigest: cetSetDigest(contract),
+    signerPubkeyX: requireLowerHex(signerPubkeyX, 32, 'signerPubkeyX'),
     sighash: requireLowerHex(sighash, 32, 'sighash'),
     adaptorPoint: normalizeAdaptorPoint(adaptorPoint)
   };
   return Buffer.from(canonicalJson(normalized), 'utf8');
 }
 
-function createDlcAdaptorSignAuthorization({ privateKey, contract, authorizationId, sighash, adaptorPoint }) {
-  const payload = adaptorSigningAuthorizationPayload({ contract, authorizationId, sighash, adaptorPoint });
+function createDlcAdaptorSignAuthorization({
+  privateKey,
+  contract,
+  authorizationId,
+  signerPubkeyX,
+  sighash,
+  adaptorPoint
+}) {
+  const payload = adaptorSigningAuthorizationPayload({
+    contract, authorizationId, signerPubkeyX, sighash, adaptorPoint
+  });
   const publicKey = crypto.createPublicKey(privateKey);
   if (publicKey.asymmetricKeyType !== 'ed25519') throw new Error('DLC signing authorization key must be Ed25519');
   const publicKeyDer = publicKey.export({ format: 'der', type: 'spki' });
@@ -132,11 +146,23 @@ function createDlcAdaptorSignAuthorization({ privateKey, contract, authorization
     kind: ADAPTOR_SIGN_AUTHORIZATION_KIND,
     authorizationId,
     stateRecordHash: contract.recordHash,
+    signerPubkeyX,
     sighash,
     adaptorPoint: normalizeAdaptorPoint(adaptorPoint),
     validatorKeyId,
     signature: crypto.sign(null, payload, privateKey).toString('base64')
   });
+}
+
+function verifyAuthorizedPresignature(result, signerPubkeyX, sighash) {
+  if (!experimental.adaptorVerify(
+    Buffer.from(signerPubkeyX, 'hex'),
+    Buffer.from(sighash, 'hex'),
+    result
+  )) {
+    throw new Error('DLC signer returned an invalid authorized adaptor signature');
+  }
+  return result;
 }
 
 function authorizeDlcAdaptorSign(provider, { contract, authorization } = {}) {
@@ -158,6 +184,7 @@ function authorizeDlcAdaptorSign(provider, { contract, authorization } = {}) {
   const payload = adaptorSigningAuthorizationPayload({
     contract,
     authorizationId: authorization.authorizationId,
+    signerPubkeyX: authorization.signerPubkeyX,
     sighash: authorization.sighash,
     adaptorPoint
   });
@@ -181,27 +208,69 @@ function authorizeDlcAdaptorSign(provider, { contract, authorization } = {}) {
     authorizationId: authorization.authorizationId,
     sighash: authorization.sighash,
     adaptorPoint,
-    execute(secret, aux32) {
+    execute(...args) {
       if (executed || consumed.has(replayKey)) {
         throw new Error('DLC adaptor signing authorization was already consumed');
       }
+      if (provider.mode === 'experimental-js') {
+        if (args.length < 1 || args.length > 2 || (args[1] !== undefined &&
+            (!Buffer.isBuffer(args[1]) || args[1].length !== 32))) {
+          throw new Error('experimental adaptor signing requires a secret and optional 32-byte aux input');
+        }
+        const derivedPubkey = experimental.xOnlyPubkey(args[0]).toString('hex');
+        if (derivedPubkey !== authorization.signerPubkeyX) {
+          throw new Error('experimental signer secret does not match the authorized signer public key');
+        }
+      } else if (args.length !== 0) {
+        throw new Error('native isolated adaptor signing accepts no host-supplied secret or key handle');
+      }
       executed = true;
+      const authorizationDigest = crypto.createHash('sha256')
+        .update(Buffer.from(canonicalJson(authorization), 'utf8')).digest('hex');
       authorizationStore.consume({
         network: contract.network,
         contractId: contract.contractId,
         authorizationId: authorization.authorizationId,
         stateRecordHash: contract.recordHash,
-        authorizationDigest: crypto.createHash('sha256')
-          .update(Buffer.from(canonicalJson(authorization), 'utf8')).digest('hex'),
+        authorizationDigest,
         providerIdentity: providerIdentity(provider)
       });
       consumed.add(replayKey);
-      return PROVIDER_OPERATIONS.get(provider).adaptorSign(
-        secret,
-        Buffer.from(authorization.sighash, 'hex'),
-        { x: BigInt(`0x${adaptorPoint.x}`), y: BigInt(`0x${adaptorPoint.y}`) },
-        aux32
-      );
+      const operations = PROVIDER_OPERATIONS.get(provider);
+      let result;
+      if (provider.mode === 'experimental-js') {
+        result = operations.adaptorSign(
+          args[0],
+          Buffer.from(authorization.sighash, 'hex'),
+          { x: BigInt(`0x${adaptorPoint.x}`), y: BigInt(`0x${adaptorPoint.y}`) },
+          args[1]
+        );
+      } else {
+        result = operations.adaptorSignAuthorized(Object.freeze({
+          kind: NATIVE_ADAPTOR_SIGN_REQUEST_KIND,
+          network: contract.network,
+          contractId: contract.contractId,
+          contractDigest: contract.contractDigest,
+          stateRecordHash: contract.recordHash,
+          transcriptHash: contract.transcriptHash,
+          revision: contract.revision,
+          stage: contract.stage,
+          cetSetDigest: cetSetDigest(contract),
+          authorizationDigest,
+          authorizationPayload: payload.toString('base64'),
+          authorization: Object.freeze(JSON.parse(canonicalJson(authorization))),
+          validatorPublicKeySpki: contract.validatorPolicy.local_cet_signatures.publicKeySpki,
+          signerPubkeyX: authorization.signerPubkeyX,
+          sighash: authorization.sighash,
+          adaptorPoint
+        }));
+      }
+      if (result && typeof result.then === 'function') {
+        return result.then((value) => verifyAuthorizedPresignature(
+          value, authorization.signerPubkeyX, authorization.sighash
+        ));
+      }
+      return verifyAuthorizedPresignature(result, authorization.signerPubkeyX, authorization.sighash);
     }
   });
 }
@@ -214,6 +283,10 @@ function nativeCapabilityAttestationPayload(capabilities) {
       capabilities.constantTimeSecretOperations !== true ||
       capabilities.secretZeroization !== true ||
       capabilities.processIsolated !== true ||
+      capabilities.signingRequestKind !== NATIVE_ADAPTOR_SIGN_REQUEST_KIND ||
+      capabilities.callerSuppliesSecret !== false ||
+      capabilities.keySelection !== 'authorized-xonly-pubkey' ||
+      capabilities.independentAuthorizationVerification !== true ||
       typeof capabilities.binaryDigest !== 'string' || !/^[0-9a-f]{64}$/.test(capabilities.binaryDigest) ||
       typeof capabilities.auditDigest !== 'string' || !/^[0-9a-f]{64}$/.test(capabilities.auditDigest)) {
     throw new Error('native DLC provider does not satisfy the required capability manifest');
@@ -227,6 +300,10 @@ function nativeCapabilityAttestationPayload(capabilities) {
     constantTimeSecretOperations: capabilities.constantTimeSecretOperations,
     secretZeroization: capabilities.secretZeroization,
     processIsolated: capabilities.processIsolated,
+    signingRequestKind: capabilities.signingRequestKind,
+    callerSuppliesSecret: capabilities.callerSuppliesSecret,
+    keySelection: capabilities.keySelection,
+    independentAuthorizationVerification: capabilities.independentAuthorizationVerification,
     binaryDigest: capabilities.binaryDigest,
     auditDigest: capabilities.auditDigest
   }), 'utf8');
@@ -287,7 +364,7 @@ function createDlcCryptoProvider(options = {}) {
     if (options.allowExperimental !== true) {
       throw new Error('experimental JavaScript DLC crypto requires explicit allowExperimental=true');
     }
-    const operations = bindOperations(experimental);
+    const operations = bindOperations(experimental, mode);
     const authorizationStore = normalizeAuthorizationStore(options.authorizationStore);
     const provider = Object.freeze({
       kind: 'utxoref_dlc_crypto_provider_v1',
@@ -315,7 +392,7 @@ function createDlcCryptoProvider(options = {}) {
 
   if (mode === 'native-isolated') {
     const capabilities = validateNativeCapabilities(options.implementation, options.trustedAuditKeys);
-    const operations = bindOperations(options.implementation);
+    const operations = bindOperations(options.implementation, mode);
     const authorizationStore = normalizeAuthorizationStore(options.authorizationStore);
     const provider = Object.freeze({
       kind: 'utxoref_dlc_crypto_provider_v1',
