@@ -431,6 +431,35 @@ try {
   const futureAuthorizationRejected = futureResult.code !== 0 &&
     /authorization is not yet valid/.test(futureResult.stderr.toString('utf8'));
   if (!futureAuthorizationRejected) fail('Rust signer accepted a not-yet-valid signed authorization');
+  const futureClockUnixSeconds = Math.floor(Date.now() / 1000) + 120;
+  const clockPayload = {
+    kind: 'utxoref_dlc_signer_clock_observation_v1',
+    identityKeyId: digest(runtimeSpki),
+    unixSeconds: futureClockUnixSeconds
+  };
+  const clockObservation = {
+    ...clockPayload,
+    signature: crypto.sign(
+      null,
+      Buffer.from(canonicalJson(clockPayload), 'utf8'),
+      runtimeKeys.privateKey
+    ).toString('base64')
+  };
+  const clockDirectory = path.join(keyDirectory, 'clock-observations');
+  fs.writeFileSync(
+    path.join(clockDirectory, `${futureClockUnixSeconds}.clock`),
+    canonicalJson(clockObservation),
+    { encoding: 'utf8', mode: 0o600, flag: 'wx' }
+  );
+  const rollbackAuthorization = freshnessAuthorizationFor('native-rust:clock-rollback:0', new Date());
+  const rollbackProbe = directEnvelopeFor(
+    rollbackAuthorization,
+    freshnessPayloadFor(rollbackAuthorization)
+  );
+  const rollbackResult = await runSignerProcess(binaryPath, launchSpec.arguments, rollbackProbe.envelope);
+  const signedClockRollbackRejected = rollbackResult.code !== 0 &&
+    /clock rollback exceeds/.test(rollbackResult.stderr.toString('utf8'));
+  if (!signedClockRollbackRejected) fail('Rust signer accepted an authorization after signed clock rollback');
 
   const report = {
     schema: 'utxoref_dlc_native_rust_signer_integration_v1',
@@ -461,6 +490,7 @@ try {
       exactOneSignerRaceWinner: true,
       expiredAuthorizationRejected: true,
       futureAuthorizationRejected: true,
+      signedClockRollbackRejected: true,
       hostSuppliedNoSecret: true
     }
   };

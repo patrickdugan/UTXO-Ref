@@ -34,6 +34,8 @@ const AUTHORIZATION_KIND: &str = "utxoref_dlc_adaptor_sign_authorization_v3";
 const PRESIGNATURE_KIND: &str = "tradelayer_dlc_adaptor_presig_v1";
 const MAX_AUTHORIZATION_TTL_SECONDS: u64 = 300;
 const MAX_AUTHORIZATION_CLOCK_SKEW_SECONDS: u64 = 30;
+const CLOCK_OBSERVATION_KIND: &str = "utxoref_dlc_signer_clock_observation_v1";
+const MAX_CLOCK_OBSERVATIONS: usize = 4096;
 const ED25519_SPKI_PREFIX: [u8; 12] = [
     0x30, 0x2a, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70, 0x03, 0x21, 0x00,
 ];
@@ -59,6 +61,16 @@ struct NativeValidatorPolicy {
     network: String,
     validator_key_ids: Vec<String>,
     signer_pubkeys: Vec<String>,
+}
+
+struct VerifiedRequest {
+    signer_pubkey: String,
+    message: [u8; 32],
+    adaptor_x: String,
+    adaptor_y: String,
+    authorization_digest: String,
+    issued_at: u64,
+    expires_at: u64,
 }
 
 fn canonical_json(value: &Value) -> Result<String> {
@@ -149,10 +161,10 @@ fn safe_u64(object: &Map<String, Value>, name: &str) -> Result<u64> {
     Ok(value)
 }
 
-fn verify_authorization_freshness(
+fn authorization_window(
     payload: &Map<String, Value>,
     authorization: &Map<String, Value>,
-) -> Result<()> {
+) -> Result<(u64, u64)> {
     let issued_at = safe_u64(payload, "issuedAtUnixSeconds")?;
     let expires_at = safe_u64(payload, "expiresAtUnixSeconds")?;
     if issued_at != safe_u64(authorization, "issuedAtUnixSeconds")?
@@ -165,10 +177,17 @@ fn verify_authorization_freshness(
             "signing authorization lifetime must be 1..{MAX_AUTHORIZATION_TTL_SECONDS} seconds"
         ));
     }
-    let now = SystemTime::now()
+    Ok((issued_at, expires_at))
+}
+
+fn current_unix_seconds() -> Result<u64> {
+    Ok(SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map_err(|_| "system clock is before the UNIX epoch".to_owned())?
-        .as_secs();
+        .as_secs())
+}
+
+fn verify_authorization_freshness(issued_at: u64, expires_at: u64, now: u64) -> Result<()> {
     if issued_at > now.saturating_add(MAX_AUTHORIZATION_CLOCK_SKEW_SECONDS) {
         return Err("signing authorization is not yet valid".to_owned());
     }
@@ -176,6 +195,132 @@ fn verify_authorization_freshness(
         return Err("signing authorization has expired".to_owned());
     }
     Ok(())
+}
+
+fn clock_observation_payload(unix_seconds: u64, identity_key_id: &str) -> Value {
+    serde_json::json!({
+        "kind": CLOCK_OBSERVATION_KIND,
+        "identityKeyId": identity_key_id,
+        "unixSeconds": unix_seconds
+    })
+}
+
+fn verify_clock_observation(
+    path: &Path,
+    runtime_key: &SigningKey,
+    identity_key_id: &str,
+) -> Result<u64> {
+    let metadata =
+        fs::symlink_metadata(path).map_err(|error| format!("signer clock observation: {error}"))?;
+    if !metadata.is_file() || metadata.file_type().is_symlink() || metadata.len() > 2048 {
+        return Err(
+            "signer clock observation must be a bounded regular non-symlink file".to_owned(),
+        );
+    }
+    let bytes = fs::read(path).map_err(|error| format!("signer clock observation: {error}"))?;
+    let observation: Value = serde_json::from_slice(&bytes)
+        .map_err(|error| format!("signer clock observation: {error}"))?;
+    if canonical_json(&observation)?.as_bytes() != bytes {
+        return Err("signer clock observation is not canonical JSON".to_owned());
+    }
+    let observation_object = object(&observation, "signer clock observation")?;
+    if observation_object.len() != 4
+        || string(observation_object, "kind")? != CLOCK_OBSERVATION_KIND
+        || string(observation_object, "identityKeyId")? != identity_key_id
+    {
+        return Err("signer clock observation schema or identity is invalid".to_owned());
+    }
+    let unix_seconds = safe_u64(observation_object, "unixSeconds")?;
+    let expected_name = format!("{unix_seconds}.clock");
+    if path.file_name().and_then(|name| name.to_str()) != Some(expected_name.as_str()) {
+        return Err("signer clock observation filename differs from its timestamp".to_owned());
+    }
+    let signature_bytes = BASE64
+        .decode(string(observation_object, "signature")?)
+        .map_err(|error| error.to_string())?;
+    let signature = Signature::from_slice(&signature_bytes).map_err(|error| error.to_string())?;
+    let payload = clock_observation_payload(unix_seconds, identity_key_id);
+    runtime_key
+        .verifying_key()
+        .verify(canonical_json(&payload)?.as_bytes(), &signature)
+        .map_err(|_| "signer clock observation signature is invalid".to_owned())?;
+    Ok(unix_seconds)
+}
+
+fn guard_signer_clock(
+    key_directory: &Path,
+    runtime_key: &SigningKey,
+    identity_key_id: &str,
+) -> Result<u64> {
+    let observation_directory = key_directory.join("clock-observations");
+    match fs::create_dir(&observation_directory) {
+        Ok(()) => {}
+        Err(error) if error.kind() == io::ErrorKind::AlreadyExists => {}
+        Err(error) => return Err(format!("could not create signer clock store: {error}")),
+    }
+    let metadata = fs::symlink_metadata(&observation_directory)
+        .map_err(|error| format!("could not inspect signer clock store: {error}"))?;
+    if !metadata.is_dir() || metadata.file_type().is_symlink() {
+        return Err("signer clock store must be a regular non-symlink directory".to_owned());
+    }
+    let mut paths = fs::read_dir(&observation_directory)
+        .map_err(|error| format!("could not read signer clock store: {error}"))?
+        .map(|entry| {
+            entry
+                .map(|value| value.path())
+                .map_err(|error| error.to_string())
+        })
+        .collect::<Result<Vec<_>>>()?;
+    paths.sort();
+    if paths.len() > MAX_CLOCK_OBSERVATIONS {
+        return Err(format!(
+            "signer clock store exceeds {MAX_CLOCK_OBSERVATIONS} observations; reviewed rotation is required"
+        ));
+    }
+    let mut floor = 0u64;
+    for path in paths {
+        floor = floor.max(verify_clock_observation(
+            &path,
+            runtime_key,
+            identity_key_id,
+        )?);
+    }
+    let now = current_unix_seconds()?;
+    if floor > now.saturating_add(MAX_AUTHORIZATION_CLOCK_SKEW_SECONDS) {
+        return Err("signer clock rollback exceeds the permitted 30-second skew".to_owned());
+    }
+    let observation_path = observation_directory.join(format!("{now}.clock"));
+    match OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&observation_path)
+    {
+        Ok(mut file) => {
+            let payload = clock_observation_payload(now, identity_key_id);
+            let signature = runtime_key.sign(canonical_json(&payload)?.as_bytes());
+            let observation = serde_json::json!({
+                "kind": CLOCK_OBSERVATION_KIND,
+                "identityKeyId": identity_key_id,
+                "unixSeconds": now,
+                "signature": BASE64.encode(signature.to_bytes())
+            });
+            file.write_all(canonical_json(&observation)?.as_bytes())
+                .map_err(|error| format!("could not persist signer clock observation: {error}"))?;
+            file.sync_all()
+                .map_err(|error| format!("could not fsync signer clock observation: {error}"))?;
+        }
+        Err(error) if error.kind() == io::ErrorKind::AlreadyExists => {
+            if verify_clock_observation(&observation_path, runtime_key, identity_key_id)? != now {
+                return Err("existing signer clock observation timestamp mismatch".to_owned());
+            }
+        }
+        Err(error) => {
+            return Err(format!(
+                "could not create signer clock observation: {error}"
+            ));
+        }
+    }
+    Ok(now)
 }
 
 fn decode_hex_32(value: &str, name: &str) -> Result<[u8; 32]> {
@@ -401,10 +546,7 @@ fn load_validator_policy(path: &Path, expected_digest: &str) -> Result<NativeVal
     })
 }
 
-fn verify_request(
-    request: &Value,
-    policy: &NativeValidatorPolicy,
-) -> Result<(String, [u8; 32], String, String, String)> {
+fn verify_request(request: &Value, policy: &NativeValidatorPolicy) -> Result<VerifiedRequest> {
     let request_object = object(request, "request")?;
     if string(request_object, "kind")? != SIGN_REQUEST_KIND {
         return Err("wrong native adaptor signing request kind".to_owned());
@@ -518,7 +660,8 @@ fn verify_request(
     validator
         .verify(&payload_bytes, &signature)
         .map_err(|_| "validator authorization signature is invalid".to_owned())?;
-    verify_authorization_freshness(payload_object, authorization_object)?;
+    let (issued_at, expires_at) = authorization_window(payload_object, authorization_object)?;
+    verify_authorization_freshness(issued_at, expires_at, current_unix_seconds()?)?;
     let authorization_digest = sha256_hex(canonical_json(authorization)?.as_bytes());
     if authorization_digest != string(request_object, "authorizationDigest")? {
         return Err("authorization digest mismatch".to_owned());
@@ -526,13 +669,15 @@ fn verify_request(
     if string(payload_object, "stage")? != "COUNTERPARTY_SIGNATURES_VERIFIED" {
         return Err("authorization stage is not signable".to_owned());
     }
-    Ok((
-        string(request_object, "signerPubkeyX")?.to_owned(),
-        decode_hex_32(string(request_object, "sighash")?, "sighash")?,
-        string(request_point, "x")?.to_owned(),
-        string(request_point, "y")?.to_owned(),
+    Ok(VerifiedRequest {
+        signer_pubkey: string(request_object, "signerPubkeyX")?.to_owned(),
+        message: decode_hex_32(string(request_object, "sighash")?, "sighash")?,
+        adaptor_x: string(request_point, "x")?.to_owned(),
+        adaptor_y: string(request_point, "y")?.to_owned(),
         authorization_digest,
-    ))
+        issued_at,
+        expires_at,
+    })
 }
 
 fn consume_authorization(key_directory: &Path, authorization_digest: &str) -> Result<()> {
@@ -624,10 +769,12 @@ fn run() -> Result<()> {
     if request_digest != string(envelope_object, "requestDigest")? {
         return Err("process request digest mismatch".to_owned());
     }
-    let (signer_pubkey, message, adaptor_x, adaptor_y, authorization_digest) =
-        verify_request(request, &validator_policy)?;
-    consume_authorization(&key_directory, &authorization_digest)?;
-    let key_path = key_directory.join(format!("{signer_pubkey}.key"));
+    let verified = verify_request(request, &validator_policy)?;
+    consume_authorization(&key_directory, &verified.authorization_digest)?;
+    let (runtime_key, identity_key_id) = runtime_identity(&key_directory)?;
+    let guarded_now = guard_signer_clock(&key_directory, &runtime_key, &identity_key_id)?;
+    verify_authorization_freshness(verified.issued_at, verified.expires_at, guarded_now)?;
+    let key_path = key_directory.join(format!("{}.key", verified.signer_pubkey));
     let secret_hex = read_secret_file(&key_path, "DLC signer key")?;
     let secret_bytes = Zeroizing::new(decode_hex_32(secret_hex.trim(), "DLC signer key")?);
     let secret_scalar = Zeroizing::new(scalar_from_bytes(&secret_bytes, "DLC signer key")?);
@@ -635,10 +782,15 @@ fn run() -> Result<()> {
         ProjectivePoint::GENERATOR * *secret_scalar,
         "DLC signer public key",
     )?;
-    if hex::encode(derived_x) != signer_pubkey {
+    if hex::encode(derived_x) != verified.signer_pubkey {
         return Err("DLC signer key does not match the authorized public key".to_owned());
     }
-    let presignature = adaptor_sign(&secret_bytes, message, &adaptor_x, &adaptor_y)?;
+    let presignature = adaptor_sign(
+        &secret_bytes,
+        verified.message,
+        &verified.adaptor_x,
+        &verified.adaptor_y,
+    )?;
     let presignature_value =
         serde_json::to_value(&presignature).map_err(|error| error.to_string())?;
     let mut signature_payload = Map::new();
@@ -655,7 +807,6 @@ fn run() -> Result<()> {
         "presignatureDigest".to_owned(),
         Value::String(sha256_hex(canonical_json(&presignature_value)?.as_bytes())),
     );
-    let (runtime_key, identity_key_id) = runtime_identity(&key_directory)?;
     let signature = runtime_key.sign(canonical_json(&Value::Object(signature_payload))?.as_bytes());
     let response = serde_json::json!({
         "kind": PROCESS_RESPONSE_KIND,

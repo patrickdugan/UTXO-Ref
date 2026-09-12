@@ -1,13 +1,13 @@
 {
-  "schema": "utxoref_dlc_native_rust_signer_evidence_v2",
+  "schema": "utxoref_dlc_native_rust_signer_evidence_v3",
   "network": "bitcoin-testnet4",
-  "sourceCommit": "2e5ed6ef47741ebb1e59d0a1eff9c3570171204c",
+  "sourceCommit": "28ba47bd4aefac2ae61d714ade8a50a2a598574a",
   "toolchain": {
     "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)",
     "cargo": "cargo 1.98.1 (797e8a9bc 2026-08-05)"
   },
   "cargoLockSha256": "a5715dcfcf1eef714ffb08afe6b35fdd5db6278176ead3994286da12ba01c5e2",
-  "binarySha256": "1460a1ede3ed91327f98b1d3ad997af2820e4e65571b5eb773732aebb5b290d0",
+  "binarySha256": "378eacfd4924c3a72e7ab59c7ba9ffcb76956188f54f3aac5ae4ff7b27c0419f",
   "reproducibleBuild": true,
   "syntheticKeysOnly": true,
   "productionReady": false,
@@ -25,6 +25,7 @@
     "exactOneSignerRaceWinner": true,
     "expiredAuthorizationRejected": true,
     "futureAuthorizationRejected": true,
+    "signedClockRollbackRejected": true,
     "runtimeIdentityVerifiedByHost": true,
     "restartReplayRejected": true,
     "signerLocalReplayRejected": true,

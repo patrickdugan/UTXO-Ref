@@ -70,7 +70,8 @@ if (-not $result.assertions.exactOneSignerRaceWinner -or $result.signerRaceWorke
   throw 'native signer integration omitted a required assertion'
 }
 if (-not $result.assertions.expiredAuthorizationRejected -or
-    -not $result.assertions.futureAuthorizationRejected) {
+    -not $result.assertions.futureAuthorizationRejected -or
+    -not $result.assertions.signedClockRollbackRejected) {
   throw 'native signer integration omitted authorization freshness assertions'
 }
 $commit = (git -c safe.directory=C:/projects/UTXORef/UTXO-Ref -C $repository rev-parse HEAD).Trim()
@@ -94,7 +95,7 @@ $snapshotPath = Join-Path $SnapshotDirectory 'dlc-native-rust-signer-latest.json
   [System.Text.UTF8Encoding]::new($false)
 )
 $checkedEvidence = [ordered]@{
-  schema = 'utxoref_dlc_native_rust_signer_evidence_v2'
+  schema = 'utxoref_dlc_native_rust_signer_evidence_v3'
   network = 'bitcoin-testnet4'
   sourceCommit = $commit
   toolchain = [ordered]@{ rustc = $snapshot.rustc; cargo = $snapshot.cargo }
@@ -117,6 +118,7 @@ $checkedEvidence = [ordered]@{
     exactOneSignerRaceWinner = [bool]$result.assertions.exactOneSignerRaceWinner
     expiredAuthorizationRejected = [bool]$result.assertions.expiredAuthorizationRejected
     futureAuthorizationRejected = [bool]$result.assertions.futureAuthorizationRejected
+    signedClockRollbackRejected = [bool]$result.assertions.signedClockRollbackRejected
     runtimeIdentityVerifiedByHost = [bool]$result.assertions.runtimeIdentityVerifiedByHost
     restartReplayRejected = [bool]$result.assertions.restartReplayRejected
     signerLocalReplayRejected = [bool]$result.assertions.signerLocalReplayRejected
