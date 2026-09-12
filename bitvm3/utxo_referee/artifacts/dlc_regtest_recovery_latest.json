@@ -1,6 +1,6 @@
 {
   "schema": "utxoref_dlc_regtest_recovery_v1",
-  "capturedAt": "2026-09-12T06:40:13.3680308Z",
+  "capturedAt": "2026-09-12T06:46:57.4779842Z",
   "effect": "isolated_regtest_only",
   "network": "bitcoin-regtest",
   "bitcoinCore": {
@@ -8,41 +8,70 @@
     "subversion": "/Satoshi:31.1.0/"
   },
   "repository": "C:\\projects\\UTXORef\\UTXO-Ref",
-  "commit": "7b2df9345708c7081a222a66248e81b6a472fcfb",
-  "runDirectory": "D:\\bitagent-testnet4\\dlc-regtest-recovery\\20260912T063935Z-27400-c1b03f8d",
+  "commit": "3912198d3a7c72716b052813086cf2265c1d5a28",
+  "runDirectory": "D:\\bitagent-testnet4\\dlc-regtest-recovery\\20260912T064630Z-27060-d57fa637",
   "ports": {
     "rpc": 29443,
-    "p2p": 29444
+    "p2p": 29444,
+    "peerRpc": 29445,
+    "peerP2p": 29446
+  },
+  "peer": {
+    "dataDirectory": "D:\\bitagent-testnet4\\dlc-regtest-recovery\\20260912T064630Z-27060-d57fa637\\peer-data",
+    "localPeerCount": 1,
+    "remotePeerCount": 1,
+    "packageMempool": [
+      "745a4a279323bfead44368209bf169b8f277fe24c811a88fb44a346d8a8cb806",
+      "a87e6d0497c816384e0cc6fde36a44f161708e106aff526fa837cc7862a18ac5"
+    ],
+    "rescueMempool": [
+      "745a4a279323bfead44368209bf169b8f277fe24c811a88fb44a346d8a8cb806",
+      "4e35cba409fc675ede6ba10835c1d23bd021ea759b75700db5ca912e14ace561"
+    ],
+    "finalHeight": 107
   },
   "anchor": {
-    "txid": "7ee4edec05e2ab2ddb91f367c7bdfb382fb83dacea57652abb00f6e4f86b4628",
+    "txid": "745a4a279323bfead44368209bf169b8f277fe24c811a88fb44a346d8a8cb806",
     "vout": 1,
     "amountSats": 330,
-    "address": "bcrt1qpmuw5xtuddvx5r600ay2fldu5zp0j9ucm2cq9h"
+    "address": "bcrt1q9p0m9p2x4xrqks5rqk2xs8d9zd8n9fd24cc6rv"
   },
   "package": {
     "strictRelayFloorSatsPerVb": 2,
     "parentStandaloneAllowed": false,
     "parentStandaloneReject": "min relay fee not met",
-    "lowChildTxid": "4f8a89bb8d281a674ad273ddda186c21f4e3e404ac5ae6fb15c7f70d71c6c9ed",
-    "highChildTxid": "3a2e333f7879d133a0413fb5fe4aec800630ec656ac234c7449859d8febc1bbe",
+    "lowChildTxid": "a87e6d0497c816384e0cc6fde36a44f161708e106aff526fa837cc7862a18ac5",
+    "highChildTxid": "eac3e24ba82ac3007ee14a125ea6ae7843d7173966eca42823047b2fa39d704f",
+    "pinChildTxid": "c7fd3cf9b26e1b1d31af119d5fd1c8066de92413f043a117c78df8382f12e354",
+    "rescueChildTxid": "4e35cba409fc675ede6ba10835c1d23bd021ea759b75700db5ca912e14ace561",
     "lowPackageMessage": "success",
     "highPackageMessage": "success",
-    "replacedTransactions": [
-      "4f8a89bb8d281a674ad273ddda186c21f4e3e404ac5ae6fb15c7f70d71c6c9ed"
+    "pinPackageMessage": "success",
+    "pinnedRecoveryRetryMessage": "transaction failed",
+    "rescuePackageMessage": "success",
+    "highReplacedTransactions": [
+      "a87e6d0497c816384e0cc6fde36a44f161708e106aff526fa837cc7862a18ac5"
+    ],
+    "pinReplacedTransactions": [
+      "eac3e24ba82ac3007ee14a125ea6ae7843d7173966eca42823047b2fa39d704f"
+    ],
+    "rescueReplacedTransactions": [
+      "c7fd3cf9b26e1b1d31af119d5fd1c8066de92413f043a117c78df8382f12e354"
     ],
     "originalFeeBtc": 6.74E-06,
-    "replacementFeeBtc": 9.098E-05
+    "replacementFeeBtc": 9.098E-05,
+    "pinFeeBtc": 0.00093338,
+    "rescueFeeBtc": 0.00140138
   },
   "reorg": {
     "depth": 6,
-    "firstInvalidatedBlock": "75bbb2b02925149df8aae278d74b935320f40c2eeaa376783fdbac016c1a73db",
-    "previousTip": "5906b1556797e242d7b297541e85456a8be4e34af837e7a9c0a05702137ddda5",
+    "firstInvalidatedBlock": "6f4d91a8f3599dd4fe3c3bc4e8765517b04284c5854e4caf54b4f1518fd97785",
+    "previousTip": "1bd01ad63e64eb7beb828b2164ce5558c56aa18f773d74975cce58660682a8cf",
     "heightBefore": 107,
     "heightAfterInvalidation": 101,
     "recoveredMempool": [
-      "7ee4edec05e2ab2ddb91f367c7bdfb382fb83dacea57652abb00f6e4f86b4628",
-      "3a2e333f7879d133a0413fb5fe4aec800630ec656ac234c7449859d8febc1bbe"
+      "745a4a279323bfead44368209bf169b8f277fe24c811a88fb44a346d8a8cb806",
+      "4e35cba409fc675ede6ba10835c1d23bd021ea759b75700db5ca912e14ace561"
     ],
     "heightAfterReconsider": 107,
     "mempoolAfterReconsider": []
@@ -50,8 +79,12 @@
   "assertions": {
     "exactOwnedAnchor": true,
     "packageFeeRescuedParentBelowRelayFloor": true,
+    "strictFloorPeerReceivedPackageOverP2p": true,
+    "strictFloorPeerReceivedReplacementOverP2p": true,
     "packageAccepted": true,
     "rbfRecoveryAccepted": true,
+    "cheaperRecoveryBlockedByFeePin": true,
+    "higherFeeRecoveryDisplacedPin": true,
     "sixBlockDisconnectRecoveredPackage": true,
     "branchRestorationClearedMempool": true
   },

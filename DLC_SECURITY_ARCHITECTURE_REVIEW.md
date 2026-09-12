@@ -213,6 +213,11 @@ The local research implementation now:
     a 2 sat/vB relay floor is admitted with its child by package feerate, replaces
     the low-fee child, recovers both package transactions after a six-block
     disconnect, and clears them when the branch is restored.
+25. Connects two isolated strict-floor Core peers and verifies the below-floor
+    parent/child package and later replacement propagate to both mempools. It
+    also reproduces an economic full-RBF fee pin: a 200 sat/vB conflicting child
+    rejects the prior 20 sat/vB recovery, while a 300 sat/vB rescue replaces the
+    pin and propagates to the second peer.
 
 The changes block the concrete exploit probes. They reduce testnet risk but do
 not promote this module to a production signer.
@@ -329,10 +334,12 @@ until a Taproot DLC message format is published and cross-tested.
   a bounded recent-block window for the spender. Its signed journal makes
   independent operation and restart-safe halt alerts possible. Deploy that
   journal as a separate watchtower service with external alert delivery. The
-  single-node regtest harness now proves anchor spendability, package-feerate
-  rescue below the standalone relay floor, RBF recovery, and a six-block
-  disconnect/reconsider cycle. It does not prove multi-node package propagation or resistance to a non-RBF
-  conflicting-spend pin; test those before funded operation.
+  regtest harness now proves anchor spendability, package-feerate rescue below
+  the standalone relay floor, propagation between two strict-floor peers,
+  economic full-RBF pinning and higher-fee rescue, and a six-block
+  disconnect/reconsider cycle. Test heterogeneous peer policies,
+  descendant/cluster pins, v3/TRUC policy, and bounded watchtower fee budgets
+  before funded operation.
 - Require independent Bitcoin Core policy checks and exact transaction decode
   immediately before signing and broadcasting.
 
