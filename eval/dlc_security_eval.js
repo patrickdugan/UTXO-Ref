@@ -230,6 +230,7 @@ function evidenceFor(contract, stage, idempotencyKey, overrides = {}) {
 const cases = [];
 let peerFixtureForEval;
 let prebroadcastFixtureForEval;
+let signerAuthorizationFixtureForEval;
 function check(name, category, points, run) {
   const started = process.hrtime.bigint();
   try {
@@ -1049,6 +1050,7 @@ process.stdout.write(JSON.stringify(response));
   const adaptorPoint = dlc.pointMul(dlc.G, scalar('signer-eval:adaptor'));
   const signerSecret = scalar('signer-eval:secret');
   const signerPubkeyX = dlc.xOnlyPubkey(signerSecret).toString('hex');
+  signerAuthorizationFixtureForEval = { contract, sighash, adaptorPoint, signerSecret, signerPubkeyX };
   const authorization = createDlcAdaptorSignAuthorization({
     privateKey: validatorKeys.privateKey,
     contract,
@@ -1150,6 +1152,70 @@ process.stdout.write(JSON.stringify(response));
     }), /mainnet/);
   } finally {
     fs.rmSync(authorizationDirectory, { recursive: true, force: true });
+  }
+});
+
+check('signer authorization snapshots reject callbacks and survive caller mutation', 'signer-boundary', 12, () => {
+  if (!signerAuthorizationFixtureForEval) return false;
+  const { contract, sighash, adaptorPoint, signerSecret, signerPubkeyX } = signerAuthorizationFixtureForEval;
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'utxoref-signer-input-eval-'));
+  try {
+    const provider = createDlcCryptoProvider({
+      network: 'bitcoin-testnet4',
+      mode: 'experimental-js',
+      allowExperimental: true,
+      authorizationStore: new DlcSigningAuthorizationStore(directory)
+    });
+    let argumentAccessorCalls = 0;
+    const hostileArguments = { privateKey: validatorKeys.privateKey, contract, signerPubkeyX, sighash, adaptorPoint };
+    Object.defineProperty(hostileArguments, 'authorizationId', {
+      enumerable: true,
+      get() { argumentAccessorCalls++; return 'signer-eval:hostile'; }
+    });
+    const argumentsRejected = throws(
+      () => createDlcAdaptorSignAuthorization(hostileArguments), /enumerable data property/
+    );
+    let clockCallbackCalls = 0;
+    class HostileClock extends Date {
+      getTime() { clockCallbackCalls++; return super.getTime(); }
+    }
+    const clockAuthorization = createDlcAdaptorSignAuthorization({
+      privateKey: validatorKeys.privateKey,
+      contract,
+      authorizationId: 'signer-eval:hostile-clock',
+      signerPubkeyX,
+      sighash,
+      adaptorPoint,
+      now: new HostileClock('2026-01-01T00:00:00.000Z')
+    });
+    const authorization = createDlcAdaptorSignAuthorization({
+      privateKey: validatorKeys.privateKey,
+      contract,
+      authorizationId: 'signer-eval:mutation-safe',
+      signerPubkeyX,
+      sighash,
+      adaptorPoint
+    });
+    let authorizationAccessorCalls = 0;
+    const hostileAuthorization = { ...authorization };
+    Object.defineProperty(hostileAuthorization, 'sighash', {
+      enumerable: true,
+      get() { authorizationAccessorCalls++; return authorization.sighash; }
+    });
+    const authorizationRejected = throws(
+      () => authorizeDlcAdaptorSign(provider, { contract, authorization: hostileAuthorization }),
+      /enumerable data property/
+    );
+    const mutableAuthorization = JSON.parse(JSON.stringify(authorization));
+    const session = authorizeDlcAdaptorSign(provider, { contract, authorization: mutableAuthorization });
+    mutableAuthorization.sighash = '00'.repeat(32);
+    const presignature = session.execute(signerSecret, sha256('signer-input-eval:aux'));
+    return argumentsRejected && authorizationRejected && argumentAccessorCalls === 0 &&
+      authorizationAccessorCalls === 0 && clockCallbackCalls === 0 &&
+      clockAuthorization.issuedAtUnixSeconds === 1767225600 &&
+      dlc.adaptorVerify(Buffer.from(signerPubkeyX, 'hex'), Buffer.from(sighash, 'hex'), presignature);
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
   }
 });
 
@@ -2233,7 +2299,7 @@ const possible = cases.reduce((sum, test) => sum + test.points, 0);
 const score = earned / possible;
 const report = {
   benchmark: 'utxoref-dlc-security',
-  version: 36,
+  version: 37,
   profile: profileName,
   seed,
   score,

@@ -2,7 +2,13 @@
 
 const crypto = require('crypto');
 const experimental = require('./tradelayer_dlc_adaptor_sig');
-const { canonicalJson, normalizeDlcContract } = require('./dlc_contract_state');
+const { normalizeDlcContract } = require('./dlc_contract_state');
+const {
+  snapshotPlainData,
+  snapshotOwnDataArguments,
+  canonicalize,
+  canonicalJson
+} = require('./dlc_canonical_json');
 const { DlcSigningAuthorizationStore } = require('./dlc_signing_authorization_store');
 const {
   REQUEST_KIND: NATIVE_PROCESS_REQUEST_KIND,
@@ -105,10 +111,16 @@ function authorizationWindow(issuedAtUnixSeconds, expiresAtUnixSeconds) {
 }
 
 function authorizationNow(now) {
-  if (!(now instanceof Date) || !Number.isFinite(now.getTime())) {
+  let milliseconds;
+  try {
+    milliseconds = Date.prototype.getTime.call(now);
+  } catch {
     throw new Error('DLC signing authorization clock must be a valid Date');
   }
-  return Math.floor(now.getTime() / 1000);
+  if (!Number.isFinite(milliseconds)) {
+    throw new Error('DLC signing authorization clock must be a valid Date');
+  }
+  return Math.floor(milliseconds / 1000);
 }
 
 function assertAuthorizationFreshness(authorization, now = new Date()) {
@@ -134,6 +146,7 @@ function cetSetDigest(contract) {
 }
 
 function normalizeAdaptorPoint(point) {
+  point = snapshotPlainData(point, 'DLC adaptor point', true);
   if (!point || typeof point !== 'object') throw new Error('adaptorPoint is required');
   if (typeof point.x === 'bigint' && typeof point.y === 'bigint') {
     return Object.freeze({
@@ -147,15 +160,13 @@ function normalizeAdaptorPoint(point) {
   });
 }
 
-function adaptorSigningAuthorizationPayload({
-  contract,
-  authorizationId,
-  signerPubkeyX,
-  sighash,
-  adaptorPoint,
-  issuedAtUnixSeconds,
-  expiresAtUnixSeconds
-}) {
+function adaptorSigningAuthorizationPayload(input) {
+  let {
+    contract, authorizationId, signerPubkeyX, sighash, adaptorPoint, issuedAtUnixSeconds, expiresAtUnixSeconds
+  } = snapshotOwnDataArguments(input, [
+    'contract', 'authorizationId', 'signerPubkeyX', 'sighash', 'adaptorPoint',
+    'issuedAtUnixSeconds', 'expiresAtUnixSeconds'
+  ], 'DLC signing authorization payload arguments');
   contract = normalizeDlcContract(contract);
   if (contract.stage !== 'COUNTERPARTY_SIGNATURES_VERIFIED') {
     throw new Error('DLC adaptor signing requires COUNTERPARTY_SIGNATURES_VERIFIED contract state');
@@ -181,16 +192,14 @@ function adaptorSigningAuthorizationPayload({
   return Buffer.from(canonicalJson(normalized), 'utf8');
 }
 
-function createDlcAdaptorSignAuthorization({
-  privateKey,
-  contract,
-  authorizationId,
-  signerPubkeyX,
-  sighash,
-  adaptorPoint,
-  now = new Date(),
-  ttlSeconds = DEFAULT_AUTHORIZATION_TTL_SECONDS
-}) {
+function createDlcAdaptorSignAuthorization(input) {
+  const {
+    privateKey, contract: rawContract, authorizationId, signerPubkeyX, sighash, adaptorPoint,
+    now = new Date(), ttlSeconds = DEFAULT_AUTHORIZATION_TTL_SECONDS
+  } = snapshotOwnDataArguments(input, [
+    'privateKey', 'contract', 'authorizationId', 'signerPubkeyX', 'sighash', 'adaptorPoint', 'now', 'ttlSeconds'
+  ], 'DLC signing authorization arguments');
+  let contract = rawContract;
   contract = normalizeDlcContract(contract);
   if (!Number.isSafeInteger(ttlSeconds) || ttlSeconds < 1 || ttlSeconds > MAX_AUTHORIZATION_TTL_SECONDS) {
     throw new Error(`ttlSeconds must be an integer from 1 through ${MAX_AUTHORIZATION_TTL_SECONDS}`);
@@ -208,7 +217,7 @@ function createDlcAdaptorSignAuthorization({
   if (contract.validatorPolicy.local_cet_signatures.keyId !== validatorKeyId) {
     throw new Error('DLC signing authorization key is not the pinned local CET validator');
   }
-  return Object.freeze({
+  return canonicalize({
     kind: ADAPTOR_SIGN_AUTHORIZATION_KIND,
     authorizationId,
     stateRecordHash: contract.recordHash,
@@ -219,7 +228,7 @@ function createDlcAdaptorSignAuthorization({
     expiresAtUnixSeconds,
     validatorKeyId,
     signature: crypto.sign(null, payload, privateKey).toString('base64')
-  });
+  }, 'DLC signing authorization');
 }
 
 function verifyAuthorizedPresignature(result, signerPubkeyX, sighash) {
@@ -233,7 +242,11 @@ function verifyAuthorizedPresignature(result, signerPubkeyX, sighash) {
   return result;
 }
 
-function authorizeDlcAdaptorSign(provider, { contract, authorization, now = new Date() } = {}) {
+function authorizeDlcAdaptorSign(provider, input = {}) {
+  const { contract: rawContract, authorization: rawAuthorization, now = new Date() } =
+    snapshotOwnDataArguments(input, ['contract', 'authorization', 'now'], 'DLC signer session arguments');
+  let contract = rawContract;
+  const authorization = canonicalize(rawAuthorization, 'DLC signing authorization');
   requireDlcSigningProvider(provider);
   const authorizationStore = PROVIDER_AUTHORIZATION_STORES.get(provider);
   if (!authorizationStore) {

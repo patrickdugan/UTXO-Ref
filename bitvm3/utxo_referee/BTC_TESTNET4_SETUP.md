@@ -196,6 +196,10 @@ between commitment verification and the final observation or journal record.
 Boundary V66 also snapshots raw transaction construction arguments before any
 semantic field access. Getter-bearing and Proxy input fails without executing
 attacker callbacks, including on nested funding and payout objects.
+Boundary V67 applies descriptor snapshots to signer authorization creation and
+consumption. The signed authorization is canonicalized and retained through
+`execute()`, preventing a caller from changing its sighash or adaptor point
+after the session is approved.
 
 ## Agent isolation
 

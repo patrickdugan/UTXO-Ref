@@ -131,6 +131,40 @@ function canonicalize(value, path = '$') {
   return snapshotPlainData(value, path, false);
 }
 
+function snapshotOwnDataArguments(input, allowedKeys, path) {
+  if (typeof path !== 'string' || path.length < 1) throw new Error('argument snapshot path is required');
+  if (!Array.isArray(allowedKeys) || allowedKeys.some((key) => typeof key !== 'string') ||
+      new Set(allowedKeys).size !== allowedKeys.length) {
+    throw new Error('argument snapshot allowed keys are invalid');
+  }
+  if (!input || typeof input !== 'object' || utilTypes.isProxy(input)) {
+    throw new Error(`${path} must be a plain object, not a Proxy`);
+  }
+  const prototype = Object.getPrototypeOf(input);
+  if (prototype !== Object.prototype && prototype !== null) {
+    throw new Error(`${path} must be a plain object, not a Proxy`);
+  }
+  const descriptors = Object.getOwnPropertyDescriptors(input);
+  const allowed = new Set(allowedKeys);
+  const result = {};
+  for (const key of Reflect.ownKeys(descriptors)) {
+    if (typeof key === 'symbol' || !allowed.has(key)) {
+      throw new Error(`${path} contains an unsupported property`);
+    }
+    const descriptor = descriptors[key];
+    if (!descriptor.enumerable || !('value' in descriptor)) {
+      throw new Error(`${childPath(path, key)} must be an enumerable data property`);
+    }
+    Object.defineProperty(result, key, {
+      value: descriptor.value,
+      enumerable: true,
+      configurable: false,
+      writable: false
+    });
+  }
+  return Object.freeze(result);
+}
+
 function encodeCanonical(value) {
   if (value === null) return 'null';
   if (typeof value === 'boolean') return value ? 'true' : 'false';
@@ -166,6 +200,7 @@ module.exports = {
   MAX_CANONICAL_STRING_CODE_UNITS,
   MAX_CANONICAL_JSON_BYTES,
   snapshotPlainData,
+  snapshotOwnDataArguments,
   canonicalize,
   canonicalJson
 };

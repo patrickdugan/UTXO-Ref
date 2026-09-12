@@ -455,6 +455,10 @@ Boundary V66 snapshots raw transaction-set construction input from property
 descriptors before destructuring or nested field access. The bounded snapshot
 supports Bitcoin amount `bigint` values while rejecting accessors, Proxy traps,
 symbols, exotic prototypes, sparse arrays, cycles, and oversized input.
+Boundary V67 descriptor-snapshots signer authorization call arguments,
+canonicalizes the signed authorization envelope, and snapshots adaptor points
+with bounded `bigint` support. The frozen authorization is retained through the
+delayed `execute()` call so caller mutation cannot redirect a signature.
 The host accepts only bounded regular runtime files whose resolved paths do not
 traverse filesystem links. It hashes the complete runtime closure before and
 after every signer execution, so deletion or mutation during the process

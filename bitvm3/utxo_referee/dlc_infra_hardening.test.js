@@ -1005,6 +1005,51 @@ test('adaptor signing is short-lived, durably consumed, and bound to the contrac
       sighash,
       adaptorPoint
     });
+    let creationAccessorCalls = 0;
+    const hostileCreation = {
+      privateKey: validatorKeys.privateKey,
+      contract,
+      signerPubkeyX,
+      sighash,
+      adaptorPoint
+    };
+    Object.defineProperty(hostileCreation, 'authorizationId', {
+      enumerable: true,
+      get() { creationAccessorCalls++; return 'cet:hostile-create'; }
+    });
+    expectThrow(() => createDlcAdaptorSignAuthorization(hostileCreation), /enumerable data property/);
+    assert(creationAccessorCalls === 0, 'signing authorization argument accessor executed before rejection');
+    let clockCallbackCalls = 0;
+    class HostileClock extends Date {
+      getTime() { clockCallbackCalls++; return super.getTime(); }
+    }
+    const clockAuthorization = createDlcAdaptorSignAuthorization({
+      privateKey: validatorKeys.privateKey,
+      contract,
+      authorizationId: 'cet:hostile-clock',
+      signerPubkeyX,
+      sighash,
+      adaptorPoint,
+      now: new HostileClock('2026-01-01T00:00:00.000Z')
+    });
+    assert(clockAuthorization.issuedAtUnixSeconds === 1767225600,
+      'signing authorization intrinsic clock snapshot was incorrect');
+    assert(clockCallbackCalls === 0, 'signing authorization clock callback executed');
+    let pointAccessorCalls = 0;
+    const hostilePoint = { y: adaptorPoint.y };
+    Object.defineProperty(hostilePoint, 'x', {
+      enumerable: true,
+      get() { pointAccessorCalls++; return adaptorPoint.x; }
+    });
+    expectThrow(() => createDlcAdaptorSignAuthorization({
+      privateKey: validatorKeys.privateKey,
+      contract,
+      authorizationId: 'cet:hostile-point',
+      signerPubkeyX,
+      sighash,
+      adaptorPoint: hostilePoint
+    }), /enumerable data property/);
+    assert(pointAccessorCalls === 0, 'adaptor point accessor executed before rejection');
     const expiredAuthorization = createDlcAdaptorSignAuthorization({
       privateKey: validatorKeys.privateKey,
       contract,
@@ -1051,7 +1096,26 @@ test('adaptor signing is short-lived, durably consumed, and bound to the contrac
       network: 'bitcoin-testnet4', mode: 'experimental-js', allowExperimental: true
     });
     expectThrow(() => authorizeDlcAdaptorSign(noStoreProvider, { contract, authorization }), /durable authorizationStore/);
-    const session = authorizeDlcAdaptorSign(provider, { contract, authorization });
+    let sessionArgumentAccessorCalls = 0;
+    const hostileSessionArguments = { authorization };
+    Object.defineProperty(hostileSessionArguments, 'contract', {
+      enumerable: true,
+      get() { sessionArgumentAccessorCalls++; return contract; }
+    });
+    expectThrow(() => authorizeDlcAdaptorSign(provider, hostileSessionArguments), /enumerable data property/);
+    assert(sessionArgumentAccessorCalls === 0, 'signer session argument accessor executed before rejection');
+    let authorizationAccessorCalls = 0;
+    const hostileAuthorization = { ...authorization };
+    Object.defineProperty(hostileAuthorization, 'sighash', {
+      enumerable: true,
+      get() { authorizationAccessorCalls++; return authorization.sighash; }
+    });
+    expectThrow(() => authorizeDlcAdaptorSign(provider, { contract, authorization: hostileAuthorization }),
+      /enumerable data property/);
+    assert(authorizationAccessorCalls === 0, 'signing authorization accessor executed before rejection');
+    const mutableAuthorization = JSON.parse(JSON.stringify(authorization));
+    const session = authorizeDlcAdaptorSign(provider, { contract, authorization: mutableAuthorization });
+    mutableAuthorization.sighash = '00'.repeat(32);
     const presignature = session.execute(909n, hash('signing:aux'));
     assert(dlc.adaptorVerify(dlc.xOnlyPubkey(909n), Buffer.from(sighash, 'hex'), presignature),
       'authorized adaptor signature did not verify');
