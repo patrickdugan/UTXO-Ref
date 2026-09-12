@@ -205,6 +205,7 @@ if (!crypto.verify(null, Buffer.from(request.authorizationPayload, 'base64'), va
 const signedPayload = JSON.parse(Buffer.from(request.authorizationPayload, 'base64').toString('utf8'));
 if (signedPayload.stateRecordHash !== request.stateRecordHash || signedPayload.signerPubkeyX !== request.signerPubkeyX || signedPayload.sighash !== request.sighash || signedPayload.adaptorPoint.x !== request.adaptorPoint.x || signedPayload.adaptorPoint.y !== request.adaptorPoint.y) throw new Error('request differs from signed payload');
 ${options.hang ? "Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 60000);" : ''}
+${options.selfMutate ? "fs.appendFileSync(__filename, '\\n// mutation during signer execution\\n');" : ''}
 const validPresignature = dlc.adaptorSign(${signerSecret}n, Buffer.from(request.sighash, 'hex'), { x: BigInt('0x' + request.adaptorPoint.x), y: BigInt('0x' + request.adaptorPoint.y) }, Buffer.alloc(32, 42));
 const presignature = ${options.corruptResponse ? "{ ...validPresignature, s0: '00'.repeat(32) }" : 'validPresignature'};
 const response = { kind: RESPONSE_KIND, challenge: ${options.wrongChallenge ? "'00'.repeat(32)" : 'envelope.challenge'}, requestDigest: envelope.requestDigest, identityKeyId: ${JSON.stringify(crypto.createHash('sha256').update(runtimePublicDer).digest('hex'))}, presignature };
@@ -213,7 +214,7 @@ response.signature = crypto.sign(null, responseSignaturePayload(response), runti
 process.stdout.write(JSON.stringify(response));
 `;
   fs.writeFileSync(helperPath, source, { encoding: 'utf8', mode: 0o600 });
-  const launchSpec = { executablePath: process.execPath, arguments: [helperPath], codePaths: [helperPath] };
+  const launchSpec = { executablePath: fs.realpathSync(process.execPath), arguments: [helperPath], codePaths: [helperPath] };
   const manifest = {
     apiVersion: 1,
     curve: 'secp256k1',
@@ -628,6 +629,24 @@ test('native isolated signing receives only an authenticated public request', ()
     fs.appendFileSync(fixture.helperPath, '\n// runtime drift\n');
     const driftSession = authorizeDlcAdaptorSign(provider, { contract, authorization: driftAuthorization });
     expectThrow(() => driftSession.execute(), /runtime closure changed after audit/);
+
+    const midflightDirectory = path.join(directory, 'midflight-drift');
+    fs.mkdirSync(midflightDirectory);
+    const midflightFixture = nativeSignerFixture(midflightDirectory, nativeSecret, 'midflight-signer', {
+      selfMutate: true
+    });
+    const midflightProvider = createDlcCryptoProvider({
+      network: 'bitcoin-testnet4', mode: 'native-isolated', implementation: midflightFixture.client,
+      trustedAuditKeys: midflightFixture.trustedAuditKeys,
+      authorizationStore: new DlcSigningAuthorizationStore(midflightDirectory)
+    });
+    const midflightAuthorization = createDlcAdaptorSignAuthorization({
+      privateKey: validatorKeys.privateKey, contract, authorizationId: 'native:cet:midflight-drift',
+      signerPubkeyX, sighash, adaptorPoint
+    });
+    expectThrow(() => authorizeDlcAdaptorSign(midflightProvider, {
+      contract, authorization: midflightAuthorization
+    }).execute(), /runtime closure changed during execution/);
   } finally {
     fs.rmSync(directory, { recursive: true, force: true });
   }

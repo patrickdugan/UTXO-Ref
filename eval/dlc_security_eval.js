@@ -499,7 +499,7 @@ const runtimeKey = crypto.createPrivateKey({ key: Buffer.from(${JSON.stringify(r
 response.signature = crypto.sign(null, responseSignaturePayload(response), runtimeKey).toString('base64');
 process.stdout.write(JSON.stringify(response));
 `, { encoding: 'utf8', mode: 0o600 });
-  const launchSpec = { executablePath: process.execPath, arguments: [helperPath], codePaths: [helperPath] };
+  const launchSpec = { executablePath: fs.realpathSync(process.execPath), arguments: [helperPath], codePaths: [helperPath] };
   const manifest = {
     apiVersion: 1,
     curve: 'secp256k1',
@@ -635,6 +635,38 @@ process.stdout.write(JSON.stringify(response));
     }), /mainnet/);
   } finally {
     fs.rmSync(authorizationDirectory, { recursive: true, force: true });
+  }
+});
+
+check('signer runtime closure detects mutation during execution', 'signer-boundary', 8, () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'utxoref-signer-midflight-eval-'));
+  try {
+    const runtimeKey = crypto.generateKeyPairSync('ed25519');
+    const runtimePublicDer = runtimeKey.publicKey.export({ format: 'der', type: 'spki' });
+    const helperPath = path.join(directory, 'self-mutating-signer.js');
+    fs.writeFileSync(helperPath, `'use strict';
+const fs = require('fs');
+fs.readFileSync(0, 'utf8');
+fs.appendFileSync(__filename, '\\n// midflight mutation\\n');
+process.stdout.write('{}');
+`, { encoding: 'utf8', mode: 0o600 });
+    const launchSpec = {
+      executablePath: fs.realpathSync(process.execPath),
+      arguments: [helperPath],
+      codePaths: [helperPath]
+    };
+    const capabilities = {
+      binaryDigest: nativeSignerRuntimeDigest(launchSpec),
+      runtimeIdentityKeyId: crypto.createHash('sha256').update(runtimePublicDer).digest('hex'),
+      runtimeIdentityPublicKeySpki: runtimePublicDer.toString('base64')
+    };
+    const client = new DlcNativeSignerProcessClient({ ...launchSpec, capabilities });
+    return throws(
+      () => client.adaptorSignAuthorized({ kind: 'midflight-runtime-drift-probe' }),
+      /runtime closure changed during execution/
+    );
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
   }
 });
 
@@ -1380,7 +1412,7 @@ const possible = cases.reduce((sum, test) => sum + test.points, 0);
 const score = earned / possible;
 const report = {
   benchmark: 'utxoref-dlc-security',
-  version: 15,
+  version: 16,
   profile: profileName,
   seed,
   score,

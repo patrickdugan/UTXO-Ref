@@ -10,6 +10,8 @@ const publicCrypto = require('./tradelayer_dlc_adaptor_sig');
 const REQUEST_KIND = 'utxoref_dlc_native_signer_process_request_v1';
 const RESPONSE_KIND = 'utxoref_dlc_native_signer_process_response_v1';
 const LIVE_CLIENTS = new WeakSet();
+const MAX_EXECUTABLE_BYTES = 128 * 1024 * 1024;
+const MAX_CODE_FILE_BYTES = 16 * 1024 * 1024;
 
 function sha256Hex(value) {
   return crypto.createHash('sha256').update(value).digest('hex');
@@ -22,10 +24,29 @@ function requireCanonicalBase64(value, fieldName) {
   return value;
 }
 
-function normalizeLaunchSpec({ executablePath, arguments: launchArguments = [], codePaths = [] }) {
-  if (typeof executablePath !== 'string' || !path.isAbsolute(executablePath) || !fs.statSync(executablePath).isFile()) {
-    throw new Error('native signer executablePath must name an existing absolute file');
+function normalizeAuditedFile(value, fieldName, maximumBytes) {
+  if (typeof value !== 'string' || !path.isAbsolute(value)) {
+    throw new Error(`${fieldName} must name an existing absolute regular file`);
   }
+  const resolved = path.resolve(value);
+  const metadata = fs.lstatSync(resolved);
+  if (!metadata.isFile() || metadata.isSymbolicLink() || metadata.size > maximumBytes) {
+    throw new Error(`${fieldName} must name a bounded regular non-symlink file`);
+  }
+  const realPath = fs.realpathSync.native ? fs.realpathSync.native(resolved) : fs.realpathSync(resolved);
+  const normalizeForComparison = (filePath) => process.platform === 'win32'
+    ? path.resolve(filePath).toLowerCase()
+    : path.resolve(filePath);
+  if (normalizeForComparison(realPath) !== normalizeForComparison(resolved)) {
+    throw new Error(`${fieldName} must not traverse filesystem links`);
+  }
+  return resolved;
+}
+
+function normalizeLaunchSpec({ executablePath, arguments: launchArguments = [], codePaths = [] }) {
+  const normalizedExecutablePath = normalizeAuditedFile(
+    executablePath, 'native signer executablePath', MAX_EXECUTABLE_BYTES
+  );
   if (!Array.isArray(launchArguments) || launchArguments.length > 16 || launchArguments.some((value) =>
     typeof value !== 'string' || value.length > 2048 || value.includes('\0'))) {
     throw new Error('native signer arguments must contain at most 16 bounded strings');
@@ -34,16 +55,13 @@ function normalizeLaunchSpec({ executablePath, arguments: launchArguments = [], 
     throw new Error('native signer codePaths must contain at most 16 files');
   }
   const normalizedCodePaths = codePaths.map((value, index) => {
-    if (typeof value !== 'string' || !path.isAbsolute(value) || !fs.statSync(value).isFile()) {
-      throw new Error(`native signer codePaths[${index}] must name an existing absolute file`);
-    }
-    return path.resolve(value);
+    return normalizeAuditedFile(value, `native signer codePaths[${index}]`, MAX_CODE_FILE_BYTES);
   });
   if (new Set(normalizedCodePaths.map((value) => value.toLowerCase())).size !== normalizedCodePaths.length) {
     throw new Error('native signer codePaths must be unique');
   }
   return Object.freeze({
-    executablePath: path.resolve(executablePath),
+    executablePath: normalizedExecutablePath,
     arguments: Object.freeze([...launchArguments]),
     codePaths: Object.freeze(normalizedCodePaths)
   });
@@ -143,6 +161,12 @@ class DlcNativeSignerProcessClient {
       env: minimalEnvironment,
       stdio: ['pipe', 'pipe', 'pipe']
     });
+    let closureAfterExecution;
+    try { closureAfterExecution = nativeSignerRuntimeDigest(this.launchSpec); }
+    catch (_error) { throw new Error('native signer runtime closure became unavailable during execution'); }
+    if (closureAfterExecution !== this.capabilities.binaryDigest) {
+      throw new Error('native signer runtime closure changed during execution');
+    }
     if (result.error) throw new Error(`native signer process failed: ${result.error.message}`);
     if (result.status !== 0 || result.signal) {
       throw new Error(`native signer process exited unsuccessfully: ${result.status ?? result.signal}`);
