@@ -179,6 +179,11 @@ checkpoint with `signJournalCheckpoint`, retain only the trusted Ed25519 public
 SPKI in the coordinator policy, and resume through the store's
 `verifySignedCheckpoint` method. An unsigned checkpoint remains suitable only
 when an independent boundary guarantees its integrity.
+Boundary V62 additionally requires the expected value from
+`signedJournalCheckpointHash` on every signed verification. Retain that 32-byte
+hash in trusted monotonic coordinator state outside the checkpoint storage
+domain. Replaying any other valid signed envelope then fails before the journal
+can resume.
 
 ## Agent isolation
 

@@ -208,8 +208,8 @@ class DlcPeerSessionStore {
     });
   }
 
-  verifySignedCheckpoint(peerId, temporaryContractId, signedCheckpoint, trustedKeys) {
-    const signed = verifySignedDlcJournalCheckpoint(signedCheckpoint, trustedKeys);
+  verifySignedCheckpoint(peerId, temporaryContractId, signedCheckpoint, trustedKeys, expectedEnvelopeHash) {
+    const signed = verifySignedDlcJournalCheckpoint(signedCheckpoint, trustedKeys, expectedEnvelopeHash);
     return Object.freeze({
       ...this.verifyCheckpoint(peerId, temporaryContractId, signed.checkpoint),
       checkpointSignerKeyId: signed.signerKeyId

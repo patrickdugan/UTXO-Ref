@@ -178,8 +178,8 @@ class DlcStateStore {
     return Object.freeze({ ...chain, checkpointVerified: expectedCheckpoint.checkpointHash });
   }
 
-  verifySignedCheckpoint(contractId, signedCheckpoint, trustedKeys) {
-    const signed = verifySignedDlcJournalCheckpoint(signedCheckpoint, trustedKeys);
+  verifySignedCheckpoint(contractId, signedCheckpoint, trustedKeys, expectedEnvelopeHash) {
+    const signed = verifySignedDlcJournalCheckpoint(signedCheckpoint, trustedKeys, expectedEnvelopeHash);
     return Object.freeze({
       ...this.verifyCheckpoint(contractId, signed.checkpoint),
       checkpointSignerKeyId: signed.signerKeyId

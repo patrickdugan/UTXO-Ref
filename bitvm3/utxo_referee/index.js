@@ -134,7 +134,7 @@ module.exports = {
   // for production; these interfaces enforce transcript, threshold-oracle,
   // and persistence gates on regtest and Bitcoin testnet4.
   dlc: Object.freeze({
-    securityBoundaryVersion: 61,
+    securityBoundaryVersion: 62,
     canonicalizeData: dlcCanonicalJson.canonicalize,
     canonicalJson: dlcCanonicalJson.canonicalJson,
     canonicalSerializationPolicy: Object.freeze({
@@ -256,6 +256,10 @@ module.exports = {
       signedCheckpointRequiredForUntrustedStorage: true,
       unsignedCheckpointStorageRequiresIndependentIntegrity: true,
       verifySignedCheckpointOnAllStores: true,
+      signedCheckpointEnvelopeHash: 'sha256-canonical-envelope-v1',
+      signedCheckpointExpectedHashRequired: true,
+      signedCheckpointReplayProtection: 'caller-held-envelope-hash-v1',
+      signedCheckpointPinInsideUntrustedStorageAllowed: false,
       checkpointStores: Object.freeze([
         'contract-state', 'oracle-event', 'peer-session', 'signing-authorization',
         'refund-recovery', 'broadcast-authorization', 'watchtower'
@@ -481,6 +485,7 @@ module.exports = {
     validateJournalCheckpoint: dlcJournalCheckpoint.validateDlcJournalCheckpoint,
     signJournalCheckpoint: dlcJournalCheckpoint.signDlcJournalCheckpoint,
     normalizeSignedJournalCheckpoint: dlcJournalCheckpoint.normalizeSignedDlcJournalCheckpoint,
+    signedJournalCheckpointHash: dlcJournalCheckpoint.signedDlcJournalCheckpointHash,
     verifySignedJournalCheckpoint: dlcJournalCheckpoint.verifySignedDlcJournalCheckpoint,
     settlementAnchor: dlcAnchorRecoveryGuard.settlementAnchor,
     evaluateAnchorRecovery: dlcAnchorRecoveryGuard.evaluateDlcAnchorRecovery

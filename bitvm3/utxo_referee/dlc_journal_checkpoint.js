@@ -169,8 +169,17 @@ function normalizeTrustedCheckpointKeys(trustedKeys) {
   });
 }
 
-function verifySignedDlcJournalCheckpoint(envelope, trustedKeys) {
+function signedDlcJournalCheckpointHash(envelope) {
   const normalized = normalizeSignedDlcJournalCheckpoint(envelope);
+  return sha256Hex(Buffer.from(canonicalJson(normalized), 'utf8'));
+}
+
+function verifySignedDlcJournalCheckpoint(envelope, trustedKeys, expectedEnvelopeHash) {
+  const normalized = normalizeSignedDlcJournalCheckpoint(envelope);
+  requireHash(expectedEnvelopeHash, 'expected signed checkpoint envelope hash');
+  if (signedDlcJournalCheckpointHash(normalized) !== expectedEnvelopeHash) {
+    throw new Error('signed DLC journal checkpoint replay or substitution detected');
+  }
   const trusted = normalizeTrustedCheckpointKeys(trustedKeys)
     .find((entry) => entry.keyId === normalized.signerKeyId);
   if (!trusted) throw new Error('signed DLC journal checkpoint key is not trusted');
@@ -221,5 +230,6 @@ module.exports = {
   assertDlcJournalCheckpoint,
   signDlcJournalCheckpoint,
   normalizeSignedDlcJournalCheckpoint,
+  signedDlcJournalCheckpointHash,
   verifySignedDlcJournalCheckpoint
 };

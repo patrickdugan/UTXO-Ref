@@ -181,8 +181,8 @@ class DlcSigningAuthorizationStore {
     return Object.freeze({ ok: true, records: 1, checkpointVerified: expectedCheckpoint.checkpointHash });
   }
 
-  verifySignedCheckpoint(contractId, authorizationId, signedCheckpoint, trustedKeys) {
-    const signed = verifySignedDlcJournalCheckpoint(signedCheckpoint, trustedKeys);
+  verifySignedCheckpoint(contractId, authorizationId, signedCheckpoint, trustedKeys, expectedEnvelopeHash) {
+    const signed = verifySignedDlcJournalCheckpoint(signedCheckpoint, trustedKeys, expectedEnvelopeHash);
     return Object.freeze({
       ...this.verifyCheckpoint(contractId, authorizationId, signed.checkpoint),
       checkpointSignerKeyId: signed.signerKeyId

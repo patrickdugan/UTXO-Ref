@@ -281,8 +281,8 @@ class DlcOracleEventStore {
     return Object.freeze({ ...chain, checkpointVerified: expectedCheckpoint.checkpointHash });
   }
 
-  verifySignedCheckpoint(event, signedCheckpoint, trustedKeys) {
-    const signed = verifySignedDlcJournalCheckpoint(signedCheckpoint, trustedKeys);
+  verifySignedCheckpoint(event, signedCheckpoint, trustedKeys, expectedEnvelopeHash) {
+    const signed = verifySignedDlcJournalCheckpoint(signedCheckpoint, trustedKeys, expectedEnvelopeHash);
     return Object.freeze({
       ...this.verifyCheckpoint(event, signed.checkpoint),
       checkpointSignerKeyId: signed.signerKeyId

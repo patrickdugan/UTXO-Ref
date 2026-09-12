@@ -432,6 +432,12 @@ of the signer's canonical SPKI. Every durable store exposes
 `verifySignedCheckpoint`, which requires an explicitly pinned trusted-key set
 before checking the journal. Use signed checkpoints whenever the checkpoint
 file itself is stored outside an independently integrity-protected boundary.
+Boundary V62 prevents replay of an older but valid signed checkpoint. The
+coordinator retains the SHA-256 hash returned for the current signed envelope
+in a separate trusted monotonic boundary and supplies it to every
+`verifySignedCheckpoint` call. Verification rejects a mismatched envelope
+before accepting its signer or comparing journal history. Never store this
+small current-envelope pin beside the untrusted checkpoint it protects.
 The host accepts only bounded regular runtime files whose resolved paths do not
 traverse filesystem links. It hashes the complete runtime closure before and
 after every signer execution, so deletion or mutation during the process

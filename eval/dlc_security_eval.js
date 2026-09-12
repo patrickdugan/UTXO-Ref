@@ -35,6 +35,7 @@ const {
   createDlcJournalCheckpoint,
   normalizeDlcJournalCheckpoint,
   signDlcJournalCheckpoint,
+  signedDlcJournalCheckpointHash,
   verifySignedDlcJournalCheckpoint
 } = require(path.join(__dirname, '..', 'bitvm3', 'utxo_referee', 'dlc_journal_checkpoint.js'));
 const { readBoundedJson, writeJsonAppendOnce } = require(path.join(
@@ -389,27 +390,52 @@ check('operator signatures authenticate external journal checkpoints', 'state-pe
     headRecordHash: sha256('eval-signed-checkpoint-head').toString('hex')
   });
   const signed = signDlcJournalCheckpoint(checkpoint, checkpointSignerKeys.privateKey);
-  const verified = verifySignedDlcJournalCheckpoint(signed, trustedCheckpointKeys);
+  const envelopeHash = signedDlcJournalCheckpointHash(signed);
+  const verified = verifySignedDlcJournalCheckpoint(signed, trustedCheckpointKeys, envelopeHash);
   const forged = Buffer.from(signed.signature, 'base64');
   forged[0] ^= 1;
-  const forgedRejected = throws(() => verifySignedDlcJournalCheckpoint({
+  const forgedEnvelope = {
     ...signed,
     signature: forged.toString('base64')
-  }, trustedCheckpointKeys), /signature is invalid/);
+  };
+  const forgedRejected = throws(() => verifySignedDlcJournalCheckpoint(
+    forgedEnvelope, trustedCheckpointKeys, signedDlcJournalCheckpointHash(forgedEnvelope)
+  ), /signature is invalid/);
   const otherKeys = crypto.generateKeyPairSync('ed25519');
   const otherSpki = otherKeys.publicKey.export({ format: 'der', type: 'spki' });
   const untrustedRejected = throws(() => verifySignedDlcJournalCheckpoint(signed, [{
     keyId: crypto.createHash('sha256').update(otherSpki).digest('hex'),
     publicKeySpki: otherSpki.toString('base64')
-  }]), /key is not trusted/);
+  }], envelopeHash), /key is not trusted/);
   const checkpointMutationRejected = throws(() => verifySignedDlcJournalCheckpoint({
     ...signed,
     checkpoint: { ...signed.checkpoint, recordCount: 4 }
-  }, trustedCheckpointKeys), /checkpoint hash mismatch/);
+  }, trustedCheckpointKeys, envelopeHash), /checkpoint hash mismatch/);
   return verified.signerKeyId === checkpointSignerKeyId &&
     verified.checkpoint.checkpointHash === checkpoint.checkpointHash &&
     Object.isFrozen(verified) && Object.isFrozen(verified.checkpoint) &&
     forgedRejected && untrustedRejected && checkpointMutationRejected;
+});
+
+check('caller-held signed checkpoint pins reject valid older replay', 'state-persistence', 12, () => {
+  const storeKey = sha256('eval-checkpoint-replay-store').toString('hex');
+  const older = signDlcJournalCheckpoint(createDlcJournalCheckpoint({
+    storeKind: 'contract-state',
+    storeKey,
+    recordCount: 2,
+    headRecordHash: sha256('eval-checkpoint-replay-old').toString('hex')
+  }), checkpointSignerKeys.privateKey);
+  const current = signDlcJournalCheckpoint(createDlcJournalCheckpoint({
+    storeKind: 'contract-state',
+    storeKey,
+    recordCount: 3,
+    headRecordHash: sha256('eval-checkpoint-replay-current').toString('hex')
+  }), checkpointSignerKeys.privateKey);
+  const currentHash = signedDlcJournalCheckpointHash(current);
+  return verifySignedDlcJournalCheckpoint(current, trustedCheckpointKeys, currentHash).checkpoint.recordCount === 3 &&
+    throws(() => verifySignedDlcJournalCheckpoint(
+      older, trustedCheckpointKeys, currentHash
+    ), /replay or substitution/);
 });
 
 check('extraction rejects a forged completed signature', 'extraction', 8, () => {
@@ -772,7 +798,8 @@ check('append-only state store rejects stale competing writes', 'state-persisten
       checkpoint.checkpointHash;
     const signedCheckpoint = signDlcJournalCheckpoint(checkpoint, checkpointSignerKeys.privateKey);
     const signedCheckpointVerified = store.verifySignedCheckpoint(
-      contract.contractId, signedCheckpoint, trustedCheckpointKeys
+      contract.contractId, signedCheckpoint, trustedCheckpointKeys,
+      signedDlcJournalCheckpointHash(signedCheckpoint)
     ).checkpointSignerKeyId === checkpointSignerKeyId;
     return staleRejected && chain.ok && chain.revisions === 2 && shorterChainAcceptedWithoutCheckpoint &&
       rollbackRejected && checkpointVerified && signedCheckpointVerified;
@@ -2118,7 +2145,7 @@ const possible = cases.reduce((sum, test) => sum + test.points, 0);
 const score = earned / possible;
 const report = {
   benchmark: 'utxoref-dlc-security',
-  version: 31,
+  version: 32,
   profile: profileName,
   seed,
   score,

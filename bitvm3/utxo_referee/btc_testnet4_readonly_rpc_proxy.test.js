@@ -58,7 +58,7 @@ function post(port, token, payload) {
 
 test('read-only RPC policy rejects wallet, signing, broadcast, and node-control methods', () => {
   const evaluationPolicy = referee.dlc.testnet4EvaluationPolicy;
-  assert.equal(referee.dlc.securityBoundaryVersion, 61);
+  assert.equal(referee.dlc.securityBoundaryVersion, 62);
   assert.equal(typeof referee.dlc.canonicalizeData, 'function');
   assert.equal(typeof referee.dlc.canonicalJson, 'function');
   assert.deepEqual(referee.dlc.canonicalSerializationPolicy, {
@@ -95,6 +95,12 @@ test('read-only RPC policy rejects wallet, signing, broadcast, and node-control 
   assert.equal(referee.dlc.durableJournalPolicy.signedCheckpointRequiredForUntrustedStorage, true);
   assert.equal(referee.dlc.durableJournalPolicy.unsignedCheckpointStorageRequiresIndependentIntegrity, true);
   assert.equal(referee.dlc.durableJournalPolicy.verifySignedCheckpointOnAllStores, true);
+  assert.equal(referee.dlc.durableJournalPolicy.signedCheckpointEnvelopeHash,
+    'sha256-canonical-envelope-v1');
+  assert.equal(referee.dlc.durableJournalPolicy.signedCheckpointExpectedHashRequired, true);
+  assert.equal(referee.dlc.durableJournalPolicy.signedCheckpointReplayProtection,
+    'caller-held-envelope-hash-v1');
+  assert.equal(referee.dlc.durableJournalPolicy.signedCheckpointPinInsideUntrustedStorageAllowed, false);
   assert.deepEqual(referee.dlc.durableJournalPolicy.checkpointStores,
     ['contract-state', 'oracle-event', 'peer-session', 'signing-authorization',
       'refund-recovery', 'broadcast-authorization', 'watchtower']);
@@ -104,6 +110,7 @@ test('read-only RPC policy rejects wallet, signing, broadcast, and node-control 
   assert.equal(referee.dlc.durableJournalPolicy.checkpointInputsNormalizedToFrozenPlainData, true);
   assert.equal(typeof referee.dlc.signJournalCheckpoint, 'function');
   assert.equal(typeof referee.dlc.normalizeSignedJournalCheckpoint, 'function');
+  assert.equal(typeof referee.dlc.signedJournalCheckpointHash, 'function');
   assert.equal(typeof referee.dlc.verifySignedJournalCheckpoint, 'function');
   for (const Store of [
     referee.dlc.StateStore,
