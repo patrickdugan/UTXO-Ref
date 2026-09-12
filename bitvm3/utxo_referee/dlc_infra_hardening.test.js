@@ -22,6 +22,14 @@ const {
 const { validateFundingAuthorization } = require('./m1_dlc_sign_finalize');
 const { createDlcCryptoProvider, requireDlcSigningProvider } = require('./dlc_crypto_provider');
 const { DlcOracleEventStore } = require('./dlc_oracle_event_store');
+const { serializeUnsignedTx, outpoint, bip341SighashDefault } = require('./tradelayer_taproot');
+const { parseCanonicalUnsignedTransaction, validateDlcTransactionSet } = require('./dlc_transaction_validator');
+const {
+  toBip341Transaction,
+  cetIdentity,
+  validateCetAdaptorSignatures,
+  validateRefundSignature
+} = require('./dlc_signature_validator');
 
 let passed = 0;
 let failed = 0;
@@ -346,6 +354,180 @@ test('sealed oracle state rejects the wrong wrapping key', () => {
   } finally {
     fs.rmSync(directory, { recursive: true, force: true });
   }
+});
+
+function transactionFixture() {
+  const funding = {
+    txid: 'aa'.repeat(32),
+    vout: 1,
+    valueSats: 100000n,
+    scriptPubKeyHex: `5120${'44'.repeat(32)}`
+  };
+  const leftScript = `0014${'55'.repeat(20)}`;
+  const rightScript = `0014${'66'.repeat(20)}`;
+  const refundScript = `5120${'77'.repeat(32)}`;
+  const spend = (outputs, locktime, sequence = 0xfffffffe, fundingTxid = funding.txid) => serializeUnsignedTx(
+    2,
+    [{ outpoint: outpoint(fundingTxid, funding.vout), sequence }],
+    outputs.map((output) => ({ valueSats: output.valueSats, script: output.scriptPubKeyHex })),
+    locktime
+  );
+  const firstOutputs = [
+    { valueSats: 59000n, scriptPubKeyHex: leftScript },
+    { valueSats: 40000n, scriptPubKeyHex: rightScript }
+  ];
+  const secondOutputs = [
+    { valueSats: 39000n, scriptPubKeyHex: leftScript },
+    { valueSats: 60000n, scriptPubKeyHex: rightScript }
+  ];
+  const refundOutputs = [{ valueSats: 99000n, scriptPubKeyHex: refundScript }];
+  return {
+    funding,
+    cets: [
+      {
+        outcomeMessage: digest('transaction-outcome:left'),
+        oraclePubkeys: ['11'.repeat(32), '22'.repeat(32)],
+        rawTxHex: spend(firstOutputs, 100),
+        expectedOutputs: firstOutputs,
+        locktime: 100
+      },
+      {
+        outcomeMessage: digest('transaction-outcome:right'),
+        oraclePubkeys: ['11'.repeat(32), '33'.repeat(32)],
+        rawTxHex: spend(secondOutputs, 100),
+        expectedOutputs: secondOutputs,
+        locktime: 100
+      }
+    ],
+    refund: {
+      rawTxHex: spend(refundOutputs, 200),
+      expectedOutputs: refundOutputs,
+      locktime: 200
+    },
+    spend,
+    firstOutputs
+  };
+}
+
+test('transaction validator binds every CET and refund to the funding outpoint', () => {
+  const fixture = transactionFixture();
+  const result = validateDlcTransactionSet({
+    funding: fixture.funding,
+    cets: fixture.cets,
+    refund: fixture.refund,
+    minFeeSats: 500n,
+    maxFeeSats: 2000n
+  });
+  assert(result.cets.length === 2 && result.refund.feeSats === '1000', 'valid transaction set failed');
+  assert(/^[0-9a-f]{64}$/.test(result.validationDigest), 'transaction validation digest is not canonical');
+  let contract = initialContract('validated-transaction-contract');
+  contract = transitionDlcContract(contract, requestFor(contract, 'AUTHENTICATED_ORACLES'));
+  contract = transitionDlcContract(contract, requestFor(contract, 'CANONICAL_CETS_AND_REFUND', 'validated-transactions', {
+    cet_set: result.cetSetDigest,
+    funding_template: result.fundingTemplateDigest,
+    refund_transaction: result.refundTransactionDigest
+  }));
+  assert(contract.stage === 'CANONICAL_CETS_AND_REFUND', 'validated transaction receipts did not advance state');
+  const wrongOutpoint = {
+    ...fixture.cets[0],
+    rawTxHex: fixture.spend(fixture.firstOutputs, 100, 0xfffffffe, 'bb'.repeat(32))
+  };
+  expectThrow(() => validateDlcTransactionSet({
+    funding: fixture.funding,
+    cets: [wrongOutpoint, fixture.cets[1]],
+    refund: fixture.refund,
+    minFeeSats: 500n,
+    maxFeeSats: 2000n
+  }), /committed funding outpoint/);
+});
+
+test('transaction parser rejects noncanonical counts and ineffective locktimes', () => {
+  const fixture = transactionFixture();
+  const valid = fixture.cets[0].rawTxHex;
+  const nonCanonicalInputCount = `${valid.slice(0, 8)}fd0100${valid.slice(10)}`;
+  expectThrow(() => parseCanonicalUnsignedTransaction(nonCanonicalInputCount), /non-canonical CompactSize/);
+  const finalSequence = fixture.spend(fixture.firstOutputs, 100, 0xffffffff);
+  expectThrow(() => parseCanonicalUnsignedTransaction(finalSequence), /locktime is disabled/);
+  const truncated = valid.slice(0, -2);
+  expectThrow(() => parseCanonicalUnsignedTransaction(truncated), /truncated/);
+});
+
+test('CET adaptor and refund signatures bind to validated BIP341 sighashes', () => {
+  const signerSecret = 123456789n;
+  const signerPubkey = dlc.xOnlyPubkey(signerSecret).toString('hex');
+  const funding = {
+    txid: '99'.repeat(32),
+    vout: 0,
+    valueSats: 100000n,
+    scriptPubKeyHex: `5120${signerPubkey}`
+  };
+  const thresholdSets = buildThresholdOutcomeSets({ announcements, threshold: 2, pinnedPubkeys, outcomeMsg32: outcome });
+  const selected = thresholdSets[0];
+  const cetOutputs = [{ valueSats: 99000n, scriptPubKeyHex: `0014${'88'.repeat(20)}` }];
+  const refundOutputs = [{ valueSats: 99000n, scriptPubKeyHex: `5120${'77'.repeat(32)}` }];
+  const raw = (outputs, locktime) => serializeUnsignedTx(
+    2,
+    [{ outpoint: outpoint(funding.txid, funding.vout), sequence: 0xfffffffe }],
+    outputs.map((item) => ({ valueSats: item.valueSats, script: item.scriptPubKeyHex })),
+    locktime
+  );
+  const validated = validateDlcTransactionSet({
+    funding,
+    cets: [{
+      outcomeMessage: outcome.toString('hex'),
+      oraclePubkeys: selected.oraclePubkeys,
+      rawTxHex: raw(cetOutputs, 100),
+      expectedOutputs: cetOutputs,
+      locktime: 100
+    }],
+    refund: { rawTxHex: raw(refundOutputs, 200), expectedOutputs: refundOutputs, locktime: 200 },
+    minFeeSats: 500n,
+    maxFeeSats: 2000n
+  });
+  const cet = validated.cets[0];
+  const cetSighash = bip341SighashDefault(
+    toBip341Transaction(parseCanonicalUnsignedTransaction(cet.rawTxHex)),
+    [{ amountSats: funding.valueSats, scriptPubKey: funding.scriptPubKeyHex }],
+    0
+  );
+  const presignature = dlc.adaptorSign(signerSecret, cetSighash, selected.outcomePoint, hash('signature-validator:aux'));
+  const validatedSignatures = validateCetAdaptorSignatures({
+    transactionSet: validated,
+    funding,
+    signerPubkeyX: signerPubkey,
+    signatures: [{ identity: cetIdentity(cet), signerPubkeyX: signerPubkey, presignature }],
+    thresholdOutcomeSets: [{
+      outcomeMessage: outcome.toString('hex'),
+      oraclePubkeys: selected.oraclePubkeys,
+      outcomePoint: selected.outcomePoint
+    }]
+  });
+  assert(/^[0-9a-f]{64}$/.test(validatedSignatures.digest), 'CET signature digest missing');
+  const refundSighash = bip341SighashDefault(
+    toBip341Transaction(parseCanonicalUnsignedTransaction(validated.refund.rawTxHex)),
+    [{ amountSats: funding.valueSats, scriptPubKey: funding.scriptPubKeyHex }],
+    0
+  );
+  const refundSignature = dlc.schnorrSign(signerSecret, refundSighash, hash('refund-signature:aux'));
+  const validatedRefund = validateRefundSignature({
+    transactionSet: validated,
+    funding,
+    signerPubkeyX: signerPubkey,
+    signature: refundSignature
+  });
+  assert(/^[0-9a-f]{64}$/.test(validatedRefund.digest), 'refund signature digest missing');
+  const forged = { ...presignature, s0: `00${presignature.s0.slice(2)}` };
+  expectThrow(() => validateCetAdaptorSignatures({
+    transactionSet: validated,
+    funding,
+    signerPubkeyX: signerPubkey,
+    signatures: [{ identity: cetIdentity(cet), signerPubkeyX: signerPubkey, presignature: forged }],
+    thresholdOutcomeSets: [{
+      outcomeMessage: outcome.toString('hex'),
+      oraclePubkeys: selected.oraclePubkeys,
+      outcomePoint: selected.outcomePoint
+    }]
+  }), /invalid/);
 });
 
 if (failed > 0) {

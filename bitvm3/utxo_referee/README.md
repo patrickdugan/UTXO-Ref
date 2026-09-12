@@ -174,7 +174,9 @@ required native-signer and protocol-state-machine redesign.
 The hardened research API is available under `referee.dlc`. It includes the
 signed contract state machine, append-only state store, enumerated threshold
 oracle combinations, encrypted restart-safe oracle state, and a crypto provider
-that defaults to disabled. Run:
+that defaults to disabled. Canonical Bitcoin transaction and BIP341 signature
+validators bind CET/refund evidence to the funding outpoint before signed state
+can advance. Run:
 
 ```powershell
 node bitvm3\utxo_referee\dlc_infra_hardening.test.js

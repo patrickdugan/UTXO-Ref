@@ -43,6 +43,8 @@ const dlcThresholdOracle = require('./dlc_threshold_oracle');
 const { DlcStateStore } = require('./dlc_state_store');
 const dlcCryptoProvider = require('./dlc_crypto_provider');
 const { DlcOracleEventStore } = require('./dlc_oracle_event_store');
+const dlcTransactionValidator = require('./dlc_transaction_validator');
+const dlcSignatureValidator = require('./dlc_signature_validator');
 
 module.exports = {
   // Types
@@ -128,6 +130,10 @@ module.exports = {
     buildThresholdOutcomeSets: dlcThresholdOracle.buildThresholdOutcomeSets,
     combineThresholdAttestations: dlcThresholdOracle.combineThresholdAttestations,
     createCryptoProvider: dlcCryptoProvider.createDlcCryptoProvider,
-    requireSigningProvider: dlcCryptoProvider.requireDlcSigningProvider
+    requireSigningProvider: dlcCryptoProvider.requireDlcSigningProvider,
+    parseCanonicalUnsignedTransaction: dlcTransactionValidator.parseCanonicalUnsignedTransaction,
+    validateTransactionSet: dlcTransactionValidator.validateDlcTransactionSet,
+    validateCetAdaptorSignatures: dlcSignatureValidator.validateCetAdaptorSignatures,
+    validateRefundSignature: dlcSignatureValidator.validateRefundSignature
   })
 };

@@ -15,6 +15,8 @@ Maximize the `score` emitted by `bash eval/dlc-security.sh`. A score of `1.0` me
 - `bitvm3/utxo_referee/dlc_threshold_oracle.js`
 - `bitvm3/utxo_referee/dlc_crypto_provider.js`
 - `bitvm3/utxo_referee/dlc_oracle_event_store.js`
+- `bitvm3/utxo_referee/dlc_transaction_validator.js`
+- `bitvm3/utxo_referee/dlc_signature_validator.js`
 
 Treat `eval/`, `program-dlc-security.md`, and `prepare.sh` as locked benchmark infrastructure.
 
@@ -34,6 +36,8 @@ Treat `eval/`, `program-dlc-security.md`, and `prepare.sh` as locked benchmark i
 - Wallet funding signing must require a `FUNDING_PSBT_APPROVED` record whose receipt commits to the exact canonical PSBT bytes and Bitcoin network.
 - DLC crypto must default disabled, reject mainnet, and require an explicit research flag for the JavaScript implementation. Native providers must declare constant-time, zeroization, isolation, binary, and audit capabilities.
 - Oracle nonce and attestation state must be authenticated at rest, persisted before use, restorable after restart, one-outcome, and append-only.
+- Every unsigned CET and refund must use canonical Bitcoin encoding, spend exactly the committed funding outpoint, match the committed ordered outputs and locktime, activate nonzero locktime through sequence, and remain inside the allowed fee range.
+- Every CET adaptor signature and refund signature must verify against the BIP341 sighash of the already validated transaction, funding amount, funding script, signer key, and exact threshold-oracle subset.
 
 This benchmark uses synthetic keys, has no network dependency, and must never broadcast a transaction.
 

@@ -181,6 +181,12 @@ The local research implementation now:
 15. Seals experimental oracle signer state with AES-256-GCM, authenticates it
     against the signed announcement, persists it before use, and restores its
     one-outcome state after restart.
+16. Parses unsigned Bitcoin transactions canonically and binds every CET and
+    refund to the exact funding outpoint, ordered outputs, effective locktime,
+    and fee range before producing validation digests.
+17. Verifies CET adaptor signatures and refund signatures against the BIP341
+    sighash of those validated transactions, the funding amount and script,
+    signer identity, and selected threshold-oracle subset.
 
 The changes block the concrete exploit probes. They reduce testnet risk but do
 not promote this module to a production signer.
@@ -276,8 +282,10 @@ actions.
 
 ### Transaction safety
 
-- Verify every funding input, serial ID, output, amount, fee, CET adaptor
-  signature, and refund signature before funding authorization.
+- The local validators now cover exact funding outpoints, outputs, amounts,
+  fees, BIP341 CET adaptor signatures, and refund signatures. Complete the
+  remaining peer-message serial-ID rules and wire the validators to the native
+  signer before funding authorization.
 - Store and independently restore the refund transaction before broadcast.
 - Design anchor/CPFP or replacement behavior for both CET and refund fee
   pressure, and simulate pinning and deep reorgs.

@@ -37,6 +37,17 @@ const {
 const { validateFundingAuthorization } = require(fundingFinalizerPath);
 const { createDlcCryptoProvider } = require(path.join(__dirname, '..', 'bitvm3', 'utxo_referee', 'dlc_crypto_provider.js'));
 const { DlcOracleEventStore } = require(path.join(__dirname, '..', 'bitvm3', 'utxo_referee', 'dlc_oracle_event_store.js'));
+const {
+  parseCanonicalUnsignedTransaction,
+  validateDlcTransactionSet
+} = require(path.join(__dirname, '..', 'bitvm3', 'utxo_referee', 'dlc_transaction_validator.js'));
+const { serializeUnsignedTx, outpoint, bip341SighashDefault } = require(path.join(__dirname, '..', 'bitvm3', 'utxo_referee', 'tradelayer_taproot.js'));
+const {
+  toBip341Transaction,
+  cetIdentity,
+  validateCetAdaptorSignatures,
+  validateRefundSignature
+} = require(path.join(__dirname, '..', 'bitvm3', 'utxo_referee', 'dlc_signature_validator.js'));
 const validatorKeys = crypto.generateKeyPairSync('ed25519');
 const validatorSpki = validatorKeys.publicKey.export({ format: 'der', type: 'spki' }).toString('base64');
 const validatorKeyId = crypto.createHash('sha256').update(Buffer.from(validatorSpki, 'base64')).digest('hex');
@@ -477,6 +488,139 @@ check('sealed oracle nonce state survives restart and conflicting outcome fails'
   } finally {
     fs.rmSync(directory, { recursive: true, force: true });
   }
+});
+
+check('CET and refund set is canonically bound to one funding outpoint', 'transaction-safety', 12, () => {
+  const funding = {
+    txid: 'aa'.repeat(32),
+    vout: 1,
+    valueSats: 100000n,
+    scriptPubKeyHex: `5120${'44'.repeat(32)}`
+  };
+  const oraclePubkeys = ['11'.repeat(32), '22'.repeat(32)];
+  const cetOutputs = [
+    { valueSats: 59000n, scriptPubKeyHex: `0014${'55'.repeat(20)}` },
+    { valueSats: 40000n, scriptPubKeyHex: `0014${'66'.repeat(20)}` }
+  ];
+  const refundOutputs = [{ valueSats: 99000n, scriptPubKeyHex: `5120${'77'.repeat(32)}` }];
+  const raw = (outputs, locktime, txid = funding.txid) => serializeUnsignedTx(
+    2,
+    [{ outpoint: outpoint(txid, funding.vout), sequence: 0xfffffffe }],
+    outputs.map((output) => ({ valueSats: output.valueSats, script: output.scriptPubKeyHex })),
+    locktime
+  );
+  const input = {
+    funding,
+    cets: [{
+      outcomeMessage: sha256('transaction-eval:outcome').toString('hex'),
+      oraclePubkeys,
+      rawTxHex: raw(cetOutputs, 100),
+      expectedOutputs: cetOutputs,
+      locktime: 100
+    }],
+    refund: {
+      rawTxHex: raw(refundOutputs, 200),
+      expectedOutputs: refundOutputs,
+      locktime: 200
+    },
+    minFeeSats: 500n,
+    maxFeeSats: 2000n
+  };
+  const validated = validateDlcTransactionSet(input);
+  const forged = {
+    ...input,
+    cets: [{ ...input.cets[0], rawTxHex: raw(cetOutputs, 100, 'bb'.repeat(32)) }]
+  };
+  return validated.cets.length === 1 && validated.refund.feeSats === '1000' &&
+    throws(() => validateDlcTransactionSet(forged), /committed funding outpoint/);
+});
+
+check('CET adaptor and refund signatures bind to validated BIP341 sighashes', 'signature-safety', 14, () => {
+  const outcomeMessage = sha256('signature-eval:outcome');
+  const announcements = [0, 1, 2].map((index) => dlc.buildDlcOracle(
+    scalar(`signature-eval:${index}:key`),
+    scalar(`signature-eval:${index}:nonce`),
+    { eventId: 'signature-eval-event', outcomeMessages: [outcomeMessage] }
+  ));
+  const pinnedPubkeys = announcements.map((announcement) => announcement.px);
+  const selected = buildThresholdOutcomeSets({
+    announcements,
+    threshold: 2,
+    pinnedPubkeys,
+    outcomeMsg32: outcomeMessage
+  })[0];
+  const signerSecret = scalar('signature-eval:signer');
+  const signerPubkeyX = dlc.xOnlyPubkey(signerSecret).toString('hex');
+  const funding = {
+    txid: '99'.repeat(32),
+    vout: 0,
+    valueSats: 100000n,
+    scriptPubKeyHex: `5120${signerPubkeyX}`
+  };
+  const cetOutputs = [{ valueSats: 99000n, scriptPubKeyHex: `0014${'88'.repeat(20)}` }];
+  const refundOutputs = [{ valueSats: 99000n, scriptPubKeyHex: `5120${'77'.repeat(32)}` }];
+  const raw = (outputs, locktime) => serializeUnsignedTx(
+    2,
+    [{ outpoint: outpoint(funding.txid, funding.vout), sequence: 0xfffffffe }],
+    outputs.map((item) => ({ valueSats: item.valueSats, script: item.scriptPubKeyHex })),
+    locktime
+  );
+  const transactionSet = validateDlcTransactionSet({
+    funding,
+    cets: [{
+      outcomeMessage: outcomeMessage.toString('hex'),
+      oraclePubkeys: selected.oraclePubkeys,
+      rawTxHex: raw(cetOutputs, 100),
+      expectedOutputs: cetOutputs,
+      locktime: 100
+    }],
+    refund: { rawTxHex: raw(refundOutputs, 200), expectedOutputs: refundOutputs, locktime: 200 },
+    minFeeSats: 500n,
+    maxFeeSats: 2000n
+  });
+  const cet = transactionSet.cets[0];
+  const cetSighash = bip341SighashDefault(
+    toBip341Transaction(parseCanonicalUnsignedTransaction(cet.rawTxHex)),
+    [{ amountSats: funding.valueSats, scriptPubKey: funding.scriptPubKeyHex }],
+    0
+  );
+  const presignature = dlc.adaptorSign(signerSecret, cetSighash, selected.outcomePoint, sha256('signature-eval:cet-aux'));
+  const cetResult = validateCetAdaptorSignatures({
+    transactionSet,
+    funding,
+    signerPubkeyX,
+    signatures: [{ identity: cetIdentity(cet), signerPubkeyX, presignature }],
+    thresholdOutcomeSets: [{
+      outcomeMessage: outcomeMessage.toString('hex'),
+      oraclePubkeys: selected.oraclePubkeys,
+      outcomePoint: selected.outcomePoint
+    }]
+  });
+  const refundSighash = bip341SighashDefault(
+    toBip341Transaction(parseCanonicalUnsignedTransaction(transactionSet.refund.rawTxHex)),
+    [{ amountSats: funding.valueSats, scriptPubKey: funding.scriptPubKeyHex }],
+    0
+  );
+  const refundSignature = dlc.schnorrSign(signerSecret, refundSighash, sha256('signature-eval:refund-aux'));
+  const refundResult = validateRefundSignature({
+    transactionSet,
+    funding,
+    signerPubkeyX,
+    signature: refundSignature
+  });
+  const forged = { ...presignature, s0: `00${presignature.s0.slice(2)}` };
+  const forgedRejected = throws(() => validateCetAdaptorSignatures({
+    transactionSet,
+    funding,
+    signerPubkeyX,
+    signatures: [{ identity: cetIdentity(cet), signerPubkeyX, presignature: forged }],
+    thresholdOutcomeSets: [{
+      outcomeMessage: outcomeMessage.toString('hex'),
+      oraclePubkeys: selected.oraclePubkeys,
+      outcomePoint: selected.outcomePoint
+    }]
+  }), /invalid/);
+  return /^[0-9a-f]{64}$/.test(cetResult.digest) && /^[0-9a-f]{64}$/.test(refundResult.digest) && forgedRejected;
 });
 
 const earned = cases.filter((test) => test.passed).reduce((sum, test) => sum + test.points, 0);

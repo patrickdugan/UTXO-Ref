@@ -22,14 +22,16 @@
     "append_only_revision_store",
     "exact_psbt_wallet_signing_gate",
     "disabled_by_default_crypto_provider",
-    "authenticated_encrypted_oracle_restart_state"
+    "authenticated_encrypted_oracle_restart_state",
+    "canonical_cet_and_refund_transaction_validation",
+    "bip341_cet_adaptor_and_refund_signature_validation"
   ],
   "productionBlockers": [
     "replace_javascript_bigint_signer_with_reviewed_native_secp256k1_implementation",
     "isolate_keys_from_agent_processes",
     "integrate_nonce_uniqueness_with_native_signer_failover_and_backup_restore",
     "use_interoperable_authenticated_dlc_messages",
-    "verify_all_cet_and_refund_signatures_before_funding",
+    "wire_transaction_and_signature_validators_to_native_signer_and_peer_serial_ids",
     "operate_independent_threshold_oracles_with_interoperable_messages",
     "complete_fee_bump_reorg_and_watchtower_testing"
   ],
