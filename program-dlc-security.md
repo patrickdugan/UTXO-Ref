@@ -21,6 +21,8 @@ Maximize the `score` emitted by `bash eval/dlc-security.sh`. A score of `1.0` me
 - `bitvm3/utxo_referee/dlc_bitcoin_core_observer.js`
 - `bitvm3/utxo_referee/dlc_peer_transcript.js`
 - `bitvm3/utxo_referee/dlc_peer_session_store.js`
+- `bitvm3/utxo_referee/dlc_watchtower_journal.js`
+- `bitvm3/utxo_referee/dlc_anchor_recovery_guard.js`
 
 Treat `eval/`, `program-dlc-security.md`, and `prepare.sh` as locked benchmark infrastructure.
 
@@ -40,13 +42,15 @@ Treat `eval/`, `program-dlc-security.md`, and `prepare.sh` as locked benchmark i
 - Wallet funding signing must require a `FUNDING_PSBT_APPROVED` record whose receipt commits to the exact canonical PSBT bytes and Bitcoin network.
 - DLC crypto must default disabled, reject mainnet, and require an explicit research flag for the JavaScript implementation. Native providers must declare constant-time, zeroization, isolation, binary, and audit capabilities.
 - Oracle nonce and attestation state must be authenticated at rest, persisted before use, restorable after restart, one-outcome, and append-only.
-- Every unsigned CET and refund must use canonical Bitcoin encoding, spend exactly the committed funding outpoint, match the committed ordered outputs and locktime, activate nonzero locktime through sequence, remain inside the allowed fee range, and contain exactly one committed CPFP anchor as the last output.
+- Every unsigned CET and refund must use canonical Bitcoin encoding, spend exactly the committed funding outpoint, have a unique transaction ID, match the committed ordered outputs and locktime, activate nonzero locktime through sequence, remain inside the allowed fee range, and contain exactly one committed CPFP anchor as the last output.
+- The signed transaction transition must bind the anchor policy, maximum recovery fee, maximum recovery feerate, and minimum relay-peer quorum as a dedicated validation receipt.
 - Every CET adaptor signature and refund signature must verify against the BIP341 sighash of the already validated transaction, funding amount, funding script, signer key, and exact threshold-oracle subset.
 - Chain monitoring must bind the exact signed transaction set and funding outpoint, prove ancestry against the prior snapshot, and halt on reorgs, unknown spends, immature refunds, or CETs inconsistent with contract state.
 - The Bitcoin Core observer must verify network, chain tip, and mempool stability around every snapshot and use only read-only RPC methods.
 - Watchtower observations must be independently signed, append-only, hash-chained, transaction-set-bound, restart-verifiable, and preserve every halt alert.
 - Offer, accept, and sign messages must form an authenticated hash-chained transcript; bind the testnet4 chain hash, validated transaction set, signature-validation digests, funding witnesses, and derived contract ID; and enforce globally unique, canonically ordered u64 serial IDs.
 - Temporary contract IDs and completed transcript digests must be claimed atomically, survive restart, reject conflicting reuse, and remain idempotent for identical retries.
+- Anchor recovery evaluation must bind the exact committed settlement outpoint, halt outside the signed fee or relay limits, and require observed full-RBF policy or an RBF-signaling conflict plus the incremental replacement-fee delta before authorizing a fee-pin rescue.
 
 This benchmark uses synthetic keys, has no network dependency, and must never broadcast a transaction.
 

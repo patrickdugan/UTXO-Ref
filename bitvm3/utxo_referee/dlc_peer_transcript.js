@@ -287,6 +287,7 @@ function validateDlcPeerTranscript({
   const receiptDigest = (kind) => canonicalTransition?.evidence.find((receipt) => receipt.kind === kind)?.digest;
   if (receiptDigest('funding_template') !== transactionSet.fundingTemplateDigest ||
       receiptDigest('cet_set') !== transactionSet.cetSetDigest ||
+      receiptDigest('fee_policy') !== transactionSet.feePolicyDigest ||
       receiptDigest('refund_transaction') !== transactionSet.refundTransactionDigest) {
     throw new Error('peer transcript transaction set does not match signed contract receipts');
   }

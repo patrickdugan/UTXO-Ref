@@ -19,7 +19,7 @@ const STAGES = Object.freeze([
 
 const REQUIRED_EVIDENCE = Object.freeze({
   AUTHENTICATED_ORACLES: ['oracle_policy'],
-  CANONICAL_CETS_AND_REFUND: ['cet_set', 'funding_template', 'refund_transaction'],
+  CANONICAL_CETS_AND_REFUND: ['cet_set', 'fee_policy', 'funding_template', 'refund_transaction'],
   COUNTERPARTY_SIGNATURES_VERIFIED: [
     'counterparty_cet_signatures', 'counterparty_refund_signature', 'peer_accept_transcript'
   ],

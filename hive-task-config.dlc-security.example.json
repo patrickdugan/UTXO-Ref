@@ -15,7 +15,8 @@
     "bitvm3/utxo_referee/dlc_bitcoin_core_observer.js",
     "bitvm3/utxo_referee/dlc_peer_transcript.js",
     "bitvm3/utxo_referee/dlc_peer_session_store.js",
-    "bitvm3/utxo_referee/dlc_watchtower_journal.js"
+    "bitvm3/utxo_referee/dlc_watchtower_journal.js",
+    "bitvm3/utxo_referee/dlc_anchor_recovery_guard.js"
   ],
   "prepare_timeout": 30,
   "eval_timeout": 300,

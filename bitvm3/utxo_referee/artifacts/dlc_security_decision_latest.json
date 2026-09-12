@@ -1,6 +1,6 @@
 {
-  "schema": "utxoref_dlc_security_decision_v8",
-  "capturedAt": "2026-09-11",
+  "schema": "utxoref_dlc_security_decision_v9",
+  "capturedAt": "2026-09-12",
   "decision": "retain_dlc_protocol_rebuild_implementation",
   "productionDlcEnabled": false,
   "bitcoinTestnet4Mode": "utxoref_commitments_and_guarded_taproot_reserve",
@@ -32,7 +32,10 @@
     "durable_atomic_peer_temporary_id_and_transcript_registry",
     "signed_append_only_restart_safe_watchtower_journal",
     "bitcoin_core_regtest_anchor_package_feerate_rescue_rbf_and_six_block_recovery",
-    "two_peer_package_and_full_rbf_fee_pin_recovery_propagation"
+    "two_peer_package_and_full_rbf_fee_pin_recovery_propagation",
+    "signed_bounded_anchor_recovery_fee_and_relay_policy",
+    "unique_cet_and_refund_transaction_ids",
+    "economic_full_rbf_anchor_pin_guard"
   ],
   "productionBlockers": [
     "replace_javascript_bigint_signer_with_reviewed_native_secp256k1_implementation",
@@ -41,7 +44,8 @@
     "implement_and_cross_test_a_published_taproot_dlc_wire_codec",
     "wire_transaction_signature_and_funding_witness_validators_to_native_signer",
     "operate_independent_threshold_oracles_with_interoperable_messages",
-    "validate_heterogeneous_peer_descendant_cluster_and_v3_truc_pinning_with_bounded_fee_budgets",
+    "wire_direct_bitcoin_core_anchor_observations_into_the_signed_watchtower_journal",
+    "validate_heterogeneous_peer_descendant_cluster_and_v3_truc_pinning",
     "deploy_the_observer_and_signed_journal_as_an_independent_watchtower_with_external_alert_delivery"
   ],
   "evidence": {

@@ -218,6 +218,11 @@ The local research implementation now:
     also reproduces an economic full-RBF fee pin: a 200 sat/vB conflicting child
     rejects the prior 20 sat/vB recovery, while a 300 sat/vB rescue replaces the
     pin and propagates to the second peer.
+26. Signs the anchor recovery policy as a dedicated contract receipt, requires
+    unique CET/refund transaction IDs, and bounds recovery by absolute fee,
+    feerate, and relay-peer quorum. The recovery guard binds the exact committed
+    anchor outpoint and halts a non-RBF conflict unless the observation confirms
+    full-RBF policy; it then enforces the incremental replacement-fee delta.
 
 The changes block the concrete exploit probes. They reduce testnet risk but do
 not promote this module to a production signer.
@@ -323,7 +328,8 @@ until a Taproot DLC message format is published and cross-tested.
 ### Transaction safety
 
 - The local validators now cover exact funding outpoints, outputs, amounts,
-  fees, a committed last-output CPFP anchor, BIP341 CET adaptor signatures, and
+  fees, unique settlement transaction IDs, a committed last-output CPFP anchor,
+  a signed recovery-fee and relay-quorum policy, BIP341 CET adaptor signatures,
   refund signatures, authenticated peer sequencing, and peer serial-ID rules.
   Wire the validators and independently validated funding witnesses to the
   native signer before funding authorization.
@@ -337,9 +343,11 @@ until a Taproot DLC message format is published and cross-tested.
   regtest harness now proves anchor spendability, package-feerate rescue below
   the standalone relay floor, propagation between two strict-floor peers,
   economic full-RBF pinning and higher-fee rescue, and a six-block
-  disconnect/reconsider cycle. Test heterogeneous peer policies,
-  descendant/cluster pins, v3/TRUC policy, and bounded watchtower fee budgets
-  before funded operation.
+  disconnect/reconsider cycle. The exported recovery guard consumes an
+  authenticated observation and halts
+  outside that signed budget or replacement policy. Wire direct Core anchor
+  observations into the signed journal, then test heterogeneous peer policies,
+  descendant/cluster pins, and v3/TRUC policy before funded operation.
 - Require independent Bitcoin Core policy checks and exact transaction decode
   immediately before signing and broadcasting.
 

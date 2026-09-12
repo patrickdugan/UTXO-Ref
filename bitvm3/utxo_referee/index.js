@@ -50,6 +50,7 @@ const dlcBitcoinCoreObserver = require('./dlc_bitcoin_core_observer');
 const dlcPeerTranscript = require('./dlc_peer_transcript');
 const { DlcPeerSessionStore } = require('./dlc_peer_session_store');
 const { DlcWatchtowerJournal } = require('./dlc_watchtower_journal');
+const dlcAnchorRecoveryGuard = require('./dlc_anchor_recovery_guard');
 
 module.exports = {
   // Types
@@ -125,7 +126,7 @@ module.exports = {
   // for production; these interfaces enforce transcript, threshold-oracle,
   // and persistence gates on regtest and Bitcoin testnet4.
   dlc: Object.freeze({
-    securityBoundaryVersion: 7,
+    securityBoundaryVersion: 8,
     createContract: dlcContractState.createDlcContract,
     validateContract: dlcContractState.validateDlcContract,
     transitionContract: dlcContractState.transitionDlcContract,
@@ -153,6 +154,8 @@ module.exports = {
     verifyPeerMessage: dlcPeerTranscript.verifyDlcPeerMessage,
     validatePeerTranscript: dlcPeerTranscript.validateDlcPeerTranscript,
     PeerSessionStore: DlcPeerSessionStore,
-    WatchtowerJournal: DlcWatchtowerJournal
+    WatchtowerJournal: DlcWatchtowerJournal,
+    settlementAnchor: dlcAnchorRecoveryGuard.settlementAnchor,
+    evaluateAnchorRecovery: dlcAnchorRecoveryGuard.evaluateDlcAnchorRecovery
   })
 };

@@ -144,13 +144,21 @@ function normalizeFeePolicy(feePolicy) {
       typeof feePolicy.anchorAmountSats !== 'bigint' ||
       feePolicy.anchorAmountSats < 330n || feePolicy.anchorAmountSats > 10000n ||
       typeof feePolicy.anchorScriptPubKeyHex !== 'string' ||
-      !/^(0014[0-9a-f]{40}|5120[0-9a-f]{64})$/.test(feePolicy.anchorScriptPubKeyHex)) {
-    throw new Error('feePolicy must define a 330..10000 sat cpfp-anchor-v1 P2WPKH or P2TR output');
+      !/^(0014[0-9a-f]{40}|5120[0-9a-f]{64})$/.test(feePolicy.anchorScriptPubKeyHex) ||
+      typeof feePolicy.maxRecoveryFeeSats !== 'bigint' ||
+      feePolicy.maxRecoveryFeeSats < feePolicy.anchorAmountSats || feePolicy.maxRecoveryFeeSats > MAX_MONEY ||
+      !Number.isSafeInteger(feePolicy.maxRecoveryFeerateSatPerVb) ||
+      feePolicy.maxRecoveryFeerateSatPerVb < 1 || feePolicy.maxRecoveryFeerateSatPerVb > 10000 ||
+      !Number.isSafeInteger(feePolicy.minRelayPeers) || feePolicy.minRelayPeers < 1 || feePolicy.minRelayPeers > 16) {
+    throw new Error('feePolicy must define a 330..10000 sat P2WPKH or P2TR anchor plus bounded recovery fee, feerate, and relay quorum');
   }
   return Object.freeze({
     strategy: 'cpfp-anchor-v1',
     anchorAmountSats: feePolicy.anchorAmountSats,
-    anchorScriptPubKeyHex: feePolicy.anchorScriptPubKeyHex
+    anchorScriptPubKeyHex: feePolicy.anchorScriptPubKeyHex,
+    maxRecoveryFeeSats: feePolicy.maxRecoveryFeeSats,
+    maxRecoveryFeerateSatPerVb: feePolicy.maxRecoveryFeerateSatPerVb,
+    minRelayPeers: feePolicy.minRelayPeers
   });
 }
 
@@ -251,6 +259,10 @@ function validateDlcTransactionSet({ funding, cets, refund, minFeeSats = 0n, max
   if (validatedCets.some((cet) => refund.locktime <= cet.locktime)) {
     throw new Error('refund locktime must be greater than every CET locktime');
   }
+  const settlementTxids = [...validatedCets.map((cet) => cet.txid), refundSpend.transaction.txid];
+  if (new Set(settlementTxids).size !== settlementTxids.length) {
+    throw new Error('every CET and refund must have a unique transaction id');
+  }
   const serializedFunding = {
     txid: normalizedFunding.txid,
     vout: normalizedFunding.vout,
@@ -264,12 +276,18 @@ function validateDlcTransactionSet({ funding, cets, refund, minFeeSats = 0n, max
   const feePolicyDigest = sha256Hex(canonicalJson({
     strategy: normalizedFeePolicy.strategy,
     anchorAmountSats: normalizedFeePolicy.anchorAmountSats.toString(),
-    anchorScriptPubKeyHex: normalizedFeePolicy.anchorScriptPubKeyHex
+    anchorScriptPubKeyHex: normalizedFeePolicy.anchorScriptPubKeyHex,
+    maxRecoveryFeeSats: normalizedFeePolicy.maxRecoveryFeeSats.toString(),
+    maxRecoveryFeerateSatPerVb: normalizedFeePolicy.maxRecoveryFeerateSatPerVb,
+    minRelayPeers: normalizedFeePolicy.minRelayPeers
   }));
   const serializedFeePolicy = {
     strategy: normalizedFeePolicy.strategy,
     anchorAmountSats: normalizedFeePolicy.anchorAmountSats.toString(),
-    anchorScriptPubKeyHex: normalizedFeePolicy.anchorScriptPubKeyHex
+    anchorScriptPubKeyHex: normalizedFeePolicy.anchorScriptPubKeyHex,
+    maxRecoveryFeeSats: normalizedFeePolicy.maxRecoveryFeeSats.toString(),
+    maxRecoveryFeerateSatPerVb: normalizedFeePolicy.maxRecoveryFeerateSatPerVb,
+    minRelayPeers: normalizedFeePolicy.minRelayPeers
   };
   return Object.freeze({
     fundingTemplateDigest,

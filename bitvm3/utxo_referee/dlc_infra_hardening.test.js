@@ -42,6 +42,7 @@ const {
 } = require('./dlc_peer_transcript');
 const { DlcPeerSessionStore } = require('./dlc_peer_session_store');
 const { DlcWatchtowerJournal, contractKey: watchtowerContractKey } = require('./dlc_watchtower_journal');
+const { settlementAnchor, evaluateDlcAnchorRecovery } = require('./dlc_anchor_recovery_guard');
 
 let passed = 0;
 let failed = 0;
@@ -381,7 +382,10 @@ function transactionFixture() {
   const feePolicy = {
     strategy: 'cpfp-anchor-v1',
     anchorAmountSats: 330n,
-    anchorScriptPubKeyHex: `0014${'aa'.repeat(20)}`
+    anchorScriptPubKeyHex: `0014${'aa'.repeat(20)}`,
+    maxRecoveryFeeSats: 150000n,
+    maxRecoveryFeerateSatPerVb: 500,
+    minRelayPeers: 2
   };
   const anchor = { valueSats: feePolicy.anchorAmountSats, scriptPubKeyHex: feePolicy.anchorScriptPubKeyHex };
   const spend = (outputs, locktime, sequence = 0xfffffffe, fundingTxid = funding.txid) => serializeUnsignedTx(
@@ -446,10 +450,13 @@ test('transaction validator binds every CET and refund to the funding outpoint',
   contract = transitionDlcContract(contract, requestFor(contract, 'AUTHENTICATED_ORACLES'));
   contract = transitionDlcContract(contract, requestFor(contract, 'CANONICAL_CETS_AND_REFUND', 'validated-transactions', {
     cet_set: result.cetSetDigest,
+    fee_policy: result.feePolicyDigest,
     funding_template: result.fundingTemplateDigest,
     refund_transaction: result.refundTransactionDigest
   }));
   assert(contract.stage === 'CANONICAL_CETS_AND_REFUND', 'validated transaction receipts did not advance state');
+  const feeReceipt = contract.history.at(-1).evidence.find((receipt) => receipt.kind === 'fee_policy');
+  assert(feeReceipt && feeReceipt.digest === result.feePolicyDigest, 'signed state did not bind the recovery fee policy');
   const wrongOutpoint = {
     ...fixture.cets[0],
     rawTxHex: fixture.spend(fixture.firstOutputs, 100, 0xfffffffe, 'bb'.repeat(32))
@@ -462,6 +469,14 @@ test('transaction validator binds every CET and refund to the funding outpoint',
     maxFeeSats: 2000n,
     feePolicy: fixture.feePolicy
   }), /committed funding outpoint/);
+  expectThrow(() => validateDlcTransactionSet({
+    funding: fixture.funding,
+    cets: [fixture.cets[0], { ...fixture.cets[0], outcomeMessage: digest('duplicate-cet-txid') }],
+    refund: fixture.refund,
+    minFeeSats: 500n,
+    maxFeeSats: 2000n,
+    feePolicy: fixture.feePolicy
+  }), /unique transaction id/);
   const outputsWithoutAnchor = fixture.firstOutputs.slice(0, -1);
   const missingAnchor = {
     ...fixture.cets[0],
@@ -512,7 +527,10 @@ test('CET adaptor and refund signatures bind to validated BIP341 sighashes', () 
   const feePolicy = {
     strategy: 'cpfp-anchor-v1',
     anchorAmountSats: 330n,
-    anchorScriptPubKeyHex: `0014${'aa'.repeat(20)}`
+    anchorScriptPubKeyHex: `0014${'aa'.repeat(20)}`,
+    maxRecoveryFeeSats: 150000n,
+    maxRecoveryFeerateSatPerVb: 500,
+    minRelayPeers: 2
   };
   const anchor = { valueSats: feePolicy.anchorAmountSats, scriptPubKeyHex: feePolicy.anchorScriptPubKeyHex };
   cetOutputs.push(anchor);
@@ -600,6 +618,7 @@ function validatedChainFixture(contractId, targetStage) {
   contract = transitionDlcContract(contract, requestFor(contract, 'AUTHENTICATED_ORACLES', `${contractId}:oracles`));
   contract = transitionDlcContract(contract, requestFor(contract, 'CANONICAL_CETS_AND_REFUND', `${contractId}:transactions`, {
     cet_set: transactionSet.cetSetDigest,
+    fee_policy: transactionSet.feePolicyDigest,
     funding_template: transactionSet.fundingTemplateDigest,
     refund_transaction: transactionSet.refundTransactionDigest
   }));
@@ -822,6 +841,83 @@ test('signed watchtower journal preserves halt alerts and detects tampering afte
   } finally {
     fs.rmSync(directory, { recursive: true, force: true });
   }
+});
+
+test('anchor recovery guard enforces signed budgets, relay quorum, and full-RBF fee-pin deltas', () => {
+  const { contract, transactionSet } = validatedChainFixture('anchor-recovery-contract', 'CANONICAL_CETS_AND_REFUND');
+  const settlementTxid = transactionSet.cets[0].txid;
+  const anchor = settlementAnchor(transactionSet, settlementTxid);
+  assert(anchor.vout === transactionSet.cets[0].outputs.length - 1, 'guard selected the wrong settlement anchor');
+  const pin = {
+    txid: digest('anchor-guard:pin'),
+    feeSats: '93338',
+    vsize: 467,
+    relayPeers: 2,
+    signalsRbf: false
+  };
+  const cheapRecovery = {
+    txid: digest('anchor-guard:cheap-recovery'),
+    feeSats: '9098',
+    vsize: 467,
+    relayPeers: 2,
+    signalsRbf: true
+  };
+  const rescue = {
+    txid: digest('anchor-guard:rescue'),
+    feeSats: '140138',
+    vsize: 467,
+    relayPeers: 2,
+    signalsRbf: true
+  };
+  const pinned = evaluateDlcAnchorRecovery({
+    contractState: contract,
+    transactionSet,
+    settlementTxid,
+    snapshot: { anchorOutpoint: anchor.outpoint, anchorPresent: false, fullRbf: true, observedSpend: pin, proposedRecovery: cheapRecovery }
+  });
+  assert(!pinned.ok && pinned.status === 'FEE_PIN_HALT', 'cheaper recovery bypassed the economic fee pin');
+  const rescued = evaluateDlcAnchorRecovery({
+    contractState: contract,
+    transactionSet,
+    settlementTxid,
+    snapshot: { anchorOutpoint: anchor.outpoint, anchorPresent: false, fullRbf: true, observedSpend: pin, proposedRecovery: rescue }
+  });
+  assert(rescued.ok && rescued.status === 'FEE_PIN_RESCUE_READY', 'higher-fee recovery was not authorized inside budget');
+  const noFullRbf = evaluateDlcAnchorRecovery({
+    contractState: contract,
+    transactionSet,
+    settlementTxid,
+    snapshot: { anchorOutpoint: anchor.outpoint, anchorPresent: false, fullRbf: false, observedSpend: pin, proposedRecovery: rescue }
+  });
+  assert(!noFullRbf.ok && noFullRbf.status === 'FEE_PIN_HALT', 'non-RBF pin bypassed the observed replacement policy');
+  const overBudget = evaluateDlcAnchorRecovery({
+    contractState: contract,
+    transactionSet,
+    settlementTxid,
+    snapshot: {
+      anchorOutpoint: anchor.outpoint,
+      anchorPresent: true,
+      fullRbf: true,
+      observedSpend: null,
+      proposedRecovery: { ...rescue, txid: digest('anchor-guard:over-budget'), feeSats: '150001' }
+    }
+  });
+  assert(!overBudget.ok && overBudget.status === 'RECOVERY_BUDGET_HALT', 'recovery exceeded the signed absolute fee budget');
+  const underReplicated = evaluateDlcAnchorRecovery({
+    contractState: contract,
+    transactionSet,
+    settlementTxid,
+    expectedRecoveryTxids: [rescue.txid],
+    snapshot: {
+      anchorOutpoint: anchor.outpoint,
+      anchorPresent: false,
+      fullRbf: true,
+      observedSpend: { ...rescue, relayPeers: 1 },
+      proposedRecovery: null
+    }
+  });
+  assert(!underReplicated.ok && underReplicated.status === 'RECOVERY_PROPAGATION_HALT',
+    'recovery without the signed relay quorum was accepted');
 });
 
 function peerTranscriptFixture(overrides = {}) {

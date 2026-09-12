@@ -60,6 +60,7 @@ const {
 } = require(path.join(__dirname, '..', 'bitvm3', 'utxo_referee', 'dlc_peer_transcript.js'));
 const { DlcPeerSessionStore } = require(path.join(__dirname, '..', 'bitvm3', 'utxo_referee', 'dlc_peer_session_store.js'));
 const { DlcWatchtowerJournal } = require(path.join(__dirname, '..', 'bitvm3', 'utxo_referee', 'dlc_watchtower_journal.js'));
+const { evaluateDlcAnchorRecovery } = require(path.join(__dirname, '..', 'bitvm3', 'utxo_referee', 'dlc_anchor_recovery_guard.js'));
 const validatorKeys = crypto.generateKeyPairSync('ed25519');
 const validatorSpki = validatorKeys.publicKey.export({ format: 'der', type: 'spki' }).toString('base64');
 const validatorKeyId = crypto.createHash('sha256').update(Buffer.from(validatorSpki, 'base64')).digest('hex');
@@ -514,7 +515,10 @@ check('CET and refund set is canonically bound to one funding outpoint', 'transa
   const feePolicy = {
     strategy: 'cpfp-anchor-v1',
     anchorAmountSats: 330n,
-    anchorScriptPubKeyHex: `0014${'aa'.repeat(20)}`
+    anchorScriptPubKeyHex: `0014${'aa'.repeat(20)}`,
+    maxRecoveryFeeSats: 150000n,
+    maxRecoveryFeerateSatPerVb: 500,
+    minRelayPeers: 2
   };
   const anchor = { valueSats: feePolicy.anchorAmountSats, scriptPubKeyHex: feePolicy.anchorScriptPubKeyHex };
   const cetOutputs = [
@@ -566,7 +570,10 @@ check('chain guard halts on disconnected ancestry and uncommitted funding spends
   const feePolicy = {
     strategy: 'cpfp-anchor-v1',
     anchorAmountSats: 330n,
-    anchorScriptPubKeyHex: `0014${'aa'.repeat(20)}`
+    anchorScriptPubKeyHex: `0014${'aa'.repeat(20)}`,
+    maxRecoveryFeeSats: 150000n,
+    maxRecoveryFeerateSatPerVb: 500,
+    minRelayPeers: 2
   };
   const anchor = { valueSats: feePolicy.anchorAmountSats, scriptPubKeyHex: feePolicy.anchorScriptPubKeyHex };
   const cetOutputs = [{ valueSats: 99000n, scriptPubKeyHex: `0014${'55'.repeat(20)}` }, anchor];
@@ -611,6 +618,7 @@ check('chain guard halts on disconnected ancestry and uncommitted funding spends
     const key = `eval-chain:${stage}`;
     const overrides = stage === 'CANONICAL_CETS_AND_REFUND' ? {
       cet_set: transactionSet.cetSetDigest,
+      fee_policy: transactionSet.feePolicyDigest,
       funding_template: transactionSet.fundingTemplateDigest,
       refund_transaction: transactionSet.refundTransactionDigest
     } : {};
@@ -722,6 +730,69 @@ check('independent watchtower journal survives restart and preserves signed halt
   } finally {
     fs.rmSync(directory, { recursive: true, force: true });
   }
+});
+
+check('signed anchor policy contains economic fee pins and enforces recovery relay quorum', 'anchor-recovery', 12, () => {
+  if (!peerFixtureForEval) return false;
+  const { transactionSet, contract } = peerFixtureForEval;
+  const settlementTxid = transactionSet.cets[0].txid;
+  const anchorOutpoint = `${settlementTxid}:${transactionSet.cets[0].outputs.length - 1}`;
+  const pin = {
+    txid: sha256('anchor-eval:pin').toString('hex'),
+    feeSats: '93338',
+    vsize: 467,
+    relayPeers: 2,
+    signalsRbf: false
+  };
+  const cheap = {
+    txid: sha256('anchor-eval:cheap').toString('hex'),
+    feeSats: '9098',
+    vsize: 467,
+    relayPeers: 2,
+    signalsRbf: true
+  };
+  const rescue = {
+    txid: sha256('anchor-eval:rescue').toString('hex'),
+    feeSats: '140138',
+    vsize: 467,
+    relayPeers: 2,
+    signalsRbf: true
+  };
+  const pinned = evaluateDlcAnchorRecovery({
+    contractState: contract,
+    transactionSet,
+    settlementTxid,
+    snapshot: { anchorOutpoint, anchorPresent: false, fullRbf: true, observedSpend: pin, proposedRecovery: cheap }
+  });
+  const rescued = evaluateDlcAnchorRecovery({
+    contractState: contract,
+    transactionSet,
+    settlementTxid,
+    snapshot: { anchorOutpoint, anchorPresent: false, fullRbf: true, observedSpend: pin, proposedRecovery: rescue }
+  });
+  const noFullRbf = evaluateDlcAnchorRecovery({
+    contractState: contract,
+    transactionSet,
+    settlementTxid,
+    snapshot: { anchorOutpoint, anchorPresent: false, fullRbf: false, observedSpend: pin, proposedRecovery: rescue }
+  });
+  const underReplicated = evaluateDlcAnchorRecovery({
+    contractState: contract,
+    transactionSet,
+    settlementTxid,
+    expectedRecoveryTxids: [rescue.txid],
+    snapshot: {
+      anchorOutpoint,
+      anchorPresent: false,
+      fullRbf: true,
+      observedSpend: { ...rescue, relayPeers: 1 },
+      proposedRecovery: null
+    }
+  });
+  return pinned.status === 'FEE_PIN_HALT' && pinned.halt &&
+    rescued.status === 'FEE_PIN_RESCUE_READY' && rescued.ok &&
+    noFullRbf.status === 'FEE_PIN_HALT' && noFullRbf.halt &&
+    underReplicated.status === 'RECOVERY_PROPAGATION_HALT' && underReplicated.halt;
 });
 
 check('authenticated offer/accept/sign transcript enforces IDs and global serial uniqueness', 'peer-protocol', 12, () => {
@@ -855,7 +926,10 @@ check('CET adaptor and refund signatures bind to validated BIP341 sighashes', 's
   const feePolicy = {
     strategy: 'cpfp-anchor-v1',
     anchorAmountSats: 330n,
-    anchorScriptPubKeyHex: `0014${'aa'.repeat(20)}`
+    anchorScriptPubKeyHex: `0014${'aa'.repeat(20)}`,
+    maxRecoveryFeeSats: 150000n,
+    maxRecoveryFeerateSatPerVb: 500,
+    minRelayPeers: 2
   };
   const anchor = { valueSats: feePolicy.anchorAmountSats, scriptPubKeyHex: feePolicy.anchorScriptPubKeyHex };
   const cetOutputs = [
@@ -939,7 +1013,7 @@ const possible = cases.reduce((sum, test) => sum + test.points, 0);
 const score = earned / possible;
 const report = {
   benchmark: 'utxoref-dlc-security',
-  version: 6,
+  version: 7,
   profile: profileName,
   seed,
   score,
