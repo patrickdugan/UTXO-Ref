@@ -10,6 +10,8 @@ $ErrorActionPreference = 'Stop'
 $repository = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $manifest = Join-Path $repository 'native\dlc-signer\Cargo.toml'
 $lockFile = Join-Path $repository 'native\dlc-signer\Cargo.lock'
+$sourceFile = Join-Path $repository 'native\dlc-signer\src\main.rs'
+$accessVerifierFile = Join-Path $repository 'native\dlc-signer\verify-dpapi-key-access.ps1'
 $cargoHome = Join-Path $ToolRoot 'cargo'
 $rustupHome = Join-Path $ToolRoot 'rustup'
 $cargo = Join-Path $cargoHome 'bin\cargo.exe'
@@ -18,6 +20,16 @@ if (-not (Test-Path -LiteralPath $cargo) -or -not (Test-Path -LiteralPath $rustc
   throw "Rust toolchain is missing under $ToolRoot"
 }
 if (-not (Test-Path -LiteralPath $lockFile)) { throw 'native signer Cargo.lock is required' }
+$sourceText = Get-Content -LiteralPath $sourceFile -Raw
+$accessVerifierText = Get-Content -LiteralPath $accessVerifierFile -Raw
+if ([regex]::Matches($sourceText, '\bunsafe\s*\{').Count -ne 3 -or
+    [regex]::Matches($sourceText, 'unsafe\s+extern\s+"system"').Count -ne 2 -or
+    $sourceText -notmatch 'CryptUnprotectData' -or $sourceText -notmatch 'LocalFree') {
+  throw 'native signer DPAPI FFI surface differs from the reviewed three-block boundary'
+}
+if ($accessVerifierText -match 'ProtectedData|CryptUnprotectData|\bUnprotect\b|Console.*Write') {
+  throw 'DPAPI access verifier must not decrypt or emit key material'
+}
 
 New-Item -ItemType Directory -Path $SnapshotDirectory -Force | Out-Null
 New-Item -ItemType Directory -Path $BuildRoot -Force | Out-Null
@@ -85,6 +97,12 @@ if (-not $result.assertions.expectedWindowsAccountSidBound -or
     -not $result.assertions.inheritedKeyDirectoryAclRejected) {
   throw 'native signer integration omitted account or ACL isolation assertions'
 }
+if (-not $result.assertions.nativeDpapiDecryption -or
+    -not $result.assertions.decryptionSecretIpcEliminated -or
+    -not $result.assertions.dpapiAccessVerifierSilent -or
+    $result.assertions.unsafeDpapiFfiBlocks -ne 3) {
+  throw 'native signer integration omitted native DPAPI boundary assertions'
+}
 $commit = (git -c safe.directory=C:/projects/UTXORef/UTXO-Ref -C $repository rev-parse HEAD).Trim()
 $snapshot = [ordered]@{
   schema = 'utxoref_dlc_native_rust_signer_snapshot_v1'
@@ -106,7 +124,7 @@ $snapshotPath = Join-Path $SnapshotDirectory 'dlc-native-rust-signer-latest.json
   [System.Text.UTF8Encoding]::new($false)
 )
 $checkedEvidence = [ordered]@{
-  schema = 'utxoref_dlc_native_rust_signer_evidence_v5'
+  schema = 'utxoref_dlc_native_rust_signer_evidence_v6'
   network = 'bitcoin-testnet4'
   sourceCommit = $commit
   toolchain = [ordered]@{ rustc = $snapshot.rustc; cargo = $snapshot.cargo }
@@ -137,6 +155,10 @@ $checkedEvidence = [ordered]@{
     unexpectedSignerAccountRejected = [bool]$result.assertions.unexpectedSignerAccountRejected
     protectedKeyDirectoryAclRequired = [bool]$result.assertions.protectedKeyDirectoryAclRequired
     inheritedKeyDirectoryAclRejected = [bool]$result.assertions.inheritedKeyDirectoryAclRejected
+    nativeDpapiDecryption = [bool]$result.assertions.nativeDpapiDecryption
+    decryptionSecretIpcEliminated = [bool]$result.assertions.decryptionSecretIpcEliminated
+    dpapiAccessVerifierSilent = [bool]$result.assertions.dpapiAccessVerifierSilent
+    unsafeDpapiFfiBlocks = [int]$result.assertions.unsafeDpapiFfiBlocks
     runtimeIdentityVerifiedByHost = [bool]$result.assertions.runtimeIdentityVerifiedByHost
     restartReplayRejected = [bool]$result.assertions.restartReplayRejected
     signerLocalReplayRejected = [bool]$result.assertions.signerLocalReplayRejected

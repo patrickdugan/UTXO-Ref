@@ -234,7 +234,7 @@ challenge, the request digest, and the pre-signature digest. Runtime drift,
 timeouts, oversized or malformed output, stale challenges, and identity
 substitution fail closed.
 
-Boundary V28 includes the Rust `k256` signer candidate under
+Boundary V29 includes the Rust `k256` signer candidate under
 `native/dlc-signer`. Its direct dependencies are exactly pinned, unsafe Rust is
 forbidden, and the testnet4 build harness rejects byte differences between two
 independent Windows target directories. The cross-language test completes the
@@ -268,7 +268,10 @@ native signer rejects legacy plaintext `.key` files and verifies the pinned
 unwrap helper before key use. The runtime closure binds the expected Windows
 account SID, and the helper rejects identity mismatch, inherited ACLs, owner
 mismatch, or key-directory access granted outside the signer account, `SYSTEM`,
-and `Administrators`. DPAPI protects offline key material, while another
+and `Administrators`. DPAPI decryption now occurs directly inside the Rust
+signer through three documented FFI blocks. The PowerShell access verifier is
+silent, so decrypted keys no longer traverse a child-process stdout pipe.
+DPAPI protects offline key material, while another
 process under the same Windows account can still request decryption. A dedicated
 signer service account, restrictive ACLs, and external key-storage review remain
 required.

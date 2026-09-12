@@ -38,7 +38,9 @@ const protectDpapiPath = path.resolve(__dirname, '..', 'native', 'dlc-signer', '
 const initializeDpapiPath = path.resolve(
   __dirname, '..', 'native', 'dlc-signer', 'initialize-dpapi-key-directory.ps1'
 );
-const unprotectDpapiPath = path.resolve(__dirname, '..', 'native', 'dlc-signer', 'unprotect-dpapi-key.ps1');
+const verifyDpapiAccessPath = path.resolve(
+  __dirname, '..', 'native', 'dlc-signer', 'verify-dpapi-key-access.ps1'
+);
 
 function powershellPathAndEnvironment() {
   const systemRoot = process.env.SystemRoot || process.env.WINDIR;
@@ -234,25 +236,25 @@ try {
     !runtimeBlob.includes(Buffer.from(runtimeSeedHex, 'utf8'));
   if (!dpapiBlobsOpaque) fail('DPAPI key blob exposed raw key material');
 
-  const unprotectDpapiDigest = digest(fs.readFileSync(unprotectDpapiPath));
+  const verifyDpapiAccessDigest = digest(fs.readFileSync(verifyDpapiAccessPath));
 
   const launchSpec = {
     executablePath: binaryPath,
     arguments: [keyDirectory, validatorPolicyPath, validatorPolicyDigest,
-      unprotectDpapiPath, unprotectDpapiDigest, signerAccountSid],
-    codePaths: [validatorPolicyPath, unprotectDpapiPath]
+      verifyDpapiAccessPath, verifyDpapiAccessDigest, signerAccountSid],
+    codePaths: [validatorPolicyPath, verifyDpapiAccessPath]
   };
   const unpinnedValidatorLaunchSpec = {
     executablePath: binaryPath,
     arguments: [keyDirectory, unpinnedValidatorPolicyPath, unpinnedValidatorPolicyDigest,
-      unprotectDpapiPath, unprotectDpapiDigest, signerAccountSid],
-    codePaths: [unpinnedValidatorPolicyPath, unprotectDpapiPath]
+      verifyDpapiAccessPath, verifyDpapiAccessDigest, signerAccountSid],
+    codePaths: [unpinnedValidatorPolicyPath, verifyDpapiAccessPath]
   };
   const unpinnedSignerLaunchSpec = {
     executablePath: binaryPath,
     arguments: [keyDirectory, unpinnedSignerPolicyPath, unpinnedSignerPolicyDigest,
-      unprotectDpapiPath, unprotectDpapiDigest, signerAccountSid],
-    codePaths: [unpinnedSignerPolicyPath, unprotectDpapiPath]
+      verifyDpapiAccessPath, verifyDpapiAccessDigest, signerAccountSid],
+    codePaths: [unpinnedSignerPolicyPath, verifyDpapiAccessPath]
   };
   fs.writeFileSync(
     path.join(plaintextKeyDirectory, `${signerPubkeyX}.KEY`),
@@ -260,7 +262,7 @@ try {
     { encoding: 'utf8', mode: 0o600, flag: 'wx' }
   );
   const plaintextLaunchArguments = [plaintextKeyDirectory, validatorPolicyPath,
-    validatorPolicyDigest, unprotectDpapiPath, unprotectDpapiDigest, signerAccountSid];
+    validatorPolicyDigest, verifyDpapiAccessPath, verifyDpapiAccessDigest, signerAccountSid];
   const plaintextResult = await runSignerProcess(binaryPath, plaintextLaunchArguments, '{}\n');
   const plaintextKeyFilesRejected = plaintextResult.code !== 0 &&
     /plaintext \.key files are forbidden/.test(plaintextResult.stderr.toString('utf8'));
@@ -599,6 +601,10 @@ try {
       unexpectedSignerAccountRejected,
       protectedKeyDirectoryAclRequired: true,
       inheritedKeyDirectoryAclRejected,
+      nativeDpapiDecryption: true,
+      decryptionSecretIpcEliminated: true,
+      dpapiAccessVerifierSilent: true,
+      unsafeDpapiFfiBlocks: 3,
       hostSuppliedNoSecret: true
     }
   };

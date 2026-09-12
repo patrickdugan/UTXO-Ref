@@ -1,12 +1,14 @@
-#![forbid(unsafe_code)]
+#![deny(unsafe_op_in_unsafe_fn)]
 
 use std::{
     collections::BTreeMap,
     env,
+    ffi::c_void,
     fs::{self, OpenOptions},
     io::{self, Read, Write},
     path::{Path, PathBuf},
     process::{Command, Stdio},
+    ptr,
     time::{SystemTime, UNIX_EPOCH},
 };
 
@@ -27,6 +29,32 @@ use serde::Serialize;
 use serde_json::{Map, Value};
 use sha2::{Digest, Sha256};
 use zeroize::{Zeroize, Zeroizing};
+
+#[repr(C)]
+struct DataBlob {
+    length: u32,
+    data: *mut u8,
+}
+
+#[link(name = "crypt32")]
+unsafe extern "system" {
+    fn CryptUnprotectData(
+        input: *const DataBlob,
+        description: *mut *mut u16,
+        optional_entropy: *const DataBlob,
+        reserved: *const c_void,
+        prompt: *const c_void,
+        flags: u32,
+        output: *mut DataBlob,
+    ) -> i32;
+}
+
+#[link(name = "kernel32")]
+unsafe extern "system" {
+    fn LocalFree(memory: *mut c_void) -> *mut c_void;
+}
+
+const CRYPTPROTECT_UI_FORBIDDEN: u32 = 1;
 
 const PROCESS_REQUEST_KIND: &str = "utxoref_dlc_native_signer_process_request_v1";
 const PROCESS_RESPONSE_KIND: &str = "utxoref_dlc_native_signer_process_response_v1";
@@ -469,22 +497,24 @@ fn ed25519_public_from_spki(value: &str) -> Result<(VerifyingKey, String)> {
     Ok((verifying_key, sha256_hex(&decoded)))
 }
 
-fn validate_unwrapper(path: &Path, expected_digest: &str) -> Result<()> {
-    decode_hex_32(expected_digest, "DPAPI unwrapper digest")?;
+fn validate_access_verifier(path: &Path, expected_digest: &str) -> Result<()> {
+    decode_hex_32(expected_digest, "DPAPI access-verifier digest")?;
     let metadata =
-        fs::symlink_metadata(path).map_err(|error| format!("DPAPI unwrapper: {error}"))?;
+        fs::symlink_metadata(path).map_err(|error| format!("DPAPI access verifier: {error}"))?;
     if !path.is_absolute()
         || !metadata.is_file()
         || metadata.file_type().is_symlink()
         || metadata.len() > 65_536
     {
         return Err(
-            "DPAPI unwrapper must be a bounded absolute regular non-symlink file".to_owned(),
+            "DPAPI access verifier must be a bounded absolute regular non-symlink file".to_owned(),
         );
     }
-    let bytes = fs::read(path).map_err(|error| format!("DPAPI unwrapper: {error}"))?;
+    let bytes = fs::read(path).map_err(|error| format!("DPAPI access verifier: {error}"))?;
     if sha256_hex(&bytes) != expected_digest {
-        return Err("DPAPI unwrapper digest differs from the audited launch argument".to_owned());
+        return Err(
+            "DPAPI access-verifier digest differs from the audited launch argument".to_owned(),
+        );
     }
     Ok(())
 }
@@ -543,9 +573,66 @@ fn powershell_path() -> Result<(PathBuf, String)> {
     Ok((executable, system_root))
 }
 
+fn verify_dpapi_key_access(
+    blob_path: &Path,
+    verifier_path: &Path,
+    expected_account_sid: &str,
+    name: &str,
+) -> Result<()> {
+    let (powershell, system_root) = powershell_path()?;
+    let output = Command::new(powershell)
+        .args([
+            "-NoLogo",
+            "-NoProfile",
+            "-NonInteractive",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+        ])
+        .arg(verifier_path)
+        .arg("-BlobPath")
+        .arg(blob_path)
+        .arg("-ExpectedAccountSid")
+        .arg(expected_account_sid)
+        .env_clear()
+        .env("SystemRoot", &system_root)
+        .env("WINDIR", &system_root)
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .output()
+        .map_err(|error| format!("{name} DPAPI helper failed to start: {error}"))?;
+    if !output.stdout.is_empty() || output.stderr.len() > 4096 {
+        return Err(format!("{name} DPAPI access-verifier output was invalid"));
+    }
+    if !output.status.success() {
+        let detail = String::from_utf8_lossy(&output.stderr);
+        return Err(format!(
+            "{name} DPAPI access verification failed: {}",
+            detail.trim()
+        ));
+    }
+    Ok(())
+}
+
+struct LocalDpapiSecret(DataBlob);
+
+impl Drop for LocalDpapiSecret {
+    fn drop(&mut self) {
+        if !self.0.data.is_null() {
+            // SAFETY: CryptUnprotectData allocated cbData bytes with LocalAlloc and
+            // transferred ownership through this DATA_BLOB. This guard owns it once.
+            unsafe {
+                ptr::write_bytes(self.0.data, 0, self.0.length as usize);
+                let _ = LocalFree(self.0.data.cast());
+            }
+        }
+    }
+}
+
 fn unprotect_dpapi_secret(
     blob_path: &Path,
-    unwrapper_path: &Path,
+    verifier_path: &Path,
     expected_account_sid: &str,
     name: &str,
 ) -> Result<Zeroizing<[u8; 32]>> {
@@ -560,41 +647,47 @@ fn unprotect_dpapi_secret(
             "{name} must be a bounded absolute regular non-symlink DPAPI blob"
         ));
     }
-    let (powershell, system_root) = powershell_path()?;
-    let output = Command::new(powershell)
-        .args([
-            "-NoLogo",
-            "-NoProfile",
-            "-NonInteractive",
-            "-ExecutionPolicy",
-            "Bypass",
-            "-File",
-        ])
-        .arg(unwrapper_path)
-        .arg("-BlobPath")
-        .arg(blob_path)
-        .arg("-ExpectedAccountSid")
-        .arg(expected_account_sid)
-        .env_clear()
-        .env("SystemRoot", &system_root)
-        .env("WINDIR", &system_root)
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .output()
-        .map_err(|error| format!("{name} DPAPI helper failed to start: {error}"))?;
-    let stdout = Zeroizing::new(output.stdout);
-    let stderr = Zeroizing::new(output.stderr);
-    if stdout.len() > 64 || stderr.len() > 4096 {
-        return Err(format!("{name} DPAPI helper output exceeded its bound"));
+    verify_dpapi_key_access(blob_path, verifier_path, expected_account_sid, name)?;
+    let mut protected =
+        Zeroizing::new(fs::read(blob_path).map_err(|error| format!("{name} DPAPI blob: {error}"))?);
+    let input_length = u32::try_from(protected.len())
+        .map_err(|_| format!("{name} DPAPI blob length is invalid"))?;
+    let input = DataBlob {
+        length: input_length,
+        data: protected.as_mut_ptr(),
+    };
+    let mut output = DataBlob {
+        length: 0,
+        data: ptr::null_mut(),
+    };
+    // SAFETY: input points to input.cbData live bytes, output is initialized for
+    // CryptUnprotectData, all optional pointers are null, and output is owned below.
+    let status = unsafe {
+        CryptUnprotectData(
+            &input,
+            ptr::null_mut(),
+            ptr::null(),
+            ptr::null(),
+            ptr::null(),
+            CRYPTPROTECT_UI_FORBIDDEN,
+            &mut output,
+        )
+    };
+    if status == 0 {
+        return Err(format!(
+            "{name} native DPAPI decryption failed: {}",
+            io::Error::last_os_error()
+        ));
     }
-    if !output.status.success() {
-        let detail = String::from_utf8_lossy(&stderr);
-        return Err(format!("{name} DPAPI helper failed: {}", detail.trim()));
+    let output = LocalDpapiSecret(output);
+    if output.0.length != 32 || output.0.data.is_null() {
+        return Err(format!("{name} DPAPI blob did not contain a 32-byte key"));
     }
-    let encoded = std::str::from_utf8(&stdout)
-        .map_err(|_| format!("{name} DPAPI helper returned non-UTF-8 output"))?;
-    Ok(Zeroizing::new(decode_hex_32(encoded, name)?))
+    let mut secret = Zeroizing::new([0u8; 32]);
+    // SAFETY: the successful API call returned exactly 32 live bytes and secret
+    // owns a distinct 32-byte destination. LocalDpapiSecret remains alive here.
+    unsafe { ptr::copy_nonoverlapping(output.0.data, secret.as_mut_ptr(), 32) };
+    Ok(secret)
 }
 
 fn sorted_hex_array(
@@ -835,12 +928,12 @@ fn consume_authorization(key_directory: &Path, authorization_digest: &str) -> Re
 
 fn runtime_identity(
     key_directory: &Path,
-    unwrapper_path: &Path,
+    access_verifier_path: &Path,
     expected_account_sid: &str,
 ) -> Result<(SigningKey, String)> {
     let mut seed = unprotect_dpapi_secret(
         &key_directory.join("runtime-identity.key.dpapi"),
-        unwrapper_path,
+        access_verifier_path,
         expected_account_sid,
         "runtime identity seed",
     )?;
@@ -856,7 +949,7 @@ fn run() -> Result<()> {
     let arguments: Vec<String> = env::args().collect();
     if arguments.len() != 7 {
         return Err(
-            "usage: utxoref-dlc-signer <absolute-key-directory> <absolute-validator-policy> <policy-sha256> <absolute-dpapi-unwrapper> <unwrapper-sha256> <expected-windows-account-sid>"
+            "usage: utxoref-dlc-signer <absolute-key-directory> <absolute-validator-policy> <policy-sha256> <absolute-dpapi-access-verifier> <access-verifier-sha256> <expected-windows-account-sid>"
                 .to_owned(),
         );
     }
@@ -871,8 +964,8 @@ fn run() -> Result<()> {
     }
     reject_plaintext_key_files(&key_directory)?;
     let validator_policy = load_validator_policy(Path::new(&arguments[2]), &arguments[3])?;
-    let unwrapper_path = Path::new(&arguments[4]);
-    validate_unwrapper(unwrapper_path, &arguments[5])?;
+    let access_verifier_path = Path::new(&arguments[4]);
+    validate_access_verifier(access_verifier_path, &arguments[5])?;
     validate_windows_sid(&arguments[6])?;
     let mut input = Vec::new();
     io::stdin()
@@ -900,12 +993,16 @@ fn run() -> Result<()> {
     let verified = verify_request(request, &validator_policy)?;
     consume_authorization(&key_directory, &verified.authorization_digest)?;
     let (runtime_key, identity_key_id) =
-        runtime_identity(&key_directory, unwrapper_path, &arguments[6])?;
+        runtime_identity(&key_directory, access_verifier_path, &arguments[6])?;
     let guarded_now = guard_signer_clock(&key_directory, &runtime_key, &identity_key_id)?;
     verify_authorization_freshness(verified.issued_at, verified.expires_at, guarded_now)?;
     let key_path = key_directory.join(format!("{}.key.dpapi", verified.signer_pubkey));
-    let secret_bytes =
-        unprotect_dpapi_secret(&key_path, unwrapper_path, &arguments[6], "DLC signer key")?;
+    let secret_bytes = unprotect_dpapi_secret(
+        &key_path,
+        access_verifier_path,
+        &arguments[6],
+        "DLC signer key",
+    )?;
     let secret_scalar = Zeroizing::new(scalar_from_bytes(&secret_bytes, "DLC signer key")?);
     let (derived_x, _) = affine_coordinates(
         ProjectivePoint::GENERATOR * *secret_scalar,
