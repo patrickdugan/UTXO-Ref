@@ -30,6 +30,12 @@ const {
 } = require('./dlc_crypto_provider');
 const { DlcOracleEventStore } = require('./dlc_oracle_event_store');
 const { DlcSigningAuthorizationStore } = require('./dlc_signing_authorization_store');
+const {
+  REQUEST_KIND: NATIVE_PROCESS_REQUEST_KIND,
+  RESPONSE_KIND: NATIVE_PROCESS_RESPONSE_KIND,
+  nativeSignerRuntimeDigest,
+  DlcNativeSignerProcessClient
+} = require('./dlc_native_signer_process_client');
 const { serializeUnsignedTx, outpoint, bip341SighashDefault } = require('./tradelayer_taproot');
 const {
   P2A_SCRIPT_PUBKEY_HEX,
@@ -177,6 +183,79 @@ function initialContract(contractId = 'contract-1') {
   });
 }
 
+function nativeSignerFixture(directory, signerSecret, label, options = {}) {
+  const runtimeKey = crypto.generateKeyPairSync('ed25519');
+  const runtimePublicDer = runtimeKey.publicKey.export({ format: 'der', type: 'spki' });
+  const runtimePrivateDer = runtimeKey.privateKey.export({ format: 'der', type: 'pkcs8' });
+  const helperPath = path.join(directory, `${label}.js`);
+  const adaptorPath = require.resolve('./tradelayer_dlc_adaptor_sig');
+  const clientPath = require.resolve('./dlc_native_signer_process_client');
+  const source = `'use strict';
+const crypto = require('crypto');
+const fs = require('fs');
+const dlc = require(${JSON.stringify(adaptorPath)});
+const { RESPONSE_KIND, responseSignaturePayload } = require(${JSON.stringify(clientPath)});
+const envelope = JSON.parse(fs.readFileSync(0, 'utf8'));
+if (envelope.kind !== ${JSON.stringify(NATIVE_PROCESS_REQUEST_KIND)}) throw new Error('wrong process request kind');
+if (process.env.UTXOREF_TEST_HOST_SECRET !== undefined) throw new Error('inherited host environment secret');
+const request = envelope.request;
+if (!request || request.secret !== undefined || request.keyHandle !== undefined) throw new Error('secret input rejected');
+const validatorKey = crypto.createPublicKey({ key: Buffer.from(request.validatorPublicKeySpki, 'base64'), format: 'der', type: 'spki' });
+if (!crypto.verify(null, Buffer.from(request.authorizationPayload, 'base64'), validatorKey, Buffer.from(request.authorization.signature, 'base64'))) throw new Error('authorization signature rejected');
+const signedPayload = JSON.parse(Buffer.from(request.authorizationPayload, 'base64').toString('utf8'));
+if (signedPayload.stateRecordHash !== request.stateRecordHash || signedPayload.signerPubkeyX !== request.signerPubkeyX || signedPayload.sighash !== request.sighash || signedPayload.adaptorPoint.x !== request.adaptorPoint.x || signedPayload.adaptorPoint.y !== request.adaptorPoint.y) throw new Error('request differs from signed payload');
+${options.hang ? "Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 60000);" : ''}
+const validPresignature = dlc.adaptorSign(${signerSecret}n, Buffer.from(request.sighash, 'hex'), { x: BigInt('0x' + request.adaptorPoint.x), y: BigInt('0x' + request.adaptorPoint.y) }, Buffer.alloc(32, 42));
+const presignature = ${options.corruptResponse ? "{ ...validPresignature, s0: '00'.repeat(32) }" : 'validPresignature'};
+const response = { kind: RESPONSE_KIND, challenge: ${options.wrongChallenge ? "'00'.repeat(32)" : 'envelope.challenge'}, requestDigest: envelope.requestDigest, identityKeyId: ${JSON.stringify(crypto.createHash('sha256').update(runtimePublicDer).digest('hex'))}, presignature };
+const runtimeKey = crypto.createPrivateKey({ key: Buffer.from(${JSON.stringify(runtimePrivateDer.toString('base64'))}, 'base64'), format: 'der', type: 'pkcs8' });
+response.signature = crypto.sign(null, responseSignaturePayload(response), runtimeKey).toString('base64');
+process.stdout.write(JSON.stringify(response));
+`;
+  fs.writeFileSync(helperPath, source, { encoding: 'utf8', mode: 0o600 });
+  const launchSpec = { executablePath: process.execPath, arguments: [helperPath], codePaths: [helperPath] };
+  const manifest = {
+    apiVersion: 1,
+    curve: 'secp256k1',
+    adaptorScheme: 'bip340-schnorr',
+    nativeSecretArithmetic: true,
+    constantTimeSecretOperations: true,
+    secretZeroization: true,
+    processIsolated: true,
+    signingRequestKind: 'utxoref_dlc_native_adaptor_sign_request_v1',
+    callerSuppliesSecret: false,
+    keySelection: 'authorized-xonly-pubkey',
+    independentAuthorizationVerification: true,
+    processRequestKind: NATIVE_PROCESS_REQUEST_KIND,
+    processResponseKind: NATIVE_PROCESS_RESPONSE_KIND,
+    challengeBoundResponses: true,
+    environmentPolicy: 'systemroot-only',
+    runtimeIdentityKeyId: crypto.createHash('sha256').update(runtimePublicDer).digest('hex'),
+    runtimeIdentityPublicKeySpki: runtimePublicDer.toString('base64'),
+    binaryDigest: nativeSignerRuntimeDigest(launchSpec),
+    auditDigest: digest(`${label}:audit`)
+  };
+  const auditKey = crypto.generateKeyPairSync('ed25519');
+  const auditDer = auditKey.publicKey.export({ format: 'der', type: 'spki' });
+  const capabilities = {
+    ...manifest,
+    attestation: {
+      keyId: crypto.createHash('sha256').update(auditDer).digest('hex'),
+      signature: crypto.sign(null, nativeCapabilityAttestationPayload(manifest), auditKey.privateKey).toString('base64')
+    }
+  };
+  return {
+    client: new DlcNativeSignerProcessClient({ ...launchSpec, capabilities, timeoutMs: options.timeoutMs || 10000 }),
+    helperPath,
+    manifest,
+    capabilities,
+    trustedAuditKeys: [{
+      keyId: capabilities.attestation.keyId,
+      publicKeySpki: auditDer.toString('base64')
+    }]
+  };
+}
+
 test('state machine rejects skipped stages and missing validation receipts', () => {
   const contract = initialContract();
   expectThrow(() => transitionDlcContract(contract, requestFor(contract, 'CANONICAL_CETS_AND_REFUND')), /invalid DLC transition/);
@@ -297,75 +376,57 @@ test('native provider rejects incomplete security capability claims', () => {
 });
 
 test('native provider requires an operator-pinned audit signature over its exact binary capabilities', () => {
-  const auditKey = crypto.generateKeyPairSync('ed25519');
-  const auditDer = auditKey.publicKey.export({ format: 'der', type: 'spki' });
-  const auditKeyId = crypto.createHash('sha256').update(auditDer).digest('hex');
-  const manifest = {
-    apiVersion: 1,
-    curve: 'secp256k1',
-    adaptorScheme: 'bip340-schnorr',
-    nativeSecretArithmetic: true,
-    constantTimeSecretOperations: true,
-    secretZeroization: true,
-    processIsolated: true,
-    signingRequestKind: 'utxoref_dlc_native_adaptor_sign_request_v1',
-    callerSuppliesSecret: false,
-    keySelection: 'authorized-xonly-pubkey',
-    independentAuthorizationVerification: true,
-    binaryDigest: digest('native-provider:binary'),
-    auditDigest: digest('native-provider:audit')
-  };
-  const attestation = {
-    keyId: auditKeyId,
-    signature: crypto.sign(null, nativeCapabilityAttestationPayload(manifest), auditKey.privateKey).toString('base64')
-  };
-  const implementation = {
-    capabilities: { ...manifest, attestation },
-    adaptorSignAuthorized() {},
-    adaptorVerify() {},
-    adaptorComplete() {},
-    adaptorExtract() {},
-    schnorrVerify() {}
-  };
-  const trustedAuditKeys = [{ keyId: auditKeyId, publicKeySpki: auditDer.toString('base64') }];
-  const provider = createDlcCryptoProvider({
-    network: 'bitcoin-testnet4',
-    mode: 'native-isolated',
-    implementation,
-    trustedAuditKeys
-  });
-  assert(provider.capabilities.attestationVerified === true && provider.productionReady === false,
-    'verified native candidate overstated production readiness or lost attestation state');
-  expectThrow(() => nativeCapabilityAttestationPayload({ ...manifest, callerSuppliesSecret: true }),
-    /required capability manifest/);
-  expectThrow(() => createDlcCryptoProvider({
-    network: 'bitcoin-testnet4',
-    mode: 'native-isolated',
-    implementation: { ...implementation, adaptorSignAuthorized: undefined, adaptorSign() {} },
-    trustedAuditKeys
-  }), /missing adaptorSignAuthorized/);
-  expectThrow(() => createDlcCryptoProvider({
-    network: 'bitcoin-testnet4',
-    mode: 'native-isolated',
-    implementation: { ...implementation, capabilities: { ...implementation.capabilities, binaryDigest: digest('tampered-binary') } },
-    trustedAuditKeys
-  }), /attestation is invalid/);
-  expectThrow(() => createDlcCryptoProvider({
-    network: 'bitcoin-testnet4',
-    mode: 'native-isolated',
-    implementation: { ...implementation, capabilities: manifest },
-    trustedAuditKeys
-  }), /lacks a trusted audit attestation/);
-  const untrustedKey = crypto.generateKeyPairSync('ed25519').publicKey.export({ format: 'der', type: 'spki' });
-  expectThrow(() => createDlcCryptoProvider({
-    network: 'bitcoin-testnet4',
-    mode: 'native-isolated',
-    implementation,
-    trustedAuditKeys: [{
-      keyId: crypto.createHash('sha256').update(untrustedKey).digest('hex'),
-      publicKeySpki: untrustedKey.toString('base64')
-    }]
-  }), /lacks a trusted audit attestation/);
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'utxoref-native-audit-'));
+  try {
+    const fixture = nativeSignerFixture(directory, 505n, 'audit-provider');
+    const provider = createDlcCryptoProvider({
+      network: 'bitcoin-testnet4',
+      mode: 'native-isolated',
+      implementation: fixture.client,
+      trustedAuditKeys: fixture.trustedAuditKeys
+    });
+    assert(provider.capabilities.attestationVerified === true && provider.productionReady === false,
+      'verified native candidate overstated production readiness or lost attestation state');
+    expectThrow(() => nativeCapabilityAttestationPayload({ ...fixture.manifest, callerSuppliesSecret: true }),
+      /required capability manifest/);
+    const directImplementation = {
+      capabilities: fixture.capabilities,
+      adaptorSignAuthorized() {}, adaptorVerify() {}, adaptorComplete() {}, adaptorExtract() {}, schnorrVerify() {}
+    };
+    expectThrow(() => createDlcCryptoProvider({
+      network: 'bitcoin-testnet4',
+      mode: 'native-isolated',
+      implementation: directImplementation,
+      trustedAuditKeys: fixture.trustedAuditKeys
+    }), /verified DlcNativeSignerProcessClient/);
+    expectThrow(() => createDlcCryptoProvider({
+      network: 'bitcoin-testnet4',
+      mode: 'native-isolated',
+      implementation: {
+        ...directImplementation,
+        capabilities: { ...fixture.capabilities, binaryDigest: digest('tampered-binary') }
+      },
+      trustedAuditKeys: fixture.trustedAuditKeys
+    }), /attestation is invalid/);
+    expectThrow(() => createDlcCryptoProvider({
+      network: 'bitcoin-testnet4',
+      mode: 'native-isolated',
+      implementation: { ...directImplementation, capabilities: fixture.manifest },
+      trustedAuditKeys: fixture.trustedAuditKeys
+    }), /lacks a trusted audit attestation/);
+    const untrustedKey = crypto.generateKeyPairSync('ed25519').publicKey.export({ format: 'der', type: 'spki' });
+    expectThrow(() => createDlcCryptoProvider({
+      network: 'bitcoin-testnet4',
+      mode: 'native-isolated',
+      implementation: fixture.client,
+      trustedAuditKeys: [{
+        keyId: crypto.createHash('sha256').update(untrustedKey).digest('hex'),
+        publicKeySpki: untrustedKey.toString('base64')
+      }]
+    }), /lacks a trusted audit attestation/);
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
 });
 
 test('adaptor signing is durably consumed before signing and bound to the contract transcript', () => {
@@ -463,72 +524,14 @@ test('adaptor signing is durably consumed before signing and bound to the contra
 test('native isolated signing receives only an authenticated public request', () => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'utxoref-native-signing-'));
   try {
-    const auditKey = crypto.generateKeyPairSync('ed25519');
-    const auditDer = auditKey.publicKey.export({ format: 'der', type: 'spki' });
-    const auditKeyId = crypto.createHash('sha256').update(auditDer).digest('hex');
-    const manifest = {
-      apiVersion: 1,
-      curve: 'secp256k1',
-      adaptorScheme: 'bip340-schnorr',
-      nativeSecretArithmetic: true,
-      constantTimeSecretOperations: true,
-      secretZeroization: true,
-      processIsolated: true,
-      signingRequestKind: 'utxoref_dlc_native_adaptor_sign_request_v1',
-      callerSuppliesSecret: false,
-      keySelection: 'authorized-xonly-pubkey',
-      independentAuthorizationVerification: true,
-      binaryDigest: digest('native-request:binary'),
-      auditDigest: digest('native-request:audit')
-    };
     const nativeSecret = 606n;
     const signerPubkeyX = dlc.xOnlyPubkey(nativeSecret).toString('hex');
-    let capturedRequest = null;
-    const implementation = {
-      capabilities: {
-        ...manifest,
-        attestation: {
-          keyId: auditKeyId,
-          signature: crypto.sign(null, nativeCapabilityAttestationPayload(manifest), auditKey.privateKey).toString('base64')
-        }
-      },
-      adaptorSignAuthorized(request) {
-        capturedRequest = request;
-        const validatorKey = crypto.createPublicKey({
-          key: Buffer.from(request.validatorPublicKeySpki, 'base64'), format: 'der', type: 'spki'
-        });
-        if (!crypto.verify(
-          null,
-          Buffer.from(request.authorizationPayload, 'base64'),
-          validatorKey,
-          Buffer.from(request.authorization.signature, 'base64')
-        )) throw new Error('native service rejected authorization signature');
-        const signedPayload = JSON.parse(Buffer.from(request.authorizationPayload, 'base64').toString('utf8'));
-        if (signedPayload.stateRecordHash !== request.stateRecordHash ||
-            signedPayload.signerPubkeyX !== request.signerPubkeyX ||
-            signedPayload.sighash !== request.sighash ||
-            signedPayload.adaptorPoint.x !== request.adaptorPoint.x ||
-            signedPayload.adaptorPoint.y !== request.adaptorPoint.y) {
-          throw new Error('native service rejected request fields that differ from the signed payload');
-        }
-        if (request.signerPubkeyX !== signerPubkeyX) throw new Error('native service has no authorized signer key');
-        return dlc.adaptorSign(
-          nativeSecret,
-          Buffer.from(request.sighash, 'hex'),
-          { x: BigInt(`0x${request.adaptorPoint.x}`), y: BigInt(`0x${request.adaptorPoint.y}`) },
-          hash('native-request:aux')
-        );
-      },
-      adaptorVerify: dlc.adaptorVerify,
-      adaptorComplete: dlc.adaptorComplete,
-      adaptorExtract: dlc.adaptorExtract,
-      schnorrVerify: dlc.schnorrVerify
-    };
+    const fixture = nativeSignerFixture(directory, nativeSecret, 'valid-signer');
     const provider = createDlcCryptoProvider({
       network: 'bitcoin-testnet4',
       mode: 'native-isolated',
-      implementation,
-      trustedAuditKeys: [{ keyId: auditKeyId, publicKeySpki: auditDer.toString('base64') }],
+      implementation: fixture.client,
+      trustedAuditKeys: fixture.trustedAuditKeys,
       authorizationStore: new DlcSigningAuthorizationStore(directory)
     });
     let contract = initialContract('native-secretless-signing');
@@ -547,26 +550,23 @@ test('native isolated signing receives only an authenticated public request', ()
     });
     const session = authorizeDlcAdaptorSign(provider, { contract, authorization });
     expectThrow(() => session.execute(nativeSecret), /accepts no host-supplied secret/);
-    const presignature = session.execute();
+    let presignature;
+    process.env.UTXOREF_TEST_HOST_SECRET = 'must-not-reach-signer';
+    try { presignature = session.execute(); }
+    finally { delete process.env.UTXOREF_TEST_HOST_SECRET; }
     assert(dlc.adaptorVerify(Buffer.from(signerPubkeyX, 'hex'), Buffer.from(sighash, 'hex'), presignature),
       'native authorized response failed verification');
-    assert(capturedRequest && capturedRequest.kind === 'utxoref_dlc_native_adaptor_sign_request_v1' &&
-      capturedRequest.secret === undefined && capturedRequest.keyHandle === undefined &&
-      capturedRequest.authorizationPayload && capturedRequest.authorizationDigest,
-    'native request exposed secret material or omitted authorization evidence');
-    const invalidImplementation = {
-      ...implementation,
-      adaptorSignAuthorized(request) {
-        const valid = implementation.adaptorSignAuthorized(request);
-        return { ...valid, s0: '00'.repeat(32) };
-      }
-    };
+    const invalidDirectory = path.join(directory, 'invalid-response');
+    fs.mkdirSync(invalidDirectory);
+    const invalidFixture = nativeSignerFixture(invalidDirectory, nativeSecret, 'invalid-signer', {
+      corruptResponse: true
+    });
     const invalidProvider = createDlcCryptoProvider({
       network: 'bitcoin-testnet4',
       mode: 'native-isolated',
-      implementation: invalidImplementation,
-      trustedAuditKeys: [{ keyId: auditKeyId, publicKeySpki: auditDer.toString('base64') }],
-      authorizationStore: new DlcSigningAuthorizationStore(path.join(directory, 'invalid-response'))
+      implementation: invalidFixture.client,
+      trustedAuditKeys: invalidFixture.trustedAuditKeys,
+      authorizationStore: new DlcSigningAuthorizationStore(invalidDirectory)
     });
     const invalidAuthorization = createDlcAdaptorSignAuthorization({
       privateKey: validatorKeys.privateKey,
@@ -580,6 +580,54 @@ test('native isolated signing receives only an authenticated public request', ()
       contract, authorization: invalidAuthorization
     });
     expectThrow(() => invalidSession.execute(), /returned an invalid authorized adaptor signature/);
+
+    const challengeDirectory = path.join(directory, 'wrong-challenge');
+    fs.mkdirSync(challengeDirectory);
+    const challengeFixture = nativeSignerFixture(challengeDirectory, nativeSecret, 'wrong-challenge-signer', {
+      wrongChallenge: true
+    });
+    const challengeProvider = createDlcCryptoProvider({
+      network: 'bitcoin-testnet4', mode: 'native-isolated', implementation: challengeFixture.client,
+      trustedAuditKeys: challengeFixture.trustedAuditKeys,
+      authorizationStore: new DlcSigningAuthorizationStore(challengeDirectory)
+    });
+    const challengeAuthorization = createDlcAdaptorSignAuthorization({
+      privateKey: validatorKeys.privateKey, contract, authorizationId: 'native:cet:wrong-challenge',
+      signerPubkeyX, sighash, adaptorPoint
+    });
+    expectThrow(() => authorizeDlcAdaptorSign(challengeProvider, {
+      contract, authorization: challengeAuthorization
+    }).execute(), /not bound to this request challenge/);
+
+    const timeoutDirectory = path.join(directory, 'timeout');
+    fs.mkdirSync(timeoutDirectory);
+    const timeoutFixture = nativeSignerFixture(timeoutDirectory, nativeSecret, 'timeout-signer', {
+      hang: true, timeoutMs: 100
+    });
+    const timeoutProvider = createDlcCryptoProvider({
+      network: 'bitcoin-testnet4', mode: 'native-isolated', implementation: timeoutFixture.client,
+      trustedAuditKeys: timeoutFixture.trustedAuditKeys,
+      authorizationStore: new DlcSigningAuthorizationStore(timeoutDirectory)
+    });
+    const timeoutAuthorization = createDlcAdaptorSignAuthorization({
+      privateKey: validatorKeys.privateKey, contract, authorizationId: 'native:cet:timeout',
+      signerPubkeyX, sighash, adaptorPoint
+    });
+    expectThrow(() => authorizeDlcAdaptorSign(timeoutProvider, {
+      contract, authorization: timeoutAuthorization
+    }).execute(), /native signer process failed|ETIMEDOUT/);
+
+    const driftAuthorization = createDlcAdaptorSignAuthorization({
+      privateKey: validatorKeys.privateKey,
+      contract,
+      authorizationId: 'native:cet:runtime-drift',
+      signerPubkeyX,
+      sighash,
+      adaptorPoint
+    });
+    fs.appendFileSync(fixture.helperPath, '\n// runtime drift\n');
+    const driftSession = authorizeDlcAdaptorSign(provider, { contract, authorization: driftAuthorization });
+    expectThrow(() => driftSession.execute(), /runtime closure changed after audit/);
   } finally {
     fs.rmSync(directory, { recursive: true, force: true });
   }

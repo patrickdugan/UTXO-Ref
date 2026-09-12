@@ -4,6 +4,11 @@ const crypto = require('crypto');
 const experimental = require('./tradelayer_dlc_adaptor_sig');
 const { canonicalJson, validateDlcContract } = require('./dlc_contract_state');
 const { DlcSigningAuthorizationStore } = require('./dlc_signing_authorization_store');
+const {
+  REQUEST_KIND: NATIVE_PROCESS_REQUEST_KIND,
+  RESPONSE_KIND: NATIVE_PROCESS_RESPONSE_KIND,
+  isDlcNativeSignerProcessClient
+} = require('./dlc_native_signer_process_client');
 
 const REQUIRED_NATIVE_OPERATIONS = Object.freeze([
   'adaptorSignAuthorized',
@@ -287,6 +292,13 @@ function nativeCapabilityAttestationPayload(capabilities) {
       capabilities.callerSuppliesSecret !== false ||
       capabilities.keySelection !== 'authorized-xonly-pubkey' ||
       capabilities.independentAuthorizationVerification !== true ||
+      capabilities.processRequestKind !== NATIVE_PROCESS_REQUEST_KIND ||
+      capabilities.processResponseKind !== NATIVE_PROCESS_RESPONSE_KIND ||
+      capabilities.challengeBoundResponses !== true ||
+      capabilities.environmentPolicy !== 'systemroot-only' ||
+      typeof capabilities.runtimeIdentityKeyId !== 'string' ||
+      !/^[0-9a-f]{64}$/.test(capabilities.runtimeIdentityKeyId) ||
+      typeof capabilities.runtimeIdentityPublicKeySpki !== 'string' ||
       typeof capabilities.binaryDigest !== 'string' || !/^[0-9a-f]{64}$/.test(capabilities.binaryDigest) ||
       typeof capabilities.auditDigest !== 'string' || !/^[0-9a-f]{64}$/.test(capabilities.auditDigest)) {
     throw new Error('native DLC provider does not satisfy the required capability manifest');
@@ -304,6 +316,12 @@ function nativeCapabilityAttestationPayload(capabilities) {
     callerSuppliesSecret: capabilities.callerSuppliesSecret,
     keySelection: capabilities.keySelection,
     independentAuthorizationVerification: capabilities.independentAuthorizationVerification,
+    processRequestKind: capabilities.processRequestKind,
+    processResponseKind: capabilities.processResponseKind,
+    challengeBoundResponses: capabilities.challengeBoundResponses,
+    environmentPolicy: capabilities.environmentPolicy,
+    runtimeIdentityKeyId: capabilities.runtimeIdentityKeyId,
+    runtimeIdentityPublicKeySpki: capabilities.runtimeIdentityPublicKeySpki,
     binaryDigest: capabilities.binaryDigest,
     auditDigest: capabilities.auditDigest
   }), 'utf8');
@@ -392,6 +410,9 @@ function createDlcCryptoProvider(options = {}) {
 
   if (mode === 'native-isolated') {
     const capabilities = validateNativeCapabilities(options.implementation, options.trustedAuditKeys);
+    if (!isDlcNativeSignerProcessClient(options.implementation)) {
+      throw new Error('native-isolated mode requires a verified DlcNativeSignerProcessClient');
+    }
     const operations = bindOperations(options.implementation, mode);
     const authorizationStore = normalizeAuthorizationStore(options.authorizationStore);
     const provider = Object.freeze({

@@ -292,6 +292,12 @@ large agent swarm.
   public key. The signer must verify the validator signature itself, and the
   host independently verifies the returned adaptor pre-signature. A reviewed
   native implementation of that interface is still required.
+- Native-isolated mode now accepts only a factory-authenticated signer process
+  client. The client re-hashes the audited executable closure per request,
+  launches it with a stripped environment and bounded I/O, applies a hard
+  timeout, and verifies an audited runtime identity over a fresh challenge,
+  request digest, and response digest. Plain in-process objects, modified code,
+  stale responses, malformed output, and hung signers fail closed.
 - The local provider boundary now rejects self-declared native capabilities. An
   operator-pinned Ed25519 audit key must sign the exact binary digest, audit
   digest, and constant-time, zeroization, and process-isolation manifest. This

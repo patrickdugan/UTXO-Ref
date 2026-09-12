@@ -44,6 +44,7 @@ const { DlcStateStore } = require('./dlc_state_store');
 const dlcCryptoProvider = require('./dlc_crypto_provider');
 const { DlcOracleEventStore } = require('./dlc_oracle_event_store');
 const { DlcSigningAuthorizationStore } = require('./dlc_signing_authorization_store');
+const dlcNativeSignerProcessClient = require('./dlc_native_signer_process_client');
 const dlcTransactionValidator = require('./dlc_transaction_validator');
 const dlcSignatureValidator = require('./dlc_signature_validator');
 const dlcChainGuard = require('./dlc_chain_guard');
@@ -127,7 +128,7 @@ module.exports = {
   // for production; these interfaces enforce transcript, threshold-oracle,
   // and persistence gates on regtest and Bitcoin testnet4.
   dlc: Object.freeze({
-    securityBoundaryVersion: 15,
+    securityBoundaryVersion: 16,
     createContract: dlcContractState.createDlcContract,
     validateContract: dlcContractState.validateDlcContract,
     transitionContract: dlcContractState.transitionDlcContract,
@@ -135,6 +136,8 @@ module.exports = {
     StateStore: DlcStateStore,
     OracleEventStore: DlcOracleEventStore,
     SigningAuthorizationStore: DlcSigningAuthorizationStore,
+    NativeSignerProcessClient: dlcNativeSignerProcessClient.DlcNativeSignerProcessClient,
+    nativeSignerRuntimeDigest: dlcNativeSignerProcessClient.nativeSignerRuntimeDigest,
     validateOracleSet: dlcThresholdOracle.validateOracleSet,
     buildThresholdOutcomeSets: dlcThresholdOracle.buildThresholdOutcomeSets,
     combineThresholdAttestations: dlcThresholdOracle.combineThresholdAttestations,
@@ -175,6 +178,11 @@ module.exports = {
       nativeKeySelection: 'authorized-xonly-pubkey',
       nativeVerifiesAuthorization: true,
       hostSecretInputRejected: true,
+      enforcedProcessClient: true,
+      runtimeClosureRehashedPerRequest: true,
+      challengeBoundRuntimeIdentity: true,
+      boundedProcessIoAndTimeout: true,
+      sanitizedProcessEnvironment: true,
       productionReady: false
     }),
     validateCetAdaptorSignatures: dlcSignatureValidator.validateCetAdaptorSignatures,
