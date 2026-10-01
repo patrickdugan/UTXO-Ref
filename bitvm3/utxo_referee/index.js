@@ -108,6 +108,7 @@ const { DlcRefundRecoveryStore } = require('./dlc_refund_recovery_store');
 const dlcNativeSignerProcessClient = require('./dlc_native_signer_process_client');
 const dlcTransactionValidator = require('./dlc_transaction_validator');
 const dlcSignatureValidator = require('./dlc_signature_validator');
+const dlcFundingOutput = require('./dlc_funding_output');
 const dlcChainGuard = require('./dlc_chain_guard');
 const dlcBitcoinCoreObserver = require('./dlc_bitcoin_core_observer');
 const dlcPeerTranscript = require('./dlc_peer_transcript');
@@ -736,7 +737,8 @@ const LEGACY_UNSAFE_EXPORT_NAMES = Object.freeze([
   'tradeLayerPerpPnlReferee',
   'tradeLayerBitvmStack',
   'tradeLayerUtxoRefLivePath',
-  // MuSig2 is not on the pilot path. See legacy/.
+  // MuSig2 is not on the pilot path: the DLC funding output is a two-leaf
+  // script-path 2-of-2 (dlc.buildFundingOutput). See legacy/.
   'musig2KeyAgg',
   'musig2ApplyTweak',
   'musig2NonceAgg',
@@ -1202,6 +1204,17 @@ module.exports.dlc = Object.freeze({
   }),
   validateCetAdaptorSignatures: dlcSignatureValidator.validateCetAdaptorSignatures,
   validateRefundSignature: dlcSignatureValidator.validateRefundSignature,
+  // Two-party funding output: NUMS internal key, 2-of-2 CET leaf, CSV-gated
+  // 2-of-2 refund leaf. Settlement signatures commit to the script-path
+  // sighash of the leaf spent.
+  buildFundingOutput: dlcFundingOutput.buildDlcFundingOutput,
+  fundingFields: dlcFundingOutput.dlcFundingFields,
+  deriveFundingInternalXonly: dlcFundingOutput.deriveDlcFundingInternalXonly,
+  sortPartyPubkeyXs: dlcFundingOutput.sortPartyPubkeyXs,
+  fundingOutputForTransactionSet: dlcTransactionValidator.dlcFundingOutputForTransactionSet,
+  settlementSighash: dlcSignatureValidator.settlementSighashForTransactionSet,
+  assembleSignedSettlement: dlcSignatureValidator.assembleSignedSettlement,
+  verifySettlementWitness: dlcSignatureValidator.verifySettlementWitness,
   evaluateChainSnapshot: dlcChainGuard.evaluateDlcChainSnapshot,
   captureBitcoinCoreSnapshot: dlcBitcoinCoreObserver.captureDlcChainSnapshot,
   captureBitcoinCoreAnchorSnapshot: dlcBitcoinCoreObserver.captureDlcAnchorRecoverySnapshot,

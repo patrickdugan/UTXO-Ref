@@ -69,6 +69,19 @@ test('MuSig2 is quarantined behind the legacy namespace', () => {
   assert(typeof legacy.musig2KeyAgg === 'function', 'MuSig2 must stay reachable through the legacy namespace');
 });
 
+test('DLC namespace exposes the two-party script-path funding output', () => {
+  assert(typeof api.dlc.buildFundingOutput === 'function' && typeof api.dlc.verifySettlementWitness === 'function' &&
+    typeof api.dlc.assembleSignedSettlement === 'function', 'DLC namespace must export the funding output API');
+  // x-coordinates of G and 2G: fixed, valid, distinct x-only keys.
+  const partyPubkeyXs = [
+    '79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798',
+    'c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5'
+  ];
+  const output = api.dlc.buildFundingOutput({ partyPubkeyXs, refundCsvBlocks: 144 });
+  assert(output.internalXonly === api.dlc.deriveFundingInternalXonly(), 'funding internal key must be the NUMS key');
+  assert(!partyPubkeyXs.includes(output.outputKeyXonly), 'funding output key must not be a party key');
+});
+
 test('legacy namespace refuses implicit loading', () => {
   let rejected = false;
   try { api.legacyUnsafe.load(); }

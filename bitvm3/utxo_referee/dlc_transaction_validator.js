@@ -2,6 +2,7 @@
 
 const crypto = require('crypto');
 const { snapshotPlainData, canonicalize, canonicalJson } = require('./dlc_canonical_json');
+const { buildDlcFundingOutput } = require('./dlc_funding_output');
 
 const MAX_MONEY = 21000000n * 100000000n;
 const P2A_SCRIPT_PUBKEY_HEX = '51024e73';
@@ -9,6 +10,8 @@ const TRUC_VERSION = 3;
 const TRUC_MAX_VSIZE = 10000;
 const TRUC_CHILD_MAX_VSIZE = 1000;
 const TRUC_MAX_UNCONFIRMED_CLUSTER_TRANSACTIONS = 2;
+const MAX_SETTLEMENT_LEAF_SCRIPT_BYTES = 128;
+const MAX_SETTLEMENT_CONTROL_BLOCK_BYTES = 33 + 32 * 8;
 
 function sha256(value) {
   return crypto.createHash('sha256').update(value).digest();
@@ -153,13 +156,32 @@ function parseCanonicalSignedTaprootTransaction(rawTxHex) {
     reader.read(scriptLength, `output ${index} scriptPubKey`);
   }
   const strippedBodyEnd = reader.offset;
+  // A settlement spends the two-party funding output on the script path:
+  // [signature, signature, leaf script, control block]. A single-item
+  // key-path witness is rejected: the funding output has no key path.
   const witness = [];
   for (let index = 0; index < inputCount; index++) {
     const itemCount = reader.compactSize(`input ${index} witness item count`, 16);
-    if (itemCount !== 1) throw new Error('signed refund must contain one Taproot key-path witness item per input');
-    const itemLength = reader.compactSize(`input ${index} witness item length`, 65);
-    if (itemLength !== 64) throw new Error('signed refund must use one 64-byte SIGHASH_DEFAULT Schnorr signature');
-    witness.push(Object.freeze([reader.read(itemLength, `input ${index} witness signature`).toString('hex')]));
+    if (itemCount !== 4) {
+      throw new Error('signed settlement must contain a two-signature Taproot script-path witness per input');
+    }
+    const items = [];
+    for (let item = 0; item < 2; item++) {
+      const signatureLength = reader.compactSize(`input ${index} witness signature ${item} length`, 65);
+      if (signatureLength !== 64) {
+        throw new Error('signed settlement must use 64-byte SIGHASH_DEFAULT Schnorr signatures');
+      }
+      items.push(reader.read(signatureLength, `input ${index} witness signature ${item}`).toString('hex'));
+    }
+    const scriptLength = reader.compactSize(`input ${index} witness script length`, MAX_SETTLEMENT_LEAF_SCRIPT_BYTES);
+    if (scriptLength < 1) throw new Error('signed settlement leaf script is empty');
+    items.push(reader.read(scriptLength, `input ${index} witness script`).toString('hex'));
+    const controlLength = reader.compactSize(`input ${index} witness control block length`, MAX_SETTLEMENT_CONTROL_BLOCK_BYTES);
+    if (controlLength < 33 || (controlLength - 33) % 32 !== 0) {
+      throw new Error('signed settlement control block length is invalid');
+    }
+    items.push(reader.read(controlLength, `input ${index} witness control block`).toString('hex'));
+    witness.push(Object.freeze(items));
   }
   const locktimeStart = reader.offset;
   reader.u32('locktime');
@@ -180,16 +202,36 @@ function parseCanonicalSignedTaprootTransaction(rawTxHex) {
   });
 }
 
+// The funding output is not an opaque script. It must be the two-party DLC
+// output derived from both parties' keys and the refund delay, so that no
+// single key controls it and every committed CET and refund can actually be
+// spent with the two signatures the validators check.
+function deriveFundingOutput(funding) {
+  const output = buildDlcFundingOutput({
+    partyPubkeyXs: funding.partyPubkeyXs,
+    refundCsvBlocks: funding.refundCsvBlocks
+  });
+  if (requireHex(funding.scriptPubKeyHex, 34, 'funding.scriptPubKeyHex') !== output.scriptPubKeyHex) {
+    throw new Error('funding scriptPubKey is not the two-party DLC output for the committed party keys and refund delay');
+  }
+  return output;
+}
+
 function normalizeFunding(funding) {
   if (!funding || !Number.isSafeInteger(funding.vout) || funding.vout < 0 || funding.vout > 0xffffffff ||
       typeof funding.valueSats !== 'bigint' || funding.valueSats < 1n || funding.valueSats > MAX_MONEY) {
     throw new Error('funding outpoint/value is invalid');
   }
+  const output = deriveFundingOutput(funding);
   return Object.freeze({
     txid: requireHex(funding.txid, 32, 'funding.txid'),
     vout: funding.vout,
     valueSats: funding.valueSats,
-    scriptPubKeyHex: requireHex(funding.scriptPubKeyHex, 34, 'funding.scriptPubKeyHex')
+    scriptPubKeyHex: output.scriptPubKeyHex,
+    partyPubkeyXs: output.partyPubkeyXs,
+    refundCsvBlocks: output.refundCsvBlocks,
+    cetLeafHash: output.cetLeaf.leafHash,
+    refundLeafHash: output.refundLeaf.leafHash
   });
 }
 
@@ -266,8 +308,13 @@ function validateAnchor(outputs, feePolicy, label) {
   }
 }
 
-function validateSpend({ rawTxHex, funding, expectedOutputs, expectedLocktime, minFeeSats, maxFeeSats, feePolicy, label }) {
+function validateSpend({
+  rawTxHex, funding, expectedOutputs, expectedLocktime, minFeeSats, maxFeeSats, feePolicy, label, requiredSequence
+}) {
   const transaction = parseCanonicalUnsignedTransaction(rawTxHex);
+  if (requiredSequence !== undefined && transaction.inputs.some((input) => input.sequence !== requiredSequence)) {
+    throw new Error(`${label} input sequence must equal the committed refund CSV delay (${requiredSequence})`);
+  }
   if (transaction.version !== feePolicy.transactionVersion) {
     throw new Error(`${label} transaction version must be ${feePolicy.transactionVersion} for ${feePolicy.strategy}`);
   }
@@ -355,7 +402,10 @@ function validateDlcTransactionSet(input) {
     minFeeSats,
     maxFeeSats,
     feePolicy: normalizedFeePolicy,
-    label: 'refund'
+    label: 'refund',
+    // The refund spends the CSV-gated leaf, so its nSequence must carry the
+    // committed relative delay (this also keeps its absolute locktime active).
+    requiredSequence: normalizedFunding.refundCsvBlocks
   });
   if (validatedCets.some((cet) => refund.locktime <= cet.locktime)) {
     throw new Error('refund locktime must be greater than every CET locktime');
@@ -368,7 +418,11 @@ function validateDlcTransactionSet(input) {
     txid: normalizedFunding.txid,
     vout: normalizedFunding.vout,
     valueSats: normalizedFunding.valueSats.toString(),
-    scriptPubKeyHex: normalizedFunding.scriptPubKeyHex
+    scriptPubKeyHex: normalizedFunding.scriptPubKeyHex,
+    partyPubkeyXs: [...normalizedFunding.partyPubkeyXs],
+    refundCsvBlocks: normalizedFunding.refundCsvBlocks,
+    cetLeafHash: normalizedFunding.cetLeafHash,
+    refundLeafHash: normalizedFunding.refundLeafHash
   };
   const serializedRefund = serializeValidatedSpend(refundSpend);
   const fundingTemplateDigest = sha256Hex(canonicalJson(serializedFunding));
@@ -429,7 +483,23 @@ function validateNormalizedDlcTransactionSetCommitments(transactionSet) {
       transactionSet.validationDigest !== validationDigest) {
     throw new Error('validated DLC transaction set commitment mismatch');
   }
+  // A hand-built set with internally consistent digests must still describe
+  // the two-party funding output and a refund that can spend its CSV leaf.
+  const output = deriveFundingOutput(transactionSet.funding);
+  if (transactionSet.funding.cetLeafHash !== output.cetLeaf.leafHash ||
+      transactionSet.funding.refundLeafHash !== output.refundLeaf.leafHash) {
+    throw new Error('validated DLC transaction set funding leaves do not match the two-party output');
+  }
+  const refund = parseCanonicalUnsignedTransaction(transactionSet.refund.rawTxHex);
+  if (refund.inputs.some((input) => input.sequence !== output.refundCsvBlocks)) {
+    throw new Error('validated DLC transaction set refund does not carry the committed CSV delay');
+  }
   return true;
+}
+
+// The funding output a validated transaction set commits to.
+function dlcFundingOutputForTransactionSet(transactionSet) {
+  return deriveFundingOutput(normalizeDlcTransactionSet(transactionSet).funding);
 }
 
 function normalizeDlcTransactionSet(transactionSet) {
@@ -454,5 +524,6 @@ module.exports = {
   parseCanonicalSignedTaprootTransaction,
   validateDlcTransactionSet,
   normalizeDlcTransactionSet,
-  validateDlcTransactionSetCommitments
+  validateDlcTransactionSetCommitments,
+  dlcFundingOutputForTransactionSet
 };

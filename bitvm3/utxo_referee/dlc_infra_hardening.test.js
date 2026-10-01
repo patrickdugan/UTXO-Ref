@@ -54,14 +54,23 @@ const {
   parseCanonicalSignedTaprootTransaction,
   parseCanonicalUnsignedTransaction,
   validateDlcTransactionSet,
-  validateDlcTransactionSetCommitments
+  validateDlcTransactionSetCommitments,
+  dlcFundingOutputForTransactionSet
 } = require('./dlc_transaction_validator');
 const {
   toBip341Transaction,
   cetIdentity,
   validateCetAdaptorSignatures,
-  validateRefundSignature
+  validateRefundSignature,
+  settlementSighashForTransactionSet,
+  assembleSignedSettlement,
+  verifySettlementWitness
 } = require('./dlc_signature_validator');
+const {
+  buildDlcFundingOutput,
+  dlcFundingFields,
+  deriveDlcFundingInternalXonly
+} = require('./dlc_funding_output');
 const { evaluateDlcChainSnapshot } = require('./dlc_chain_guard');
 const { captureDlcAnchorRecoverySnapshot, observeAndEvaluateDlcChain } = require('./dlc_bitcoin_core_observer');
 const {
@@ -107,6 +116,8 @@ function expectThrow(run, pattern) {
 }
 function hash(label) { return crypto.createHash('sha256').update(label).digest(); }
 function digest(label) { return hash(label).toString('hex'); }
+const PARTY_SECRETS = Object.freeze([123456789n, 987654321n]);
+const REFUND_CSV_BLOCKS = 144;
 const validatorKeys = crypto.generateKeyPairSync('ed25519');
 const validatorPublicKeySpki = validatorKeys.publicKey.export({ format: 'der', type: 'spki' }).toString('base64');
 const validatorKeyId = crypto.createHash('sha256').update(Buffer.from(validatorPublicKeySpki, 'base64')).digest('hex');
@@ -1844,13 +1855,28 @@ test('sealed oracle state rejects the wrong wrapping key', () => {
   }
 });
 
+// Two-party DLC funding fixture: a NUMS-keyed Taproot output whose only
+// spends are the 2-of-2 CET leaf and the CSV-gated 2-of-2 refund leaf.
+function twoPartyFunding({ txid, vout, valueSats, secrets = PARTY_SECRETS, refundCsvBlocks = REFUND_CSV_BLOCKS }) {
+  const keys = secrets.map((secret) => ({ secret, pubkeyX: dlc.xOnlyPubkey(secret).toString('hex') }));
+  const output = buildDlcFundingOutput({
+    partyPubkeyXs: keys.map((key) => key.pubkeyX).sort(),
+    refundCsvBlocks
+  });
+  return { funding: { txid, vout, valueSats, ...dlcFundingFields(output) }, output, keys };
+}
+// Both parties sign the committed settlement on its script path.
+function signSettlement({ transactionSet, executionType, cetTxid, auxLabel, secrets = PARTY_SECRETS }) {
+  const sighash = settlementSighashForTransactionSet({ transactionSet, executionType, cetTxid });
+  const signatures = Object.fromEntries(secrets.map((secret, index) => [
+    dlc.xOnlyPubkey(secret).toString('hex'),
+    dlc.schnorrSign(secret, sighash, hash(`${auxLabel}:${index}`)).toString('hex')
+  ]));
+  return assembleSignedSettlement({ transactionSet, executionType, cetTxid, signatures });
+}
+
 function transactionFixture() {
-  const funding = {
-    txid: 'aa'.repeat(32),
-    vout: 1,
-    valueSats: 100000n,
-    scriptPubKeyHex: `5120${'44'.repeat(32)}`
-  };
+  const { funding } = twoPartyFunding({ txid: 'aa'.repeat(32), vout: 1, valueSats: 100000n });
   const leftScript = `0014${'55'.repeat(20)}`;
   const rightScript = `0014${'66'.repeat(20)}`;
   const refundScript = `5120${'77'.repeat(32)}`;
@@ -1899,13 +1925,14 @@ function transactionFixture() {
       }
     ],
     refund: {
-      rawTxHex: spend(refundOutputs, 200),
+      rawTxHex: spend(refundOutputs, 200, REFUND_CSV_BLOCKS),
       expectedOutputs: refundOutputs,
       locktime: 200
     },
     feePolicy,
     spend,
-    firstOutputs
+    firstOutputs,
+    refundOutputs
   };
 }
 
@@ -1988,12 +2015,7 @@ test('transaction parser rejects noncanonical counts and ineffective locktimes',
 });
 
 test('TRUC transaction sets bind version 3 and a zero-sat P2A anchor', () => {
-  const funding = {
-    txid: 'bc'.repeat(32),
-    vout: 0,
-    valueSats: 100000n,
-    scriptPubKeyHex: `5120${'45'.repeat(32)}`
-  };
+  const { funding } = twoPartyFunding({ txid: 'bc'.repeat(32), vout: 0, valueSats: 100000n });
   const feePolicy = {
     strategy: 'truc-p2a-v1',
     anchorAmountSats: 0n,
@@ -2009,9 +2031,9 @@ test('TRUC transaction sets bind version 3 and a zero-sat P2A anchor', () => {
     anchor
   ];
   const refundOutputs = [{ valueSats: 99000n, scriptPubKeyHex: `5120${'78'.repeat(32)}` }, anchor];
-  const raw = (version, outputs, locktime) => serializeUnsignedTx(
+  const raw = (version, outputs, locktime, sequence = 0xfffffffe) => serializeUnsignedTx(
     version,
-    [{ outpoint: outpoint(funding.txid, funding.vout), sequence: 0xfffffffe }],
+    [{ outpoint: outpoint(funding.txid, funding.vout), sequence }],
     outputs.map((output) => ({ valueSats: output.valueSats, script: output.scriptPubKeyHex })),
     locktime
   );
@@ -2025,7 +2047,7 @@ test('TRUC transaction sets bind version 3 and a zero-sat P2A anchor', () => {
       locktime: 100
     }],
     refund: {
-      rawTxHex: raw(3, refundOutputs, 200),
+      rawTxHex: raw(3, refundOutputs, 200, REFUND_CSV_BLOCKS),
       expectedOutputs: refundOutputs,
       locktime: 200
     },
@@ -2088,14 +2110,11 @@ test('TRUC transaction sets bind version 3 and a zero-sat P2A anchor', () => {
 });
 
 test('CET adaptor and refund signatures bind to validated BIP341 sighashes', () => {
-  const signerSecret = 123456789n;
-  const signerPubkey = dlc.xOnlyPubkey(signerSecret).toString('hex');
-  const funding = {
-    txid: '99'.repeat(32),
-    vout: 0,
-    valueSats: 100000n,
-    scriptPubKeyHex: `5120${signerPubkey}`
-  };
+  const { funding, output: fundingOutput, keys } = twoPartyFunding({ txid: '99'.repeat(32), vout: 0, valueSats: 100000n });
+  const signerSecret = keys[0].secret;
+  const signerPubkey = keys[0].pubkeyX;
+  const counterpartySecret = keys[1].secret;
+  const counterpartyPubkey = keys[1].pubkeyX;
   const thresholdSets = buildThresholdOutcomeSets({ announcements, threshold: 2, pinnedPubkeys, outcomeMsg32: outcome });
   const selected = thresholdSets[0];
   const cetOutputs = [{ valueSats: 99000n, scriptPubKeyHex: `0014${'88'.repeat(20)}` }];
@@ -2110,9 +2129,9 @@ test('CET adaptor and refund signatures bind to validated BIP341 sighashes', () 
   const anchor = { valueSats: feePolicy.anchorAmountSats, scriptPubKeyHex: feePolicy.anchorScriptPubKeyHex };
   cetOutputs.push(anchor);
   const refundOutputs = [{ valueSats: 99000n, scriptPubKeyHex: `5120${'77'.repeat(32)}` }, anchor];
-  const raw = (outputs, locktime) => serializeUnsignedTx(
+  const raw = (outputs, locktime, sequence = 0xfffffffe) => serializeUnsignedTx(
     2,
-    [{ outpoint: outpoint(funding.txid, funding.vout), sequence: 0xfffffffe }],
+    [{ outpoint: outpoint(funding.txid, funding.vout), sequence }],
     outputs.map((item) => ({ valueSats: item.valueSats, script: item.scriptPubKeyHex })),
     locktime
   );
@@ -2125,35 +2144,46 @@ test('CET adaptor and refund signatures bind to validated BIP341 sighashes', () 
       expectedOutputs: cetOutputs,
       locktime: 100
     }],
-    refund: { rawTxHex: raw(refundOutputs, 200), expectedOutputs: refundOutputs, locktime: 200 },
+    refund: {
+      rawTxHex: raw(refundOutputs, 200, REFUND_CSV_BLOCKS), expectedOutputs: refundOutputs, locktime: 200
+    },
     minFeeSats: 500n,
     maxFeeSats: 2000n,
     feePolicy
   });
   const cet = validated.cets[0];
-  const cetSighash = bip341SighashDefault(
+  const thresholdOutcomeSets = [{
+    outcomeMessage: outcome.toString('hex'),
+    oraclePubkeys: selected.oraclePubkeys,
+    outcomePoint: selected.outcomePoint
+  }];
+  // Both parties sign the BIP341 script-path sighash of the CET leaf.
+  const cetSighash = settlementSighashForTransactionSet({
+    transactionSet: validated, executionType: 'cet', cetTxid: cet.txid
+  });
+  const keyPathCetSighash = bip341SighashDefault(
     toBip341Transaction(parseCanonicalUnsignedTransaction(cet.rawTxHex)),
     [{ amountSats: funding.valueSats, scriptPubKey: funding.scriptPubKeyHex }],
     0
   );
-  const presignature = dlc.adaptorSign(signerSecret, cetSighash, selected.outcomePoint, hash('signature-validator:aux'));
-  const validatedSignatures = validateCetAdaptorSignatures({
+  assert(!cetSighash.equals(keyPathCetSighash), 'CET sighash is not a script-path sighash');
+  const adaptorArgs = (secret, pubkey, presignature) => ({
     transactionSet: validated,
     funding,
-    signerPubkeyX: signerPubkey,
-    signatures: [{ identity: cetIdentity(cet), signerPubkeyX: signerPubkey, presignature }],
-    thresholdOutcomeSets: [{
-      outcomeMessage: outcome.toString('hex'),
-      oraclePubkeys: selected.oraclePubkeys,
-      outcomePoint: selected.outcomePoint
-    }]
+    signerPubkeyX: pubkey,
+    signatures: [{ identity: cetIdentity(cet), signerPubkeyX: pubkey, presignature }],
+    thresholdOutcomeSets
   });
+  const presignature = dlc.adaptorSign(signerSecret, cetSighash, selected.outcomePoint, hash('signature-validator:aux'));
+  const validatedSignatures = validateCetAdaptorSignatures(adaptorArgs(signerSecret, signerPubkey, presignature));
   assert(/^[0-9a-f]{64}$/.test(validatedSignatures.digest), 'CET signature digest missing');
-  const refundSighash = bip341SighashDefault(
-    toBip341Transaction(parseCanonicalUnsignedTransaction(validated.refund.rawTxHex)),
-    [{ amountSats: funding.valueSats, scriptPubKey: funding.scriptPubKeyHex }],
-    0
+  const counterpartyPresignature = dlc.adaptorSign(
+    counterpartySecret, cetSighash, selected.outcomePoint, hash('signature-validator:counterparty-aux')
   );
+  assert(/^[0-9a-f]{64}$/.test(validateCetAdaptorSignatures(
+    adaptorArgs(counterpartySecret, counterpartyPubkey, counterpartyPresignature)
+  ).digest), 'counterparty CET signature digest missing');
+  const refundSighash = settlementSighashForTransactionSet({ transactionSet: validated, executionType: 'refund' });
   const refundSignature = dlc.schnorrSign(signerSecret, refundSighash, hash('refund-signature:aux'));
   const validatedRefund = validateRefundSignature({
     transactionSet: validated,
@@ -2166,28 +2196,134 @@ test('CET adaptor and refund signatures bind to validated BIP341 sighashes', () 
     ...presignature,
     s0: `${presignature.s0.slice(0, -1)}${presignature.s0.endsWith('0') ? '1' : '0'}`
   };
-  expectThrow(() => validateCetAdaptorSignatures({
+  expectThrow(() => validateCetAdaptorSignatures(adaptorArgs(signerSecret, signerPubkey, forged)), /invalid/);
+
+  // MAIN-1: a signature over the key-path sighash is not a settlement signature.
+  expectThrow(() => validateCetAdaptorSignatures(adaptorArgs(signerSecret, signerPubkey,
+    dlc.adaptorSign(signerSecret, keyPathCetSighash, selected.outcomePoint, hash('signature-validator:keypath-aux'))
+  )), /adaptor signature is invalid/);
+  // MAIN-1: only the two committed parties can sign; a third key is refused
+  // even when its signature is valid for that key.
+  const outsiderSecret = 555555555n;
+  const outsiderPubkey = dlc.xOnlyPubkey(outsiderSecret).toString('hex');
+  expectThrow(() => validateCetAdaptorSignatures(adaptorArgs(outsiderSecret, outsiderPubkey,
+    dlc.adaptorSign(outsiderSecret, cetSighash, selected.outcomePoint, hash('signature-validator:outsider-aux'))
+  )), /not a party to the two-party DLC funding output/);
+  expectThrow(() => validateRefundSignature({
     transactionSet: validated,
     funding,
+    signerPubkeyX: outsiderPubkey,
+    signature: dlc.schnorrSign(outsiderSecret, refundSighash, hash('refund-signature:outsider-aux'))
+  }), /not a party to the two-party DLC funding output/);
+  // The funding handed to the validator must be the committed funding.
+  expectThrow(() => validateRefundSignature({
+    transactionSet: validated,
+    funding: { ...funding, scriptPubKeyHex: `5120${signerPubkey}` },
     signerPubkeyX: signerPubkey,
-    signatures: [{ identity: cetIdentity(cet), signerPubkeyX: signerPubkey, presignature: forged }],
-    thresholdOutcomeSets: [{
-      outcomeMessage: outcome.toString('hex'),
-      oraclePubkeys: selected.oraclePubkeys,
-      outcomePoint: selected.outcomePoint
-    }]
-  }), /invalid/);
+    signature: refundSignature
+  }), /does not match the validated DLC transaction set/);
+  expectThrow(() => validateRefundSignature({
+    transactionSet: validated,
+    funding: { ...funding, valueSats: funding.valueSats + 1n },
+    signerPubkeyX: signerPubkey,
+    signature: refundSignature
+  }), /does not match the validated DLC transaction set/);
+
+  // Both signatures together form a witness the script accepts; either alone does not.
+  const signedRefundTxHex = assembleSignedSettlement({
+    transactionSet: validated,
+    executionType: 'refund',
+    signatures: {
+      [signerPubkey]: refundSignature.toString('hex'),
+      [counterpartyPubkey]: dlc.schnorrSign(counterpartySecret, refundSighash, hash('refund-signature:counterparty-aux')).toString('hex')
+    }
+  });
+  const parsedRefund = verifySettlementWitness({
+    transactionSet: validated, executionType: 'refund', signedTxHex: signedRefundTxHex
+  });
+  assert(parsedRefund.witness[0][2] === fundingOutput.refundLeaf.scriptHex &&
+    parsedRefund.witness[0][3] === fundingOutput.refundLeaf.controlBlock, 'refund witness does not reveal the CSV refund leaf');
+  expectThrow(() => assembleSignedSettlement({
+    transactionSet: validated,
+    executionType: 'refund',
+    signatures: { [signerPubkey]: refundSignature.toString('hex'), [counterpartyPubkey]: refundSignature.toString('hex') }
+  }), /valid signature from both parties/);
+  expectThrow(() => assembleSignedSettlement({
+    transactionSet: validated,
+    executionType: 'refund',
+    signatures: { [signerPubkey]: refundSignature.toString('hex') }
+  }), /signature is required for party/);
+});
+
+test('DLC funding output is a NUMS-keyed two-party Taproot output with CET and CSV refund leaves', () => {
+  const { funding, output, keys } = twoPartyFunding({ txid: '9a'.repeat(32), vout: 0, valueSats: 100000n });
+  const [first, second] = output.partyPubkeyXs;
+  assert(output.internalXonly === deriveDlcFundingInternalXonly(), 'funding internal key is not the derived NUMS key');
+  assert(output.cetLeaf.scriptHex === `20${first}ad20${second}ac`, 'CET leaf is not A CHECKSIGVERIFY B CHECKSIG');
+  assert(output.refundLeaf.scriptHex === `029000b27520${first}ad20${second}ac`,
+    'refund leaf is not <144> CSV DROP A CHECKSIGVERIFY B CHECKSIG');
+  assert(output.cetLeaf.controlBlock.slice(2, 66) === output.internalXonly &&
+    output.refundLeaf.controlBlock.slice(2, 66) === output.internalXonly, 'control blocks do not reveal the NUMS internal key');
+  // Neither party's key, nor their sum, is the output key: there is no key path.
+  assert(!keys.some((key) => funding.scriptPubKeyHex === `5120${key.pubkeyX}`), 'funding output is a single party key');
+  assert(funding.scriptPubKeyHex === `5120${output.outputKeyXonly}`, 'funding script is not the tweaked NUMS output');
+  // The output is a function of the key set and delay only.
+  const again = buildDlcFundingOutput({ partyPubkeyXs: [first, second], refundCsvBlocks: REFUND_CSV_BLOCKS });
+  assert(again.scriptPubKeyHex === output.scriptPubKeyHex, 'funding output derivation is not deterministic');
+  assert(buildDlcFundingOutput({ partyPubkeyXs: [first, second], refundCsvBlocks: 145 }).scriptPubKeyHex !== output.scriptPubKeyHex,
+    'refund delay is not committed by the funding output');
+  // DLC-6: a caller-chosen internal key would restore a key path.
+  expectThrow(() => buildDlcFundingOutput({
+    partyPubkeyXs: [first, second], refundCsvBlocks: REFUND_CSV_BLOCKS, internalXonly: first
+  }), /custom internal key is forbidden/);
+  expectThrow(() => buildDlcFundingOutput({ partyPubkeyXs: [second, first], refundCsvBlocks: REFUND_CSV_BLOCKS }), /sorted/);
+  expectThrow(() => buildDlcFundingOutput({ partyPubkeyXs: [first, first], refundCsvBlocks: REFUND_CSV_BLOCKS }), /distinct/);
+  expectThrow(() => buildDlcFundingOutput({ partyPubkeyXs: [first], refundCsvBlocks: REFUND_CSV_BLOCKS }), /exactly two/);
+  expectThrow(() => buildDlcFundingOutput({ partyPubkeyXs: [first, second], refundCsvBlocks: 0 }), /refundCsvBlocks/);
+
+  // MAIN-1: the transaction validator refuses any funding script that is not
+  // this output, including the single-key P2TR shape the previous validator accepted.
+  const fixture = transactionFixture();
+  const build = (fundingOverride, refundOverride = fixture.refund) => validateDlcTransactionSet({
+    funding: fundingOverride,
+    cets: fixture.cets,
+    refund: refundOverride,
+    minFeeSats: 500n,
+    maxFeeSats: 2000n,
+    feePolicy: fixture.feePolicy
+  });
+  expectThrow(() => build({ ...fixture.funding, scriptPubKeyHex: `5120${keys[0].pubkeyX}` }),
+    /not the two-party DLC output/);
+  expectThrow(() => build({
+    txid: fixture.funding.txid, vout: fixture.funding.vout, valueSats: fixture.funding.valueSats,
+    scriptPubKeyHex: `5120${keys[0].pubkeyX}`
+  }), /partyPubkeyXs must contain exactly two/);
+  expectThrow(() => build({ ...fixture.funding, refundCsvBlocks: REFUND_CSV_BLOCKS + 1 }), /not the two-party DLC output/);
+  // The refund must be able to satisfy the CSV leaf it spends.
+  expectThrow(() => build(fixture.funding, {
+    ...fixture.refund, rawTxHex: fixture.spend(fixture.refundOutputs, 200, 0xfffffffe)
+  }), /refund input sequence must equal the committed refund CSV delay/);
+  const validated = build(fixture.funding);
+  assert(validated.funding.partyPubkeyXs.join(':') === fixture.funding.partyPubkeyXs.join(':') &&
+    validated.funding.refundCsvBlocks === REFUND_CSV_BLOCKS &&
+    validated.funding.cetLeafHash === dlcFundingOutputForTransactionSet(validated).cetLeaf.leafHash,
+  'validated set does not commit the party keys, refund delay and leaf hashes');
+  // A re-digested set that swaps the funding script for a single key is rejected.
+  const swapped = JSON.parse(JSON.stringify(validated));
+  swapped.funding.scriptPubKeyHex = `5120${keys[0].pubkeyX}`;
+  const sha = (value) => crypto.createHash('sha256').update(canonicalJson(value)).digest('hex');
+  swapped.fundingTemplateDigest = sha(swapped.funding);
+  swapped.validationDigest = sha({
+    fundingTemplateDigest: swapped.fundingTemplateDigest,
+    cetSetDigest: swapped.cetSetDigest,
+    refundTransactionDigest: swapped.refundTransactionDigest,
+    feePolicyDigest: swapped.feePolicyDigest
+  });
+  expectThrow(() => validateDlcTransactionSetCommitments(swapped), /not the two-party DLC output/);
 });
 
 test('fully signed refund is append-once, witness-verified, and restorable before funding', () => {
-  const signerSecret = 987654321n;
-  const signerPubkey = dlc.xOnlyPubkey(signerSecret).toString('hex');
-  const funding = {
-    txid: 'ab'.repeat(32),
-    vout: 1,
-    valueSats: 100000n,
-    scriptPubKeyHex: `5120${signerPubkey}`
-  };
+  const { funding, keys } = twoPartyFunding({ txid: 'ab'.repeat(32), vout: 1, valueSats: 100000n });
   const feePolicy = {
     strategy: 'cpfp-anchor-v1',
     anchorAmountSats: 330n,
@@ -2197,9 +2333,9 @@ test('fully signed refund is append-once, witness-verified, and restorable befor
     minRelayPeers: 2
   };
   const anchor = { valueSats: 330n, scriptPubKeyHex: feePolicy.anchorScriptPubKeyHex };
-  const raw = (outputs, locktime) => serializeUnsignedTx(
+  const raw = (outputs, locktime, sequence = 0xfffffffe) => serializeUnsignedTx(
     2,
-    [{ outpoint: outpoint(funding.txid, funding.vout), sequence: 0xfffffffe }],
+    [{ outpoint: outpoint(funding.txid, funding.vout), sequence }],
     outputs.map((item) => ({ valueSats: item.valueSats, script: item.scriptPubKeyHex })),
     locktime
   );
@@ -2214,7 +2350,9 @@ test('fully signed refund is append-once, witness-verified, and restorable befor
       expectedOutputs: cetOutputs,
       locktime: 100
     }],
-    refund: { rawTxHex: raw(refundOutputs, 200), expectedOutputs: refundOutputs, locktime: 200 },
+    refund: {
+      rawTxHex: raw(refundOutputs, 200, REFUND_CSV_BLOCKS), expectedOutputs: refundOutputs, locktime: 200
+    },
     minFeeSats: 500n,
     maxFeeSats: 2000n,
     feePolicy
@@ -2230,20 +2368,21 @@ test('fully signed refund is append-once, witness-verified, and restorable befor
   contract = transitionDlcContract(contract, requestFor(
     contract, 'COUNTERPARTY_SIGNATURES_VERIFIED', 'refund-recovery:counterparty'
   ));
-  const refundSighash = bip341SighashDefault(
-    toBip341Transaction(parseCanonicalUnsignedTransaction(transactionSet.refund.rawTxHex)),
-    [{ amountSats: funding.valueSats, scriptPubKey: funding.scriptPubKeyHex }],
-    0
-  );
   const unsigned = transactionSet.refund.rawTxHex;
-  const signedRefund = (auxiliary) => {
-    const signature = dlc.schnorrSign(signerSecret, refundSighash, hash(auxiliary)).toString('hex');
-    return `${unsigned.slice(0, 8)}0001${unsigned.slice(8, -8)}0140${signature}${unsigned.slice(-8)}`;
-  };
+  const signedRefund = (auxiliary) => signSettlement({ transactionSet, executionType: 'refund', auxLabel: auxiliary });
   const signedRefundTxHex = signedRefund('refund-recovery:aux');
   const parsed = parseCanonicalSignedTaprootTransaction(signedRefundTxHex);
   assert(parsed.strippedRawTxHex === unsigned && parsed.txid === transactionSet.refund.txid,
     'signed refund did not preserve the committed transaction identity');
+  // MAIN-1 / DLC-6: the previous single-signature key-path witness is not a refund.
+  const refundKeyPathSighash = bip341SighashDefault(
+    toBip341Transaction(parseCanonicalUnsignedTransaction(unsigned)),
+    [{ amountSats: funding.valueSats, scriptPubKey: funding.scriptPubKeyHex }],
+    0
+  );
+  const keyPathSignature = dlc.schnorrSign(keys[0].secret, refundKeyPathSighash, hash('refund-recovery:keypath')).toString('hex');
+  const keyPathRefund = `${unsigned.slice(0, 8)}0001${unsigned.slice(8, -8)}0140${keyPathSignature}${unsigned.slice(-8)}`;
+  expectThrow(() => parseCanonicalSignedTaprootTransaction(keyPathRefund), /two-signature Taproot script-path witness/);
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'utxoref-refund-recovery-'));
   try {
     const store = new DlcRefundRecoveryStore(directory);
@@ -2253,10 +2392,26 @@ test('fully signed refund is append-once, witness-verified, and restorable befor
       'refund did not survive independent restore');
     assert(store.store({ contractState: contract, transactionSet, signedRefundTxHex }).recordHash === stored.recordHash,
       'identical refund retry was not idempotent');
-    const forgedSignature = Buffer.from(parsed.witness[0][0], 'hex');
-    forgedSignature[63] ^= 1;
-    const forged = `${unsigned.slice(0, 8)}0001${unsigned.slice(8, -8)}0140${forgedSignature.toString('hex')}${unsigned.slice(-8)}`;
-    expectThrow(() => store.store({ contractState: contract, transactionSet, signedRefundTxHex: forged }), /witness is invalid/);
+    // Corrupting either party's signature makes the refund unstorable.
+    for (const witnessIndex of [0, 1]) {
+      const original = parsed.witness[0][witnessIndex];
+      const forgedSignature = Buffer.from(original, 'hex');
+      forgedSignature[63] ^= 1;
+      const forged = signedRefundTxHex.replace(original, forgedSignature.toString('hex'));
+      assert(forged !== signedRefundTxHex, 'forged refund fixture did not change the witness');
+      expectThrow(() => store.store({ contractState: contract, transactionSet, signedRefundTxHex: forged }), /witness is invalid/);
+    }
+    expectThrow(() => store.store({ contractState: contract, transactionSet, signedRefundTxHex: keyPathRefund }),
+      /two-signature Taproot script-path witness/);
+    // A refund witness that reveals the CET leaf skips the CSV delay and is refused.
+    const fundingOutput = dlcFundingOutputForTransactionSet(transactionSet);
+    const wrongLeaf = signedRefundTxHex
+      .replace(`${(fundingOutput.refundLeaf.scriptHex.length / 2).toString(16)}${fundingOutput.refundLeaf.scriptHex}`,
+        `${(fundingOutput.cetLeaf.scriptHex.length / 2).toString(16)}${fundingOutput.cetLeaf.scriptHex}`)
+      .replace(fundingOutput.refundLeaf.controlBlock, fundingOutput.cetLeaf.controlBlock);
+    assert(wrongLeaf !== signedRefundTxHex, 'wrong-leaf refund fixture did not change the witness');
+    expectThrow(() => store.store({ contractState: contract, transactionSet, signedRefundTxHex: wrongLeaf }),
+      /does not spend the committed refund leaf/);
     const fixturePath = path.join(directory, 'race-fixture.json');
     fs.writeFileSync(fixturePath, JSON.stringify({
       contractState: contract,
@@ -2334,10 +2489,14 @@ function validatedChainFixture(contractId, targetStage) {
 }
 
 test('CET and refund execution require fresh Core policy for the committed signed transaction', () => {
-  const signed = (unsigned, label) =>
-    `${unsigned.slice(0, 8)}0001${unsigned.slice(8, -8)}0140${digest(label)}${digest(`${label}:two`)}${unsigned.slice(-8)}`;
+  const signed = (transactionSet, executionType, transaction, label) => signSettlement({
+    transactionSet,
+    executionType,
+    ...(executionType === 'cet' ? { cetTxid: transaction.txid } : {}),
+    auxLabel: label
+  });
   const runGuard = ({ contract, transactionSet, executionType, transaction, evidenceDigest, height = 250 }) => {
-    const signedTxHex = signed(transaction.rawTxHex, `execution:${executionType}`);
+    const signedTxHex = signed(transactionSet, executionType, transaction, `execution:${executionType}`);
     const parsed = parseCanonicalSignedTaprootTransaction(signedTxHex);
     const bestBlockHash = digest(`execution:${executionType}:block`);
     const methods = [];
@@ -2435,9 +2594,21 @@ test('CET and refund execution require fresh Core policy for the committed signe
   }), /tip or mempool changed/);
   expectThrow(() => validateExecutionPrebroadcastPolicy({
     ...cetGuardInput,
-    signedTxHex: signed(cetFixture.transactionSet.cets[1].rawTxHex, 'execution:wrong-cet'),
+    signedTxHex: signed(cetFixture.transactionSet, 'cet', cetFixture.transactionSet.cets[1], 'execution:wrong-cet'),
     rpc: cetResult.rpc
   }), /differs from the committed settlement transaction/);
+  // MAIN-1: Core is never consulted for a settlement that lacks a valid
+  // signature from both parties over the committed leaf.
+  const parsedCet = parseCanonicalSignedTaprootTransaction(cetResult.signedTxHex);
+  for (const witnessIndex of [0, 1]) {
+    let coreCalls = 0;
+    expectThrow(() => validateExecutionPrebroadcastPolicy({
+      ...cetGuardInput,
+      signedTxHex: cetResult.signedTxHex.replace(parsedCet.witness[0][witnessIndex], digest(`garbage:${witnessIndex}`).repeat(2)),
+      rpc(method, params) { coreCalls++; return cetResult.rpc(method, params); }
+    }), /witness is invalid.*valid signature from both parties/);
+    assert(coreCalls === 0, 'execution guard consulted Core for an unsigned settlement');
+  }
 
   const refundFixture = validatedChainFixture('refund-prebroadcast-contract', 'CONFIRMED');
   const maturityDigest = digest('refund-prebroadcast:maturity');
@@ -3032,12 +3203,7 @@ test('anchor recovery guard enforces signed budgets, relay quorum, and full-RBF 
 });
 
 test('TRUC recovery requires direct Core acceptance, version 3, and a child no larger than 1000 vB', () => {
-  const funding = {
-    txid: 'bd'.repeat(32),
-    vout: 0,
-    valueSats: 100000n,
-    scriptPubKeyHex: `5120${'49'.repeat(32)}`
-  };
+  const { funding } = twoPartyFunding({ txid: 'bd'.repeat(32), vout: 0, valueSats: 100000n });
   const feePolicy = {
     strategy: 'truc-p2a-v1',
     anchorAmountSats: 0n,
@@ -3049,9 +3215,9 @@ test('TRUC recovery requires direct Core acceptance, version 3, and a child no l
   const anchorOutput = { valueSats: 0n, scriptPubKeyHex: P2A_SCRIPT_PUBKEY_HEX };
   const cetOutputs = [{ valueSats: 99000n, scriptPubKeyHex: `0014${'59'.repeat(20)}` }, anchorOutput];
   const refundOutputs = [{ valueSats: 99000n, scriptPubKeyHex: `5120${'69'.repeat(32)}` }, anchorOutput];
-  const raw = (outputs, locktime) => serializeUnsignedTx(
+  const raw = (outputs, locktime, sequence = 0xfffffffd) => serializeUnsignedTx(
     3,
-    [{ outpoint: outpoint(funding.txid, funding.vout), sequence: 0xfffffffd }],
+    [{ outpoint: outpoint(funding.txid, funding.vout), sequence }],
     outputs.map((output) => ({ valueSats: output.valueSats, script: output.scriptPubKeyHex })),
     locktime
   );
@@ -3064,7 +3230,9 @@ test('TRUC recovery requires direct Core acceptance, version 3, and a child no l
       expectedOutputs: cetOutputs,
       locktime: 100
     }],
-    refund: { rawTxHex: raw(refundOutputs, 200), expectedOutputs: refundOutputs, locktime: 200 },
+    refund: {
+      rawTxHex: raw(refundOutputs, 200, REFUND_CSV_BLOCKS), expectedOutputs: refundOutputs, locktime: 200
+    },
     minFeeSats: 500n,
     maxFeeSats: 2000n,
     feePolicy

@@ -5,9 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const { canonicalize, canonicalJson, normalizeDlcContract } = require('./dlc_contract_state');
 const { parseCanonicalSignedTaprootTransaction, normalizeDlcTransactionSet } = require('./dlc_transaction_validator');
-const { toBip341Transaction } = require('./dlc_signature_validator');
-const { bip341SighashDefault } = require('./tradelayer_taproot');
-const { schnorrVerify } = require('./tradelayer_dlc_adaptor_sig');
+const { verifySettlementWitness } = require('./dlc_signature_validator');
 const {
   ensureNonSymlinkDirectory,
   readBoundedJson,
@@ -70,25 +68,19 @@ function bindTransactionSet(contractState, transactionSet) {
   return contractState;
 }
 
+// The stored refund must be broadcastable as-is: the committed CSV refund leaf
+// with a valid signature from both parties. A refund signed by one key (or on
+// a key path the funding output does not have) is rejected before persistence.
 function verifySignedRefund(transactionSet, signedRefundTxHex) {
   const parsed = parseCanonicalSignedTaprootTransaction(signedRefundTxHex);
   if (parsed.strippedRawTxHex !== transactionSet.refund.rawTxHex || parsed.txid !== transactionSet.refund.txid) {
     throw new Error('signed refund does not match the validated unsigned refund');
   }
-  const funding = transactionSet.funding;
-  if (typeof funding.scriptPubKeyHex !== 'string' || !/^5120[0-9a-f]{64}$/.test(funding.scriptPubKeyHex)) {
-    throw new Error('refund recovery requires a committed P2TR funding output');
+  try {
+    return verifySettlementWitness({ transactionSet, executionType: 'refund', signedTxHex: signedRefundTxHex });
+  } catch (error) {
+    throw new Error(`signed refund Taproot script-path witness is invalid: ${error.message}`);
   }
-  const sighash = bip341SighashDefault(
-    toBip341Transaction(parsed.unsignedTransaction),
-    [{ amountSats: BigInt(funding.valueSats), scriptPubKey: funding.scriptPubKeyHex }],
-    0
-  );
-  const signature = Buffer.from(parsed.witness[0][0], 'hex');
-  if (!schnorrVerify(Buffer.from(funding.scriptPubKeyHex.slice(4), 'hex'), sighash, signature)) {
-    throw new Error('signed refund Taproot key-path witness is invalid');
-  }
-  return parsed;
 }
 
 function validateRecord(record) {
