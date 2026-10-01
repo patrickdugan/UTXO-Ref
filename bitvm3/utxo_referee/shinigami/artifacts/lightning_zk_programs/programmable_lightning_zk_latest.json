@@ -1,0 +1,186 @@
+{
+  "kind": "programmable_lightning_zk_watchtower_asp_bundle",
+  "bundleId": "92ecd80d8f10764833d16df5c0eee90fe381214bd96c9fe2f9d241f90f0f6f6f",
+  "bundleCore": {
+    "version": 1,
+    "protocol": "programmable_lightning_zk_watchtower_asp_bundle",
+    "paymentProofId": "ebb9fc532cd6e5417f272c3e720ba75d94eec9c7864afa8796da170f2e214395",
+    "watchtowerProgramId": "3dc215f204a23b740383e8de7d172001a6eefa1a03d0107323485d6a1bf196d1",
+    "aspPolicyId": "2fa422f798da3e6aa60b77040625f684c2cd9a2bcb64fdb501cc41d88d645c0a",
+    "watchtowerAction": "accept_and_monitor",
+    "aspAction": "settle_and_release_asp_fee"
+  },
+  "paymentProof": {
+    "kind": "lightning_payment_public_receipt",
+    "proofId": "ebb9fc532cd6e5417f272c3e720ba75d94eec9c7864afa8796da170f2e214395",
+    "routeId": "ln-zk-route-001",
+    "amountSats": "50000",
+    "paymentHashHex": "34d503efcee6b0fb7b7e7b8b09c879a3a69398f75a4e5170ae182b0a8f56b38b",
+    "invoiceHash": "d3357b87346084eb657f803c2241ed70683d8767f16723fc7c633bf90668b138",
+    "contextBindingHash": "899d6921eccdc5a033d6547327ac3be7edb04e7fcbab0144b26b57344e41e350",
+    "preimageWitnessCommitment": "60d8a6e2679b1ee361fc374be460b22c6f5b27534c7135472d6fdf2994926694"
+  },
+  "watchtower": {
+    "kind": "programmable_lightning_watchtower_zk_receipt",
+    "programId": "3dc215f204a23b740383e8de7d172001a6eefa1a03d0107323485d6a1bf196d1",
+    "programCore": {
+      "version": 1,
+      "protocol": "programmable_lightning_watchtower_zk_receipt",
+      "watcherId": "zk-watchtower-001",
+      "paymentProofId": "ebb9fc532cd6e5417f272c3e720ba75d94eec9c7864afa8796da170f2e214395",
+      "paymentHashHex": "34d503efcee6b0fb7b7e7b8b09c879a3a69398f75a4e5170ae182b0a8f56b38b",
+      "zkReceiptId": "9e8cf05d6d7d58b10265ff065de8b1339415c7cfaf482e597cfe3e657e4e1f39",
+      "zkReceiptRole": "utxoref_challenge_publication",
+      "expectedStateTransitionHash": "6171ee1fcc6e1b78f22a74128fb0f30637e3ea6026aaf763b29a5a6603838e9e",
+      "observedStateTransitionHash": "6171ee1fcc6e1b78f22a74128fb0f30637e3ea6026aaf763b29a5a6603838e9e",
+      "action": "accept_and_monitor",
+      "privacyBoundary": "watchtower learns payment hash and proof receipt ids, not LN route or sender balance"
+    },
+    "paymentProof": {
+      "kind": "lightning_payment_public_receipt",
+      "proofId": "ebb9fc532cd6e5417f272c3e720ba75d94eec9c7864afa8796da170f2e214395",
+      "routeId": "ln-zk-route-001",
+      "amountSats": "50000",
+      "paymentHashHex": "34d503efcee6b0fb7b7e7b8b09c879a3a69398f75a4e5170ae182b0a8f56b38b",
+      "invoiceHash": "d3357b87346084eb657f803c2241ed70683d8767f16723fc7c633bf90668b138",
+      "contextBindingHash": "899d6921eccdc5a033d6547327ac3be7edb04e7fcbab0144b26b57344e41e350",
+      "preimageWitnessCommitment": "60d8a6e2679b1ee361fc374be460b22c6f5b27534c7135472d6fdf2994926694"
+    },
+    "zkReceiptRef": {
+      "role": "utxoref_challenge_publication",
+      "receiptId": "9e8cf05d6d7d58b10265ff065de8b1339415c7cfaf482e597cfe3e657e4e1f39",
+      "claimId": "283ccd1b82b5b0f5b0182b828466e04da60da30eae0410bbc5ea1b9d2d3936bd",
+      "manifestId": "3d25c067fa4e09fa2bfd23d58406b77534722cc92c17ece4dc519f39dc0f1900",
+      "bindingCommitment": "0x15fe99ebcc64ba612041c5f693f5f5e11cad8b12",
+      "verified": true,
+      "verificationReason": null,
+      "receiptPath": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\ark_zk_miniscript\\ark_zk_miniscript_utxoref_challenge_publication.receipt.json",
+      "sourceSummaryPath": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\ark_zk_miniscript\\ark_zk_miniscript_receipts_latest.json",
+      "sourceSummaryId": "502fed3db3d823475cd3c305af67934a43923b5bd4439fe2d73bc33664a95675"
+    },
+    "checks": {
+      "paymentProofAccepted": true,
+      "zkReceiptVerified": true,
+      "transitionMatchesProgram": true,
+      "withinChallengeWindow": true
+    },
+    "challenge": {
+      "kind": "programmable_watchtower_challenge",
+      "challengeId": "d9961287679a890db8fdac7340b7350c1886f4fdbbc1f8b90c610863c1deb701",
+      "challengeCore": {
+        "version": 1,
+        "protocol": "programmable_watchtower_challenge",
+        "watcherId": "zk-watchtower-001",
+        "paymentProofId": "ebb9fc532cd6e5417f272c3e720ba75d94eec9c7864afa8796da170f2e214395",
+        "zkReceiptId": "9e8cf05d6d7d58b10265ff065de8b1339415c7cfaf482e597cfe3e657e4e1f39",
+        "expectedStateTransitionHash": "6171ee1fcc6e1b78f22a74128fb0f30637e3ea6026aaf763b29a5a6603838e9e",
+        "observedStateTransitionHash": "6171ee1fcc6e1b78f22a74128fb0f30637e3ea6026aaf763b29a5a6603838e9e",
+        "currentHeight": 0,
+        "challengeDeadlineHeight": 144,
+        "violations": []
+      },
+      "challengeable": false,
+      "remedy": "none"
+    },
+    "caveats": [
+      "The watchtower consumes selective receipts; it does not see the full Lightning route.",
+      "Production needs authenticated watchtower subscriptions, penalty transaction construction, and node-specific policy."
+    ]
+  },
+  "aspPolicy": {
+    "kind": "programmable_ark_asp_lightning_policy",
+    "policyId": "2fa422f798da3e6aa60b77040625f684c2cd9a2bcb64fdb501cc41d88d645c0a",
+    "policyCore": {
+      "version": 1,
+      "protocol": "programmable_ark_asp_lightning_policy",
+      "aspId": "programmable-ark-asp-001",
+      "routeId": "asp-ln-route-001",
+      "paymentProofId": "ebb9fc532cd6e5417f272c3e720ba75d94eec9c7864afa8796da170f2e214395",
+      "paymentHashHex": "34d503efcee6b0fb7b7e7b8b09c879a3a69398f75a4e5170ae182b0a8f56b38b",
+      "settlementZkReceiptId": "9b8f3a7342bf1815c2951aa62b6dc5b03f006160db2c7c8a29d6ca8ddede6eec",
+      "forfeitZkReceiptId": "45cf25cad368ae31ce24a9368723a790509b416f0aebe195d8be7afff0477817",
+      "promisedInboundSats": "75000",
+      "deliveredInboundSats": "75000",
+      "maxFeePpm": 1000,
+      "observedFeePpm": 1000,
+      "maxCltvDelta": 40,
+      "observedCltvDelta": 40,
+      "action": "settle_and_release_asp_fee",
+      "privacyBoundary": "ASP policy proves payment-conditioned obligation without exposing LN route"
+    },
+    "paymentProof": {
+      "kind": "lightning_payment_public_receipt",
+      "proofId": "ebb9fc532cd6e5417f272c3e720ba75d94eec9c7864afa8796da170f2e214395",
+      "routeId": "ln-zk-route-001",
+      "amountSats": "50000",
+      "paymentHashHex": "34d503efcee6b0fb7b7e7b8b09c879a3a69398f75a4e5170ae182b0a8f56b38b",
+      "invoiceHash": "d3357b87346084eb657f803c2241ed70683d8767f16723fc7c633bf90668b138",
+      "contextBindingHash": "899d6921eccdc5a033d6547327ac3be7edb04e7fcbab0144b26b57344e41e350",
+      "preimageWitnessCommitment": "60d8a6e2679b1ee361fc374be460b22c6f5b27534c7135472d6fdf2994926694"
+    },
+    "settlementReceiptRef": {
+      "role": "cooperative_round",
+      "receiptId": "9b8f3a7342bf1815c2951aa62b6dc5b03f006160db2c7c8a29d6ca8ddede6eec",
+      "claimId": "40b3577b81a5e644758c5864a6333bba33cc230b3fda3061f7fcd5b180f3ebd4",
+      "manifestId": "3f8bb38917fa7e8404f9457cb2cf2318c4244200201623575449310b933cc12b",
+      "bindingCommitment": "0x4d418c61a0980454e1f1a1542b2c1dc90bc4682b1d",
+      "verified": true,
+      "verificationReason": null,
+      "receiptPath": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\ark_zk_miniscript\\ark_zk_miniscript_cooperative_round.receipt.json",
+      "sourceSummaryPath": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\ark_zk_miniscript\\ark_zk_miniscript_receipts_latest.json",
+      "sourceSummaryId": "502fed3db3d823475cd3c305af67934a43923b5bd4439fe2d73bc33664a95675"
+    },
+    "forfeitReceiptRef": {
+      "role": "asp_forfeit_guard",
+      "receiptId": "45cf25cad368ae31ce24a9368723a790509b416f0aebe195d8be7afff0477817",
+      "claimId": "aeaecf93d8206db4e0a66d72e75580d0ab70a17dab6efdbfa8c57782816cbae2",
+      "manifestId": "a746fc6250b7eb708bc7431358c76b7cc9dbb2b88082cbae4518c237b3f4f3aa",
+      "bindingCommitment": "0x30966108d4986f3442594f477daf0864dd10c47fd1",
+      "verified": true,
+      "verificationReason": null,
+      "receiptPath": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\ark_zk_miniscript\\ark_zk_miniscript_asp_forfeit_guard.receipt.json",
+      "sourceSummaryPath": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\ark_zk_miniscript\\ark_zk_miniscript_receipts_latest.json",
+      "sourceSummaryId": "502fed3db3d823475cd3c305af67934a43923b5bd4439fe2d73bc33664a95675"
+    },
+    "checks": {
+      "paymentProofAccepted": true,
+      "settlementReceiptVerified": true,
+      "forfeitReceiptVerified": true,
+      "deliveredInboundMet": true,
+      "feeCeilingMet": true,
+      "cltvCeilingMet": true,
+      "exitPathAvailable": true,
+      "forfeitPathAvailable": true
+    },
+    "challenge": {
+      "kind": "programmable_ark_asp_challenge",
+      "challengeId": "0ffbf2d26384c99eecee140e1729de4d312dd10b8237a04ea8566f6fdc3c66dc",
+      "challengeCore": {
+        "version": 1,
+        "protocol": "programmable_ark_asp_challenge",
+        "aspId": "programmable-ark-asp-001",
+        "routeId": "asp-ln-route-001",
+        "paymentProofId": "ebb9fc532cd6e5417f272c3e720ba75d94eec9c7864afa8796da170f2e214395",
+        "settlementZkReceiptId": "9b8f3a7342bf1815c2951aa62b6dc5b03f006160db2c7c8a29d6ca8ddede6eec",
+        "forfeitZkReceiptId": "45cf25cad368ae31ce24a9368723a790509b416f0aebe195d8be7afff0477817",
+        "violations": []
+      },
+      "slashable": false,
+      "remedy": "none"
+    },
+    "caveats": [
+      "This is an ASP/LSP sidecar policy, not an Ark consensus implementation.",
+      "Production needs real route observations, ASP signatures, VTXO membership proofs, and challenge transaction construction."
+    ]
+  },
+  "thesis": "Opaque Lightning payment facts can drive programmable watchtower and ASP sidecars by binding a hash/preimage receipt to Ark ZK miniscript proof receipts.",
+  "caveats": [
+    "This is a deterministic local artifact, not a BOLT extension.",
+    "The ZK Ark receipt proves the committed Ark path witness; LN still provides only local payment observations unless a sidecar or counterparty exposes a receipt."
+  ],
+  "verification": {
+    "ok": true,
+    "watchtowerAction": "accept_and_monitor",
+    "aspAction": "settle_and_release_asp_fee"
+  }
+}

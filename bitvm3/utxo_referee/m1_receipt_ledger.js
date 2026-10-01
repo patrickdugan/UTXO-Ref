@@ -201,4 +201,3 @@ class ReceiptLedger {
 module.exports = {
   ReceiptLedger
 };
-

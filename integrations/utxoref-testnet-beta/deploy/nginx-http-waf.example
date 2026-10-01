@@ -1,0 +1,13 @@
+# Load in the nginx http {} context, for example from /etc/nginx/conf.d/.
+# Empty map keys are not counted, so the mutation bucket applies only to POST.
+map $request_method $utxoref_mutation_key {
+  default "";
+  POST $binary_remote_addr;
+}
+
+limit_req_zone $binary_remote_addr zone=utxoref_beta_read:10m rate=5r/s;
+limit_req_zone $utxoref_mutation_key zone=utxoref_beta_mutation:10m rate=6r/m;
+limit_conn_zone $binary_remote_addr zone=utxoref_beta_connections:10m;
+limit_req_status 429;
+limit_conn_status 429;
+limit_req_log_level warn;

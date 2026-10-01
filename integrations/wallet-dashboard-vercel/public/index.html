@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>UTXORef Bitcoin Testnet Flow</title>
+    <meta name="dashboard-commit" content="main" />
+    <link rel="stylesheet" href="/dashboard.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div>
+          <h1>UTXORef Bitcoin Testnet Flow</h1>
+          <p id="subtitle">Loading cross-domain transaction chain</p>
+        </div>
+        <div class="top-actions">
+          <span id="profileBadge" class="badge">profile</span>
+          <span id="chainBadge" class="badge good">chain</span>
+          <button id="refreshButton" type="button">Refresh</button>
+          <a class="button-link" href="/shinigami">Shinigami</a>
+          <a class="button-link" href="/funding.html">Funding brief</a>
+        </div>
+      </header>
+
+      <main>
+        <section class="map-panel">
+          <div class="section-title">
+            <h2>Cross-Domain Liquidity Map</h2>
+            <span id="mapMode" class="source-badge derived">Bitcoin testnet</span>
+          </div>
+          <div class="network-layout">
+            <svg class="network-map" viewBox="0 0 1120 540" role="img" aria-labelledby="mapTitle mapDesc">
+              <title id="mapTitle">UTXORef liquidity routing network</title>
+              <desc id="mapDesc">Vector map showing how Lightning funding, DLC state, TradeLayer oracle proofs, optional asset proofs, Ark batching, and BitVM enforcement fit together.</desc>
+              <defs>
+                <marker id="arrow" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto" markerUnits="strokeWidth">
+                  <path d="M0,0 L0,6 L8,3 z" fill="#334155"></path>
+                </marker>
+              </defs>
+
+              <path class="map-link primary" d="M170 145 C260 95 330 95 420 145" marker-end="url(#arrow)"></path>
+              <path class="map-link primary" d="M505 145 C590 100 660 100 745 145" marker-end="url(#arrow)"></path>
+              <path class="map-link primary" d="M825 190 C850 255 850 310 825 375" marker-end="url(#arrow)"></path>
+              <path class="map-link primary" d="M740 410 C645 460 540 460 445 410" marker-end="url(#arrow)"></path>
+              <path class="map-link primary" d="M365 375 C305 305 250 245 185 185" marker-end="url(#arrow)"></path>
+
+              <path class="map-link secondary" d="M505 185 C585 255 645 325 725 375"></path>
+              <path class="map-link secondary" d="M420 375 C455 305 470 240 460 185"></path>
+              <path class="map-link secondary" d="M825 145 C900 140 950 165 990 220"></path>
+              <path class="map-link secondary" d="M825 375 C900 360 955 325 995 275"></path>
+
+              <g class="map-node wallet" transform="translate(70 90)">
+                <rect width="150" height="110" rx="12"></rect>
+                <text x="20" y="34">LN Wallet</text>
+                <text x="20" y="62" id="mapWalletAmount">LN-BTC</text>
+                <text x="20" y="84">invoice/payment</text>
+              </g>
+
+              <g class="map-node swap" transform="translate(380 90)">
+                <rect width="150" height="110" rx="12"></rect>
+                <text x="20" y="34">Subswap</text>
+                <text x="20" y="62">hash + expiry</text>
+                <text x="20" y="84">DLC funding</text>
+              </g>
+
+              <g class="map-node utxo" transform="translate(725 90)">
+                <rect width="150" height="110" rx="12"></rect>
+                <text x="20" y="34">Oracle / DLC</text>
+                <text x="20" y="62">BTC/USD entry</text>
+                <text x="20" y="84" id="mapChainLabel">testnet</text>
+              </g>
+
+              <g class="map-node ark" transform="translate(725 345)">
+                <rect width="150" height="110" rx="12"></rect>
+                <text x="20" y="34">Ark Batch</text>
+                <text x="20" y="62" id="mapVtxoCount">VTXOs</text>
+                <text x="20" y="84">fee compression</text>
+              </g>
+
+              <g class="map-node asset" transform="translate(345 345)">
+                <rect width="185" height="110" rx="12"></rect>
+                <text x="20" y="34">TLUSD / TAP</text>
+                <text x="20" y="62" id="mapStakeAmount">routing reserve</text>
+                <text x="20" y="84">pledged asset</text>
+              </g>
+
+              <g class="map-node bitvm" transform="translate(955 215)">
+                <rect width="150" height="110" rx="12"></rect>
+                <text x="20" y="34">BitVM Guard</text>
+                <text x="20" y="62" id="mapChallengeCount">challenges</text>
+                <text x="20" y="84">enforcement</text>
+              </g>
+
+              <g class="map-core" transform="translate(474 228)">
+                <circle r="76" cx="86" cy="42"></circle>
+                <text x="86" y="32">Liquidity</text>
+                <text x="86" y="58">Patch Router</text>
+                <text x="86" y="88" id="mapAssigned">assigned inbound</text>
+              </g>
+            </svg>
+            <div class="map-readout">
+              <div class="readout-item"><span>Core flow</span><strong>LN-BTC -> DLC -> BitVM guard; asset route optional</strong></div>
+              <div class="readout-item"><span>Network</span><strong id="mapSubstrate">Bitcoin testnet profile</strong></div>
+              <div class="readout-item"><span>Explorer links</span><strong id="mapBotCount">--</strong></div>
+              <div class="readout-item"><span>Oracle trigger</span><strong id="mapAdapterEvents">--</strong></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="section-title">
+            <h2>Use Cases</h2>
+            <span class="source-badge proof">separated</span>
+          </div>
+          <div id="useCaseGrid" class="use-case-grid"></div>
+        </section>
+
+        <section class="panel demo-three">
+          <div class="section-title">
+            <h2>Demo 3: Pure BTC Route Evidence</h2>
+            <span class="source-badge live">stand-alone</span>
+          </div>
+          <div id="pureBtcRouteDemo" class="pure-demo"></div>
+        </section>
+
+        <section class="panel oracle-dlc-panel">
+          <div class="section-title">
+            <h2>BTC-Only TradeLayer Oracle DLC</h2>
+            <span class="source-badge proof">new subcategory</span>
+          </div>
+          <div id="tradelayerOracleDlc" class="oracle-dlc"></div>
+        </section>
+
+        <section class="panel">
+          <div class="section-title">
+            <h2>Guided Demo</h2>
+            <span class="source-badge derived">derived</span>
+          </div>
+          <div class="demo-guide">
+            <div id="demoSteps" class="demo-steps"></div>
+            <div class="demo-actions">
+              <button id="demoPrev" type="button">Previous</button>
+              <button id="demoNext" type="button">Next step</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="grid-two mechanics-grid">
+          <div class="panel">
+            <div class="section-title">
+              <h2>Submarine Swap State</h2>
+              <span class="source-badge proof">HTLC</span>
+            </div>
+            <div id="swapStateMachine" class="mechanic-card"></div>
+          </div>
+          <div class="panel">
+            <div class="section-title">
+              <h2>DLC Settlement Calculator</h2>
+              <span><span id="dlcPriceLabel">--</span> <span class="source-badge derived">CET</span></span>
+            </div>
+            <div class="slider-row">
+              <input id="dlcPrice" type="range" min="45000" max="125000" step="1000" value="85000" />
+              <strong id="dlcSettlementHeadline">--</strong>
+            </div>
+            <div id="dlcSettlement" class="mechanic-card"></div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="section-title">
+            <h2>Bitcoin Testnet Transaction Chain</h2>
+            <span id="bitcoinProofStatus" class="source-badge live">testnet4</span>
+          </div>
+          <div id="bitcoinProofSummary" class="proof-summary"></div>
+          <div id="bitcoinProofLinks" class="txid-grid"></div>
+        </section>
+
+        <section class="panel">
+          <div class="section-title">
+            <h2>BitVM Router Circuit</h2>
+            <span class="source-badge derived">unpackable</span>
+          </div>
+          <div id="bitvmEnforcement" class="detail-list"></div>
+        </section>
+      </main>
+    </div>
+    <script src="/dashboard.js"></script>
+  </body>
+</html>

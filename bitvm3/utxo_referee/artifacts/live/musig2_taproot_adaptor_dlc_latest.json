@@ -1,0 +1,16 @@
+{
+  "kind": "tradelayer_musig2_taproot_adaptor_dlc",
+  "p2trScriptPubKey": "5120efb9722c2748571a40e29adb28f7d55086cf9c6ec379154a69dd5d6d87c98e74",
+  "aggregateInternalKey": "4fc35e63ea316f14a0e85cd95216735bc164b0c5caa8e1cf52d0f2470eacecc1",
+  "outputKey": "efb9722c2748571a40e29adb28f7d55086cf9c6ec379154a69dd5d6d87c98e74",
+  "fundingTxid": "c8dbb340520ec17e8f7152e53c6cf850012e7720d810bfc19d5effe1bcae222e",
+  "spendTxid": "4371130c6e224c29f78f4b45aecd3a10cc884ae848aaa69a905eb6f03c8f368b",
+  "outcomeId": "settle-loss",
+  "oraclePx": "01290d7954c955f212444124032593c2683e5a2ec48f42391088223ea37c4fb4",
+  "oracleRx": "51228a49b28328ccf2954f7b12a7ad7855fa9c439278abe3c499084c4e51bbdf",
+  "enforcement": {
+    "onePartyAlone": "rejected",
+    "preSigWithoutOracle": "rejected",
+    "twoOfTwoPlusOracle": "valid"
+  }
+}

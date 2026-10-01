@@ -1,0 +1,71 @@
+{
+  "kind": "utxoref_public_beta_acceptance_receipt",
+  "version": 1,
+  "observedAt": "2026-07-14T23:47:32.845Z",
+  "endpoint": "https://api.layerwallet.com/utxoref-beta/",
+  "transport": {
+    "tls": true,
+    "reverseProxy": "nginx",
+    "vpsUpstreamBinding": "127.0.0.1:8793",
+    "walletRpcExposed": false
+  },
+  "status": {
+    "betaReady": true,
+    "chain": "testnet4",
+    "blocks": 144137,
+    "headers": 144137,
+    "graphHash": "34dfe4a3d05264fa54cd6d99e9a07ac784c22f3011b7704847337a0543d02eee",
+    "graphVerified": true
+  },
+  "faucet": {
+    "httpStatus": 201,
+    "claimId": "2d4f4ac5665785e329fd1c23",
+    "status": "broadcast",
+    "amountSats": "1000",
+    "destination": "tb1pve0ap0q2l8f7y3jw2shal3eemxa7e5975khgqrp6gez54ysv2zkq629yad",
+    "txid": "ee3ecb096ca6d3bc34da697c9d634bfce185a87784ea365ff97bd0ed7cc3e441",
+    "walletCommentMatched": true,
+    "feeSats": "167",
+    "explorer": "https://mempool.space/testnet4/tx/ee3ecb096ca6d3bc34da697c9d634bfce185a87784ea365ff97bd0ed7cc3e441"
+  },
+  "verification": {
+    "httpStatus": 201,
+    "runId": "d63051ad53a226d89724e914",
+    "iterations": 1,
+    "passed": 1,
+    "failed": 0,
+    "graphHash": "34dfe4a3d05264fa54cd6d99e9a07ac784c22f3011b7704847337a0543d02eee",
+    "resultDigest": "e848182eac83ea9508539a5fb56044abcc7a424121b92a204f7bef59adb2919f",
+    "retrievedReceiptMatched": true
+  },
+  "publicStatusLoad": {
+    "requests": 100,
+    "concurrency": 10,
+    "succeeded": 100,
+    "failed": 0,
+    "elapsedMs": 3348.67,
+    "requestsPerSecond": 29.86,
+    "latencyMs": {
+      "p50": 294.61,
+      "p95": 421.14,
+      "p99": 441.35,
+      "max": 521.74
+    },
+    "responseDigest": "df639c1ed006ca9bccf83d4e11e0b36a46963174c6fcb454151714cf142c4ad8"
+  },
+  "operatorRecovery": {
+    "supervisorScheduledAtLogon": true,
+    "tunnelKillTest": {
+      "replacementObserved": true,
+      "recoveryWindowSeconds": 25,
+      "publicHealthAfterRecovery": true
+    },
+    "serviceKillTest": {
+      "replacementObserved": true,
+      "recoveryWindowSeconds": 25,
+      "betaReadyAfterRecovery": true,
+      "graphVerifiedAfterRecovery": true
+    }
+  },
+  "secretsIncluded": false
+}

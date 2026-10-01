@@ -1,0 +1,20 @@
+{
+  "kind": "tradelayer_bitvm_sha256_disprove",
+  "messageLen": 27,
+  "honestDigest": "26bc9ae2b9a49c8167fd7a856018be9c9ff1ae70c8ba517169037ec5a766cee0",
+  "gates": 113512,
+  "leaves": 447392,
+  "merklePathDepth": 19,
+  "tamperedGate": {
+    "type": "xor",
+    "output": "s45404"
+  },
+  "treeRoot": "0c42afd94be8f56292195db9020b27e2b266193e077a48c9e70055b946b3acaa",
+  "p2trScriptPubKey": "5120592875ad77dd86169ea53b3cc2f70ab7eb8448d0e4c467d9e192bdc952b834b4",
+  "fundingTxid": "4c2962f401cf48200b15314f7ccc7701ca6889bc76714047fdbbcbfdb7a33c9f",
+  "spendTxid": "21d753ce2ff465e43d2bcee06fc823a2f5942bb811513a4b9cdcc02903f2baf0",
+  "broadcast": {
+    "fundingTxid": "4c2962f401cf48200b15314f7ccc7701ca6889bc76714047fdbbcbfdb7a33c9f",
+    "spendTxid": "21d753ce2ff465e43d2bcee06fc823a2f5942bb811513a4b9cdcc02903f2baf0"
+  }
+}

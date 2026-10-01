@@ -1,0 +1,197 @@
+{
+  "kind": "ark_taproot_miniscript_proof_manifest",
+  "manifestId": "3d25c067fa4e09fa2bfd23d58406b77534722cc92c17ece4dc519f39dc0f1900",
+  "manifestCore": {
+    "version": 1,
+    "protocol": "ark_taproot_miniscript_proof_manifest",
+    "networkPolicy": "bitcoin_taproot_policy_commitment",
+    "proofBoundary": "offchain_shinigami_stark_or_utxoref_governor",
+    "aspId": "ark-asp-regtest",
+    "templateId": "ark-dlc-template-ark-asp-regtest",
+    "arkRoundId": "ark-round-dlc-settlement-1",
+    "connectorOutpoint": "23f593f9d1319f6dc61c7ef6429561407f78d28b5be0c31b252e641516f0852f:0",
+    "vtxoCommitmentId": "0bc6134f2a91e31bbaecf02df0ba5b76d40a4c8f657d8506759d493c16b5193b",
+    "internalKeyHex": "aed0fb0d8ce1c1b3508dfb398e24bf17cfeafed051aed8314bc4f17b74a50b26",
+    "taprootOutputKey": "052856d0c20c3afa08dd48ae53e5512b9b754eba3112fb27f4fad116a6568bbd",
+    "selectedLeafRole": "utxoref_challenge_publication",
+    "selectedTapLeafHash": "29087138601b332a91f24f03d4c02e40ba5b6f505bdf6b3668b3a0165f43b5a6",
+    "selectedTaprootPathCommitment": "0f3c43506b1311777de98a8a69e72bb4524ba5d09dda5e48a4c72428ed36b256",
+    "selectedTaprootPathDepth": 1,
+    "taprootPathAlgorithm": "ark_tapbranch_v1_structural_sha256",
+    "miniscriptPolicyHash": "2436d542d3a94b86692d7aaa4b9ac4d4f8adeca20ba9cea0376223c657639b56",
+    "taprootLeafRoot": "c97ebd1a80a2872a8a5ebf409d8493a33fe46762dac1f1ef74430252fa3836f8",
+    "virtualCetSetId": "570d85510c7acd13bddf1e544e4dafa587617efc6442ef33b7e10225c3e60893",
+    "selectedVirtualCetId": "7d15c385312bee6409cbf43ee3777849e569d1edd7fb49e0eee3b38ad0305eb5",
+    "oracleOutcomeHash": "6ebf74f8771a811563331e0e4b5e389f5ab6a276d8ccf8090745048311ab4a55",
+    "utxorefPolicyId": "399326ac0199f1b8d0207db93c2d792785df2d75c60f7833e5cf578a20ab6852",
+    "settlementRoot": "8b8cd30852f4edbd86df233402d4ca881fab9e765c7669731c9c120db7946855",
+    "amountSats": "100000",
+    "challengeWindowBlocks": 144,
+    "proofPackageId": "a3e9a6840af975264e7eedc7d300a3ec0e61d5e4cb58870159262f5442213739",
+    "publicInputDigest": "69c7b43284e1b8f32ba651df1bae1ddd2512782b37971e43f5ed87b3ce716b05"
+  },
+  "taprootLeaves": [
+    {
+      "role": "cooperative_round",
+      "tapLeafHash": "8dc604fa7fe0838318061c62ab48a284cf78f649705a11c0bf6a654c0072cc3a",
+      "leafCore": {
+        "version": 1,
+        "role": "cooperative_round",
+        "scriptFamily": "taproot_miniscript_policy_shape",
+        "policyExpression": "and_v(v:pk(d3a73b7b76d68493db09b01cf7d23bedfbe5d91e5c6e8cb1cfb7256474345487),pk(3bc38fa764a8f369cf08a629837bfb0d9ddb360622ce647e4d0a5bcab412229a))",
+        "requiredSigners": [
+          "asp",
+          "owner"
+        ],
+        "relativeTimelockBlocks": 0,
+        "stateBindingFields": [
+          "vtxoCommitmentId",
+          "arkRoundId",
+          "connectorOutpoint"
+        ],
+        "notes": "Cooperative Ark round refresh or spend path."
+      }
+    },
+    {
+      "role": "owner_csv_exit",
+      "tapLeafHash": "6e1f2643eb32ddd2be8c61434610158124acecf9e74b7843c0bbdf0565f51536",
+      "leafCore": {
+        "version": 1,
+        "role": "owner_csv_exit",
+        "scriptFamily": "taproot_miniscript_policy_shape",
+        "policyExpression": "and_v(v:older(144),pk(3bc38fa764a8f369cf08a629837bfb0d9ddb360622ce647e4d0a5bcab412229a))",
+        "requiredSigners": [
+          "owner"
+        ],
+        "relativeTimelockBlocks": 144,
+        "stateBindingFields": [
+          "vtxoCommitmentId",
+          "arkRoundId"
+        ],
+        "notes": "Owner unilateral exit after the Ark exit delay."
+      }
+    },
+    {
+      "role": "asp_forfeit_guard",
+      "tapLeafHash": "55ac950d92b70e5d8ae4a3c5f7f80305ad366ff594ce73e2ab50ee7a629536e6",
+      "leafCore": {
+        "version": 1,
+        "role": "asp_forfeit_guard",
+        "scriptFamily": "taproot_miniscript_policy_shape",
+        "policyExpression": "and_v(v:older(2000),pk(d3a73b7b76d68493db09b01cf7d23bedfbe5d91e5c6e8cb1cfb7256474345487))",
+        "requiredSigners": [
+          "asp"
+        ],
+        "relativeTimelockBlocks": 2000,
+        "stateBindingFields": [
+          "vtxoCommitmentId",
+          "utxorefPolicyId"
+        ],
+        "notes": "ASP forfeit or slash guard committed for UTXORef challenge routing."
+      }
+    },
+    {
+      "role": "dlc_virtual_cet_settlement",
+      "tapLeafHash": "fa43d12f2f77e6aa29dd88cf370ff5b18f15ebf3385db339fd00be69895f3b92",
+      "leafCore": {
+        "version": 1,
+        "role": "dlc_virtual_cet_settlement",
+        "scriptFamily": "taproot_miniscript_policy_shape",
+        "policyExpression": "and_v(v:pk(d3a73b7b76d68493db09b01cf7d23bedfbe5d91e5c6e8cb1cfb7256474345487),and_v(pk(f9f08bc6af2aca06386aa343a4cb6952b6e257bf7a8533bbd1324f305024b52f),sha256(7d15c385312bee6409cbf43ee3777849e569d1edd7fb49e0eee3b38ad0305eb5)))",
+        "requiredSigners": [
+          "asp",
+          "oracle"
+        ],
+        "relativeTimelockBlocks": 0,
+        "stateBindingFields": [
+          "virtualCetSetId",
+          "selectedVirtualCetId",
+          "oracleOutcomeHash"
+        ],
+        "notes": "Virtual CET settlement path; the hashlock binds the oracle-selected Ark transition."
+      }
+    },
+    {
+      "role": "utxoref_challenge_publication",
+      "tapLeafHash": "29087138601b332a91f24f03d4c02e40ba5b6f505bdf6b3668b3a0165f43b5a6",
+      "leafCore": {
+        "version": 1,
+        "role": "utxoref_challenge_publication",
+        "scriptFamily": "taproot_miniscript_policy_shape",
+        "policyExpression": "and_v(v:pk(41c6ed6b099c63ad791b99b72c24d1b8a2cc10e232a2b496d6745a8dae537d25),sha256(8b8cd30852f4edbd86df233402d4ca881fab9e765c7669731c9c120db7946855))",
+        "requiredSigners": [
+          "utxoref_challenger"
+        ],
+        "relativeTimelockBlocks": 0,
+        "stateBindingFields": [
+          "utxorefPolicyId",
+          "settlementRoot",
+          "challengeWindowBlocks"
+        ],
+        "notes": "Challenge publication path for UTXORef/BitVM governor evidence."
+      }
+    }
+  ],
+  "selectedTaprootPath": {
+    "algorithm": "ark_tapbranch_v1_structural_sha256",
+    "maxDepth": 3,
+    "selectedLeafRole": "utxoref_challenge_publication",
+    "selectedTapLeafHash": "29087138601b332a91f24f03d4c02e40ba5b6f505bdf6b3668b3a0165f43b5a6",
+    "taprootLeafRoot": "c97ebd1a80a2872a8a5ebf409d8493a33fe46762dac1f1ef74430252fa3836f8",
+    "pathDepth": 1,
+    "path": [
+      {
+        "level": 2,
+        "siblingSide": "left",
+        "siblingNodeKind": "branch",
+        "siblingRole": null,
+        "siblingHash": "785b966f7f55f690972556df596e1913e83e64ff1f7d9ce5ed21db010fa3ec77"
+      }
+    ],
+    "pathCommitment": "0f3c43506b1311777de98a8a69e72bb4524ba5d09dda5e48a4c72428ed36b256"
+  },
+  "publicInputs": {
+    "taprootOutputKey": "052856d0c20c3afa08dd48ae53e5512b9b754eba3112fb27f4fad116a6568bbd",
+    "taprootLeafRoot": "c97ebd1a80a2872a8a5ebf409d8493a33fe46762dac1f1ef74430252fa3836f8",
+    "selectedTapLeafHash": "29087138601b332a91f24f03d4c02e40ba5b6f505bdf6b3668b3a0165f43b5a6",
+    "selectedTaprootPathCommitment": "0f3c43506b1311777de98a8a69e72bb4524ba5d09dda5e48a4c72428ed36b256",
+    "miniscriptPolicyHash": "2436d542d3a94b86692d7aaa4b9ac4d4f8adeca20ba9cea0376223c657639b56",
+    "arkRoundId": "ark-round-dlc-settlement-1",
+    "vtxoCommitmentId": "0bc6134f2a91e31bbaecf02df0ba5b76d40a4c8f657d8506759d493c16b5193b",
+    "virtualCetSetId": "570d85510c7acd13bddf1e544e4dafa587617efc6442ef33b7e10225c3e60893",
+    "selectedVirtualCetId": "7d15c385312bee6409cbf43ee3777849e569d1edd7fb49e0eee3b38ad0305eb5",
+    "oracleOutcomeHash": "6ebf74f8771a811563331e0e4b5e389f5ab6a276d8ccf8090745048311ab4a55",
+    "utxorefPolicyId": "399326ac0199f1b8d0207db93c2d792785df2d75c60f7833e5cf578a20ab6852",
+    "settlementRoot": "8b8cd30852f4edbd86df233402d4ca881fab9e765c7669731c9c120db7946855",
+    "amountSats": "100000"
+  },
+  "proofPackage": {
+    "kind": "ark_taproot_miniscript_proof_package",
+    "proofPackageId": "a3e9a6840af975264e7eedc7d300a3ec0e61d5e4cb58870159262f5442213739",
+    "proofPackageCore": {
+      "version": 1,
+      "proofSystem": "shinigami_cairo_stark_manifest",
+      "proverStatus": "manifest_only",
+      "programId": "ark-shinigami-miniscript-v1",
+      "programHash": "5ad4db1382e4debe2b6408fe1ccdfd411d1d5de22f1997e0054feacc9e8f42ad",
+      "executionTraceRoot": "dc5fc2bc5c0d3734fe8550fe14e842afddfd653a896ce5966d458e4e7eda2edd",
+      "proofRoot": "2b642540953737cfbe4c69b26bdeaa6e4054b10ee0fac8f0f6c97e9f040f9477",
+      "publicInputDigest": "69c7b43284e1b8f32ba651df1bae1ddd2512782b37971e43f5ed87b3ce716b05"
+    }
+  },
+  "checks": {
+    "selectedLeafPresent": true,
+    "taprootLeafRootMatched": true,
+    "selectedTaprootPathCommitmentMatched": true,
+    "selectedTaprootPathDepthWithinBounds": true,
+    "miniscriptPolicyHashMatched": true,
+    "publicInputDigestMatched": true,
+    "proofPackageBindsPublicInputs": true,
+    "selectedDlcLeafHasVirtualCet": true
+  },
+  "caveats": [
+    "This commits Taproot/Miniscript policy shape and a deterministic selected-leaf branch path; it does not compile descriptors or verify Bitcoin consensus scripts.",
+    "The proof package is manifest-only until the Shinigami/Stwo prover replaces proofRoot and executionTraceRoot with real outputs.",
+    "Bitcoin enforces the Taproot spend path; UTXORef/BitVM/governor logic consumes this proof manifest off-chain or in its challenge rail."
+  ]
+}

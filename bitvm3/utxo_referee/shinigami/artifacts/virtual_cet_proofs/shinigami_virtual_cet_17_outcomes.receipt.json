@@ -1,0 +1,37 @@
+{
+  "kind": "shinigami_virtual_cet_proof_receipt",
+  "receiptId": "dbd69f94ecf07dc5aa799ac7c8c70f10915217287f473ec0666209cdbbb5fe8b",
+  "receiptCore": {
+    "version": 1,
+    "protocol": "shinigami_virtual_cet_proof_receipt",
+    "proofSystem": "shinigami-stwo",
+    "claimId": "c4b1dde132c5b16c8fac3e4f6fa61e6011bd03334ab58daca020fe8a03bb1324",
+    "outcomeCount": 17,
+    "materializedCetCount": 0,
+    "bindingCommitment": "0x41036c6cd88532a744f6c90940aa477b8c11b0b",
+    "paths": {
+      "inputPath": "bitvm3\\utxo_referee\\shinigami\\artifacts\\virtual_cet_proofs\\shinigami_virtual_cet_17_outcomes.input.json",
+      "proofPath": "D:\\cargo-target\\ark-shinigami\\proofs\\shinigami_virtual_cet_17_outcomes.proof.json",
+      "proverLogPath": "D:\\cargo-target\\ark-shinigami\\logs\\shinigami_virtual_cet_17_outcomes.proof.log",
+      "verifierLogPath": "D:\\cargo-target\\ark-shinigami\\logs\\shinigami_virtual_cet_17_outcomes.proof.verify.log"
+    },
+    "hashes": {
+      "inputSha256": "a548277f2549329efba5412262a8b25b0cc13cc2f34b6df54d8193c73029f6cc",
+      "proofSha256": "3f1bd6f1484417aa1308ff1d9817305c61aff22b23d44b6a1f938f1265bb79da"
+    },
+    "sizes": {
+      "proofBytes": 9307296
+    },
+    "metrics": {
+      "elapsedWallClock": "0:09.64",
+      "maxResidentSetKb": 12437656,
+      "userSeconds": 58.97,
+      "systemSeconds": 5.58,
+      "cpuPercent": 669
+    },
+    "proverExitCode": 0,
+    "verifierExitCode": 0,
+    "verified": true
+  },
+  "verified": true
+}

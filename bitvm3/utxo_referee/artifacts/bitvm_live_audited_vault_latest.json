@@ -1,0 +1,200 @@
+{
+  "kind": "bitvm_live_audited_vault",
+  "createdAt": "2026-04-03T19:53:51.183Z",
+  "chain": {
+    "network": "test",
+    "rpcHost": "127.0.0.1",
+    "rpcPort": 19332,
+    "height": 4655412
+  },
+  "roles": {
+    "operator": {
+      "label": "m1-20260329-114821-operator",
+      "address": "tltc1q0w896h8lnzf6q5t67kgn2ezrkpnjvdg3m5rfys",
+      "pubkeyHex": "024729c20ad4e519a00e72970d4d511a7432c07c4127d4207eb77917f4276cd468"
+    },
+    "oracle": {
+      "label": "m1-20260329-114821-oracle",
+      "address": "tltc1qjth3pqrrf6denus68ml26332g99yumhr47232n",
+      "pubkeyHex": "03536e4608bb2d758add361549437ab552783fd8f2e189b88792f218854c8d3a36"
+    },
+    "residual": {
+      "label": "m1-20260329-114821-residual",
+      "address": "tltc1qjhseuq5xcjyh3m4eteghe8c44vzgeadl369lqe",
+      "pubkeyHex": "02aa6b4522d40d09ff1dbf5d6a331be635c036ac1c32a0bcd88e07b38ccb577e46"
+    }
+  },
+  "fundingInput": {
+    "address": "tltc1qjhseuq5xcjyh3m4eteghe8c44vzgeadl369lqe",
+    "label": "m1-20260329-114821-residual",
+    "txid": "9233e7f9c66dbfc7bc739b0b3ebb333b4ba117c61485c80e9df0eca2d8a581e3",
+    "vout": 0,
+    "valueSats": 159870
+  },
+  "stateOracle": {
+    "propertyId": 73,
+    "requestedAddresses": [
+      "tltc1q0w896h8lnzf6q5t67kgn2ezrkpnjvdg3m5rfys",
+      "tltc1qjth3pqrrf6denus68ml26332g99yumhr47232n",
+      "tltc1qjhseuq5xcjyh3m4eteghe8c44vzgeadl369lqe"
+    ],
+    "selectedAddresses": [
+      "tltc1q0w896h8lnzf6q5t67kgn2ezrkpnjvdg3m5rfys",
+      "tltc1qjth3pqrrf6denus68ml26332g99yumhr47232n",
+      "tltc1qjhseuq5xcjyh3m4eteghe8c44vzgeadl369lqe"
+    ],
+    "requestedFromBlock": 4655411,
+    "requestedToBlock": 4655412,
+    "fromBlock": 4655411,
+    "toBlock": 4655412,
+    "includeOps": [
+      "issue",
+      "redeem",
+      "rpnl"
+    ],
+    "compactedForWitness": false,
+    "witnessMode": "receipt-balance-claim-compact",
+    "payload": {
+      "schema": "tl-state-oracle-daily-v1",
+      "kind": "daily",
+      "propertyId": 73,
+      "windowStartBlock": 4655411,
+      "windowEndBlock": 4655412,
+      "bucketSize": 1,
+      "rowCount": 3,
+      "omittedAddressCount": 0,
+      "rows": [
+        {
+          "address": "tltc1q0w896h8lnzf6q5t67kgn2ezrkpnjvdg3m5rfys",
+          "propertyId": 73,
+          "available": 0,
+          "reserved": 0,
+          "margin": 0,
+          "vesting": 0,
+          "channelBalance": 0,
+          "bucketMin": 0,
+          "bucketMax": 1,
+          "defaultRoll": true,
+          "changeCount": 0,
+          "lastBlock": 0,
+          "lastTx": "",
+          "opSummary": {
+            "issue": 0,
+            "send": 0,
+            "redeem": 0,
+            "rpnl": 0
+          },
+          "changes": []
+        },
+        {
+          "address": "tltc1qjhseuq5xcjyh3m4eteghe8c44vzgeadl369lqe",
+          "propertyId": 73,
+          "available": 1,
+          "reserved": 0,
+          "margin": 0,
+          "vesting": 0,
+          "channelBalance": 0,
+          "bucketMin": 1,
+          "bucketMax": 2,
+          "defaultRoll": true,
+          "changeCount": 0,
+          "lastBlock": 0,
+          "lastTx": "",
+          "opSummary": {
+            "issue": 0,
+            "send": 0,
+            "redeem": 0,
+            "rpnl": 0
+          },
+          "changes": []
+        },
+        {
+          "address": "tltc1qjth3pqrrf6denus68ml26332g99yumhr47232n",
+          "propertyId": 73,
+          "available": 0,
+          "reserved": 0,
+          "margin": 0,
+          "vesting": 0,
+          "channelBalance": 0,
+          "bucketMin": 0,
+          "bucketMax": 1,
+          "defaultRoll": true,
+          "changeCount": 0,
+          "lastBlock": 0,
+          "lastTx": "",
+          "opSummary": {
+            "issue": 0,
+            "send": 0,
+            "redeem": 0,
+            "rpnl": 0
+          },
+          "changes": []
+        }
+      ]
+    },
+    "payloadB64": "eyJzY2hlbWEiOiJ0bC1zdGF0ZS1vcmFjbGUtZGFpbHktdjEiLCJraW5kIjoiZGFpbHkiLCJwcm9wZXJ0eUlkIjo3Mywid2luZG93U3RhcnRCbG9jayI6NDY1NTQxMSwid2luZG93RW5kQmxvY2siOjQ2NTU0MTIsImJ1Y2tldFNpemUiOjEsInJvd0NvdW50IjozLCJvbWl0dGVkQWRkcmVzc0NvdW50IjowLCJyb3dzIjpbeyJhZGRyZXNzIjoidGx0YzFxMHc4OTZoOGxuemY2cTV0NjdrZ24yZXpya3BuanZkZzNtNXJmeXMiLCJwcm9wZXJ0eUlkIjo3MywiYXZhaWxhYmxlIjowLCJyZXNlcnZlZCI6MCwibWFyZ2luIjowLCJ2ZXN0aW5nIjowLCJjaGFubmVsQmFsYW5jZSI6MCwiYnVja2V0TWluIjowLCJidWNrZXRNYXgiOjEsImRlZmF1bHRSb2xsIjp0cnVlLCJjaGFuZ2VDb3VudCI6MCwibGFzdEJsb2NrIjowLCJsYXN0VHgiOiIiLCJvcFN1bW1hcnkiOnsiaXNzdWUiOjAsInNlbmQiOjAsInJlZGVlbSI6MCwicnBubCI6MH0sImNoYW5nZXMiOltdfSx7ImFkZHJlc3MiOiJ0bHRjMXFqaHNldXE1eGNqeWgzbTRldGVnaGU4YzQ0dnpnZWFkbDM2OWxxZSIsInByb3BlcnR5SWQiOjczLCJhdmFpbGFibGUiOjEsInJlc2VydmVkIjowLCJtYXJnaW4iOjAsInZlc3RpbmciOjAsImNoYW5uZWxCYWxhbmNlIjowLCJidWNrZXRNaW4iOjEsImJ1Y2tldE1heCI6MiwiZGVmYXVsdFJvbGwiOnRydWUsImNoYW5nZUNvdW50IjowLCJsYXN0QmxvY2siOjAsImxhc3RUeCI6IiIsIm9wU3VtbWFyeSI6eyJpc3N1ZSI6MCwic2VuZCI6MCwicmVkZWVtIjowLCJycG5sIjowfSwiY2hhbmdlcyI6W119LHsiYWRkcmVzcyI6InRsdGMxcWp0aDNwcXJyZjZkZW51czY4bWwyNjMzMmc5OXl1bWhyNDcyMzJuIiwicHJvcGVydHlJZCI6NzMsImF2YWlsYWJsZSI6MCwicmVzZXJ2ZWQiOjAsIm1hcmdpbiI6MCwidmVzdGluZyI6MCwiY2hhbm5lbEJhbGFuY2UiOjAsImJ1Y2tldE1pbiI6MCwiYnVja2V0TWF4IjoxLCJkZWZhdWx0Um9sbCI6dHJ1ZSwiY2hhbmdlQ291bnQiOjAsImxhc3RCbG9jayI6MCwibGFzdFR4IjoiIiwib3BTdW1tYXJ5Ijp7Imlzc3VlIjowLCJzZW5kIjowLCJyZWRlZW0iOjAsInJwbmwiOjB9LCJjaGFuZ2VzIjpbXX1dfQ==",
+    "payloadByteLength": 1078,
+    "payloadHashHex": "ce58d76f8c7e4b60452a75e9b5efed01c3d46b35044c18a11e4ce7300284e757",
+    "claimAddress": "tltc1qjhseuq5xcjyh3m4eteghe8c44vzgeadl369lqe",
+    "balanceRootHex": "3f177aca360818283f90832b319cb58992e9fac7f4b1fc69f9d747a9abac9f28",
+    "snapshotHashHex": "8fc0886b9e6d1f579999c32aa3e7275ff398ce360706f56f0ca37e2b455aa266",
+    "claimJsonByteLength": 699,
+    "claimByteLength": 252,
+    "balanceClaim": {
+      "schemaVersion": 1,
+      "kind": "receipt-balance-claim",
+      "assetSymbol": "rLTC-SAT",
+      "network": "litecoin-testnet",
+      "epochId": "4655412",
+      "accountId": "tltc1qjhseuq5xcjyh3m4eteghe8c44vzgeadl369lqe",
+      "balanceSats": "100000000",
+      "leafHash": "f056d7735a29aff14cf950086e33e438a4dc51d7078f931228c8a36ee1c21853",
+      "index": 1,
+      "siblings": [
+        "cad2319db24eb2257b9eef327fdbd6b6c80efdf02121e101bc62798678c5779c",
+        "9838a5b291970225bcff9151df184694dd2f410655d9b98afd3799fc36a4bbfa"
+      ],
+      "balanceRoot": "3f177aca360818283f90832b319cb58992e9fac7f4b1fc69f9d747a9abac9f28",
+      "challengeWindowStart": "4655412",
+      "challengeWindowLength": "6",
+      "challengeWindowEnd": "4655418",
+      "snapshotHash": "8fc0886b9e6d1f579999c32aa3e7275ff398ce360706f56f0ca37e2b455aa266"
+    },
+    "derivedRouting": {
+      "oraclePayoutSats": 119000,
+      "residualPayoutSats": 0,
+      "spendableSats": 119000
+    }
+  },
+  "oraclePreimageHex": "726263313409470000000000340947000000000006000000000000003a0947000000000000e1f5050000000001002c746c746331716a68736575713578636a7968336d3465746567686538633434767a676561646c3336396c7165f056d7735a29aff14cf950086e33e438a4dc51d7078f931228c8a36ee1c218533f177aca360818283f90832b319cb58992e9fac7f4b1fc69f9d747a9abac9f288fc0886b9e6d1f579999c32aa3e7275ff398ce360706f56f0ca37e2b455aa26602cad2319db24eb2257b9eef327fdbd6b6c80efdf02121e101bc62798678c5779c9838a5b291970225bcff9151df184694dd2f410655d9b98afd3799fc36a4bbfa",
+  "oracleHashHex": "29eee24c7cf4ba44c853357f5ab11ca6d8f34669d0912f7ab8bcf1848a59184e",
+  "timeoutHeight": 4655418,
+  "vault": {
+    "address": "tltc1qm8ht94vcdl0rcxc7ryhtur0uecss84avt7arzuvna2s3sfv6fx9sacgfr8",
+    "witnessScriptHex": "63a82029eee24c7cf4ba44c853357f5ab11ca6d8f34669d0912f7ab8bcf1848a59184e882103536e4608bb2d758add361549437ab552783fd8f2e189b88792f218854c8d3a36ad5221024729c20ad4e519a00e72970d4d511a7432c07c4127d4207eb77917f4276cd4682102aa6b4522d40d09ff1dbf5d6a331be635c036ac1c32a0bcd88e07b38ccb577e4652ae67033a0947b1755221024729c20ad4e519a00e72970d4d511a7432c07c4127d4207eb77917f4276cd4682102aa6b4522d40d09ff1dbf5d6a331be635c036ac1c32a0bcd88e07b38ccb577e4652ae68",
+    "fundingTxid": "6328359ec866a80b431ce01861691c05358cc9b3ff086c51dd83d90884d14c75",
+    "fundingVout": 0,
+    "fundingValueSats": 120000,
+    "fundingScriptPubKeyHex": "0020d9eeb2d5986fde3c1b1e192ebe0dfcce2103d7ac5fba317193eaa118259a498b"
+  },
+  "oracleSpend": {
+    "txid": "706376d9a7862dcae9e72f891468beaf45fa9ba69e43396177d8e028b63a5e5b",
+    "hex": "02000000000101754cd18408d983dd516c08ffb3c98c35051c696118e01c430ba866c89e3528630000000000ffffffff01d8d00100000000001600147b8e5d5cff9893a0517af591356443b067263511070047304402203bbd9c745377f01db1ea237cbcde29a57fd47c13f63c5f190010a1243dd190b5022040e30068f829b24f88c86c994d9c9d811bc4c2233bfbbf48c508475be4d0662e01473044022062bac40e4d78bc5d83bbb29561ac94280bd43496d4e923d5f308ae058e1ad622022062496fa0c8ac68e405a4947b3d0de56ca48381cbd994aec2232cfce6f881c39a01483045022100bd73ca56239f76e5c093f4842df9bfc4f5401ae29c331d4d526dc7a5c640691302203f204b38e1365d7105cd9ecda205cdb4a7e052b61c90e3e95e650d2cfe8142e801fc726263313409470000000000340947000000000006000000000000003a0947000000000000e1f5050000000001002c746c746331716a68736575713578636a7968336d3465746567686538633434767a676561646c3336396c7165f056d7735a29aff14cf950086e33e438a4dc51d7078f931228c8a36ee1c218533f177aca360818283f90832b319cb58992e9fac7f4b1fc69f9d747a9abac9f288fc0886b9e6d1f579999c32aa3e7275ff398ce360706f56f0ca37e2b455aa26602cad2319db24eb2257b9eef327fdbd6b6c80efdf02121e101bc62798678c5779c9838a5b291970225bcff9151df184694dd2f410655d9b98afd3799fc36a4bbfa0101dd63a82029eee24c7cf4ba44c853357f5ab11ca6d8f34669d0912f7ab8bcf1848a59184e882103536e4608bb2d758add361549437ab552783fd8f2e189b88792f218854c8d3a36ad5221024729c20ad4e519a00e72970d4d511a7432c07c4127d4207eb77917f4276cd4682102aa6b4522d40d09ff1dbf5d6a331be635c036ac1c32a0bcd88e07b38ccb577e4652ae67033a0947b1755221024729c20ad4e519a00e72970d4d511a7432c07c4127d4207eb77917f4276cd4682102aa6b4522d40d09ff1dbf5d6a331be635c036ac1c32a0bcd88e07b38ccb577e4652ae6800000000",
+    "outputs": [
+      {
+        "address": "tltc1q0w896h8lnzf6q5t67kgn2ezrkpnjvdg3m5rfys",
+        "valueSats": 119000
+      }
+    ]
+  },
+  "timeoutSpend": {
+    "txid": "da043f49f72d8ddb431be5d7abcaa3b3bdc40e2dc52b032bf111d68eabca745f",
+    "hex": "02000000000101754cd18408d983dd516c08ffb3c98c35051c696118e01c430ba866c89e3528630000000000feffffff01d8d001000000000016001495e19e0286c48978eeb95e517c9f15ab048cf5bf0500483045022100c08f7fa429979bd4f22077297b3d21ca723240641f3719e84a968e707266169e02200337ad419496d7000c23fafc3ae7a82392de51ccf0a4ca4161ea49d2338807b70147304402205ec9ed9e8d09465a9262ae63ed712f50d2b8cf0f941afa650cd28ed3dac2c228022077ca25fe5bc477f3849248bb3947320c856167221bd27aec4aa9cb5747d2b71f0100dd63a82029eee24c7cf4ba44c853357f5ab11ca6d8f34669d0912f7ab8bcf1848a59184e882103536e4608bb2d758add361549437ab552783fd8f2e189b88792f218854c8d3a36ad5221024729c20ad4e519a00e72970d4d511a7432c07c4127d4207eb77917f4276cd4682102aa6b4522d40d09ff1dbf5d6a331be635c036ac1c32a0bcd88e07b38ccb577e4652ae67033a0947b1755221024729c20ad4e519a00e72970d4d511a7432c07c4127d4207eb77917f4276cd4682102aa6b4522d40d09ff1dbf5d6a331be635c036ac1c32a0bcd88e07b38ccb577e4652ae683a094700",
+    "outputs": [
+      {
+        "address": "tltc1qjhseuq5xcjyh3m4eteghe8c44vzgeadl369lqe",
+        "valueSats": 119000
+      }
+    ]
+  }
+}

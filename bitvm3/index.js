@@ -34,6 +34,7 @@ const opcodes = require('./opcodes');
 const witness = require('./witness');
 const generator = require('./generator');
 const merkle = require('./merkle');
+const sha256 = require('./sha256');
 const utxoReferee = require('./utxo_referee');
 
 module.exports = {
@@ -61,6 +62,8 @@ module.exports = {
   proofToWitness: merkle.proofToWitness,
   updateProofToWitness: merkle.updateProofToWitness,
   bufToHex: merkle.bufToHex,
+  sha256,
+  ...sha256,
 
   // UTXO Referee (sweep verification)
   utxoReferee,

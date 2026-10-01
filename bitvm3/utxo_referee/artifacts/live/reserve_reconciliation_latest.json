@@ -1,0 +1,47 @@
+{
+  "kind": "tradelayer_live_reserve_reconciliation",
+  "createdAt": "2026-07-06T15:44:13.164Z",
+  "source": "rpc:tl-wallet",
+  "reserve": {
+    "creditedCount": 46,
+    "observedCount": 46,
+    "reservedSats": "17502113",
+    "reserveSourceKind": "receipt-deposit-indexer",
+    "reserveSourceHash": "4fd21302508b4bf2015f20f2c4eaff7da83a481cc1c1bf02db2ca5b6c980e29e"
+  },
+  "reconciliation": {
+    "kind": "tradelayer_reserve_reconciliation_v1",
+    "network": "litecoin-testnet",
+    "epochId": "77",
+    "queueHash": "206ea73cb10ab75f72648bf5b3c218b9b2fc5551bd799fdb5d66ed5ad251fbfb",
+    "withdrawalRootHex": "76a1ef570ccb542551a02c80d7948e37253fbd396fcc2e8171402798a3a7f81e",
+    "capSats": "99000",
+    "payableCount": 2,
+    "reserveSourceKind": "receipt-deposit-indexer",
+    "reserveSourceHash": "4fd21302508b4bf2015f20f2c4eaff7da83a481cc1c1bf02db2ca5b6c980e29e",
+    "reservedSats": "17502113",
+    "marginSats": "17403113",
+    "mathSolvent": true,
+    "observedAtHeight": 4794443,
+    "maxReserveAgeBlocks": 6,
+    "staleAtBuild": false,
+    "ageBlocksAtBuild": 0,
+    "solvent": true
+  },
+  "reconciliationHash": "1411d93ee289463040a448b9b6b5852b594003150a936f5159374b666ad8f401",
+  "insolvencyChallenge": {
+    "challengeable": false,
+    "challengeHash": "d43022f114dc3aa965e8bbe14648fd2ee2d9470a328885359df6c4f1d9b22dc9",
+    "shortfallSats": "-17403113"
+  },
+  "stackHash": "79d2ab93412e012f6925f0d504e7ac6b04cba6ff56f8ef8ecc111c8c7069a410",
+  "dashboardStatus": "needs_attention",
+  "walletAction": "pause_spend",
+  "stackVerification": "ok",
+  "reserveFreshness": {
+    "staleAtBuild": false,
+    "staleNow": false,
+    "ageBlocksNow": 0,
+    "wentStaleSinceBuild": false
+  }
+}

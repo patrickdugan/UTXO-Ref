@@ -1,0 +1,35 @@
+{
+  "kind": "ark_zk_miniscript_proof_receipt",
+  "receiptId": "9b8f3a7342bf1815c2951aa62b6dc5b03f006160db2c7c8a29d6ca8ddede6eec",
+  "receiptCore": {
+    "version": 1,
+    "protocol": "ark_zk_miniscript_proof_receipt",
+    "claimId": "40b3577b81a5e644758c5864a6333bba33cc230b3fda3061f7fcd5b180f3ebd4",
+    "manifestId": "3f8bb38917fa7e8404f9457cb2cf2318c4244200201623575449310b933cc12b",
+    "selectedLeafRole": "cooperative_round",
+    "selectedLeafRoleCode": 1,
+    "bindingCommitment": "0x4d418c61a0980454e1f1a1542b2c1dc90bc4682b1d",
+    "paths": {
+      "claimPath": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\ark_zk_miniscript\\ark_zk_miniscript_cooperative_round.claim.json",
+      "inputPath": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\ark_zk_miniscript\\ark_zk_miniscript_cooperative_round.input.json",
+      "proofPath": "D:\\cargo-target\\ark-shinigami\\proofs\\ark_zk_miniscript_cooperative_round.proof.json",
+      "proverLogPath": "D:\\cargo-target\\ark-shinigami\\logs\\ark_zk_miniscript_cooperative_round.proof.log",
+      "verifierLogPath": "D:\\cargo-target\\ark-shinigami\\logs\\ark_zk_miniscript_cooperative_round.proof.verify.log"
+    },
+    "hashes": {
+      "inputSha256": "444b439423616e3dd81a8aa6be02942c369f215aa4cf3338e1089c68954f32a8",
+      "proofSha256": "4e01bdab61182a524206509a7f5f8ea0565a5930f4b06272f941568117fce171",
+      "proverLogSha256": "45c427eb75c08710f3d2d31a60f4dcea5858459bb98f37cc670bf3bf7252e48f",
+      "verifierLogSha256": "cf1364fe804cf6f50acb98c5b151baf83333daab9d56e5aab5fcdf7582624c59"
+    },
+    "status": {
+      "proverExitCode": 0,
+      "verifierExitCode": 0
+    },
+    "remote": {
+      "host": "snacksack",
+      "rayonThreads": 2,
+      "minRemoteAvailableGb": 24
+    }
+  }
+}

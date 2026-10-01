@@ -1,0 +1,282 @@
+{
+  "kind": "civkit_ai_live_ltc_settlement",
+  "createdAt": "2026-04-05T00:34:00.541Z",
+  "wallet": {
+    "walletName": "tl-wallet",
+    "balance": 0.1378128,
+    "rpcUrl": "http://127.0.0.1:19332"
+  },
+  "chain": {
+    "chain": "test",
+    "height": 4664822,
+    "network": "litecoin-testnet"
+  },
+  "addresses": {
+    "sellerAddress": "tltc1q4uth7duk5s557ys0084kdte2r7lav4y4jq9054",
+    "buyerAddress": "tltc1qq8cr0z0slv7jmtxwwfadqfkrcryq9k8p05qena",
+    "platformAddress": "tltc1qwtgynczyr28whd730tkc9u7rznzhept84zfyet",
+    "notaryAddress": "tltc1qtls96u5rhcm9sgrusjq70rzv9kk7gh69vnuk52"
+  },
+  "session": {
+    "tradeId": "3233cf9a9374813dd7c1da2a71110cf1e26caa4cae3c5a9faef27d01190df60b",
+    "expiryBlock": "4665110",
+    "authorizationMode": "threshold_2_of_3",
+    "feeQuote": {
+      "platformFeeSats": "500",
+      "bookingFeeSats": "1000",
+      "resolverFeeSats": "2500"
+    }
+  },
+  "arbitration": {
+    "route": "split",
+    "reasonCode": "subagent_consensus_split",
+    "trustedToSign": true,
+    "confidenceBps": 7200,
+    "receiptHashHex": "632a579270a02046bc50c6cd54e0f99b370c49a03b78ec2ff048e15d3e072ad6",
+    "receipt": {
+      "arbitrationId": "3233cf9a9374813dd7c1da2a71110cf1e26caa4cae3c5a9faef27d01190df60b:split",
+      "arbitratorId": "ai_arbitrator_ltc_live",
+      "trustedToSign": true,
+      "finalRoute": "split",
+      "finalConfidenceBps": 7200,
+      "reasonCode": "subagent_consensus_split",
+      "policyHashHex": "747e1bae2429dc7346035b6a0cb26a7678fd7347954f52f555caa34b5d90e0d9",
+      "evidenceRootHex": "f0c66221a2cf9a79b6f7634dd6bc453ee3246275c5d35024a2d7b957841b876f",
+      "reviewsRootHex": "45f3067a66d796d4135b5d57655098527478e8986068ad647f5b0b583fa5b586",
+      "binding": {
+        "orderHashHex": "7303b989eedebaf474e59fb82150678301bc5e00d96de9340da9e5a6547c53e3",
+        "decisionHashHex": "f8b4cefc77d801192742fa62cf0769ca2e18d998582e87628ca96927ddf7c1ea",
+        "selectedCommitmentHashHex": "05bcb114c3858bbef19466da66aba75c91ad096ce8d9dc7ae30a842ec4212073",
+        "settlementCommitmentHashHex": "af179f7636a7f22f0824939aeb9544a3fda45e973486d4c1cedf0ab5c0adba55",
+        "transitionCommitmentHashHex": "05bcb114c3858bbef19466da66aba75c91ad096ce8d9dc7ae30a842ec4212073",
+        "taprootAddress": "tltc1p4ccy9vw2pewn9qwq9knwjz6pvnfjyad2rq5xpcmp9jgzf53uqpyq4j37ee",
+        "txId": "f1efdb655069d251cd34d2ad188b0ed69bca612a4d7a9eadaf51b03a6000e1d3"
+      },
+      "chainContext": {
+        "mode": "rpc",
+        "network": "litecoin-testnet",
+        "chain": "test",
+        "height": 4664822,
+        "fundingTxid": "8157cb783f1bffc96b7f49ec8abfde1dcd3c5865c87e095705aa7bf61d4bdc1e"
+      }
+    },
+    "subAgentReviews": [
+      {
+        "agentId": "seller_case_agent",
+        "agentRole": "seller_case",
+        "recommendedRoute": "split",
+        "confidenceBps": 7200,
+        "releaseScoreBps": 4024,
+        "refundScoreBps": 3357,
+        "citedEvidenceIds": [
+          "funding",
+          "buyer-receipt",
+          "receipt-mismatch",
+          "seller-denial",
+          "offer-match"
+        ],
+        "notes": [
+          "chain_funding_confirmed:Funding tx 8157cb783f1bffc96b7f49ec8abfde1dcd3c5865c87e095705aa7bf61d4bdc1e created for live LTC settlement",
+          "fiat_receipt_match:Buyer uploaded cash deposit slip consistent with quoted amount",
+          "receipt_mismatch:Deposit slip metadata mismatched branch reference",
+          "seller_denial:Seller denies that funds were available at collection window",
+          "payment_method_match:Trade metadata still matches listed cash deposit offer"
+        ]
+      },
+      {
+        "agentId": "buyer_safety_agent",
+        "agentRole": "buyer_safety",
+        "recommendedRoute": "split",
+        "confidenceBps": 7200,
+        "releaseScoreBps": 3218,
+        "refundScoreBps": 4197,
+        "citedEvidenceIds": [
+          "funding",
+          "buyer-receipt",
+          "receipt-mismatch",
+          "seller-denial",
+          "offer-match"
+        ],
+        "notes": [
+          "chain_funding_confirmed:Funding tx 8157cb783f1bffc96b7f49ec8abfde1dcd3c5865c87e095705aa7bf61d4bdc1e created for live LTC settlement",
+          "fiat_receipt_match:Buyer uploaded cash deposit slip consistent with quoted amount",
+          "receipt_mismatch:Deposit slip metadata mismatched branch reference",
+          "seller_denial:Seller denies that funds were available at collection window",
+          "payment_method_match:Trade metadata still matches listed cash deposit offer"
+        ]
+      }
+    ]
+  },
+  "funding": {
+    "txid": "8157cb783f1bffc96b7f49ec8abfde1dcd3c5865c87e095705aa7bf61d4bdc1e",
+    "outpoint": {
+      "txid": "8157cb783f1bffc96b7f49ec8abfde1dcd3c5865c87e095705aa7bf61d4bdc1e",
+      "vout": 0,
+      "valueSats": "162000",
+      "confirmations": 0
+    },
+    "address": "tltc1p4ccy9vw2pewn9qwq9knwjz6pvnfjyad2rq5xpcmp9jgzf53uqpyq4j37ee"
+  },
+  "settlement": {
+    "txid": "f1efdb655069d251cd34d2ad188b0ed69bca612a4d7a9eadaf51b03a6000e1d3",
+    "txHex": "020000000001011edc4b1df67baa0557097ec865583ccd1ddebf8aec497f6bc9ff1b3f78cb57810000000000ffffffff062417010000000000160014af177f3796a4294f120f79eb66af2a1fbfd654952c2301000000000016001401f03789f0fb3d2dacce727ad026c3c0c802d8e1f40100000000000016001472d049e0441a8eebb7d17aed82f3c314c57c8567e8030000000000001600145fe05d7283be3658207c8481e78c4c2dade45f45c4090000000000001600145fe05d7283be3658207c8481e78c4c2dade45f450000000000000000226a2005bcb114c3858bbef19466da66aba75c91ad096ce8d9dc7ae30a842ec4212073054080600e9ea3b824064639963587e789bdc46b327212d97cb19de456613476f638ff9ef98a210dbcc82be7bc8604d5b7f8cdfe6273326bd4a578cc9c160a9d2a9340576be9828c183a66e60b1a3dd62746bd5b557c53c7c715da2105a9ae66161b2187e547cd7c8245babc0fb9969d1601852fd4e6b0e827731053da75efe84f0c290068204f355bdcb7cc0af728ef3cceb9615d90684bb5b2ca5f859ab0f0b704075871aaac20466d7fcae563e5cb09a0d1870bb580344804617879a14949cf22285f1bae3f27ba203c72addb4fdf09af94f0c94d7fe92a386a7e70cf8a1d85916386bb2535c7b1b1ba52a261c050929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0e26cc452cda09cc512d544d3c950f53784736f42513e9ddf0cc380341c325b627db563d1e879dc50d4a8257d39b208201cf3a2184c27e6aba92550e37b33421b00000000",
+    "decoded": {
+      "txid": "f1efdb655069d251cd34d2ad188b0ed69bca612a4d7a9eadaf51b03a6000e1d3",
+      "hash": "dbabc88f866fe8f7e68809cebf2118941abb9cc51e764680e82906d9fb199ec8",
+      "vsize": 334,
+      "weight": 1333,
+      "locktime": 0
+    },
+    "mempoolAccept": {
+      "txid": "f1efdb655069d251cd34d2ad188b0ed69bca612a4d7a9eadaf51b03a6000e1d3",
+      "allowed": true,
+      "vsize": 334,
+      "fees": {
+        "base": 0.00012
+      }
+    },
+    "selectedLeaf": "quorum_2_of_3",
+    "witnessPlan": {
+      "authorizationPath": "quorum_2_of_3",
+      "threshold": 2,
+      "signerSet": {
+        "buyerSigned": true,
+        "sellerSigned": false,
+        "notarySigned": true
+      },
+      "signatureCount": 2,
+      "scriptSatisfiable": true,
+      "signatureSlots": [
+        {
+          "stackIndex": 0,
+          "keyField": "notaryPubkey",
+          "signerRole": "notary",
+          "signed": true,
+          "witnessPlaceholder": "notary_signature"
+        },
+        {
+          "stackIndex": 1,
+          "keyField": "refundPubkey",
+          "signerRole": "buyer",
+          "signed": true,
+          "witnessPlaceholder": "buyer_signature"
+        },
+        {
+          "stackIndex": 2,
+          "keyField": "releasePubkey",
+          "signerRole": "seller",
+          "signed": false,
+          "witnessPlaceholder": "OP_0"
+        }
+      ],
+      "witnessStack": [
+        "notary_signature",
+        "buyer_signature",
+        "OP_0"
+      ]
+    },
+    "commitmentType": "transition",
+    "binding": {
+      "settlementCommitmentHashHex": "af179f7636a7f22f0824939aeb9544a3fda45e973486d4c1cedf0ab5c0adba55",
+      "transitionCommitmentHashHex": "05bcb114c3858bbef19466da66aba75c91ad096ce8d9dc7ae30a842ec4212073",
+      "selectedCommitmentHashHex": "05bcb114c3858bbef19466da66aba75c91ad096ce8d9dc7ae30a842ec4212073"
+    },
+    "outputs": [
+      {
+        "role": "seller",
+        "amountSats": "71460",
+        "scriptPubKeyHex": "0014af177f3796a4294f120f79eb66af2a1fbfd65495"
+      },
+      {
+        "role": "buyer",
+        "amountSats": "74540",
+        "scriptPubKeyHex": "001401f03789f0fb3d2dacce727ad026c3c0c802d8e1"
+      },
+      {
+        "role": "platform_fee",
+        "amountSats": "500",
+        "scriptPubKeyHex": "001472d049e0441a8eebb7d17aed82f3c314c57c8567"
+      },
+      {
+        "role": "notary_booking_fee",
+        "amountSats": "1000",
+        "scriptPubKeyHex": "00145fe05d7283be3658207c8481e78c4c2dade45f45"
+      },
+      {
+        "role": "resolver_fee",
+        "amountSats": "2500",
+        "scriptPubKeyHex": "00145fe05d7283be3658207c8481e78c4c2dade45f45"
+      }
+    ]
+  },
+  "nostrSettlementEvent": {
+    "kind": 30180,
+    "pubkey": "3c72addb4fdf09af94f0c94d7fe92a386a7e70cf8a1d85916386bb2535c7b1b1",
+    "created_at": 1775349240,
+    "tags": [
+      [
+        "d",
+        "3233cf9a9374813dd7c1da2a71110cf1e26caa4cae3c5a9faef27d01190df60b"
+      ],
+      [
+        "t",
+        "civkit-agent"
+      ],
+      [
+        "namespace",
+        "civkit-p2p-agent/v1"
+      ],
+      [
+        "role",
+        "settlement_agent"
+      ],
+      [
+        "route",
+        "split"
+      ],
+      [
+        "order",
+        "7303b989eedebaf474e59fb82150678301bc5e00d96de9340da9e5a6547c53e3"
+      ],
+      [
+        "decision",
+        "f8b4cefc77d801192742fa62cf0769ca2e18d998582e87628ca96927ddf7c1ea"
+      ],
+      [
+        "txid",
+        "f1efdb655069d251cd34d2ad188b0ed69bca612a4d7a9eadaf51b03a6000e1d3"
+      ],
+      [
+        "authorization_mode",
+        "threshold_2_of_3"
+      ],
+      [
+        "bitvm_route",
+        "split"
+      ],
+      [
+        "buyer_signed",
+        "1"
+      ],
+      [
+        "seller_signed",
+        "0"
+      ],
+      [
+        "notary_signed",
+        "1"
+      ],
+      [
+        "transition_commitment",
+        "05bcb114c3858bbef19466da66aba75c91ad096ce8d9dc7ae30a842ec4212073"
+      ],
+      [
+        "selected_commitment",
+        "05bcb114c3858bbef19466da66aba75c91ad096ce8d9dc7ae30a842ec4212073"
+      ]
+    ],
+    "content": "{\"authorization\":{\"mode\":\"threshold_2_of_3\",\"path\":\"quorum_2_of_3\",\"witnessPlan\":{\"authorizationPath\":\"quorum_2_of_3\",\"scriptSatisfiable\":true,\"signatureCount\":2,\"signatureSlots\":[{\"keyField\":\"notaryPubkey\",\"signed\":true,\"signerRole\":\"notary\",\"stackIndex\":0,\"witnessPlaceholder\":\"notary_signature\"},{\"keyField\":\"refundPubkey\",\"signed\":true,\"signerRole\":\"buyer\",\"stackIndex\":1,\"witnessPlaceholder\":\"buyer_signature\"},{\"keyField\":\"releasePubkey\",\"signed\":false,\"signerRole\":\"seller\",\"stackIndex\":2,\"witnessPlaceholder\":\"OP_0\"}],\"signerSet\":{\"buyerSigned\":true,\"notarySigned\":true,\"sellerSigned\":false},\"threshold\":2,\"witnessStack\":[\"notary_signature\",\"buyer_signature\",\"OP_0\"]}},\"authorizationMode\":\"threshold_2_of_3\",\"authorizationPath\":\"quorum_2_of_3\",\"binding\":{\"selectedCommitmentHashHex\":\"05bcb114c3858bbef19466da66aba75c91ad096ce8d9dc7ae30a842ec4212073\",\"settlementCommitmentHashHex\":\"af179f7636a7f22f0824939aeb9544a3fda45e973486d4c1cedf0ab5c0adba55\",\"transitionCommitmentHashHex\":\"05bcb114c3858bbef19466da66aba75c91ad096ce8d9dc7ae30a842ec4212073\"},\"bitvmChallenge\":{\"binding\":{\"decisionHashHex\":\"f8b4cefc77d801192742fa62cf0769ca2e18d998582e87628ca96927ddf7c1ea\",\"orderHashHex\":\"7303b989eedebaf474e59fb82150678301bc5e00d96de9340da9e5a6547c53e3\",\"settlementCommitmentHashHex\":\"0b10aad0fc9482acb09f160f9cd9bd8aec78d31e3860d0984cc98f56d3964d2e\",\"transitionCommitmentHashHex\":\"05bcb114c3858bbef19466da66aba75c91ad096ce8d9dc7ae30a842ec4212073\"},\"route\":\"split\",\"signerSet\":{\"buyerSigned\":true,\"notarySigned\":true,\"sellerSigned\":false},\"threshold\":2,\"transitionState\":{\"buyerAmountSats\":\"74540\",\"currentBlock\":\"4664822\",\"escrowAmountSats\":\"150000\",\"expiryBlock\":\"4665110\",\"fixedFeesSumSats\":\"1500\",\"resolverFeeSats\":\"2500\",\"route\":\"split\",\"sellerAmountSats\":\"71460\",\"signerSet\":{\"buyerSigned\":true,\"notarySigned\":true,\"sellerSigned\":false},\"splitRequiresNotary\":true},\"verification\":{\"ok\":true,\"reason\":null}},\"bitvmTransitionCommitmentHash\":\"05bcb114c3858bbef19466da66aba75c91ad096ce8d9dc7ae30a842ec4212073\",\"commitmentAnchor\":\"05bcb114c3858bbef19466da66aba75c91ad096ce8d9dc7ae30a842ec4212073\",\"commitmentType\":\"transition\",\"decisionHash\":\"f8b4cefc77d801192742fa62cf0769ca2e18d998582e87628ca96927ddf7c1ea\",\"orderHash\":\"7303b989eedebaf474e59fb82150678301bc5e00d96de9340da9e5a6547c53e3\",\"outputs\":[{\"amountSats\":\"71460\",\"role\":\"seller\",\"scriptPubKeyHex\":\"0014af177f3796a4294f120f79eb66af2a1fbfd65495\"},{\"amountSats\":\"74540\",\"role\":\"buyer\",\"scriptPubKeyHex\":\"001401f03789f0fb3d2dacce727ad026c3c0c802d8e1\"},{\"amountSats\":\"500\",\"role\":\"platform_fee\",\"scriptPubKeyHex\":\"001472d049e0441a8eebb7d17aed82f3c314c57c8567\"},{\"amountSats\":\"1000\",\"role\":\"notary_booking_fee\",\"scriptPubKeyHex\":\"00145fe05d7283be3658207c8481e78c4c2dade45f45\"},{\"amountSats\":\"2500\",\"role\":\"resolver_fee\",\"scriptPubKeyHex\":\"00145fe05d7283be3658207c8481e78c4c2dade45f45\"}],\"psbtBase64\":\"cHNidP8BAPkCAAAAAR7cSx32e6oFVwl+yGVYPM0d3r+K7El/a8n/Gz94y1eBAAAAAAD/////BiQXAQAAAAAAFgAUrxd/N5akKU8SD3nrZq8qH7/WVJUsIwEAAAAAABYAFAHwN4nw+z0trM5yetAmw8DIAtjh9AEAAAAAAAAWABRy0EngRBqO67fReu2C88MUxXyFZ+gDAAAAAAAAFgAUX+BdcoO+NlggfISB54xMLa3kX0XECQAAAAAAABYAFF/gXXKDvjZYIHyEgeeMTC2t5F9FAAAAAAAAAAAiaiAFvLEUw4WLvvGUZtpmq6dcka0JbOjZ3HrjCoQuxCEgcwAAAAAAAQEr0HgCAAAAAAAiUSCuMEKxyg5dMoHALabpC0Fk0yJ1qhgoYONhLJAk0jwASGIVwFCSm3TBoElUt4tLYDXpel4HiloPKOyW1Ue/7prOgDrA4mzEUs2gnMUS1UTTyVD1N4Rzb0JRPp3fDMOANBwyW2J9tWPR6HncUNSoJX05sgggHPOiGEwn5qupJVDjezNCG2kgTzVb3LfMCvco7zzOuWFdkGhLtbLKX4WasPC3BAdYcaqsIEZtf8rlY+XLCaDRhwu1gDRIBGF4eaFJSc8iKF8brj8nuiA8cq3bT98Jr5TwyU1/6So4an5wz4odhZFjhrslNcexsbpSosABFyBQkpt0waBJVLeLS2A16XpeB4paDyjsltVHv+6azoA6wAAAAAAAAAA=\",\"refereeCommitmentHash\":\"0b10aad0fc9482acb09f160f9cd9bd8aec78d31e3860d0984cc98f56d3964d2e\",\"route\":\"split\",\"selectedLeaf\":\"quorum_2_of_3\",\"signerSet\":{\"buyerSigned\":true,\"notarySigned\":true,\"sellerSigned\":false},\"splitRequiresNotary\":true,\"taprootAddress\":\"tltc1p4ccy9vw2pewn9qwq9knwjz6pvnfjyad2rq5xpcmp9jgzf53uqpyq4j37ee\",\"taprootMerkleRoot\":\"d3a2bcb79d0afd1594e606b1933e1c59ddf780495ec1316dd018476c0cbfe0ab\",\"tradeId\":\"3233cf9a9374813dd7c1da2a71110cf1e26caa4cae3c5a9faef27d01190df60b\",\"txHex\":\"02000000011edc4b1df67baa0557097ec865583ccd1ddebf8aec497f6bc9ff1b3f78cb57810000000000ffffffff062417010000000000160014af177f3796a4294f120f79eb66af2a1fbfd654952c2301000000000016001401f03789f0fb3d2dacce727ad026c3c0c802d8e1f40100000000000016001472d049e0441a8eebb7d17aed82f3c314c57c8567e8030000000000001600145fe05d7283be3658207c8481e78c4c2dade45f45c4090000000000001600145fe05d7283be3658207c8481e78c4c2dade45f450000000000000000226a2005bcb114c3858bbef19466da66aba75c91ad096ce8d9dc7ae30a842ec421207300000000\",\"txId\":\"f1efdb655069d251cd34d2ad188b0ed69bca612a4d7a9eadaf51b03a6000e1d3\"}",
+    "id": "5fbacc09dea986845d1156e4b89c7bb282e9b0c9c56ff0f134ed5fc7682ae4e7",
+    "sig": "66b0209163d0f28d5bb2d931a70f15f1a84ccff54bbad64026c1bb36a13751d59e02209ed8c3d2bfefda0135b9615841e0553492b2b5f7b72ebd27eced1b7d91"
+  }
+}

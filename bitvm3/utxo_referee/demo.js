@@ -11,6 +11,7 @@
  * Run: node bitvm3/utxo_referee/demo.js
  */
 
+const api = require('./index');
 const {
   CommitmentPackage,
   PayoutLeaf,
@@ -18,7 +19,7 @@ const {
   buildTreeWithProofs,
   verifySweep,
   generateRefereeCircuit
-} = require('./index');
+} = api.legacyUnsafe.load({ acknowledgeUnsafePrototype: true });
 
 console.log('=== UTXO Referee Demo ===\n');
 
@@ -183,8 +184,8 @@ try {
   console.log(`     Input bits: ${circuitResult.stats.inputBits}`);
   console.log(`     Output bits: ${circuitResult.stats.outputBits}`);
   console.log('');
-  console.log('   NOTE: Circuit uses placeholder hash function.');
-  console.log('   TODO: Replace with SHA256 for production (~22k gates/hash).');
+  console.log('   NOTE: Circuit uses a fixed-input SHA256 pair-hash gadget.');
+  console.log('   Remaining work is gate-cost optimization and BitVM packaging.');
 } catch (e) {
   console.log(`   Circuit generation error: ${e.message}`);
 }

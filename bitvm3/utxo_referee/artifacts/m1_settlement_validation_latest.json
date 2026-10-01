@@ -1,0 +1,58 @@
+{
+  "kind": "m1_settlement_validation",
+  "createdAt": "2026-04-08T15:04:03.437Z",
+  "sourceArtifacts": {
+    "draftPath": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\m1_dlc_draft_latest.json",
+    "witnessPath": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\m1_challenge_witness_latest.json",
+    "expiryPath": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\m1_expiry_redemption_latest.json",
+    "timeoutProofPath": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\m1_expiry_timeout_testnet_proof.json"
+  },
+  "checks": {
+    "draftPaths": [
+      {
+        "pathId": "settle-gain",
+        "ok": true,
+        "expected": {
+          "settlementKind": "pnl-sweep",
+          "winnerSweepSats": "39577",
+          "refundRemainderSats": "751963",
+          "feeSats": "0",
+          "collateralSats": "791540"
+        }
+      },
+      {
+        "pathId": "settle-loss",
+        "ok": true,
+        "expected": {
+          "settlementKind": "pnl-sweep",
+          "winnerSweepSats": "39577",
+          "refundRemainderSats": "751963",
+          "feeSats": "0",
+          "collateralSats": "791540"
+        }
+      }
+    ],
+    "expiryArtifact": {
+      "ok": true,
+      "expected": {
+        "settlementKind": "timeout-refund",
+        "winnerSweepSats": "715863",
+        "refundRemainderSats": "37677",
+        "feeSats": "0",
+        "collateralSats": "753540"
+      }
+    },
+    "timeoutProof": {
+      "ok": true,
+      "expected": {
+        "settlementKind": "timeout-refund",
+        "winnerSweepSats": "715863",
+        "refundRemainderSats": "37677",
+        "feeSats": "0",
+        "collateralSats": "753540"
+      }
+    }
+  },
+  "gaps": [],
+  "validationHash": "9ae9cd4007c58234459229659f53e44eabf28ce87b58eab4abac72b91abebb40"
+}

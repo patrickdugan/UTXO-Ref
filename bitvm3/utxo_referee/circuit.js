@@ -11,6 +11,7 @@
  */
 
 const { Circuit } = require('../circuit');
+const { sha256PairCircuit } = require('../sha256');
 
 // Circuit parameters
 const EPOCH_BITS = 64;
@@ -142,8 +143,6 @@ class RefereeCircuit {
       const left = c.muxN(isRight, current, sibling);
       const right = c.muxN(isRight, sibling, current);
 
-      // TODO: Replace with actual SHA256 circuit
-      // For now, use simplified XOR-based hash placeholder
       current = this._hashPairCircuit(c, left, right);
     }
 
@@ -151,25 +150,10 @@ class RefereeCircuit {
   }
 
   /**
-   * Hash two 256-bit values (placeholder - needs real SHA256)
-   * TODO: Implement actual SHA256 compression function (~22k gates)
+   * Hash two 256-bit values with SHA256(left || right)
    */
   _hashPairCircuit(c, left, right) {
-    const n = HASH_BITS;
-    const result = [];
-
-    // Simplified mixing - NOT CRYPTOGRAPHICALLY SECURE
-    // Replace with actual SHA256 for production
-    for (let i = 0; i < n; i++) {
-      const li = left[i];
-      const ri = right[(i + 128) % n];
-      const x1 = c.xor(li, ri);
-      const x2 = c.xor(left[(i + 64) % n], right[(i + 192) % n]);
-      const a = c.and(x1, x2);
-      result.push(c.xor(x1, a));
-    }
-
-    return result;
+    return sha256PairCircuit(c, left, right);
   }
 
   /**

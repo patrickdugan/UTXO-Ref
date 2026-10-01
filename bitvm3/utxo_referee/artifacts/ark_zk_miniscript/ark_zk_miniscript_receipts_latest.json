@@ -1,0 +1,49 @@
+{
+  "kind": "ark_zk_miniscript_proof_receipt_summary",
+  "sourceSummaryPath": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\ark_zk_miniscript\\ark_zk_miniscript_summary_latest.json",
+  "sourceSummaryId": "2e91c2be9aece10e14d190079b412c896ab9309fe7b1c8044426cb31c424cee6",
+  "createdAt": "2026-05-05T20:27:46.189Z",
+  "receipts": [
+    {
+      "role": "cooperative_round",
+      "claimId": "40b3577b81a5e644758c5864a6333bba33cc230b3fda3061f7fcd5b180f3ebd4",
+      "receiptId": "9b8f3a7342bf1815c2951aa62b6dc5b03f006160db2c7c8a29d6ca8ddede6eec",
+      "receiptPath": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\ark_zk_miniscript\\ark_zk_miniscript_cooperative_round.receipt.json",
+      "verified": true,
+      "verificationReason": null
+    },
+    {
+      "role": "owner_csv_exit",
+      "claimId": "589f156dbccb89aab19cd2cb3fcea21bc6bf0bbc192240c883f7c0732d99d3c1",
+      "receiptId": "e263fe258ba8a08d30df6faab334dbc6cf1012c1674f84552cce38bcf50cc5e5",
+      "receiptPath": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\ark_zk_miniscript\\ark_zk_miniscript_owner_csv_exit.receipt.json",
+      "verified": true,
+      "verificationReason": null
+    },
+    {
+      "role": "asp_forfeit_guard",
+      "claimId": "aeaecf93d8206db4e0a66d72e75580d0ab70a17dab6efdbfa8c57782816cbae2",
+      "receiptId": "45cf25cad368ae31ce24a9368723a790509b416f0aebe195d8be7afff0477817",
+      "receiptPath": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\ark_zk_miniscript\\ark_zk_miniscript_asp_forfeit_guard.receipt.json",
+      "verified": true,
+      "verificationReason": null
+    },
+    {
+      "role": "dlc_virtual_cet_settlement",
+      "claimId": "de252ed6c94d57221cf3874da2edc3a2014bc6ddb54cbaa97f1fbe2614108e11",
+      "receiptId": "e7b3c9e6f984695fd31788d20ff6437d7ce9889df17d4e2ded2e65f3634ce05c",
+      "receiptPath": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\ark_zk_miniscript\\ark_zk_miniscript_dlc_virtual_cet_settlement.receipt.json",
+      "verified": true,
+      "verificationReason": null
+    },
+    {
+      "role": "utxoref_challenge_publication",
+      "claimId": "283ccd1b82b5b0f5b0182b828466e04da60da30eae0410bbc5ea1b9d2d3936bd",
+      "receiptId": "9e8cf05d6d7d58b10265ff065de8b1339415c7cfaf482e597cfe3e657e4e1f39",
+      "receiptPath": "C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\ark_zk_miniscript\\ark_zk_miniscript_utxoref_challenge_publication.receipt.json",
+      "verified": true,
+      "verificationReason": null
+    }
+  ],
+  "receiptSummaryId": "502fed3db3d823475cd3c305af67934a43923b5bd4439fe2d73bc33664a95675"
+}

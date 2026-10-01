@@ -7,9 +7,12 @@
 const {
   ReceiptTallyMap,
   computeRouteAmounts,
+  computeBoundedSettlementAmounts,
+  computeSendRouteAmounts,
   applyBinarySettlementTransition,
   generateTransitionCircuit,
-  toTransitionWitness
+  toTransitionWitness,
+  buildChallengeWitnessBundle
 } = require('./index');
 
 let passed = 0;
@@ -123,6 +126,9 @@ test('transition circuit exposes balance root inputs', () => {
   assert(built.inputs.challengeWindowStart, 'challengeWindowStart input missing');
   assert(built.inputs.challengeWindowLength, 'challengeWindowLength input missing');
   assert(built.inputs.challengeWindowEnd, 'challengeWindowEnd input missing');
+  assert(built.inputs.sendBps, 'sendBps input missing');
+  assert(built.inputs.sendPayoutSats, 'sendPayoutSats input missing');
+  assert(built.inputs.routeSend, 'routeSend input missing');
 });
 
 test('route amounts remain exact integer sats', () => {
@@ -130,6 +136,171 @@ test('route amounts remain exact integer sats', () => {
   assertEq(result.flatPayoutSats.toString(), '532094');
   assertEq(result.pnlPayoutSats.toString(), '266006');
   assertEq(result.dustCarrySats.toString(), '0');
+});
+
+test('bounded settlement only pays realized loss and carries refund forward', () => {
+  const result = computeBoundedSettlementAmounts(1000000n, 500, 155, 0);
+  assertEq(result.actualPayoutSats.toString(), '15500');
+  assertEq(result.feeSats.toString(), '0');
+  assertEq(result.refundSats.toString(), '984500');
+  assertEq(result.rolloverCollateralSats.toString(), '984500');
+  assertEq(result.effectivePnlBps, 155);
+});
+
+test('bounded settlement caps realized loss at the active bucket', () => {
+  const result = computeBoundedSettlementAmounts(1000000n, 500, 1553, 25);
+  assertEq(result.effectivePnlBps, 500);
+  assertEq(result.actualPayoutSats.toString(), '50000');
+  assertEq(result.feeSats.toString(), '2500');
+  assertEq(result.refundSats.toString(), '947500');
+  assertEq(result.rolloverCollateralSats.toString(), '947500');
+});
+
+test('bounded transition emits payout fee and rollover fields', () => {
+  const next = applyBinarySettlementTransition({
+    epochId: 7n,
+    collateralSats: 1000000n,
+    bucketCapBps: 500,
+    realizedPnlBps: 155,
+    feeBps: 25
+  }, { route: 'settle-loss' });
+
+  assertEq(next.route, 'settle-loss');
+  assertEq(next.actualPayoutSats, '15500');
+  assertEq(next.feeSats, '2500');
+  assertEq(next.refundSats, '982000');
+  assertEq(next.rolloverCollateralSats, '982000');
+  assertEq(next.residualSats, '982000');
+  assertEq(next.outputs.rolloverCollateralSats, '982000');
+});
+
+test('send route computes a percent of deposit and leaves the remainder to roll', () => {
+  const result = computeSendRouteAmounts(1000000n, 2500, 25);
+  assertEq(result.sendPayoutSats.toString(), '250000');
+  assertEq(result.feeSats.toString(), '2500');
+  assertEq(result.refundSats.toString(), '747500');
+  assertEq(result.rolloverCollateralSats.toString(), '747500');
+});
+
+test('send transition emits send payout, fee and rollover fields', () => {
+  const next = applyBinarySettlementTransition({
+    epochId: 11n,
+    collateralSats: 100000n,
+    sendBps: 2500,
+    feeBps: 100,
+    oracleDestinationHash: 'aa'.repeat(32)
+  }, { route: 'send' });
+
+  assertEq(next.route, 'send');
+  assertEq(next.sendPayoutSats, '25000');
+  assertEq(next.feeSats, '1000');
+  assertEq(next.refundSats, '74000');
+  assertEq(next.rolloverCollateralSats, '74000');
+  assertEq(next.resolvedDestinationHash, 'aa'.repeat(32));
+});
+
+test('roll transition isolates timeout remainder field', () => {
+  const next = applyBinarySettlementTransition({
+    epochId: 9n,
+    collateralSats: 798100n,
+    pnlPayoutBps: 3333
+  }, { route: 'roll' });
+
+  assertEq(next.route, 'roll');
+  assertEq(next.rolloverCollateralSats, '798100');
+  assertEq(next.timeoutRemainderSats, '0');
+  assertEq(next.outputs.residualSats, '798100');
+  assertEq(next.outputs.timeoutRemainderSats, '0');
+});
+
+test('challenge witness consumes settle-loss bundle fields', () => {
+  const tally = new ReceiptTallyMap({
+    epochId: 1n,
+    challengeWindowStart: 1n,
+    challengeWindowLength: 4n
+  });
+  tally.applyDeposit({ depositId: 'dep-1', accountId: 'alice', amountSats: 798100n });
+
+  const built = buildChallengeWitnessBundle({
+    challengeBundle: {
+      selectedPathId: 'settle-loss',
+      binding: {
+        fundingOutpoint: { valueSats: '798100' },
+        dustCarrySats: '0'
+      },
+      selectedPath: {
+        pathId: 'settle-loss',
+        payoutSats: '12368',
+        residualSats: '783737',
+        rolloverCollateralSats: '783737',
+        dustCarrySats: '0',
+        bucketCapBps: 500,
+        realizedPnlBps: 155,
+        effectivePnlBps: 155,
+        feeBps: 25,
+        feeSats: '1995',
+        rawTxHex: 'deadbeef'
+      },
+      oracleBinding: {
+        messageDigestHex: '11'.repeat(32),
+        messagePayload: 'oracle-msg',
+        oracleSignaturePlaceholder: 'sig-placeholder'
+      }
+    },
+    tallyMap: tally,
+    claimAccountId: 'alice',
+    transitionState: { epochId: 1n }
+  });
+
+  assertEq(built.route, 'settle-loss');
+  assertEq(built.requiresOracle, true);
+  assertEq(built.honestPath.oracleMessageDigestHex, '11'.repeat(32));
+  assertEq(built.honestPath.oracleSignature, 'sig-placeholder');
+  assertEq(built.honestPath.cetPreimageOrSig, 'deadbeef');
+  assertEq(built.transitionState.actualPayoutSats.toString(), '12368');
+  assertEq(built.transitionState.feeSats.toString(), '1995');
+  assertEq(built.transitionState.rolloverCollateralSats.toString(), '783737');
+  assertEq(built.transitionWitness.routeSettleLoss, 1);
+  assertEq(built.transitionWitness.routeRoll, 0);
+  assert(built.transitionWitness.balanceClaim, 'balance claim should be attached');
+});
+
+test('challenge witness allows roll path without oracle digest', () => {
+  const tally = new ReceiptTallyMap({ epochId: 1n });
+  tally.applyDeposit({ depositId: 'dep-1', accountId: 'alice', amountSats: 798100n });
+
+  const built = buildChallengeWitnessBundle({
+    challengeBundle: {
+      selectedPathId: 'roll',
+      binding: {
+        fundingOutpoint: { valueSats: '798100' },
+        dustCarrySats: '0'
+      },
+      selectedPath: {
+        pathId: 'roll',
+        residualSats: '758195',
+        rolloverCollateralSats: '758195',
+        dustCarrySats: '0',
+        rawTxHex: 'cafebabe'
+      },
+      oracleBinding: {
+        messageDigestHex: null,
+        oracleSignaturePlaceholder: null
+      }
+    },
+    tallyMap: tally,
+    claimAccountId: 'alice',
+    transitionState: { epochId: 1n }
+  });
+
+  assertEq(built.route, 'roll');
+  assertEq(built.requiresOracle, false);
+  assertEq(built.transitionState.rolloverCollateralSats.toString(), '758195');
+  assertEq(built.transitionState.timeoutRemainderSats.toString(), '39905');
+  assertEq(built.transitionWitness.routeRoll, 1);
+  assertEq(built.transitionWitness.routeSettleLoss, 0);
+  assertEq(built.honestPath.oracleSignature, null);
+  assertEq(built.challengedPath.attestationDigest, null);
 });
 
 console.log('\n-----------------------------------');

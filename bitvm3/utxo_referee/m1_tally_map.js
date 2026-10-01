@@ -379,8 +379,20 @@ class ReceiptTallyMap {
     return snapshot;
   }
 
+  getAnnotatedSnapshot(deltaAnnotation = null) {
+    const snapshot = this.getCommittedSnapshot();
+    if (deltaAnnotation) {
+      snapshot.deltaAnnotation = deltaAnnotation;
+    }
+    return snapshot;
+  }
+
   toBlob() {
     return JSON.stringify(this.getCommittedSnapshot(), null, 2);
+  }
+
+  toAnnotatedBlob(deltaAnnotation = null) {
+    return JSON.stringify(this.getAnnotatedSnapshot(deltaAnnotation), null, 2);
   }
 
   static fromBlob(blob) {
