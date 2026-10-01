@@ -55,9 +55,12 @@ const path = require('path');
 const crypto = require('crypto');
 const { rpcFactory } = require('./tradelayer_send_rpc_sweep');
 const tr = require('./tradelayer_taproot');
-const ts = require('./tradelayer_taproot_script');
-const { buildTaprootTree, controlBlockWithPath } = require('./tradelayer_taproot_tree');
 const a = require('./tradelayer_dlc_adaptor_sig');
+const {
+  buildDlcFundingOutput,
+  dlcSettlementSighash,
+  buildDlcSettlementWitness
+} = require('./dlc_funding_output');
 
 const OP_CHECKSEQUENCEVERIFY = 0xb2;
 const OP_DROP = 0x75;
@@ -156,19 +159,22 @@ async function main() {
   const shareASats = Math.floor((lockSats - fee) * Number(args.shareABps || 5000) / 10000);
   const shareBSats = (lockSats - fee) - shareASats;
 
-  const internalSecret = randScalar();
-  const internalXonly = a.bytes32(a.pointMul(a.G, internalSecret).x);
+  // The collateral output is the shared two-party DLC funding output: a NUMS
+  // internal key (nobody holds a key-path secret that would bypass the CSV
+  // 2-of-2), the CET leaf, and this refund leaf on the SAME output.
   const secretA = randScalar();
   const secretB = randScalar();
-  const xonlyA = a.xOnlyPubkey(secretA);
-  const xonlyB = a.xOnlyPubkey(secretB);
-
-  const refundScript = buildRefundLeafScript(xonlyA.toString('hex'), xonlyB.toString('hex'), csvDelay);
-  const built = buildTaprootTree([{ scriptHex: refundScript, kind: 'refund' }]);
-  const refundLeaf = built.leaves.find((l) => l.kind === 'refund');
-  const tw = ts.taprootTweakWithRoot(internalXonly, built.root);
-  const p2trSpk = ts.taprootScriptPubKeyWithRoot(internalXonly, built.root).toString('hex');
-  const refundControl = controlBlockWithPath(internalXonly, tw.parity, refundLeaf.leafVersion, refundLeaf.path).toString('hex');
+  const xonlyA = a.xOnlyPubkey(secretA).toString('hex');
+  const xonlyB = a.xOnlyPubkey(secretB).toString('hex');
+  const fundingOutput = buildDlcFundingOutput({
+    partyPubkeyXs: [xonlyA, xonlyB].sort(),
+    refundCsvBlocks: csvDelay
+  });
+  const refundScript = fundingOutput.refundLeaf.scriptHex;
+  if (refundScript !== buildRefundLeafScript(fundingOutput.partyPubkeyXs[0], fundingOutput.partyPubkeyXs[1], csvDelay)) {
+    throw new Error('funding output refund leaf does not match the documented refund script');
+  }
+  const p2trSpk = fundingOutput.scriptPubKeyHex;
 
   // fund the DLC collateral output
   const us = await rpc('listunspent', [1, 9999999], wallet);
@@ -199,12 +205,23 @@ async function main() {
     ],
     locktime: 0
   };
-  const sighash = ts.scriptPathSighash(spendParsed, [{ scriptPubKey: p2trSpk, amountSats: lockSats }], 0, refundLeaf.leafHash);
-  const sigA = a.schnorrSign(secretA, sighash);
-  const sigB = a.schnorrSign(secretB, sighash);
-  // Witness stack order for `<pkA> CHECKSIGVERIFY <pkB> CHECKSIG`: sigA must be
-  // on top when CHECKSIGVERIFY runs first, so it is the LAST initial-stack item.
-  const witness = [sigB.toString('hex'), sigA.toString('hex'), refundScript, refundControl];
+  const sighash = dlcSettlementSighash({
+    bip341Transaction: spendParsed,
+    fundingValueSats: BigInt(lockSats),
+    output: fundingOutput,
+    executionType: 'refund'
+  });
+  // Witness stack order for `<pk0> CHECKSIGVERIFY <pk1> CHECKSIG`: the first
+  // key's signature must be on top when CHECKSIGVERIFY runs, so it is the
+  // LAST signature on the initial stack. buildDlcSettlementWitness orders them.
+  const witness = buildDlcSettlementWitness({
+    output: fundingOutput,
+    executionType: 'refund',
+    signatures: {
+      [xonlyA]: a.schnorrSign(secretA, sighash).toString('hex'),
+      [xonlyB]: a.schnorrSign(secretB, sighash).toString('hex')
+    }
+  });
   const spendHex = tr.serializeWitnessTx(2,
     [{ outpoint: tr.outpoint(fundTxid, 0), scriptSig: '', sequence: seq, witness }],
     [
@@ -227,6 +244,9 @@ async function main() {
     shareASats,
     shareBSats,
     refundScript,
+    internalKeyPolicy: fundingOutput.internalKeyPolicy,
+    internalXonly: fundingOutput.internalXonly,
+    partyPubkeyXs: fundingOutput.partyPubkeyXs,
     refundSpendHex: spendHex,
     p2trScriptPubKey: p2trSpk,
     fundingTxid: fundTxid,
@@ -238,7 +258,7 @@ async function main() {
   if (args.broadcast) {
     const keyFile = path.join(__dirname, 'artifacts', 'live', 'refund_cet_recovery_key.hex');
     fs.mkdirSync(path.dirname(keyFile), { recursive: true });
-    fs.writeFileSync(keyFile, `dlc-refund internal=${a.bytes32(internalSecret).toString('hex')} A=${a.bytes32(secretA).toString('hex')} B=${a.bytes32(secretB).toString('hex')} ${p2trSpk} fund?->${fundTxid}:0=${lockSats}\n`, { flag: 'a' });
+    fs.writeFileSync(keyFile, `dlc-refund internal=NUMS(${fundingOutput.internalXonly}) A=${a.bytes32(secretA).toString('hex')} B=${a.bytes32(secretB).toString('hex')} ${p2trSpk} fund?->${fundTxid}:0=${lockSats}\n`, { flag: 'a' });
     const fa = await rpc('testmempoolaccept', [[fundSigned.hex]]);
     if (!fa[0].allowed) throw new Error('funding rejected: ' + JSON.stringify(fa[0]));
     const fid = await rpc('sendrawtransaction', [fundSigned.hex]);

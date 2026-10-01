@@ -71,6 +71,7 @@ const {
   dlcFundingFields,
   deriveDlcFundingInternalXonly
 } = require('./dlc_funding_output');
+const taprootScript = require('./tradelayer_taproot_script');
 const { evaluateDlcChainSnapshot } = require('./dlc_chain_guard');
 const { captureDlcAnchorRecoverySnapshot, observeAndEvaluateDlcChain } = require('./dlc_bitcoin_core_observer');
 const {
@@ -2267,6 +2268,23 @@ test('DLC funding output is a NUMS-keyed two-party Taproot output with CET and C
   // Neither party's key, nor their sum, is the output key: there is no key path.
   assert(!keys.some((key) => funding.scriptPubKeyHex === `5120${key.pubkeyX}`), 'funding output is a single party key');
   assert(funding.scriptPubKeyHex === `5120${output.outputKeyXonly}`, 'funding script is not the tweaked NUMS output');
+  // DLC-6 (port of the readiness-assessment poc5): when the internal key was a
+  // key one party knew, that party signed on the key path with d + tweak and
+  // skipped the CSV 2-of-2. Here no party key, used as the internal key over
+  // the same script tree, reproduces the output key, so no party holds a
+  // key-path secret; and the refund leaf sits on the same output as the CETs.
+  const merkleRoot = Buffer.from(output.merkleRoot, 'hex');
+  for (const key of keys) {
+    const keyPathOutput = taprootScript.taprootTweakWithRoot(Buffer.from(key.pubkeyX, 'hex'), merkleRoot);
+    assert(keyPathOutput.xonly.toString('hex') !== output.outputKeyXonly, 'a party key is the funding internal key');
+    const tweakedSecret = dlc.mod(key.secret + keyPathOutput.tweak, dlc.N);
+    assert(dlc.xOnlyPubkey(tweakedSecret).toString('hex') !== output.outputKeyXonly,
+      'a party can derive the funding output key-path secret');
+  }
+  assert(taprootScript.taprootTweakWithRoot(Buffer.from(output.internalXonly, 'hex'), merkleRoot)
+    .xonly.toString('hex') === output.outputKeyXonly, 'output key is not the NUMS key tweaked by the two-leaf tree');
+  assert(taprootScript.tapBranchHash(Buffer.from(output.cetLeaf.leafHash, 'hex'), Buffer.from(output.refundLeaf.leafHash, 'hex'))
+    .toString('hex') === output.merkleRoot, 'CET and refund leaves are not the two leaves of the funding output');
   // The output is a function of the key set and delay only.
   const again = buildDlcFundingOutput({ partyPubkeyXs: [first, second], refundCsvBlocks: REFUND_CSV_BLOCKS });
   assert(again.scriptPubKeyHex === output.scriptPubKeyHex, 'funding output derivation is not deterministic');
