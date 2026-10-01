@@ -115,22 +115,28 @@ test('challenge signing auxiliary data is stable and leaf-bound', () => {
   assert(!first.equals(otherLeaf), 'different leaves must use different auxiliary data');
 });
 
-test('authorization reorg permits only an already tracked graph to remain monitored', () => {
+// WT-1: this test used to assert that a reorged authorization block or a state
+// checkpoint more than six blocks old removed challenge authority
+// (`!authorizedForNewChallenge`). That was the vulnerable behaviour: an
+// operator who confirmed a fraudulent assertion seven blocks after the
+// snapshot could not be challenged. Reorg and staleness are still detected and
+// still withdraw fresh settlement authority; they no longer block a challenge.
+test('authorization reorg and staleness are detected but never withdraw challenge authority', () => {
   const artifact = JSON.parse(fs.readFileSync(ARTIFACT_PATH, 'utf8'));
   const inspected = inspectArtifact(artifact, TRUST_POLICY);
   const tip = inspected.stateSnapshotHeight;
   const untracked = authorizationPolicy(inspected, '33'.repeat(32), {}, tip, artifact);
-  assert(untracked.reorged && !untracked.monitoringOnly && !untracked.authorizedForNewChallenge);
+  assert(untracked.reorged && !untracked.settlementAuthorityFresh && untracked.authorizedForNewChallenge);
   const forged = authorizationPolicy(inspected, '33'.repeat(32), { challenge: { graphHash: inspected.graphHash } }, tip, artifact);
-  assert(!forged.tracked && !forged.monitoringOnly);
+  assert(!forged.tracked, 'a state entry that does not reconstruct the challenge txid is not a tracked challenge');
   const state = boundChallengeState(artifact);
   assert(challengeStateBindsArtifact(artifact, state));
   const tracked = authorizationPolicy(inspected, '33'.repeat(32), state, tip, artifact);
-  assert(tracked.reorged && tracked.monitoringOnly && !tracked.authorizedForNewChallenge);
+  assert(tracked.reorged && tracked.tracked && tracked.authorizedForNewChallenge);
   const active = authorizationPolicy(inspected, inspected.authorizationBlockHash, {}, tip, artifact);
-  assert(!active.reorged && active.authorizedForNewChallenge);
-  const stale = authorizationPolicy(inspected, inspected.authorizationBlockHash, state, tip + 7, artifact);
-  assert(stale.stale && stale.monitoringOnly && !stale.authorizedForNewChallenge);
+  assert(!active.reorged && active.settlementAuthorityFresh && active.authorizedForNewChallenge);
+  const stale = authorizationPolicy(inspected, inspected.authorizationBlockHash, {}, tip + 7, artifact);
+  assert(stale.stale && !stale.settlementAuthorityFresh && stale.authorizedForNewChallenge);
 });
 
 test('challenge fee ladder is bounded by policy and the dust floor', () => {
@@ -259,5 +265,163 @@ test('wrong artifact kind fails closed', () => {
   assert(rejected);
 });
 
-console.log(`\n${failed ? 'FAIL' : 'PASS'}: ${passed} passed${failed ? `, ${failed} failed` : ''}\n`);
-if (failed) process.exit(1);
+// ---- WT-1 regression: port of poc7_watchtower_stale_gate ----
+// A gate-fraud assertion (AND(1,1) revealed as 0) whose funding the operator
+// broadcast at the last allowed block and confirmed one block later, so the
+// state checkpoint is more than six blocks old for the whole challenge window.
+const crypto = require('crypto');
+const adaptor = require('./tradelayer_dlc_adaptor_sig');
+const { buildSignedStateCheckpointV2, publicKeyId } = require('./utxoref_v2');
+const { buildWireSecretSetV2, buildPublicTraceV2 } = require('./bitvm_trace_v2');
+const graphV2 = require('./bitvm_assertion_graph_v2');
+const { runTick, recordTickFailure, recordTickSuccess } = require('./utxoref_v2_watchtower');
+
+function fraudFixture(directory, snapshotHeight) {
+  const { publicKey, privateKey } = crypto.generateKeyPairSync('ed25519');
+  const keyId = publicKeyId(publicKey);
+  const genesis = TRUST_POLICY.genesisHash;
+  const contractId = '42'.repeat(32);
+  const stateEnvelope = buildSignedStateCheckpointV2({
+    network: 'bitcoin-testnet4', chainGenesisHash: genesis, contractId, epochId: '91',
+    snapshotHeight, snapshotBlockHash: '22'.repeat(32),
+    settlementAddressMap: {
+      A: { address: 'winner-a', scriptPubKeyHex: '0014' + '01'.repeat(20) },
+      C: { address: 'winner-c', scriptPubKeyHex: '0014' + '03'.repeat(20) }
+    },
+    pnlRows: [
+      { id: 'a-wins-from-b', contractId, side: 'long', entryPrice: 2100, closePrice: 2200, quantityUnits: 30, collateralSats: 50000, traderAddress: 'A', counterpartyAddress: 'B' },
+      { id: 'c-wins-from-b', contractId, side: 'long', entryPrice: 2100, closePrice: 2200, quantityUnits: 20, collateralSats: 50000, traderAddress: 'C', counterpartyAddress: 'B' }
+    ]
+  }, { privateKey, publicKey });
+  const stateVerification = {
+    trustedSigners: { [keyId]: publicKey }, expectedNetwork: 'bitcoin-testnet4',
+    expectedGenesisHash: genesis, currentHeight: snapshotHeight
+  };
+  const binding = graphV2.buildSettlementTraceBindingV2({ stateEnvelope, feeSats: '1000' });
+  const wireBundle = buildWireSecretSetV2(['state_checkpoint_valid', 'payout_vector_exact', 'settlement_authorized']);
+  const publicTrace = buildPublicTraceV2({
+    circuitId: 'utxoref-v2-state-and-payout-authorization', binding, wireBundle,
+    values: { state_checkpoint_valid: 1, payout_vector_exact: 1, settlement_authorized: 0 },
+    gates: [{ type: 'and', inputs: ['state_checkpoint_valid', 'payout_vector_exact'], output: 'settlement_authorized' }]
+  });
+  const template = graphV2.buildBitvmAssertionTemplateV2({
+    network: 'bitcoin-testnet4', publicTrace,
+    expectedInputs: { state_checkpoint_valid: 1, payout_vector_exact: 1 },
+    operatorXonly: adaptor.xOnlyPubkey(0x12345n).toString('hex'),
+    challengerXonly: adaptor.xOnlyPubkey(0x67890n).toString('hex'),
+    challengeCsvBlocks: 6, recoveryCsvBlocks: 2016
+  });
+  const graph = graphV2.finalizeBitvmAssertionGraphV2({
+    template, publicTrace, stateEnvelope, stateVerification,
+    assertionOutpoint: { txid: 'aa'.repeat(32), vout: 0, amountSats: binding.assertionAmountSats, scriptPubKeyHex: template.p2trScriptPubKey },
+    feeSats: binding.feeSats, recoveryFeeSats: '500', recoveryScriptPubKeyHex: '0014' + '09'.repeat(20),
+    operatorSecret: 0x12345n, challengerSecret: 0x67890n
+  });
+  const pem = publicKey.export({ type: 'spki', format: 'pem' });
+  const artifactPath = path.join(directory, 'artifact.json');
+  const trustPolicyPath = path.join(directory, 'trust-policy.json');
+  fs.writeFileSync(artifactPath, JSON.stringify({
+    kind: 'btc_testnet4_utxoref_v2_live_ceremony', version: 2, network: 'bitcoin-testnet4', status: 'broadcast',
+    chain: { snapshotHeight, snapshotBlockHash: '22'.repeat(32), genesisHash: genesis },
+    keyCeremony: { stateSignerKeyId: keyId, stateSignerPublicKeyPem: pem },
+    verificationAtBroadcast: { height: snapshotHeight + 6, blockHash: '33'.repeat(32) },
+    graph
+  }));
+  fs.writeFileSync(trustPolicyPath, JSON.stringify({
+    kind: 'utxoref_v2_watchtower_trust_policy', version: 1, policyId: 'wt1-regression',
+    network: 'bitcoin-testnet4', genesisHash: genesis,
+    trustedSigners: { [keyId]: pem }, allowedGraphs: { [graph.graphHash]: { signerKeyId: keyId } }
+  }));
+  const rpcAt = (height, confirmations, authorizationOnChain = true) => async (method, params) => {
+    const tip = 'bb'.repeat(32);
+    if (method === 'getblockchaininfo') return { chain: 'testnet4', blocks: height, bestblockhash: tip };
+    if (method === 'getblockhash') {
+      return authorizationOnChain && params[0] === snapshotHeight + 6 ? '33'.repeat(32) : 'cc'.repeat(32);
+    }
+    if (method === 'gettxout') {
+      return { bestblock: tip, confirmations, value: Number(binding.assertionAmountSats) / 1e8, scriptPubKey: { hex: template.p2trScriptPubKey } };
+    }
+    throw new Error(`unexpected RPC ${method}`);
+  };
+  return { artifactPath, trustPolicyPath, rpcAt };
+}
+
+const asyncTests = [];
+function asyncTest(name, fn) { asyncTests.push({ name, fn }); }
+
+asyncTest('a fraudulent assertion is still challengeable after the state checkpoint goes stale', async () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'utxoref-v2-watchtower-stale-'));
+  try {
+    const snapshot = 150000;
+    const { artifactPath, trustPolicyPath, rpcAt } = fraudFixture(directory, snapshot);
+    for (const [height, confirmations] of [[snapshot + 6, 0], [snapshot + 7, 1], [snapshot + 12, 6]]) {
+      const alertPath = path.join(directory, `alerts-${height}.jsonl`);
+      const tick = await runTick({ artifact: artifactPath, trustPolicy: trustPolicyPath, alertPath }, rpcAt(height, confirmations), {});
+      assert(tick.fraudDetected === true, `fraud must be detected at height ${height}`);
+      assert(tick.action === 'challenge_signature_required', `height ${height}: expected a challenge request, got ${tick.action}`);
+      assert(tick.challengeRequest && tick.challengeRequest.fraudType === 'gate');
+      assert(fs.existsSync(alertPath), `height ${height}: the challenge request must be alerted`);
+      if (height > snapshot + 6) assert(tick.authorization.stale === true, 'staleness must still be reported');
+    }
+  } finally { fs.rmSync(directory, { recursive: true, force: true }); }
+});
+
+asyncTest('a reorged authorization block does not stop a challenge either', async () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'utxoref-v2-watchtower-reorg-'));
+  try {
+    const snapshot = 150000;
+    const { artifactPath, trustPolicyPath, rpcAt } = fraudFixture(directory, snapshot);
+    const alertPath = path.join(directory, 'alerts.jsonl');
+    const tick = await runTick({ artifact: artifactPath, trustPolicy: trustPolicyPath, alertPath }, rpcAt(snapshot + 8, 1, false), {});
+    assert(tick.authorization.reorged === true);
+    assert(tick.action === 'challenge_signature_required', `expected a challenge request, got ${tick.action}`);
+  } finally { fs.rmSync(directory, { recursive: true, force: true }); }
+});
+
+asyncTest('the checked-in live artifact ticks without throwing once its checkpoint is old', async () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'utxoref-v2-watchtower-live-'));
+  try {
+    const artifact = JSON.parse(fs.readFileSync(ARTIFACT_PATH, 'utf8'));
+    const rpc = async (method, params) => {
+      if (method === 'getblockchaininfo') return { chain: 'testnet4', blocks: 160000, bestblockhash: 'bb'.repeat(32) };
+      if (method === 'getblockhash') {
+        return params[0] === artifact.verificationAtBroadcast.height ? artifact.verificationAtBroadcast.blockHash : 'cc'.repeat(32);
+      }
+      if (method === 'gettxout') return null; // the live assertion has settled
+      throw new Error(`unexpected RPC ${method}`);
+    };
+    const tick = await runTick({ alertPath: path.join(directory, 'alerts.jsonl') }, rpc, {});
+    assert(tick.fraudDetected === false && tick.assertionUnspent === false);
+    assert(tick.authorization.stale === true);
+  } finally { fs.rmSync(directory, { recursive: true, force: true }); }
+});
+
+asyncTest('a failing tick writes one alert line and counts repeats', async () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'utxoref-v2-watchtower-failure-'));
+  try {
+    const alertPath = path.join(directory, 'alerts.jsonl');
+    const args = { alertPath };
+    const state = {};
+    const first = recordTickFailure(args, state, new Error('Bitcoin Core RPC timed out'));
+    const second = recordTickFailure(args, state, new Error('Bitcoin Core RPC timed out'));
+    assert(first.logged === true && second.logged === false, 'identical consecutive failures are logged once');
+    assert(state.consecutiveFailures === 2 && state.failureCount === 2 && state.alertCount === 1);
+    const lines = fs.readFileSync(alertPath, 'utf8').trim().split('\n').map((line) => JSON.parse(line));
+    assert(lines.length === 1 && lines[0].action === 'watchtower_tick_failed' && /timed out/.test(lines[0].message));
+    const different = recordTickFailure(args, state, new Error('wrong chain: main'));
+    assert(different.logged === true, 'a different failure is a new alert');
+    recordTickSuccess(state);
+    assert(state.consecutiveFailures === 0 && state.lastError === undefined);
+    const afterRecovery = recordTickFailure(args, state, new Error('wrong chain: main'));
+    assert(afterRecovery.logged === true, 'a failure after recovery is alerted again');
+  } finally { fs.rmSync(directory, { recursive: true, force: true }); }
+});
+
+(async () => {
+  for (const item of asyncTests) {
+    try { await item.fn(); console.log(`  OK  ${item.name}`); passed++; }
+    catch (err) { console.log(`  FAIL ${item.name}`); console.log(`       ${err.message}`); failed++; }
+  }
+  console.log(`\n${failed ? 'FAIL' : 'PASS'}: ${passed} passed${failed ? `, ${failed} failed` : ''}\n`);
+  if (failed) process.exit(1);
+})();

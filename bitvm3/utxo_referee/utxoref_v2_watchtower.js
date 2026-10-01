@@ -167,15 +167,25 @@ function trustBindingForArtifact(artifact, trustPolicy) {
   };
 }
 
-function verificationOptions(artifact, trustPolicy) {
+const MAX_STATE_AGE_AT_AUTHORIZATION_BLOCKS = 6;
+
+// State freshness limits what a checkpoint may newly AUTHORIZE (a payout). It
+// must never limit a challenge: a disprove only punishes fraud that is provable
+// from the committed trace, so it is safe at any state age. The challenge path
+// therefore verifies the graph with `enforceStateAge: false`.
+function verificationOptions(artifact, trustPolicy, options = {}) {
   const trust = trustBindingForArtifact(artifact, trustPolicy);
   const authorization = authorizationReference(artifact);
-  return {
+  const base = {
     trustedSigners: { [trust.signerKeyId]: trust.publicKey },
     expectedNetwork: trust.network,
-    expectedGenesisHash: trust.genesisHash,
+    expectedGenesisHash: trust.genesisHash
+  };
+  if (options.enforceStateAge === false) return base;
+  return {
+    ...base,
     currentHeight: authorization.height,
-    maxAgeBlocks: 6
+    maxAgeBlocks: MAX_STATE_AGE_AT_AUTHORIZATION_BLOCKS
   };
 }
 
@@ -199,31 +209,46 @@ function challengeStateBindsArtifact(artifact, state) {
   }
 }
 
+// `reorged` and `stale` describe the checkpoint that authorized funding. They
+// gate `settlementAuthorityFresh` (anything that would grant new payout
+// authority) and are reported and alerted on. They do not gate challenges:
+// challenge authority comes from the pinned trust policy plus fraud evidence in
+// the committed trace, and holds for as long as the assertion output is unspent.
 function authorizationPolicy(inspected, activeBlockHash, state, currentHeight, artifact) {
   const reorged = activeBlockHash !== inspected.authorizationBlockHash;
   const snapshotHeight = Number(inspected.stateSnapshotHeight);
   const ageBlocks = Number(currentHeight) - snapshotHeight;
-  const stale = !Number.isSafeInteger(ageBlocks) || ageBlocks < 0 || ageBlocks > 6;
+  const stale = !Number.isSafeInteger(ageBlocks) || ageBlocks < 0 ||
+    ageBlocks > MAX_STATE_AGE_AT_AUTHORIZATION_BLOCKS;
   const tracked = challengeStateBindsArtifact(artifact, state);
   return {
     reorged,
     stale,
     ageBlocks,
     tracked,
-    monitoringOnly: (reorged || stale) && tracked,
-    authorizedForNewChallenge: !reorged && !stale
+    settlementAuthorityFresh: !reorged && !stale,
+    authorizedForNewChallenge: true
   };
 }
 
-function inspectArtifact(artifact, trustPolicy) {
+// `requireFreshState: false` is the watchtower's challenge-path view: the graph
+// must still verify structurally and against the pinned trust policy, but a
+// checkpoint that was (or has become) stale does not make the artifact
+// uninspectable. Freshness at authorization is returned as data instead.
+function inspectArtifact(artifact, trustPolicy, inspectOptions = {}) {
   if (artifact?.kind !== 'btc_testnet4_utxoref_v2_live_ceremony' || artifact.version !== 2) {
     throw new Error('wrong UTXORef V2 public artifact kind or version');
   }
-  const options = verificationOptions(artifact, trustPolicy);
+  const requireFreshState = inspectOptions.requireFreshState !== false;
+  const options = verificationOptions(artifact, trustPolicy, { enforceStateAge: requireFreshState });
   const trust = trustBindingForArtifact(artifact, trustPolicy);
   const authorization = authorizationReference(artifact);
   const verification = verifyBitvmAssertionGraphV2(artifact.graph, options);
   if (!verification.ok) throw new Error(`public assertion graph failed verification: ${verification.reason}`);
+  const stateSnapshotHeight = Number(artifact.graph.settlement?.stateEnvelope?.body?.snapshotHeight);
+  const ageAtAuthorization = authorization.height - stateSnapshotHeight;
+  const stateFreshAtAuthorization = Number.isSafeInteger(ageAtAuthorization) && ageAtAuthorization >= 0 &&
+    ageAtAuthorization <= MAX_STATE_AGE_AT_AUTHORIZATION_BLOCKS;
   const gateEvidence = findGateDisproveV2(artifact.graph.publicTrace, artifact.graph.template.challengerXonly);
   const inputEvidence = findInputBindingDisproveV2(
     artifact.graph.publicTrace,
@@ -233,10 +258,11 @@ function inspectArtifact(artifact, trustPolicy) {
   const evidence = gateEvidence || inputEvidence;
   return {
     graphHash: artifact.graph.graphHash,
-    authorizationHeight: options.currentHeight,
+    authorizationHeight: authorization.height,
     authorizationBlockHash: authorization.blockHash,
     authorizationSource: authorization.source || 'broadcast',
-    stateSnapshotHeight: Number(artifact.graph.settlement?.stateEnvelope?.body?.snapshotHeight),
+    stateSnapshotHeight,
+    stateFreshAtAuthorization,
     trustPolicyId: trust.policyId,
     feeReservePolicy: trust.feeReservePolicy,
     trustPolicy,
@@ -558,7 +584,7 @@ async function prepareChallenge(artifact, inspected, args, rpc) {
   let selected = null;
   for (const feeSats of feeCandidates(args, inspected.assertionOutpoint.amountSats)) {
     const disprove = buildBitvmDisproveV2(artifact.graph, {
-      stateVerification: verificationOptions(artifact, inspected.trustPolicy),
+      stateVerification: verificationOptions(artifact, inspected.trustPolicy, { enforceStateAge: false }),
       challengerSecret: parseSecretFile(args.challengerSecretFile),
       challengerAux: deterministicChallengeAux(inspected.graphHash, inspected.evidence),
       feeSats,
@@ -582,7 +608,7 @@ async function prepareChallenge(artifact, inspected, args, rpc) {
 
 function buildChallengeAtFee(artifact, inspected, args, feeSats, scriptPubKeyHex) {
   return buildBitvmDisproveV2(artifact.graph, {
-    stateVerification: verificationOptions(artifact, inspected.trustPolicy),
+    stateVerification: verificationOptions(artifact, inspected.trustPolicy, { enforceStateAge: false }),
     challengerSecret: parseSecretFile(args.challengerSecretFile),
     challengerAux: deterministicChallengeAux(inspected.graphHash, inspected.evidence),
     feeSats,
@@ -661,16 +687,13 @@ async function runTick(args, rpc, state) {
   const artifact = readJson(artifactPath, 'public artifact', 'utxoref-v2-public-artifact');
   const trustPolicyPath = path.resolve(args.trustPolicy || DEFAULT_TRUST_POLICY);
   const trustPolicy = readJson(trustPolicyPath, 'watchtower trust policy', 'utxoref-v2-trust-policy');
-  const inspected = inspectArtifact(artifact, trustPolicy);
+  // Challenge-path inspection: state age and the authorization block are
+  // reported below but never stop the watchtower from watching or challenging.
+  const inspected = inspectArtifact(artifact, trustPolicy, { requireFreshState: false });
   const chain = await rpc('getblockchaininfo');
   if (chain.chain !== 'testnet4') throw new Error(`wrong chain: ${chain.chain}`);
-  const authorizationBlock = await rpc('getblockhash', [inspected.authorizationHeight]);
+  const authorizationBlock = await rpc('getblockhash', [inspected.authorizationHeight]).catch(() => null);
   const authorization = authorizationPolicy(inspected, authorizationBlock, state, Number(chain.blocks), artifact);
-  if (!authorization.authorizedForNewChallenge && !authorization.tracked) {
-    throw new Error(authorization.reorged
-      ? 'artifact authorization block is not in the active chain'
-      : 'artifact state checkpoint is stale at the current chain tip');
-  }
   const assertion = inspected.assertionOutpoint;
   const txout = await rpc('gettxout', [assertion.txid, assertion.vout, true]);
   assertRpcSnapshotTip(txout, chain.bestblockhash, 'assertion output');
@@ -696,11 +719,16 @@ async function runTick(args, rpc, state) {
       activeBlockHash: authorizationBlock,
       reorged: authorization.reorged,
       stale: authorization.stale,
+      staleAtAuthorization: !inspected.stateFreshAtAuthorization,
       ageBlocks: authorization.ageBlocks,
-      monitoringOnly: authorization.monitoringOnly
+      settlementAuthorityFresh: authorization.settlementAuthorityFresh
     },
     action: inspected.fraudDetected && txout
       ? 'challenge_required'
+      : txout && authorization.reorged
+      ? 'authorization_block_reorged'
+      : txout && !inspected.stateFreshAtAuthorization
+      ? 'state_stale_at_authorization'
       : txout
       ? 'monitoring'
       : artifact.status === 'staged'
@@ -714,9 +742,6 @@ async function runTick(args, rpc, state) {
     result.challenge = await monitorChallenge(rpc, state, currentHeight, chain.bestblockhash);
     result.action = result.challenge.action;
     if (args.replaceChallenge) {
-      if (!authorization.authorizedForNewChallenge) {
-        throw new Error('challenge replacement is disabled after authorization-block reorg');
-      }
       if (result.action !== 'challenge_in_mempool') {
         throw new Error(`challenge replacement requires an unconfirmed tracked challenge, got ${result.action}`);
       }
@@ -727,7 +752,7 @@ async function runTick(args, rpc, state) {
     }
   }
 
-  if (inspected.fraudDetected && txout && authorization.authorizedForNewChallenge) {
+  if (inspected.fraudDetected && txout) {
     if (!args.challengerSecretFile) {
       result.action = 'challenge_signature_required';
       result.challengeRequest = {
@@ -778,8 +803,6 @@ async function runTick(args, rpc, state) {
         result.action = 'challenge_ready_for_broadcast';
       }
     }
-  } else if (inspected.fraudDetected && txout && authorization.monitoringOnly) {
-    result.action = 'authorization_reorged_monitoring_only';
   }
 
   const receiptArgs = [args.watcherId, args.watcherFaultDomain, args.watcherRoundId, args.watcherPrivateKeyFile];
@@ -813,6 +836,40 @@ async function runTick(args, rpc, state) {
   return result;
 }
 
+// A tick that throws is itself an event someone must see: the watchtower is
+// not watching while it fails. Record it in state and append one alert line
+// per distinct failure (repeats of the same failure are counted, not re-logged).
+function recordTickFailure(args, state, err, at = new Date().toISOString()) {
+  const message = String(err?.message || err);
+  const fingerprint = crypto.createHash('sha256')
+    .update(JSON.stringify({ kind: 'utxoref_v2_watchtower_tick_failure', message }))
+    .digest('hex');
+  const repeated = state.lastFailureFingerprint === fingerprint;
+  state.lastError = { at, message };
+  state.failureCount = Number(state.failureCount || 0) + 1;
+  state.consecutiveFailures = Number(state.consecutiveFailures || 0) + 1;
+  state.lastFailureFingerprint = fingerprint;
+  const alert = {
+    kind: 'utxoref_v2_watchtower_tick_failure',
+    at,
+    action: 'watchtower_tick_failed',
+    message,
+    artifact: path.resolve(args.artifact || DEFAULT_ARTIFACT),
+    consecutiveFailures: state.consecutiveFailures
+  };
+  if (!repeated) {
+    state.alertCount = Number(state.alertCount || 0) + 1;
+    appendJsonLine(args.alertPath || DEFAULT_ALERT_PATH, alert);
+  }
+  return { alert, logged: !repeated };
+}
+
+function recordTickSuccess(state) {
+  delete state.lastError;
+  delete state.lastFailureFingerprint;
+  state.consecutiveFailures = 0;
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   if (args.help) {
@@ -833,10 +890,10 @@ async function main() {
   do {
     try {
       const result = await runTick(args, rpc, state);
-      delete state.lastError;
+      recordTickSuccess(state);
       console.log(JSON.stringify(result));
     } catch (err) {
-      state.lastError = { at: new Date().toISOString(), message: err.message };
+      recordTickFailure(args, state, err);
       console.error(`[utxoref-v2-watchtower] tick failed: ${err.message}`);
     }
     saveJsonAtomic(statePath, state);
@@ -876,6 +933,8 @@ module.exports = {
   buildChallengeAtFee,
   replaceTrackedChallenge,
   runTick,
+  recordTickFailure,
+  recordTickSuccess,
   saveJsonAtomic,
   loadState
 };
