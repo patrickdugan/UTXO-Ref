@@ -72,6 +72,44 @@ test('2-of-3 template is deterministic and commits graph, challenger, and CHECKS
   assert(first.guardianThreshold === 2 && first.guardianXonlys.length === 3);
 });
 
+// RES-1 regression (ports poc11): the reserve has no key path. A template may
+// restate the deterministic NUMS internal key, but any other key is refused,
+// and a hand-built manifest that is consistent for an operator-held internal
+// key must not verify or count, alone or inside a fee reserve.
+test('quorum reserve refuses an operator-held internal key in templates, manifests and fee reserves', () => {
+  const operatorInternal = key(77);
+  let rejected = false;
+  try { template({ internalXonly: operatorInternal }); }
+  catch (err) { rejected = /custom internal key is forbidden/.test(err.message); }
+  assert(rejected, 'template must refuse a custom internal key');
+  assert(template({ internalXonly: template().internalXonly }).p2trScriptPubKey === template().p2trScriptPubKey,
+    'restating the NUMS key must be accepted');
+
+  const honest = reserve();
+  const manifest = honest.core.vaultManifest;
+  const forgedCore = {
+    ...manifest.core,
+    internalXonly: operatorInternal,
+    p2trScriptPubKey: require('./tradelayer_taproot_script').taprootScriptPubKeyWithRoot(
+      Buffer.from(operatorInternal, 'hex'),
+      Buffer.from(manifest.core.merkleRoot, 'hex')
+    ).toString('hex')
+  };
+  const forgedManifest = { ...manifest, core: forgedCore, manifestHash: sha256Hex(forgedCore) };
+  const manifestCheck = verifyGuardianQuorumVaultManifest(forgedManifest, { currentHeight: 110 });
+  assert(!manifestCheck.ok && !manifestCheck.countable, 'forged manifest must not verify or count');
+  assert(/internal key/.test(manifestCheck.reason), `unexpected reason: ${manifestCheck.reason}`);
+
+  const forgedReserveCore = { ...honest.core, vaultManifest: forgedManifest };
+  const forgedReserve = { ...honest, core: forgedReserveCore, reserveHash: sha256Hex(forgedReserveCore) };
+  const reserveCheck = verifyUtxorefV2FeeReserve(forgedReserve, {
+    graphHash: GRAPH,
+    currentHeight: 110,
+    txout: txout(honest, { scriptPubKey: { hex: forgedCore.p2trScriptPubKey } })
+  });
+  assert(!reserveCheck.ok && !reserveCheck.counted, 'forged fee reserve must not be counted');
+});
+
 test('guardian policy rejects duplicate, undersized, and overlapping role sets', () => {
   const invalid = [
     { guardianXonlys: [GUARDIANS[0], GUARDIANS[0]], guardianThreshold: 2 },

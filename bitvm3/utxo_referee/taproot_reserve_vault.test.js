@@ -141,6 +141,39 @@ test('vault manifest hash is deterministic and script tree verifies', () => {
   assert(a1.core.p2trScriptPubKey.startsWith('5120'), 'vault output must be P2TR');
 });
 
+// RES-1 regression (ports poc11): an operator-held Taproot internal key gives
+// the operator a key-path spend that needs no guardian and no CSV, so the
+// builder refuses it and a hand-built manifest for it must not count as reserve.
+test('vault refuses an operator-held internal key and does not count a forged manifest', () => {
+  const operatorInternal = a.xOnlyPubkey(77n).toString('hex');
+  let rejected = false;
+  try { manifest({ internalXonly: operatorInternal }); }
+  catch (err) { rejected = /custom internal key is forbidden/.test(err.message); }
+  assert(rejected, 'builder must refuse a custom internal key');
+  assertEq(manifest({ internalXonly: manifest().core.internalXonly }).manifestHash, manifest().manifestHash,
+    'restating the NUMS key must be accepted');
+
+  const honest = manifest();
+  const forgedCore = {
+    ...honest.core,
+    internalXonly: operatorInternal,
+    p2trScriptPubKey: ts.taprootScriptPubKeyWithRoot(
+      Buffer.from(operatorInternal, 'hex'),
+      Buffer.from(honest.core.merkleRoot, 'hex')
+    ).toString('hex')
+  };
+  const { sha256Hex } = require('./tradelayer_pnl_route_adapter');
+  const forged = { kind: honest.kind, core: forgedCore, manifestHash: sha256Hex(forgedCore) };
+  const check = verifyTaprootReserveVaultManifest(forged, { currentHeight: 1200 });
+  assert(!check.ok, 'forged manifest must not verify');
+  assert(/internal key/.test(check.reason), `unexpected reason: ${check.reason}`);
+
+  const set = vaultSet(forged, chainTxout(forged));
+  const summary = reservedSatsFromTaprootReserveVaultSet(set);
+  assertEq(summary.reservedSats.toString(), '0', 'forged vault must contribute no reserve');
+  assertEq(summary.countedVaultCount, 0);
+});
+
 test('non-vault wallet UTXOs are rejected as reserve evidence', () => {
   const m = manifest();
   const set = vaultSet(m, chainTxout(m, { scriptPubKey: { hex: '0014' + '00'.repeat(20) } }));

@@ -6,7 +6,7 @@ const {
   normalizeNetwork,
   toSats,
   outpointKey,
-  deriveReserveVaultInternalXonly,
+  requireReserveVaultInternalXonly,
   buildRecoveryLeafScript,
   recoveryStatus,
   normalizeChainTxoutForEvidence
@@ -135,9 +135,7 @@ function buildGuardianQuorumVaultTemplate(input = {}) {
   if (policy.guardianXonlys.includes(operatorXonly)) throw new Error('challenger key cannot also be a guardian key');
   if (policy.guardianXonlys.includes(recoveryXonly)) throw new Error('refund key cannot also be a guardian key');
   if (operatorXonly === recoveryXonly) throw new Error('refund key must differ from the challenger key');
-  const internalXonly = input.internalXonly
-    ? assertXonly(input.internalXonly, 'internalXonly')
-    : deriveReserveVaultInternalXonly(network);
+  const internalXonly = requireReserveVaultInternalXonly(network, input.internalXonly);
   const immediateScript = buildGuardianQuorumLeafScript({
     operatorXonly,
     bindingHash,

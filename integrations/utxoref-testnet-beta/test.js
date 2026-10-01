@@ -10,7 +10,8 @@ const { StateStore, createInvitations } = require('./betaStore');
 const { createBetaService, requestIp } = require('./betaService');
 const { BitcoinBackend } = require('./bitcoinBackend');
 const { recoverInterruptedRuns } = require('./server');
-const { stableStringify } = require('../../bitvm3/utxo_referee/tradelayer_pnl_route_adapter');
+const { stableStringify, sha256Hex } = require('../../bitvm3/utxo_referee/tradelayer_pnl_route_adapter');
+const taprootScript = require('../../bitvm3/utxo_referee/tradelayer_taproot_script');
 const { buildGuardianQuorumVaultManifest } = require('../../bitvm3/utxo_referee/utxoref_v2_guardian_quorum_reserve');
 
 const TEST_TXID = 'ab'.repeat(32);
@@ -323,6 +324,37 @@ async function testGuardianQuorum(root) {
       scriptPubKey: { hex: manifest.core.p2trScriptPubKey }
     }
   } });
+
+  // RES-1: a reserve whose Taproot internal key belongs to the operator has a
+  // key path that bypasses the guardians. The loader must refuse it even when
+  // the manifest is internally consistent (script, hash) for that key.
+  const forgedCore = {
+    ...manifest.core,
+    internalXonly: operator.guardianXonly,
+    p2trScriptPubKey: taprootScript.taprootScriptPubKeyWithRoot(
+      Buffer.from(operator.guardianXonly, 'hex'),
+      Buffer.from(manifest.core.merkleRoot, 'hex')
+    ).toString('hex')
+  };
+  const forgedReservePath = path.join(root, 'guardian-reserve-forged.json');
+  fs.writeFileSync(forgedReservePath, `${JSON.stringify({
+    kind: 'utxoref_beta_guardian_quorum_reserve_deployment',
+    version: 1,
+    broadcast: true,
+    graphHash: registry.graphHash,
+    guardianThreshold: registry.quorum,
+    manifest: { ...manifest, core: forgedCore, manifestHash: sha256Hex(forgedCore) }
+  }, null, 2)}\n`);
+  assert.throws(() => createBetaService({
+    policy: policyFor(statePath, {
+      guardianRegistryPath: registryPath,
+      guardianReservePath: forgedReservePath,
+      requireGuardianQuorum: true
+    }),
+    store,
+    bitcoin
+  }), /internal key is not the deterministic NUMS key/);
+
   let now = new Date('2026-07-15T12:00:00.000Z');
   const policy = policyFor(statePath, {
     guardianRegistryPath: registryPath,

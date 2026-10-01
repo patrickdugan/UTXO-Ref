@@ -9,6 +9,7 @@ const { readJsonStrictProfile } = require('../../bitvm3/utxo_referee/strict_arti
 const { inspectArtifact } = require('../../bitvm3/utxo_referee/utxoref_v2_watchtower');
 const { stableStringify } = require('../../bitvm3/utxo_referee/tradelayer_pnl_route_adapter');
 const { verifyGuardianQuorumVaultManifest } = require('../../bitvm3/utxo_referee/utxoref_v2_guardian_quorum_reserve');
+const { deriveReserveVaultInternalXonly } = require('../../bitvm3/utxo_referee/taproot_reserve_vault');
 const { sha256, tokenHash, privateHash } = require('./betaStore');
 
 const EXPLORER_TX = 'https://mempool.space/testnet4/tx/';
@@ -180,6 +181,16 @@ function loadGuardianReserve(filePath, registry) {
   if (deployment.guardianThreshold !== registry.quorum || core.guardianThreshold !== registry.quorum ||
       stableStringify(core.guardianXonlys) !== stableStringify(registry.guardians.map((guardian) => guardian.guardianXonly))) {
     throw new Error('guardian reserve does not match the registry quorum');
+  }
+  // The reserve must have no key path: a manifest that names any internal key
+  // other than the deterministic NUMS point would let its holder spend the
+  // reserve without the guardians.
+  if (core.internalXonly !== deriveReserveVaultInternalXonly(core.network)) {
+    throw new Error('guardian reserve internal key is not the deterministic NUMS key');
+  }
+  const manifestCheck = verifyGuardianQuorumVaultManifest(deployment.manifest);
+  if (!manifestCheck.ok) {
+    throw new Error(`guardian reserve manifest is invalid: ${manifestCheck.reason}`);
   }
   return deployment;
 }

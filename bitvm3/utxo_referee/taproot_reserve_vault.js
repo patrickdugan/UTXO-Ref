@@ -136,6 +136,19 @@ function deriveReserveVaultInternalXonly(network = DEFAULT_NETWORK) {
   throw new Error('failed to derive reserve vault internal key');
 }
 
+// The reserve output must not have a key path. The internal key is always the
+// deterministic NUMS point for the network; a caller (or a manifest under
+// verification) may restate it, but any other key is rejected, because its
+// holder could spend the reserve alone with no guardian and no CSV.
+function requireReserveVaultInternalXonly(network, suppliedInternalXonly) {
+  const derived = deriveReserveVaultInternalXonly(network);
+  if (suppliedInternalXonly !== undefined && suppliedInternalXonly !== null && suppliedInternalXonly !== '' &&
+      assertHex(suppliedInternalXonly, 32, 'internalXonly') !== derived) {
+    throw new Error('custom internal key is forbidden; the reserve vault requires the deterministic NUMS key');
+  }
+  return derived;
+}
+
 function bindingPrefix(bindingHash) {
   if (bindingHash === undefined || bindingHash === null || bindingHash === '') return Buffer.alloc(0);
   return Buffer.concat([
@@ -173,9 +186,7 @@ function buildTaprootReserveVaultTemplate(input = {}) {
   const recoveryXonly = assertXonly(input.recoveryXonly || operatorXonly, 'recoveryXonly');
   const bindingHash = input.bindingHash ? assertHex(input.bindingHash, 32, 'bindingHash') : null;
   const recoveryCsvDelay = csvSequence(input.recoveryCsvDelay ?? DEFAULT_RECOVERY_CSV_DELAY);
-  const internalXonly = input.internalXonly
-    ? assertXonly(input.internalXonly, 'internalXonly')
-    : deriveReserveVaultInternalXonly(network);
+  const internalXonly = requireReserveVaultInternalXonly(network, input.internalXonly);
 
   const immediateScript = buildImmediateLeafScript(operatorXonly, guardianXonly, bindingHash);
   const recoveryScript = buildRecoveryLeafScript(recoveryXonly, recoveryCsvDelay, bindingHash);
@@ -771,6 +782,7 @@ module.exports = {
   csvSequence,
   outpointKey,
   deriveReserveVaultInternalXonly,
+  requireReserveVaultInternalXonly,
   buildImmediateLeafScript,
   buildRecoveryLeafScript,
   buildTaprootReserveVaultTemplate,
