@@ -2175,6 +2175,7 @@ test('CET adaptor and refund signatures bind to validated BIP341 sighashes', () 
     signatures: [{ identity: cetIdentity(cet), signerPubkeyX: pubkey, presignature }],
     thresholdOutcomeSets
   });
+  const refundSighashForCheck = () => settlementSighashForTransactionSet({ transactionSet: validated, executionType: 'refund' });
   const presignature = dlc.adaptorSign(signerSecret, cetSighash, selected.outcomePoint, hash('signature-validator:aux'));
   const validatedSignatures = validateCetAdaptorSignatures(adaptorArgs(signerSecret, signerPubkey, presignature));
   assert(/^[0-9a-f]{64}$/.test(validatedSignatures.digest), 'CET signature digest missing');
@@ -2199,6 +2200,23 @@ test('CET adaptor and refund signatures bind to validated BIP341 sighashes', () 
   };
   expectThrow(() => validateCetAdaptorSignatures(adaptorArgs(signerSecret, signerPubkey, forged)), /invalid/);
 
+  // DLC-4 (port of readiness-assessment poc3's share check): under MuSig2
+  // nothing verified a counterparty's partial signature, so a bad share was
+  // only found at attestation, after funding. Each party now gives a full
+  // adaptor signature under its own key, checked here before the
+  // COUNTERPARTY_SIGNATURES_VERIFIED stage that gates funding. A share made
+  // by the wrong key, over the wrong sighash, or for the wrong outcome point
+  // is refused.
+  expectThrow(() => validateCetAdaptorSignatures(
+    adaptorArgs(counterpartySecret, counterpartyPubkey, { ...presignature })
+  ), /adaptor signature is invalid/);
+  expectThrow(() => validateCetAdaptorSignatures(adaptorArgs(counterpartySecret, counterpartyPubkey,
+    dlc.adaptorSign(counterpartySecret, refundSighashForCheck(), selected.outcomePoint, hash('dlc4:wrong-sighash'))
+  )), /adaptor signature is invalid/);
+  const otherPoint = thresholdSets.find((entry) => entry.oraclePubkeys.join(':') !== selected.oraclePubkeys.join(':'));
+  expectThrow(() => validateCetAdaptorSignatures(adaptorArgs(counterpartySecret, counterpartyPubkey,
+    dlc.adaptorSign(counterpartySecret, cetSighash, otherPoint.outcomePoint, hash('dlc4:wrong-point'))
+  )), /adaptor point does not match its oracle subset/);
   // MAIN-1: a signature over the key-path sighash is not a settlement signature.
   expectThrow(() => validateCetAdaptorSignatures(adaptorArgs(signerSecret, signerPubkey,
     dlc.adaptorSign(signerSecret, keyPathCetSighash, selected.outcomePoint, hash('signature-validator:keypath-aux'))
