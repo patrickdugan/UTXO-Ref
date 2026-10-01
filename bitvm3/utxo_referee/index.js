@@ -74,7 +74,7 @@ const tradeLayerLiveReserveAdapter = require('./tradelayer_live_reserve_adapter'
 const tradeLayerDlcCetOracleSelection = require('./tradelayer_dlc_cet_oracle_selection');
 const tradeLayerDlcAdaptorSig = require('./tradelayer_dlc_adaptor_sig');
 const tradeLayerTaproot = require('./tradelayer_taproot');
-const tradeLayerMusig2 = require('./tradelayer_musig2');
+const tradeLayerMusig2 = require('./legacy/tradelayer_musig2');
 const tradeLayerTaprootScript = require('./tradelayer_taproot_script');
 const taprootReserveVault = require('./taproot_reserve_vault');
 const tradeLayerRbtcHourlyAutoRoll = require('./tradelayer_rbtc_hourly_autoroll');
@@ -735,7 +735,17 @@ const LEGACY_UNSAFE_EXPORT_NAMES = Object.freeze([
   'tradeLayerBitvmSha256',
   'tradeLayerPerpPnlReferee',
   'tradeLayerBitvmStack',
-  'tradeLayerUtxoRefLivePath'
+  'tradeLayerUtxoRefLivePath',
+  // MuSig2 is not on the pilot path. See legacy/.
+  'musig2KeyAgg',
+  'musig2ApplyTweak',
+  'musig2NonceAgg',
+  'musig2SessionValues',
+  'musig2PartialSign',
+  'musig2PartialSigAgg',
+  'musig2PartialSigAggAdaptor',
+  'musig2AdaptorComplete',
+  'tradeLayerMusig2'
 ]);
 
 // The sweep verifier (types, merkle, verify) was hardened on main against the

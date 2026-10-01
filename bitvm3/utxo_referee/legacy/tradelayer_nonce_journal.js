@@ -1,4 +1,8 @@
 /**
+ * LEGACY - NOT PART OF THE PILOT SURFACE. See ./tradelayer_musig2.js.
+ * partialSignGuarded() passes a digest of the whole signing session as the
+ * "message" here; journalling the bare message is not sufficient (DLC-2).
+ *
  * MuSig2/adaptor nonce-session journal (SECURITY_BLOCKERS.md #2).
  *
  * MuSig2 partial signing (tradelayer_musig2.js `partialSign`) takes an
@@ -27,7 +31,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
-const DEFAULT_JOURNAL_PATH = path.join(__dirname, 'artifacts', 'live', 'nonce_journal.json');
+const DEFAULT_JOURNAL_PATH = path.join(__dirname, '..', 'artifacts', 'live', 'nonce_journal.json');
 
 function sha256Hex(buf) {
   return crypto.createHash('sha256').update(Buffer.isBuffer(buf) ? buf : Buffer.from(buf)).digest('hex');

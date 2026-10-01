@@ -1,5 +1,5 @@
 /**
- * Run: node bitvm3/utxo_referee/tradelayer_musig2.test.js
+ * Run: node bitvm3/utxo_referee/legacy/tradelayer_musig2.test.js
  *
  * Validates MuSig2 key aggregation + partial signing against the published
  * BIP327 test vectors (vendored), then checks the 2-party adaptor variant:
@@ -11,7 +11,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const m = require('./tradelayer_musig2');
-const a = require('./tradelayer_dlc_adaptor_sig');
+const a = require('../tradelayer_dlc_adaptor_sig');
 
 let passed = 0, failed = 0;
 function test(name, fn) {

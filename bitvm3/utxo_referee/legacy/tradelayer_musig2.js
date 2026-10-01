@@ -1,4 +1,12 @@
 /**
+ * LEGACY - NOT PART OF THE PILOT SURFACE.
+ *
+ * The pilot DLC funding output is the two-leaf script-path output in
+ * ../dlc_funding_output.js (2-of-2 CHECKSIGVERIFY/CHECKSIG, no key path), which
+ * needs no interactive nonce exchange and therefore no nonce journal. This
+ * module is kept for the BIP327 vector tests and the historical demo only.
+ * Do not build new signing paths on it.
+ *
  * TradeLayer MuSig2 (BIP327) with an adaptor offset
  *
  * Two-party (n-party) key aggregation + 2-round signing producing a single
@@ -15,7 +23,7 @@
 
 const {
   N, G, mod, pointMul, pointAdd, pointNegate, liftX, taggedHash, bytes32, bufToBig, schnorrVerify
-} = require('./tradelayer_dlc_adaptor_sig');
+} = require('../tradelayer_dlc_adaptor_sig');
 const { reserveNonceUsage } = require('./tradelayer_nonce_journal');
 
 const FIELD_P = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2Fn;
@@ -135,8 +143,32 @@ function partialSign(secnonce, sk, ctx, session) {
 // anything. Reusing secnonce over a different msg32 throws NonceReuseError
 // instead of silently signing - this is the entry point real signing code
 // (demos, any future production path) should use.
+//
+// The journal is keyed on the whole signing session, not on msg32 alone. A
+// partial signature is s = k1 + b*k2 + e*a*d, and b and e depend on the
+// aggregate nonce and key as well as the message. Journalling only msg32 let
+// a co-signer replay the same message with a different public nonce: the
+// journal reported an idempotent retry, the signer released a second partial
+// signature with different (b, e), and the two equations gave up the key.
+// A retry is now idempotent only when the session is identical.
+function sessionBinding(ctx, session, msg32) {
+  return taggedHash('UTXORef/musig2-session-binding', Buffer.concat([
+    msg32,
+    xbytes(ctx.Q),
+    bytes32(session.b),
+    bytes32(session.e),
+    xbytes(session.Rfinal),
+    Buffer.from([session.bNeg ? 1 : 0])
+  ]));
+}
+
 function partialSignGuarded(secnonce, sk, ctx, session, msg32, journalOptions = {}) {
-  reserveNonceUsage(secnonce, msg32, journalOptions);
+  if (!Buffer.isBuffer(msg32) || msg32.length !== 32) throw new Error('msg32 must be a 32-byte Buffer');
+  // The caller-named message must be the one this session actually signs.
+  const expectedE = mod(bufToBig(taggedHash('BIP0340/challenge',
+    Buffer.concat([xbytes(session.Rfinal), xbytes(ctx.Q), msg32]))), N);
+  if (session.e !== expectedE) throw new Error('MuSig2 session challenge does not commit to msg32');
+  reserveNonceUsage(secnonce, sessionBinding(ctx, session, msg32), journalOptions);
   return partialSign(secnonce, sk, ctx, session);
 }
 

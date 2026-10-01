@@ -16,9 +16,13 @@ const { spawnSync } = require('child_process');
 
 const dir = __dirname;
 const heavy = new Set(['tradelayer_bitvm_sha256.test.js']);
-const tests = fs.readdirSync(dir)
+// legacy/ holds quarantined prototypes (MuSig2, nonce journal). They are not
+// part of the pilot surface but their tests still gate regressions.
+const listTests = (sub) => fs.readdirSync(path.join(dir, sub))
   .filter((f) => f.endsWith('.test.js'))
+  .map((f) => path.join(sub, f))
   .sort();
+const tests = [...listTests('.'), ...(fs.existsSync(path.join(dir, 'legacy')) ? listTests('legacy') : [])];
 
 let passed = 0;
 let failed = 0;
@@ -26,7 +30,7 @@ const failures = [];
 
 console.log(`\nUTXORef referee regression: ${tests.length} suites\n`);
 for (const t of tests) {
-  const args = heavy.has(t) ? ['--max-old-space-size=4096', path.join(dir, t)] : [path.join(dir, t)];
+  const args = heavy.has(path.basename(t)) ? ['--max-old-space-size=4096', path.join(dir, t)] : [path.join(dir, t)];
   const res = spawnSync(process.execPath, args, { encoding: 'utf8' });
   const out = (res.stdout || '') + (res.stderr || '');
   const ok = res.status === 0 && !/\bFAIL\b/.test(out);

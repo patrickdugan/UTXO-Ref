@@ -1,5 +1,5 @@
 /**
- * Run: node bitvm3/utxo_referee/tradelayer_nonce_journal.test.js
+ * Run: node bitvm3/utxo_referee/legacy/tradelayer_nonce_journal.test.js
  *
  * Validates SECURITY_BLOCKERS.md #2's fix: a MuSig2 secnonce can safely be
  * reused for the exact same message (idempotent retry), but reusing it for
@@ -12,7 +12,7 @@ const path = require('path');
 const crypto = require('crypto');
 const { reserveNonceUsage, NonceReuseError, _loadJournal } = require('./tradelayer_nonce_journal');
 const m = require('./tradelayer_musig2');
-const a = require('./tradelayer_dlc_adaptor_sig');
+const a = require('../tradelayer_dlc_adaptor_sig');
 
 let passed = 0, failed = 0;
 function test(name, fn) {
@@ -21,7 +21,7 @@ function test(name, fn) {
 }
 function assert(c, msg) { if (!c) throw new Error(msg || 'assertion failed'); }
 
-const TMP_DIR = path.join(__dirname, 'artifacts', 'live', 'test-tmp');
+const TMP_DIR = path.join(__dirname, '..', 'artifacts', 'live', 'test-tmp');
 function freshJournalPath(name) {
   fs.mkdirSync(TMP_DIR, { recursive: true });
   const p = path.join(TMP_DIR, `nonce_journal_test_${name}_${process.pid}.json`);
@@ -123,6 +123,69 @@ test('partialSignGuarded refuses to sign a second, different message under the s
     threw = err;
   }
   assert(threw instanceof NonceReuseError, 'partialSignGuarded must refuse nonce reuse across different messages');
+});
+
+// DLC-2 regression (port of the readiness-assessment poc2). The co-signer
+// replays the SAME message with a different public nonce. Under a
+// message-keyed journal this looked like an idempotent retry and the two
+// partial signatures solved for the victim's key.
+test('partialSignGuarded refuses the same message in a different session (co-signer nonce replay)', () => {
+  const journalPath = freshJournalPath('musig2-session-replay');
+  const scalar = () => a.mod(a.bufToBig(crypto.randomBytes(32)), a.N - 1n) + 1n;
+  const victimSk = scalar();
+  const attackerSk = scalar();
+  const victimPk = m.cbytes(a.pointMul(a.G, victimSk));
+  const attackerPk = m.cbytes(a.pointMul(a.G, attackerSk));
+  const ctx = m.keyAgg([victimPk, attackerPk]);
+  const makeNonce = () => {
+    const k1 = scalar();
+    const k2 = scalar();
+    return {
+      sec: Buffer.concat([a.bytes32(k1), a.bytes32(k2)]),
+      pub: Buffer.concat([m.cbytes(a.pointMul(a.G, k1)), m.cbytes(a.pointMul(a.G, k2))])
+    };
+  };
+  const victimNonce = makeNonce();
+  const msg = crypto.randomBytes(32);
+  const sessionOne = m.sessionValues(m.nonceAgg([victimNonce.pub, makeNonce().pub]), ctx, msg);
+  const sessionTwo = m.sessionValues(m.nonceAgg([victimNonce.pub, makeNonce().pub]), ctx, msg);
+  assert(sessionOne.b !== sessionTwo.b || sessionOne.e !== sessionTwo.e, 'fixture sessions must differ');
+
+  const first = m.partialSignGuarded(victimNonce.sec, a.bytes32(victimSk), ctx, sessionOne, msg, { journalPath });
+  // An identical retry of the first session is still idempotent.
+  const retry = m.partialSignGuarded(victimNonce.sec, a.bytes32(victimSk), ctx, sessionOne, msg, { journalPath });
+  assert(first.equals(retry), 'identical session retry should return the same partial signature');
+
+  let threw = null;
+  let second = null;
+  try {
+    second = m.partialSignGuarded(victimNonce.sec, a.bytes32(victimSk), ctx, sessionTwo, msg, { journalPath });
+  } catch (err) {
+    threw = err;
+  }
+  assert(second === null, 'a second partial signature was released under the same secnonce');
+  assert(threw instanceof NonceReuseError, 'same message in a different session must be refused as nonce reuse');
+});
+
+test('partialSignGuarded refuses a session whose challenge does not commit to the named message', () => {
+  const journalPath = freshJournalPath('musig2-message-binding');
+  const sk = a.mod(a.bufToBig(crypto.randomBytes(32)), a.N - 1n) + 1n;
+  const ctx = m.keyAgg([m.cbytes(a.pointMul(a.G, sk))]);
+  const k1 = a.mod(a.bufToBig(crypto.randomBytes(32)), a.N - 1n) + 1n;
+  const k2 = a.mod(a.bufToBig(crypto.randomBytes(32)), a.N - 1n) + 1n;
+  const sec = Buffer.concat([a.bytes32(k1), a.bytes32(k2)]);
+  const pub = Buffer.concat([m.cbytes(a.pointMul(a.G, k1)), m.cbytes(a.pointMul(a.G, k2))]);
+  const signedMessage = crypto.randomBytes(32);
+  const journalledMessage = crypto.randomBytes(32);
+  const session = m.sessionValues(m.nonceAgg([pub]), ctx, signedMessage);
+  let threw = null;
+  try {
+    m.partialSignGuarded(sec, a.bytes32(sk), ctx, session, journalledMessage, { journalPath });
+  } catch (err) {
+    threw = err;
+  }
+  assert(threw && /does not commit to msg32/.test(threw.message), 'mismatched session/message was signed');
+  assert(!fs.existsSync(journalPath), 'journal was written for a refused session');
 });
 
 console.log(`\nPASS: ${passed} tests${failed ? `, FAIL: ${failed}` : ''}`);

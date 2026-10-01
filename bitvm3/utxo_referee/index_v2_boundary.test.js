@@ -61,6 +61,14 @@ test('top-level sweep verifier rejects replayed positions and non-canonical indi
   assert(api.verifySweep(commitment, sweep([payout(0, { ...proofs[0], siblings: 'x' })])).ok === false, 'malformed siblings must not throw');
 });
 
+test('MuSig2 is quarantined behind the legacy namespace', () => {
+  for (const name of ['musig2KeyAgg', 'musig2PartialSign', 'musig2PartialSigAggAdaptor', 'tradeLayerMusig2']) {
+    assert(api[name] === undefined, `${name} must not be a top-level export`);
+  }
+  const legacy = api.legacyUnsafe.load({ acknowledgeUnsafePrototype: true });
+  assert(typeof legacy.musig2KeyAgg === 'function', 'MuSig2 must stay reachable through the legacy namespace');
+});
+
 test('legacy namespace refuses implicit loading', () => {
   let rejected = false;
   try { api.legacyUnsafe.load(); }

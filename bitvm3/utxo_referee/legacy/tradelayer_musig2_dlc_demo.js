@@ -19,10 +19,10 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
-const { rpcFactory } = require('./tradelayer_send_rpc_sweep');
-const tr = require('./tradelayer_taproot');
+const { rpcFactory } = require('../tradelayer_send_rpc_sweep');
+const tr = require('../tradelayer_taproot');
 const m = require('./tradelayer_musig2');
-const a = require('./tradelayer_dlc_adaptor_sig');
+const a = require('../tradelayer_dlc_adaptor_sig');
 
 function parseArgs(argv) {
   const args = {};
@@ -146,7 +146,7 @@ async function main() {
   };
 
   if (args.broadcast) {
-    const keyFile = path.join(__dirname, 'artifacts', 'live', 'taproot_recovery_key.hex');
+    const keyFile = path.join(__dirname, '..', 'artifacts', 'live', 'taproot_recovery_key.hex');
     fs.mkdirSync(path.dirname(keyFile), { recursive: true });
     fs.writeFileSync(keyFile, `musig2 skA=${a.bytes32(skA).toString('hex')} skB=${a.bytes32(skB).toString('hex')} ${p2trSpk} fund?->${fundTxid}:0=${lockSats}\n`, { flag: 'a' });
     const fa = await rpc('testmempoolaccept', [[fundSigned.hex]]);
@@ -162,7 +162,7 @@ async function main() {
     console.log('  (dry run; pass --broadcast to send)');
   }
 
-  const outDir = path.join(__dirname, 'artifacts', 'live');
+  const outDir = path.join(__dirname, '..', 'artifacts', 'live');
   fs.mkdirSync(outDir, { recursive: true });
   fs.writeFileSync(path.join(outDir, 'musig2_taproot_adaptor_dlc_latest.json'), JSON.stringify(result, null, 2) + '\n');
 }
