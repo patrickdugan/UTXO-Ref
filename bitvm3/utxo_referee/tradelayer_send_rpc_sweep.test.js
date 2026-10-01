@@ -328,6 +328,58 @@ async function run() {
     assertEq(computeDecodedTxOutputHash(decoded), expected);
   });
 
+  // WT-3: every RPC call has a deadline. A Core node that accepts the
+  // connection and never answers used to stall the caller forever.
+  await test('rpcFactory rejects with a timeout when Core accepts and never answers', async () => {
+    const http = require('http');
+    const { rpcFactory } = require('./tradelayer_send_rpc_sweep');
+    const sockets = new Set();
+    const silent = http.createServer(() => { /* never respond */ });
+    silent.on('connection', (socket) => { sockets.add(socket); socket.on('close', () => sockets.delete(socket)); });
+    await new Promise((resolve) => silent.listen(0, '127.0.0.1', resolve));
+    try {
+      const rpc = rpcFactory({
+        rpcUrl: `http://127.0.0.1:${silent.address().port}`, rpcUser: 'u', rpcPass: 'p', timeoutMs: 150
+      });
+      const started = Date.now();
+      let message = null;
+      try { await rpc('getblockchaininfo'); } catch (err) { message = err.message; }
+      assert(/RPC getblockchaininfo timed out after 150 ms/.test(String(message)), `expected a timeout, got ${message}`);
+      assert(Date.now() - started < 5000, 'the timeout must fire promptly');
+    } finally {
+      for (const socket of sockets) socket.destroy();
+      await new Promise((resolve) => silent.close(resolve));
+    }
+  });
+
+  await test('rpcFactory still returns results inside the deadline and validates timeoutMs', async () => {
+    const http = require('http');
+    const { rpcFactory } = require('./tradelayer_send_rpc_sweep');
+    const server = http.createServer((req, res) => {
+      req.resume();
+      req.on('end', () => {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ result: { chain: 'regtest' }, error: null, id: 'timeout-test' }));
+      });
+    });
+    await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+    try {
+      const rpc = rpcFactory({
+        rpcUrl: `http://127.0.0.1:${server.address().port}`, rpcUser: 'u', rpcPass: 'p',
+        requestId: 'timeout-test', timeoutMs: 2000
+      });
+      assert((await rpc('getblockchaininfo')).chain === 'regtest');
+    } finally {
+      await new Promise((resolve) => server.close(resolve));
+    }
+    for (const timeoutMs of [0, -1, 1.5, 600001, 'soon']) {
+      let rejected = false;
+      try { rpcFactory({ rpcUrl: 'http://127.0.0.1:1', rpcUser: 'u', rpcPass: 'p', timeoutMs }); }
+      catch (err) { rejected = /timeoutMs/.test(err.message); }
+      assert(rejected, `timeoutMs ${timeoutMs} must be rejected`);
+    }
+  });
+
   if (failed > 0) {
     console.log(`\nFAIL: ${failed} failed, ${passed} passed\n`);
     process.exit(1);

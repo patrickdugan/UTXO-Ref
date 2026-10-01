@@ -11,9 +11,19 @@ function encodeBasicAuth(user, pass) {
   return `Basic ${Buffer.from(`${user}:${pass}`).toString('base64')}`;
 }
 
-function rpcFactory({ rpcUrl, rpcUser, rpcPass, requestId = 'tradelayer-send-sweep' }) {
+const DEFAULT_RPC_TIMEOUT_MS = 15000;
+const MAX_RPC_TIMEOUT_MS = 600000;
+
+// Every call has a deadline. Without one, a Core node that accepts the
+// connection and never answers stalls the caller forever: the watchtower loop
+// stops ticking with no error, and the beta status endpoint hangs every
+// request on one shared in-flight promise.
+function rpcFactory({ rpcUrl, rpcUser, rpcPass, requestId = 'tradelayer-send-sweep', timeoutMs = DEFAULT_RPC_TIMEOUT_MS }) {
   const endpoint = new URL(rpcUrl);
   const transport = endpoint.protocol === 'https:' ? https : http;
+  if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > MAX_RPC_TIMEOUT_MS) {
+    throw new Error(`rpc timeoutMs must be an integer in 1..${MAX_RPC_TIMEOUT_MS}`);
+  }
 
   return async function rpc(method, params = [], wallet = null) {
     const walletPath = wallet ? `/wallet/${encodeURIComponent(wallet)}` : '';
@@ -39,34 +49,49 @@ function rpcFactory({ rpcUrl, rpcUser, rpcPass, requestId = 'tradelayer-send-swe
     };
 
     return new Promise((resolve, reject) => {
+      let settled = false;
+      const finish = (callback, value) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(deadline);
+        callback(value);
+      };
       const req = transport.request(requestOptions, (res) => {
         const chunks = [];
         res.on('data', (chunk) => chunks.push(chunk));
+        res.on('error', (err) => finish(reject, err));
         res.on('end', () => {
           const body = Buffer.concat(chunks).toString('utf8');
           if (res.statusCode < 200 || res.statusCode >= 300) {
-            reject(new Error(`RPC ${method} returned HTTP ${res.statusCode}: ${body.slice(0, 160)}`));
+            finish(reject, new Error(`RPC ${method} returned HTTP ${res.statusCode}: ${body.slice(0, 160)}`));
             return;
           }
           let json;
           try {
             json = JSON.parse(body);
           } catch (_err) {
-            reject(new Error(`Invalid RPC response for ${method}: ${body.slice(0, 160)}`));
+            finish(reject, new Error(`Invalid RPC response for ${method}: ${body.slice(0, 160)}`));
             return;
           }
           if (json.error) {
-            reject(new Error(`RPC ${method} failed: ${json.error.message}`));
+            finish(reject, new Error(`RPC ${method} failed: ${json.error.message}`));
             return;
           }
           if (json.id !== requestId) {
-            reject(new Error(`RPC ${method} response id mismatch`));
+            finish(reject, new Error(`RPC ${method} response id mismatch`));
             return;
           }
-          resolve(json.result);
+          finish(resolve, json.result);
         });
       });
-      req.on('error', reject);
+      // One overall deadline covering connect, request and the full response,
+      // not an idle timer that a slow drip of bytes could keep resetting.
+      const deadline = setTimeout(() => {
+        const err = new Error(`RPC ${method} timed out after ${timeoutMs} ms`);
+        finish(reject, err);
+        req.destroy(err);
+      }, timeoutMs);
+      req.on('error', (err) => finish(reject, err));
       req.write(payload);
       req.end();
     });
