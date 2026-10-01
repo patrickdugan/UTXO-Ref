@@ -12,6 +12,7 @@ const {
 const {
   isDlcSigningAuthorizationStore
 } = require('./dlc_signing_authorization_store');
+const { deriveCetSigningTarget } = require('./dlc_signing_target');
 const {
   REQUEST_KIND: NATIVE_PROCESS_REQUEST_KIND,
   RESPONSE_KIND: NATIVE_PROCESS_RESPONSE_KIND,
@@ -28,8 +29,8 @@ const REQUIRED_NATIVE_OPERATIONS = Object.freeze([
 const PROVIDER_OPERATIONS = new WeakMap();
 const PROVIDER_AUTHORIZATION_STORES = new WeakMap();
 const CONSUMED_AUTHORIZATIONS = new WeakMap();
-const ADAPTOR_SIGN_AUTHORIZATION_KIND = 'utxoref_dlc_adaptor_sign_authorization_v3';
-const NATIVE_ADAPTOR_SIGN_REQUEST_KIND = 'utxoref_dlc_native_adaptor_sign_request_v1';
+const ADAPTOR_SIGN_AUTHORIZATION_KIND = 'utxoref_dlc_adaptor_sign_authorization_v4';
+const NATIVE_ADAPTOR_SIGN_REQUEST_KIND = 'utxoref_dlc_native_adaptor_sign_request_v2';
 const DEFAULT_AUTHORIZATION_TTL_SECONDS = 120;
 const MAX_AUTHORIZATION_TTL_SECONDS = 300;
 const MAX_AUTHORIZATION_CLOCK_SKEW_SECONDS = 30;
@@ -171,11 +172,14 @@ function normalizeAdaptorPoint(point) {
   });
 }
 
+// MAIN-3: the payload binds a derived signing target - one committed CET, its
+// script-path sighash, and the adaptor point of its pinned oracle subset -
+// never a caller-chosen sighash or point.
 function adaptorSigningAuthorizationPayload(input) {
   let {
-    contract, authorizationId, signerPubkeyX, sighash, adaptorPoint, issuedAtUnixSeconds, expiresAtUnixSeconds
+    contract, authorizationId, signerPubkeyX, signingContext, issuedAtUnixSeconds, expiresAtUnixSeconds
   } = snapshotOwnDataArguments(input, [
-    'contract', 'authorizationId', 'signerPubkeyX', 'sighash', 'adaptorPoint',
+    'contract', 'authorizationId', 'signerPubkeyX', 'signingContext',
     'issuedAtUnixSeconds', 'expiresAtUnixSeconds'
   ], 'DLC signing authorization payload arguments');
   contract = normalizeDlcContract(contract);
@@ -183,6 +187,14 @@ function adaptorSigningAuthorizationPayload(input) {
     throw new Error('DLC adaptor signing requires COUNTERPARTY_SIGNATURES_VERIFIED contract state');
   }
   const window = authorizationWindow(issuedAtUnixSeconds, expiresAtUnixSeconds);
+  const target = deriveCetSigningTarget({
+    contract,
+    signerPubkeyX: requireLowerHex(signerPubkeyX, 32, 'signerPubkeyX'),
+    signingContext
+  });
+  if (target.cetSetDigest !== cetSetDigest(contract)) {
+    throw new Error('DLC signing target is not in the authenticated CET set');
+  }
   const normalized = {
     kind: ADAPTOR_SIGN_AUTHORIZATION_KIND,
     authorizationId: requireAuthorizationId(authorizationId),
@@ -193,23 +205,35 @@ function adaptorSigningAuthorizationPayload(input) {
     transcriptHash: contract.transcriptHash,
     revision: contract.revision,
     stage: contract.stage,
-    cetSetDigest: cetSetDigest(contract),
-    signerPubkeyX: requireLowerHex(signerPubkeyX, 32, 'signerPubkeyX'),
-    sighash: requireLowerHex(sighash, 32, 'sighash'),
-    adaptorPoint: normalizeAdaptorPoint(adaptorPoint),
+    cetSetDigest: target.cetSetDigest,
+    fundingTemplateDigest: target.fundingTemplateDigest,
+    oracleAnnouncementsDigest: target.oracleAnnouncementsDigest,
+    cetTxid: target.cetTxid,
+    signerPubkeyX: target.signerPubkeyX,
+    sighash: target.sighash,
+    adaptorPoint: target.adaptorPoint,
     issuedAtUnixSeconds: window.issuedAtUnixSeconds,
     expiresAtUnixSeconds: window.expiresAtUnixSeconds
   };
-  return Buffer.from(canonicalJson(normalized), 'utf8');
+  return Object.freeze({ payload: Buffer.from(canonicalJson(normalized), 'utf8'), target });
+}
+
+function rejectBareSighash(sighash, adaptorPoint) {
+  if (sighash !== undefined || adaptorPoint !== undefined) {
+    throw new Error('bare-sighash signing is not supported: name a committed CET through signingContext ' +
+      '(transactionSet, cetTxid, oracleAnnouncements) and the sighash and adaptor point are derived');
+  }
 }
 
 function createDlcAdaptorSignAuthorization(input) {
   const {
-    privateKey, contract: rawContract, authorizationId, signerPubkeyX, sighash, adaptorPoint,
+    privateKey, contract: rawContract, authorizationId, signerPubkeyX, signingContext, sighash, adaptorPoint,
     now = new Date(), ttlSeconds = DEFAULT_AUTHORIZATION_TTL_SECONDS
   } = snapshotOwnDataArguments(input, [
-    'privateKey', 'contract', 'authorizationId', 'signerPubkeyX', 'sighash', 'adaptorPoint', 'now', 'ttlSeconds'
+    'privateKey', 'contract', 'authorizationId', 'signerPubkeyX', 'signingContext',
+    'sighash', 'adaptorPoint', 'now', 'ttlSeconds'
   ], 'DLC signing authorization arguments');
+  rejectBareSighash(sighash, adaptorPoint);
   let contract = rawContract;
   contract = normalizeDlcContract(contract);
   if (!Number.isSafeInteger(ttlSeconds) || ttlSeconds < 1 || ttlSeconds > MAX_AUTHORIZATION_TTL_SECONDS) {
@@ -217,8 +241,8 @@ function createDlcAdaptorSignAuthorization(input) {
   }
   const issuedAtUnixSeconds = authorizationNow(now);
   const expiresAtUnixSeconds = issuedAtUnixSeconds + ttlSeconds;
-  const payload = adaptorSigningAuthorizationPayload({
-    contract, authorizationId, signerPubkeyX, sighash, adaptorPoint,
+  const { payload, target } = adaptorSigningAuthorizationPayload({
+    contract, authorizationId, signerPubkeyX, signingContext,
     issuedAtUnixSeconds, expiresAtUnixSeconds
   });
   const publicKey = crypto.createPublicKey(privateKey);
@@ -233,8 +257,10 @@ function createDlcAdaptorSignAuthorization(input) {
     authorizationId,
     stateRecordHash: contract.recordHash,
     signerPubkeyX,
-    sighash,
-    adaptorPoint: normalizeAdaptorPoint(adaptorPoint),
+    cetTxid: target.cetTxid,
+    oracleAnnouncementsDigest: target.oracleAnnouncementsDigest,
+    sighash: target.sighash,
+    adaptorPoint: target.adaptorPoint,
     issuedAtUnixSeconds,
     expiresAtUnixSeconds,
     validatorKeyId,
@@ -254,8 +280,9 @@ function verifyAuthorizedPresignature(result, signerPubkeyX, sighash) {
 }
 
 function authorizeDlcAdaptorSign(provider, input = {}) {
-  const { contract: rawContract, authorization: rawAuthorization, now = new Date() } =
-    snapshotOwnDataArguments(input, ['contract', 'authorization', 'now'], 'DLC signer session arguments');
+  const { contract: rawContract, authorization: rawAuthorization, signingContext, now = new Date() } =
+    snapshotOwnDataArguments(input, ['contract', 'authorization', 'signingContext', 'now'],
+      'DLC signer session arguments');
   let contract = rawContract;
   const authorization = canonicalize(rawAuthorization, 'DLC signing authorization');
   requireDlcSigningProvider(provider);
@@ -273,16 +300,23 @@ function authorizeDlcAdaptorSign(provider, input = {}) {
     throw new Error('DLC adaptor signing authorization is malformed or not bound to this contract state');
   }
   assertAuthorizationFreshness(authorization, now);
-  const adaptorPoint = normalizeAdaptorPoint(authorization.adaptorPoint);
-  const payload = adaptorSigningAuthorizationPayload({
+  // Re-derive the target from the signing context; the authorization's own
+  // sighash and adaptor point are only accepted if they are exactly that.
+  const { payload, target } = adaptorSigningAuthorizationPayload({
     contract,
     authorizationId: authorization.authorizationId,
     signerPubkeyX: authorization.signerPubkeyX,
-    sighash: authorization.sighash,
-    adaptorPoint,
+    signingContext,
     issuedAtUnixSeconds: authorization.issuedAtUnixSeconds,
     expiresAtUnixSeconds: authorization.expiresAtUnixSeconds
   });
+  const claimedPoint = normalizeAdaptorPoint(authorization.adaptorPoint);
+  if (authorization.cetTxid !== target.cetTxid || authorization.sighash !== target.sighash ||
+      authorization.oracleAnnouncementsDigest !== target.oracleAnnouncementsDigest ||
+      claimedPoint.x !== target.adaptorPoint.x || claimedPoint.y !== target.adaptorPoint.y) {
+    throw new Error('DLC adaptor signing authorization does not match the CET derived from its signing context');
+  }
+  const adaptorPoint = target.adaptorPoint;
   const policy = contract.validatorPolicy.local_cet_signatures;
   const publicKey = crypto.createPublicKey({
     key: Buffer.from(policy.publicKeySpki, 'base64'),
@@ -352,13 +386,18 @@ function authorizeDlcAdaptorSign(provider, input = {}) {
           revision: contract.revision,
           stage: contract.stage,
           cetSetDigest: cetSetDigest(contract),
+          fundingTemplateDigest: target.fundingTemplateDigest,
+          oracleAnnouncementsDigest: target.oracleAnnouncementsDigest,
+          cetTxid: target.cetTxid,
           authorizationDigest,
           authorizationPayload: payload.toString('base64'),
           authorization: Object.freeze(JSON.parse(canonicalJson(authorization))),
           validatorPublicKeySpki: contract.validatorPolicy.local_cet_signatures.publicKeySpki,
           signerPubkeyX: authorization.signerPubkeyX,
-          sighash: authorization.sighash,
-          adaptorPoint
+          // Claimed values; the native signer re-derives both from signingContext.
+          sighash: target.sighash,
+          adaptorPoint,
+          signingContext: target.signingContext
         }));
       }
       if (result && typeof result.then === 'function') {

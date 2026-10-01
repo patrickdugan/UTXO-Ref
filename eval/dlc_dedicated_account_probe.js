@@ -24,6 +24,7 @@ const {
   nativeSignerRuntimeDigest
 } = require('../bitvm3/utxo_referee/dlc_native_signer_process_client');
 const dlc = require('../bitvm3/utxo_referee/tradelayer_dlc_adaptor_sig');
+const { buildDlcSigningFixture } = require('../bitvm3/utxo_referee/dlc_signing_fixture');
 
 function fail(message) { throw new Error(message); }
 function digest(value) { return crypto.createHash('sha256').update(value).digest('hex'); }
@@ -99,6 +100,19 @@ function prepare(args) {
     keyId: validatorKeyId,
     publicKeySpki: validatorSpki.toString('base64')
   }]));
+  // MAIN-3: receipts over a real transaction set and pinned oracle announcements.
+  const announcements = [101n, 202n, 303n].map((secret, index) => dlc.buildDlcOracle(secret, 1001n + BigInt(index), {
+    eventId: 'dedicated-account-testnet4-event',
+    outcomeMessages: [
+      crypto.createHash('sha256').update('dedicated-account:yes').digest(),
+      crypto.createHash('sha256').update('dedicated-account:no').digest()
+    ]
+  }));
+  const signingFixture = buildDlcSigningFixture({
+    signerPubkeyX: provisioning.signerPubkeyX,
+    counterpartySecret: 31337n,
+    announcements
+  });
   const requestFor = (contract, to) => {
     const idempotencyKey = `dedicated-account:${to}`;
     return {
@@ -112,7 +126,7 @@ function prepare(args) {
         to,
         idempotencyKey,
         kind,
-        digest: digest(`dedicated-account:${to}:${kind}`)
+        digest: signingFixture.receiptDigests[kind] || digest(`dedicated-account:${to}:${kind}`)
       }))
     };
   };
@@ -120,29 +134,29 @@ function prepare(args) {
     contractId: `dedicated-account-${crypto.randomBytes(12).toString('hex')}`,
     network: 'bitcoin-testnet4',
     contractDigest: digest('dedicated-account-testnet4-contract'),
-    oraclePolicy: { threshold: 2, total: 3, pinnedPubkeys: ['11'.repeat(32), '22'.repeat(32), '33'.repeat(32)] },
+    oraclePolicy: {
+      threshold: 2, total: 3, pinnedPubkeys: signingFixture.oracleAnnouncements.map((announcement) => announcement.px)
+    },
     validatorPolicy: validatorPolicyMap
   });
   for (const stage of ['AUTHENTICATED_ORACLES', 'CANONICAL_CETS_AND_REFUND', 'COUNTERPARTY_SIGNATURES_VERIFIED']) {
     contract = transitionDlcContract(contract, requestFor(contract, stage));
   }
-  const sighash = digest('dedicated-account-testnet4-cet-sighash');
-  const adaptorPoint = dlc.pointMul(dlc.G, 919n);
+  const signingContext = signingFixture.signingContext;
   const authorization = createDlcAdaptorSignAuthorization({
     privateKey: validatorKeys.privateKey,
     contract,
     authorizationId: `dedicated-account:${crypto.randomBytes(12).toString('hex')}`,
     signerPubkeyX: provisioning.signerPubkeyX,
-    sighash,
-    adaptorPoint,
+    signingContext,
     ttlSeconds: 300
   });
+  const sighash = authorization.sighash;
   const authorizationPayload = adaptorSigningAuthorizationPayload({
     contract,
     authorizationId: authorization.authorizationId,
     signerPubkeyX: authorization.signerPubkeyX,
-    sighash: authorization.sighash,
-    adaptorPoint: authorization.adaptorPoint,
+    signingContext,
     issuedAtUnixSeconds: authorization.issuedAtUnixSeconds,
     expiresAtUnixSeconds: authorization.expiresAtUnixSeconds
   });
@@ -150,7 +164,7 @@ function prepare(args) {
   const cetReceipt = cetTransition.evidence.find((entry) => entry.kind === 'cet_set');
   const authorizationDigest = digest(Buffer.from(canonicalJson(authorization), 'utf8'));
   const request = {
-    kind: 'utxoref_dlc_native_adaptor_sign_request_v1',
+    kind: 'utxoref_dlc_native_adaptor_sign_request_v2',
     network: contract.network,
     contractId: contract.contractId,
     contractDigest: contract.contractDigest,
@@ -159,13 +173,17 @@ function prepare(args) {
     revision: contract.revision,
     stage: contract.stage,
     cetSetDigest: cetReceipt.digest,
+    fundingTemplateDigest: authorizationPayload.target.fundingTemplateDigest,
+    oracleAnnouncementsDigest: authorizationPayload.target.oracleAnnouncementsDigest,
+    cetTxid: authorizationPayload.target.cetTxid,
     authorizationDigest,
-    authorizationPayload: authorizationPayload.toString('base64'),
+    authorizationPayload: authorizationPayload.payload.toString('base64'),
     authorization: JSON.parse(canonicalJson(authorization)),
     validatorPublicKeySpki: validatorSpki.toString('base64'),
     signerPubkeyX: authorization.signerPubkeyX,
     sighash: authorization.sighash,
-    adaptorPoint: authorization.adaptorPoint
+    adaptorPoint: authorization.adaptorPoint,
+    signingContext: authorizationPayload.target.signingContext
   };
   const launchSpec = {
     executablePath: powershell,
@@ -197,7 +215,7 @@ function prepare(args) {
     constantTimeSecretOperations: true,
     secretZeroization: true,
     processIsolated: true,
-    signingRequestKind: 'utxoref_dlc_native_adaptor_sign_request_v1',
+    signingRequestKind: 'utxoref_dlc_native_adaptor_sign_request_v2',
     callerSuppliesSecret: false,
     keySelection: 'authorized-xonly-pubkey',
     independentAuthorizationVerification: true,

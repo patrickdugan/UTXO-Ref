@@ -15,6 +15,8 @@ const {
   transitionDlcContract
 } = require('../bitvm3/utxo_referee/dlc_contract_state');
 const { DlcSigningAuthorizationStore } = require('../bitvm3/utxo_referee/dlc_signing_authorization_store');
+const { combineThresholdAttestations } = require('../bitvm3/utxo_referee/dlc_threshold_oracle');
+const { buildDlcSigningFixture } = require('../bitvm3/utxo_referee/dlc_signing_fixture');
 const {
   DlcNativeSignerProcessClient,
   nativeSignerExecutableDigest,
@@ -152,6 +154,10 @@ fs.mkdirSync(pipeAuthorizationDirectory, { recursive: true, mode: 0o700 });
 fs.mkdirSync(unpinnedValidatorAuthorizationDirectory, { recursive: true, mode: 0o700 });
 fs.mkdirSync(unpinnedSignerAuthorizationDirectory, { recursive: true, mode: 0o700 });
 
+function digestBuffer(label) {
+  return crypto.createHash('sha256').update(label).digest();
+}
+
 async function main() {
 let activeBroker = null;
 try {
@@ -193,6 +199,13 @@ try {
     keyId: validatorKeyId,
     publicKeySpki: validatorSpki.toString('base64')
   }]));
+  const oracleSecrets = [101n, 202n, 303n];
+  const announcements = oracleSecrets.map((secret, index) => dlc.buildDlcOracle(secret, 1001n + BigInt(index), {
+    eventId: 'native-rust-integration-event',
+    outcomeMessages: [digestBuffer('native-rust:yes'), digestBuffer('native-rust:no')]
+  }));
+  const signingFixture = buildDlcSigningFixture({ signerSecret, counterpartySecret: 31337n, announcements });
+  const signingContext = signingFixture.signingContext;
   const requestFor = (contract, to) => {
     const idempotencyKey = `native-rust:${to}`;
     return {
@@ -206,7 +219,7 @@ try {
         to,
         idempotencyKey,
         kind,
-        digest: digest(`native-rust:${to}:${kind}`)
+        digest: signingFixture.receiptDigests[kind] || digest(`native-rust:${to}:${kind}`)
       }))
     };
   };
@@ -218,7 +231,7 @@ try {
     oraclePolicy: {
       threshold: 2,
       total: 3,
-      pinnedPubkeys: ['11'.repeat(32), '22'.repeat(32), '33'.repeat(32)]
+      pinnedPubkeys: signingFixture.oracleAnnouncements.map((announcement) => announcement.px)
     },
     validatorPolicy
   });
@@ -286,7 +299,7 @@ try {
     constantTimeSecretOperations: true,
     secretZeroization: true,
     processIsolated: true,
-    signingRequestKind: 'utxoref_dlc_native_adaptor_sign_request_v1',
+    signingRequestKind: 'utxoref_dlc_native_adaptor_sign_request_v2',
     callerSuppliesSecret: false,
     keySelection: 'authorized-xonly-pubkey',
     independentAuthorizationVerification: true,
@@ -328,16 +341,31 @@ try {
     authorizationStore: new DlcSigningAuthorizationStore(authorizationDirectory)
   };
   const provider = createDlcCryptoProvider(providerOptions);
-  const sighash = digest('native-rust-cet-sighash');
-  const adaptorPoint = dlc.pointMul(dlc.G, 717n);
   const authorization = createDlcAdaptorSignAuthorization({
     privateKey: validatorKeys.privateKey,
     contract,
     authorizationId: 'native-rust:cet:0',
     signerPubkeyX,
-    sighash,
-    adaptorPoint
+    signingContext
   });
+  // The sighash and adaptor point are derived from the committed CET and the
+  // pinned oracle announcements; the adaptor scalar is the oracles' attestation.
+  const sighash = authorization.sighash;
+  const adaptorPoint = {
+    x: BigInt(`0x${authorization.adaptorPoint.x}`),
+    y: BigInt(`0x${authorization.adaptorPoint.y}`)
+  };
+  const signedCet = signingFixture.transactionSet.cets.find((cet) => cet.txid === signingFixture.cetTxid);
+  const signedOutcome = Buffer.from(signedCet.outcomeMessage, 'hex');
+  const attestationScalar = combineThresholdAttestations({
+    announcements,
+    threshold: 2,
+    pinnedPubkeys: contract.oraclePolicy.pinnedPubkeys,
+    outcomeMsg32: signedOutcome,
+    oraclePubkeys: signedCet.oraclePubkeys,
+    attestations: signedCet.oraclePubkeys.map((key) =>
+      dlc.dlcAttest(announcements.find((announcement) => announcement.px === key), signedOutcome))
+  }).scalar;
   const unpinnedValidatorProvider = createDlcCryptoProvider({
     network: 'bitcoin-testnet4',
     mode: 'native-isolated',
@@ -350,7 +378,7 @@ try {
     authorizationStore: new DlcSigningAuthorizationStore(unpinnedValidatorAuthorizationDirectory)
   });
   let unpinnedValidatorRejected = false;
-  try { authorizeDlcAdaptorSign(unpinnedValidatorProvider, { contract, authorization }).execute(); }
+  try { authorizeDlcAdaptorSign(unpinnedValidatorProvider, { contract, signingContext, authorization }).execute(); }
   catch (error) { unpinnedValidatorRejected = /native signer process exited unsuccessfully/.test(error.message); }
   if (!unpinnedValidatorRejected) fail('Rust signer accepted a validator absent from its audited policy');
   const unpinnedSignerProvider = createDlcCryptoProvider({
@@ -365,14 +393,14 @@ try {
     authorizationStore: new DlcSigningAuthorizationStore(unpinnedSignerAuthorizationDirectory)
   });
   let unpinnedSignerRejected = false;
-  try { authorizeDlcAdaptorSign(unpinnedSignerProvider, { contract, authorization }).execute(); }
+  try { authorizeDlcAdaptorSign(unpinnedSignerProvider, { contract, signingContext, authorization }).execute(); }
   catch (error) { unpinnedSignerRejected = /native signer process exited unsuccessfully/.test(error.message); }
   if (!unpinnedSignerRejected) fail('Rust signer accepted a signing key absent from its audited policy');
-  const presignature = authorizeDlcAdaptorSign(provider, { contract, authorization }).execute();
+  const presignature = authorizeDlcAdaptorSign(provider, { contract, signingContext, authorization }).execute();
   if (!dlc.adaptorVerify(Buffer.from(signerPubkeyX, 'hex'), Buffer.from(sighash, 'hex'), presignature)) {
     fail('Rust signer pre-signature failed JavaScript verification');
   }
-  const completedSignature = dlc.adaptorComplete(presignature, 717n);
+  const completedSignature = dlc.adaptorComplete(presignature, attestationScalar);
   if (!dlc.schnorrVerify(Buffer.from(signerPubkeyX, 'hex'), Buffer.from(sighash, 'hex'), completedSignature)) {
     fail('Rust signer pre-signature did not complete to a valid BIP340 signature');
   }
@@ -381,7 +409,7 @@ try {
     completedSignature,
     Buffer.from(signerPubkeyX, 'hex'),
     Buffer.from(sighash, 'hex')
-  ) !== 717n) fail('Rust signer pre-signature did not extract its adaptor scalar');
+  ) !== attestationScalar) fail('Rust signer pre-signature did not extract its adaptor scalar');
 
   const pipeName = `utxoref-dlc-${process.pid}-${crypto.randomBytes(8).toString('hex')}`;
   const { powershell, environment: powershellEnvironment } = powershellPathAndEnvironment();
@@ -448,13 +476,13 @@ try {
     contract,
     authorizationId: 'native-rust:pipe:0',
     signerPubkeyX,
-    sighash,
-    adaptorPoint
+    signingContext
   });
   let pipePresignature;
   try {
     pipePresignature = authorizeDlcAdaptorSign(pipeProvider, {
       contract,
+      signingContext,
       authorization: pipeAuthorization
     }).execute();
   } catch (error) {
@@ -516,7 +544,7 @@ try {
     authorizationStore: new DlcSigningAuthorizationStore(authorizationDirectory)
   });
   let replayRejected = false;
-  try { authorizeDlcAdaptorSign(restartedProvider, { contract, authorization }).execute(); }
+  try { authorizeDlcAdaptorSign(restartedProvider, { contract, signingContext, authorization }).execute(); }
   catch (error) { replayRejected = /durably consumed/.test(error.message); }
   if (!replayRejected) fail('Rust signer authorization replay was not rejected after provider restart');
   const directReplayProvider = createDlcCryptoProvider({
@@ -525,7 +553,7 @@ try {
     authorizationStore: new DlcSigningAuthorizationStore(directReplayAuthorizationDirectory)
   });
   let signerLocalReplayRejected = false;
-  try { authorizeDlcAdaptorSign(directReplayProvider, { contract, authorization }).execute(); }
+  try { authorizeDlcAdaptorSign(directReplayProvider, { contract, signingContext, authorization }).execute(); }
   catch (error) { signerLocalReplayRejected = /native signer process exited unsuccessfully/.test(error.message); }
   if (!signerLocalReplayRejected) fail('Rust signer local replay store accepted a consumed authorization');
 
@@ -534,15 +562,13 @@ try {
     contract,
     authorizationId: 'native-rust:race:0',
     signerPubkeyX,
-    sighash,
-    adaptorPoint
+    signingContext
   });
   const racePayload = adaptorSigningAuthorizationPayload({
     contract,
     authorizationId: raceAuthorization.authorizationId,
     signerPubkeyX,
-    sighash,
-    adaptorPoint,
+    signingContext,
     issuedAtUnixSeconds: raceAuthorization.issuedAtUnixSeconds,
     expiresAtUnixSeconds: raceAuthorization.expiresAtUnixSeconds
   });
@@ -551,7 +577,7 @@ try {
   if (!cetReceipt) fail('race probe could not resolve the authenticated CET set digest');
   const raceAuthorizationDigest = digest(Buffer.from(canonicalJson(raceAuthorization), 'utf8'));
   const raceRequest = {
-    kind: 'utxoref_dlc_native_adaptor_sign_request_v1',
+    kind: 'utxoref_dlc_native_adaptor_sign_request_v2',
     network: contract.network,
     contractId: contract.contractId,
     contractDigest: contract.contractDigest,
@@ -561,12 +587,16 @@ try {
     stage: contract.stage,
     cetSetDigest: cetReceipt.digest,
     authorizationDigest: raceAuthorizationDigest,
-    authorizationPayload: racePayload.toString('base64'),
+    fundingTemplateDigest: racePayload.target.fundingTemplateDigest,
+    oracleAnnouncementsDigest: racePayload.target.oracleAnnouncementsDigest,
+    cetTxid: racePayload.target.cetTxid,
+    authorizationPayload: racePayload.payload.toString('base64'),
     authorization: JSON.parse(canonicalJson(raceAuthorization)),
     validatorPublicKeySpki: contract.validatorPolicy.local_cet_signatures.publicKeySpki,
     signerPubkeyX,
     sighash,
-    adaptorPoint: { x: dlc.bytes32(adaptorPoint.x).toString('hex'), y: dlc.bytes32(adaptorPoint.y).toString('hex') }
+    adaptorPoint: { x: dlc.bytes32(adaptorPoint.x).toString('hex'), y: dlc.bytes32(adaptorPoint.y).toString('hex') },
+    signingContext: racePayload.target.signingContext
   };
   const raceRequestDigest = digest(Buffer.from(canonicalJson(raceRequest), 'utf8'));
   const raceAttempts = Array.from({ length: 16 }, () => {
@@ -603,7 +633,7 @@ try {
     const request = {
       ...raceRequest,
       authorizationDigest,
-      authorizationPayload: directPayload.toString('base64'),
+      authorizationPayload: directPayload.payload.toString('base64'),
       authorization: JSON.parse(canonicalJson(directAuthorization))
     };
     const requestDigest = digest(Buffer.from(canonicalJson(request), 'utf8'));
@@ -620,8 +650,7 @@ try {
     contract,
     authorizationId,
     signerPubkeyX,
-    sighash,
-    adaptorPoint,
+    signingContext,
     now,
     ttlSeconds: 60
   });
@@ -629,8 +658,7 @@ try {
     contract,
     authorizationId: freshnessAuthorization.authorizationId,
     signerPubkeyX,
-    sighash,
-    adaptorPoint,
+    signingContext,
     issuedAtUnixSeconds: freshnessAuthorization.issuedAtUnixSeconds,
     expiresAtUnixSeconds: freshnessAuthorization.expiresAtUnixSeconds
   });

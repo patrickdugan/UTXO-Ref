@@ -1,0 +1,1457 @@
+{
+  "kind": "utxoref_dlc_signing_target_vectors_v1",
+  "valid": {
+    "signingContext": {
+      "cetTxid": "6a1839b6b7de20e4efab36be48d0811b37b32ccfe724e76326d409c56059e7d4",
+      "oracleAnnouncements": [
+        {
+          "eventId": "signing-target-vector-event",
+          "kind": "tradelayer_dlc_oracle_announcement_v1",
+          "outcomeMessages": [
+            "886b2cc4599f5f1086a963cf98cb513693f30fcf8f8e172108418190419ab17c",
+            "677492913ff211ff828514568f8ef6b9573b9b8aef337997950f93fb9905b20e"
+          ],
+          "px": "0141b22950fda59d7e3edea65b7d7e0b1a377b00819f72b840bf168083b53a17",
+          "rx": "d638c8f8cf32738ea45d0278d2b0d858fe4c141149c68e36a4e8df1ab428aa2b",
+          "signature": "e7c97f75ce4b4a6919c3fc07a3fb20cd10a8393a327c5a2547bcbf3f36b8c35c1302dbac2ad9c2002d6fab88b7dce41ae908a76868b48fe95dacb29e25330ce1"
+        },
+        {
+          "eventId": "signing-target-vector-event",
+          "kind": "tradelayer_dlc_oracle_announcement_v1",
+          "outcomeMessages": [
+            "886b2cc4599f5f1086a963cf98cb513693f30fcf8f8e172108418190419ab17c",
+            "677492913ff211ff828514568f8ef6b9573b9b8aef337997950f93fb9905b20e"
+          ],
+          "px": "0729d7ae77ce1096f896e90a5d8a2415d0ed8cb136c5499b38339595c715dafa",
+          "rx": "46861050794131372531dbaf1bf29d1c41bd86e5c2cf48c00e15475021327699",
+          "signature": "47c71c1b03afc79dab239867405a3508bc2b889d9acb9c3d1b76107f0232c5a689fe2b1641079abf5701fa78ce576efe8b0f98c1ebd82336cb9c5b9c82edc605"
+        },
+        {
+          "eventId": "signing-target-vector-event",
+          "kind": "tradelayer_dlc_oracle_announcement_v1",
+          "outcomeMessages": [
+            "886b2cc4599f5f1086a963cf98cb513693f30fcf8f8e172108418190419ab17c",
+            "677492913ff211ff828514568f8ef6b9573b9b8aef337997950f93fb9905b20e"
+          ],
+          "px": "94b1dbd67020711302483b99c6ca12d460722ed556232dd094e12dbba65e963c",
+          "rx": "2994d4bd7eccdc6a741ae20625714496092950836c9428313a84dec0ab9757ed",
+          "signature": "a09de770933fbe677b42070e18ff5dba9572eca479445b625a4d4a0c1294c4df987559d4878f272c7fa5c44c58d7335269caa33a2fa70a8bcbce8171e4bc9d91"
+        }
+      ],
+      "transactionSet": {
+        "cetSetDigest": "406b7f090b07c7d51a3854ea53e58525044385e3ce9997101e7824e58920390f",
+        "cets": [
+          {
+            "feeSats": "670",
+            "locktime": 100,
+            "oraclePubkeys": [
+              "0141b22950fda59d7e3edea65b7d7e0b1a377b00819f72b840bf168083b53a17",
+              "0729d7ae77ce1096f896e90a5d8a2415d0ed8cb136c5499b38339595c715dafa"
+            ],
+            "outcomeMessage": "677492913ff211ff828514568f8ef6b9573b9b8aef337997950f93fb9905b20e",
+            "outputs": [
+              {
+                "scriptPubKeyHex": "00145555555555555555555555555555555555555555",
+                "valueSats": "58000"
+              },
+              {
+                "scriptPubKeyHex": "00146666666666666666666666666666666666666666",
+                "valueSats": "41000"
+              },
+              {
+                "scriptPubKeyHex": "0014aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "valueSats": "330"
+              }
+            ],
+            "rawTxHex": "0200000001b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b70100000000feffffff0390e2000000000000160014555555555555555555555555555555555555555528a000000000000016001466666666666666666666666666666666666666664a01000000000000160014aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa64000000",
+            "txid": "7434c9db2797b2a5ccea292cefe2bda38bd85087008c7c149d6a000ba6b8e5cb",
+            "version": 2
+          },
+          {
+            "feeSats": "670",
+            "locktime": 100,
+            "oraclePubkeys": [
+              "0141b22950fda59d7e3edea65b7d7e0b1a377b00819f72b840bf168083b53a17",
+              "0729d7ae77ce1096f896e90a5d8a2415d0ed8cb136c5499b38339595c715dafa"
+            ],
+            "outcomeMessage": "886b2cc4599f5f1086a963cf98cb513693f30fcf8f8e172108418190419ab17c",
+            "outputs": [
+              {
+                "scriptPubKeyHex": "00145555555555555555555555555555555555555555",
+                "valueSats": "59000"
+              },
+              {
+                "scriptPubKeyHex": "00146666666666666666666666666666666666666666",
+                "valueSats": "40000"
+              },
+              {
+                "scriptPubKeyHex": "0014aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "valueSats": "330"
+              }
+            ],
+            "rawTxHex": "0200000001b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b70100000000feffffff0378e60000000000001600145555555555555555555555555555555555555555409c00000000000016001466666666666666666666666666666666666666664a01000000000000160014aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa64000000",
+            "txid": "6a1839b6b7de20e4efab36be48d0811b37b32ccfe724e76326d409c56059e7d4",
+            "version": 2
+          }
+        ],
+        "feePolicy": {
+          "anchorAmountSats": "330",
+          "anchorScriptPubKeyHex": "0014aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "maxRecoveryFeeSats": "150000",
+          "maxRecoveryFeerateSatPerVb": 500,
+          "minRelayPeers": 2,
+          "strategy": "cpfp-anchor-v1",
+          "transactionVersion": 2
+        },
+        "feePolicyDigest": "96a01da36bfb6dba90e307e4994d5903b5d675e833b0c29f9f4d1a492ac79b1b",
+        "funding": {
+          "cetLeafHash": "96b07f4c218cfa9a56d2a6389137b7a0f1971361875f3d4256884c8994f55144",
+          "partyPubkeyXs": [
+            "6ff108799ba57ff60cd927b1d6cd110e938f8c2546aafa496019047f6bf37b28",
+            "94046d75efcf1173660ef37bd2036e29641c7717ee64f93dc513cd468c779734"
+          ],
+          "refundCsvBlocks": 144,
+          "refundLeafHash": "e650bb5c5e8f81ddc841c64e2b868e15892f0d97d616a92cf14f208e6b254e26",
+          "scriptPubKeyHex": "5120b9e8d1bb16d684e2d08709a501a31c4a88f8bba4f6ae3cf4d1d1c9e891cf164d",
+          "txid": "b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7",
+          "valueSats": "100000",
+          "vout": 1
+        },
+        "fundingTemplateDigest": "342efdf687dff7efd6405e97e430cf9fe5767c211fe2f844e210840daa2fd414",
+        "refund": {
+          "feeSats": "670",
+          "locktime": 200,
+          "outputs": [
+            {
+              "scriptPubKeyHex": "51207777777777777777777777777777777777777777777777777777777777777777",
+              "valueSats": "99000"
+            },
+            {
+              "scriptPubKeyHex": "0014aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "valueSats": "330"
+            }
+          ],
+          "rawTxHex": "0200000001b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b701000000009000000002b88201000000000022512077777777777777777777777777777777777777777777777777777777777777774a01000000000000160014aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaac8000000",
+          "txid": "a9aa67c26ed0f7edc338d53b6c2015fb3c10dcc8e6ce2d706833e71b3b8048bd",
+          "version": 2
+        },
+        "refundTransactionDigest": "07881c1a5c16b51bf1a9576e22907c6b0502a19fa9983e5e07d83d935ae9a556",
+        "validationDigest": "140431566dcf362bdf57cbaa9d159601916927e171a8f266f0a499a26c912257"
+      }
+    },
+    "expected": {
+      "internalXonly": "c99e9965166e7ff80516494709db8fdfdc31b0626500bb70dc3652fc2ff584ab",
+      "scriptPubKeyHex": "5120b9e8d1bb16d684e2d08709a501a31c4a88f8bba4f6ae3cf4d1d1c9e891cf164d",
+      "signerPubkeyX": "94046d75efcf1173660ef37bd2036e29641c7717ee64f93dc513cd468c779734",
+      "cetTxid": "6a1839b6b7de20e4efab36be48d0811b37b32ccfe724e76326d409c56059e7d4",
+      "cetSetDigest": "406b7f090b07c7d51a3854ea53e58525044385e3ce9997101e7824e58920390f",
+      "fundingTemplateDigest": "342efdf687dff7efd6405e97e430cf9fe5767c211fe2f844e210840daa2fd414",
+      "oracleAnnouncementsDigest": "8ad149fa3344ea40e13694b5d004321eab608ac80bae5607e691e30ed4a0d28b",
+      "sighash": "b351d68cbf81ecb861921b9a02ff45f2ec47089150debafa35406bf0cc3de731",
+      "adaptorPoint": {
+        "x": "2c216e55b3f2d78a4470bab9cc674f2599ee325259beee25abbc31be3754c9ad",
+        "y": "532e85228601abe1725f17b31087a7a9cd3dbaa3c8389d13e9bb6f80c65a1dc5"
+      }
+    },
+    "payload": {
+      "signerPubkeyX": "94046d75efcf1173660ef37bd2036e29641c7717ee64f93dc513cd468c779734",
+      "cetTxid": "6a1839b6b7de20e4efab36be48d0811b37b32ccfe724e76326d409c56059e7d4",
+      "cetSetDigest": "406b7f090b07c7d51a3854ea53e58525044385e3ce9997101e7824e58920390f",
+      "fundingTemplateDigest": "342efdf687dff7efd6405e97e430cf9fe5767c211fe2f844e210840daa2fd414",
+      "oracleAnnouncementsDigest": "8ad149fa3344ea40e13694b5d004321eab608ac80bae5607e691e30ed4a0d28b",
+      "sighash": "b351d68cbf81ecb861921b9a02ff45f2ec47089150debafa35406bf0cc3de731",
+      "adaptorPoint": {
+        "x": "2c216e55b3f2d78a4470bab9cc674f2599ee325259beee25abbc31be3754c9ad",
+        "y": "532e85228601abe1725f17b31087a7a9cd3dbaa3c8389d13e9bb6f80c65a1dc5"
+      }
+    },
+    "request": {
+      "signerPubkeyX": "94046d75efcf1173660ef37bd2036e29641c7717ee64f93dc513cd468c779734",
+      "cetTxid": "6a1839b6b7de20e4efab36be48d0811b37b32ccfe724e76326d409c56059e7d4",
+      "cetSetDigest": "406b7f090b07c7d51a3854ea53e58525044385e3ce9997101e7824e58920390f",
+      "fundingTemplateDigest": "342efdf687dff7efd6405e97e430cf9fe5767c211fe2f844e210840daa2fd414",
+      "oracleAnnouncementsDigest": "8ad149fa3344ea40e13694b5d004321eab608ac80bae5607e691e30ed4a0d28b",
+      "sighash": "b351d68cbf81ecb861921b9a02ff45f2ec47089150debafa35406bf0cc3de731",
+      "adaptorPoint": {
+        "x": "2c216e55b3f2d78a4470bab9cc674f2599ee325259beee25abbc31be3754c9ad",
+        "y": "532e85228601abe1725f17b31087a7a9cd3dbaa3c8389d13e9bb6f80c65a1dc5"
+      },
+      "signingContext": {
+        "cetTxid": "6a1839b6b7de20e4efab36be48d0811b37b32ccfe724e76326d409c56059e7d4",
+        "oracleAnnouncements": [
+          {
+            "eventId": "signing-target-vector-event",
+            "kind": "tradelayer_dlc_oracle_announcement_v1",
+            "outcomeMessages": [
+              "886b2cc4599f5f1086a963cf98cb513693f30fcf8f8e172108418190419ab17c",
+              "677492913ff211ff828514568f8ef6b9573b9b8aef337997950f93fb9905b20e"
+            ],
+            "px": "0141b22950fda59d7e3edea65b7d7e0b1a377b00819f72b840bf168083b53a17",
+            "rx": "d638c8f8cf32738ea45d0278d2b0d858fe4c141149c68e36a4e8df1ab428aa2b",
+            "signature": "e7c97f75ce4b4a6919c3fc07a3fb20cd10a8393a327c5a2547bcbf3f36b8c35c1302dbac2ad9c2002d6fab88b7dce41ae908a76868b48fe95dacb29e25330ce1"
+          },
+          {
+            "eventId": "signing-target-vector-event",
+            "kind": "tradelayer_dlc_oracle_announcement_v1",
+            "outcomeMessages": [
+              "886b2cc4599f5f1086a963cf98cb513693f30fcf8f8e172108418190419ab17c",
+              "677492913ff211ff828514568f8ef6b9573b9b8aef337997950f93fb9905b20e"
+            ],
+            "px": "0729d7ae77ce1096f896e90a5d8a2415d0ed8cb136c5499b38339595c715dafa",
+            "rx": "46861050794131372531dbaf1bf29d1c41bd86e5c2cf48c00e15475021327699",
+            "signature": "47c71c1b03afc79dab239867405a3508bc2b889d9acb9c3d1b76107f0232c5a689fe2b1641079abf5701fa78ce576efe8b0f98c1ebd82336cb9c5b9c82edc605"
+          },
+          {
+            "eventId": "signing-target-vector-event",
+            "kind": "tradelayer_dlc_oracle_announcement_v1",
+            "outcomeMessages": [
+              "886b2cc4599f5f1086a963cf98cb513693f30fcf8f8e172108418190419ab17c",
+              "677492913ff211ff828514568f8ef6b9573b9b8aef337997950f93fb9905b20e"
+            ],
+            "px": "94b1dbd67020711302483b99c6ca12d460722ed556232dd094e12dbba65e963c",
+            "rx": "2994d4bd7eccdc6a741ae20625714496092950836c9428313a84dec0ab9757ed",
+            "signature": "a09de770933fbe677b42070e18ff5dba9572eca479445b625a4d4a0c1294c4df987559d4878f272c7fa5c44c58d7335269caa33a2fa70a8bcbce8171e4bc9d91"
+          }
+        ],
+        "transactionSet": {
+          "cetSetDigest": "406b7f090b07c7d51a3854ea53e58525044385e3ce9997101e7824e58920390f",
+          "cets": [
+            {
+              "feeSats": "670",
+              "locktime": 100,
+              "oraclePubkeys": [
+                "0141b22950fda59d7e3edea65b7d7e0b1a377b00819f72b840bf168083b53a17",
+                "0729d7ae77ce1096f896e90a5d8a2415d0ed8cb136c5499b38339595c715dafa"
+              ],
+              "outcomeMessage": "677492913ff211ff828514568f8ef6b9573b9b8aef337997950f93fb9905b20e",
+              "outputs": [
+                {
+                  "scriptPubKeyHex": "00145555555555555555555555555555555555555555",
+                  "valueSats": "58000"
+                },
+                {
+                  "scriptPubKeyHex": "00146666666666666666666666666666666666666666",
+                  "valueSats": "41000"
+                },
+                {
+                  "scriptPubKeyHex": "0014aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "valueSats": "330"
+                }
+              ],
+              "rawTxHex": "0200000001b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b70100000000feffffff0390e2000000000000160014555555555555555555555555555555555555555528a000000000000016001466666666666666666666666666666666666666664a01000000000000160014aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa64000000",
+              "txid": "7434c9db2797b2a5ccea292cefe2bda38bd85087008c7c149d6a000ba6b8e5cb",
+              "version": 2
+            },
+            {
+              "feeSats": "670",
+              "locktime": 100,
+              "oraclePubkeys": [
+                "0141b22950fda59d7e3edea65b7d7e0b1a377b00819f72b840bf168083b53a17",
+                "0729d7ae77ce1096f896e90a5d8a2415d0ed8cb136c5499b38339595c715dafa"
+              ],
+              "outcomeMessage": "886b2cc4599f5f1086a963cf98cb513693f30fcf8f8e172108418190419ab17c",
+              "outputs": [
+                {
+                  "scriptPubKeyHex": "00145555555555555555555555555555555555555555",
+                  "valueSats": "59000"
+                },
+                {
+                  "scriptPubKeyHex": "00146666666666666666666666666666666666666666",
+                  "valueSats": "40000"
+                },
+                {
+                  "scriptPubKeyHex": "0014aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "valueSats": "330"
+                }
+              ],
+              "rawTxHex": "0200000001b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b70100000000feffffff0378e60000000000001600145555555555555555555555555555555555555555409c00000000000016001466666666666666666666666666666666666666664a01000000000000160014aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa64000000",
+              "txid": "6a1839b6b7de20e4efab36be48d0811b37b32ccfe724e76326d409c56059e7d4",
+              "version": 2
+            }
+          ],
+          "feePolicy": {
+            "anchorAmountSats": "330",
+            "anchorScriptPubKeyHex": "0014aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "maxRecoveryFeeSats": "150000",
+            "maxRecoveryFeerateSatPerVb": 500,
+            "minRelayPeers": 2,
+            "strategy": "cpfp-anchor-v1",
+            "transactionVersion": 2
+          },
+          "feePolicyDigest": "96a01da36bfb6dba90e307e4994d5903b5d675e833b0c29f9f4d1a492ac79b1b",
+          "funding": {
+            "cetLeafHash": "96b07f4c218cfa9a56d2a6389137b7a0f1971361875f3d4256884c8994f55144",
+            "partyPubkeyXs": [
+              "6ff108799ba57ff60cd927b1d6cd110e938f8c2546aafa496019047f6bf37b28",
+              "94046d75efcf1173660ef37bd2036e29641c7717ee64f93dc513cd468c779734"
+            ],
+            "refundCsvBlocks": 144,
+            "refundLeafHash": "e650bb5c5e8f81ddc841c64e2b868e15892f0d97d616a92cf14f208e6b254e26",
+            "scriptPubKeyHex": "5120b9e8d1bb16d684e2d08709a501a31c4a88f8bba4f6ae3cf4d1d1c9e891cf164d",
+            "txid": "b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7",
+            "valueSats": "100000",
+            "vout": 1
+          },
+          "fundingTemplateDigest": "342efdf687dff7efd6405e97e430cf9fe5767c211fe2f844e210840daa2fd414",
+          "refund": {
+            "feeSats": "670",
+            "locktime": 200,
+            "outputs": [
+              {
+                "scriptPubKeyHex": "51207777777777777777777777777777777777777777777777777777777777777777",
+                "valueSats": "99000"
+              },
+              {
+                "scriptPubKeyHex": "0014aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "valueSats": "330"
+              }
+            ],
+            "rawTxHex": "0200000001b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b701000000009000000002b88201000000000022512077777777777777777777777777777777777777777777777777777777777777774a01000000000000160014aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaac8000000",
+            "txid": "a9aa67c26ed0f7edc338d53b6c2015fb3c10dcc8e6ce2d706833e71b3b8048bd",
+            "version": 2
+          },
+          "refundTransactionDigest": "07881c1a5c16b51bf1a9576e22907c6b0502a19fa9983e5e07d83d935ae9a556",
+          "validationDigest": "140431566dcf362bdf57cbaa9d159601916927e171a8f266f0a499a26c912257"
+        }
+      }
+    }
+  },
+  "invalid": [
+    {
+      "name": "uncommitted CET txid",
+      "errorContains": "absent from the committed CET set",
+      "signingContext": {
+        "cetTxid": "5b5871efc944b334a29e31184192e36f9fa6d0e8574ddfd76fc7bb73265d43b5",
+        "oracleAnnouncements": [
+          {
+            "eventId": "signing-target-vector-event",
+            "kind": "tradelayer_dlc_oracle_announcement_v1",
+            "outcomeMessages": [
+              "886b2cc4599f5f1086a963cf98cb513693f30fcf8f8e172108418190419ab17c",
+              "677492913ff211ff828514568f8ef6b9573b9b8aef337997950f93fb9905b20e"
+            ],
+            "px": "0141b22950fda59d7e3edea65b7d7e0b1a377b00819f72b840bf168083b53a17",
+            "rx": "d638c8f8cf32738ea45d0278d2b0d858fe4c141149c68e36a4e8df1ab428aa2b",
+            "signature": "e7c97f75ce4b4a6919c3fc07a3fb20cd10a8393a327c5a2547bcbf3f36b8c35c1302dbac2ad9c2002d6fab88b7dce41ae908a76868b48fe95dacb29e25330ce1"
+          },
+          {
+            "eventId": "signing-target-vector-event",
+            "kind": "tradelayer_dlc_oracle_announcement_v1",
+            "outcomeMessages": [
+              "886b2cc4599f5f1086a963cf98cb513693f30fcf8f8e172108418190419ab17c",
+              "677492913ff211ff828514568f8ef6b9573b9b8aef337997950f93fb9905b20e"
+            ],
+            "px": "0729d7ae77ce1096f896e90a5d8a2415d0ed8cb136c5499b38339595c715dafa",
+            "rx": "46861050794131372531dbaf1bf29d1c41bd86e5c2cf48c00e15475021327699",
+            "signature": "47c71c1b03afc79dab239867405a3508bc2b889d9acb9c3d1b76107f0232c5a689fe2b1641079abf5701fa78ce576efe8b0f98c1ebd82336cb9c5b9c82edc605"
+          },
+          {
+            "eventId": "signing-target-vector-event",
+            "kind": "tradelayer_dlc_oracle_announcement_v1",
+            "outcomeMessages": [
+              "886b2cc4599f5f1086a963cf98cb513693f30fcf8f8e172108418190419ab17c",
+              "677492913ff211ff828514568f8ef6b9573b9b8aef337997950f93fb9905b20e"
+            ],
+            "px": "94b1dbd67020711302483b99c6ca12d460722ed556232dd094e12dbba65e963c",
+            "rx": "2994d4bd7eccdc6a741ae20625714496092950836c9428313a84dec0ab9757ed",
+            "signature": "a09de770933fbe677b42070e18ff5dba9572eca479445b625a4d4a0c1294c4df987559d4878f272c7fa5c44c58d7335269caa33a2fa70a8bcbce8171e4bc9d91"
+          }
+        ],
+        "transactionSet": {
+          "cetSetDigest": "406b7f090b07c7d51a3854ea53e58525044385e3ce9997101e7824e58920390f",
+          "cets": [
+            {
+              "feeSats": "670",
+              "locktime": 100,
+              "oraclePubkeys": [
+                "0141b22950fda59d7e3edea65b7d7e0b1a377b00819f72b840bf168083b53a17",
+                "0729d7ae77ce1096f896e90a5d8a2415d0ed8cb136c5499b38339595c715dafa"
+              ],
+              "outcomeMessage": "677492913ff211ff828514568f8ef6b9573b9b8aef337997950f93fb9905b20e",
+              "outputs": [
+                {
+                  "scriptPubKeyHex": "00145555555555555555555555555555555555555555",
+                  "valueSats": "58000"
+                },
+                {
+                  "scriptPubKeyHex": "00146666666666666666666666666666666666666666",
+                  "valueSats": "41000"
+                },
+                {
+                  "scriptPubKeyHex": "0014aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "valueSats": "330"
+                }
+              ],
+              "rawTxHex": "0200000001b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b70100000000feffffff0390e2000000000000160014555555555555555555555555555555555555555528a000000000000016001466666666666666666666666666666666666666664a01000000000000160014aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa64000000",
+              "txid": "7434c9db2797b2a5ccea292cefe2bda38bd85087008c7c149d6a000ba6b8e5cb",
+              "version": 2
+            },
+            {
+              "feeSats": "670",
+              "locktime": 100,
+              "oraclePubkeys": [
+                "0141b22950fda59d7e3edea65b7d7e0b1a377b00819f72b840bf168083b53a17",
+                "0729d7ae77ce1096f896e90a5d8a2415d0ed8cb136c5499b38339595c715dafa"
+              ],
+              "outcomeMessage": "886b2cc4599f5f1086a963cf98cb513693f30fcf8f8e172108418190419ab17c",
+              "outputs": [
+                {
+                  "scriptPubKeyHex": "00145555555555555555555555555555555555555555",
+                  "valueSats": "59000"
+                },
+                {
+                  "scriptPubKeyHex": "00146666666666666666666666666666666666666666",
+                  "valueSats": "40000"
+                },
+                {
+                  "scriptPubKeyHex": "0014aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "valueSats": "330"
+                }
+              ],
+              "rawTxHex": "0200000001b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b70100000000feffffff0378e60000000000001600145555555555555555555555555555555555555555409c00000000000016001466666666666666666666666666666666666666664a01000000000000160014aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa64000000",
+              "txid": "6a1839b6b7de20e4efab36be48d0811b37b32ccfe724e76326d409c56059e7d4",
+              "version": 2
+            }
+          ],
+          "feePolicy": {
+            "anchorAmountSats": "330",
+            "anchorScriptPubKeyHex": "0014aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "maxRecoveryFeeSats": "150000",
+            "maxRecoveryFeerateSatPerVb": 500,
+            "minRelayPeers": 2,
+            "strategy": "cpfp-anchor-v1",
+            "transactionVersion": 2
+          },
+          "feePolicyDigest": "96a01da36bfb6dba90e307e4994d5903b5d675e833b0c29f9f4d1a492ac79b1b",
+          "funding": {
+            "cetLeafHash": "96b07f4c218cfa9a56d2a6389137b7a0f1971361875f3d4256884c8994f55144",
+            "partyPubkeyXs": [
+              "6ff108799ba57ff60cd927b1d6cd110e938f8c2546aafa496019047f6bf37b28",
+              "94046d75efcf1173660ef37bd2036e29641c7717ee64f93dc513cd468c779734"
+            ],
+            "refundCsvBlocks": 144,
+            "refundLeafHash": "e650bb5c5e8f81ddc841c64e2b868e15892f0d97d616a92cf14f208e6b254e26",
+            "scriptPubKeyHex": "5120b9e8d1bb16d684e2d08709a501a31c4a88f8bba4f6ae3cf4d1d1c9e891cf164d",
+            "txid": "b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7",
+            "valueSats": "100000",
+            "vout": 1
+          },
+          "fundingTemplateDigest": "342efdf687dff7efd6405e97e430cf9fe5767c211fe2f844e210840daa2fd414",
+          "refund": {
+            "feeSats": "670",
+            "locktime": 200,
+            "outputs": [
+              {
+                "scriptPubKeyHex": "51207777777777777777777777777777777777777777777777777777777777777777",
+                "valueSats": "99000"
+              },
+              {
+                "scriptPubKeyHex": "0014aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "valueSats": "330"
+              }
+            ],
+            "rawTxHex": "0200000001b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b701000000009000000002b88201000000000022512077777777777777777777777777777777777777777777777777777777777777774a01000000000000160014aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaac8000000",
+            "txid": "a9aa67c26ed0f7edc338d53b6c2015fb3c10dcc8e6ce2d706833e71b3b8048bd",
+            "version": 2
+          },
+          "refundTransactionDigest": "07881c1a5c16b51bf1a9576e22907c6b0502a19fa9983e5e07d83d935ae9a556",
+          "validationDigest": "140431566dcf362bdf57cbaa9d159601916927e171a8f266f0a499a26c912257"
+        }
+      }
+    },
+    {
+      "name": "CET set digest does not match the CETs",
+      "errorContains": "cetSetDigest does not match",
+      "signingContext": {
+        "cetTxid": "6a1839b6b7de20e4efab36be48d0811b37b32ccfe724e76326d409c56059e7d4",
+        "oracleAnnouncements": [
+          {
+            "eventId": "signing-target-vector-event",
+            "kind": "tradelayer_dlc_oracle_announcement_v1",
+            "outcomeMessages": [
+              "886b2cc4599f5f1086a963cf98cb513693f30fcf8f8e172108418190419ab17c",
+              "677492913ff211ff828514568f8ef6b9573b9b8aef337997950f93fb9905b20e"
+            ],
+            "px": "0141b22950fda59d7e3edea65b7d7e0b1a377b00819f72b840bf168083b53a17",
+            "rx": "d638c8f8cf32738ea45d0278d2b0d858fe4c141149c68e36a4e8df1ab428aa2b",
+            "signature": "e7c97f75ce4b4a6919c3fc07a3fb20cd10a8393a327c5a2547bcbf3f36b8c35c1302dbac2ad9c2002d6fab88b7dce41ae908a76868b48fe95dacb29e25330ce1"
+          },
+          {
+            "eventId": "signing-target-vector-event",
+            "kind": "tradelayer_dlc_oracle_announcement_v1",
+            "outcomeMessages": [
+              "886b2cc4599f5f1086a963cf98cb513693f30fcf8f8e172108418190419ab17c",
+              "677492913ff211ff828514568f8ef6b9573b9b8aef337997950f93fb9905b20e"
+            ],
+            "px": "0729d7ae77ce1096f896e90a5d8a2415d0ed8cb136c5499b38339595c715dafa",
+            "rx": "46861050794131372531dbaf1bf29d1c41bd86e5c2cf48c00e15475021327699",
+            "signature": "47c71c1b03afc79dab239867405a3508bc2b889d9acb9c3d1b76107f0232c5a689fe2b1641079abf5701fa78ce576efe8b0f98c1ebd82336cb9c5b9c82edc605"
+          },
+          {
+            "eventId": "signing-target-vector-event",
+            "kind": "tradelayer_dlc_oracle_announcement_v1",
+            "outcomeMessages": [
+              "886b2cc4599f5f1086a963cf98cb513693f30fcf8f8e172108418190419ab17c",
+              "677492913ff211ff828514568f8ef6b9573b9b8aef337997950f93fb9905b20e"
+            ],
+            "px": "94b1dbd67020711302483b99c6ca12d460722ed556232dd094e12dbba65e963c",
+            "rx": "2994d4bd7eccdc6a741ae20625714496092950836c9428313a84dec0ab9757ed",
+            "signature": "a09de770933fbe677b42070e18ff5dba9572eca479445b625a4d4a0c1294c4df987559d4878f272c7fa5c44c58d7335269caa33a2fa70a8bcbce8171e4bc9d91"
+          }
+        ],
+        "transactionSet": {
+          "cetSetDigest": "0000000000000000000000000000000000000000000000000000000000000000",
+          "cets": [
+            {
+              "feeSats": "670",
+              "locktime": 100,
+              "oraclePubkeys": [
+                "0141b22950fda59d7e3edea65b7d7e0b1a377b00819f72b840bf168083b53a17",
+                "0729d7ae77ce1096f896e90a5d8a2415d0ed8cb136c5499b38339595c715dafa"
+              ],
+              "outcomeMessage": "677492913ff211ff828514568f8ef6b9573b9b8aef337997950f93fb9905b20e",
+              "outputs": [
+                {
+                  "scriptPubKeyHex": "00145555555555555555555555555555555555555555",
+                  "valueSats": "58000"
+                },
+                {
+                  "scriptPubKeyHex": "00146666666666666666666666666666666666666666",
+                  "valueSats": "41000"
+                },
+                {
+                  "scriptPubKeyHex": "0014aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "valueSats": "330"
+                }
+              ],
+              "rawTxHex": "0200000001b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b70100000000feffffff0390e2000000000000160014555555555555555555555555555555555555555528a000000000000016001466666666666666666666666666666666666666664a01000000000000160014aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa64000000",
+              "txid": "7434c9db2797b2a5ccea292cefe2bda38bd85087008c7c149d6a000ba6b8e5cb",
+              "version": 2
+            },
+            {
+              "feeSats": "670",
+              "locktime": 100,
+              "oraclePubkeys": [
+                "0141b22950fda59d7e3edea65b7d7e0b1a377b00819f72b840bf168083b53a17",
+                "0729d7ae77ce1096f896e90a5d8a2415d0ed8cb136c5499b38339595c715dafa"
+              ],
+              "outcomeMessage": "886b2cc4599f5f1086a963cf98cb513693f30fcf8f8e172108418190419ab17c",
+              "outputs": [
+                {
+                  "scriptPubKeyHex": "00145555555555555555555555555555555555555555",
+                  "valueSats": "59000"
+                },
+                {
+                  "scriptPubKeyHex": "00146666666666666666666666666666666666666666",
+                  "valueSats": "40000"
+                },
+                {
+                  "scriptPubKeyHex": "0014aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "valueSats": "330"
+                }
+              ],
+              "rawTxHex": "0200000001b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b70100000000feffffff0378e60000000000001600145555555555555555555555555555555555555555409c00000000000016001466666666666666666666666666666666666666664a01000000000000160014aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa64000000",
+              "txid": "6a1839b6b7de20e4efab36be48d0811b37b32ccfe724e76326d409c56059e7d4",
+              "version": 2
+            }
+          ],
+          "feePolicy": {
+            "anchorAmountSats": "330",
+            "anchorScriptPubKeyHex": "0014aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "maxRecoveryFeeSats": "150000",
+            "maxRecoveryFeerateSatPerVb": 500,
+            "minRelayPeers": 2,
+            "strategy": "cpfp-anchor-v1",
+            "transactionVersion": 2
+          },
+          "feePolicyDigest": "96a01da36bfb6dba90e307e4994d5903b5d675e833b0c29f9f4d1a492ac79b1b",
+          "funding": {
+            "cetLeafHash": "96b07f4c218cfa9a56d2a6389137b7a0f1971361875f3d4256884c8994f55144",
+            "partyPubkeyXs": [
+              "6ff108799ba57ff60cd927b1d6cd110e938f8c2546aafa496019047f6bf37b28",
+              "94046d75efcf1173660ef37bd2036e29641c7717ee64f93dc513cd468c779734"
+            ],
+            "refundCsvBlocks": 144,
+            "refundLeafHash": "e650bb5c5e8f81ddc841c64e2b868e15892f0d97d616a92cf14f208e6b254e26",
+            "scriptPubKeyHex": "5120b9e8d1bb16d684e2d08709a501a31c4a88f8bba4f6ae3cf4d1d1c9e891cf164d",
+            "txid": "b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7",
+            "valueSats": "100000",
+            "vout": 1
+          },
+          "fundingTemplateDigest": "342efdf687dff7efd6405e97e430cf9fe5767c211fe2f844e210840daa2fd414",
+          "refund": {
+            "feeSats": "670",
+            "locktime": 200,
+            "outputs": [
+              {
+                "scriptPubKeyHex": "51207777777777777777777777777777777777777777777777777777777777777777",
+                "valueSats": "99000"
+              },
+              {
+                "scriptPubKeyHex": "0014aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "valueSats": "330"
+              }
+            ],
+            "rawTxHex": "0200000001b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b701000000009000000002b88201000000000022512077777777777777777777777777777777777777777777777777777777777777774a01000000000000160014aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaac8000000",
+            "txid": "a9aa67c26ed0f7edc338d53b6c2015fb3c10dcc8e6ce2d706833e71b3b8048bd",
+            "version": 2
+          },
+          "refundTransactionDigest": "07881c1a5c16b51bf1a9576e22907c6b0502a19fa9983e5e07d83d935ae9a556",
+          "validationDigest": "140431566dcf362bdf57cbaa9d159601916927e171a8f266f0a499a26c912257"
+        }
+      }
+    },
+    {
+      "name": "single-key funding script",
+      "errorContains": "not the two-party DLC output",
+      "signingContext": {
+        "cetTxid": "6a1839b6b7de20e4efab36be48d0811b37b32ccfe724e76326d409c56059e7d4",
+        "oracleAnnouncements": [
+          {
+            "eventId": "signing-target-vector-event",
+            "kind": "tradelayer_dlc_oracle_announcement_v1",
+            "outcomeMessages": [
+              "886b2cc4599f5f1086a963cf98cb513693f30fcf8f8e172108418190419ab17c",
+              "677492913ff211ff828514568f8ef6b9573b9b8aef337997950f93fb9905b20e"
+            ],
+            "px": "0141b22950fda59d7e3edea65b7d7e0b1a377b00819f72b840bf168083b53a17",
+            "rx": "d638c8f8cf32738ea45d0278d2b0d858fe4c141149c68e36a4e8df1ab428aa2b",
+            "signature": "e7c97f75ce4b4a6919c3fc07a3fb20cd10a8393a327c5a2547bcbf3f36b8c35c1302dbac2ad9c2002d6fab88b7dce41ae908a76868b48fe95dacb29e25330ce1"
+          },
+          {
+            "eventId": "signing-target-vector-event",
+            "kind": "tradelayer_dlc_oracle_announcement_v1",
+            "outcomeMessages": [
+              "886b2cc4599f5f1086a963cf98cb513693f30fcf8f8e172108418190419ab17c",
+              "677492913ff211ff828514568f8ef6b9573b9b8aef337997950f93fb9905b20e"
+            ],
+            "px": "0729d7ae77ce1096f896e90a5d8a2415d0ed8cb136c5499b38339595c715dafa",
+            "rx": "46861050794131372531dbaf1bf29d1c41bd86e5c2cf48c00e15475021327699",
+            "signature": "47c71c1b03afc79dab239867405a3508bc2b889d9acb9c3d1b76107f0232c5a689fe2b1641079abf5701fa78ce576efe8b0f98c1ebd82336cb9c5b9c82edc605"
+          },
+          {
+            "eventId": "signing-target-vector-event",
+            "kind": "tradelayer_dlc_oracle_announcement_v1",
+            "outcomeMessages": [
+              "886b2cc4599f5f1086a963cf98cb513693f30fcf8f8e172108418190419ab17c",
+              "677492913ff211ff828514568f8ef6b9573b9b8aef337997950f93fb9905b20e"
+            ],
+            "px": "94b1dbd67020711302483b99c6ca12d460722ed556232dd094e12dbba65e963c",
+            "rx": "2994d4bd7eccdc6a741ae20625714496092950836c9428313a84dec0ab9757ed",
+            "signature": "a09de770933fbe677b42070e18ff5dba9572eca479445b625a4d4a0c1294c4df987559d4878f272c7fa5c44c58d7335269caa33a2fa70a8bcbce8171e4bc9d91"
+          }
+        ],
+        "transactionSet": {
+          "cetSetDigest": "406b7f090b07c7d51a3854ea53e58525044385e3ce9997101e7824e58920390f",
+          "cets": [
+            {
+              "feeSats": "670",
+              "locktime": 100,
+              "oraclePubkeys": [
+                "0141b22950fda59d7e3edea65b7d7e0b1a377b00819f72b840bf168083b53a17",
+                "0729d7ae77ce1096f896e90a5d8a2415d0ed8cb136c5499b38339595c715dafa"
+              ],
+              "outcomeMessage": "677492913ff211ff828514568f8ef6b9573b9b8aef337997950f93fb9905b20e",
+              "outputs": [
+                {
+                  "scriptPubKeyHex": "00145555555555555555555555555555555555555555",
+                  "valueSats": "58000"
+                },
+                {
+                  "scriptPubKeyHex": "00146666666666666666666666666666666666666666",
+                  "valueSats": "41000"
+                },
+                {
+                  "scriptPubKeyHex": "0014aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "valueSats": "330"
+                }
+              ],
+              "rawTxHex": "0200000001b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b70100000000feffffff0390e2000000000000160014555555555555555555555555555555555555555528a000000000000016001466666666666666666666666666666666666666664a01000000000000160014aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa64000000",
+              "txid": "7434c9db2797b2a5ccea292cefe2bda38bd85087008c7c149d6a000ba6b8e5cb",
+              "version": 2
+            },
+            {
+              "feeSats": "670",
+              "locktime": 100,
+              "oraclePubkeys": [
+                "0141b22950fda59d7e3edea65b7d7e0b1a377b00819f72b840bf168083b53a17",
+                "0729d7ae77ce1096f896e90a5d8a2415d0ed8cb136c5499b38339595c715dafa"
+              ],
+              "outcomeMessage": "886b2cc4599f5f1086a963cf98cb513693f30fcf8f8e172108418190419ab17c",
+              "outputs": [
+                {
+                  "scriptPubKeyHex": "00145555555555555555555555555555555555555555",
+                  "valueSats": "59000"
+                },
+                {
+                  "scriptPubKeyHex": "00146666666666666666666666666666666666666666",
+                  "valueSats": "40000"
+                },
+                {
+                  "scriptPubKeyHex": "0014aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "valueSats": "330"
+                }
+              ],
+              "rawTxHex": "0200000001b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b70100000000feffffff0378e60000000000001600145555555555555555555555555555555555555555409c00000000000016001466666666666666666666666666666666666666664a01000000000000160014aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa64000000",
+              "txid": "6a1839b6b7de20e4efab36be48d0811b37b32ccfe724e76326d409c56059e7d4",
+              "version": 2
+            }
+          ],
+          "feePolicy": {
+            "anchorAmountSats": "330",
+            "anchorScriptPubKeyHex": "0014aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "maxRecoveryFeeSats": "150000",
+            "maxRecoveryFeerateSatPerVb": 500,
+            "minRelayPeers": 2,
+            "strategy": "cpfp-anchor-v1",
+            "transactionVersion": 2
+          },
+          "feePolicyDigest": "96a01da36bfb6dba90e307e4994d5903b5d675e833b0c29f9f4d1a492ac79b1b",
+          "funding": {
+            "cetLeafHash": "96b07f4c218cfa9a56d2a6389137b7a0f1971361875f3d4256884c8994f55144",
+            "partyPubkeyXs": [
+              "6ff108799ba57ff60cd927b1d6cd110e938f8c2546aafa496019047f6bf37b28",
+              "94046d75efcf1173660ef37bd2036e29641c7717ee64f93dc513cd468c779734"
+            ],
+            "refundCsvBlocks": 144,
+            "refundLeafHash": "e650bb5c5e8f81ddc841c64e2b868e15892f0d97d616a92cf14f208e6b254e26",
+            "scriptPubKeyHex": "51206ff108799ba57ff60cd927b1d6cd110e938f8c2546aafa496019047f6bf37b28",
+            "txid": "b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7",
+            "valueSats": "100000",
+            "vout": 1
+          },
+          "fundingTemplateDigest": "f79ed94d3c1dc74369281dc58e34e1d91ae3f8566882e4a4acdafbad87415486",
+          "refund": {
+            "feeSats": "670",
+            "locktime": 200,
+            "outputs": [
+              {
+                "scriptPubKeyHex": "51207777777777777777777777777777777777777777777777777777777777777777",
+                "valueSats": "99000"
+              },
+              {
+                "scriptPubKeyHex": "0014aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "valueSats": "330"
+              }
+            ],
+            "rawTxHex": "0200000001b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b701000000009000000002b88201000000000022512077777777777777777777777777777777777777777777777777777777777777774a01000000000000160014aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaac8000000",
+            "txid": "a9aa67c26ed0f7edc338d53b6c2015fb3c10dcc8e6ce2d706833e71b3b8048bd",
+            "version": 2
+          },
+          "refundTransactionDigest": "07881c1a5c16b51bf1a9576e22907c6b0502a19fa9983e5e07d83d935ae9a556",
+          "validationDigest": "140431566dcf362bdf57cbaa9d159601916927e171a8f266f0a499a26c912257"
+        }
+      }
+    },
+    {
+      "name": "CET bytes do not hash to the named txid",
+      "errorContains": "does not hash to the named txid",
+      "signingContext": {
+        "cetTxid": "6a1839b6b7de20e4efab36be48d0811b37b32ccfe724e76326d409c56059e7d4",
+        "oracleAnnouncements": [
+          {
+            "eventId": "signing-target-vector-event",
+            "kind": "tradelayer_dlc_oracle_announcement_v1",
+            "outcomeMessages": [
+              "886b2cc4599f5f1086a963cf98cb513693f30fcf8f8e172108418190419ab17c",
+              "677492913ff211ff828514568f8ef6b9573b9b8aef337997950f93fb9905b20e"
+            ],
+            "px": "0141b22950fda59d7e3edea65b7d7e0b1a377b00819f72b840bf168083b53a17",
+            "rx": "d638c8f8cf32738ea45d0278d2b0d858fe4c141149c68e36a4e8df1ab428aa2b",
+            "signature": "e7c97f75ce4b4a6919c3fc07a3fb20cd10a8393a327c5a2547bcbf3f36b8c35c1302dbac2ad9c2002d6fab88b7dce41ae908a76868b48fe95dacb29e25330ce1"
+          },
+          {
+            "eventId": "signing-target-vector-event",
+            "kind": "tradelayer_dlc_oracle_announcement_v1",
+            "outcomeMessages": [
+              "886b2cc4599f5f1086a963cf98cb513693f30fcf8f8e172108418190419ab17c",
+              "677492913ff211ff828514568f8ef6b9573b9b8aef337997950f93fb9905b20e"
+            ],
+            "px": "0729d7ae77ce1096f896e90a5d8a2415d0ed8cb136c5499b38339595c715dafa",
+            "rx": "46861050794131372531dbaf1bf29d1c41bd86e5c2cf48c00e15475021327699",
+            "signature": "47c71c1b03afc79dab239867405a3508bc2b889d9acb9c3d1b76107f0232c5a689fe2b1641079abf5701fa78ce576efe8b0f98c1ebd82336cb9c5b9c82edc605"
+          },
+          {
+            "eventId": "signing-target-vector-event",
+            "kind": "tradelayer_dlc_oracle_announcement_v1",
+            "outcomeMessages": [
+              "886b2cc4599f5f1086a963cf98cb513693f30fcf8f8e172108418190419ab17c",
+              "677492913ff211ff828514568f8ef6b9573b9b8aef337997950f93fb9905b20e"
+            ],
+            "px": "94b1dbd67020711302483b99c6ca12d460722ed556232dd094e12dbba65e963c",
+            "rx": "2994d4bd7eccdc6a741ae20625714496092950836c9428313a84dec0ab9757ed",
+            "signature": "a09de770933fbe677b42070e18ff5dba9572eca479445b625a4d4a0c1294c4df987559d4878f272c7fa5c44c58d7335269caa33a2fa70a8bcbce8171e4bc9d91"
+          }
+        ],
+        "transactionSet": {
+          "cetSetDigest": "24ffec569576ac28106d371c764032a47993096f0409d2859d88ca8dc5eb3dfa",
+          "cets": [
+            {
+              "feeSats": "670",
+              "locktime": 100,
+              "oraclePubkeys": [
+                "0141b22950fda59d7e3edea65b7d7e0b1a377b00819f72b840bf168083b53a17",
+                "0729d7ae77ce1096f896e90a5d8a2415d0ed8cb136c5499b38339595c715dafa"
+              ],
+              "outcomeMessage": "677492913ff211ff828514568f8ef6b9573b9b8aef337997950f93fb9905b20e",
+              "outputs": [
+                {
+                  "scriptPubKeyHex": "00145555555555555555555555555555555555555555",
+                  "valueSats": "58000"
+                },
+                {
+                  "scriptPubKeyHex": "00146666666666666666666666666666666666666666",
+                  "valueSats": "41000"
+                },
+                {
+                  "scriptPubKeyHex": "0014aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "valueSats": "330"
+                }
+              ],
+              "rawTxHex": "0200000001b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b70100000000feffffff0390e2000000000000160014555555555555555555555555555555555555555528a000000000000016001466666666666666666666666666666666666666664a01000000000000160014aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa64000000",
+              "txid": "7434c9db2797b2a5ccea292cefe2bda38bd85087008c7c149d6a000ba6b8e5cb",
+              "version": 2
+            },
+            {
+              "feeSats": "670",
+              "locktime": 100,
+              "oraclePubkeys": [
+                "0141b22950fda59d7e3edea65b7d7e0b1a377b00819f72b840bf168083b53a17",
+                "0729d7ae77ce1096f896e90a5d8a2415d0ed8cb136c5499b38339595c715dafa"
+              ],
+              "outcomeMessage": "886b2cc4599f5f1086a963cf98cb513693f30fcf8f8e172108418190419ab17c",
+              "outputs": [
+                {
+                  "scriptPubKeyHex": "00145555555555555555555555555555555555555555",
+                  "valueSats": "59000"
+                },
+                {
+                  "scriptPubKeyHex": "00146666666666666666666666666666666666666666",
+                  "valueSats": "40000"
+                },
+                {
+                  "scriptPubKeyHex": "0014aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "valueSats": "330"
+                }
+              ],
+              "rawTxHex": "0200000001b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b70100000000feffffff0378e60000000000001600145555555555555555555555555555555555555555409c00000000000016001466666666666666666666666666666666666666664a01000000000000160014aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa01000000",
+              "txid": "6a1839b6b7de20e4efab36be48d0811b37b32ccfe724e76326d409c56059e7d4",
+              "version": 2
+            }
+          ],
+          "feePolicy": {
+            "anchorAmountSats": "330",
+            "anchorScriptPubKeyHex": "0014aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "maxRecoveryFeeSats": "150000",
+            "maxRecoveryFeerateSatPerVb": 500,
+            "minRelayPeers": 2,
+            "strategy": "cpfp-anchor-v1",
+            "transactionVersion": 2
+          },
+          "feePolicyDigest": "96a01da36bfb6dba90e307e4994d5903b5d675e833b0c29f9f4d1a492ac79b1b",
+          "funding": {
+            "cetLeafHash": "96b07f4c218cfa9a56d2a6389137b7a0f1971361875f3d4256884c8994f55144",
+            "partyPubkeyXs": [
+              "6ff108799ba57ff60cd927b1d6cd110e938f8c2546aafa496019047f6bf37b28",
+              "94046d75efcf1173660ef37bd2036e29641c7717ee64f93dc513cd468c779734"
+            ],
+            "refundCsvBlocks": 144,
+            "refundLeafHash": "e650bb5c5e8f81ddc841c64e2b868e15892f0d97d616a92cf14f208e6b254e26",
+            "scriptPubKeyHex": "5120b9e8d1bb16d684e2d08709a501a31c4a88f8bba4f6ae3cf4d1d1c9e891cf164d",
+            "txid": "b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7",
+            "valueSats": "100000",
+            "vout": 1
+          },
+          "fundingTemplateDigest": "342efdf687dff7efd6405e97e430cf9fe5767c211fe2f844e210840daa2fd414",
+          "refund": {
+            "feeSats": "670",
+            "locktime": 200,
+            "outputs": [
+              {
+                "scriptPubKeyHex": "51207777777777777777777777777777777777777777777777777777777777777777",
+                "valueSats": "99000"
+              },
+              {
+                "scriptPubKeyHex": "0014aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "valueSats": "330"
+              }
+            ],
+            "rawTxHex": "0200000001b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b701000000009000000002b88201000000000022512077777777777777777777777777777777777777777777777777777777777777774a01000000000000160014aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaac8000000",
+            "txid": "a9aa67c26ed0f7edc338d53b6c2015fb3c10dcc8e6ce2d706833e71b3b8048bd",
+            "version": 2
+          },
+          "refundTransactionDigest": "07881c1a5c16b51bf1a9576e22907c6b0502a19fa9983e5e07d83d935ae9a556",
+          "validationDigest": "140431566dcf362bdf57cbaa9d159601916927e171a8f266f0a499a26c912257"
+        }
+      }
+    },
+    {
+      "name": "CET spends another outpoint",
+      "errorContains": "does not spend the committed funding outpoint",
+      "signingContext": {
+        "cetTxid": "0abfcf0c709c01cefad8ea548b841e8f61fba2c5b2fa6a0476c0e09b3c8de20a",
+        "oracleAnnouncements": [
+          {
+            "eventId": "signing-target-vector-event",
+            "kind": "tradelayer_dlc_oracle_announcement_v1",
+            "outcomeMessages": [
+              "886b2cc4599f5f1086a963cf98cb513693f30fcf8f8e172108418190419ab17c",
+              "677492913ff211ff828514568f8ef6b9573b9b8aef337997950f93fb9905b20e"
+            ],
+            "px": "0141b22950fda59d7e3edea65b7d7e0b1a377b00819f72b840bf168083b53a17",
+            "rx": "d638c8f8cf32738ea45d0278d2b0d858fe4c141149c68e36a4e8df1ab428aa2b",
+            "signature": "e7c97f75ce4b4a6919c3fc07a3fb20cd10a8393a327c5a2547bcbf3f36b8c35c1302dbac2ad9c2002d6fab88b7dce41ae908a76868b48fe95dacb29e25330ce1"
+          },
+          {
+            "eventId": "signing-target-vector-event",
+            "kind": "tradelayer_dlc_oracle_announcement_v1",
+            "outcomeMessages": [
+              "886b2cc4599f5f1086a963cf98cb513693f30fcf8f8e172108418190419ab17c",
+              "677492913ff211ff828514568f8ef6b9573b9b8aef337997950f93fb9905b20e"
+            ],
+            "px": "0729d7ae77ce1096f896e90a5d8a2415d0ed8cb136c5499b38339595c715dafa",
+            "rx": "46861050794131372531dbaf1bf29d1c41bd86e5c2cf48c00e15475021327699",
+            "signature": "47c71c1b03afc79dab239867405a3508bc2b889d9acb9c3d1b76107f0232c5a689fe2b1641079abf5701fa78ce576efe8b0f98c1ebd82336cb9c5b9c82edc605"
+          },
+          {
+            "eventId": "signing-target-vector-event",
+            "kind": "tradelayer_dlc_oracle_announcement_v1",
+            "outcomeMessages": [
+              "886b2cc4599f5f1086a963cf98cb513693f30fcf8f8e172108418190419ab17c",
+              "677492913ff211ff828514568f8ef6b9573b9b8aef337997950f93fb9905b20e"
+            ],
+            "px": "94b1dbd67020711302483b99c6ca12d460722ed556232dd094e12dbba65e963c",
+            "rx": "2994d4bd7eccdc6a741ae20625714496092950836c9428313a84dec0ab9757ed",
+            "signature": "a09de770933fbe677b42070e18ff5dba9572eca479445b625a4d4a0c1294c4df987559d4878f272c7fa5c44c58d7335269caa33a2fa70a8bcbce8171e4bc9d91"
+          }
+        ],
+        "transactionSet": {
+          "cetSetDigest": "6f3cd0855bbb080c471820358ab7718152fd51cf7861f99c30350ecd1e4d28b9",
+          "cets": [
+            {
+              "feeSats": "670",
+              "locktime": 100,
+              "oraclePubkeys": [
+                "0141b22950fda59d7e3edea65b7d7e0b1a377b00819f72b840bf168083b53a17",
+                "0729d7ae77ce1096f896e90a5d8a2415d0ed8cb136c5499b38339595c715dafa"
+              ],
+              "outcomeMessage": "677492913ff211ff828514568f8ef6b9573b9b8aef337997950f93fb9905b20e",
+              "outputs": [
+                {
+                  "scriptPubKeyHex": "00145555555555555555555555555555555555555555",
+                  "valueSats": "58000"
+                },
+                {
+                  "scriptPubKeyHex": "00146666666666666666666666666666666666666666",
+                  "valueSats": "41000"
+                },
+                {
+                  "scriptPubKeyHex": "0014aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "valueSats": "330"
+                }
+              ],
+              "rawTxHex": "0200000001b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b70100000000feffffff0390e2000000000000160014555555555555555555555555555555555555555528a000000000000016001466666666666666666666666666666666666666664a01000000000000160014aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa64000000",
+              "txid": "7434c9db2797b2a5ccea292cefe2bda38bd85087008c7c149d6a000ba6b8e5cb",
+              "version": 2
+            },
+            {
+              "feeSats": "670",
+              "locktime": 100,
+              "oraclePubkeys": [
+                "0141b22950fda59d7e3edea65b7d7e0b1a377b00819f72b840bf168083b53a17",
+                "0729d7ae77ce1096f896e90a5d8a2415d0ed8cb136c5499b38339595c715dafa"
+              ],
+              "outcomeMessage": "886b2cc4599f5f1086a963cf98cb513693f30fcf8f8e172108418190419ab17c",
+              "outputs": [
+                {
+                  "scriptPubKeyHex": "00145555555555555555555555555555555555555555",
+                  "valueSats": "59000"
+                },
+                {
+                  "scriptPubKeyHex": "00146666666666666666666666666666666666666666",
+                  "valueSats": "40000"
+                },
+                {
+                  "scriptPubKeyHex": "0014aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "valueSats": "330"
+                }
+              ],
+              "rawTxHex": "0200000001cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd0100000000feffffff0378e60000000000001600145555555555555555555555555555555555555555409c00000000000016001466666666666666666666666666666666666666664a01000000000000160014aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa64000000",
+              "txid": "0abfcf0c709c01cefad8ea548b841e8f61fba2c5b2fa6a0476c0e09b3c8de20a",
+              "version": 2
+            }
+          ],
+          "feePolicy": {
+            "anchorAmountSats": "330",
+            "anchorScriptPubKeyHex": "0014aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "maxRecoveryFeeSats": "150000",
+            "maxRecoveryFeerateSatPerVb": 500,
+            "minRelayPeers": 2,
+            "strategy": "cpfp-anchor-v1",
+            "transactionVersion": 2
+          },
+          "feePolicyDigest": "96a01da36bfb6dba90e307e4994d5903b5d675e833b0c29f9f4d1a492ac79b1b",
+          "funding": {
+            "cetLeafHash": "96b07f4c218cfa9a56d2a6389137b7a0f1971361875f3d4256884c8994f55144",
+            "partyPubkeyXs": [
+              "6ff108799ba57ff60cd927b1d6cd110e938f8c2546aafa496019047f6bf37b28",
+              "94046d75efcf1173660ef37bd2036e29641c7717ee64f93dc513cd468c779734"
+            ],
+            "refundCsvBlocks": 144,
+            "refundLeafHash": "e650bb5c5e8f81ddc841c64e2b868e15892f0d97d616a92cf14f208e6b254e26",
+            "scriptPubKeyHex": "5120b9e8d1bb16d684e2d08709a501a31c4a88f8bba4f6ae3cf4d1d1c9e891cf164d",
+            "txid": "b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7",
+            "valueSats": "100000",
+            "vout": 1
+          },
+          "fundingTemplateDigest": "342efdf687dff7efd6405e97e430cf9fe5767c211fe2f844e210840daa2fd414",
+          "refund": {
+            "feeSats": "670",
+            "locktime": 200,
+            "outputs": [
+              {
+                "scriptPubKeyHex": "51207777777777777777777777777777777777777777777777777777777777777777",
+                "valueSats": "99000"
+              },
+              {
+                "scriptPubKeyHex": "0014aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "valueSats": "330"
+              }
+            ],
+            "rawTxHex": "0200000001b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b701000000009000000002b88201000000000022512077777777777777777777777777777777777777777777777777777777777777774a01000000000000160014aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaac8000000",
+            "txid": "a9aa67c26ed0f7edc338d53b6c2015fb3c10dcc8e6ce2d706833e71b3b8048bd",
+            "version": 2
+          },
+          "refundTransactionDigest": "07881c1a5c16b51bf1a9576e22907c6b0502a19fa9983e5e07d83d935ae9a556",
+          "validationDigest": "140431566dcf362bdf57cbaa9d159601916927e171a8f266f0a499a26c912257"
+        }
+      }
+    },
+    {
+      "name": "forged oracle announcement",
+      "errorContains": "does not verify",
+      "signingContext": {
+        "cetTxid": "6a1839b6b7de20e4efab36be48d0811b37b32ccfe724e76326d409c56059e7d4",
+        "oracleAnnouncements": [
+          {
+            "eventId": "signing-target-vector-event",
+            "kind": "tradelayer_dlc_oracle_announcement_v1",
+            "outcomeMessages": [
+              "886b2cc4599f5f1086a963cf98cb513693f30fcf8f8e172108418190419ab17c",
+              "677492913ff211ff828514568f8ef6b9573b9b8aef337997950f93fb9905b20e"
+            ],
+            "px": "0141b22950fda59d7e3edea65b7d7e0b1a377b00819f72b840bf168083b53a17",
+            "rx": "d638c8f8cf32738ea45d0278d2b0d858fe4c141149c68e36a4e8df1ab428aa2b",
+            "signature": "e7c97f75ce4b4a6919c3fc07a3fb20cd10a8393a327c5a2547bcbf3f36b8c35c1302dbac2ad9c2002d6fab88b7dce41ae908a76868b48fe95dacb29e25330ce0"
+          },
+          {
+            "eventId": "signing-target-vector-event",
+            "kind": "tradelayer_dlc_oracle_announcement_v1",
+            "outcomeMessages": [
+              "886b2cc4599f5f1086a963cf98cb513693f30fcf8f8e172108418190419ab17c",
+              "677492913ff211ff828514568f8ef6b9573b9b8aef337997950f93fb9905b20e"
+            ],
+            "px": "0729d7ae77ce1096f896e90a5d8a2415d0ed8cb136c5499b38339595c715dafa",
+            "rx": "46861050794131372531dbaf1bf29d1c41bd86e5c2cf48c00e15475021327699",
+            "signature": "47c71c1b03afc79dab239867405a3508bc2b889d9acb9c3d1b76107f0232c5a689fe2b1641079abf5701fa78ce576efe8b0f98c1ebd82336cb9c5b9c82edc605"
+          },
+          {
+            "eventId": "signing-target-vector-event",
+            "kind": "tradelayer_dlc_oracle_announcement_v1",
+            "outcomeMessages": [
+              "886b2cc4599f5f1086a963cf98cb513693f30fcf8f8e172108418190419ab17c",
+              "677492913ff211ff828514568f8ef6b9573b9b8aef337997950f93fb9905b20e"
+            ],
+            "px": "94b1dbd67020711302483b99c6ca12d460722ed556232dd094e12dbba65e963c",
+            "rx": "2994d4bd7eccdc6a741ae20625714496092950836c9428313a84dec0ab9757ed",
+            "signature": "a09de770933fbe677b42070e18ff5dba9572eca479445b625a4d4a0c1294c4df987559d4878f272c7fa5c44c58d7335269caa33a2fa70a8bcbce8171e4bc9d91"
+          }
+        ],
+        "transactionSet": {
+          "cetSetDigest": "406b7f090b07c7d51a3854ea53e58525044385e3ce9997101e7824e58920390f",
+          "cets": [
+            {
+              "feeSats": "670",
+              "locktime": 100,
+              "oraclePubkeys": [
+                "0141b22950fda59d7e3edea65b7d7e0b1a377b00819f72b840bf168083b53a17",
+                "0729d7ae77ce1096f896e90a5d8a2415d0ed8cb136c5499b38339595c715dafa"
+              ],
+              "outcomeMessage": "677492913ff211ff828514568f8ef6b9573b9b8aef337997950f93fb9905b20e",
+              "outputs": [
+                {
+                  "scriptPubKeyHex": "00145555555555555555555555555555555555555555",
+                  "valueSats": "58000"
+                },
+                {
+                  "scriptPubKeyHex": "00146666666666666666666666666666666666666666",
+                  "valueSats": "41000"
+                },
+                {
+                  "scriptPubKeyHex": "0014aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "valueSats": "330"
+                }
+              ],
+              "rawTxHex": "0200000001b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b70100000000feffffff0390e2000000000000160014555555555555555555555555555555555555555528a000000000000016001466666666666666666666666666666666666666664a01000000000000160014aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa64000000",
+              "txid": "7434c9db2797b2a5ccea292cefe2bda38bd85087008c7c149d6a000ba6b8e5cb",
+              "version": 2
+            },
+            {
+              "feeSats": "670",
+              "locktime": 100,
+              "oraclePubkeys": [
+                "0141b22950fda59d7e3edea65b7d7e0b1a377b00819f72b840bf168083b53a17",
+                "0729d7ae77ce1096f896e90a5d8a2415d0ed8cb136c5499b38339595c715dafa"
+              ],
+              "outcomeMessage": "886b2cc4599f5f1086a963cf98cb513693f30fcf8f8e172108418190419ab17c",
+              "outputs": [
+                {
+                  "scriptPubKeyHex": "00145555555555555555555555555555555555555555",
+                  "valueSats": "59000"
+                },
+                {
+                  "scriptPubKeyHex": "00146666666666666666666666666666666666666666",
+                  "valueSats": "40000"
+                },
+                {
+                  "scriptPubKeyHex": "0014aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "valueSats": "330"
+                }
+              ],
+              "rawTxHex": "0200000001b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b70100000000feffffff0378e60000000000001600145555555555555555555555555555555555555555409c00000000000016001466666666666666666666666666666666666666664a01000000000000160014aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa64000000",
+              "txid": "6a1839b6b7de20e4efab36be48d0811b37b32ccfe724e76326d409c56059e7d4",
+              "version": 2
+            }
+          ],
+          "feePolicy": {
+            "anchorAmountSats": "330",
+            "anchorScriptPubKeyHex": "0014aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "maxRecoveryFeeSats": "150000",
+            "maxRecoveryFeerateSatPerVb": 500,
+            "minRelayPeers": 2,
+            "strategy": "cpfp-anchor-v1",
+            "transactionVersion": 2
+          },
+          "feePolicyDigest": "96a01da36bfb6dba90e307e4994d5903b5d675e833b0c29f9f4d1a492ac79b1b",
+          "funding": {
+            "cetLeafHash": "96b07f4c218cfa9a56d2a6389137b7a0f1971361875f3d4256884c8994f55144",
+            "partyPubkeyXs": [
+              "6ff108799ba57ff60cd927b1d6cd110e938f8c2546aafa496019047f6bf37b28",
+              "94046d75efcf1173660ef37bd2036e29641c7717ee64f93dc513cd468c779734"
+            ],
+            "refundCsvBlocks": 144,
+            "refundLeafHash": "e650bb5c5e8f81ddc841c64e2b868e15892f0d97d616a92cf14f208e6b254e26",
+            "scriptPubKeyHex": "5120b9e8d1bb16d684e2d08709a501a31c4a88f8bba4f6ae3cf4d1d1c9e891cf164d",
+            "txid": "b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7",
+            "valueSats": "100000",
+            "vout": 1
+          },
+          "fundingTemplateDigest": "342efdf687dff7efd6405e97e430cf9fe5767c211fe2f844e210840daa2fd414",
+          "refund": {
+            "feeSats": "670",
+            "locktime": 200,
+            "outputs": [
+              {
+                "scriptPubKeyHex": "51207777777777777777777777777777777777777777777777777777777777777777",
+                "valueSats": "99000"
+              },
+              {
+                "scriptPubKeyHex": "0014aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "valueSats": "330"
+              }
+            ],
+            "rawTxHex": "0200000001b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b701000000009000000002b88201000000000022512077777777777777777777777777777777777777777777777777777777777777774a01000000000000160014aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaac8000000",
+            "txid": "a9aa67c26ed0f7edc338d53b6c2015fb3c10dcc8e6ce2d706833e71b3b8048bd",
+            "version": 2
+          },
+          "refundTransactionDigest": "07881c1a5c16b51bf1a9576e22907c6b0502a19fa9983e5e07d83d935ae9a556",
+          "validationDigest": "140431566dcf362bdf57cbaa9d159601916927e171a8f266f0a499a26c912257"
+        }
+      }
+    },
+    {
+      "name": "CET outcome not committed by the oracles",
+      "errorContains": "not committed by the oracle announcement",
+      "signingContext": {
+        "cetTxid": "6a1839b6b7de20e4efab36be48d0811b37b32ccfe724e76326d409c56059e7d4",
+        "oracleAnnouncements": [
+          {
+            "eventId": "signing-target-vector-event",
+            "kind": "tradelayer_dlc_oracle_announcement_v1",
+            "outcomeMessages": [
+              "886b2cc4599f5f1086a963cf98cb513693f30fcf8f8e172108418190419ab17c",
+              "677492913ff211ff828514568f8ef6b9573b9b8aef337997950f93fb9905b20e"
+            ],
+            "px": "0141b22950fda59d7e3edea65b7d7e0b1a377b00819f72b840bf168083b53a17",
+            "rx": "d638c8f8cf32738ea45d0278d2b0d858fe4c141149c68e36a4e8df1ab428aa2b",
+            "signature": "e7c97f75ce4b4a6919c3fc07a3fb20cd10a8393a327c5a2547bcbf3f36b8c35c1302dbac2ad9c2002d6fab88b7dce41ae908a76868b48fe95dacb29e25330ce1"
+          },
+          {
+            "eventId": "signing-target-vector-event",
+            "kind": "tradelayer_dlc_oracle_announcement_v1",
+            "outcomeMessages": [
+              "886b2cc4599f5f1086a963cf98cb513693f30fcf8f8e172108418190419ab17c",
+              "677492913ff211ff828514568f8ef6b9573b9b8aef337997950f93fb9905b20e"
+            ],
+            "px": "0729d7ae77ce1096f896e90a5d8a2415d0ed8cb136c5499b38339595c715dafa",
+            "rx": "46861050794131372531dbaf1bf29d1c41bd86e5c2cf48c00e15475021327699",
+            "signature": "47c71c1b03afc79dab239867405a3508bc2b889d9acb9c3d1b76107f0232c5a689fe2b1641079abf5701fa78ce576efe8b0f98c1ebd82336cb9c5b9c82edc605"
+          },
+          {
+            "eventId": "signing-target-vector-event",
+            "kind": "tradelayer_dlc_oracle_announcement_v1",
+            "outcomeMessages": [
+              "886b2cc4599f5f1086a963cf98cb513693f30fcf8f8e172108418190419ab17c",
+              "677492913ff211ff828514568f8ef6b9573b9b8aef337997950f93fb9905b20e"
+            ],
+            "px": "94b1dbd67020711302483b99c6ca12d460722ed556232dd094e12dbba65e963c",
+            "rx": "2994d4bd7eccdc6a741ae20625714496092950836c9428313a84dec0ab9757ed",
+            "signature": "a09de770933fbe677b42070e18ff5dba9572eca479445b625a4d4a0c1294c4df987559d4878f272c7fa5c44c58d7335269caa33a2fa70a8bcbce8171e4bc9d91"
+          }
+        ],
+        "transactionSet": {
+          "cetSetDigest": "09fb2dcae133c93b27220fb4703f1dc2afccd8c2394ef06611d47057e686eca2",
+          "cets": [
+            {
+              "feeSats": "670",
+              "locktime": 100,
+              "oraclePubkeys": [
+                "0141b22950fda59d7e3edea65b7d7e0b1a377b00819f72b840bf168083b53a17",
+                "0729d7ae77ce1096f896e90a5d8a2415d0ed8cb136c5499b38339595c715dafa"
+              ],
+              "outcomeMessage": "677492913ff211ff828514568f8ef6b9573b9b8aef337997950f93fb9905b20e",
+              "outputs": [
+                {
+                  "scriptPubKeyHex": "00145555555555555555555555555555555555555555",
+                  "valueSats": "58000"
+                },
+                {
+                  "scriptPubKeyHex": "00146666666666666666666666666666666666666666",
+                  "valueSats": "41000"
+                },
+                {
+                  "scriptPubKeyHex": "0014aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "valueSats": "330"
+                }
+              ],
+              "rawTxHex": "0200000001b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b70100000000feffffff0390e2000000000000160014555555555555555555555555555555555555555528a000000000000016001466666666666666666666666666666666666666664a01000000000000160014aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa64000000",
+              "txid": "7434c9db2797b2a5ccea292cefe2bda38bd85087008c7c149d6a000ba6b8e5cb",
+              "version": 2
+            },
+            {
+              "feeSats": "670",
+              "locktime": 100,
+              "oraclePubkeys": [
+                "0141b22950fda59d7e3edea65b7d7e0b1a377b00819f72b840bf168083b53a17",
+                "0729d7ae77ce1096f896e90a5d8a2415d0ed8cb136c5499b38339595c715dafa"
+              ],
+              "outcomeMessage": "c6a57d7e86b0a56e875204b58a00744c42d0c2f3e072b913959b96e2749728eb",
+              "outputs": [
+                {
+                  "scriptPubKeyHex": "00145555555555555555555555555555555555555555",
+                  "valueSats": "59000"
+                },
+                {
+                  "scriptPubKeyHex": "00146666666666666666666666666666666666666666",
+                  "valueSats": "40000"
+                },
+                {
+                  "scriptPubKeyHex": "0014aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "valueSats": "330"
+                }
+              ],
+              "rawTxHex": "0200000001b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b70100000000feffffff0378e60000000000001600145555555555555555555555555555555555555555409c00000000000016001466666666666666666666666666666666666666664a01000000000000160014aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa64000000",
+              "txid": "6a1839b6b7de20e4efab36be48d0811b37b32ccfe724e76326d409c56059e7d4",
+              "version": 2
+            }
+          ],
+          "feePolicy": {
+            "anchorAmountSats": "330",
+            "anchorScriptPubKeyHex": "0014aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "maxRecoveryFeeSats": "150000",
+            "maxRecoveryFeerateSatPerVb": 500,
+            "minRelayPeers": 2,
+            "strategy": "cpfp-anchor-v1",
+            "transactionVersion": 2
+          },
+          "feePolicyDigest": "96a01da36bfb6dba90e307e4994d5903b5d675e833b0c29f9f4d1a492ac79b1b",
+          "funding": {
+            "cetLeafHash": "96b07f4c218cfa9a56d2a6389137b7a0f1971361875f3d4256884c8994f55144",
+            "partyPubkeyXs": [
+              "6ff108799ba57ff60cd927b1d6cd110e938f8c2546aafa496019047f6bf37b28",
+              "94046d75efcf1173660ef37bd2036e29641c7717ee64f93dc513cd468c779734"
+            ],
+            "refundCsvBlocks": 144,
+            "refundLeafHash": "e650bb5c5e8f81ddc841c64e2b868e15892f0d97d616a92cf14f208e6b254e26",
+            "scriptPubKeyHex": "5120b9e8d1bb16d684e2d08709a501a31c4a88f8bba4f6ae3cf4d1d1c9e891cf164d",
+            "txid": "b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7",
+            "valueSats": "100000",
+            "vout": 1
+          },
+          "fundingTemplateDigest": "342efdf687dff7efd6405e97e430cf9fe5767c211fe2f844e210840daa2fd414",
+          "refund": {
+            "feeSats": "670",
+            "locktime": 200,
+            "outputs": [
+              {
+                "scriptPubKeyHex": "51207777777777777777777777777777777777777777777777777777777777777777",
+                "valueSats": "99000"
+              },
+              {
+                "scriptPubKeyHex": "0014aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "valueSats": "330"
+              }
+            ],
+            "rawTxHex": "0200000001b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b701000000009000000002b88201000000000022512077777777777777777777777777777777777777777777777777777777777777774a01000000000000160014aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaac8000000",
+            "txid": "a9aa67c26ed0f7edc338d53b6c2015fb3c10dcc8e6ce2d706833e71b3b8048bd",
+            "version": 2
+          },
+          "refundTransactionDigest": "07881c1a5c16b51bf1a9576e22907c6b0502a19fa9983e5e07d83d935ae9a556",
+          "validationDigest": "140431566dcf362bdf57cbaa9d159601916927e171a8f266f0a499a26c912257"
+        }
+      }
+    },
+    {
+      "name": "CET oracle outside the announcement set",
+      "errorContains": "not in the announcement set",
+      "signingContext": {
+        "cetTxid": "6a1839b6b7de20e4efab36be48d0811b37b32ccfe724e76326d409c56059e7d4",
+        "oracleAnnouncements": [
+          {
+            "eventId": "signing-target-vector-event",
+            "kind": "tradelayer_dlc_oracle_announcement_v1",
+            "outcomeMessages": [
+              "886b2cc4599f5f1086a963cf98cb513693f30fcf8f8e172108418190419ab17c",
+              "677492913ff211ff828514568f8ef6b9573b9b8aef337997950f93fb9905b20e"
+            ],
+            "px": "0141b22950fda59d7e3edea65b7d7e0b1a377b00819f72b840bf168083b53a17",
+            "rx": "d638c8f8cf32738ea45d0278d2b0d858fe4c141149c68e36a4e8df1ab428aa2b",
+            "signature": "e7c97f75ce4b4a6919c3fc07a3fb20cd10a8393a327c5a2547bcbf3f36b8c35c1302dbac2ad9c2002d6fab88b7dce41ae908a76868b48fe95dacb29e25330ce1"
+          },
+          {
+            "eventId": "signing-target-vector-event",
+            "kind": "tradelayer_dlc_oracle_announcement_v1",
+            "outcomeMessages": [
+              "886b2cc4599f5f1086a963cf98cb513693f30fcf8f8e172108418190419ab17c",
+              "677492913ff211ff828514568f8ef6b9573b9b8aef337997950f93fb9905b20e"
+            ],
+            "px": "0729d7ae77ce1096f896e90a5d8a2415d0ed8cb136c5499b38339595c715dafa",
+            "rx": "46861050794131372531dbaf1bf29d1c41bd86e5c2cf48c00e15475021327699",
+            "signature": "47c71c1b03afc79dab239867405a3508bc2b889d9acb9c3d1b76107f0232c5a689fe2b1641079abf5701fa78ce576efe8b0f98c1ebd82336cb9c5b9c82edc605"
+          },
+          {
+            "eventId": "signing-target-vector-event",
+            "kind": "tradelayer_dlc_oracle_announcement_v1",
+            "outcomeMessages": [
+              "886b2cc4599f5f1086a963cf98cb513693f30fcf8f8e172108418190419ab17c",
+              "677492913ff211ff828514568f8ef6b9573b9b8aef337997950f93fb9905b20e"
+            ],
+            "px": "94b1dbd67020711302483b99c6ca12d460722ed556232dd094e12dbba65e963c",
+            "rx": "2994d4bd7eccdc6a741ae20625714496092950836c9428313a84dec0ab9757ed",
+            "signature": "a09de770933fbe677b42070e18ff5dba9572eca479445b625a4d4a0c1294c4df987559d4878f272c7fa5c44c58d7335269caa33a2fa70a8bcbce8171e4bc9d91"
+          }
+        ],
+        "transactionSet": {
+          "cetSetDigest": "ab392f87a23ed93c4e215cde342009bcbabe1f394ed1839df0857b4b2db1f162",
+          "cets": [
+            {
+              "feeSats": "670",
+              "locktime": 100,
+              "oraclePubkeys": [
+                "0141b22950fda59d7e3edea65b7d7e0b1a377b00819f72b840bf168083b53a17",
+                "0729d7ae77ce1096f896e90a5d8a2415d0ed8cb136c5499b38339595c715dafa"
+              ],
+              "outcomeMessage": "677492913ff211ff828514568f8ef6b9573b9b8aef337997950f93fb9905b20e",
+              "outputs": [
+                {
+                  "scriptPubKeyHex": "00145555555555555555555555555555555555555555",
+                  "valueSats": "58000"
+                },
+                {
+                  "scriptPubKeyHex": "00146666666666666666666666666666666666666666",
+                  "valueSats": "41000"
+                },
+                {
+                  "scriptPubKeyHex": "0014aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "valueSats": "330"
+                }
+              ],
+              "rawTxHex": "0200000001b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b70100000000feffffff0390e2000000000000160014555555555555555555555555555555555555555528a000000000000016001466666666666666666666666666666666666666664a01000000000000160014aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa64000000",
+              "txid": "7434c9db2797b2a5ccea292cefe2bda38bd85087008c7c149d6a000ba6b8e5cb",
+              "version": 2
+            },
+            {
+              "feeSats": "670",
+              "locktime": 100,
+              "oraclePubkeys": [
+                "0141b22950fda59d7e3edea65b7d7e0b1a377b00819f72b840bf168083b53a17",
+                "fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe"
+              ],
+              "outcomeMessage": "886b2cc4599f5f1086a963cf98cb513693f30fcf8f8e172108418190419ab17c",
+              "outputs": [
+                {
+                  "scriptPubKeyHex": "00145555555555555555555555555555555555555555",
+                  "valueSats": "59000"
+                },
+                {
+                  "scriptPubKeyHex": "00146666666666666666666666666666666666666666",
+                  "valueSats": "40000"
+                },
+                {
+                  "scriptPubKeyHex": "0014aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "valueSats": "330"
+                }
+              ],
+              "rawTxHex": "0200000001b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b70100000000feffffff0378e60000000000001600145555555555555555555555555555555555555555409c00000000000016001466666666666666666666666666666666666666664a01000000000000160014aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa64000000",
+              "txid": "6a1839b6b7de20e4efab36be48d0811b37b32ccfe724e76326d409c56059e7d4",
+              "version": 2
+            }
+          ],
+          "feePolicy": {
+            "anchorAmountSats": "330",
+            "anchorScriptPubKeyHex": "0014aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "maxRecoveryFeeSats": "150000",
+            "maxRecoveryFeerateSatPerVb": 500,
+            "minRelayPeers": 2,
+            "strategy": "cpfp-anchor-v1",
+            "transactionVersion": 2
+          },
+          "feePolicyDigest": "96a01da36bfb6dba90e307e4994d5903b5d675e833b0c29f9f4d1a492ac79b1b",
+          "funding": {
+            "cetLeafHash": "96b07f4c218cfa9a56d2a6389137b7a0f1971361875f3d4256884c8994f55144",
+            "partyPubkeyXs": [
+              "6ff108799ba57ff60cd927b1d6cd110e938f8c2546aafa496019047f6bf37b28",
+              "94046d75efcf1173660ef37bd2036e29641c7717ee64f93dc513cd468c779734"
+            ],
+            "refundCsvBlocks": 144,
+            "refundLeafHash": "e650bb5c5e8f81ddc841c64e2b868e15892f0d97d616a92cf14f208e6b254e26",
+            "scriptPubKeyHex": "5120b9e8d1bb16d684e2d08709a501a31c4a88f8bba4f6ae3cf4d1d1c9e891cf164d",
+            "txid": "b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7",
+            "valueSats": "100000",
+            "vout": 1
+          },
+          "fundingTemplateDigest": "342efdf687dff7efd6405e97e430cf9fe5767c211fe2f844e210840daa2fd414",
+          "refund": {
+            "feeSats": "670",
+            "locktime": 200,
+            "outputs": [
+              {
+                "scriptPubKeyHex": "51207777777777777777777777777777777777777777777777777777777777777777",
+                "valueSats": "99000"
+              },
+              {
+                "scriptPubKeyHex": "0014aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "valueSats": "330"
+              }
+            ],
+            "rawTxHex": "0200000001b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b701000000009000000002b88201000000000022512077777777777777777777777777777777777777777777777777777777777777774a01000000000000160014aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaac8000000",
+            "txid": "a9aa67c26ed0f7edc338d53b6c2015fb3c10dcc8e6ce2d706833e71b3b8048bd",
+            "version": 2
+          },
+          "refundTransactionDigest": "07881c1a5c16b51bf1a9576e22907c6b0502a19fa9983e5e07d83d935ae9a556",
+          "validationDigest": "140431566dcf362bdf57cbaa9d159601916927e171a8f266f0a499a26c912257"
+        }
+      }
+    }
+  ]
+}

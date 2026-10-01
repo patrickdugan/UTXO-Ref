@@ -53,6 +53,8 @@ const {
   createDlcCryptoProvider,
   nativeCapabilityAttestationPayload
 } = require(path.join(__dirname, '..', 'bitvm3', 'utxo_referee', 'dlc_crypto_provider.js'));
+const signingTargetPath = path.join(__dirname, '..', 'bitvm3', 'utxo_referee', 'dlc_signing_target.js');
+const { buildDlcSigningFixture } = require(path.join(__dirname, '..', 'bitvm3', 'utxo_referee', 'dlc_signing_fixture.js'));
 const { DlcOracleEventStore } = require(path.join(__dirname, '..', 'bitvm3', 'utxo_referee', 'dlc_oracle_event_store.js'));
 const { DlcSigningAuthorizationStore, validateConsumptionRecord } = require(path.join(
   __dirname, '..', 'bitvm3', 'utxo_referee', 'dlc_signing_authorization_store.js'
@@ -1088,6 +1090,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const dlc = require(${JSON.stringify(implementationPath)});
 const { RESPONSE_KIND, responseSignaturePayload } = require(${JSON.stringify(nativeSignerClientPath)});
+const { deriveSigningContextTarget } = require(${JSON.stringify(signingTargetPath)});
 const envelope = JSON.parse(fs.readFileSync(0, 'utf8'));
 if (envelope.kind !== ${JSON.stringify(NATIVE_PROCESS_REQUEST_KIND)}) throw new Error('wrong request kind');
 const request = envelope.request;
@@ -1096,7 +1099,9 @@ const validatorKey = crypto.createPublicKey({ key: Buffer.from(request.validator
 if (!crypto.verify(null, Buffer.from(request.authorizationPayload, 'base64'), validatorKey, Buffer.from(request.authorization.signature, 'base64'))) throw new Error('authorization rejected');
 const signedPayload = JSON.parse(Buffer.from(request.authorizationPayload, 'base64').toString('utf8'));
 if (signedPayload.stateRecordHash !== request.stateRecordHash || signedPayload.signerPubkeyX !== request.signerPubkeyX || signedPayload.sighash !== request.sighash) throw new Error('signed request mismatch');
-const presignature = dlc.adaptorSign(${nativeSecret}n, Buffer.from(request.sighash, 'hex'), { x: BigInt('0x' + request.adaptorPoint.x), y: BigInt('0x' + request.adaptorPoint.y) }, Buffer.alloc(32, 19));
+const derived = deriveSigningContextTarget(request.signingContext);
+if (derived.sighash !== signedPayload.sighash || derived.cetTxid !== signedPayload.cetTxid || derived.adaptorPoint.x !== signedPayload.adaptorPoint.x || derived.adaptorPoint.y !== signedPayload.adaptorPoint.y || !derived.partyPubkeyXs.includes(signedPayload.signerPubkeyX)) throw new Error('signed payload differs from the derived target');
+const presignature = dlc.adaptorSign(${nativeSecret}n, Buffer.from(derived.sighash, 'hex'), { x: BigInt('0x' + derived.adaptorPoint.x), y: BigInt('0x' + derived.adaptorPoint.y) }, Buffer.alloc(32, 19));
 const response = { kind: RESPONSE_KIND, challenge: envelope.challenge, requestDigest: envelope.requestDigest, executableSha256: crypto.createHash('sha256').update(fs.readFileSync(process.execPath)).digest('hex'), identityKeyId: ${JSON.stringify(crypto.createHash('sha256').update(runtimePublicDer).digest('hex'))}, presignature };
 const runtimeKey = crypto.createPrivateKey({ key: Buffer.from(${JSON.stringify(runtimePrivateDer.toString('base64'))}, 'base64'), format: 'der', type: 'pkcs8' });
 response.signature = crypto.sign(null, responseSignaturePayload(response), runtimeKey).toString('base64');
@@ -1111,7 +1116,7 @@ process.stdout.write(JSON.stringify(response));
     constantTimeSecretOperations: true,
     secretZeroization: true,
     processIsolated: true,
-    signingRequestKind: 'utxoref_dlc_native_adaptor_sign_request_v1',
+    signingRequestKind: 'utxoref_dlc_native_adaptor_sign_request_v2',
     callerSuppliesSecret: false,
     keySelection: 'authorized-xonly-pubkey',
     independentAuthorizationVerification: true,
@@ -1165,70 +1170,84 @@ process.stdout.write(JSON.stringify(response));
     trustedAuditKeys
   }), /verified DlcNativeSignerProcessClient/);
 
+  // The two funding parties are the experimental signer and the native signer.
+  const signerSecret = scalar('signer-eval:secret');
+  const signerPubkeyX = dlc.xOnlyPubkey(signerSecret).toString('hex');
+  const signerAnnouncements = [0, 1, 2].map((index) => dlc.buildDlcOracle(
+    scalar(`signer-eval:oracle:${index}`), scalar(`signer-eval:oracle-nonce:${index}`),
+    { eventId: 'signer-eval-event', outcomeMessages: [sha256('signer-eval:yes'), sha256('signer-eval:no')] }
+  ));
+  const signingFixture = buildDlcSigningFixture({
+    signerSecret, counterpartySecret: nativeSecret, announcements: signerAnnouncements
+  });
+  const signingContext = signingFixture.signingContext;
   let contract = createDlcContract({
     contractId: 'signer-authorization-eval',
     network: 'bitcoin-testnet4',
     contractDigest: sha256('signer-authorization-eval').toString('hex'),
-    oraclePolicy: { threshold: 2, total: 3, pinnedPubkeys: ['11'.repeat(32), '22'.repeat(32), '33'.repeat(32)] },
+    oraclePolicy: {
+      threshold: 2, total: 3, pinnedPubkeys: signingFixture.oracleAnnouncements.map((announcement) => announcement.px)
+    },
     validatorPolicy
   });
   for (const stage of ['AUTHENTICATED_ORACLES', 'CANONICAL_CETS_AND_REFUND', 'COUNTERPARTY_SIGNATURES_VERIFIED']) {
     const idempotencyKey = `signer-eval:${stage}`;
+    const receipts = signingFixture.receiptDigests;
+    const overrides = stage === 'AUTHENTICATED_ORACLES' ? { oracle_policy: receipts.oracle_policy }
+      : stage === 'CANONICAL_CETS_AND_REFUND' ? {
+        cet_set: receipts.cet_set,
+        fee_policy: receipts.fee_policy,
+        funding_template: receipts.funding_template,
+        refund_transaction: receipts.refund_transaction
+      } : {};
     contract = transitionDlcContract(contract, {
       to: stage,
       idempotencyKey,
-      evidence: evidenceFor(contract, stage, idempotencyKey)
+      evidence: evidenceFor(contract, stage, idempotencyKey, overrides)
     });
   }
-  const sighash = sha256('signer-eval:cet-sighash').toString('hex');
-  const adaptorPoint = dlc.pointMul(dlc.G, scalar('signer-eval:adaptor'));
-  const signerSecret = scalar('signer-eval:secret');
-  const signerPubkeyX = dlc.xOnlyPubkey(signerSecret).toString('hex');
-  signerAuthorizationFixtureForEval = { contract, sighash, adaptorPoint, signerSecret, signerPubkeyX };
+  signerAuthorizationFixtureForEval = { contract, signingContext, signerSecret, signerPubkeyX };
   const authorization = createDlcAdaptorSignAuthorization({
     privateKey: validatorKeys.privateKey,
     contract,
     authorizationId: 'cet:0:oracle-set:0',
     signerPubkeyX,
-    sighash,
-    adaptorPoint
+    signingContext
   });
+  const sighash = authorization.sighash;
   const expiredAuthorization = createDlcAdaptorSignAuthorization({
     privateKey: validatorKeys.privateKey,
     contract,
     authorizationId: 'cet:expired',
     signerPubkeyX,
-    sighash,
-    adaptorPoint,
+    signingContext,
     now: new Date(Date.now() - 10 * 60 * 1000),
     ttlSeconds: 60
   });
   const expiredAuthorizationRejected = throws(() => authorizeDlcAdaptorSign(explicit, {
-    contract, authorization: expiredAuthorization
+    contract, signingContext, authorization: expiredAuthorization
   }), /authorization has expired/);
   const futureAuthorization = createDlcAdaptorSignAuthorization({
     privateKey: validatorKeys.privateKey,
     contract,
     authorizationId: 'cet:future',
     signerPubkeyX,
-    sighash,
-    adaptorPoint,
+    signingContext,
     now: new Date(Date.now() + 2 * 60 * 1000),
     ttlSeconds: 60
   });
   const futureAuthorizationRejected = throws(() => authorizeDlcAdaptorSign(explicit, {
-    contract, authorization: futureAuthorization
+    contract, signingContext, authorization: futureAuthorization
   }), /authorization is not yet valid/);
   const excessiveLifetimeRejected = throws(() => createDlcAdaptorSignAuthorization({
     privateKey: validatorKeys.privateKey,
     contract,
     authorizationId: 'cet:excessive-lifetime',
     signerPubkeyX,
-    sighash,
-    adaptorPoint,
+    signingContext,
     ttlSeconds: 301
   }), /ttlSeconds/);
-  const session = authorizeDlcAdaptorSign(explicit, { contract, authorization });
+  const session = authorizeDlcAdaptorSign(explicit, { contract, signingContext, authorization });
   const presignature = session.execute(signerSecret, sha256('signer-eval:aux'));
   const signed = dlc.adaptorVerify(dlc.xOnlyPubkey(signerSecret), Buffer.from(sighash, 'hex'), presignature);
   const replayRejected = throws(() => session.execute(signerSecret, sha256('signer-eval:replay')), /already consumed/);
@@ -1238,17 +1257,19 @@ process.stdout.write(JSON.stringify(response));
     allowExperimental: true,
     authorizationStore: new DlcSigningAuthorizationStore(authorizationDirectory)
   });
-  const restartedSession = authorizeDlcAdaptorSign(restartedProvider, { contract, authorization });
+  const restartedSession = authorizeDlcAdaptorSign(restartedProvider, { contract, signingContext, authorization });
   const restartReplayRejected = throws(
     () => restartedSession.execute(signerSecret, sha256('signer-eval:restart-replay')),
     /durably consumed/
   );
   const tamperedRequestRejected = throws(() => authorizeDlcAdaptorSign(explicit, {
     contract,
+    signingContext,
     authorization: { ...authorization, sighash: sha256('signer-eval:wrong-sighash').toString('hex') }
-  }), /signature is invalid/);
+  }), /does not match the CET derived from its signing context/);
   const tamperedLifetimeRejected = throws(() => authorizeDlcAdaptorSign(explicit, {
     contract,
+    signingContext,
     authorization: {
       ...authorization,
       expiresAtUnixSeconds: authorization.expiresAtUnixSeconds + 1
@@ -1260,10 +1281,9 @@ process.stdout.write(JSON.stringify(response));
     contract,
     authorizationId: 'native:cet:0:oracle-set:0',
     signerPubkeyX: nativeSignerPubkeyX,
-    sighash,
-    adaptorPoint
+    signingContext
   });
-  const nativeSession = authorizeDlcAdaptorSign(native, { contract, authorization: nativeAuthorization });
+  const nativeSession = authorizeDlcAdaptorSign(native, { contract, signingContext, authorization: nativeAuthorization });
   const nativeSecretRejected = throws(() => nativeSession.execute(nativeSecret), /accepts no host-supplied secret/);
   const nativePresignature = nativeSession.execute();
   const nativeResponseValid = dlc.adaptorVerify(
@@ -1479,7 +1499,7 @@ check('signer protocol payloads reject callbacks before process or durable effec
 
 check('signer authorization snapshots reject callbacks and survive caller mutation', 'signer-boundary', 12, () => {
   if (!signerAuthorizationFixtureForEval) return false;
-  const { contract, sighash, adaptorPoint, signerSecret, signerPubkeyX } = signerAuthorizationFixtureForEval;
+  const { contract, signingContext, signerSecret, signerPubkeyX } = signerAuthorizationFixtureForEval;
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'utxoref-signer-input-eval-'));
   try {
     const provider = createDlcCryptoProvider({
@@ -1489,7 +1509,7 @@ check('signer authorization snapshots reject callbacks and survive caller mutati
       authorizationStore: new DlcSigningAuthorizationStore(directory)
     });
     let argumentAccessorCalls = 0;
-    const hostileArguments = { privateKey: validatorKeys.privateKey, contract, signerPubkeyX, sighash, adaptorPoint };
+    const hostileArguments = { privateKey: validatorKeys.privateKey, contract, signerPubkeyX, signingContext };
     Object.defineProperty(hostileArguments, 'authorizationId', {
       enumerable: true,
       get() { argumentAccessorCalls++; return 'signer-eval:hostile'; }
@@ -1506,8 +1526,7 @@ check('signer authorization snapshots reject callbacks and survive caller mutati
       contract,
       authorizationId: 'signer-eval:hostile-clock',
       signerPubkeyX,
-      sighash,
-      adaptorPoint,
+      signingContext,
       now: new HostileClock('2026-01-01T00:00:00.000Z')
     });
     const authorization = createDlcAdaptorSignAuthorization({
@@ -1515,9 +1534,9 @@ check('signer authorization snapshots reject callbacks and survive caller mutati
       contract,
       authorizationId: 'signer-eval:mutation-safe',
       signerPubkeyX,
-      sighash,
-      adaptorPoint
+      signingContext
     });
+    const sighash = authorization.sighash;
     let authorizationAccessorCalls = 0;
     const hostileAuthorization = { ...authorization };
     Object.defineProperty(hostileAuthorization, 'sighash', {
@@ -1525,17 +1544,65 @@ check('signer authorization snapshots reject callbacks and survive caller mutati
       get() { authorizationAccessorCalls++; return authorization.sighash; }
     });
     const authorizationRejected = throws(
-      () => authorizeDlcAdaptorSign(provider, { contract, authorization: hostileAuthorization }),
+      () => authorizeDlcAdaptorSign(provider, { contract, signingContext, authorization: hostileAuthorization }),
       /enumerable data property/
     );
     const mutableAuthorization = JSON.parse(JSON.stringify(authorization));
-    const session = authorizeDlcAdaptorSign(provider, { contract, authorization: mutableAuthorization });
+    const session = authorizeDlcAdaptorSign(provider, { contract, signingContext, authorization: mutableAuthorization });
     mutableAuthorization.sighash = '00'.repeat(32);
     const presignature = session.execute(signerSecret, sha256('signer-input-eval:aux'));
     return argumentsRejected && authorizationRejected && argumentAccessorCalls === 0 &&
       authorizationAccessorCalls === 0 && clockCallbackCalls === 0 &&
       clockAuthorization.issuedAtUnixSeconds === 1767225600 &&
       dlc.adaptorVerify(Buffer.from(signerPubkeyX, 'hex'), Buffer.from(sighash, 'hex'), presignature);
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+check('signer authorizations name a committed CET and derive its sighash and oracle point', 'signer-boundary', 14, () => {
+  if (!signerAuthorizationFixtureForEval) return false;
+  const { contract, signingContext, signerPubkeyX } = signerAuthorizationFixtureForEval;
+  const create = (overrides) => createDlcAdaptorSignAuthorization({
+    privateKey: validatorKeys.privateKey, contract, authorizationId: 'signer-target-eval', signerPubkeyX,
+    signingContext, ...overrides
+  });
+  const authorization = create({});
+  const cet = signingContext.transactionSet.cets.find((entry) => entry.txid === signingContext.cetTxid);
+  const derivedSighash = settlementSighashForTransactionSet({
+    transactionSet: signingContext.transactionSet, executionType: 'cet', cetTxid: cet.txid
+  }).toString('hex');
+  const bareRejected = throws(() => createDlcAdaptorSignAuthorization({
+    privateKey: validatorKeys.privateKey, contract, authorizationId: 'signer-target-eval:bare', signerPubkeyX,
+    sighash: sha256('signer-target-eval:sweep').toString('hex'), adaptorPoint: dlc.pointMul(dlc.G, 7n)
+  }), /bare-sighash signing is not supported/);
+  const absentRejected = throws(() => create({
+    signingContext: { ...signingContext, cetTxid: sha256('signer-target-eval:absent').toString('hex') }
+  }), /absent from the committed CET set/);
+  const outsiderRejected = throws(() => create({
+    signerPubkeyX: dlc.xOnlyPubkey(scalar('signer-target-eval:outsider')).toString('hex')
+  }), /not a party/);
+  let randomContract = createDlcContract({
+    contractId: 'signer-target-eval-random', network: 'bitcoin-testnet4',
+    contractDigest: sha256('signer-target-eval-random').toString('hex'),
+    oraclePolicy: contract.oraclePolicy, validatorPolicy
+  });
+  for (const stage of ['AUTHENTICATED_ORACLES', 'CANONICAL_CETS_AND_REFUND', 'COUNTERPARTY_SIGNATURES_VERIFIED']) {
+    const idempotencyKey = `signer-target-eval:${stage}`;
+    randomContract = transitionDlcContract(randomContract, {
+      to: stage, idempotencyKey, evidence: evidenceFor(randomContract, stage, idempotencyKey)
+    });
+  }
+  const randomReceiptsRejected = throws(() => create({ contract: randomContract }),
+    /does not match the signed contract receipt/);
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'utxoref-target-eval-'));
+  try {
+    const missingContextRejected = throws(() => authorizeDlcAdaptorSign(createDlcCryptoProvider({
+      network: 'bitcoin-testnet4', mode: 'experimental-js', allowExperimental: true,
+      authorizationStore: new DlcSigningAuthorizationStore(directory)
+    }), { contract, authorization }), /signingContext/);
+    return authorization.sighash === derivedSighash && authorization.cetTxid === cet.txid &&
+      bareRejected && absentRejected && outsiderRejected && randomReceiptsRejected && missingContextRejected;
   } finally {
     fs.rmSync(directory, { recursive: true, force: true });
   }

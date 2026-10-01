@@ -109,6 +109,7 @@ const dlcNativeSignerProcessClient = require('./dlc_native_signer_process_client
 const dlcTransactionValidator = require('./dlc_transaction_validator');
 const dlcSignatureValidator = require('./dlc_signature_validator');
 const dlcFundingOutput = require('./dlc_funding_output');
+const dlcSigningTarget = require('./dlc_signing_target');
 const dlcChainGuard = require('./dlc_chain_guard');
 const dlcBitcoinCoreObserver = require('./dlc_bitcoin_core_observer');
 const dlcPeerTranscript = require('./dlc_peer_transcript');
@@ -804,7 +805,7 @@ module.exports.legacyUnsafe = legacyUnsafe;
 // for production; these interfaces enforce transcript, threshold-oracle,
 // and persistence gates on regtest and Bitcoin testnet4.
 module.exports.dlc = Object.freeze({
-  securityBoundaryVersion: 71,
+  securityBoundaryVersion: 72,
   canonicalizeData: dlcCanonicalJson.canonicalize,
   canonicalJson: dlcCanonicalJson.canonicalJson,
   canonicalSerializationPolicy: Object.freeze({
@@ -910,6 +911,9 @@ module.exports.dlc = Object.freeze({
   createCryptoProvider: dlcCryptoProvider.createDlcCryptoProvider,
   requireSigningProvider: dlcCryptoProvider.requireDlcSigningProvider,
   createAdaptorSignAuthorization: dlcCryptoProvider.createDlcAdaptorSignAuthorization,
+  deriveCetSigningTarget: dlcSigningTarget.deriveCetSigningTarget,
+  deriveSigningContextTarget: dlcSigningTarget.deriveSigningContextTarget,
+  oracleAnnouncementSetDigest: dlcSigningTarget.oracleAnnouncementSetDigest,
   authorizeAdaptorSign: dlcCryptoProvider.authorizeDlcAdaptorSign,
   parseCanonicalUnsignedTransaction: dlcTransactionValidator.parseCanonicalUnsignedTransaction,
   parseCanonicalSignedTaprootTransaction: dlcTransactionValidator.parseCanonicalSignedTaprootTransaction,
@@ -1112,7 +1116,7 @@ module.exports.dlc = Object.freeze({
     refundRecoveryRaceWorkers: 16,
     exactOneRefundArtifactRaceWinner: true,
     rawAdaptorSignHidden: true,
-    nativeSigningRequestKind: 'utxoref_dlc_native_adaptor_sign_request_v1',
+    nativeSigningRequestKind: 'utxoref_dlc_native_adaptor_sign_request_v2',
     callerSuppliesNativeSecret: false,
     nativeKeySelection: 'authorized-xonly-pubkey',
     nativeVerifiesAuthorization: true,
@@ -1133,7 +1137,15 @@ module.exports.dlc = Object.freeze({
     sanitizedProcessEnvironment: true,
     nativeCandidateImplementation: 'rust-k256-v1',
     nativeCandidateProtocol: 'utxoref-dlc-native-signer-process-v2',
-    nativeCandidateBinarySha256: '2f0c80cb80229c516d756c8e4f3f9fdb5d4d6c910aadc5c96844cb783b29033b',
+    // pilot-merge: the signer source changed for MAIN-3 (signing-target
+    // derivation) and has not been rebuilt on Windows, so no audited binary
+    // digest exists for this source. The previous digest pinned the
+    // bare-sighash signer. See PILOT_MERGE_NOTES.md.
+    nativeCandidateBinarySha256: null,
+    nativeCandidateBinaryRebuildRequired: true,
+    signerDerivesSigningTarget: true,
+    bareSighashSigningRejected: true,
+    signingTargetCrossImplementationVectors: 'native/dlc-signer/tests/signing_target_vectors.json',
     nativeCandidateCargoLockSha256: 'a5715dcfcf1eef714ffb08afe6b35fdd5db6278176ead3994286da12ba01c5e2',
     lockedDirectDependencies: true,
     unsafeRustRestrictedToDpapiFfi: true,
@@ -1146,7 +1158,7 @@ module.exports.dlc = Object.freeze({
     secretIntermediatesZeroizeOnDrop: true,
     directSignerReplayRaceWorkers: 16,
     exactOneDirectSignerRaceWinner: true,
-    adaptorAuthorizationKind: 'utxoref_dlc_adaptor_sign_authorization_v3',
+    adaptorAuthorizationKind: 'utxoref_dlc_adaptor_sign_authorization_v4',
     maxAdaptorAuthorizationTtlSeconds: 300,
     maxAdaptorAuthorizationClockSkewSeconds: 30,
     nativeAuthorizationFreshnessVerified: true,

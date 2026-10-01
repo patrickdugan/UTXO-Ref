@@ -260,7 +260,7 @@ authorization twice. An incomplete crash marker fails closed for manual
 recovery.
 
 The native provider interface accepts only
-`utxoref_dlc_native_adaptor_sign_request_v1`. The host supplies the signed
+`utxoref_dlc_native_adaptor_sign_request_v2`. The host supplies the signed
 authorization payload, validator public key, contract commitments, approved
 signer x-only public key, sighash, and adaptor point. It cannot supply a secret
 scalar or key handle. The signer service must independently verify that payload,

@@ -1,7 +1,6 @@
 #![deny(unsafe_op_in_unsafe_fn)]
 
 use std::{
-    collections::BTreeMap,
     env,
     ffi::c_void,
     fs::{self, OpenOptions},
@@ -30,6 +29,7 @@ use rand_core::{OsRng, RngCore};
 use serde::Serialize;
 use serde_json::{Map, Value};
 use sha2::{Digest, Sha256};
+use utxoref_dlc_signer::{canonical_json, signing_target::verify_signing_target};
 use zeroize::{Zeroize, Zeroizing};
 
 #[repr(C)]
@@ -77,8 +77,8 @@ const PROCESS_IMAGE_LOAD_POLICY: i32 = 10;
 const PROCESS_REQUEST_KIND: &str = "utxoref_dlc_native_signer_process_request_v2";
 const PROCESS_RESPONSE_KIND: &str = "utxoref_dlc_native_signer_process_response_v2";
 const MAX_EXECUTABLE_BYTES: u64 = 128 * 1024 * 1024;
-const SIGN_REQUEST_KIND: &str = "utxoref_dlc_native_adaptor_sign_request_v1";
-const AUTHORIZATION_KIND: &str = "utxoref_dlc_adaptor_sign_authorization_v3";
+const SIGN_REQUEST_KIND: &str = "utxoref_dlc_native_adaptor_sign_request_v2";
+const AUTHORIZATION_KIND: &str = "utxoref_dlc_adaptor_sign_authorization_v4";
 const PRESIGNATURE_KIND: &str = "tradelayer_dlc_adaptor_presig_v1";
 const MAX_AUTHORIZATION_TTL_SECONDS: u64 = 300;
 const MAX_AUTHORIZATION_CLOCK_SKEW_SECONDS: u64 = 30;
@@ -179,51 +179,6 @@ struct VerifiedRequest {
     authorization_digest: String,
     issued_at: u64,
     expires_at: u64,
-}
-
-fn canonical_json(value: &Value) -> Result<String> {
-    match value {
-        Value::Null => Ok("null".to_owned()),
-        Value::Bool(value) => Ok(if *value { "true" } else { "false" }.to_owned()),
-        Value::String(value) => serde_json::to_string(value).map_err(|error| error.to_string()),
-        Value::Number(value) => {
-            const MAX_SAFE: u64 = 9_007_199_254_740_991;
-            if let Some(unsigned) = value.as_u64() {
-                if unsigned > MAX_SAFE {
-                    return Err("JSON integer exceeds JavaScript safe range".to_owned());
-                }
-                Ok(unsigned.to_string())
-            } else if let Some(signed) = value.as_i64() {
-                if signed.unsigned_abs() > MAX_SAFE {
-                    return Err("JSON integer exceeds JavaScript safe range".to_owned());
-                }
-                Ok(signed.to_string())
-            } else {
-                Err("floating-point JSON values are forbidden".to_owned())
-            }
-        }
-        Value::Array(values) => {
-            let encoded = values
-                .iter()
-                .map(canonical_json)
-                .collect::<Result<Vec<_>>>()?;
-            Ok(format!("[{}]", encoded.join(",")))
-        }
-        Value::Object(values) => {
-            let sorted: BTreeMap<&String, &Value> = values.iter().collect();
-            let encoded = sorted
-                .into_iter()
-                .map(|(key, value)| {
-                    Ok(format!(
-                        "{}:{}",
-                        serde_json::to_string(key).map_err(|error| error.to_string())?,
-                        canonical_json(value)?
-                    ))
-                })
-                .collect::<Result<Vec<_>>>()?;
-            Ok(format!("{{{}}}", encoded.join(",")))
-        }
-    }
 }
 
 fn sha256(bytes: &[u8]) -> [u8; 32] {
@@ -1027,6 +982,9 @@ fn verify_request(request: &Value, policy: &NativeValidatorPolicy) -> Result<Ver
         "network",
         "stage",
         "signerPubkeyX",
+        "cetTxid",
+        "fundingTemplateDigest",
+        "oracleAnnouncementsDigest",
         "sighash",
     ] {
         if string(payload_object, name)? != string(request_object, name)? {
@@ -1064,6 +1022,12 @@ fn verify_request(request: &Value, policy: &NativeValidatorPolicy) -> Result<Ver
             .ok_or_else(|| "authorization adaptorPoint is required".to_owned())?,
         "authorization adaptorPoint",
     )?;
+    if string(payload_object, "cetTxid")? != string(authorization_object, "cetTxid")?
+        || string(payload_object, "oracleAnnouncementsDigest")?
+            != string(authorization_object, "oracleAnnouncementsDigest")?
+    {
+        return Err("authorization object differs from its signed payload".to_owned());
+    }
     for coordinate in ["x", "y"] {
         let expected = string(payload_point, coordinate)?;
         if expected != string(request_point, coordinate)?
@@ -1102,11 +1066,15 @@ fn verify_request(request: &Value, policy: &NativeValidatorPolicy) -> Result<Ver
     if string(payload_object, "stage")? != "COUNTERPARTY_SIGNATURES_VERIFIED" {
         return Err("authorization stage is not signable".to_owned());
     }
+    // MAIN-3: never sign a bare sighash. Re-derive the CET's script-path
+    // sighash and the oracle adaptor point from the signing context, and sign
+    // only if the validator-signed payload names exactly that target.
+    let target = verify_signing_target(request_object, payload_object)?;
     Ok(VerifiedRequest {
         signer_pubkey: string(request_object, "signerPubkeyX")?.to_owned(),
-        message: decode_hex_32(string(request_object, "sighash")?, "sighash")?,
-        adaptor_x: string(request_point, "x")?.to_owned(),
-        adaptor_y: string(request_point, "y")?.to_owned(),
+        message: target.sighash,
+        adaptor_x: hex::encode(target.adaptor_x),
+        adaptor_y: hex::encode(target.adaptor_y),
         authorization_digest,
         issued_at,
         expires_at,
