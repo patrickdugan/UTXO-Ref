@@ -442,3 +442,93 @@ test('file token provider rejects malformed and multiply-linked credential files
     fs.rmSync(temporary, { recursive: true, force: true });
   }
 });
+
+// WT-2: the proxy relays only transactions an operator pinned by txid, such as
+// the fully pre-signed settlement of a watched graph.
+const {
+  createFileBroadcastAllowlistProvider,
+  txidOfRawTransaction,
+  BROADCAST_ALLOWLIST_KIND
+} = require('./btc_testnet4_readonly_rpc_proxy');
+const { txidFromUnsignedHex } = require('./recover_btc_testnet4_reserve_vault');
+const liveGraph = JSON.parse(fs.readFileSync(
+  path.join(__dirname, 'artifacts', 'live', 'btc_testnet4_utxoref_v2_latest.json'), 'utf8'
+)).graph;
+const settlementHex = liveGraph.settlementPath.witnessTxHex;
+const settlementTxid = txidFromUnsignedHex(liveGraph.settlement.unsignedTxHex);
+const recoveryHex = liveGraph.recoveryPath.witnessTxHex;
+
+test('WT-2: raw transaction txids are parsed strictly', () => {
+  assert.equal(txidOfRawTransaction(settlementHex), settlementTxid);
+  assert.equal(txidOfRawTransaction(liveGraph.settlement.unsignedTxHex), settlementTxid);
+  assert.equal(txidOfRawTransaction(recoveryHex), txidFromUnsignedHex(liveGraph.recoveryPath.unsignedTxHex));
+  assert.throws(() => txidOfRawTransaction(`${settlementHex}00`), /trailing bytes/);
+  assert.throws(() => txidOfRawTransaction(settlementHex.slice(0, -2)), /truncated/);
+  assert.throws(() => txidOfRawTransaction(settlementHex.toUpperCase()), /lowercase hex/);
+  // A segwit marker whose witness section is empty is not canonical.
+  const unsigned = liveGraph.settlement.unsignedTxHex;
+  const inputs = Number.parseInt(unsigned.slice(8, 10), 16);
+  const emptyWitness = `${unsigned.slice(0, 8)}0001${unsigned.slice(8, -8)}${'00'.repeat(inputs)}${unsigned.slice(-8)}`;
+  assert.throws(() => txidOfRawTransaction(emptyWitness), /without witness data/);
+});
+
+test('WT-2: sendrawtransaction is refused unless the txid is allowlisted', () => {
+  const request = (hex) => ({ jsonrpc: '2.0', id: 1, method: 'sendrawtransaction', params: [hex] });
+  assert.equal(validateRpcRequest(request(settlementHex)).code, -32601, 'no allowlist must mean no broadcast');
+  const allowlist = new Set([settlementTxid]);
+  const allowed = validateRpcRequest(request(settlementHex), { broadcastTxids: allowlist });
+  assert.equal(allowed.ok, true);
+  assert.deepEqual(allowed.request.params, [settlementHex]);
+  const other = validateRpcRequest(request(recoveryHex), { broadcastTxids: allowlist });
+  assert.equal(other.ok, false);
+  assert.match(other.message, /not on the broadcast allowlist/);
+  assert.equal(validateRpcRequest({ ...request(settlementHex), params: [settlementHex, 0] },
+    { broadcastTxids: allowlist }).ok, false, 'a maxfeerate argument is not part of the capability');
+  assert.equal(validateRpcRequest(request('zz'), { broadcastTxids: allowlist }).ok, false);
+});
+
+test('WT-2: proxy with an allowlist file relays the settlement and nothing else', async () => {
+  const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'utxoref-rpc-proxy-broadcast-'));
+  const cookiePath = path.join(temporary, '.cookie');
+  fs.writeFileSync(cookiePath, '__cookie__:test-only-secret\n', { encoding: 'utf8', flag: 'wx' });
+  const allowlistPath = path.join(temporary, 'broadcast-allowlist.json');
+  fs.writeFileSync(allowlistPath, JSON.stringify({ kind: BROADCAST_ALLOWLIST_KIND, txids: [settlementTxid] }));
+  const relayed = [];
+  const upstream = http.createServer((request, response) => {
+    const chunks = [];
+    request.on('data', chunk => chunks.push(chunk));
+    request.on('end', () => {
+      const incoming = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+      relayed.push(incoming);
+      const body = Buffer.from(JSON.stringify({ jsonrpc: '2.0', id: incoming.id, result: settlementTxid }), 'utf8');
+      response.writeHead(200, { 'Content-Type': 'application/json', 'Content-Length': body.length });
+      response.end(body);
+    });
+  });
+  const rpcPort = await listen(upstream);
+  const token = 'ab'.repeat(32);
+  const proxy = createReadonlyRpcProxy({
+    cookiePath, token, rpcPort, broadcastAllowlistProvider: createFileBroadcastAllowlistProvider(allowlistPath)
+  });
+  const proxyPort = await listen(proxy.server);
+  try {
+    const sent = await post(proxyPort, token, { jsonrpc: '2.0', id: 1, method: 'sendrawtransaction', params: [settlementHex] });
+    assert.equal(sent.status, 200);
+    assert.equal(sent.value.result, settlementTxid);
+    const refused = await post(proxyPort, token, { jsonrpc: '2.0', id: 2, method: 'sendrawtransaction', params: [recoveryHex] });
+    assert.equal(refused.status, 400);
+    assert.match(refused.value.error.message, /not on the broadcast allowlist/);
+    assert.equal(relayed.length, 1);
+    assert.equal(relayed[0].method, 'sendrawtransaction');
+    assert.deepEqual(relayed[0].params, [settlementHex]);
+    // A malformed allowlist file disables broadcast instead of widening it.
+    fs.writeFileSync(allowlistPath, JSON.stringify({ kind: BROADCAST_ALLOWLIST_KIND, txids: [] }));
+    const disabled = await post(proxyPort, token, { jsonrpc: '2.0', id: 3, method: 'sendrawtransaction', params: [settlementHex] });
+    assert.equal(disabled.status, 400);
+    assert.equal(relayed.length, 1);
+  } finally {
+    await close(proxy.server);
+    await close(upstream);
+    fs.rmSync(temporary, { recursive: true, force: true });
+  }
+});
