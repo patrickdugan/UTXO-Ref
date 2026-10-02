@@ -21,7 +21,9 @@ const {
 const {
   buildSettlementTraceBindingV2,
   buildBitvmAssertionTemplateV2,
-  finalizeBitvmAssertionGraphV2,
+  buildUnsignedBitvmAssertionGraphV2,
+  challengerSignBitvmAssertionGraphV2,
+  operatorSignBitvmAssertionGraphV2,
   verifyBitvmAssertionGraphV2,
   containsPrivateMaterial
 } = require('./bitvm_assertion_graph_v2');
@@ -37,10 +39,16 @@ const DEFAULT_SECRET_ROOT = 'D:\\BitcoinTestnet\\key-backups';
 const EXPLORER = 'https://mempool.space/testnet4/tx/';
 
 function parseArgs(argv) {
-  const result = { broadcast: false, status: false, settle: false, forceNew: false };
+  const result = {
+    broadcast: false, status: false, settle: false, forceNew: false,
+    challengerSign: false, operatorSign: false, allowFraudulentTrace: false
+  };
   for (let index = 0; index < argv.length; index++) {
     const arg = argv[index];
     if (arg === '--broadcast') { result.broadcast = true; continue; }
+    if (arg === '--challenger-sign') { result.challengerSign = true; continue; }
+    if (arg === '--operator-sign') { result.operatorSign = true; continue; }
+    if (arg === '--allow-fraudulent-trace') { result.allowFraudulentTrace = true; continue; }
     if (arg === '--status') { result.status = true; continue; }
     if (arg === '--settle') { result.settle = true; result.status = true; continue; }
     if (arg === '--force-new') { result.forceNew = true; continue; }
@@ -68,6 +76,16 @@ function usage() {
     '4. Broadcast the exact pre-signed settlement after maturity:',
     '   node btc_testnet4_utxoref_v2_live.js --settle',
     '',
+    'Challenger on a separately administered host (BVM-4) instead of step 1:',
+    '   a. operator: node btc_testnet4_utxoref_v2_live.js --challenger-xonly <hex>',
+    '      (stages an unsigned graph; status awaiting-challenger-signature)',
+    '   b. challenger host, with its own node height and the pinned trust policy',
+    '      (which must already trust the new state signer):',
+    '      node btc_testnet4_utxoref_v2_live.js --challenger-sign --artifact <copy> \\',
+    '        --challenger-secret-file <path> --current-height <n> --out <signature.json>',
+    '   c. operator: node btc_testnet4_utxoref_v2_live.js --operator-sign \\',
+    '        --challenger-signature <signature.json>',
+    '',
     'Options:',
     '  --artifact <path>',
     '  --trust-policy <path>     pinned trust policy for --broadcast/--status/--settle',
@@ -80,6 +98,7 @@ function usage() {
     '  --challenge-csv <n>       default 6 (test profile)',
     '  --recovery-csv <n>        default 2016',
     '  --fraud-mode <honest|gate|input> default honest; stage only',
+    '  --allow-fraudulent-trace   challenger signs a fraudulent trace (drills only)',
     '  --force-new               replace an unbroadcast staged artifact'
   ].join('\n');
 }
@@ -160,12 +179,14 @@ function writeSecret(filePath, value) {
   try { fs.chmodSync(filePath, 0o600); } catch (_err) { /* Best effort on Windows. */ }
 }
 
-function createKeyCeremony(secretRoot) {
+// BVM-4: with challengerXonly the challenger key lives on another host and no
+// challenger secret is generated here.
+function createKeyCeremony(secretRoot, { challengerXonly = null } = {}) {
   const id = `utxoref-v2-${ceremonyId()}-${crypto.randomBytes(4).toString('hex')}`;
   const root = path.join(secretRoot, id);
   const { publicKey, privateKey } = crypto.generateKeyPairSync('ed25519');
   const operatorSecret = randomScalar();
-  const challengerSecret = randomScalar();
+  const challengerSecret = challengerXonly ? null : randomScalar();
   writeSecret(
     path.join(root, 'state-signer', 'private-key.pk8.pem'),
     privateKey.export({ type: 'pkcs8', format: 'pem' })
@@ -175,7 +196,9 @@ function createKeyCeremony(secretRoot) {
     publicKey.export({ type: 'spki', format: 'pem' })
   );
   writeSecret(path.join(root, 'operator', 'secret.hex'), a.bytes32(operatorSecret).toString('hex') + '\n');
-  writeSecret(path.join(root, 'challenger', 'secret.hex'), a.bytes32(challengerSecret).toString('hex') + '\n');
+  if (challengerSecret !== null) {
+    writeSecret(path.join(root, 'challenger', 'secret.hex'), a.bytes32(challengerSecret).toString('hex') + '\n');
+  }
   return {
     id,
     root,
@@ -184,7 +207,39 @@ function createKeyCeremony(secretRoot) {
     operatorSecret,
     challengerSecret,
     operatorXonly: a.xOnlyPubkey(operatorSecret).toString('hex'),
-    challengerXonly: a.xOnlyPubkey(challengerSecret).toString('hex')
+    challengerXonly: challengerXonly || a.xOnlyPubkey(challengerSecret).toString('hex')
+  };
+}
+
+function readSecretScalar(filePath, label) {
+  const metadata = fs.lstatSync(filePath);
+  if (!metadata.isFile() || metadata.isSymbolicLink() || metadata.size > 256) {
+    throw new Error(`${label} must be a small regular file`);
+  }
+  const text = fs.readFileSync(filePath, 'utf8').trim();
+  if (!/^[0-9a-f]{64}$/.test(text)) throw new Error(`${label} must be 32 bytes of lowercase hex`);
+  return a.bufToBig(Buffer.from(text, 'hex'));
+}
+
+// The challenger's state verification: the state signer must be trusted by
+// the pinned trust policy, not by the artifact under review.
+function pinnedStateVerification(unsignedGraph, trustPolicy, currentHeight) {
+  if (trustPolicy?.kind !== 'utxoref_v2_watchtower_trust_policy' || trustPolicy.version !== 1) {
+    throw new Error('wrong UTXORef V2 trust policy kind or version');
+  }
+  const genesisHash = String(trustPolicy.genesisHash || '').toLowerCase();
+  if (trustPolicy.network !== 'bitcoin-testnet4' || !/^[0-9a-f]{64}$/.test(genesisHash)) {
+    throw new Error('trust policy network or genesis hash is invalid');
+  }
+  const keyId = String(unsignedGraph?.settlement?.stateEnvelope?.signer?.keyId || '');
+  const publicKeyPemText = trustPolicy.trustedSigners?.[keyId];
+  if (!publicKeyPemText) throw new Error('the pinned trust policy does not trust this graph\'s state signer');
+  return {
+    trustedSigners: { [keyId]: crypto.createPublicKey(publicKeyPemText) },
+    expectedNetwork: 'bitcoin-testnet4',
+    expectedGenesisHash: genesisHash,
+    currentHeight,
+    maxAgeBlocks: 6
   };
 }
 
@@ -338,7 +393,12 @@ async function stage(runtime, args) {
   if (chain.chain !== 'testnet4') throw new Error(`wrong RPC chain: ${chain.chain}`);
   if (chain.initialblockdownload || chain.blocks !== chain.headers) throw new Error('Bitcoin testnet4 node is not fully synchronized');
   const genesisHash = await runtime.rpc('getblockhash', [0]);
-  const keys = createKeyCeremony(runtime.secretRoot);
+  const separateChallengerXonly = args.challengerXonly === undefined ? null : String(args.challengerXonly).toLowerCase();
+  if (separateChallengerXonly !== null) {
+    if (!/^[0-9a-f]{64}$/.test(separateChallengerXonly)) throw new Error('--challenger-xonly must be 32 bytes of lowercase hex');
+    a.liftX(a.bufToBig(Buffer.from(separateChallengerXonly, 'hex')));
+  }
+  const keys = createKeyCeremony(runtime.secretRoot, { challengerXonly: separateChallengerXonly });
   const winnerA = await newWalletDestination(runtime.rpc, runtime.wallet, 'utxoref-v2-winner-a');
   const winnerC = await newWalletDestination(runtime.rpc, runtime.wallet, 'utxoref-v2-winner-c');
   const recovery = await newWalletDestination(runtime.rpc, runtime.wallet, 'utxoref-v2-recovery');
@@ -420,7 +480,11 @@ async function stage(runtime, args) {
     currentHeight: chain.blocks,
     maxAgeBlocks: 6
   };
-  const graph = finalizeBitvmAssertionGraphV2({
+  // BVM-4: build, challenger-sign and operator-sign are separate steps. With
+  // --challenger-xonly staging stops at the unsigned graph; otherwise this is
+  // the local test ceremony and both steps run here. The challenger step
+  // refuses a fraudulent trace except in fraud drills.
+  const unsignedGraph = buildUnsignedBitvmAssertionGraphV2({
     template,
     publicTrace,
     stateEnvelope,
@@ -428,12 +492,23 @@ async function stage(runtime, args) {
     assertionOutpoint,
     feeSats: settlementFeeSats,
     recoveryFeeSats: settlementFeeSats,
-    recoveryScriptPubKeyHex: recovery.scriptPubKeyHex,
-    operatorSecret: keys.operatorSecret,
-    challengerSecret: keys.challengerSecret
+    recoveryScriptPubKeyHex: recovery.scriptPubKeyHex
   });
-  const graphCheck = verifyBitvmAssertionGraphV2(graph, stateVerification);
-  if (!graphCheck.ok) throw new Error(`V2 graph verification failed: ${graphCheck.reason}`);
+  let graph = null;
+  let graphCheck = null;
+  if (separateChallengerXonly === null) {
+    const challengerSignature = challengerSignBitvmAssertionGraphV2(unsignedGraph, {
+      stateVerification,
+      challengerSecret: keys.challengerSecret,
+      allowFraudulentTrace: traceMode.mode !== 'honest'
+    });
+    graph = operatorSignBitvmAssertionGraphV2(unsignedGraph, challengerSignature, {
+      stateVerification,
+      operatorSecret: keys.operatorSecret
+    });
+    graphCheck = verifyBitvmAssertionGraphV2(graph, stateVerification);
+    if (!graphCheck.ok) throw new Error(`V2 graph verification failed: ${graphCheck.reason}`);
+  }
   const [mempoolAccept] = await runtime.rpc('testmempoolaccept', [[fundingSigned.hex]]);
   if (!mempoolAccept.allowed) throw new Error(`funding preflight rejected: ${mempoolAccept['reject-reason'] || 'unknown reason'}`);
 
@@ -442,7 +517,7 @@ async function stage(runtime, args) {
     version: 2,
     createdAt: new Date().toISOString(),
     network: 'bitcoin-testnet4',
-    status: 'staged',
+    status: graph ? 'staged' : 'awaiting-challenger-signature',
     traceMode: traceMode.mode,
     chain: {
       snapshotHeight: chain.blocks,
@@ -456,7 +531,7 @@ async function stage(runtime, args) {
       stateSignerPublicKeyPem: publicKeyPem(keys.publicKey),
       operatorXonly: keys.operatorXonly,
       challengerXonly: keys.challengerXonly,
-      model: 'local-test-ceremony-separated-files',
+      model: graph ? 'local-test-ceremony-separated-files' : 'separate-challenger-host',
       productionRequirement: 'challenger key and signing process must run on a separately administered host'
     },
     funding: {
@@ -472,15 +547,14 @@ async function stage(runtime, args) {
       broadcastTxid: null,
       confirmations: 0
     },
-    graph,
-    verification: graphCheck,
+    ...(graph ? { graph, verification: graphCheck } : { unsignedGraph: JSON.parse(JSON.stringify(unsignedGraph)) }),
     explorer: {
       funding: EXPLORER + fundingDecoded.txid,
-      settlement: EXPLORER + txidFromUnsignedHex(graph.settlement.unsignedTxHex)
+      settlement: EXPLORER + txidFromUnsignedHex(unsignedGraph.settlement.unsignedTxHex)
     }
   };
   if (containsPrivateMaterial(artifact)) throw new Error('public ceremony artifact contains private material');
-  verifyFundingDecode(artifact, fundingDecoded);
+  verifyFundingDecode({ funding: artifact.funding, graph: { template } }, fundingDecoded);
   fs.mkdirSync(path.dirname(runtime.artifactPath), { recursive: true });
   fs.writeFileSync(runtime.artifactPath, JSON.stringify(artifact, null, 2) + '\n');
   console.log(JSON.stringify({
@@ -489,13 +563,108 @@ async function stage(runtime, args) {
     fundingTxid: artifact.funding.txid,
     assertionOutpoint: artifact.funding.assertionOutpoint,
     assertionAmountSats: artifact.funding.assertionAmountSats,
-    graphHash: artifact.graph.graphHash,
-    commitmentHash: artifact.graph.settlement.commitment.commitmentHash,
-    p2trScriptPubKey: artifact.graph.template.p2trScriptPubKey,
+    graphHash: graph ? graph.graphHash : null,
+    unsignedGraphHash: unsignedGraph.unsignedGraphHash,
+    commitmentHash: unsignedGraph.settlement.commitment.commitmentHash,
+    p2trScriptPubKey: template.p2trScriptPubKey,
     mempoolAccept: mempoolAccept.allowed,
-    next: 'rerun with --broadcast after reviewing the artifact'
+    next: graph
+      ? 'rerun with --broadcast after reviewing the artifact'
+      : 'pin the state signer in the trust policy, send the artifact to the challenger host for --challenger-sign, then run --operator-sign'
   }, null, 2));
   return artifact;
+}
+
+function readAwaitingArtifact(artifactPath) {
+  if (!fs.existsSync(artifactPath)) throw new Error(`staged artifact not found: ${artifactPath}`);
+  const artifact = readJsonStrictProfile(artifactPath, 'utxoref-v2-public-artifact', 'staged UTXORef V2 artifact');
+  if (artifact.kind !== 'btc_testnet4_utxoref_v2_live_ceremony' || artifact.version !== 2) {
+    throw new Error('wrong staged artifact kind or version');
+  }
+  if (artifact.status !== 'awaiting-challenger-signature' || !artifact.unsignedGraph || artifact.graph) {
+    throw new Error('artifact is not awaiting a challenger signature');
+  }
+  if (containsPrivateMaterial(artifact)) throw new Error('staged artifact contains private material');
+  return artifact;
+}
+
+// BVM-4, step b: runs on the challenger's host with only the staged artifact,
+// the challenger's own secret, its own chain height and the pinned trust
+// policy. No RPC and no operator material.
+function challengerSign(args) {
+  const artifactPath = path.resolve(args.artifact || DEFAULT_ARTIFACT);
+  if (!args.challengerSecretFile || !args.out || args.currentHeight === undefined) {
+    throw new Error('--challenger-sign requires --challenger-secret-file, --current-height and --out');
+  }
+  const artifact = readAwaitingArtifact(artifactPath);
+  const trustPolicy = loadPinnedTrustPolicy(path.resolve(args.trustPolicy || DEFAULT_TRUST_POLICY));
+  const stateVerification = pinnedStateVerification(
+    artifact.unsignedGraph, trustPolicy, toSafeInteger(args.currentHeight, 'currentHeight')
+  );
+  const signature = challengerSignBitvmAssertionGraphV2(artifact.unsignedGraph, {
+    stateVerification,
+    challengerSecret: readSecretScalar(path.resolve(args.challengerSecretFile), 'challenger secret'),
+    allowFraudulentTrace: args.allowFraudulentTrace === true
+  });
+  const outPath = path.resolve(args.out);
+  fs.mkdirSync(path.dirname(outPath), { recursive: true });
+  fs.writeFileSync(outPath, JSON.stringify(signature, null, 2) + '\n', { flag: 'wx' });
+  console.log(JSON.stringify({
+    challengerSignature: outPath,
+    unsignedGraphHash: signature.unsignedGraphHash,
+    sighash: signature.sighash
+  }, null, 2));
+  return signature;
+}
+
+// BVM-4, step c: the operator checks the challenger's signature against the
+// recomputed sighash and signs settlement and recovery. The state signer's
+// key is read from the operator's own secret root, not from the artifact.
+async function operatorSign(runtime, args) {
+  if (!args.challengerSignature) throw new Error('--operator-sign requires --challenger-signature');
+  const artifact = readAwaitingArtifact(runtime.artifactPath);
+  const challengerSignature = readJsonStrict(path.resolve(args.challengerSignature), 'challenger signature', { maxBytes: 64 * 1024 });
+  const ceremonyRoot = path.join(runtime.secretRoot, String(artifact.keyCeremony?.id || ''));
+  const publicKey = crypto.createPublicKey(fs.readFileSync(path.join(ceremonyRoot, 'state-signer', 'public-key.spki.pem'), 'utf8'));
+  const stateSignerKeyId = publicKeyId(publicKey);
+  if (artifact.keyCeremony.stateSignerKeyId !== stateSignerKeyId ||
+      artifact.unsignedGraph.settlement?.stateEnvelope?.signer?.keyId !== stateSignerKeyId) {
+    throw new Error('artifact state signer differs from the operator ceremony key');
+  }
+  const chain = await runtime.rpc('getblockchaininfo');
+  if (chain.chain !== 'testnet4' || chain.initialblockdownload || chain.blocks !== chain.headers) {
+    throw new Error('Bitcoin testnet4 node is not fully synchronized');
+  }
+  const genesisHash = await runtime.rpc('getblockhash', [0]);
+  const stateVerification = {
+    trustedSigners: { [stateSignerKeyId]: publicKey },
+    expectedNetwork: 'bitcoin-testnet4',
+    expectedGenesisHash: genesisHash,
+    currentHeight: chain.blocks,
+    maxAgeBlocks: 6
+  };
+  const graph = operatorSignBitvmAssertionGraphV2(artifact.unsignedGraph, challengerSignature, {
+    stateVerification,
+    operatorSecret: readSecretScalar(path.join(ceremonyRoot, 'operator', 'secret.hex'), 'operator secret')
+  });
+  const graphCheck = verifyBitvmAssertionGraphV2(graph, stateVerification);
+  if (!graphCheck.ok) throw new Error(`V2 graph verification failed: ${graphCheck.reason}`);
+  const { unsignedGraph: _unsignedGraph, ...rest } = artifact;
+  const signed = {
+    ...rest,
+    status: 'staged',
+    challengerSignedAt: new Date().toISOString(),
+    graph,
+    verification: graphCheck
+  };
+  if (containsPrivateMaterial(signed)) throw new Error('public ceremony artifact contains private material');
+  fs.writeFileSync(runtime.artifactPath, JSON.stringify(signed, null, 2) + '\n');
+  console.log(JSON.stringify({
+    status: signed.status,
+    graphHash: graph.graphHash,
+    next: 'pin the graph hash in the trust policy, then rerun with --broadcast'
+  }, null, 2));
+  return signed;
 }
 
 async function broadcast(runtime) {
@@ -635,7 +804,9 @@ async function status(runtime, args = {}) {
 }
 
 async function run(args) {
+  if (args.challengerSign) return challengerSign(args);
   const runtime = resolveRuntime(args);
+  if (args.operatorSign) return operatorSign(runtime, args);
   if (args.settle || args.status) return status(runtime, args);
   return args.broadcast ? broadcast(runtime) : stage(runtime, args);
 }
@@ -655,6 +826,9 @@ module.exports = {
   traceValuesForMode,
   graphVerificationOptions,
   verifyFundingDecode,
+  pinnedStateVerification,
+  challengerSign,
+  operatorSign,
   stage,
   broadcast,
   status,

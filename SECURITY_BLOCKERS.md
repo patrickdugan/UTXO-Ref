@@ -21,7 +21,7 @@ Per-finding status, commits and tests are in
 |---|---|---|
 | 1 | Hand-rolled signer | Unchanged for the JS reference. The Rust signer (`native/dlc-signer`) is the production candidate; its source changed for MAIN-3 and the binary must be rebuilt and re-attested. |
 | 2 | Nonce misuse | **The 2026-07-06 "fixed" status below was wrong** (finding DLC-2): the journal keyed on the message only, so a co-signer could replay the same message with a different nonce and recover the key. Fixed by binding the journal to the whole session, and MuSig2 is no longer on the pilot path (moved to `legacy/`; the pilot funding output needs no interactive nonces). |
-| 3 | Self-play | Open. The BitVM graph API now supports a challenger on its own host (BVM-4), but no separated-host run exists. |
+| 3 | Self-play | Open. The BitVM graph API and the live driver now support a challenger on its own host (BVM-4: `--challenger-xonly`, `--challenger-sign`, `--operator-sign`), but no separated-host testnet4 run exists. |
 | 4 | Reserve encumbrance | Reserve verifiers now require the NUMS internal key (RES-1). |
 | 5 | Watchtower | A persistent watchtower exists and now challenges at any state age and alerts on tick failure (WT-1, WT-3). It alerts when the pre-signed settlement is due or the recovery leaf is near, and can broadcast exactly that settlement through a proxy that relays only allowlisted txids (WT-2, BVM-6); not yet deployed that way. No alert delivery. |
 | 6 | Data availability | Open; also a payee-safety requirement (BVM-6). A watchtower holding the package can now broadcast the settlement, but mirror publication before funding is not implemented. |
