@@ -276,7 +276,7 @@ const { buildWireSecretSetV2, buildPublicTraceV2 } = require('./bitvm_trace_v2')
 const graphV2 = require('./bitvm_assertion_graph_v2');
 const { runTick, recordTickFailure, recordTickSuccess } = require('./utxoref_v2_watchtower');
 
-function fraudFixture(directory, snapshotHeight, { honest = false } = {}) {
+function fraudFixture(directory, snapshotHeight, { honest = false, fundingTxid = 'aa'.repeat(32) } = {}) {
   const { publicKey, privateKey } = crypto.generateKeyPairSync('ed25519');
   const keyId = publicKeyId(publicKey);
   const genesis = TRUST_POLICY.genesisHash;
@@ -313,7 +313,7 @@ function fraudFixture(directory, snapshotHeight, { honest = false } = {}) {
   });
   const graph = graphV2.finalizeBitvmAssertionGraphV2({
     template, publicTrace, stateEnvelope, stateVerification,
-    assertionOutpoint: { txid: 'aa'.repeat(32), vout: 0, amountSats: binding.assertionAmountSats, scriptPubKeyHex: template.p2trScriptPubKey },
+    assertionOutpoint: { txid: fundingTxid, vout: 0, amountSats: binding.assertionAmountSats, scriptPubKeyHex: template.p2trScriptPubKey },
     feeSats: binding.feeSats, recoveryFeeSats: '500', recoveryScriptPubKeyHex: '0014' + '09'.repeat(20),
     operatorSecret: 0x12345n, challengerSecret: 0x67890n
   });
@@ -515,6 +515,136 @@ asyncTest('WT-2: only an honest graph\'s settlement is written to the proxy broa
     try { settlementAllowlist(read(fraud.artifactPath), read(fraud.trustPolicyPath)); } catch (err) { refused = err; }
     assert(refused && /contains fraud/.test(refused.message), 'a fraudulent graph\'s settlement was allowlisted');
   } finally { fs.rmSync(directory, { recursive: true, force: true }); }
+});
+
+// WT-2 automation: alerts, the dead-man heartbeat, and the deployed proxy.
+asyncTest('WT-2: an iteration notifies, pings the heartbeat only when healthy, and escalates repeated failures', async () => {
+  const { runWatchtowerIteration } = require('./utxoref_v2_watchtower');
+  const { createAlertNotifier, notifierConfigFromEnv } = require('./utxoref_v2_alert_notifier');
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'utxoref-v2-watchtower-notify-'));
+  try {
+    const snapshot = 150000;
+    const honest = fraudFixture(directory, snapshot, { honest: true });
+    const calls = [];
+    const fetchImpl = async (url, init) => { calls.push({ url, init }); return { ok: true, status: 200 }; };
+    const notifier = createAlertNotifier(notifierConfigFromEnv({
+      UTXOREF_WATCHTOWER_ID: 'wt-test', UTXOREF_ALERT_WEBHOOK_URL: 'https://hooks.example.org/alerts'
+    }), { fetchImpl });
+    const heartbeatUrl = 'https://hc.example.org/ping/test';
+    const args = { artifact: honest.artifactPath, trustPolicy: honest.trustPolicyPath, alertPath: path.join(directory, 'alerts.jsonl') };
+    const state = {};
+    const due = await runWatchtowerIteration(args, honest.rpcAt(snapshot + 12, 6), state, { notifier, heartbeatUrl, fetchImpl });
+    assert(due.ok && due.result.action === 'settlement_due');
+    const alerts = () => calls.filter((call) => call.url === 'https://hooks.example.org/alerts').map((call) => JSON.parse(call.init.body));
+    const pings = () => calls.filter((call) => call.url === heartbeatUrl);
+    assert(alerts().length === 1 && alerts()[0].action === 'settlement_due' && alerts()[0].severity === 'warning');
+    assert(pings().length === 1 && state.heartbeat.ok === true);
+    const broken = async () => { throw new Error('connect ECONNREFUSED 127.0.0.1:48332'); };
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      const failedTick = await runWatchtowerIteration(args, broken, state, { notifier, heartbeatUrl, fetchImpl });
+      assert(failedTick.ok === false);
+    }
+    assert(pings().length === 1, 'a failing watchtower must stay silent to the dead-man monitor');
+    assert(alerts().length === 2 && alerts()[1].action === 'watchtower_tick_failed' && alerts()[1].severity === 'critical',
+      'three consecutive failures must raise one critical alert');
+    assert(/ECONNREFUSED/.test(alerts()[1].text));
+  } finally { fs.rmSync(directory, { recursive: true, force: true }); }
+});
+
+asyncTest('WT-2: a refused settlement broadcast is an alert, not a failed tick', async () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'utxoref-v2-watchtower-send-fail-'));
+  try {
+    const snapshot = 150000;
+    const { artifactPath, trustPolicyPath, rpcAt, graph } = fraudFixture(directory, snapshot, { honest: true });
+    const settlementTxid = txidFromUnsignedHex(graph.settlement.unsignedTxHex);
+    const base = rpcAt(snapshot + 12, 6);
+    const rpc = async (method, params) => {
+      if (method === 'testmempoolaccept') return [{ txid: settlementTxid, allowed: true }];
+      if (method === 'sendrawtransaction') throw new Error('RPC method is not permitted (HTTP 403)');
+      return base(method, params);
+    };
+    const tick = await runTick({
+      artifact: artifactPath, trustPolicy: trustPolicyPath, alertPath: path.join(directory, 'alerts.jsonl'), broadcastSettlement: true
+    }, rpc, {});
+    assert(tick.action === 'settlement_broadcast_failed', `expected settlement_broadcast_failed, got ${tick.action}`);
+    assert(/HTTP 403/.test(tick.settlement.broadcastError) && tick.settlement.broadcastTxid === null);
+  } finally { fs.rmSync(directory, { recursive: true, force: true }); }
+});
+
+asyncTest('WT-2: the deployed proxy relays only the pinned settlement it derives itself', async () => {
+  const http = require('http');
+  const { createSettlementBroadcastPolicy, createProxy, validateRpcPayload } = require('./utxoref_v2_rpc_proxy');
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'utxoref-v2-proxy-settle-'));
+  const servers = [];
+  try {
+    const snapshot = 150000;
+    const honest = fraudFixture(fs.mkdtempSync(path.join(directory, 'honest-')), snapshot, { honest: true });
+    // A different funding outpoint: same payouts from the same outpoint would
+    // be the very same settlement transaction.
+    const fraud = fraudFixture(fs.mkdtempSync(path.join(directory, 'fraud-')), snapshot, { fundingTxid: 'bb'.repeat(32) });
+    const read = (file) => JSON.parse(fs.readFileSync(file, 'utf8'));
+    const honestPolicy = read(honest.trustPolicyPath);
+    const fraudPolicy = read(fraud.trustPolicyPath);
+    const trustPolicyPath = path.join(directory, 'trust-policy.json');
+    fs.writeFileSync(trustPolicyPath, JSON.stringify({
+      ...honestPolicy,
+      trustedSigners: { ...honestPolicy.trustedSigners, ...fraudPolicy.trustedSigners },
+      allowedGraphs: { ...honestPolicy.allowedGraphs, ...fraudPolicy.allowedGraphs }
+    }));
+    const policy = createSettlementBroadcastPolicy({ artifactPaths: [honest.artifactPath, fraud.artifactPath], trustPolicyPath });
+    const honestTxid = txidFromUnsignedHex(honest.graph.settlement.unsignedTxHex);
+    assert(policy().size === 1 && policy().has(honestTxid), 'only the honest settlement may be relayed');
+    assert(policy.describe().refused.some((entry) => /contains fraud/.test(entry.reason)));
+    const send = (hex) => ({ jsonrpc: '2.0', id: 1, method: 'sendrawtransaction', params: [hex] });
+    assert(validateRpcPayload(send(honest.graph.settlementPath.witnessTxHex), { broadcastTxids: policy }).ok === true);
+    assert(validateRpcPayload(send(fraud.graph.settlementPath.witnessTxHex), { broadcastTxids: policy }).statusCode === 403);
+    assert(validateRpcPayload(send(honest.graph.recoveryPath.witnessTxHex), { broadcastTxids: policy }).statusCode === 403);
+    assert(validateRpcPayload(send('00'), { broadcastTxids: policy }).statusCode === 400);
+    assert(validateRpcPayload(send(honest.graph.settlementPath.witnessTxHex)).statusCode === 403,
+      'without a settlement policy the proxy must not relay anything');
+
+    // End to end through the proxy to a stand-in Core.
+    const relayed = [];
+    const core = http.createServer((request, response) => {
+      const chunks = [];
+      request.on('data', (chunk) => chunks.push(chunk));
+      request.on('end', () => {
+        const body = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+        relayed.push(body);
+        const encoded = Buffer.from(JSON.stringify({ result: honestTxid, error: null, id: body.id }));
+        response.writeHead(200, { 'Content-Type': 'application/json', 'Content-Length': encoded.length });
+        response.end(encoded);
+      });
+    });
+    servers.push(core);
+    await new Promise((resolve) => core.listen(0, '127.0.0.1', resolve));
+    const datadir = path.join(directory, 'datadir');
+    fs.mkdirSync(path.join(datadir, 'testnet4'), { recursive: true });
+    fs.writeFileSync(path.join(datadir, 'testnet4', '.cookie'), '__cookie__:test-only');
+    const proxy = createProxy({
+      datadir, rpcUrl: `http://127.0.0.1:${core.address().port}`, authUser: 'watchtower', authPass: 'test-pass', broadcastTxids: policy
+    });
+    servers.push(proxy);
+    await new Promise((resolve) => proxy.listen(0, '127.0.0.1', resolve));
+    const post = async (payload) => {
+      const response = await fetch(`http://127.0.0.1:${proxy.address().port}/`, {
+        method: 'POST',
+        headers: { Authorization: `Basic ${Buffer.from('watchtower:test-pass').toString('base64')}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      return { status: response.status, body: await response.json() };
+    };
+    const sent = await post(send(honest.graph.settlementPath.witnessTxHex));
+    assert(sent.status === 200 && sent.body.result === honestTxid, `relay failed: ${JSON.stringify(sent)}`);
+    const refused = await post(send(fraud.graph.settlementPath.witnessTxHex));
+    assert(refused.status === 403);
+    assert(relayed.length === 1 && relayed[0].method === 'sendrawtransaction', 'the fraudulent settlement reached Core');
+    const health = await (await fetch(`http://127.0.0.1:${proxy.address().port}/health`)).json();
+    assert(health.broadcast === 'pinned-settlements-only');
+  } finally {
+    for (const server of servers) await new Promise((resolve) => server.close(resolve));
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
 });
 
 (async () => {

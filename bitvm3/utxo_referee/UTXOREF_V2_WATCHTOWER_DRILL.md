@@ -25,9 +25,13 @@ local challenger signer <- public challenge request ---/
 
 The reverse tunnel keeps the node RPC bound to localhost. The local bridge
 uses Core's rotating cookie and exposes only `getblockchaininfo`,
-`getblockhash`, `gettxout`, and `testmempoolaccept`; it does not permit remote
-broadcast or wallet RPC. The server receives only proxy credentials, never the
-local Core cookie.
+`getblockhash`, `gettxout`, and `testmempoolaccept`, plus `sendrawtransaction`
+for exactly one kind of transaction: the committed settlement of a graph that
+verifies against the pinned trust policy, is honest and is predicate-bound.
+The bridge derives that set on the local host from the trust policy and the
+public artifact (`--settlement-artifact`, `--trust-policy`); nothing the VPS
+sends can widen it. No wallet RPC. The server receives only proxy credentials,
+never the local Core cookie.
 
 Install the standalone service from `deploy/` under `/opt/utxoref-v2-watchtower`
 and store credentials in `/etc/utxoref-v2-watchtower.env` with mode `0600`.
@@ -40,6 +44,38 @@ localhost-only method-filtering proxy, creates an SSH reverse tunnel, installs
 the VPS environment file, and enables the service. It stores its generated
 proxy credential and process IDs outside the repository under the Bitcoin
 testnet key-backup directory.
+
+## Settlement, Alerts And Heartbeat
+
+The unit runs with `--broadcast-settlement`: once the challenge window has
+passed on an honest graph, the watchtower broadcasts the pre-signed settlement
+itself (no key involved) and alerts `settlement_broadcast`, or
+`settlement_broadcast_failed` if the proxy or Core refuses it. It alerts
+`recovery_imminent` when the operator recovery leaf is 144 blocks or less from
+maturing.
+
+Alert delivery and the heartbeat are configured in
+`/etc/utxoref-v2-watchtower-alerts.env` (see
+`deploy/utxoref-v2-watchtower-alerts.env.example`), which the bridge script
+never overwrites:
+
+- email through Postmark, Resend, SendGrid or Mailgun, and/or a webhook
+  (generic JSON, Slack, Discord, ntfy);
+- critical alerts (fraud, recovery imminent, failed broadcasts, three
+  consecutive failed ticks) repeat every 30 minutes until acknowledged;
+  warnings and info are sent once; a recovery sends one `resolved` notice;
+- undelivered alerts are retried on the next tick; at most 20 per hour,
+  critical alerts exempt;
+- the dead-man heartbeat URL is fetched after every healthy tick only, so a
+  push monitor (healthchecks.io, Better Stack, Uptime Kuma) alerts when the
+  watchtower, its host, the tunnel or Core stops answering.
+
+Acknowledge a repeating alert with the fingerprint from the message:
+
+```bash
+sudo -u utxoref node /opt/utxoref-v2-watchtower/utxoref_v2_watchtower.js \
+  --state-path /var/lib/utxoref-v2-watchtower/state.json --ack-alert <fingerprint>
+```
 
 ## Local Smoke Check
 

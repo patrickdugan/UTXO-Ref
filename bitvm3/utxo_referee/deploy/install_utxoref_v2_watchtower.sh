@@ -4,6 +4,7 @@ set -euo pipefail
 APP_DIR="${APP_DIR:-/opt/utxoref-v2-watchtower}"
 STATE_DIR="${STATE_DIR:-/var/lib/utxoref-v2-watchtower}"
 ENV_FILE="${ENV_FILE:-/etc/utxoref-v2-watchtower.env}"
+ALERTS_ENV_FILE="${ALERTS_ENV_FILE:-/etc/utxoref-v2-watchtower-alerts.env}"
 SERVICE_FILE="${APP_DIR}/deploy/utxoref-v2-watchtower.service"
 TRUST_POLICY_FILE="${TRUST_POLICY_FILE:-/etc/utxoref-v2-watchtower-trust-policy.json}"
 TRUST_POLICY_SOURCE="${TRUST_POLICY_SOURCE:-}"
@@ -32,6 +33,11 @@ fi
 if [[ ! -f "${ENV_FILE}" ]]; then
   sudo install -m 0600 "${APP_DIR}/deploy/utxoref-v2-watchtower.env.example" "${ENV_FILE}"
   echo "Created ${ENV_FILE}; set dedicated RPC credentials before enabling the service." >&2
+fi
+
+if [[ ! -f "${ALERTS_ENV_FILE}" ]]; then
+  sudo install -o root -g root -m 0600 "${APP_DIR}/deploy/utxoref-v2-watchtower-alerts.env.example" "${ALERTS_ENV_FILE}"
+  echo "Created ${ALERTS_ENV_FILE}; set an email provider or webhook and a heartbeat URL so failures reach a person." >&2
 fi
 
 sudo systemctl daemon-reload

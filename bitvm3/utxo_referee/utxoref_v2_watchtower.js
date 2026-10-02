@@ -22,6 +22,12 @@ const { readJsonStrictProfile } = require('./strict_artifact_profiles');
 const { statementFromWatchtowerTick, buildWatcherReceipt } = require('./utxoref_v2_watcher_quorum');
 const { verifyUtxorefV2FeeReserve } = require('./utxoref_v2_fee_reserve');
 const { BROADCAST_ALLOWLIST_KIND } = require('./btc_testnet4_readonly_rpc_proxy');
+const {
+  notifierConfigFromEnv,
+  createAlertNotifier,
+  acknowledgeAlert,
+  pingHeartbeat
+} = require('./utxoref_v2_alert_notifier');
 
 const DEFAULT_ARTIFACT = path.join(__dirname, 'artifacts', 'live', 'btc_testnet4_utxoref_v2_latest.json');
 const DEFAULT_TRUST_POLICY = path.join(__dirname, 'artifacts', 'live', 'utxoref_v2_watchtower_trust_policy.json');
@@ -84,6 +90,15 @@ function usage() {
     'honest, predicate-bound graphs only; merges into an existing file):',
     '  node utxoref_v2_watchtower.js --artifact <public-artifact.json> \\',
     '    --trust-policy <policy.json> --write-settlement-allowlist <allowlist.json>',
+    '',
+    'Alerts (from the environment): UTXOREF_ALERT_EMAIL_PROVIDER (postmark|resend|',
+    '  sendgrid|mailgun), UTXOREF_ALERT_EMAIL_API_KEY[_FILE], UTXOREF_ALERT_EMAIL_FROM,',
+    '  UTXOREF_ALERT_EMAIL_TO, UTXOREF_ALERT_WEBHOOK_URL, UTXOREF_ALERT_WEBHOOK_FORMAT',
+    '  (generic|slack|discord|ntfy). Dead-man heartbeat: UTXOREF_WATCHTOWER_HEARTBEAT_URL',
+    '  or --heartbeat-url, fetched after every healthy tick.',
+    '',
+    'Stop a critical alert repeating:',
+    '  node utxoref_v2_watchtower.js --state-path <state.json> --ack-alert <fingerprint>',
     '',
     'A graph policy with feeReserve requires:',
     '  --fee-reserve <externally-pinned-fee-reserve.json>'
@@ -803,23 +818,30 @@ async function runTick(args, rpc, state) {
     if (result.settlement.mature && result.action === 'monitoring') result.action = 'settlement_due';
     if (recoveryInBlocks <= RECOVERY_WARNING_BLOCKS) result.action = 'recovery_imminent';
     if (args.broadcastSettlement && result.settlement.mature && result.settlement.broadcastEligible) {
-      const witnessTxHex = artifact.graph.settlementPath.witnessTxHex;
-      const [accept] = await rpc('testmempoolaccept', [[witnessTxHex]]);
-      result.settlement.mempoolAccept = accept;
-      if (accept?.txid !== result.settlement.txid) {
-        throw new Error('settlement preflight names a different transaction than the committed settlement');
-      }
-      if (accept.allowed) {
-        const broadcastTxid = await rpc('sendrawtransaction', [witnessTxHex]);
-        if (broadcastTxid !== result.settlement.txid) {
-          throw new Error(`settlement broadcast txid mismatch: expected ${result.settlement.txid}, got ${broadcastTxid}`);
+      // A failed attempt is reported (and alerted) as its own action and
+      // retried next tick; it does not fail the tick.
+      try {
+        const witnessTxHex = artifact.graph.settlementPath.witnessTxHex;
+        const [accept] = await rpc('testmempoolaccept', [[witnessTxHex]]);
+        result.settlement.mempoolAccept = accept;
+        if (accept?.txid !== result.settlement.txid) {
+          throw new Error('settlement preflight names a different transaction than the committed settlement');
         }
-        result.settlement.broadcastTxid = broadcastTxid;
-        result.action = 'settlement_broadcast';
-      } else if (/already|known/i.test(String(accept['reject-reason'] || ''))) {
-        result.action = 'settlement_in_mempool';
-      } else {
-        result.action = 'settlement_preflight_rejected';
+        if (accept.allowed) {
+          const broadcastTxid = await rpc('sendrawtransaction', [witnessTxHex]);
+          if (broadcastTxid !== result.settlement.txid) {
+            throw new Error(`settlement broadcast txid mismatch: expected ${result.settlement.txid}, got ${broadcastTxid}`);
+          }
+          result.settlement.broadcastTxid = broadcastTxid;
+          result.action = 'settlement_broadcast';
+        } else if (/already|known/i.test(String(accept['reject-reason'] || ''))) {
+          result.action = 'settlement_in_mempool';
+        } else {
+          result.action = 'settlement_preflight_rejected';
+        }
+      } catch (err) {
+        result.settlement.broadcastError = String(err?.message || err).slice(0, 300);
+        result.action = 'settlement_broadcast_failed';
       }
     }
   }
@@ -956,6 +978,28 @@ function recordTickSuccess(state) {
   state.consecutiveFailures = 0;
 }
 
+function ackPathFor(statePath) {
+  return statePath.endsWith('.json') ? `${statePath.slice(0, -5)}.acks.json` : `${statePath}.acks.json`;
+}
+
+// One watchtower iteration: tick, record, notify, and ping the dead-man
+// heartbeat only when the tick was healthy.
+async function runWatchtowerIteration(args, rpc, state, deps = {}) {
+  const { notifier = null, heartbeatUrl = null, fetchImpl, now } = deps;
+  let result;
+  try {
+    result = await runTick(args, rpc, state);
+    recordTickSuccess(state);
+  } catch (err) {
+    const failure = recordTickFailure(args, state, err);
+    if (notifier) await notifier.handle({ kind: 'failure', alert: failure.alert }, state);
+    return { ok: false, error: err, failure };
+  }
+  if (notifier) await notifier.handle({ kind: 'tick', result }, state);
+  if (heartbeatUrl) state.heartbeat = await pingHeartbeat(heartbeatUrl, { fetchImpl, now });
+  return { ok: true, result };
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   if (args.help) {
@@ -967,6 +1011,12 @@ async function main() {
   }
   if (args.replaceChallenge && !args.broadcast) {
     throw new Error('--replace-challenge requires --broadcast');
+  }
+  if (args.ackAlert) {
+    const statePath = path.resolve(args.statePath || DEFAULT_STATE_PATH);
+    const ackPath = path.resolve(args.ackPath || ackPathFor(statePath));
+    console.log(JSON.stringify({ acknowledged: acknowledgeAlert(ackPath, args.ackAlert), ackPath }));
+    return;
   }
   if (args.writeSettlementAllowlist) {
     const allowlistPath = path.resolve(args.writeSettlementAllowlist);
@@ -986,15 +1036,19 @@ async function main() {
   const intervalMs = Number(args.pollIntervalMs || DEFAULT_POLL_INTERVAL_MS);
   if (!Number.isSafeInteger(intervalMs) || intervalMs < 1000) throw new Error('poll interval must be at least 1000 ms');
   const state = loadState(statePath);
+  const notifierConfig = notifierConfigFromEnv(process.env);
+  const notifier = createAlertNotifier(notifierConfig, {
+    ackPath: path.resolve(args.ackPath || ackPathFor(statePath)),
+    ackCommand: `node ${process.argv[1]} --state-path ${statePath} --ack-alert {fingerprint}`
+  });
+  const heartbeatUrl = args.heartbeatUrl || notifierConfig.heartbeatUrl;
+  console.error(`[utxoref-v2-watchtower] alerts: ${notifier.enabled ? notifier.channels.join(', ') : 'alert file only'}; ` +
+    `heartbeat: ${heartbeatUrl ? 'on' : 'off'}; settlement broadcast: ${args.broadcastSettlement ? 'on' : 'off'}`);
   do {
-    try {
-      const result = await runTick(args, rpc, state);
-      recordTickSuccess(state);
-      console.log(JSON.stringify(result));
-    } catch (err) {
-      recordTickFailure(args, state, err);
-      console.error(`[utxoref-v2-watchtower] tick failed: ${err.message}`);
-    }
+    const iteration = await runWatchtowerIteration(args, rpc, state, { notifier, heartbeatUrl });
+    if (iteration.ok) console.log(JSON.stringify(iteration.result));
+    else console.error(`[utxoref-v2-watchtower] tick failed: ${iteration.error.message}`);
+    if (state.notifier?.lastError) console.error(`[utxoref-v2-watchtower] alert delivery: ${state.notifier.lastError.message}`);
     saveJsonAtomic(statePath, state);
     if (args.once) break;
     await new Promise((resolve) => setTimeout(resolve, intervalMs));
@@ -1034,6 +1088,8 @@ module.exports = {
   buildChallengeAtFee,
   replaceTrackedChallenge,
   runTick,
+  runWatchtowerIteration,
+  ackPathFor,
   recordTickFailure,
   recordTickSuccess,
   saveJsonAtomic,

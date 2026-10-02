@@ -3,6 +3,7 @@ param(
   [string]$SshTarget = 'ubuntu@172.81.181.19',
   [string]$SshKey = "$env:USERPROFILE\.ssh\tl_vps_bitvise_bridge_ed25519",
   [string]$TrustPolicy = '',
+  [string]$SettlementArtifact = '',
   [int]$ProxyPort = 48434
 )
 
@@ -13,10 +14,12 @@ $credentialFile = Join-Path $backupDir 'proxy.env'
 $remoteEnvFile = Join-Path $env:TEMP 'utxoref-v2-watchtower.env'
 $proxyScript = Join-Path $root 'utxoref_v2_rpc_proxy.js'
 if (-not $TrustPolicy) { $TrustPolicy = Join-Path $root 'artifacts\live\utxoref_v2_watchtower_trust_policy.json' }
+if (-not $SettlementArtifact) { $SettlementArtifact = Join-Path $root 'artifacts\live\btc_testnet4_utxoref_v2_latest.json' }
 
 if (-not (Test-Path -LiteralPath $SshKey)) { throw "SSH key not found: $SshKey" }
 if (-not (Test-Path -LiteralPath $proxyScript)) { throw "Proxy script not found: $proxyScript" }
 if (-not (Test-Path -LiteralPath $TrustPolicy)) { throw "Trust policy not found: $TrustPolicy" }
+if (-not (Test-Path -LiteralPath $SettlementArtifact)) { throw "Settlement artifact not found: $SettlementArtifact" }
 New-Item -ItemType Directory -Force -Path $backupDir | Out-Null
 
 if (-not (Test-Path -LiteralPath $credentialFile)) {
@@ -41,7 +44,9 @@ $oldPass = $env:UTXOREF_WATCHTOWER_PROXY_PASS
 $env:UTXOREF_WATCHTOWER_PROXY_USER = $credential['UTXOREF_WATCHTOWER_PROXY_USER']
 $env:UTXOREF_WATCHTOWER_PROXY_PASS = $credential['UTXOREF_WATCHTOWER_PROXY_PASS']
 $node = (Get-Command node -ErrorAction Stop).Source
-$proxy = Start-Process -FilePath $node -ArgumentList @($proxyScript, '--datadir', $BitcoinDatadir, '--port', $ProxyPort) -WindowStyle Hidden -PassThru
+# WT-2: the proxy relays sendrawtransaction only for the committed settlement of
+# a graph that verifies against the pinned trust policy (derived on this host).
+$proxy = Start-Process -FilePath $node -ArgumentList @($proxyScript, '--datadir', $BitcoinDatadir, '--port', $ProxyPort, '--settlement-artifact', $SettlementArtifact, '--trust-policy', $TrustPolicy) -WindowStyle Hidden -PassThru
 $env:UTXOREF_WATCHTOWER_PROXY_USER = $oldUser
 $env:UTXOREF_WATCHTOWER_PROXY_PASS = $oldPass
 

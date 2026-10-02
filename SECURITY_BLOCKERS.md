@@ -23,7 +23,7 @@ Per-finding status, commits and tests are in
 | 2 | Nonce misuse | **The 2026-07-06 "fixed" status below was wrong** (finding DLC-2): the journal keyed on the message only, so a co-signer could replay the same message with a different nonce and recover the key. Fixed by binding the journal to the whole session, and MuSig2 is no longer on the pilot path (moved to `legacy/`; the pilot funding output needs no interactive nonces). |
 | 3 | Self-play | Open. The BitVM graph API and the live driver now support a challenger on its own host (BVM-4: `--challenger-xonly`, `--challenger-sign`, `--operator-sign`), but no separated-host testnet4 run exists. |
 | 4 | Reserve encumbrance | Reserve verifiers now require the NUMS internal key (RES-1). |
-| 5 | Watchtower | A persistent watchtower exists and now challenges at any state age and alerts on tick failure (WT-1, WT-3). It alerts when the pre-signed settlement is due or the recovery leaf is near, and can broadcast exactly that settlement through a proxy that relays only allowlisted txids (WT-2, BVM-6); not yet deployed that way. No alert delivery. |
+| 5 | Watchtower | A persistent watchtower exists and now challenges at any state age and alerts on tick failure (WT-1, WT-3). It alerts when the pre-signed settlement is due or the recovery leaf is near, and can broadcast exactly that settlement through a proxy that relays only pinned settlements (WT-2, BVM-6). Email/webhook alert delivery with escalation and a dead-man heartbeat are implemented (WT-2). None of this is deployed yet. |
 | 6 | Data availability | Open; also a payee-safety requirement (BVM-6). A watchtower holding the package can now broadcast the settlement, but mirror publication before funding is not implemented. |
 | 7 | Bond economics / windows | A 6-block minimum challenge window is enforced (BVM-3); sizing to value at risk is open. |
 | 8 | Single oracle | 2-of-3 threshold oracles in the DLC path; oracles are still operator-run in tests. |
@@ -255,9 +255,9 @@ for an arbitrary future bonded assertion (the comparator/SHA256 disprove
 trees from Blocks 2-10). A launch runbook must still define how a durable
 alert turns into a signed, fee-bumped challenge transaction.
 
-**Required before pilot:** add real alert delivery beyond a local JSONL
-file (webhook/pager) once there's an operator distinct from the watchtower
-to notify; run this daemon somewhere persistent (a real always-on
+**Required before pilot:** deploy the alert delivery now implemented for the
+V2 watchtower (`utxoref_v2_alert_notifier.js`: email/webhook, escalation,
+dead-man heartbeat) with an operator distinct from the watchtower to notify; run this daemon somewhere persistent (a real always-on
 host/service) rather than inside an interactive coding session; and wire a
 specific disprove broadcaster for the assertion types admitted into the
 pilot. The abrupt-kill resumability was proven, but "resumes correctly" is

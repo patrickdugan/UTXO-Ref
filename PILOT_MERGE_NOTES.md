@@ -59,7 +59,7 @@ is fixed and covered in-repo.
 | MAIN-1 | Fixed | `f0f73d7` | Two-party NUMS-keyed funding output with CET and CSV refund leaves; validators derive it and check script-path signatures for a committed party. `dlc_infra_hardening.test.js` (NUMS funding test, signature test, refund recovery, execution guard); two eval cases. |
 | MAIN-2 | Fixed | `a64a1b4` | Merge. `bitagent_compatibility.test.js`, `index_v2_boundary.test.js`. Decision recorded below (top-level sweep verifier exports). |
 | MAIN-3 | Fixed (binary not rebuilt) | `54aa33b` | Signing context instead of bare sighash; host and Rust signer derive sighash and oracle point. `dlc_infra_hardening.test.js`, `dlc_signing_target.test.js`, `cargo test --lib`, eval case. The Windows signer binary has not been rebuilt or re-attested: no Rust toolchain on the Windows host, and WSL lacks MinGW import libraries to link it. `index.js` no longer pins a binary digest. |
-| MAIN-4 | Fixed (seven state items); circuit items deferred | `5dceb60`, `cf08e54` | `constantBits`, balance-claim binding, deposit replay by outpoint (`5dceb60`); u64 overflow, committed-blob loading, epoch/window monotonicity and code-unit ID ordering (`cf08e54`). `m1_redteam_state_regressions.test.js`. Deferred: the four `REDTEAM_FINDINGS.md` items that need the M1 transition circuit redesigned (SHA-256 vs placeholder hash, unused claim bits and account id, route bits not bound to a payout, no in-circuit `pnlPayoutBps <= 10000`); that circuit is not on the V2 settlement path. Also deferred: the sweep verifier's release gate (abstract sweep object, no transaction/fee/network binding) — needs its own design and locked eval stage. |
+| MAIN-4 | Fixed (seven state items); circuit items deferred | `5dceb60`, `cf08e54` | `constantBits`, balance-claim binding, deposit replay by outpoint (`5dceb60`); u64 overflow, committed-blob loading, epoch/window monotonicity and code-unit ID ordering (`cf08e54`). `m1_redteam_state_regressions.test.js`. Deferred: the four `REDTEAM_FINDINGS.md` items that need the M1 transition circuit redesigned (SHA-256 vs placeholder hash, unused claim bits and account id, route bits not bound to a payout, no in-circuit `pnlPayoutBps <= 10000`). That circuit is not on today's V2 settlement path, but it is on the roadmap's: M1 state is meant to be served by TradeLayer (on-chain), fraud-provable at the state-oracle level, and these four items are where that proof currently breaks. Also deferred: the sweep verifier's release gate (abstract sweep object, no transaction/fee/network binding) — needs its own design and locked eval stage. |
 | MAIN-5 | Fixed (binary not rebuilt) | `ceb6ae1`, follow-up | Consumed authorizations are refused before a clock observation is written. Follow-up: the clock store moved to the platform-independent `src/clock_store.rs` and compacts after each write to the newest 64 observations (the newest is the rollback floor, so it is kept); `cargo test --lib` covers the floor, compaction, a full 4,097-file pre-compaction store, foreign keys and the read cap. `powershell.exe` is resolved through `GetSystemDirectoryW`, not `SystemRoot`/`WINDIR`; that part is type-checked only (`cargo check --target x86_64-pc-windows-gnu`), since the Windows binary cannot be built here. |
 
 ### DLC
@@ -91,7 +91,7 @@ is fixed and covered in-repo.
 | ID | Status | Commit | Tests / notes |
 |---|---|---|---|
 | WT-1 | Fixed | `2b29445` | `utxoref_v2_watchtower.test.js`; poc7 secure. |
-| WT-2 | Fixed (settlement broadcast); alert delivery open | follow-up | The read-only proxy relays `sendrawtransaction` only for allowlisted txids; the watchtower writes its graph's settlement txid there after verifying it. `btc_testnet4_readonly_rpc_proxy.test.js` and `utxoref_v2_watchtower.test.js` WT-2 tests. Not deployed. See below. |
+| WT-2 | Fixed (settlement broadcast, alert delivery, dead-man heartbeat); not deployed | follow-ups | The deployed proxy (`utxoref_v2_rpc_proxy.js`) relays `sendrawtransaction` only for settlements it derives from the pinned trust policy and artifact; the swarm proxy (`btc_testnet4_readonly_rpc_proxy.js`) takes an allowlist file. `utxoref_v2_alert_notifier.js` delivers email/webhook alerts with escalation and acknowledgement; a heartbeat URL is pinged after every healthy tick. The unit runs `--broadcast-settlement`. `utxoref_v2_alert_notifier.test.js`, `utxoref_v2_watchtower.test.js`, `btc_testnet4_readonly_rpc_proxy.test.js`. See below. |
 | WT-3 | Fixed | `ecfb651` | `tradelayer_send_rpc_sweep.test.js` timeout tests. The other hand-rolled RPC clients in M1-era demos were not changed; they are not on the pilot path. |
 | RES-1 | Fixed | `ca932f9` | Reserve verifiers and the beta loader derive the NUMS key. |
 | BETA-1 | Fixed | `46d7b8d`, follow-up | Evict instead of refuse; heartbeats not IP-throttled. Follow-up: counters moved off the state file into an in-memory limiter with its own file (flushed at most once a second and on close), so unauthenticated POSTs no longer take the state lock or rewrite the journal. `integrations/utxoref-testnet-beta/test.js` (flood leaves the state file byte-identical; pre-split counters carry over). |
@@ -174,23 +174,36 @@ No challenger key on the host, and the read-only proxy blocked
 
 Given the section above, the action that matters after funding is broadcasting
 the fully signed settlement, which needs no key. **Done on this branch
-(follow-up commit):** the proxy takes `--broadcast-allowlist-file`, re-read on
-every request, and relays `sendrawtransaction` only when the raw
-transaction's txid (strictly parsed, exact consumption) is pinned there; with
-no allowlist, or a malformed one, broadcast stays refused. The watchtower's
-`--write-settlement-allowlist` adds a graph's settlement txid only after the
-same verification a tick performs, and refuses fraudulent or monitor-only
-graphs. The deployed unit has not been reconfigured.
+(follow-up commits):**
 
-Still open:
+- The deployed path is VPS watchtower -> reverse SSH tunnel ->
+  `utxoref_v2_rpc_proxy.js` on the operator host -> Core. That proxy now relays
+  `sendrawtransaction` only for the committed settlement of a graph that
+  verifies against the pinned trust policy, is honest and is predicate-bound;
+  it derives that set itself from `--trust-policy` and `--settlement-artifact`
+  (the bridge script passes both), so nothing the VPS sends can widen it.
+- The swarm-worker proxy (`btc_testnet4_readonly_rpc_proxy.js`) takes
+  `--broadcast-allowlist-file` instead; the watchtower's
+  `--write-settlement-allowlist` writes it after verification.
+- Option C is implemented: `utxoref_v2_alert_notifier.js` sends email
+  (Postmark, Resend, SendGrid, Mailgun HTTP APIs) and/or webhooks (generic,
+  Slack, Discord, ntfy). Critical alerts repeat every 30 minutes until
+  acknowledged (`--ack-alert`), warnings once, a `resolved` notice on recovery,
+  three consecutive failed ticks escalate, undelivered alerts retry, 20 per
+  hour cap with critical exempt. A dead-man heartbeat URL is fetched only after
+  healthy ticks, so a push monitor alerts on silence.
+- The unit runs `--broadcast-settlement`; a refused broadcast is the critical
+  alert `settlement_broadcast_failed`, not a failed tick. Alert settings live
+  in `/etc/utxoref-v2-watchtower-alerts.env`, which the bridge never rewrites.
 
-- **A.** A challenger key on the watchtower host (hot key) for disprove
-  transactions. Not recommended; with the pre-funding refusal it would only
-  serve graphs funded despite a fraud.
-- **C.** Real alert delivery (pager/email) for `settlement_due`,
-  `recovery_imminent` and tick failures.
+Not deployed: the VPS unit, the bridge and the alert env file need to be
+reinstalled, and an email provider key and heartbeat monitor provisioned.
 
-Recommendation: **C**; drop A.
+Still open: **A.** A challenger key on the watchtower host (hot key) for
+disprove transactions. Not recommended; with the pre-funding refusal it would
+only serve graphs funded despite a fraud. Keyless fee bumping of a stuck
+settlement needs an anchor output (pay-to-anchor) on the settlement, which
+changes graph addresses: needs decision.
 
 ### Funded pre-policy testnet4 graphs (from BVM-1)
 
