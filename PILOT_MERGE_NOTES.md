@@ -9,23 +9,29 @@ message starting with the finding ID.
 Every finding below is **fixed** (commit and covering test), **deferred**
 (reason) or **needs decision** (options and a recommendation).
 
-## Acceptance (run at `f9f397c`, Windows, Node 24.19)
+## Acceptance (run at `8b63b0a`, Windows, Node 24.19)
 
 | Check | Result |
 |---|---|
 | `node bitvm3/utxo_referee/run_utxoref_all.js` (now also runs `legacy/`) | 98/98 suites |
 | `node scripts/run_every_test.js` (every `*.test.js` plus the two `test.js` entry points) | 114/114 files |
 | `node eval/utxo_referee_eval.js --profile=full --require-perfect` | 1.000, 100/100 |
-| `node eval/dlc_security_eval.js --profile=full --require-perfect` | 1.000, 560/560 (3 cases added, none removed) |
-| `cargo test --lib --locked` in `native/dlc-signer` (WSL, Rust 1.98.1) | 4/4 |
+| `node eval/dlc_security_eval.js --profile=full --require-perfect` | 1.000, 568/568 (4 cases added, none removed) |
+| `cargo test --lib --locked` in `native/dlc-signer` (WSL, Rust 1.98.1) | 8/8 (4 signing-target, 4 clock-store) |
 | `cargo check --target x86_64-pc-windows-gnu` | passes; binary **not** built (see MAIN-3) |
 
-The commit after `f9f397c` adds only this file.
+The first acceptance run was at `f9f397c` (eval 560/560, cargo 4/4). Follow-up
+commits after this file was added: `cf08e54` MAIN-4, `54f9cdf` MAIN-3 (oracle
+event binding), `ae478f2` BETA-1, `ab5a0b1` MAIN-5, `3a9b762` DLC-8, `62a6085`
+WT-2, `86fbd5c` BVM-6, `8b63b0a` BVM-4. The two integration evals that need the
+Windows signer binary (`eval/dlc_native_signer_integration.js`,
+`eval/dlc_dedicated_account_probe.js`) were syntax-checked only.
 
 ### Readiness PoCs against this branch
 
 Run with `UTXOREF_REPO` pointing at this checkout; a PoC exits 0 when its
-finding reproduces. The PoCs were not edited.
+finding reproduces. The PoCs were not edited. Re-run at `8b63b0a`: same exits
+and outcomes as below.
 
 | PoC | Exit | Outcome | In-repo coverage |
 |---|---|---|---|
