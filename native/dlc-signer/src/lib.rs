@@ -8,6 +8,7 @@ use std::collections::BTreeMap;
 
 use serde_json::Value;
 
+pub mod clock_store;
 pub mod signing_target;
 
 pub type Result<T> = std::result::Result<T, String>;

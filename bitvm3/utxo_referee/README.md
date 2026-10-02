@@ -301,8 +301,8 @@ monotonic-clock service to resist an administrator-level clock rollback.
 Across ordinary restarts, the signer persists canonical clock observations
 signed by its runtime identity. It verifies every observation before key use and
 fails closed when the current clock falls more than 30 seconds below the signed
-floor. The bounded 4,096-record store requires reviewed rotation instead of
-silently discarding rollback evidence. An attacker who can delete the clock
+floor. The floor is the newest observation, so after each write the store keeps
+only the newest 64 and cannot fill; it refuses to read more than 8,192. An attacker who can delete the clock
 store remains outside this candidate's protection. Testnet4 signing and
 runtime-identity keys are stored only as Windows DPAPI `CurrentUser` blobs; the
 native signer rejects legacy plaintext `.key` files and verifies the pinned
