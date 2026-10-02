@@ -276,7 +276,7 @@ const { buildWireSecretSetV2, buildPublicTraceV2 } = require('./bitvm_trace_v2')
 const graphV2 = require('./bitvm_assertion_graph_v2');
 const { runTick, recordTickFailure, recordTickSuccess } = require('./utxoref_v2_watchtower');
 
-function fraudFixture(directory, snapshotHeight) {
+function fraudFixture(directory, snapshotHeight, { honest = false } = {}) {
   const { publicKey, privateKey } = crypto.generateKeyPairSync('ed25519');
   const keyId = publicKeyId(publicKey);
   const genesis = TRUST_POLICY.genesisHash;
@@ -301,7 +301,7 @@ function fraudFixture(directory, snapshotHeight) {
   const wireBundle = buildWireSecretSetV2(['state_checkpoint_valid', 'payout_vector_exact', 'settlement_authorized']);
   const publicTrace = buildPublicTraceV2({
     circuitId: 'utxoref-v2-state-and-payout-authorization', binding, wireBundle,
-    values: { state_checkpoint_valid: 1, payout_vector_exact: 1, settlement_authorized: 0 },
+    values: { state_checkpoint_valid: 1, payout_vector_exact: 1, settlement_authorized: honest ? 1 : 0 },
     gates: [{ type: 'and', inputs: ['state_checkpoint_valid', 'payout_vector_exact'], output: 'settlement_authorized' }]
   });
   const template = graphV2.buildBitvmAssertionTemplateV2({
@@ -343,7 +343,7 @@ function fraudFixture(directory, snapshotHeight) {
     }
     throw new Error(`unexpected RPC ${method}`);
   };
-  return { artifactPath, trustPolicyPath, rpcAt };
+  return { artifactPath, trustPolicyPath, rpcAt, graph };
 }
 
 const asyncTests = [];
@@ -414,6 +414,106 @@ asyncTest('a failing tick writes one alert line and counts repeats', async () =>
     assert(state.consecutiveFailures === 0 && state.lastError === undefined);
     const afterRecovery = recordTickFailure(args, state, new Error('wrong chain: main'));
     assert(afterRecovery.logged === true, 'a failure after recovery is alerted again');
+  } finally { fs.rmSync(directory, { recursive: true, force: true }); }
+});
+
+// BVM-6 / WT-2: on an honest funded graph the watchtower's duty is the
+// pre-signed settlement, not a challenge.
+asyncTest('BVM-6: an honest graph alerts when settlement is due and when recovery nears', async () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'utxoref-v2-watchtower-settle-due-'));
+  try {
+    const snapshot = 150000;
+    const { artifactPath, trustPolicyPath, rpcAt } = fraudFixture(directory, snapshot, { honest: true });
+    const tickAt = async (height, confirmations, label) => {
+      const alertPath = path.join(directory, `alerts-${label}.jsonl`);
+      const tick = await runTick({ artifact: artifactPath, trustPolicy: trustPolicyPath, alertPath }, rpcAt(height, confirmations), {});
+      return { tick, alerted: fs.existsSync(alertPath) };
+    };
+    const early = await tickAt(snapshot + 9, 3, 'early');
+    assert(early.tick.fraudDetected === false && early.tick.action === 'monitoring', `expected monitoring, got ${early.tick.action}`);
+    assert(early.tick.settlement.mature === false && early.alerted === false);
+    const due = await tickAt(snapshot + 12, 6, 'due');
+    assert(due.tick.action === 'settlement_due', `expected settlement_due, got ${due.tick.action}`);
+    assert(due.tick.settlement.broadcastEligible === true && due.tick.settlement.broadcastTxid === null);
+    assert(due.alerted, 'a due settlement must be alerted');
+    const late = await tickAt(snapshot + 6 + 2016 - 100, 2016 - 100, 'late');
+    assert(late.tick.action === 'recovery_imminent', `expected recovery_imminent, got ${late.tick.action}`);
+    assert(late.tick.settlement.recoveryInBlocks === 100 && late.alerted);
+  } finally { fs.rmSync(directory, { recursive: true, force: true }); }
+});
+
+asyncTest('BVM-6: --broadcast-settlement sends exactly the committed settlement, without a key', async () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'utxoref-v2-watchtower-settle-send-'));
+  try {
+    const snapshot = 150000;
+    const { artifactPath, trustPolicyPath, rpcAt, graph } = fraudFixture(directory, snapshot, { honest: true });
+    const settlementTxid = txidFromUnsignedHex(graph.settlement.unsignedTxHex);
+    const sent = [];
+    const rpcWithBroadcast = (height, confirmations) => {
+      const base = rpcAt(height, confirmations);
+      return async (method, params) => {
+        if (method === 'testmempoolaccept') return [{ txid: settlementTxid, allowed: true }];
+        if (method === 'sendrawtransaction') { sent.push(params[0]); return settlementTxid; }
+        return base(method, params);
+      };
+    };
+    const args = { artifact: artifactPath, trustPolicy: trustPolicyPath, alertPath: path.join(directory, 'alerts.jsonl'), broadcastSettlement: true };
+    const early = await runTick(args, rpcWithBroadcast(snapshot + 9, 3), {});
+    assert(early.action === 'monitoring' && sent.length === 0, 'settlement was sent inside the challenge window');
+    const tick = await runTick(args, rpcWithBroadcast(snapshot + 12, 6), {});
+    assert(tick.action === 'settlement_broadcast', `expected settlement_broadcast, got ${tick.action}`);
+    assert(sent.length === 1 && sent[0] === graph.settlementPath.witnessTxHex, 'watchtower sent something other than the committed settlement');
+    assert(tick.settlement.broadcastTxid === settlementTxid);
+  } finally { fs.rmSync(directory, { recursive: true, force: true }); }
+});
+
+asyncTest('BVM-6: settlement is never broadcast for a fraudulent or reorged graph', async () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'utxoref-v2-watchtower-settle-refuse-'));
+  try {
+    const snapshot = 150000;
+    // rpcAt throws on any other method, so a testmempoolaccept or
+    // sendrawtransaction attempt fails the tick.
+    const fraud = fraudFixture(path.join(directory), snapshot);
+    const fraudTick = await runTick({
+      artifact: fraud.artifactPath, trustPolicy: fraud.trustPolicyPath,
+      alertPath: path.join(directory, 'fraud.jsonl'), broadcastSettlement: true
+    }, fraud.rpcAt(snapshot + 12, 6), {});
+    assert(fraudTick.action === 'challenge_signature_required' && fraudTick.settlement === undefined);
+    const honestDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'utxoref-v2-watchtower-settle-reorg-'));
+    try {
+      const honest = fraudFixture(honestDirectory, snapshot, { honest: true });
+      const reorgTick = await runTick({
+        artifact: honest.artifactPath, trustPolicy: honest.trustPolicyPath,
+        alertPath: path.join(honestDirectory, 'reorg.jsonl'), broadcastSettlement: true
+      }, honest.rpcAt(snapshot + 12, 6, false), {});
+      assert(reorgTick.action === 'authorization_block_reorged', `expected authorization_block_reorged, got ${reorgTick.action}`);
+      assert(reorgTick.settlement.broadcastEligible === false && reorgTick.settlement.broadcastTxid === null);
+    } finally { fs.rmSync(honestDirectory, { recursive: true, force: true }); }
+  } finally { fs.rmSync(directory, { recursive: true, force: true }); }
+});
+
+asyncTest('WT-2: only an honest graph\'s settlement is written to the proxy broadcast allowlist', async () => {
+  const { settlementAllowlist } = require('./utxoref_v2_watchtower');
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'utxoref-v2-watchtower-allowlist-'));
+  try {
+    const honest = fraudFixture(fs.mkdtempSync(path.join(directory, 'honest-')), 150000, { honest: true });
+    const read = (file) => JSON.parse(fs.readFileSync(file, 'utf8'));
+    const allowlist = settlementAllowlist(read(honest.artifactPath), read(honest.trustPolicyPath));
+    const settlementTxid = txidFromUnsignedHex(honest.graph.settlement.unsignedTxHex);
+    assert(allowlist.kind === 'utxoref_rpc_proxy_broadcast_allowlist_v1');
+    assert(allowlist.txids.length === 1 && allowlist.txids[0] === settlementTxid);
+    const merged = settlementAllowlist(read(honest.artifactPath), read(honest.trustPolicyPath),
+      { kind: allowlist.kind, txids: ['ff'.repeat(32), settlementTxid] });
+    assert(merged.txids.length === 2 && merged.txids.includes('ff'.repeat(32)));
+    let malformed = null;
+    try {
+      settlementAllowlist(read(honest.artifactPath), read(honest.trustPolicyPath), { kind: 'other', txids: [] });
+    } catch (err) { malformed = err; }
+    assert(malformed && /malformed/.test(malformed.message), 'a malformed existing allowlist was merged');
+    const fraud = fraudFixture(fs.mkdtempSync(path.join(directory, 'fraud-')), 150000);
+    let refused = null;
+    try { settlementAllowlist(read(fraud.artifactPath), read(fraud.trustPolicyPath)); } catch (err) { refused = err; }
+    assert(refused && /contains fraud/.test(refused.message), 'a fraudulent graph\'s settlement was allowlisted');
   } finally { fs.rmSync(directory, { recursive: true, force: true }); }
 });
 

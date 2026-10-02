@@ -53,7 +53,7 @@ is fixed and covered in-repo.
 | MAIN-1 | Fixed | `f0f73d7` | Two-party NUMS-keyed funding output with CET and CSV refund leaves; validators derive it and check script-path signatures for a committed party. `dlc_infra_hardening.test.js` (NUMS funding test, signature test, refund recovery, execution guard); two eval cases. |
 | MAIN-2 | Fixed | `a64a1b4` | Merge. `bitagent_compatibility.test.js`, `index_v2_boundary.test.js`. Decision recorded below (top-level sweep verifier exports). |
 | MAIN-3 | Fixed (binary not rebuilt) | `54aa33b` | Signing context instead of bare sighash; host and Rust signer derive sighash and oracle point. `dlc_infra_hardening.test.js`, `dlc_signing_target.test.js`, `cargo test --lib`, eval case. The Windows signer binary has not been rebuilt or re-attested: no Rust toolchain on the Windows host, and WSL lacks MinGW import libraries to link it. `index.js` no longer pins a binary digest. |
-| MAIN-4 | Fixed (three items); rest deferred | `5dceb60` | `constantBits`, balance-claim binding, deposit replay by outpoint. `m1_redteam_state_regressions.test.js`. Deferred: the other eight `REDTEAM_FINDINGS.md` state/circuit items and the sweep verifier's release gate (abstract sweep object, no transaction/fee/network binding) — each needs its own design and locked eval stage. |
+| MAIN-4 | Fixed (seven state items); circuit items deferred | `5dceb60`, `cf08e54` | `constantBits`, balance-claim binding, deposit replay by outpoint (`5dceb60`); u64 overflow, committed-blob loading, epoch/window monotonicity and code-unit ID ordering (`cf08e54`). `m1_redteam_state_regressions.test.js`. Deferred: the four `REDTEAM_FINDINGS.md` items that need the M1 transition circuit redesigned (SHA-256 vs placeholder hash, unused claim bits and account id, route bits not bound to a payout, no in-circuit `pnlPayoutBps <= 10000`); that circuit is not on the V2 settlement path. Also deferred: the sweep verifier's release gate (abstract sweep object, no transaction/fee/network binding) — needs its own design and locked eval stage. |
 | MAIN-5 | Fixed (binary not rebuilt) | `ceb6ae1`, follow-up | Consumed authorizations are refused before a clock observation is written. Follow-up: the clock store moved to the platform-independent `src/clock_store.rs` and compacts after each write to the newest 64 observations (the newest is the rollback floor, so it is kept); `cargo test --lib` covers the floor, compaction, a full 4,097-file pre-compaction store, foreign keys and the read cap. `powershell.exe` is resolved through `GetSystemDirectoryW`, not `SystemRoot`/`WINDIR`; that part is type-checked only (`cargo check --target x86_64-pc-windows-gnu`), since the Windows binary cannot be built here. |
 
 ### DLC
@@ -74,18 +74,18 @@ is fixed and covered in-repo.
 | ID | Status | Commit | Tests / notes |
 |---|---|---|---|
 | BVM-1 | Fixed | `2924b5b` | Verifier-derived inputs, terminal output 1 with a 0-reveal disprove leaf. `bitvm_assertion_graph_v2.test.js` BVM-1 tests. Decision recorded below (funded pre-policy graphs). |
-| BVM-2 | **Needs decision** | — | See below. |
+| BVM-2 | **Needs decision** (revised recommendation) | — | See below: the trace is checked by the challenger before funding, so option B adds little; A for the pilot, C before mainnet. |
 | BVM-3 | Fixed | `da0881e` | 6-block minimum window (caller can raise). `bitvm_assertion_graph_v2.test.js` BVM-3 test. Window sizing remains open (blocker #7). |
 | BVM-4 | Fixed (API) | `db377e6` | Build-unsigned / challenger-sign / operator-sign. `bitvm_assertion_graph_v2.test.js` BVM-4 tests. The live driver still runs a single-process key ceremony; a separate-host challenger is deployment work. |
 | BVM-5 | Fixed | `63cf358` | Live driver loads the pinned trust policy. `btc_testnet4_utxoref_v2_live.test.js`. |
-| BVM-6 | **Needs decision** | — | See below. |
+| BVM-6 | Partly fixed; mirror publication needs decision | follow-up | The watchtower alerts `settlement_due` / `recovery_imminent` and, with `--broadcast-settlement`, sends exactly the committed settlement without a key. `utxoref_v2_watchtower.test.js` BVM-6 tests. Mirror publication before funding: see below. |
 
 ### Watchtower, reserves, beta, docs
 
 | ID | Status | Commit | Tests / notes |
 |---|---|---|---|
 | WT-1 | Fixed | `2b29445` | `utxoref_v2_watchtower.test.js`; poc7 secure. |
-| WT-2 | **Needs decision** | — | See below. |
+| WT-2 | Fixed (settlement broadcast); alert delivery open | follow-up | The read-only proxy relays `sendrawtransaction` only for allowlisted txids; the watchtower writes its graph's settlement txid there after verifying it. `btc_testnet4_readonly_rpc_proxy.test.js` and `utxoref_v2_watchtower.test.js` WT-2 tests. Not deployed. See below. |
 | WT-3 | Fixed | `ecfb651` | `tradelayer_send_rpc_sweep.test.js` timeout tests. The other hand-rolled RPC clients in M1-era demos were not changed; they are not on the pilot path. |
 | RES-1 | Fixed | `ca932f9` | Reserve verifiers and the beta loader derive the NUMS key. |
 | BETA-1 | Fixed | `46d7b8d`, follow-up | Evict instead of refuse; heartbeats not IP-throttled. Follow-up: counters moved off the state file into an in-memory limiter with its own file (flushed at most once a second and on close), so unauthenticated POSTs no longer take the state lock or rewrite the journal. `integrations/utxoref-testnet-beta/test.js` (flood leaves the state file byte-identical; pre-split counters carry over). |
@@ -94,53 +94,97 @@ is fixed and covered in-repo.
 
 ## Decisions needed
 
+### What a V2 graph protects before funding (applies to BVM-2, BVM-6, WT-2)
+
+Checked in code on this branch, and it changes the analysis behind the three
+items below:
+
+- The public trace reveals the chosen preimage of every wire
+  (`buildPublicTraceV2`), and the taproot tree commits its root. Every
+  provable fraud is therefore visible when the graph is built.
+- `challengerSignBitvmAssertionGraphV2` refuses to pre-sign a trace that
+  contains a provable fraud (drills must pass `allowFraudulentTrace`).
+- The live driver finalizes the graph (both signatures) before it builds the
+  funding transaction.
+
+So a fraudulent trace is refused before coins are at stake, and the disprove
+leaves only matter for a graph someone funded despite a fraud (the drills).
+After funding, what can go wrong on an honest graph is that nobody broadcasts
+the pre-signed settlement before the operator's recovery leaf matures
+(2,016 blocks), and that the operator and the challenger together can settle
+any trace.
+
 ### BVM-2: settlement does not depend on the circuit
 
 The settlement leaf is `<csv> CSV DROP <operator> CHECKSIGVERIFY <challenger>
-CHECKSIG`. Security is a pre-signed 2-of-2 with one named challenger; the
-fraud leaves only punish an operator who contradicts its own trace.
+CHECKSIG`. Security is a pre-signed 2-of-2 with one named challenger, who
+checks the whole trace before signing.
 
-- **A. Describe it honestly and keep it.** Lowest effort; already done in
+- **A. Describe it honestly and keep it.** Already done in
   `CLAIMS_MATRIX.md` and `PILOT_SURFACE.md`.
-- **B. Make settlement reveal the terminal bit.** Add
-  `OP_SHA256 <hash1(terminal)> OP_EQUALVERIFY` to the settlement leaf, so
-  settling publishes the `terminal = 1` preimage; with the new output-binding
-  leaf for 0 (BVM-1), an operator cannot settle on a trace it also asserted
-  as 0 without revealing both preimages (equivocation). Small script change;
-  changes every graph address.
+- **B. Make settlement reveal the terminal bit** (`OP_SHA256 <hash1(terminal)>
+  OP_EQUALVERIFY` in the settlement leaf). Given the section above, this
+  re-checks a bit the challenger already verified before signing, at the cost
+  of changing every graph address. It does not remove the trust in the
+  challenger.
 - **C. Permissionless challengers** (BitVM2-style connector outputs or an
-  N-of-N pre-signed challenge set), so the challenger is not the party that
-  pre-signed settlement.
+  N-of-N pre-signed challenge set), so no single named party can co-sign a
+  bad settlement.
 
-Recommendation: **B for the testnet pilot**, **C before mainnet**.
+Recommendation (revised): **A for the testnet pilot**, **C before mainnet**.
+B is not worth an address change.
 
 ### BVM-6 and blocker #6: payees depend on data the operator holds
 
 Settlement is broadcastable by anyone with the signed package; if nobody
 broadcasts within 2,016 blocks the operator's recovery leaf takes the output.
 
+**Partly done on this branch (follow-up commit).** The watchtower now treats
+the pre-signed settlement as its post-funding duty on an honest graph:
+
+- it alerts `settlement_due` once the challenge window has passed and
+  `recovery_imminent` when the recovery leaf is 144 blocks or less from
+  maturing;
+- with `--broadcast-settlement` it sends exactly the committed settlement
+  (checked by txid in `testmempoolaccept` and in the broadcast result). No key
+  is involved. It never does so for a fraudulent, reorged, stale-at-
+  authorization or monitor-only graph.
+
+Still open:
+
 - **A.** Require publication of the graph package to two or more independent
   mirrors, and delivery to each payee, before the live driver will fund.
 - **B.** Lengthen the recovery delay relative to the challenge window.
 - **C.** Give payees their own pre-signed claim path (per-payee leaves).
 
-Recommendation: **A now** (gate funding on mirror receipts), with **B** as a
-cheap complement.
+Recommendation: **A** next (gate funding on mirror receipts), with **B** as a
+cheap complement. A watchtower holding the package is one copy, not
+availability.
 
 ### WT-2: the deployed watchtower can detect but not act
 
-No challenger key on the host, and the read-only proxy blocks
+No challenger key on the host, and the read-only proxy blocked
 `sendrawtransaction`.
 
-- **A.** Put the challenger key on the watchtower host (hot key) and let the
-  proxy forward `sendrawtransaction`.
-- **B.** At graph setup, pre-sign one disprove transaction per disprove leaf
-  (fixed fee plus the existing CPFP rescue), store them with the watchtower,
-  and let the proxy forward `sendrawtransaction` only for those txids.
-- **C.** Keep a human in the loop, but add real alert delivery (pager/email)
-  with the one-hour window in mind.
+Given the section above, the action that matters after funding is broadcasting
+the fully signed settlement, which needs no key. **Done on this branch
+(follow-up commit):** the proxy takes `--broadcast-allowlist-file`, re-read on
+every request, and relays `sendrawtransaction` only when the raw
+transaction's txid (strictly parsed, exact consumption) is pinned there; with
+no allowlist, or a malformed one, broadcast stays refused. The watchtower's
+`--write-settlement-allowlist` adds a graph's settlement txid only after the
+same verification a tick performs, and refuses fraudulent or monitor-only
+graphs. The deployed unit has not been reconfigured.
 
-Recommendation: **B plus C**: no hot key, and a person is still paged.
+Still open:
+
+- **A.** A challenger key on the watchtower host (hot key) for disprove
+  transactions. Not recommended; with the pre-funding refusal it would only
+  serve graphs funded despite a fraud.
+- **C.** Real alert delivery (pager/email) for `settlement_due`,
+  `recovery_imminent` and tick failures.
+
+Recommendation: **C**; drop A.
 
 ### Funded pre-policy testnet4 graphs (from BVM-1)
 

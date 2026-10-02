@@ -44,7 +44,7 @@ refer to the 2026-10-02 readiness assessment; see
 | 2-of-3 threshold oracle outcome points | `dlc_threshold_oracle.js` | LOCAL_SIMULATION | Supersedes the "Oracle threshold / multi-oracle: NOT_IMPLEMENTED" row. Oracles are still in-process in tests. |
 | BitVM V2 predicate bound to signed state, terminal output must be 1 (BVM-1) | `bitvm_assertion_graph_v2.js` | LOCAL_SIMULATION | The two graphs funded on testnet4 (`34dfe4a3…`, `e98272fd…`) predate this and are monitored as `legacy-unbound-v2-monitor-only`. |
 | Challenger can sign on its own host (BVM-4) | `bitvm_assertion_graph_v2.js` | LOCAL_SIMULATION | API split done; every testnet4 ceremony so far was single-party. |
-| Persistent chain-following watchtower that challenges at any state age (WT-1) and alerts on failure | `utxoref_v2_watchtower.js` | TESTNET_DEMO (deployed) / LOCAL_SIMULATION (fixes) | Supersedes the watchtower NOT_IMPLEMENTED row. The deployed unit holds no challenger key and its proxy blocks broadcast (WT-2, open). |
+| Persistent chain-following watchtower that challenges at any state age (WT-1) and alerts on failure | `utxoref_v2_watchtower.js` | TESTNET_DEMO (deployed) / LOCAL_SIMULATION (fixes) | Supersedes the watchtower NOT_IMPLEMENTED row. The deployed unit holds no challenger key. Broadcasting the pre-signed settlement through an allowlist-only proxy is implemented (WT-2, BVM-6) but not deployed. |
 | Reorg handling, RBF/CPFP and TRUC/P2A fee rescue | `utxoref_v2_watchtower.js`, `utxoref_v2_challenge_cpfp.js`, `utxoref_v2_reserve_cpfp.js`, `dlc_transaction_validator.js` | LOCAL_SIMULATION + testnet4 drill scripts | Supersedes the "Reorg handling, RBF/CPFP: NOT_IMPLEMENTED" row. |
 | Reserve vaults require the NUMS internal key (RES-1) | `taproot_reserve_vault.js`, `utxoref_v2_guardian_quorum_reserve.js` | LOCAL_SIMULATION | Verifiers derive the key and reject others. |
 | Single-key and MuSig2 taproot DLC demos | `tradelayer_taproot_dlc_demo.js`, `legacy/tradelayer_musig2*.js` | **Superseded** | Still valid Script mechanics on LTCTEST, but neither is the pilot construction; MuSig2 is quarantined in `legacy/`. |
@@ -118,7 +118,7 @@ attempted here.
 | Claim | File(s) | Class | Evidence |
 |---|---|---|---|
 | "Watchtower" fraud/challenge evidence builder | `tradelayer_send_watchtower.js` | LOCAL_SIMULATION | Pure function (`buildTradeLayerSendWatchtowerReport`) — no persistence, no polling loop, no chain subscription, no alert delivery. Confirmed by source read: no `setInterval`/reorg/persistence code present |
-| Persistent, independent, chain-following watchtower process | `utxoref_v2_watchtower.js`, `deploy/` | ~~NOT_IMPLEMENTED~~ TESTNET_DEMO | Superseded: deployed for the testnet4 beta; independence and broadcast capability still open (WT-2, SECURITY_BLOCKERS #5) |
+| Persistent, independent, chain-following watchtower process | `utxoref_v2_watchtower.js`, `deploy/` | ~~NOT_IMPLEMENTED~~ TESTNET_DEMO | Superseded: deployed for the testnet4 beta; independence still open; settlement-only broadcast implemented, not deployed (WT-2, SECURITY_BLOCKERS #5) |
 | Trace/wire-commitment data-availability mechanism for challengers | — | **NOT_IMPLEMENTED** | See SECURITY_BLOCKERS #6. Payees also depend on it (BVM-6). |
 | Reorg handling, RBF/CPFP, mempool-pinning resistance | `utxoref_v2_watchtower.js`, `utxoref_v2_challenge_cpfp.js`, `utxoref_v2_reserve_cpfp.js` | ~~NOT_IMPLEMENTED~~ LOCAL_SIMULATION | Superseded: implemented with drill scripts; see the pilot-merge section above |
 

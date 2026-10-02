@@ -21,19 +21,24 @@ const { readJsonStrict } = require('./strict_artifact_ingress');
 const { readJsonStrictProfile } = require('./strict_artifact_profiles');
 const { statementFromWatchtowerTick, buildWatcherReceipt } = require('./utxoref_v2_watcher_quorum');
 const { verifyUtxorefV2FeeReserve } = require('./utxoref_v2_fee_reserve');
+const { BROADCAST_ALLOWLIST_KIND } = require('./btc_testnet4_readonly_rpc_proxy');
 
 const DEFAULT_ARTIFACT = path.join(__dirname, 'artifacts', 'live', 'btc_testnet4_utxoref_v2_latest.json');
 const DEFAULT_TRUST_POLICY = path.join(__dirname, 'artifacts', 'live', 'utxoref_v2_watchtower_trust_policy.json');
 const DEFAULT_STATE_PATH = path.join(__dirname, 'artifacts', 'live', 'utxoref_v2_watchtower_state.json');
 const DEFAULT_ALERT_PATH = path.join(__dirname, 'artifacts', 'live', 'utxoref_v2_watchtower_alerts.jsonl');
 const DEFAULT_POLL_INTERVAL_MS = 30000;
+// BVM-6: escalate when the operator's recovery leaf is about a day from
+// maturing over an unsettled assertion output.
+const RECOVERY_WARNING_BLOCKS = 144;
 
 function parseArgs(argv) {
-  const args = { once: false, broadcast: false, replaceChallenge: false };
+  const args = { once: false, broadcast: false, replaceChallenge: false, broadcastSettlement: false };
   for (let index = 0; index < argv.length; index++) {
     const arg = argv[index];
     if (arg === '--once') { args.once = true; continue; }
     if (arg === '--broadcast') { args.broadcast = true; continue; }
+    if (arg === '--broadcast-settlement') { args.broadcastSettlement = true; continue; }
     if (arg === '--replace-challenge') { args.replaceChallenge = true; continue; }
     if (arg === '--help' || arg === '-h') { args.help = true; continue; }
     if (!arg.startsWith('--')) throw new Error(`unexpected argument ${arg}`);
@@ -63,6 +68,10 @@ function usage() {
     '    --challenger-secret-file <path> --artifact <public-artifact.json> \\',
     '    --fee-sats 1000 --fee-step-sats 500 --max-fee-sats 5000',
     '',
+    'Broadcast the fully pre-signed settlement once its challenge window has',
+    'passed (no key needed; refused for fraudulent, reorged or monitor-only graphs):',
+    '  node utxoref_v2_watchtower.js --once --broadcast-settlement --artifact <public-artifact.json>',
+    '',
     'RPC credentials are read from BTC_RPC_URL, BTC_RPC_USER, and BTC_RPC_PASS,',
     'or passed as --rpc-url, --rpc-user, and --rpc-pass.',
     '',
@@ -70,6 +79,11 @@ function usage() {
     '  --watcher-id <id> --watcher-fault-domain <domain> \\',
     '    --watcher-round-id <coordinator-round-id> \\',
     '    --watcher-private-key-file <ed25519-private-key.pem>',
+    '',
+    'Pin this graph\'s settlement in the RPC proxy broadcast allowlist (verified,',
+    'honest, predicate-bound graphs only; merges into an existing file):',
+    '  node utxoref_v2_watchtower.js --artifact <public-artifact.json> \\',
+    '    --trust-policy <policy.json> --write-settlement-allowlist <allowlist.json>',
     '',
     'A graph policy with feeReserve requires:',
     '  --fee-reserve <externally-pinned-fee-reserve.json>'
@@ -87,6 +101,26 @@ function saveJsonAtomic(filePath, value) {
   const temporary = `${filePath}.tmp-${process.pid}-${Date.now()}`;
   fs.writeFileSync(temporary, JSON.stringify(value, null, 2) + '\n');
   fs.renameSync(temporary, filePath);
+}
+
+// WT-2: the RPC proxy relays only allowlisted txids. This adds the committed
+// settlement of one graph, after the same verification a tick performs, and
+// refuses graphs whose settlement the watchtower would not broadcast.
+function settlementAllowlist(artifact, trustPolicy, existing = null) {
+  const inspected = inspectArtifact(artifact, trustPolicy, { requireFreshState: false });
+  if (inspected.fraudDetected) throw new Error('refusing to allowlist the settlement of a graph whose trace contains fraud');
+  if (inspected.predicateBound !== true) throw new Error('refusing to allowlist the settlement of a monitor-only graph');
+  if (!inspected.stateFreshAtAuthorization) throw new Error('refusing to allowlist a graph whose state was stale at authorization');
+  const txids = new Set();
+  if (existing !== null) {
+    if (existing?.kind !== BROADCAST_ALLOWLIST_KIND || !Array.isArray(existing.txids) ||
+        !existing.txids.every((txid) => typeof txid === 'string' && /^[0-9a-f]{64}$/.test(txid))) {
+      throw new Error('existing broadcast allowlist is malformed');
+    }
+    for (const txid of existing.txids) txids.add(txid);
+  }
+  txids.add(txidFromUnsignedHex(artifact.graph.settlement.unsignedTxHex));
+  return { kind: BROADCAST_ALLOWLIST_KIND, txids: [...txids].sort() };
 }
 
 function appendJsonLine(filePath, value) {
@@ -687,6 +721,7 @@ function alertFingerprint(result) {
     assertionUnspent: result.assertionUnspent,
     action: result.action,
     challengeTxid: result.challenge?.txid || result.disprove?.broadcastTxid || null,
+    settlementTxid: result.settlement?.broadcastTxid || null,
     authorizationActiveBlockHash: result.authorization?.activeBlockHash || null,
     authorizationReorged: result.authorization?.reorged || false,
     authorizationStale: result.authorization?.stale || false
@@ -748,6 +783,46 @@ async function runTick(args, rpc, state) {
     disprove: null
   };
   if (feeReserve) result.feeReserve = feeReserve;
+
+  // BVM-6 / WT-2: a fraudulent trace is refused before funding (the challenger
+  // will not pre-sign it), so after funding the watchtower's job on an honest
+  // graph is to see the pre-signed settlement broadcast before the operator's
+  // recovery leaf matures. Settlement is fully signed: broadcasting it needs
+  // no key. It is never broadcast for a fraudulent, reorged, stale-at-
+  // authorization or monitor-only (predicate-unbound) graph.
+  if (txout && !inspected.fraudDetected) {
+    const recoveryInBlocks = Number(inspected.recoveryCsvBlocks) - confirmationCount;
+    result.settlement = {
+      txid: txidFromUnsignedHex(artifact.graph.settlement.unsignedTxHex),
+      mature: confirmationCount >= Number(inspected.challengeCsvBlocks),
+      recoveryInBlocks,
+      broadcastEligible: inspected.predicateBound === true && !authorization.reorged &&
+        inspected.stateFreshAtAuthorization,
+      broadcastTxid: null
+    };
+    if (result.settlement.mature && result.action === 'monitoring') result.action = 'settlement_due';
+    if (recoveryInBlocks <= RECOVERY_WARNING_BLOCKS) result.action = 'recovery_imminent';
+    if (args.broadcastSettlement && result.settlement.mature && result.settlement.broadcastEligible) {
+      const witnessTxHex = artifact.graph.settlementPath.witnessTxHex;
+      const [accept] = await rpc('testmempoolaccept', [[witnessTxHex]]);
+      result.settlement.mempoolAccept = accept;
+      if (accept?.txid !== result.settlement.txid) {
+        throw new Error('settlement preflight names a different transaction than the committed settlement');
+      }
+      if (accept.allowed) {
+        const broadcastTxid = await rpc('sendrawtransaction', [witnessTxHex]);
+        if (broadcastTxid !== result.settlement.txid) {
+          throw new Error(`settlement broadcast txid mismatch: expected ${result.settlement.txid}, got ${broadcastTxid}`);
+        }
+        result.settlement.broadcastTxid = broadcastTxid;
+        result.action = 'settlement_broadcast';
+      } else if (/already|known/i.test(String(accept['reject-reason'] || ''))) {
+        result.action = 'settlement_in_mempool';
+      } else {
+        result.action = 'settlement_preflight_rejected';
+      }
+    }
+  }
 
   if (!txout && state.challenge?.graphHash === inspected.graphHash) {
     result.challenge = await monitorChallenge(rpc, state, currentHeight, chain.bestblockhash);
@@ -893,6 +968,19 @@ async function main() {
   if (args.replaceChallenge && !args.broadcast) {
     throw new Error('--replace-challenge requires --broadcast');
   }
+  if (args.writeSettlementAllowlist) {
+    const allowlistPath = path.resolve(args.writeSettlementAllowlist);
+    const artifact = readJson(path.resolve(args.artifact || DEFAULT_ARTIFACT), 'public artifact', 'utxoref-v2-public-artifact');
+    const trustPolicy = readJson(path.resolve(args.trustPolicy || DEFAULT_TRUST_POLICY), 'watchtower trust policy', 'utxoref-v2-trust-policy');
+    const existing = fs.existsSync(allowlistPath) ? JSON.parse(fs.readFileSync(allowlistPath, 'utf8')) : null;
+    const allowlist = settlementAllowlist(artifact, trustPolicy, existing);
+    saveJsonAtomic(allowlistPath, allowlist);
+    console.log(JSON.stringify({ allowlist: allowlistPath, txids: allowlist.txids }));
+    return;
+  }
+  if (args.broadcastSettlement && args.challengerSecretFile) {
+    throw new Error('--broadcast-settlement needs no key: run it without --challenger-secret-file');
+  }
   const rpc = resolveRpc(args);
   const statePath = path.resolve(args.statePath || DEFAULT_STATE_PATH);
   const intervalMs = Number(args.pollIntervalMs || DEFAULT_POLL_INTERVAL_MS);
@@ -921,6 +1009,7 @@ if (require.main === module) {
 }
 
 module.exports = {
+  RECOVERY_WARNING_BLOCKS,
   parseArgs,
   authorizationReference,
   trustBindingForArtifact,
@@ -928,6 +1017,7 @@ module.exports = {
   verificationOptions,
   authorizationPolicy,
   inspectArtifact,
+  settlementAllowlist,
   verifyConfiguredFeeReserve,
   deterministicChallengeAux,
   feeCandidates,
