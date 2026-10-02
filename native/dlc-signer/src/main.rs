@@ -1081,6 +1081,18 @@ fn verify_request(request: &Value, policy: &NativeValidatorPolicy) -> Result<Ver
     })
 }
 
+fn reject_consumed_authorization(key_directory: &Path, authorization_digest: &str) -> Result<()> {
+    decode_hex_32(authorization_digest, "authorization digest")?;
+    let marker_path = key_directory
+        .join("consumed-authorizations")
+        .join(format!("{authorization_digest}.used"));
+    match fs::symlink_metadata(&marker_path) {
+        Ok(_) => Err("signer authorization was already durably consumed".to_owned()),
+        Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(()),
+        Err(error) => Err(format!("could not inspect signer replay store: {error}")),
+    }
+}
+
 fn consume_authorization(key_directory: &Path, authorization_digest: &str) -> Result<()> {
     decode_hex_32(authorization_digest, "authorization digest")?;
     let consumed_directory = key_directory.join("consumed-authorizations");
@@ -1231,6 +1243,10 @@ fn run() -> Result<()> {
         return Err("process request digest mismatch".to_owned());
     }
     let verified = verify_request(request, &validator_policy)?;
+    // MAIN-5: refuse an already-consumed authorization before writing a clock
+    // observation, so replays cannot fill the bounded clock store. The
+    // create-new marker in consume_authorization stays the authoritative check.
+    reject_consumed_authorization(&key_directory, &verified.authorization_digest)?;
     let (runtime_key, identity_key_id) =
         runtime_identity(&key_directory, access_verifier_path, &arguments[6])?;
     let guarded_now = guard_signer_clock(&key_directory, &runtime_key, &identity_key_id)?;
