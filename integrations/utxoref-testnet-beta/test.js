@@ -240,6 +240,39 @@ async function testPersistentRateLimits(root) {
   assert.equal(requestIp({ headers: { 'x-forwarded-for': '203.0.113.8' }, socket: { remoteAddress: '127.0.0.1' } }, { trustProxy: true }), '203.0.113.8');
 }
 
+// BETA-1 (port of readiness-assessment poc6): a flood of unauthenticated POSTs
+// from many addresses fills the rate-limit table. It must evict, not refuse
+// everyone with 503, and guardian heartbeats must not share the limiter.
+async function testRateLimitFloodDoesNotLockOut(root) {
+  const { EventEmitter } = require('events');
+  const statePath = path.join(root, 'rate-flood.json');
+  const store = new StateStore(statePath);
+  let nowMs = Date.parse('2026-10-01T12:00:05Z');
+  const policy = { ...policyFor(statePath, { postRequestsPerMinute: 1, postRequestsPerHour: 2 }), trustProxy: true, rateLimitMaxEntries: 64 };
+  const service = createBetaService({ policy, store, bitcoin: fakeBitcoin(store), clock: () => new Date(nowMs) });
+  const post = (ip, url = '/v1/faucet/claim') => new Promise((resolve) => {
+    const req = new EventEmitter();
+    Object.assign(req, { method: 'POST', url, headers: { 'x-forwarded-for': ip }, socket: { remoteAddress: '127.0.0.1' }, destroy() {} });
+    const res = { writeHead(status) { this.status = status; }, setHeader() {}, end(body) { resolve({ status: this.status, error: body ? JSON.parse(body).error : null }); } };
+    service.handler(req, res);
+    setImmediate(() => req.emit('end'));
+  });
+  const ipFor = (i) => `10.${(i >> 16) & 255}.${(i >> 8) & 255}.${i & 255}`;
+  const statuses = [];
+  for (let i = 1; i <= 200; i++) statuses.push((await post(ipFor(i))).status);
+  assert.ok(!statuses.includes(503), 'a full rate-limit table refused requests with 503');
+  assert.ok(Object.keys(store.read().rateLimits).length <= 64, 'rate-limit table grew past its bound');
+  nowMs += 61000;
+  const knownClient = await post(ipFor(1));
+  assert.notEqual(knownClient.status, 503, 'a known client was locked out after the flood');
+  assert.notEqual(knownClient.status, 429, 'a known client was still throttled in a fresh minute');
+  // Heartbeats are verified by signature, not throttled by source address.
+  const first = await post(ipFor(500), '/v1/guardians/heartbeat');
+  const second = await post(ipFor(500), '/v1/guardians/heartbeat');
+  assert.notEqual(first.status, 429);
+  assert.notEqual(second.status, 429, 'guardian heartbeats share the unauthenticated POST limiter');
+}
+
 function guardianFixture(label) {
   const heartbeat = crypto.generateKeyPairSync('ed25519');
   const ecdh = crypto.createECDH('secp256k1');
@@ -454,6 +487,7 @@ async function main() {
     await testUnknownBroadcast(root);
     await testBasePath(root);
     await testPersistentRateLimits(root);
+    await testRateLimitFloodDoesNotLockOut(root);
     await testGuardianQuorum(root);
     await testCrossProcessLock(root);
     await testBitcoinBackendCompatibility();

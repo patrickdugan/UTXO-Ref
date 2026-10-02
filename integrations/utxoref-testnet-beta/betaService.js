@@ -14,6 +14,7 @@ const { sha256, tokenHash, privateHash } = require('./betaStore');
 
 const EXPLORER_TX = 'https://mempool.space/testnet4/tx/';
 const BODY_LIMIT = 16 * 1024;
+const RATE_LIMIT_MAX_ENTRIES = 8192;
 const COUNTED_CLAIM_STATES = new Set(['sending', 'broadcast', 'broadcast_unknown']);
 
 class HttpError extends Error {
@@ -373,13 +374,24 @@ function createBetaService(options) {
         current.updatedAt = now;
         state.rateLimits[window.key] = current;
       }
+      // BETA-1: a full table evicts, it never refuses. Refusing (503) let
+      // unauthenticated POSTs from a few thousand addresses lock every POST
+      // route out, including guardian heartbeats. Expired counters go first,
+      // then the least recently updated, never the counters just written.
       const keys = Object.keys(state.rateLimits);
-      if (keys.length > 4096) {
+      const maxEntries = policy.rateLimitMaxEntries || RATE_LIMIT_MAX_ENTRIES;
+      if (keys.length > maxEntries / 2) {
         for (const key of keys) {
           if (Date.parse(state.rateLimits[key].expiresAt) <= nowMs) delete state.rateLimits[key];
         }
       }
-      if (Object.keys(state.rateLimits).length > 8192) throw new HttpError(503, 'rate_limit_capacity');
+      const remaining = Object.keys(state.rateLimits);
+      if (remaining.length > maxEntries) {
+        const current = new Set(windows.map((window) => window.key));
+        const evictable = remaining.filter((key) => !current.has(key)).sort((left, right) =>
+          String(state.rateLimits[left].updatedAt).localeCompare(String(state.rateLimits[right].updatedAt)));
+        for (const key of evictable.slice(0, remaining.length - maxEntries)) delete state.rateLimits[key];
+      }
     });
   }
 
@@ -692,7 +704,12 @@ function createBetaService(options) {
       }
       const routePath = policy.basePath ? parsed.pathname.slice(policy.basePath.length) : parsed.pathname;
       const now = clock().toISOString();
-      if (req.method === 'POST') await postRateLimit(requestIp(req, policy), now);
+      // Guardian heartbeats are authenticated by a registered Ed25519 key and
+      // write state only after that check, so they are not throttled by source
+      // address alongside unauthenticated POSTs (BETA-1).
+      if (req.method === 'POST' && routePath !== '/v1/guardians/heartbeat') {
+        await postRateLimit(requestIp(req, policy), now);
+      }
 
       if (req.method === 'OPTIONS' && policy.publicOrigin) {
         res.writeHead(204, {
