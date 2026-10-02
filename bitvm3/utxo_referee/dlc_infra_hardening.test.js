@@ -253,6 +253,26 @@ test('any valid two-oracle subset completes its matching adaptor signature', () 
   }
 });
 
+test('DLC-3: a pre-signature under a non-oracle point is refused when the oracle point is known', () => {
+  // Port of readiness-assessment poc3 (DLC-3).
+  const signerSecret = 4242n;
+  const cetMessage = hash('dlc3:cet');
+  const oraclePoint = dlc.dlcOutcomePoint(announcements[0], outcome);
+  const wrongPoint = dlc.pointMul(dlc.G, 31337n);
+  const presignature = dlc.adaptorSign(signerSecret, cetMessage, wrongPoint, hash('dlc3:aux'));
+  const publicKey = dlc.xOnlyPubkey(signerSecret);
+  assert(dlc.adaptorVerify(publicKey, cetMessage, presignature), 'fixture pre-signature should be internally valid');
+  assert(!dlc.adaptorVerifyForPoint(publicKey, cetMessage, presignature, oraclePoint),
+    'pre-signature under a non-oracle point verified against the oracle point');
+  const hexPoint = { x: dlc.bytes32(oraclePoint.x).toString('hex'), y: dlc.bytes32(oraclePoint.y).toString('hex') };
+  assert(!dlc.adaptorVerifyForPoint(publicKey, cetMessage, presignature, hexPoint), 'hex form of the check differs');
+  expectThrow(() => dlc.adaptorComplete(presignature, dlc.dlcAttest(announcements[0], outcome)), /does not match adaptor point/);
+  const honest = dlc.adaptorSign(signerSecret, cetMessage, oraclePoint, hash('dlc3:honest'));
+  assert(dlc.adaptorVerifyForPoint(publicKey, cetMessage, honest, oraclePoint) &&
+    dlc.adaptorVerifyForPoint(publicKey, cetMessage, honest, hexPoint), 'honest pre-signature refused');
+  assert(!dlc.adaptorVerifyForPoint(publicKey, cetMessage, honest, null), 'missing expected point accepted');
+});
+
 test('threshold policy rejects one attestation, duplicates, and unpinned sets', () => {
   const attestation = dlc.dlcAttest(announcements[0], outcome);
   expectThrow(() => combineThresholdAttestations({
@@ -588,7 +608,8 @@ const derived = deriveSigningContextTarget(request.signingContext);
 if (derived.sighash !== signedPayload.sighash || derived.cetTxid !== signedPayload.cetTxid || derived.adaptorPoint.x !== signedPayload.adaptorPoint.x || derived.adaptorPoint.y !== signedPayload.adaptorPoint.y || derived.cetSetDigest !== signedPayload.cetSetDigest || derived.fundingTemplateDigest !== signedPayload.fundingTemplateDigest || derived.oracleAnnouncementsDigest !== signedPayload.oracleAnnouncementsDigest || !derived.partyPubkeyXs.includes(signedPayload.signerPubkeyX)) throw new Error('signed payload differs from the target derived from the signing context');
 ${options.hang ? "Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 60000);" : ''}
 ${options.selfMutate ? "fs.appendFileSync(__filename, '\\n// mutation during signer execution\\n');" : ''}
-const validPresignature = dlc.adaptorSign(${signerSecret}n, Buffer.from(derived.sighash, 'hex'), { x: BigInt('0x' + derived.adaptorPoint.x), y: BigInt('0x' + derived.adaptorPoint.y) }, Buffer.alloc(32, 42));
+const signingPoint = ${options.wrongAdaptorPoint ? 'dlc.pointMul(dlc.G, 7n)' : "{ x: BigInt('0x' + derived.adaptorPoint.x), y: BigInt('0x' + derived.adaptorPoint.y) }"};
+const validPresignature = dlc.adaptorSign(${signerSecret}n, Buffer.from(derived.sighash, 'hex'), signingPoint, Buffer.alloc(32, 42));
 const presignature = ${options.corruptResponse ? "{ ...validPresignature, s0: '00'.repeat(32) }" : 'validPresignature'};
 const response = { kind: RESPONSE_KIND, challenge: ${options.wrongChallenge ? "'00'.repeat(32)" : 'envelope.challenge'}, requestDigest: envelope.requestDigest, executableSha256: ${options.wrongExecutableDigest ? "'00'.repeat(32)" : "crypto.createHash('sha256').update(fs.readFileSync(process.execPath)).digest('hex')"}, identityKeyId: ${JSON.stringify(crypto.createHash('sha256').update(runtimePublicDer).digest('hex'))}, presignature };
 const runtimeKey = crypto.createPrivateKey({ key: Buffer.from(${JSON.stringify(runtimePrivateDer.toString('base64'))}, 'base64'), format: 'der', type: 'pkcs8' });
@@ -1798,6 +1819,25 @@ test('native isolated signing receives only an authenticated public request', ()
     expectThrow(() => authorizeDlcAdaptorSign(executableProvider, {
       contract, signingContext, authorization: executableAuthorization
     }).execute(), /response executable digest does not match/);
+
+    // DLC-3: a signer that pre-signs under some other point returns a
+    // pre-signature that is internally valid but that the oracle's
+    // attestation can never complete. The provider refuses it.
+    const pointDirectory = path.join(directory, 'wrong-point');
+    fs.mkdirSync(pointDirectory);
+    const pointFixture = nativeSignerFixture(pointDirectory, nativeSecret, 'wrong-point-signer', { wrongAdaptorPoint: true });
+    const pointProvider = createDlcCryptoProvider({
+      network: 'bitcoin-testnet4', mode: 'native-isolated', implementation: pointFixture.client,
+      trustedAuditKeys: pointFixture.trustedAuditKeys,
+      authorizationStore: new DlcSigningAuthorizationStore(pointDirectory)
+    });
+    const pointAuthorization = createDlcAdaptorSignAuthorization({
+      privateKey: validatorKeys.privateKey, contract, authorizationId: 'native:cet:wrong-point',
+      signerPubkeyX, signingContext
+    });
+    expectThrow(() => authorizeDlcAdaptorSign(pointProvider, {
+      contract, signingContext, authorization: pointAuthorization
+    }).execute(), /returned an invalid authorized adaptor signature/);
 
     const timeoutDirectory = path.join(directory, 'timeout');
     fs.mkdirSync(timeoutDirectory);

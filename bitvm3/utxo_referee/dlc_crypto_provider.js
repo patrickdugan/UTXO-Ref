@@ -268,11 +268,14 @@ function createDlcAdaptorSignAuthorization(input) {
   }, 'DLC signing authorization');
 }
 
-function verifyAuthorizedPresignature(result, signerPubkeyX, sighash) {
-  if (!experimental.adaptorVerify(
+// DLC-3: the returned pre-signature must be under the derived oracle point,
+// not merely valid for whatever point it carries.
+function verifyAuthorizedPresignature(result, signerPubkeyX, sighash, adaptorPoint) {
+  if (!experimental.adaptorVerifyForPoint(
     Buffer.from(signerPubkeyX, 'hex'),
     Buffer.from(sighash, 'hex'),
-    result
+    result,
+    adaptorPoint
   )) {
     throw new Error('DLC signer returned an invalid authorized adaptor signature');
   }
@@ -402,10 +405,10 @@ function authorizeDlcAdaptorSign(provider, input = {}) {
       }
       if (result && typeof result.then === 'function') {
         return result.then((value) => verifyAuthorizedPresignature(
-          value, authorization.signerPubkeyX, authorization.sighash
+          value, authorization.signerPubkeyX, authorization.sighash, adaptorPoint
         ));
       }
-      return verifyAuthorizedPresignature(result, authorization.signerPubkeyX, authorization.sighash);
+      return verifyAuthorizedPresignature(result, authorization.signerPubkeyX, authorization.sighash, adaptorPoint);
     }
   });
 }
