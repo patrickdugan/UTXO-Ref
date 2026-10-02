@@ -9,7 +9,8 @@
 const { Circuit } = require('../circuit');
 const { ReceiptLedger } = require('./m1_receipt_ledger');
 const { ReceiptTallyMap } = require('./m1_tally_map');
-const { toTransitionWitness } = require('./m1_transition_circuit');
+const { toTransitionWitness, bitsFromBigInt } = require('./m1_transition_circuit');
+const { applyBinarySettlementTransition } = require('./m1_transition');
 
 let passed = 0;
 let failed = 0;
@@ -94,6 +95,75 @@ test('one funding outpoint is credited once, whatever the deposit id', () => {
   expectThrow(() => restored.applyDeposit({ depositId: 'snapshot-replay', accountId: 'carol', amountSats: 5n, chainTxRef }),
     /already credited/);
   assert(restored.snapshotHashHex() === state.snapshotHashHex(), 'snapshot round trip changed the hash');
+});
+
+// ---- Remaining off-chain REDTEAM_FINDINGS.md state items ----
+
+const U64_MAX = (1n << 64n) - 1n;
+
+test('credits that would overflow u64 are refused and witnesses never truncate', () => {
+  const ledger = new ReceiptLedger();
+  ledger.applyDeposit({ depositId: 'big', accountId: 'alice', amountSats: U64_MAX - 5n });
+  expectThrow(() => ledger.applyDeposit({ depositId: 'over', accountId: 'alice', amountSats: 6n }), /resulting balanceSats/);
+  expectThrow(() => ledger.applyDeposit({ depositId: 'supply', accountId: 'bob', amountSats: 6n }), /resulting totalSupplySats/);
+  assert(ledger.balanceOf('alice') === U64_MAX - 5n && ledger.balanceOf('bob') === 0n, 'failed credit changed balances');
+  const state = new ReceiptTallyMap({ epochId: 1n });
+  state.applyDeposit({ depositId: 'big', accountId: 'alice', amountSats: U64_MAX });
+  expectThrow(() => state.applyDeposit({ depositId: 'one', accountId: 'bob', amountSats: 1n }), /resulting totalSupplySats/);
+  expectThrow(() => bitsFromBigInt(1n << 64n, 64), /does not fit in 64 bits/);
+  expectThrow(() => bitsFromBigInt(-1n, 64), /does not fit/);
+  assert(bitsFromBigInt(U64_MAX, 64).every((bit) => bit === 1), 'u64 max did not convert');
+});
+
+test('loading a committed snapshot checks its kind, root, supply and hash', () => {
+  const state = new ReceiptTallyMap({ epochId: 3n, challengeWindowLength: 10n });
+  state.applyDeposit({ depositId: 'd1', accountId: 'alice', amountSats: 100n });
+  const committed = state.getCommittedSnapshot();
+  assert(ReceiptTallyMap.fromBlob(JSON.stringify(committed)).snapshotHashHex() === committed.snapshotHash);
+  expectThrow(() => ReceiptTallyMap.fromSnapshot({ ...committed, kind: 'something-else' }), /kind must be receipt-tally-map/);
+  expectThrow(() => ReceiptTallyMap.fromSnapshot({ ...committed, balanceRoot: '00'.repeat(32) }), /balanceRoot does not match/);
+  expectThrow(() => ReceiptTallyMap.fromSnapshot({ ...committed, totalSupplySats: '999' }), /totalSupplySats does not match/);
+  expectThrow(() => ReceiptTallyMap.fromSnapshot({ ...committed, snapshotHash: 'ff'.repeat(32) }), /snapshot hash does not match/);
+  const inflated = { ...committed, balances: [{ accountId: 'alice', balanceSats: '1000' }] };
+  expectThrow(() => ReceiptTallyMap.fromSnapshot(inflated), /does not match/);
+});
+
+test('epochs only move forward and challenge windows stay consistent', () => {
+  const state = new ReceiptTallyMap({ epochId: 5n, challengeWindowLength: 10n });
+  expectThrow(() => state.finalizeEpoch(5n), /must be greater than the current epoch/);
+  expectThrow(() => state.finalizeEpoch(4n), /must be greater than the current epoch/);
+  expectThrow(() => state.finalizeEpoch(6n, 'ab'.repeat(32)), /prevSnapshotHash must be the hash/);
+  const next = state.finalizeEpoch(6n);
+  assert(next.epochId === 6n && next.prevSnapshotHash === state.snapshotHashHex() && next.challengeWindowEnd === 16n,
+    'forward finalization is wrong');
+  expectThrow(() => new ReceiptTallyMap({ epochId: 1n, challengeWindowStart: 1n, challengeWindowLength: 10n, challengeWindowEnd: 5n }),
+    /challengeWindowEnd must equal/);
+  const transition = (overrides) => applyBinarySettlementTransition({ collateralSats: 1000n, epochId: 1n, ...overrides }, { route: 'roll' });
+  expectThrow(() => transition({ epochId: U64_MAX }), /no successor within uint64/);
+  expectThrow(() => transition({ epochId: -1n }), /uint64/);
+  expectThrow(() => transition({ collateralSats: -5n }), /uint64/);
+  expectThrow(() => transition({ challengeWindowStart: 1n, challengeWindowLength: 10n, challengeWindowEnd: 3n }),
+    /end must equal start \+ length/);
+  expectThrow(() => transition({ challengeWindowStart: 10n, challengeWindowEnd: 5n }), /uint64/);
+  assert(transition({}).route === 'roll', 'honest transition refused');
+});
+
+test('account ordering is by code unit, not locale', () => {
+  // Distinct IDs that localeCompare may rank as equal (precomposed vs combining accent).
+  const precomposed = 'café';
+  const combining = 'café';
+  const roots = [[precomposed, combining], [combining, precomposed]].map((order) => {
+    const state = new ReceiptTallyMap({ epochId: 1n });
+    for (const [index, accountId] of order.entries()) {
+      state.applyDeposit({ depositId: `d-${index}-${accountId}`, accountId, amountSats: BigInt(100 + accountId.length) });
+    }
+    return state.getBalanceMerkleRootHex();
+  });
+  assert(roots[0] === roots[1], 'insertion order changed the balance root');
+  const ledger = new ReceiptLedger();
+  ledger.applyDeposit({ depositId: 'a', accountId: 'b', amountSats: 1n });
+  ledger.applyDeposit({ depositId: 'b', accountId: 'B', amountSats: 1n });
+  assert(ledger.getBalancesSorted().map((row) => row.accountId).join() === 'B,b', 'ledger order is not code-unit order');
 });
 
 console.log(`\n${failed ? 'FAIL' : 'PASS'}: ${passed} passed${failed ? `, ${failed} failed` : ''}\n`);

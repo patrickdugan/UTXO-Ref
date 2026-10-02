@@ -32,8 +32,15 @@ function ensureNonEmptyString(v, fieldName) {
   return v;
 }
 
+// Red-team item: localeCompare can rank distinct Unicode account IDs as
+// equal, so insertion order changed the balance root. Order by UTF-16 code
+// units, which is total and locale-independent.
+function compareIds(left, right) {
+  return left < right ? -1 : left > right ? 1 : 0;
+}
+
 function sortedObjectEntries(map) {
-  return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+  return Array.from(map.entries()).sort((a, b) => compareIds(a[0], b[0]));
 }
 
 class ReceiptTallyMap {
@@ -49,6 +56,11 @@ class ReceiptTallyMap {
       this.challengeWindowLength = normalizeEpochId(options.challengeWindowLength);
       this.challengeWindowStart = challengeWindowStart;
       this.challengeWindowEnd = normalizeEpochId(challengeWindowStart + this.challengeWindowLength);
+      // Red-team item: an inconsistent end used to be silently replaced.
+      if (options.challengeWindowEnd !== undefined && options.challengeWindowEnd !== null &&
+          normalizeEpochId(options.challengeWindowEnd) !== this.challengeWindowEnd) {
+        throw new Error('challengeWindowEnd must equal challengeWindowStart + challengeWindowLength');
+      }
     } else {
       this.challengeWindowStart = challengeWindowStart;
       this.challengeWindowEnd = normalizeEpochId(options.challengeWindowEnd ?? challengeWindowStart);
@@ -80,7 +92,8 @@ class ReceiptTallyMap {
       prevSnapshotHash: options.prevSnapshotHash || null,
       challengeWindowStart: options.challengeWindowStart ?? options.epochId ?? 0n,
       challengeWindowLength: options.challengeWindowLength,
-      challengeWindowEnd: options.challengeWindowEnd ?? options.epochId ?? 0n
+      challengeWindowEnd: options.challengeWindowEnd ??
+        (options.challengeWindowLength == null ? (options.epochId ?? 0n) : undefined)
     });
 
     for (const row of ledger.getBalancesSorted()) {
@@ -110,8 +123,12 @@ class ReceiptTallyMap {
       prevSnapshotHash: obj.prevSnapshotHash || null,
       challengeWindowStart: obj.challengeWindowStart ?? obj.epochId ?? 0n,
       challengeWindowLength: obj.challengeWindowLength,
-      challengeWindowEnd: obj.challengeWindowEnd ?? obj.epochId ?? 0n
+      challengeWindowEnd: obj.challengeWindowEnd ??
+        (obj.challengeWindowLength == null ? (obj.epochId ?? 0n) : undefined)
     });
+    if (obj.kind !== undefined && obj.kind !== 'receipt-tally-map') {
+      throw new Error('snapshot kind must be receipt-tally-map');
+    }
 
     for (const row of obj.balances || []) {
       state.setBalance(row.accountId, row.balanceSats);
@@ -125,6 +142,17 @@ class ReceiptTallyMap {
     }
     for (const id of obj.redemptionIds || []) {
       state.redemptionIds.add(ensureNonEmptyString(id, 'redemptionId'));
+    }
+    // Red-team item: committed fields were not checked against the state they
+    // describe. Any that are present must match the reconstruction.
+    if (obj.balanceRoot !== undefined && obj.balanceRoot !== state.getBalanceMerkleRootHex()) {
+      throw new Error('snapshot balanceRoot does not match its balances');
+    }
+    if (obj.totalSupplySats !== undefined && String(obj.totalSupplySats) !== state.totalSupplySats().toString()) {
+      throw new Error('snapshot totalSupplySats does not match its balances');
+    }
+    if (obj.snapshotHash !== undefined && obj.snapshotHash !== state.snapshotHashHex()) {
+      throw new Error('snapshot hash does not match the snapshot contents');
     }
 
     return state;
@@ -152,6 +180,13 @@ class ReceiptTallyMap {
     return sum;
   }
 
+  // Red-team item: a credit could push a balance or the total supply past u64,
+  // which witness conversion then truncated.
+  _assertCreditFits(accountId, amountSats) {
+    normalizeAmountSats(this.balanceOf(accountId) + amountSats, 'resulting balanceSats');
+    normalizeAmountSats(this.totalSupplySats() + amountSats, 'resulting totalSupplySats');
+  }
+
   applyDeposit(event) {
     const depositId = ensureNonEmptyString(event.depositId, 'depositId');
     const accountId = ensureNonEmptyString(event.accountId, 'accountId');
@@ -167,6 +202,7 @@ class ReceiptTallyMap {
     if (outpointKey && this.depositOutpoints.has(outpointKey)) {
       throw new Error(`deposit outpoint ${outpointKey} is already credited`);
     }
+    this._assertCreditFits(accountId, amountSats);
 
     const next = this.balanceOf(accountId) + amountSats;
     this.balances.set(accountId, next);
@@ -442,7 +478,16 @@ class ReceiptTallyMap {
   finalizeEpoch(nextEpochId, prevSnapshotHash = null) {
     const next = this.clone();
     next.epochId = normalizeEpochId(nextEpochId);
-    next.prevSnapshotHash = prevSnapshotHash || this.snapshotHashHex();
+    // Red-team item: finalization accepted the same or an earlier epoch, and
+    // any previous-snapshot hash. Epochs only move forward, and the link is
+    // always this snapshot.
+    if (next.epochId <= this.epochId) {
+      throw new Error(`next epoch ${next.epochId} must be greater than the current epoch ${this.epochId}`);
+    }
+    if (prevSnapshotHash !== null && prevSnapshotHash !== undefined && prevSnapshotHash !== this.snapshotHashHex()) {
+      throw new Error('prevSnapshotHash must be the hash of the snapshot being finalized');
+    }
+    next.prevSnapshotHash = this.snapshotHashHex();
     next.challengeWindowStart = next.epochId;
     next.challengeWindowLength = this.challengeWindowLength;
     next.challengeWindowEnd = normalizeEpochId(next.challengeWindowStart + next.challengeWindowLength);

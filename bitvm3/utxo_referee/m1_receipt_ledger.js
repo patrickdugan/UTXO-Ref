@@ -59,7 +59,9 @@ class ReceiptLedger {
     }
 
     const prev = this.balances.get(accountId) || 0n;
-    const next = prev + amountSats;
+    // Red-team item: a credit could exceed u64 (balance or total supply).
+    const next = normalizeAmountSats(prev + amountSats, 'resulting balanceSats');
+    normalizeAmountSats(this.totalSupplySats() + amountSats, 'resulting totalSupplySats');
     this.balances.set(accountId, next);
     if (outpointKey) this.depositOutpoints.set(outpointKey, depositId);
 
@@ -166,7 +168,8 @@ class ReceiptLedger {
       rows.push({ accountId, balanceSats });
     }
 
-    rows.sort((a, b) => a.accountId.localeCompare(b.accountId));
+    // Code-unit order: localeCompare can rank distinct Unicode IDs as equal.
+    rows.sort((a, b) => (a.accountId < b.accountId ? -1 : a.accountId > b.accountId ? 1 : 0));
     return rows;
   }
 

@@ -9,12 +9,22 @@
  * This is the concrete "router" shape for the current M1 harness.
  */
 
+const U64_MAX = (1n << 64n) - 1n;
+
 function toBigInt(value, fieldName) {
   try {
     return BigInt(value);
   } catch (e) {
     throw new Error(`${fieldName} must be convertible to BigInt`);
   }
+}
+
+// Red-team item: transitions accepted negative and wrapped values. Every
+// amount, epoch and window value is a u64, as in the circuit.
+function toU64(value, fieldName) {
+  const v = toBigInt(value, fieldName);
+  if (v < 0n || v > U64_MAX) throw new Error(`${fieldName} must be within uint64 range`);
+  return v;
 }
 
 function validateBps(value, fieldName) {
@@ -26,7 +36,7 @@ function validateBps(value, fieldName) {
 }
 
 function computeRouteAmounts(collateralSats, pnlPayoutBps) {
-  const collateral = toBigInt(collateralSats, 'collateralSats');
+  const collateral = toU64(collateralSats, 'collateralSats');
   const bps = validateBps(pnlPayoutBps, 'pnlPayoutBps');
   const pnl = (collateral * BigInt(bps)) / 10000n;
   const flat = collateral - pnl;
@@ -97,21 +107,25 @@ function computeSendRouteAmounts(collateralSats, sendBps, feeBps = 0) {
 }
 
 function applyBinarySettlementTransition(state, event) {
-  const collateralSats = toBigInt(state.collateralSats, 'state.collateralSats');
+  const collateralSats = toU64(state.collateralSats, 'state.collateralSats');
   const pnlPayoutBps = validateBps(state.pnlPayoutBps ?? 5000, 'state.pnlPayoutBps');
-  const epochId = toBigInt(state.epochId ?? 0n, 'state.epochId');
+  const epochId = toU64(state.epochId ?? 0n, 'state.epochId');
+  if (epochId === U64_MAX) throw new Error('state.epochId has no successor within uint64');
   const route = String(event.route || 'roll');
   const timeout = !!event.timeout;
   const computed = computeRouteAmounts(collateralSats, pnlPayoutBps);
   const receiptBalanceRoot = state.receiptBalanceRoot || null;
   const prevBalanceRoot = state.prevBalanceRoot || receiptBalanceRoot || null;
   const balanceClaim = state.balanceClaim || null;
-  const challengeWindowStart = toBigInt(state.challengeWindowStart ?? epochId, 'state.challengeWindowStart');
-  const challengeWindowLength = toBigInt(
+  const challengeWindowStart = toU64(state.challengeWindowStart ?? epochId, 'state.challengeWindowStart');
+  const challengeWindowLength = toU64(
     state.challengeWindowLength ?? (state.challengeWindowEnd != null ? toBigInt(state.challengeWindowEnd, 'state.challengeWindowEnd') - challengeWindowStart : 0n),
     'state.challengeWindowLength'
   );
-  const challengeWindowEnd = toBigInt(state.challengeWindowEnd ?? (challengeWindowStart + challengeWindowLength), 'state.challengeWindowEnd');
+  const challengeWindowEnd = toU64(state.challengeWindowEnd ?? (challengeWindowStart + challengeWindowLength), 'state.challengeWindowEnd');
+  if (challengeWindowEnd !== challengeWindowStart + challengeWindowLength) {
+    throw new Error('challenge window end must equal start + length');
+  }
 
   if (timeout || route === 'roll') {
     const timeoutRemainderSats = 0n;

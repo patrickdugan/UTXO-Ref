@@ -19,8 +19,10 @@ const HASH_BITS = 256;
 const BALANCE_MERKLE_DEPTH = 16;
 const ROUTE_BITS = 1;
 
+// Red-team item: out-of-range values were silently truncated to `width` bits.
 function bitsFromBigInt(value, width) {
   const v = BigInt(value);
+  if (v < 0n || v >= (1n << BigInt(width))) throw new Error(`value ${v} does not fit in ${width} bits`);
   const bits = [];
   for (let i = 0; i < width; i++) {
     bits.push(((v >> BigInt(i)) & 1n) ? 1 : 0);
