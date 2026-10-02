@@ -1,0 +1,64 @@
+name: UTXORef pilot suites
+
+# Every suite, every *.test.js and both locked evals on each push and pull
+# request (DOC-1). Zero npm dependencies: nothing is installed.
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pilot-suites-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  node-suites:
+    # The suites are developed and run on Windows (DPAPI, junctions, named
+    # pipes in the signer tooling); run them where they are maintained.
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Long paths
+        shell: pwsh
+        run: git config --global core.longpaths true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Referee suites (run_utxoref_all.js, including legacy/)
+        run: node bitvm3/utxo_referee/run_utxoref_all.js
+      - name: Every *.test.js
+        run: node scripts/run_every_test.js
+      - name: UTXO referee eval (full, must be perfect)
+        run: node eval/utxo_referee_eval.js --profile=full --require-perfect
+      - name: DLC security eval (full, must be perfect)
+        run: node eval/dlc_security_eval.js --profile=full --require-perfect
+
+  rust-signer-library:
+    # The signing-target derivation is platform independent and is checked
+    # against the same vectors as the JavaScript host. The Windows signer
+    # process itself is type-checked for its target here; building and
+    # attesting the binary remains a separate audited step.
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: native/dlc-signer
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Rust toolchain
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup target add x86_64-pc-windows-gnu
+      - name: Signing-target library tests
+        run: cargo test --lib --locked
+      - name: Type-check the Windows signer
+        run: cargo check --locked --target x86_64-pc-windows-gnu

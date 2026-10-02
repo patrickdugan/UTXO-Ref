@@ -28,6 +28,27 @@ wallet acting as both prover and challenger (see
 verification here means "the Bitcoin/Litecoin Script mechanics execute as
 designed," not "this has survived an adversarial counterparty."
 
+## Status on `pilot-merge` (2026-10-02)
+
+The rows below supersede older rows where they disagree. Everything in this
+section is **LOCAL_SIMULATION** (unit suites and the two locked evals)
+unless stated; none of it has been run on a live network yet. Finding IDs
+refer to the 2026-10-02 readiness assessment; see
+[`PILOT_MERGE_NOTES.md`](PILOT_MERGE_NOTES.md).
+
+| Claim | File(s) | Class | Evidence / limits |
+|---|---|---|---|
+| One two-party DLC funding output with an oracle-settled CET leaf and a CSV refund leaf, no key path (MAIN-1, DLC-6) | `dlc_funding_output.js`, `dlc_transaction_validator.js`, `dlc_signature_validator.js` | LOCAL_SIMULATION | `dlc_infra_hardening.test.js`, `eval/dlc_security_eval.js`. Not yet funded on any network. |
+| Counterparty CET shares verified before funding (DLC-4) | `dlc_signature_validator.js` | LOCAL_SIMULATION | Each party gives full adaptor signatures under its own key; no MuSig2. |
+| Signer signs only a committed CET's derived sighash and oracle point (MAIN-3) | `dlc_signing_target.js`, `dlc_crypto_provider.js`, `native/dlc-signer/src/signing_target.rs` | LOCAL_SIMULATION | JS and Rust checked against the same vectors (`cargo test --lib`). The Windows signer binary has **not** been rebuilt for this source. |
+| 2-of-3 threshold oracle outcome points | `dlc_threshold_oracle.js` | LOCAL_SIMULATION | Supersedes the "Oracle threshold / multi-oracle: NOT_IMPLEMENTED" row. Oracles are still in-process in tests. |
+| BitVM V2 predicate bound to signed state, terminal output must be 1 (BVM-1) | `bitvm_assertion_graph_v2.js` | LOCAL_SIMULATION | The two graphs funded on testnet4 (`34dfe4a3…`, `e98272fd…`) predate this and are monitored as `legacy-unbound-v2-monitor-only`. |
+| Challenger can sign on its own host (BVM-4) | `bitvm_assertion_graph_v2.js` | LOCAL_SIMULATION | API split done; every testnet4 ceremony so far was single-party. |
+| Persistent chain-following watchtower that challenges at any state age (WT-1) and alerts on failure | `utxoref_v2_watchtower.js` | TESTNET_DEMO (deployed) / LOCAL_SIMULATION (fixes) | Supersedes the watchtower NOT_IMPLEMENTED row. The deployed unit holds no challenger key and its proxy blocks broadcast (WT-2, open). |
+| Reorg handling, RBF/CPFP and TRUC/P2A fee rescue | `utxoref_v2_watchtower.js`, `utxoref_v2_challenge_cpfp.js`, `utxoref_v2_reserve_cpfp.js`, `dlc_transaction_validator.js` | LOCAL_SIMULATION + testnet4 drill scripts | Supersedes the "Reorg handling, RBF/CPFP: NOT_IMPLEMENTED" row. |
+| Reserve vaults require the NUMS internal key (RES-1) | `taproot_reserve_vault.js`, `utxoref_v2_guardian_quorum_reserve.js` | LOCAL_SIMULATION | Verifiers derive the key and reject others. |
+| Single-key and MuSig2 taproot DLC demos | `tradelayer_taproot_dlc_demo.js`, `legacy/tradelayer_musig2*.js` | **Superseded** | Still valid Script mechanics on LTCTEST, but neither is the pilot construction; MuSig2 is quarantined in `legacy/`. |
+
 ## DLC settlement layer
 
 | Claim | File(s) | Class | Evidence |
@@ -38,8 +59,8 @@ designed," not "this has survived an adversarial counterparty."
 | Schnorr adaptor-signature DLC core (crypto correctness) | `tradelayer_dlc_adaptor_sig.js` | NETWORK_VERIFIED (math) / see [SIGNER_MIGRATION_PLAN.md](SIGNER_MIGRATION_PLAN.md) for production-signer status | 9 unit tests incl. cross-check vs Node libsecp256k1 ECDH; on-chain spend below |
 | Single-key taproot adaptor DLC settlement | `tradelayer_taproot.js`, `tradelayer_taproot_dlc_demo.js` | NETWORK_VERIFIED | fund `276b600b…08069045`, spend `ce9e7273…6d3f0366`, block 4,761,191 |
 | 2-party MuSig2 adaptor DLC settlement | `tradelayer_musig2.js`, `tradelayer_musig2_dlc_demo.js` | NETWORK_VERIFIED | fund `bfe988a4…9fe9bd37`, spend `8b8d18f4…2cfc9e5463`, block 4,761,258 |
-| Oracle refund path if oracle never attests | — | **NOT_IMPLEMENTED** | No refund/timeout CET found in any demo or test |
-| Oracle threshold / multi-oracle | — | **NOT_IMPLEMENTED** | All demos use a single in-process oracle keypair |
+| Oracle refund path if oracle never attests | `dlc_funding_output.js` (pilot-merge) | ~~NOT_IMPLEMENTED~~ LOCAL_SIMULATION | Superseded: the CSV refund leaf now sits on the DLC funding output; see the pilot-merge section above |
+| Oracle threshold / multi-oracle | `dlc_threshold_oracle.js` | ~~NOT_IMPLEMENTED~~ LOCAL_SIMULATION | Superseded: 2-of-3 threshold combination; see the pilot-merge section above |
 
 ## BitVM fraud-proof referee (solvency + final-output)
 
@@ -97,9 +118,9 @@ attempted here.
 | Claim | File(s) | Class | Evidence |
 |---|---|---|---|
 | "Watchtower" fraud/challenge evidence builder | `tradelayer_send_watchtower.js` | LOCAL_SIMULATION | Pure function (`buildTradeLayerSendWatchtowerReport`) — no persistence, no polling loop, no chain subscription, no alert delivery. Confirmed by source read: no `setInterval`/reorg/persistence code present |
-| Persistent, independent, chain-following watchtower process | — | **NOT_IMPLEMENTED** | See SECURITY_BLOCKERS #5 |
-| Trace/wire-commitment data-availability mechanism for challengers | — | **NOT_IMPLEMENTED** | See SECURITY_BLOCKERS #6 |
-| Reorg handling, RBF/CPFP, mempool-pinning resistance | — | **NOT_IMPLEMENTED** | Listed as missing in `UTXOREF_PRODUCTION_GAP_AND_LIVE_PATH.md`; no code found |
+| Persistent, independent, chain-following watchtower process | `utxoref_v2_watchtower.js`, `deploy/` | ~~NOT_IMPLEMENTED~~ TESTNET_DEMO | Superseded: deployed for the testnet4 beta; independence and broadcast capability still open (WT-2, SECURITY_BLOCKERS #5) |
+| Trace/wire-commitment data-availability mechanism for challengers | — | **NOT_IMPLEMENTED** | See SECURITY_BLOCKERS #6. Payees also depend on it (BVM-6). |
+| Reorg handling, RBF/CPFP, mempool-pinning resistance | `utxoref_v2_watchtower.js`, `utxoref_v2_challenge_cpfp.js`, `utxoref_v2_reserve_cpfp.js` | ~~NOT_IMPLEMENTED~~ LOCAL_SIMULATION | Superseded: implemented with drill scripts; see the pilot-merge section above |
 
 ## Adjacent / prototype tracks (not part of the pilot path)
 

@@ -10,6 +10,31 @@ Cross-reference: [`CLAIMS_MATRIX.md`](CLAIMS_MATRIX.md) for what is and isn't
 proven today; [`docs/ADVERSARIAL_SIGNET_PLAN.md`](docs/ADVERSARIAL_SIGNET_PLAN.md)
 for the rehearsal that is meant to close several of these at once.
 
+## Status on `pilot-merge` (2026-10-02)
+
+This branch merges `main`'s DLC hardening with the BitVM V2, watchtower,
+fee-rescue and beta line and addresses the 2026-10-02 readiness assessment.
+Per-finding status, commits and tests are in
+[`PILOT_MERGE_NOTES.md`](PILOT_MERGE_NOTES.md). Changes to the blockers below:
+
+| # | Blocker | Status on pilot-merge |
+|---|---|---|
+| 1 | Hand-rolled signer | Unchanged for the JS reference. The Rust signer (`native/dlc-signer`) is the production candidate; its source changed for MAIN-3 and the binary must be rebuilt and re-attested. |
+| 2 | Nonce misuse | **The 2026-07-06 "fixed" status below was wrong** (finding DLC-2): the journal keyed on the message only, so a co-signer could replay the same message with a different nonce and recover the key. Fixed by binding the journal to the whole session, and MuSig2 is no longer on the pilot path (moved to `legacy/`; the pilot funding output needs no interactive nonces). |
+| 3 | Self-play | Open. The BitVM graph API now supports a challenger on its own host (BVM-4), but no separated-host run exists. |
+| 4 | Reserve encumbrance | Reserve verifiers now require the NUMS internal key (RES-1). |
+| 5 | Watchtower | A persistent watchtower exists and now challenges at any state age and alerts on tick failure (WT-1, WT-3). Still cannot broadcast as deployed (WT-2) and has no alert delivery. |
+| 6 | Data availability | Open; also a payee-safety requirement (BVM-6). |
+| 7 | Bond economics / windows | A 6-block minimum challenge window is enforced (BVM-3); sizing to value at risk is open. |
+| 8 | Single oracle | 2-of-3 threshold oracles in the DLC path; oracles are still operator-run in tests. |
+| 9 | Refund path | The CSV refund leaf now sits on the DLC funding output itself, with a NUMS internal key (DLC-6, MAIN-1). Not yet run on-chain in that form. |
+| 10 | Fee bumping / reorgs | CPFP and TRUC/P2A paths, reorg-aware challenge lifecycle and drills exist; see `CLAIMS_MATRIX.md`. |
+| 11 | Audit surface | `docs/PILOT_SURFACE.md` rewritten for the merged branch; CI runs every suite and both evals. |
+
+New items from the assessment that remain open are listed in
+`PILOT_MERGE_NOTES.md` (notably BVM-2: the settlement path is a pre-signed
+2-of-2 and does not depend on the circuit; WT-2; BVM-6).
+
 ---
 
 ## 1. Hand-rolled BigInt signer, non-constant-time
@@ -61,6 +86,12 @@ current implementation generates nonces via `crypto.randomBytes` per call
 with no session-state tracking, no replay/reuse detection, and no protection
 against a caller invoking the signer twice over the same message (e.g. after
 a crash/retry).
+
+**Correction (2026-10-02):** the status below overstated the fix. Keying the
+journal on (nonce, message) does not stop a co-signer from re-running the same
+message with a different public nonce, which changes the session coefficients
+and leaks the key from two partial signatures. See the pilot-merge table at
+the top of this file (DLC-2).
 
 **Status (2026-07-06): fixed for the MuSig2 partial-signing path.** Audited
 first: `tradelayer_dlc_adaptor_sig.js`'s single-party `schnorrSign`/`adaptorSign`
