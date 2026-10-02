@@ -985,6 +985,7 @@ fn verify_request(request: &Value, policy: &NativeValidatorPolicy) -> Result<Ver
         "cetTxid",
         "fundingTemplateDigest",
         "oracleAnnouncementsDigest",
+        "oracleEventId",
         "sighash",
     ] {
         if string(payload_object, name)? != string(request_object, name)? {

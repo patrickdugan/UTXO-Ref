@@ -1185,9 +1185,7 @@ process.stdout.write(JSON.stringify(response));
     contractId: 'signer-authorization-eval',
     network: 'bitcoin-testnet4',
     contractDigest: sha256('signer-authorization-eval').toString('hex'),
-    oraclePolicy: {
-      threshold: 2, total: 3, pinnedPubkeys: signingFixture.oracleAnnouncements.map((announcement) => announcement.px)
-    },
+    oraclePolicy: signingFixture.oraclePolicy,
     validatorPolicy
   });
   for (const stage of ['AUTHENTICATED_ORACLES', 'CANONICAL_CETS_AND_REFUND', 'COUNTERPARTY_SIGNATURES_VERIFIED']) {
@@ -1606,6 +1604,55 @@ check('signer authorizations name a committed CET and derive its sighash and ora
   } finally {
     fs.rmSync(directory, { recursive: true, force: true });
   }
+});
+
+check('signer authorizations refuse oracle announcements for an event the contract does not name', 'signer-boundary', 8, () => {
+  if (!signerAuthorizationFixtureForEval) return false;
+  const { contract, signerSecret, signerPubkeyX } = signerAuthorizationFixtureForEval;
+  // The same pinned oracles announce another event; receipts pin exactly that
+  // set, so only the contract's named event distinguishes it.
+  const contractFor = (label, announcements, oraclePolicy) => {
+    const fixture = buildDlcSigningFixture({
+      signerSecret, counterpartySecret: scalar(`${label}:counterparty`), announcements
+    });
+    let pinned = createDlcContract({
+      contractId: label, network: 'bitcoin-testnet4', contractDigest: sha256(label).toString('hex'),
+      oraclePolicy, validatorPolicy
+    });
+    const receipts = fixture.receiptDigests;
+    for (const stage of ['AUTHENTICATED_ORACLES', 'CANONICAL_CETS_AND_REFUND', 'COUNTERPARTY_SIGNATURES_VERIFIED']) {
+      const idempotencyKey = `${label}:${stage}`;
+      const overrides = stage === 'AUTHENTICATED_ORACLES' ? { oracle_policy: receipts.oracle_policy }
+        : stage === 'CANONICAL_CETS_AND_REFUND' ? {
+          cet_set: receipts.cet_set,
+          fee_policy: receipts.fee_policy,
+          funding_template: receipts.funding_template,
+          refund_transaction: receipts.refund_transaction
+        } : {};
+      pinned = transitionDlcContract(pinned, {
+        to: stage, idempotencyKey, evidence: evidenceFor(pinned, stage, idempotencyKey, overrides)
+      });
+    }
+    return { contract: pinned, signingContext: fixture.signingContext };
+  };
+  const otherEvent = [0, 1, 2].map((index) => dlc.buildDlcOracle(
+    scalar(`signer-eval:oracle:${index}`), scalar(`signer-event-eval:oracle-nonce:${index}`),
+    { eventId: 'signer-eval-other-event', outcomeMessages: [sha256('signer-eval:yes'), sha256('signer-eval:no')] }
+  ));
+  const samePinnedKeys = otherEvent.map((announcement) => announcement.px).sort().join(':') ===
+    contract.oraclePolicy.pinnedPubkeys.join(':');
+  const wrongEvent = contractFor('signer-event-eval:other', otherEvent, contract.oraclePolicy);
+  const wrongEventRejected = throws(() => createDlcAdaptorSignAuthorization({
+    privateKey: validatorKeys.privateKey, contract: wrongEvent.contract, authorizationId: 'signer-event-eval:other',
+    signerPubkeyX, signingContext: wrongEvent.signingContext
+  }), /different event than the contract oracle policy/);
+  const { eventId: _eventId, outcomeMessages: _outcomes, ...unnamedPolicy } = contract.oraclePolicy;
+  const unnamed = contractFor('signer-event-eval:unnamed', otherEvent, unnamedPolicy);
+  const unnamedRejected = throws(() => createDlcAdaptorSignAuthorization({
+    privateKey: validatorKeys.privateKey, contract: unnamed.contract, authorizationId: 'signer-event-eval:unnamed',
+    signerPubkeyX, signingContext: unnamed.signingContext
+  }), /names its event and outcomes/);
+  return samePinnedKeys && wrongEventRejected && unnamedRejected;
 });
 
 check('signing consumption records reject filesystem aliasing, oversized data, and incomplete markers',

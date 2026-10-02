@@ -12,8 +12,8 @@
             "677492913ff211ff828514568f8ef6b9573b9b8aef337997950f93fb9905b20e"
           ],
           "px": "0141b22950fda59d7e3edea65b7d7e0b1a377b00819f72b840bf168083b53a17",
-          "rx": "d638c8f8cf32738ea45d0278d2b0d858fe4c141149c68e36a4e8df1ab428aa2b",
-          "signature": "e7c97f75ce4b4a6919c3fc07a3fb20cd10a8393a327c5a2547bcbf3f36b8c35c1302dbac2ad9c2002d6fab88b7dce41ae908a76868b48fe95dacb29e25330ce1"
+          "rx": "8a77298326cf6895863848094c6065f0a3e8596e6eaf6d2fa7337e33fc46270e",
+          "signature": "1e18a04d3cbccd913af9e3bf2909e49821692f61f363c45b24db4e2d4650018d471eafa2665842035dae037045f41c533f55afcafad1782c42eeb03031a7cc7f"
         },
         {
           "eventId": "signing-target-vector-event",
@@ -23,8 +23,8 @@
             "677492913ff211ff828514568f8ef6b9573b9b8aef337997950f93fb9905b20e"
           ],
           "px": "0729d7ae77ce1096f896e90a5d8a2415d0ed8cb136c5499b38339595c715dafa",
-          "rx": "46861050794131372531dbaf1bf29d1c41bd86e5c2cf48c00e15475021327699",
-          "signature": "47c71c1b03afc79dab239867405a3508bc2b889d9acb9c3d1b76107f0232c5a689fe2b1641079abf5701fa78ce576efe8b0f98c1ebd82336cb9c5b9c82edc605"
+          "rx": "a2836e0250fa8c0bd4b8427a23f105fbc8e24c41ae73b985369651ec14bd37ee",
+          "signature": "d5cfac1b0df19a0926b3cc006d1c7a84c258bb2472aa6ab452bc8fdf5307e8d75501ef475358f97d85f66d50348e5fca0e615971389d765927ee6fe9215524d9"
         },
         {
           "eventId": "signing-target-vector-event",
@@ -34,8 +34,8 @@
             "677492913ff211ff828514568f8ef6b9573b9b8aef337997950f93fb9905b20e"
           ],
           "px": "94b1dbd67020711302483b99c6ca12d460722ed556232dd094e12dbba65e963c",
-          "rx": "2994d4bd7eccdc6a741ae20625714496092950836c9428313a84dec0ab9757ed",
-          "signature": "a09de770933fbe677b42070e18ff5dba9572eca479445b625a4d4a0c1294c4df987559d4878f272c7fa5c44c58d7335269caa33a2fa70a8bcbce8171e4bc9d91"
+          "rx": "494f6782f36180cdf5527e510bfedfd71a22ca33b2185ef55422aea1e2b2e96a",
+          "signature": "1b45b40d8174247bc04d0546be60531ccda117561aadbc1ae6a335733908c64edf572fc70a5f7e683211a7283428d936ec8d26615c3b545a2ae79bb5764ec22d"
         }
       ],
       "transactionSet": {
@@ -146,11 +146,12 @@
       "cetTxid": "6a1839b6b7de20e4efab36be48d0811b37b32ccfe724e76326d409c56059e7d4",
       "cetSetDigest": "406b7f090b07c7d51a3854ea53e58525044385e3ce9997101e7824e58920390f",
       "fundingTemplateDigest": "342efdf687dff7efd6405e97e430cf9fe5767c211fe2f844e210840daa2fd414",
-      "oracleAnnouncementsDigest": "8ad149fa3344ea40e13694b5d004321eab608ac80bae5607e691e30ed4a0d28b",
+      "oracleAnnouncementsDigest": "76dfdc09c49efb7e848a6b180dbc4f0fa31f4a2c0b1420cab8659192308ee0dc",
+      "oracleEventId": "signing-target-vector-event",
       "sighash": "b351d68cbf81ecb861921b9a02ff45f2ec47089150debafa35406bf0cc3de731",
       "adaptorPoint": {
-        "x": "2c216e55b3f2d78a4470bab9cc674f2599ee325259beee25abbc31be3754c9ad",
-        "y": "532e85228601abe1725f17b31087a7a9cd3dbaa3c8389d13e9bb6f80c65a1dc5"
+        "x": "71e73d81286bbf1cdd54c6c0c0b504231fb93cec8ffe94d74b3e9aff22f4db15",
+        "y": "af67bb402f89c864608ccc1d207c913f9c7e429f26ffde550fe158148b4e918a"
       }
     },
     "payload": {
@@ -158,11 +159,12 @@
       "cetTxid": "6a1839b6b7de20e4efab36be48d0811b37b32ccfe724e76326d409c56059e7d4",
       "cetSetDigest": "406b7f090b07c7d51a3854ea53e58525044385e3ce9997101e7824e58920390f",
       "fundingTemplateDigest": "342efdf687dff7efd6405e97e430cf9fe5767c211fe2f844e210840daa2fd414",
-      "oracleAnnouncementsDigest": "8ad149fa3344ea40e13694b5d004321eab608ac80bae5607e691e30ed4a0d28b",
+      "oracleAnnouncementsDigest": "76dfdc09c49efb7e848a6b180dbc4f0fa31f4a2c0b1420cab8659192308ee0dc",
+      "oracleEventId": "signing-target-vector-event",
       "sighash": "b351d68cbf81ecb861921b9a02ff45f2ec47089150debafa35406bf0cc3de731",
       "adaptorPoint": {
-        "x": "2c216e55b3f2d78a4470bab9cc674f2599ee325259beee25abbc31be3754c9ad",
-        "y": "532e85228601abe1725f17b31087a7a9cd3dbaa3c8389d13e9bb6f80c65a1dc5"
+        "x": "71e73d81286bbf1cdd54c6c0c0b504231fb93cec8ffe94d74b3e9aff22f4db15",
+        "y": "af67bb402f89c864608ccc1d207c913f9c7e429f26ffde550fe158148b4e918a"
       }
     },
     "request": {
@@ -170,11 +172,12 @@
       "cetTxid": "6a1839b6b7de20e4efab36be48d0811b37b32ccfe724e76326d409c56059e7d4",
       "cetSetDigest": "406b7f090b07c7d51a3854ea53e58525044385e3ce9997101e7824e58920390f",
       "fundingTemplateDigest": "342efdf687dff7efd6405e97e430cf9fe5767c211fe2f844e210840daa2fd414",
-      "oracleAnnouncementsDigest": "8ad149fa3344ea40e13694b5d004321eab608ac80bae5607e691e30ed4a0d28b",
+      "oracleAnnouncementsDigest": "76dfdc09c49efb7e848a6b180dbc4f0fa31f4a2c0b1420cab8659192308ee0dc",
+      "oracleEventId": "signing-target-vector-event",
       "sighash": "b351d68cbf81ecb861921b9a02ff45f2ec47089150debafa35406bf0cc3de731",
       "adaptorPoint": {
-        "x": "2c216e55b3f2d78a4470bab9cc674f2599ee325259beee25abbc31be3754c9ad",
-        "y": "532e85228601abe1725f17b31087a7a9cd3dbaa3c8389d13e9bb6f80c65a1dc5"
+        "x": "71e73d81286bbf1cdd54c6c0c0b504231fb93cec8ffe94d74b3e9aff22f4db15",
+        "y": "af67bb402f89c864608ccc1d207c913f9c7e429f26ffde550fe158148b4e918a"
       },
       "signingContext": {
         "cetTxid": "6a1839b6b7de20e4efab36be48d0811b37b32ccfe724e76326d409c56059e7d4",
@@ -187,8 +190,8 @@
               "677492913ff211ff828514568f8ef6b9573b9b8aef337997950f93fb9905b20e"
             ],
             "px": "0141b22950fda59d7e3edea65b7d7e0b1a377b00819f72b840bf168083b53a17",
-            "rx": "d638c8f8cf32738ea45d0278d2b0d858fe4c141149c68e36a4e8df1ab428aa2b",
-            "signature": "e7c97f75ce4b4a6919c3fc07a3fb20cd10a8393a327c5a2547bcbf3f36b8c35c1302dbac2ad9c2002d6fab88b7dce41ae908a76868b48fe95dacb29e25330ce1"
+            "rx": "8a77298326cf6895863848094c6065f0a3e8596e6eaf6d2fa7337e33fc46270e",
+            "signature": "1e18a04d3cbccd913af9e3bf2909e49821692f61f363c45b24db4e2d4650018d471eafa2665842035dae037045f41c533f55afcafad1782c42eeb03031a7cc7f"
           },
           {
             "eventId": "signing-target-vector-event",
@@ -198,8 +201,8 @@
               "677492913ff211ff828514568f8ef6b9573b9b8aef337997950f93fb9905b20e"
             ],
             "px": "0729d7ae77ce1096f896e90a5d8a2415d0ed8cb136c5499b38339595c715dafa",
-            "rx": "46861050794131372531dbaf1bf29d1c41bd86e5c2cf48c00e15475021327699",
-            "signature": "47c71c1b03afc79dab239867405a3508bc2b889d9acb9c3d1b76107f0232c5a689fe2b1641079abf5701fa78ce576efe8b0f98c1ebd82336cb9c5b9c82edc605"
+            "rx": "a2836e0250fa8c0bd4b8427a23f105fbc8e24c41ae73b985369651ec14bd37ee",
+            "signature": "d5cfac1b0df19a0926b3cc006d1c7a84c258bb2472aa6ab452bc8fdf5307e8d75501ef475358f97d85f66d50348e5fca0e615971389d765927ee6fe9215524d9"
           },
           {
             "eventId": "signing-target-vector-event",
@@ -209,8 +212,8 @@
               "677492913ff211ff828514568f8ef6b9573b9b8aef337997950f93fb9905b20e"
             ],
             "px": "94b1dbd67020711302483b99c6ca12d460722ed556232dd094e12dbba65e963c",
-            "rx": "2994d4bd7eccdc6a741ae20625714496092950836c9428313a84dec0ab9757ed",
-            "signature": "a09de770933fbe677b42070e18ff5dba9572eca479445b625a4d4a0c1294c4df987559d4878f272c7fa5c44c58d7335269caa33a2fa70a8bcbce8171e4bc9d91"
+            "rx": "494f6782f36180cdf5527e510bfedfd71a22ca33b2185ef55422aea1e2b2e96a",
+            "signature": "1b45b40d8174247bc04d0546be60531ccda117561aadbc1ae6a335733908c64edf572fc70a5f7e683211a7283428d936ec8d26615c3b545a2ae79bb5764ec22d"
           }
         ],
         "transactionSet": {
@@ -331,8 +334,8 @@
               "677492913ff211ff828514568f8ef6b9573b9b8aef337997950f93fb9905b20e"
             ],
             "px": "0141b22950fda59d7e3edea65b7d7e0b1a377b00819f72b840bf168083b53a17",
-            "rx": "d638c8f8cf32738ea45d0278d2b0d858fe4c141149c68e36a4e8df1ab428aa2b",
-            "signature": "e7c97f75ce4b4a6919c3fc07a3fb20cd10a8393a327c5a2547bcbf3f36b8c35c1302dbac2ad9c2002d6fab88b7dce41ae908a76868b48fe95dacb29e25330ce1"
+            "rx": "8a77298326cf6895863848094c6065f0a3e8596e6eaf6d2fa7337e33fc46270e",
+            "signature": "1e18a04d3cbccd913af9e3bf2909e49821692f61f363c45b24db4e2d4650018d471eafa2665842035dae037045f41c533f55afcafad1782c42eeb03031a7cc7f"
           },
           {
             "eventId": "signing-target-vector-event",
@@ -342,8 +345,8 @@
               "677492913ff211ff828514568f8ef6b9573b9b8aef337997950f93fb9905b20e"
             ],
             "px": "0729d7ae77ce1096f896e90a5d8a2415d0ed8cb136c5499b38339595c715dafa",
-            "rx": "46861050794131372531dbaf1bf29d1c41bd86e5c2cf48c00e15475021327699",
-            "signature": "47c71c1b03afc79dab239867405a3508bc2b889d9acb9c3d1b76107f0232c5a689fe2b1641079abf5701fa78ce576efe8b0f98c1ebd82336cb9c5b9c82edc605"
+            "rx": "a2836e0250fa8c0bd4b8427a23f105fbc8e24c41ae73b985369651ec14bd37ee",
+            "signature": "d5cfac1b0df19a0926b3cc006d1c7a84c258bb2472aa6ab452bc8fdf5307e8d75501ef475358f97d85f66d50348e5fca0e615971389d765927ee6fe9215524d9"
           },
           {
             "eventId": "signing-target-vector-event",
@@ -353,8 +356,8 @@
               "677492913ff211ff828514568f8ef6b9573b9b8aef337997950f93fb9905b20e"
             ],
             "px": "94b1dbd67020711302483b99c6ca12d460722ed556232dd094e12dbba65e963c",
-            "rx": "2994d4bd7eccdc6a741ae20625714496092950836c9428313a84dec0ab9757ed",
-            "signature": "a09de770933fbe677b42070e18ff5dba9572eca479445b625a4d4a0c1294c4df987559d4878f272c7fa5c44c58d7335269caa33a2fa70a8bcbce8171e4bc9d91"
+            "rx": "494f6782f36180cdf5527e510bfedfd71a22ca33b2185ef55422aea1e2b2e96a",
+            "signature": "1b45b40d8174247bc04d0546be60531ccda117561aadbc1ae6a335733908c64edf572fc70a5f7e683211a7283428d936ec8d26615c3b545a2ae79bb5764ec22d"
           }
         ],
         "transactionSet": {
@@ -473,8 +476,8 @@
               "677492913ff211ff828514568f8ef6b9573b9b8aef337997950f93fb9905b20e"
             ],
             "px": "0141b22950fda59d7e3edea65b7d7e0b1a377b00819f72b840bf168083b53a17",
-            "rx": "d638c8f8cf32738ea45d0278d2b0d858fe4c141149c68e36a4e8df1ab428aa2b",
-            "signature": "e7c97f75ce4b4a6919c3fc07a3fb20cd10a8393a327c5a2547bcbf3f36b8c35c1302dbac2ad9c2002d6fab88b7dce41ae908a76868b48fe95dacb29e25330ce1"
+            "rx": "8a77298326cf6895863848094c6065f0a3e8596e6eaf6d2fa7337e33fc46270e",
+            "signature": "1e18a04d3cbccd913af9e3bf2909e49821692f61f363c45b24db4e2d4650018d471eafa2665842035dae037045f41c533f55afcafad1782c42eeb03031a7cc7f"
           },
           {
             "eventId": "signing-target-vector-event",
@@ -484,8 +487,8 @@
               "677492913ff211ff828514568f8ef6b9573b9b8aef337997950f93fb9905b20e"
             ],
             "px": "0729d7ae77ce1096f896e90a5d8a2415d0ed8cb136c5499b38339595c715dafa",
-            "rx": "46861050794131372531dbaf1bf29d1c41bd86e5c2cf48c00e15475021327699",
-            "signature": "47c71c1b03afc79dab239867405a3508bc2b889d9acb9c3d1b76107f0232c5a689fe2b1641079abf5701fa78ce576efe8b0f98c1ebd82336cb9c5b9c82edc605"
+            "rx": "a2836e0250fa8c0bd4b8427a23f105fbc8e24c41ae73b985369651ec14bd37ee",
+            "signature": "d5cfac1b0df19a0926b3cc006d1c7a84c258bb2472aa6ab452bc8fdf5307e8d75501ef475358f97d85f66d50348e5fca0e615971389d765927ee6fe9215524d9"
           },
           {
             "eventId": "signing-target-vector-event",
@@ -495,8 +498,8 @@
               "677492913ff211ff828514568f8ef6b9573b9b8aef337997950f93fb9905b20e"
             ],
             "px": "94b1dbd67020711302483b99c6ca12d460722ed556232dd094e12dbba65e963c",
-            "rx": "2994d4bd7eccdc6a741ae20625714496092950836c9428313a84dec0ab9757ed",
-            "signature": "a09de770933fbe677b42070e18ff5dba9572eca479445b625a4d4a0c1294c4df987559d4878f272c7fa5c44c58d7335269caa33a2fa70a8bcbce8171e4bc9d91"
+            "rx": "494f6782f36180cdf5527e510bfedfd71a22ca33b2185ef55422aea1e2b2e96a",
+            "signature": "1b45b40d8174247bc04d0546be60531ccda117561aadbc1ae6a335733908c64edf572fc70a5f7e683211a7283428d936ec8d26615c3b545a2ae79bb5764ec22d"
           }
         ],
         "transactionSet": {
@@ -615,8 +618,8 @@
               "677492913ff211ff828514568f8ef6b9573b9b8aef337997950f93fb9905b20e"
             ],
             "px": "0141b22950fda59d7e3edea65b7d7e0b1a377b00819f72b840bf168083b53a17",
-            "rx": "d638c8f8cf32738ea45d0278d2b0d858fe4c141149c68e36a4e8df1ab428aa2b",
-            "signature": "e7c97f75ce4b4a6919c3fc07a3fb20cd10a8393a327c5a2547bcbf3f36b8c35c1302dbac2ad9c2002d6fab88b7dce41ae908a76868b48fe95dacb29e25330ce1"
+            "rx": "8a77298326cf6895863848094c6065f0a3e8596e6eaf6d2fa7337e33fc46270e",
+            "signature": "1e18a04d3cbccd913af9e3bf2909e49821692f61f363c45b24db4e2d4650018d471eafa2665842035dae037045f41c533f55afcafad1782c42eeb03031a7cc7f"
           },
           {
             "eventId": "signing-target-vector-event",
@@ -626,8 +629,8 @@
               "677492913ff211ff828514568f8ef6b9573b9b8aef337997950f93fb9905b20e"
             ],
             "px": "0729d7ae77ce1096f896e90a5d8a2415d0ed8cb136c5499b38339595c715dafa",
-            "rx": "46861050794131372531dbaf1bf29d1c41bd86e5c2cf48c00e15475021327699",
-            "signature": "47c71c1b03afc79dab239867405a3508bc2b889d9acb9c3d1b76107f0232c5a689fe2b1641079abf5701fa78ce576efe8b0f98c1ebd82336cb9c5b9c82edc605"
+            "rx": "a2836e0250fa8c0bd4b8427a23f105fbc8e24c41ae73b985369651ec14bd37ee",
+            "signature": "d5cfac1b0df19a0926b3cc006d1c7a84c258bb2472aa6ab452bc8fdf5307e8d75501ef475358f97d85f66d50348e5fca0e615971389d765927ee6fe9215524d9"
           },
           {
             "eventId": "signing-target-vector-event",
@@ -637,8 +640,8 @@
               "677492913ff211ff828514568f8ef6b9573b9b8aef337997950f93fb9905b20e"
             ],
             "px": "94b1dbd67020711302483b99c6ca12d460722ed556232dd094e12dbba65e963c",
-            "rx": "2994d4bd7eccdc6a741ae20625714496092950836c9428313a84dec0ab9757ed",
-            "signature": "a09de770933fbe677b42070e18ff5dba9572eca479445b625a4d4a0c1294c4df987559d4878f272c7fa5c44c58d7335269caa33a2fa70a8bcbce8171e4bc9d91"
+            "rx": "494f6782f36180cdf5527e510bfedfd71a22ca33b2185ef55422aea1e2b2e96a",
+            "signature": "1b45b40d8174247bc04d0546be60531ccda117561aadbc1ae6a335733908c64edf572fc70a5f7e683211a7283428d936ec8d26615c3b545a2ae79bb5764ec22d"
           }
         ],
         "transactionSet": {
@@ -757,8 +760,8 @@
               "677492913ff211ff828514568f8ef6b9573b9b8aef337997950f93fb9905b20e"
             ],
             "px": "0141b22950fda59d7e3edea65b7d7e0b1a377b00819f72b840bf168083b53a17",
-            "rx": "d638c8f8cf32738ea45d0278d2b0d858fe4c141149c68e36a4e8df1ab428aa2b",
-            "signature": "e7c97f75ce4b4a6919c3fc07a3fb20cd10a8393a327c5a2547bcbf3f36b8c35c1302dbac2ad9c2002d6fab88b7dce41ae908a76868b48fe95dacb29e25330ce1"
+            "rx": "8a77298326cf6895863848094c6065f0a3e8596e6eaf6d2fa7337e33fc46270e",
+            "signature": "1e18a04d3cbccd913af9e3bf2909e49821692f61f363c45b24db4e2d4650018d471eafa2665842035dae037045f41c533f55afcafad1782c42eeb03031a7cc7f"
           },
           {
             "eventId": "signing-target-vector-event",
@@ -768,8 +771,8 @@
               "677492913ff211ff828514568f8ef6b9573b9b8aef337997950f93fb9905b20e"
             ],
             "px": "0729d7ae77ce1096f896e90a5d8a2415d0ed8cb136c5499b38339595c715dafa",
-            "rx": "46861050794131372531dbaf1bf29d1c41bd86e5c2cf48c00e15475021327699",
-            "signature": "47c71c1b03afc79dab239867405a3508bc2b889d9acb9c3d1b76107f0232c5a689fe2b1641079abf5701fa78ce576efe8b0f98c1ebd82336cb9c5b9c82edc605"
+            "rx": "a2836e0250fa8c0bd4b8427a23f105fbc8e24c41ae73b985369651ec14bd37ee",
+            "signature": "d5cfac1b0df19a0926b3cc006d1c7a84c258bb2472aa6ab452bc8fdf5307e8d75501ef475358f97d85f66d50348e5fca0e615971389d765927ee6fe9215524d9"
           },
           {
             "eventId": "signing-target-vector-event",
@@ -779,8 +782,8 @@
               "677492913ff211ff828514568f8ef6b9573b9b8aef337997950f93fb9905b20e"
             ],
             "px": "94b1dbd67020711302483b99c6ca12d460722ed556232dd094e12dbba65e963c",
-            "rx": "2994d4bd7eccdc6a741ae20625714496092950836c9428313a84dec0ab9757ed",
-            "signature": "a09de770933fbe677b42070e18ff5dba9572eca479445b625a4d4a0c1294c4df987559d4878f272c7fa5c44c58d7335269caa33a2fa70a8bcbce8171e4bc9d91"
+            "rx": "494f6782f36180cdf5527e510bfedfd71a22ca33b2185ef55422aea1e2b2e96a",
+            "signature": "1b45b40d8174247bc04d0546be60531ccda117561aadbc1ae6a335733908c64edf572fc70a5f7e683211a7283428d936ec8d26615c3b545a2ae79bb5764ec22d"
           }
         ],
         "transactionSet": {
@@ -899,8 +902,8 @@
               "677492913ff211ff828514568f8ef6b9573b9b8aef337997950f93fb9905b20e"
             ],
             "px": "0141b22950fda59d7e3edea65b7d7e0b1a377b00819f72b840bf168083b53a17",
-            "rx": "d638c8f8cf32738ea45d0278d2b0d858fe4c141149c68e36a4e8df1ab428aa2b",
-            "signature": "e7c97f75ce4b4a6919c3fc07a3fb20cd10a8393a327c5a2547bcbf3f36b8c35c1302dbac2ad9c2002d6fab88b7dce41ae908a76868b48fe95dacb29e25330ce1"
+            "rx": "8a77298326cf6895863848094c6065f0a3e8596e6eaf6d2fa7337e33fc46270e",
+            "signature": "1e18a04d3cbccd913af9e3bf2909e49821692f61f363c45b24db4e2d4650018d471eafa2665842035dae037045f41c533f55afcafad1782c42eeb03031a7cc7f"
           },
           {
             "eventId": "signing-target-vector-event",
@@ -910,8 +913,8 @@
               "677492913ff211ff828514568f8ef6b9573b9b8aef337997950f93fb9905b20e"
             ],
             "px": "0729d7ae77ce1096f896e90a5d8a2415d0ed8cb136c5499b38339595c715dafa",
-            "rx": "46861050794131372531dbaf1bf29d1c41bd86e5c2cf48c00e15475021327699",
-            "signature": "47c71c1b03afc79dab239867405a3508bc2b889d9acb9c3d1b76107f0232c5a689fe2b1641079abf5701fa78ce576efe8b0f98c1ebd82336cb9c5b9c82edc605"
+            "rx": "a2836e0250fa8c0bd4b8427a23f105fbc8e24c41ae73b985369651ec14bd37ee",
+            "signature": "d5cfac1b0df19a0926b3cc006d1c7a84c258bb2472aa6ab452bc8fdf5307e8d75501ef475358f97d85f66d50348e5fca0e615971389d765927ee6fe9215524d9"
           },
           {
             "eventId": "signing-target-vector-event",
@@ -921,8 +924,8 @@
               "677492913ff211ff828514568f8ef6b9573b9b8aef337997950f93fb9905b20e"
             ],
             "px": "94b1dbd67020711302483b99c6ca12d460722ed556232dd094e12dbba65e963c",
-            "rx": "2994d4bd7eccdc6a741ae20625714496092950836c9428313a84dec0ab9757ed",
-            "signature": "a09de770933fbe677b42070e18ff5dba9572eca479445b625a4d4a0c1294c4df987559d4878f272c7fa5c44c58d7335269caa33a2fa70a8bcbce8171e4bc9d91"
+            "rx": "494f6782f36180cdf5527e510bfedfd71a22ca33b2185ef55422aea1e2b2e96a",
+            "signature": "1b45b40d8174247bc04d0546be60531ccda117561aadbc1ae6a335733908c64edf572fc70a5f7e683211a7283428d936ec8d26615c3b545a2ae79bb5764ec22d"
           }
         ],
         "transactionSet": {
@@ -1041,8 +1044,8 @@
               "677492913ff211ff828514568f8ef6b9573b9b8aef337997950f93fb9905b20e"
             ],
             "px": "0141b22950fda59d7e3edea65b7d7e0b1a377b00819f72b840bf168083b53a17",
-            "rx": "d638c8f8cf32738ea45d0278d2b0d858fe4c141149c68e36a4e8df1ab428aa2b",
-            "signature": "e7c97f75ce4b4a6919c3fc07a3fb20cd10a8393a327c5a2547bcbf3f36b8c35c1302dbac2ad9c2002d6fab88b7dce41ae908a76868b48fe95dacb29e25330ce0"
+            "rx": "8a77298326cf6895863848094c6065f0a3e8596e6eaf6d2fa7337e33fc46270e",
+            "signature": "1e18a04d3cbccd913af9e3bf2909e49821692f61f363c45b24db4e2d4650018d471eafa2665842035dae037045f41c533f55afcafad1782c42eeb03031a7cc70"
           },
           {
             "eventId": "signing-target-vector-event",
@@ -1052,8 +1055,8 @@
               "677492913ff211ff828514568f8ef6b9573b9b8aef337997950f93fb9905b20e"
             ],
             "px": "0729d7ae77ce1096f896e90a5d8a2415d0ed8cb136c5499b38339595c715dafa",
-            "rx": "46861050794131372531dbaf1bf29d1c41bd86e5c2cf48c00e15475021327699",
-            "signature": "47c71c1b03afc79dab239867405a3508bc2b889d9acb9c3d1b76107f0232c5a689fe2b1641079abf5701fa78ce576efe8b0f98c1ebd82336cb9c5b9c82edc605"
+            "rx": "a2836e0250fa8c0bd4b8427a23f105fbc8e24c41ae73b985369651ec14bd37ee",
+            "signature": "d5cfac1b0df19a0926b3cc006d1c7a84c258bb2472aa6ab452bc8fdf5307e8d75501ef475358f97d85f66d50348e5fca0e615971389d765927ee6fe9215524d9"
           },
           {
             "eventId": "signing-target-vector-event",
@@ -1063,8 +1066,8 @@
               "677492913ff211ff828514568f8ef6b9573b9b8aef337997950f93fb9905b20e"
             ],
             "px": "94b1dbd67020711302483b99c6ca12d460722ed556232dd094e12dbba65e963c",
-            "rx": "2994d4bd7eccdc6a741ae20625714496092950836c9428313a84dec0ab9757ed",
-            "signature": "a09de770933fbe677b42070e18ff5dba9572eca479445b625a4d4a0c1294c4df987559d4878f272c7fa5c44c58d7335269caa33a2fa70a8bcbce8171e4bc9d91"
+            "rx": "494f6782f36180cdf5527e510bfedfd71a22ca33b2185ef55422aea1e2b2e96a",
+            "signature": "1b45b40d8174247bc04d0546be60531ccda117561aadbc1ae6a335733908c64edf572fc70a5f7e683211a7283428d936ec8d26615c3b545a2ae79bb5764ec22d"
           }
         ],
         "transactionSet": {
@@ -1183,8 +1186,8 @@
               "677492913ff211ff828514568f8ef6b9573b9b8aef337997950f93fb9905b20e"
             ],
             "px": "0141b22950fda59d7e3edea65b7d7e0b1a377b00819f72b840bf168083b53a17",
-            "rx": "d638c8f8cf32738ea45d0278d2b0d858fe4c141149c68e36a4e8df1ab428aa2b",
-            "signature": "e7c97f75ce4b4a6919c3fc07a3fb20cd10a8393a327c5a2547bcbf3f36b8c35c1302dbac2ad9c2002d6fab88b7dce41ae908a76868b48fe95dacb29e25330ce1"
+            "rx": "8a77298326cf6895863848094c6065f0a3e8596e6eaf6d2fa7337e33fc46270e",
+            "signature": "1e18a04d3cbccd913af9e3bf2909e49821692f61f363c45b24db4e2d4650018d471eafa2665842035dae037045f41c533f55afcafad1782c42eeb03031a7cc7f"
           },
           {
             "eventId": "signing-target-vector-event",
@@ -1194,8 +1197,8 @@
               "677492913ff211ff828514568f8ef6b9573b9b8aef337997950f93fb9905b20e"
             ],
             "px": "0729d7ae77ce1096f896e90a5d8a2415d0ed8cb136c5499b38339595c715dafa",
-            "rx": "46861050794131372531dbaf1bf29d1c41bd86e5c2cf48c00e15475021327699",
-            "signature": "47c71c1b03afc79dab239867405a3508bc2b889d9acb9c3d1b76107f0232c5a689fe2b1641079abf5701fa78ce576efe8b0f98c1ebd82336cb9c5b9c82edc605"
+            "rx": "a2836e0250fa8c0bd4b8427a23f105fbc8e24c41ae73b985369651ec14bd37ee",
+            "signature": "d5cfac1b0df19a0926b3cc006d1c7a84c258bb2472aa6ab452bc8fdf5307e8d75501ef475358f97d85f66d50348e5fca0e615971389d765927ee6fe9215524d9"
           },
           {
             "eventId": "signing-target-vector-event",
@@ -1205,8 +1208,8 @@
               "677492913ff211ff828514568f8ef6b9573b9b8aef337997950f93fb9905b20e"
             ],
             "px": "94b1dbd67020711302483b99c6ca12d460722ed556232dd094e12dbba65e963c",
-            "rx": "2994d4bd7eccdc6a741ae20625714496092950836c9428313a84dec0ab9757ed",
-            "signature": "a09de770933fbe677b42070e18ff5dba9572eca479445b625a4d4a0c1294c4df987559d4878f272c7fa5c44c58d7335269caa33a2fa70a8bcbce8171e4bc9d91"
+            "rx": "494f6782f36180cdf5527e510bfedfd71a22ca33b2185ef55422aea1e2b2e96a",
+            "signature": "1b45b40d8174247bc04d0546be60531ccda117561aadbc1ae6a335733908c64edf572fc70a5f7e683211a7283428d936ec8d26615c3b545a2ae79bb5764ec22d"
           }
         ],
         "transactionSet": {
@@ -1325,8 +1328,8 @@
               "677492913ff211ff828514568f8ef6b9573b9b8aef337997950f93fb9905b20e"
             ],
             "px": "0141b22950fda59d7e3edea65b7d7e0b1a377b00819f72b840bf168083b53a17",
-            "rx": "d638c8f8cf32738ea45d0278d2b0d858fe4c141149c68e36a4e8df1ab428aa2b",
-            "signature": "e7c97f75ce4b4a6919c3fc07a3fb20cd10a8393a327c5a2547bcbf3f36b8c35c1302dbac2ad9c2002d6fab88b7dce41ae908a76868b48fe95dacb29e25330ce1"
+            "rx": "8a77298326cf6895863848094c6065f0a3e8596e6eaf6d2fa7337e33fc46270e",
+            "signature": "1e18a04d3cbccd913af9e3bf2909e49821692f61f363c45b24db4e2d4650018d471eafa2665842035dae037045f41c533f55afcafad1782c42eeb03031a7cc7f"
           },
           {
             "eventId": "signing-target-vector-event",
@@ -1336,8 +1339,8 @@
               "677492913ff211ff828514568f8ef6b9573b9b8aef337997950f93fb9905b20e"
             ],
             "px": "0729d7ae77ce1096f896e90a5d8a2415d0ed8cb136c5499b38339595c715dafa",
-            "rx": "46861050794131372531dbaf1bf29d1c41bd86e5c2cf48c00e15475021327699",
-            "signature": "47c71c1b03afc79dab239867405a3508bc2b889d9acb9c3d1b76107f0232c5a689fe2b1641079abf5701fa78ce576efe8b0f98c1ebd82336cb9c5b9c82edc605"
+            "rx": "a2836e0250fa8c0bd4b8427a23f105fbc8e24c41ae73b985369651ec14bd37ee",
+            "signature": "d5cfac1b0df19a0926b3cc006d1c7a84c258bb2472aa6ab452bc8fdf5307e8d75501ef475358f97d85f66d50348e5fca0e615971389d765927ee6fe9215524d9"
           },
           {
             "eventId": "signing-target-vector-event",
@@ -1347,8 +1350,8 @@
               "677492913ff211ff828514568f8ef6b9573b9b8aef337997950f93fb9905b20e"
             ],
             "px": "94b1dbd67020711302483b99c6ca12d460722ed556232dd094e12dbba65e963c",
-            "rx": "2994d4bd7eccdc6a741ae20625714496092950836c9428313a84dec0ab9757ed",
-            "signature": "a09de770933fbe677b42070e18ff5dba9572eca479445b625a4d4a0c1294c4df987559d4878f272c7fa5c44c58d7335269caa33a2fa70a8bcbce8171e4bc9d91"
+            "rx": "494f6782f36180cdf5527e510bfedfd71a22ca33b2185ef55422aea1e2b2e96a",
+            "signature": "1b45b40d8174247bc04d0546be60531ccda117561aadbc1ae6a335733908c64edf572fc70a5f7e683211a7283428d936ec8d26615c3b545a2ae79bb5764ec22d"
           }
         ],
         "transactionSet": {

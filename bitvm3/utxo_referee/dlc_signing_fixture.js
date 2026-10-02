@@ -90,6 +90,14 @@ function buildDlcSigningFixture({
     signingContext: Object.freeze({ transactionSet, cetTxid, oracleAnnouncements: normalizedAnnouncements }),
     cetTxid,
     partyPubkeyXs,
+    // The contract oracle policy for this event, as createDlcContract takes it.
+    oraclePolicy: Object.freeze({
+      threshold,
+      total: pinnedPubkeys.length,
+      pinnedPubkeys: Object.freeze([...pinnedPubkeys]),
+      eventId: normalizedAnnouncements[0].eventId,
+      outcomeMessages: Object.freeze([...outcomes])
+    }),
     // Pass as receipt digests when advancing the contract.
     receiptDigests: Object.freeze({
       oracle_policy: oracleAnnouncementSetDigest(normalizedAnnouncements),

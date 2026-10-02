@@ -48,6 +48,7 @@ pub struct SigningTarget {
     pub cet_set_digest: String,
     pub funding_template_digest: String,
     pub oracle_announcements_digest: String,
+    pub oracle_event_id: String,
     pub funding_script_pubkey: String,
     pub party_pubkeys: [String; 2],
 }
@@ -629,6 +630,7 @@ pub fn derive_signing_target(signing_context: &Value) -> Result<SigningTarget> {
         cet_set_digest,
         funding_template_digest,
         oracle_announcements_digest,
+        oracle_event_id: announcements[0].event_id.clone(),
         funding_script_pubkey,
         party_pubkeys: [party_strings[0].to_owned(), party_strings[1].to_owned()],
     })
@@ -652,6 +654,9 @@ pub fn verify_signing_target(
         ("cetSetDigest", target.cet_set_digest.as_str()),
         ("fundingTemplateDigest", target.funding_template_digest.as_str()),
         ("oracleAnnouncementsDigest", target.oracle_announcements_digest.as_str()),
+        // The event the contract's oracle policy names: announcements for any
+        // other event by the same oracles must not be signed against.
+        ("oracleEventId", target.oracle_event_id.as_str()),
         ("sighash", sighash.as_str()),
     ];
     for (name, value) in expected {
@@ -707,6 +712,7 @@ mod tests {
             target.oracle_announcements_digest,
             expected["oracleAnnouncementsDigest"].as_str().unwrap()
         );
+        assert_eq!(target.oracle_event_id, expected["oracleEventId"].as_str().unwrap());
         assert_eq!(target.funding_script_pubkey, expected["scriptPubKeyHex"].as_str().unwrap());
     }
 
@@ -728,6 +734,10 @@ mod tests {
         let request = case["request"].as_object().unwrap().clone();
         let payload = case["payload"].as_object().unwrap().clone();
         verify_signing_target(&request, &payload).unwrap();
+
+        let mut other_event = payload.clone();
+        other_event.insert("oracleEventId".to_owned(), Value::String("some-other-event".to_owned()));
+        assert!(verify_signing_target(&request, &other_event).is_err());
 
         let mut wrong_sighash = payload.clone();
         wrong_sighash.insert("sighash".to_owned(), Value::String("00".repeat(32)));

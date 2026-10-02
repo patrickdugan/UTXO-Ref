@@ -51,6 +51,7 @@ const signed = {
   cetSetDigest: target.cetSetDigest,
   fundingTemplateDigest: target.fundingTemplateDigest,
   oracleAnnouncementsDigest: target.oracleAnnouncementsDigest,
+  oracleEventId: target.oracleEventId,
   sighash: target.sighash,
   adaptorPoint: { x: target.adaptorPoint.x, y: target.adaptorPoint.y }
 };

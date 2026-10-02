@@ -228,11 +228,7 @@ try {
     contractId: 'native-rust-integration',
     network: 'bitcoin-testnet4',
     contractDigest: digest('native-rust-integration-contract'),
-    oraclePolicy: {
-      threshold: 2,
-      total: 3,
-      pinnedPubkeys: signingFixture.oracleAnnouncements.map((announcement) => announcement.px)
-    },
+    oraclePolicy: signingFixture.oraclePolicy,
     validatorPolicy
   });
   for (const stage of ['AUTHENTICATED_ORACLES', 'CANONICAL_CETS_AND_REFUND', 'COUNTERPARTY_SIGNATURES_VERIFIED']) {

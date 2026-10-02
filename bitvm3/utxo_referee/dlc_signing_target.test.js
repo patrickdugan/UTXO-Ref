@@ -34,6 +34,7 @@ test('host derives the vector signing target', () => {
   assert(target.fundingTemplateDigest === expected.fundingTemplateDigest, 'funding template digest differs');
   assert(target.oracleAnnouncementsDigest === expected.oracleAnnouncementsDigest, 'announcement digest differs');
   assert(target.cetTxid === expected.cetTxid, 'CET txid differs');
+  assert(target.oracleEventId === expected.oracleEventId, 'oracle event id differs');
   assert(target.partyPubkeyXs.includes(expected.signerPubkeyX), 'vector signer is not a funding party');
 });
 

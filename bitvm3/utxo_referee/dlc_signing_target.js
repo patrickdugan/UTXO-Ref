@@ -144,6 +144,7 @@ function deriveSigningContextTarget(signingContext) {
     cetSetDigest: transactionSet.cetSetDigest,
     fundingTemplateDigest: transactionSet.fundingTemplateDigest,
     oracleAnnouncementsDigest: sha256Hex(Buffer.from(canonicalJson(oracleAnnouncements), 'utf8')),
+    oracleEventId: first.eventId,
     transactionSet,
     oracleAnnouncements
   });
@@ -168,6 +169,17 @@ function deriveCetSigningTarget({ contract, signerPubkeyX, signingContext }) {
   if (receiptDigest(contract, 'AUTHENTICATED_ORACLES', 'oracle_policy') !== target.oracleAnnouncementsDigest) {
     throw new Error('signing context oracle announcements are not the set pinned by the contract oracle_policy receipt');
   }
+  // The announcements must be for the event both peers agreed in the oracle
+  // policy, not merely signed by the pinned oracle keys: the same oracles may
+  // announce other events whose attestations would complete the signature.
+  const policy = contract.oraclePolicy;
+  if (typeof policy.eventId !== 'string' || !Array.isArray(policy.outcomeMessages)) {
+    throw new Error('adaptor signing requires a contract oracle policy that names its event and outcomes');
+  }
+  if (oracleAnnouncements[0].eventId !== policy.eventId ||
+      oracleAnnouncements[0].outcomeMessages.join(':') !== policy.outcomeMessages.join(':')) {
+    throw new Error('signing context oracle announcements are for a different event than the contract oracle policy');
+  }
   const outcomeSets = buildThresholdOutcomeSets({
     announcements: oracleAnnouncements,
     threshold: contract.oraclePolicy.threshold,
@@ -187,6 +199,7 @@ function deriveCetSigningTarget({ contract, signerPubkeyX, signingContext }) {
     cetSetDigest: target.cetSetDigest,
     fundingTemplateDigest: target.fundingTemplateDigest,
     oracleAnnouncementsDigest: target.oracleAnnouncementsDigest,
+    oracleEventId: policy.eventId,
     // Plain JSON form handed to the native signer, which re-derives everything above.
     signingContext: Object.freeze({
       transactionSet: JSON.parse(canonicalJson(transactionSet)),

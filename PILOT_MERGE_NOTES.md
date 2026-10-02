@@ -160,16 +160,21 @@ Recommendation: **B**, then drop the legacy entries.
 
 ### Oracle announcement pinning (from MAIN-3)
 
-The contract's `oracle_policy` receipt now pins the exact announcement set,
-and the signer derives adaptor points only from those announcements, which
-must be signed by the pinned oracle keys. The contract does not separately
-bind the oracle event id, so the validator key could pin announcements of a
-different event by the same oracles.
+The contract's `oracle_policy` receipt pins the exact announcement set, and
+the signer derives adaptor points only from those announcements, which must
+be signed by the pinned oracle keys. On its own that let the validator key pin
+announcements of a different event by the same oracles.
 
-- **A.** Add the event id (and outcome list hash) to the contract digest.
+- **A.** Add the event id (and outcome list) to the contract.
 - **B.** Leave it to the validator's review of the `oracle_policy` receipt.
 
-Recommendation: **A**.
+**Done (A), follow-up commit on this branch.** The contract oracle policy now
+takes `eventId` and the ordered `outcomeMessages`. Adaptor signing refuses a
+contract whose policy does not name them, and refuses announcements for any
+other event or outcome list even when the receipt pins them. The derived
+`oracleEventId` is in the validator-signed payload, and the Rust signer
+checks it against the announcements it verified. Policies without an event
+stay valid for state tracking, so existing journals still load.
 
 ### Signing-request size
 

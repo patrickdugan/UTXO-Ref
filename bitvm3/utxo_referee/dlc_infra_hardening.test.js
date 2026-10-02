@@ -219,6 +219,13 @@ const announcements = oracleSecrets.map((secret, index) => dlc.buildDlcOracle(se
   outcomeMessages: [outcome, otherOutcome]
 }));
 const pinnedPubkeys = announcements.map((announcement) => announcement.px);
+const thresholdEventPolicy = {
+  threshold: 2,
+  total: 3,
+  pinnedPubkeys,
+  eventId: 'threshold-event',
+  outcomeMessages: [outcome.toString('hex'), otherOutcome.toString('hex')]
+};
 
 console.log('\n=== DLC Infrastructure Hardening Tests ===\n');
 
@@ -548,12 +555,12 @@ test('operator-signed journal checkpoints reject forgery and untrusted keys', ()
   assert(accessorCalls === 0, 'signed checkpoint accessor executed before rejection');
 });
 
-function initialContract(contractId = 'contract-1') {
+function initialContract(contractId = 'contract-1', oraclePolicy = thresholdEventPolicy) {
   return createDlcContract({
     contractId,
     network: 'bitcoin-testnet4',
     contractDigest: digest(`contract:${contractId}`),
-    oraclePolicy: { threshold: 2, total: 3, pinnedPubkeys },
+    oraclePolicy,
     validatorPolicy
   });
 }
@@ -561,10 +568,11 @@ function initialContract(contractId = 'contract-1') {
 // MAIN-3: a contract is signable only for the transaction set and oracle
 // announcements its receipts commit to. This walks a contract to
 // COUNTERPARTY_SIGNATURES_VERIFIED with receipts over a real fixture.
-function signableContract(contractId, signerSecret, counterpartySecret = 31337n) {
-  const fixture = buildDlcSigningFixture({ signerSecret, counterpartySecret, announcements });
+function signableContract(contractId, signerSecret, counterpartySecret = 31337n, options = {}) {
+  const { contractAnnouncements = announcements, oraclePolicy } = options;
+  const fixture = buildDlcSigningFixture({ signerSecret, counterpartySecret, announcements: contractAnnouncements });
   const receipts = fixture.receiptDigests;
-  let contract = initialContract(contractId);
+  let contract = initialContract(contractId, oraclePolicy);
   contract = transitionDlcContract(contract, requestFor(contract, 'AUTHENTICATED_ORACLES', `${contractId}:oracles`, {
     oracle_policy: receipts.oracle_policy
   }));
@@ -1370,6 +1378,33 @@ test('adaptor signing is short-lived, durably consumed, and bound to the contrac
       privateKey: validatorKeys.privateKey, contract, authorizationId: 'cet:reannounced', signerPubkeyX,
       signingContext: { ...signingContext, oracleAnnouncements: reannounced }
     }), /not the set pinned by the contract oracle_policy receipt/);
+    // MAIN-3: the receipt pins an announcement set, but that set must also be
+    // for the event the contract's oracle policy names. The same oracles
+    // announcing another event - or the same event id with another outcome
+    // list - is refused even when the receipt pins exactly those announcements.
+    const otherEvents = [
+      ['unrelated-event', [outcome, otherOutcome]],
+      ['threshold-event', [outcome, hash('threshold-event:maybe')]]
+    ];
+    for (const [eventId, outcomeMessages] of otherEvents) {
+      const contractAnnouncements = oracleSecrets.map((secret, index) =>
+        dlc.buildDlcOracle(secret, nonceSeeds[index] + 7n, { eventId, outcomeMessages }));
+      const pinnedElsewhere = signableContract(`adaptor-sign-${eventId}-${outcomeMessages.length}`, 909n, 31337n, {
+        contractAnnouncements
+      });
+      expectThrow(() => createDlcAdaptorSignAuthorization({
+        privateKey: validatorKeys.privateKey, contract: pinnedElsewhere.contract, authorizationId: `cet:${eventId}`,
+        signerPubkeyX, signingContext: pinnedElsewhere.signingContext
+      }), /different event than the contract oracle policy/);
+    }
+    // A policy that never named its event can be tracked but not signed for.
+    const unnamed = signableContract('adaptor-sign-unnamed-event', 909n, 31337n, {
+      oraclePolicy: { threshold: 2, total: 3, pinnedPubkeys }
+    });
+    expectThrow(() => createDlcAdaptorSignAuthorization({
+      privateKey: validatorKeys.privateKey, contract: unnamed.contract, authorizationId: 'cet:unnamed-event',
+      signerPubkeyX, signingContext: unnamed.signingContext
+    }), /names its event and outcomes/);
     let creationAccessorCalls = 0;
     const hostileCreation = {
       privateKey: validatorKeys.privateKey,
