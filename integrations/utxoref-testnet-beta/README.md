@@ -24,7 +24,7 @@ Requirements:
 - Node.js 20 or newer.
 - Bitcoin Core 30.x on `testnet4`, fully synced.
 - Loaded wallet `utxoref-testnet` with enough test sats above the configured reserve floor.
-- Cookie auth under `BTCTEST_DATADIR`, or explicit `BTC_RPC_USER` and `BTC_RPC_PASS`.
+- A dedicated `rpcauth` user in `BTC_RPC_USER` / `BTC_RPC_PASS`, restricted with `rpcwhitelist` to `getblockchaininfo,getbalances,validateaddress,sendtoaddress,gettxout,listtransactions` (see `.env.example`). The service checks the restriction at startup and refuses to run otherwise. Cookie auth grants every RPC method and is refused unless `BETA_ALLOW_COOKIE_RPC=1` is set for a disposable local node.
 
 On this Windows workstation the defaults use `D:\BitcoinTestnet` and RPC port `48332`:
 

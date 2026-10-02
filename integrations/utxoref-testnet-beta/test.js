@@ -9,7 +9,12 @@ const { loadPolicy } = require('./betaPolicy');
 const { StateStore, createInvitations } = require('./betaStore');
 const { createBetaService, requestIp } = require('./betaService');
 const { BitcoinBackend } = require('./bitcoinBackend');
-const { recoverInterruptedRuns } = require('./server');
+const {
+  SERVICE_RPC_METHODS,
+  assertRestrictedRpc,
+  recoverInterruptedRuns,
+  resolveRpcCredentials
+} = require('./server');
 const { stableStringify, sha256Hex } = require('../../bitvm3/utxo_referee/tradelayer_pnl_route_adapter');
 const taprootScript = require('../../bitvm3/utxo_referee/tradelayer_taproot_script');
 const { buildGuardianQuorumVaultManifest } = require('../../bitvm3/utxo_referee/utxoref_v2_guardian_quorum_reserve');
@@ -273,6 +278,25 @@ async function testRateLimitFloodDoesNotLockOut(root) {
   assert.notEqual(second.status, 429, 'guardian heartbeats share the unauthenticated POST limiter');
 }
 
+// BETA-2: the service refuses full-privilege cookie auth and refuses to start
+// with rpcauth credentials that Core does not restrict to its method set.
+async function testRestrictedRpcCredentials(root) {
+  const datadir = path.join(root, 'cookie-datadir');
+  fs.mkdirSync(path.join(datadir, 'testnet4'), { recursive: true });
+  fs.writeFileSync(path.join(datadir, 'testnet4', '.cookie'), '__cookie__:secret');
+  assert.throws(() => resolveRpcCredentials({ BTCTEST_DATADIR: datadir }), /refusing Core cookie authentication/);
+  assert.equal(resolveRpcCredentials({ BTCTEST_DATADIR: datadir, BETA_ALLOW_COOKIE_RPC: '1' }).source, 'cookie');
+  assert.equal(resolveRpcCredentials({ BTC_RPC_USER: 'utxoref-beta', BTC_RPC_PASS: 'pw' }).source, 'rpcauth');
+  assert.throws(() => resolveRpcCredentials({ BTC_RPC_USER: 'utxoref-beta' }), /must be set together/);
+  const restricted = async (method) => {
+    if (!SERVICE_RPC_METHODS.includes(method)) throw new Error(`RPC ${method} returned HTTP 403: `);
+    return {};
+  };
+  assert.equal(await assertRestrictedRpc(restricted), true);
+  await assert.rejects(assertRestrictedRpc(async () => 12345), /not restricted by rpcwhitelist/);
+  await assert.rejects(assertRestrictedRpc(async () => { throw new Error('connect ECONNREFUSED'); }), /could not confirm/);
+}
+
 function guardianFixture(label) {
   const heartbeat = crypto.generateKeyPairSync('ed25519');
   const ecdh = crypto.createECDH('secp256k1');
@@ -488,6 +512,7 @@ async function main() {
     await testBasePath(root);
     await testPersistentRateLimits(root);
     await testRateLimitFloodDoesNotLockOut(root);
+    await testRestrictedRpcCredentials(root);
     await testGuardianQuorum(root);
     await testCrossProcessLock(root);
     await testBitcoinBackendCompatibility();

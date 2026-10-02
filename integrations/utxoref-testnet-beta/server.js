@@ -22,14 +22,45 @@ function readCookie(datadir) {
   return null;
 }
 
-function resolveRpc(env = process.env) {
+// BETA-2: the service calls exactly these Core methods. Its RPC user should be
+// an rpcauth user restricted to them with rpcwhitelist, never the datadir
+// cookie, which grants every method (including wallet export and node stop).
+const SERVICE_RPC_METHODS = Object.freeze([
+  'getblockchaininfo', 'getbalances', 'validateaddress', 'sendtoaddress', 'gettxout', 'listtransactions'
+]);
+
+function resolveRpcCredentials(env = process.env) {
+  if (env.BTC_RPC_USER || env.BTC_RPC_PASS) {
+    if (!env.BTC_RPC_USER || !env.BTC_RPC_PASS) throw new Error('BTC_RPC_USER and BTC_RPC_PASS must be set together');
+    return { rpcUser: env.BTC_RPC_USER, rpcPass: env.BTC_RPC_PASS, source: 'rpcauth' };
+  }
   const datadir = path.resolve(env.BTCTEST_DATADIR || 'D:\\BitcoinTestnet');
   const cookie = readCookie(datadir);
+  if (!cookie) throw new Error('Bitcoin testnet4 RPC credentials are unavailable');
+  if (env.BETA_ALLOW_COOKIE_RPC !== '1') {
+    throw new Error('refusing Core cookie authentication: it grants every RPC method. Configure an rpcauth user ' +
+      `restricted with rpcwhitelist=<user>:${SERVICE_RPC_METHODS.join(',')} and set BTC_RPC_USER/BTC_RPC_PASS, ` +
+      'or set BETA_ALLOW_COOKIE_RPC=1 for a disposable local node');
+  }
+  return { rpcUser: cookie.user, rpcPass: cookie.pass, source: 'cookie' };
+}
+
+function resolveRpc(env = process.env) {
   const rpcUrl = env.BTC_RPC_URL || 'http://127.0.0.1:48332';
-  const rpcUser = env.BTC_RPC_USER || cookie?.user;
-  const rpcPass = env.BTC_RPC_PASS || cookie?.pass;
-  if (!rpcUser || !rpcPass) throw new Error('Bitcoin testnet4 RPC credentials are unavailable');
+  const { rpcUser, rpcPass } = resolveRpcCredentials(env);
   return rpcFactory({ rpcUrl, rpcUser, rpcPass, requestId: 'utxoref-testnet-beta' });
+}
+
+// Startup self-check for rpcauth credentials: a harmless method outside the
+// service's set must be refused by Core (HTTP 403 under rpcwhitelist).
+async function assertRestrictedRpc(rpc) {
+  try {
+    await rpc('uptime');
+  } catch (error) {
+    if (/HTTP 403/.test(error.message)) return true;
+    throw new Error(`could not confirm the RPC user's method whitelist: ${error.message}`);
+  }
+  throw new Error('the configured RPC user is not restricted by rpcwhitelist (uptime was allowed); refusing to start');
 }
 
 function recoverInterruptedRuns(state, recoveredAt = new Date().toISOString()) {
@@ -51,7 +82,9 @@ async function start(env = process.env) {
   }
   const store = new StateStore(policy.statePath);
   await store.transact((state) => recoverInterruptedRuns(state));
-  const bitcoin = new BitcoinBackend(resolveRpc(env), policy.wallet);
+  const rpc = resolveRpc(env);
+  if (resolveRpcCredentials(env).source === 'rpcauth') await assertRestrictedRpc(rpc);
+  const bitcoin = new BitcoinBackend(rpc, policy.wallet);
   const service = createBetaService({ policy, store, bitcoin });
   const server = service.createServer();
   server.listen(policy.port, policy.host, () => {
@@ -80,4 +113,12 @@ if (require.main === module) {
   });
 }
 
-module.exports = { readCookie, resolveRpc, recoverInterruptedRuns, start };
+module.exports = {
+  SERVICE_RPC_METHODS,
+  readCookie,
+  resolveRpcCredentials,
+  resolveRpc,
+  assertRestrictedRpc,
+  recoverInterruptedRuns,
+  start
+};
