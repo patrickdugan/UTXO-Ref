@@ -16,6 +16,10 @@ const {
   verifyBitvmAssertionTemplateV2,
   containsPrivateMaterial,
   computeBitvmAssertionGraphHashV2,
+  computeUnsignedBitvmAssertionGraphHashV2,
+  buildUnsignedBitvmAssertionGraphV2,
+  challengerSignBitvmAssertionGraphV2,
+  operatorSignBitvmAssertionGraphV2,
   finalizeBitvmAssertionGraphV2,
   verifyBitvmAssertionGraphV2,
   buildBitvmDisproveV2,
@@ -392,6 +396,99 @@ test('BVM-1: the funded pre-policy testnet4 graph verifies only when pinned as m
     ...options, legacyUnboundPredicateGraphHashes: [artifact.graph.graphHash]
   });
   assert(monitored.ok && monitored.predicateBound === false, monitored.reason);
+});
+
+// ---- BVM-4: separated challenger ----
+
+function unsignedFixture(values = bits(1, 1, 1)) {
+  const { publicTrace, template, binding } = buildFixture(values);
+  const publicInput = {
+    template,
+    publicTrace,
+    stateEnvelope: STATE_ENVELOPE,
+    stateVerification: STATE_VERIFICATION,
+    assertionOutpoint: {
+      txid: ASSERTION_TXID, vout: 0, amountSats: binding.assertionAmountSats, scriptPubKeyHex: template.p2trScriptPubKey
+    },
+    feeSats: binding.feeSats,
+    recoveryFeeSats: '500',
+    recoveryScriptPubKeyHex: RECOVERY_SPK
+  };
+  return { unsigned: buildUnsignedBitvmAssertionGraphV2(publicInput), template, publicInput };
+}
+
+test('BVM-4: operator and challenger sign in separate steps that exchange only public data', () => {
+  const { unsigned, publicInput } = unsignedFixture();
+  // Only public data crosses between the parties.
+  const wire = JSON.parse(JSON.stringify(unsigned));
+  assert(!containsPrivateMaterial(wire) && !JSON.stringify(wire).includes(OPERATOR_SECRET.toString(16)),
+    'unsigned package carries private material');
+  // The challenger, on its own host: its secret and its own trust configuration.
+  const challengerSignature = challengerSignBitvmAssertionGraphV2(wire, {
+    stateVerification: STATE_VERIFICATION, challengerSecret: CHALLENGER_SECRET, challengerAux: Buffer.alloc(32, 2)
+  });
+  const returned = JSON.parse(JSON.stringify(challengerSignature));
+  assert(Object.keys(returned).sort().join() === 'challengerXonly,kind,sighash,signature,unsignedGraphHash,version',
+    'challenger response carries more than its public signature');
+  // The operator, on its own host.
+  const graph = operatorSignBitvmAssertionGraphV2(wire, returned, {
+    stateVerification: STATE_VERIFICATION, operatorSecret: OPERATOR_SECRET,
+    operatorAux: Buffer.alloc(32, 1), recoveryAux: Buffer.alloc(32, 3)
+  });
+  const check = verifyBitvmAssertionGraphV2(graph, STATE_VERIFICATION);
+  assert(check.ok, check.reason);
+  // Same graph as the single-process convenience path with the same aux.
+  const finalized = finalizeBitvmAssertionGraphV2({
+    ...publicInput,
+    operatorSecret: OPERATOR_SECRET,
+    challengerSecret: CHALLENGER_SECRET,
+    operatorAux: Buffer.alloc(32, 1),
+    challengerAux: Buffer.alloc(32, 2),
+    recoveryAux: Buffer.alloc(32, 3)
+  });
+  assert(graph.graphHash === finalized.graphHash, 'three-step graph differs from finalize');
+});
+
+test('BVM-4: each party recomputes before signing and refuses substituted data', () => {
+  const { unsigned } = unsignedFixture();
+  const sign = (pkg) => challengerSignBitvmAssertionGraphV2(pkg, {
+    stateVerification: STATE_VERIFICATION, challengerSecret: CHALLENGER_SECRET
+  });
+  // The operator redirects a payout and re-hashes the package.
+  const redirected = clone(unsigned);
+  redirected.settlement.unsignedTxHex = redirected.recoveryPath.unsignedTxHex;
+  redirected.unsignedGraphHash = computeUnsignedBitvmAssertionGraphHashV2(redirected);
+  let error = null;
+  try { sign(redirected); } catch (err) { error = err.message; }
+  assert(error && /does not rebuild/.test(error), error || 'challenger signed a redirected settlement');
+  // A claimed sighash that is not the recomputed one.
+  const wrongSighash = clone(unsigned);
+  wrongSighash.settlementPath.sighash = '00'.repeat(32);
+  wrongSighash.unsignedGraphHash = computeUnsignedBitvmAssertionGraphHashV2(wrongSighash);
+  error = null;
+  try { sign(wrongSighash); } catch (err) { error = err.message; }
+  assert(error && /does not rebuild/.test(error), error || 'challenger signed a claimed sighash');
+  // The challenger refuses a trace that already contains fraud unless drilling.
+  const fraudulent = unsignedFixture(bits(1, 1, 0)).unsigned;
+  error = null;
+  try { sign(fraudulent); } catch (err) { error = err.message; }
+  assert(error && /refuses to pre-sign/.test(error), error || 'challenger pre-signed a fraudulent trace');
+  // The operator refuses a challenger signature for another graph or a bad signature.
+  const challengerSignature = sign(unsigned);
+  const other = unsignedFixture().unsigned;
+  const operatorInput = { stateVerification: STATE_VERIFICATION, operatorSecret: OPERATOR_SECRET };
+  const differentAux = buildUnsignedBitvmAssertionGraphV2({
+    template: other.template, publicTrace: other.publicTrace, stateEnvelope: STATE_ENVELOPE,
+    stateVerification: STATE_VERIFICATION, assertionOutpoint: other.assertionOutpoint,
+    feeSats: other.settlement.commitment.core.feeSats, recoveryFeeSats: '600', recoveryScriptPubKeyHex: RECOVERY_SPK
+  });
+  error = null;
+  try { operatorSignBitvmAssertionGraphV2(differentAux, challengerSignature, operatorInput); } catch (err) { error = err.message; }
+  assert(error && /not bound to this unsigned graph/.test(error), error || 'signature for another graph accepted');
+  const forged = { ...challengerSignature, signature: '11'.repeat(64) };
+  error = null;
+  try { operatorSignBitvmAssertionGraphV2(unsigned, forged, operatorInput); } catch (err) { error = err.message; }
+  assert(error && /invalid challenger settlement signature/.test(error), error || 'forged challenger signature accepted');
 });
 
 console.log(`\n${failed ? 'FAIL' : 'PASS'}: ${passed} passed${failed ? `, ${failed} failed` : ''}\n`);

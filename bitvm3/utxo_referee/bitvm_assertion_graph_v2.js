@@ -486,7 +486,42 @@ function containsPrivateMaterial(value) {
   return false;
 }
 
-function finalizeBitvmAssertionGraphV2(input = {}) {
+// BVM-4: graph construction is three steps that exchange only public data,
+// so the challenger can sign on its own host:
+//   1. buildUnsignedBitvmAssertionGraphV2 (operator, no secrets)
+//   2. challengerSignBitvmAssertionGraphV2 (challenger, its secret only)
+//   3. operatorSignBitvmAssertionGraphV2 (operator, its secret only)
+// finalizeBitvmAssertionGraphV2 runs all three in one process and remains
+// for local test ceremonies only.
+const UNSIGNED_GRAPH_KIND = 'utxoref_bitvm_assertion_graph_unsigned_v2';
+const CHALLENGER_SIGNATURE_KIND = 'utxoref_bitvm_challenger_settlement_signature_v2';
+const TAG_UNSIGNED_GRAPH = Buffer.from('UTXOREF_BITVM_ASSERTION_GRAPH_UNSIGNED_V2\0', 'ascii');
+
+function unsignedGraphHash(unsigned) {
+  const { unsignedGraphHash: _ignored, ...body } = unsigned;
+  return taggedObjectHash(TAG_UNSIGNED_GRAPH, body);
+}
+
+function settlementSighashFor(template, assertionOutpoint, unsignedTxHex) {
+  return ts.scriptPathSighash(
+    strictUnsignedTx(unsignedTxHex),
+    [{ amountSats: assertionOutpoint.amountSats, scriptPubKey: assertionOutpoint.scriptPubKeyHex }],
+    0,
+    Buffer.from(leafById(template, 'settlement').leafHash, 'hex')
+  );
+}
+
+function recoverySighashFor(template, assertionOutpoint, unsignedTxHex) {
+  return ts.scriptPathSighash(
+    strictUnsignedTx(unsignedTxHex),
+    [{ amountSats: assertionOutpoint.amountSats, scriptPubKey: assertionOutpoint.scriptPubKeyHex }],
+    0,
+    Buffer.from(leafById(template, 'recovery').leafHash, 'hex')
+  );
+}
+
+function buildUnsignedBitvmAssertionGraphV2(input = {}) {
+  if (containsPrivateMaterial(input)) throw new Error('unsigned graph construction must not receive private material');
   const templateCheck = verifyBitvmAssertionTemplateV2(input.template, input.publicTrace);
   if (!templateCheck.ok) throw new Error(`invalid assertion template: ${templateCheck.reason}`);
   const template = input.template;
@@ -518,35 +553,6 @@ function finalizeBitvmAssertionGraphV2(input = {}) {
   const settlementCheck = verifyUtxoRefSettlementV2(settlement, input.stateVerification);
   if (!settlementCheck.ok) throw new Error(`invalid V2 settlement: ${settlementCheck.reason}`);
 
-  const settlementLeaf = leafById(template, 'settlement');
-  const settlementParsed = strictUnsignedTx(settlement.unsignedTxHex);
-  const settlementSighash = ts.scriptPathSighash(
-    settlementParsed,
-    [{ amountSats: assertionOutpoint.amountSats, scriptPubKey: assertionOutpoint.scriptPubKeyHex }],
-    0,
-    Buffer.from(settlementLeaf.leafHash, 'hex')
-  );
-  const operatorSignature = signForXonly(
-    input.operatorSecret,
-    template.operatorXonly,
-    'operatorSecret',
-    settlementSighash,
-    input.operatorAux
-  );
-  const challengerSignature = signForXonly(
-    input.challengerSecret,
-    template.challengerXonly,
-    'challengerSecret',
-    settlementSighash,
-    input.challengerAux
-  );
-  const settlementWitness = [
-    challengerSignature,
-    operatorSignature,
-    settlementLeaf.scriptHex,
-    settlementLeaf.controlBlock
-  ];
-
   const recoveryFeeSats = toU64(input.recoveryFeeSats ?? binding.feeSats, 'recoveryFeeSats');
   const recoveryValueSats = BigInt(assertionOutpoint.amountSats) - recoveryFeeSats;
   if (recoveryValueSats < MIN_PAYOUT_SATS) throw new Error('emergency recovery output is below the V2 dust floor');
@@ -555,25 +561,9 @@ function finalizeBitvmAssertionGraphV2(input = {}) {
     outpoint: tr.outpoint(assertionOutpoint.txid, assertionOutpoint.vout),
     sequence: template.recoveryCsvBlocks
   }], [{ valueSats: recoveryValueSats, script: recoveryScriptPubKeyHex }], 0);
-  const recoveryLeaf = leafById(template, 'recovery');
-  const recoveryParsed = strictUnsignedTx(recoveryUnsignedTxHex);
-  const recoverySighash = ts.scriptPathSighash(
-    recoveryParsed,
-    [{ amountSats: assertionOutpoint.amountSats, scriptPubKey: assertionOutpoint.scriptPubKeyHex }],
-    0,
-    Buffer.from(recoveryLeaf.leafHash, 'hex')
-  );
-  const recoverySignature = signForXonly(
-    input.operatorSecret,
-    template.operatorXonly,
-    'operatorSecret',
-    recoverySighash,
-    input.recoveryAux
-  );
-  const recoveryWitness = [recoverySignature, recoveryLeaf.scriptHex, recoveryLeaf.controlBlock];
 
-  const unsignedGraph = {
-    kind: 'utxoref_bitvm_assertion_graph_v2',
+  const unsigned = {
+    kind: UNSIGNED_GRAPH_KIND,
     version: VERSION,
     publicTrace: input.publicTrace,
     template,
@@ -581,27 +571,164 @@ function finalizeBitvmAssertionGraphV2(input = {}) {
     settlement,
     settlementPath: {
       kind: 'cooperative-settlement-csv-v2',
+      leafId: 'settlement',
+      sighash: settlementSighashFor(template, assertionOutpoint, settlement.unsignedTxHex).toString('hex')
+    },
+    recoveryPath: {
+      kind: 'emergency-recovery-csv-v2',
+      leafId: 'recovery',
+      recoveryFeeSats: recoveryFeeSats.toString(),
+      recoveryScriptPubKeyHex,
+      unsignedTxHex: recoveryUnsignedTxHex,
+      sighash: recoverySighashFor(template, assertionOutpoint, recoveryUnsignedTxHex).toString('hex')
+    }
+  };
+  if (containsPrivateMaterial(unsigned)) throw new Error('unsigned graph package contains private material');
+  return { ...unsigned, unsignedGraphHash: unsignedGraphHash(unsigned) };
+}
+
+// Every check a party makes before signing, from public data and its own
+// trust configuration only. Nothing here is taken from the other party's word:
+// the template, settlement and sighashes are all recomputed.
+function verifyUnsignedBitvmAssertionGraphV2(unsigned, stateVerification) {
+  if (!unsigned || unsigned.kind !== UNSIGNED_GRAPH_KIND || unsigned.version !== VERSION) {
+    throw new Error('wrong unsigned assertion graph kind or version');
+  }
+  if (containsPrivateMaterial(unsigned)) throw new Error('unsigned graph package leaks private material');
+  if (unsigned.unsignedGraphHash !== unsignedGraphHash(unsigned)) throw new Error('unsigned graph hash mismatch');
+  const rebuilt = buildUnsignedBitvmAssertionGraphV2({
+    template: unsigned.template,
+    publicTrace: unsigned.publicTrace,
+    stateEnvelope: unsigned.settlement.stateEnvelope,
+    stateVerification,
+    assertionOutpoint: unsigned.assertionOutpoint,
+    feeSats: unsigned.settlement.commitment?.core?.feeSats,
+    recoveryFeeSats: unsigned.recoveryPath.recoveryFeeSats,
+    recoveryScriptPubKeyHex: unsigned.recoveryPath.recoveryScriptPubKeyHex
+  });
+  compareExact(rebuilt, unsigned, 'unsigned graph does not rebuild from its public inputs and the signed state');
+  return rebuilt;
+}
+
+// Step 2, run by the challenger on its own host. By default an honest
+// challenger refuses to pre-sign a trace that already contains fraud; fraud
+// drills pass allowFraudulentTrace explicitly.
+function challengerSignBitvmAssertionGraphV2(unsigned, input = {}) {
+  const verified = verifyUnsignedBitvmAssertionGraphV2(unsigned, input.stateVerification);
+  const trace = verifyPublicTraceV2(verified.publicTrace);
+  if (!trace.ok) throw new Error(`invalid public trace: ${trace.reason}`);
+  const probe = { publicTrace: verified.publicTrace, template: verified.template };
+  const frauds = trace.frauds.length + bindingFraudsV2(probe).input + bindingFraudsV2(probe).output;
+  if (frauds > 0 && input.allowFraudulentTrace !== true) {
+    throw new Error('challenger refuses to pre-sign a trace that contains a provable fraud');
+  }
+  const sighash = Buffer.from(verified.settlementPath.sighash, 'hex');
+  return {
+    kind: CHALLENGER_SIGNATURE_KIND,
+    version: VERSION,
+    unsignedGraphHash: verified.unsignedGraphHash,
+    challengerXonly: verified.template.challengerXonly,
+    sighash: verified.settlementPath.sighash,
+    signature: signForXonly(
+      input.challengerSecret,
+      verified.template.challengerXonly,
+      'challengerSecret',
+      sighash,
+      input.challengerAux
+    )
+  };
+}
+
+// Step 3, run by the operator: verifies the challenger's signature over the
+// recomputed settlement sighash, then signs settlement and recovery.
+function operatorSignBitvmAssertionGraphV2(unsigned, challengerSignature, input = {}) {
+  const verified = verifyUnsignedBitvmAssertionGraphV2(unsigned, input.stateVerification);
+  if (!challengerSignature || challengerSignature.kind !== CHALLENGER_SIGNATURE_KIND ||
+      challengerSignature.version !== VERSION ||
+      challengerSignature.unsignedGraphHash !== verified.unsignedGraphHash ||
+      challengerSignature.challengerXonly !== verified.template.challengerXonly ||
+      challengerSignature.sighash !== verified.settlementPath.sighash) {
+    throw new Error('challenger signature is not bound to this unsigned graph');
+  }
+  const settlementSighash = Buffer.from(verified.settlementPath.sighash, 'hex');
+  const challengerSignatureHex = assertHex(challengerSignature.signature, 64, 'challengerSignature');
+  if (!a.schnorrVerify(
+    Buffer.from(verified.template.challengerXonly, 'hex'),
+    settlementSighash,
+    Buffer.from(challengerSignatureHex, 'hex')
+  )) throw new Error('invalid challenger settlement signature');
+  const operatorSignature = signForXonly(
+    input.operatorSecret,
+    verified.template.operatorXonly,
+    'operatorSecret',
+    settlementSighash,
+    input.operatorAux
+  );
+  const settlementLeaf = leafById(verified.template, 'settlement');
+  const settlementWitness = [
+    challengerSignatureHex,
+    operatorSignature,
+    settlementLeaf.scriptHex,
+    settlementLeaf.controlBlock
+  ];
+  const recoveryLeaf = leafById(verified.template, 'recovery');
+  const recoverySignature = signForXonly(
+    input.operatorSecret,
+    verified.template.operatorXonly,
+    'operatorSecret',
+    Buffer.from(verified.recoveryPath.sighash, 'hex'),
+    input.recoveryAux
+  );
+  const recoveryWitness = [recoverySignature, recoveryLeaf.scriptHex, recoveryLeaf.controlBlock];
+
+  const graphBody = {
+    kind: 'utxoref_bitvm_assertion_graph_v2',
+    version: VERSION,
+    publicTrace: verified.publicTrace,
+    template: verified.template,
+    assertionOutpoint: verified.assertionOutpoint,
+    settlement: verified.settlement,
+    settlementPath: {
+      kind: 'cooperative-settlement-csv-v2',
       leafId: settlementLeaf.id,
-      sighash: settlementSighash.toString('hex'),
+      sighash: verified.settlementPath.sighash,
       operatorSignature,
-      challengerSignature,
+      challengerSignature: challengerSignatureHex,
       witness: settlementWitness,
-      witnessTxHex: witnessTxFromUnsigned(settlement.unsignedTxHex, settlementWitness)
+      witnessTxHex: witnessTxFromUnsigned(verified.settlement.unsignedTxHex, settlementWitness)
     },
     recoveryPath: {
       kind: 'emergency-recovery-csv-v2',
       leafId: recoveryLeaf.id,
-      recoveryFeeSats: recoveryFeeSats.toString(),
-      recoveryScriptPubKeyHex,
-      unsignedTxHex: recoveryUnsignedTxHex,
-      sighash: recoverySighash.toString('hex'),
+      recoveryFeeSats: verified.recoveryPath.recoveryFeeSats,
+      recoveryScriptPubKeyHex: verified.recoveryPath.recoveryScriptPubKeyHex,
+      unsignedTxHex: verified.recoveryPath.unsignedTxHex,
+      sighash: verified.recoveryPath.sighash,
       operatorSignature: recoverySignature,
       witness: recoveryWitness,
-      witnessTxHex: witnessTxFromUnsigned(recoveryUnsignedTxHex, recoveryWitness)
+      witnessTxHex: witnessTxFromUnsigned(verified.recoveryPath.unsignedTxHex, recoveryWitness)
     }
   };
-  if (containsPrivateMaterial(unsignedGraph)) throw new Error('graph package contains private material');
-  return { ...unsignedGraph, graphHash: graphHash(unsignedGraph) };
+  if (containsPrivateMaterial(graphBody)) throw new Error('graph package contains private material');
+  return { ...graphBody, graphHash: graphHash(graphBody) };
+}
+
+// Local test ceremonies only: both secrets in one process.
+function finalizeBitvmAssertionGraphV2(input = {}) {
+  const { operatorSecret, challengerSecret, operatorAux, challengerAux, recoveryAux, ...publicInput } = input;
+  const unsigned = buildUnsignedBitvmAssertionGraphV2(publicInput);
+  const challengerSignature = challengerSignBitvmAssertionGraphV2(unsigned, {
+    stateVerification: input.stateVerification,
+    challengerSecret,
+    challengerAux,
+    allowFraudulentTrace: true
+  });
+  return operatorSignBitvmAssertionGraphV2(unsigned, challengerSignature, {
+    stateVerification: input.stateVerification,
+    operatorSecret,
+    operatorAux,
+    recoveryAux
+  });
 }
 
 function compareExact(actual, expected, reason) {
@@ -902,6 +1029,11 @@ module.exports = {
   verifyBitvmAssertionTemplateV2,
   containsPrivateMaterial,
   computeBitvmAssertionGraphHashV2: graphHash,
+  computeUnsignedBitvmAssertionGraphHashV2: unsignedGraphHash,
+  buildUnsignedBitvmAssertionGraphV2,
+  verifyUnsignedBitvmAssertionGraphV2,
+  challengerSignBitvmAssertionGraphV2,
+  operatorSignBitvmAssertionGraphV2,
   finalizeBitvmAssertionGraphV2,
   verifyBitvmAssertionGraphV2,
   buildBitvmDisproveV2,
