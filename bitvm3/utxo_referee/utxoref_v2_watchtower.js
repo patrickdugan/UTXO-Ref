@@ -11,7 +11,9 @@ const {
   findInputBindingDisproveV2
 } = require('./bitvm_trace_v2');
 const {
+  LEGACY_PREDICATE_POLICY,
   buildBitvmDisproveV2,
+  findOutputBindingDisproveV2,
   verifyBitvmAssertionGraphV2
 } = require('./bitvm_assertion_graph_v2');
 const { txidFromUnsignedHex } = require('./recover_btc_testnet4_reserve_vault');
@@ -156,6 +158,11 @@ function trustBindingForArtifact(artifact, trustPolicy) {
     }
     feeReservePolicy = { reserveHash, minimumFeeReserveSats };
   }
+  // BVM-1: a graph funded before the bound-predicate policy is monitored only
+  // when its pinned entry says so explicitly; it is reported as unbound.
+  if (graphPolicy.predicatePolicy !== undefined && graphPolicy.predicatePolicy !== LEGACY_PREDICATE_POLICY) {
+    throw new Error('graph predicate policy is invalid');
+  }
   return {
     network,
     genesisHash,
@@ -163,7 +170,8 @@ function trustBindingForArtifact(artifact, trustPolicy) {
     signerKeyId,
     publicKey,
     policyId: trustPolicy.policyId || null,
-    feeReservePolicy
+    feeReservePolicy,
+    legacyUnboundPredicate: graphPolicy.predicatePolicy === LEGACY_PREDICATE_POLICY
   };
 }
 
@@ -179,7 +187,8 @@ function verificationOptions(artifact, trustPolicy, options = {}) {
   const base = {
     trustedSigners: { [trust.signerKeyId]: trust.publicKey },
     expectedNetwork: trust.network,
-    expectedGenesisHash: trust.genesisHash
+    expectedGenesisHash: trust.genesisHash,
+    legacyUnboundPredicateGraphHashes: trust.legacyUnboundPredicate ? [trust.graphHash] : []
   };
   if (options.enforceStateAge === false) return base;
   return {
@@ -255,9 +264,11 @@ function inspectArtifact(artifact, trustPolicy, inspectOptions = {}) {
     artifact.graph.template.expectedInputs,
     artifact.graph.template.challengerXonly
   );
-  const evidence = gateEvidence || inputEvidence;
+  const outputEvidence = findOutputBindingDisproveV2(artifact.graph);
+  const evidence = gateEvidence || inputEvidence || outputEvidence;
   return {
     graphHash: artifact.graph.graphHash,
+    predicateBound: verification.predicateBound,
     authorizationHeight: authorization.height,
     authorizationBlockHash: authorization.blockHash,
     authorizationSource: authorization.source || 'broadcast',
@@ -271,7 +282,7 @@ function inspectArtifact(artifact, trustPolicy, inspectOptions = {}) {
     recoveryCsvBlocks: artifact.graph.template.recoveryCsvBlocks,
     verification,
     fraudDetected: Boolean(evidence),
-    fraudType: gateEvidence ? 'gate' : inputEvidence ? 'input' : null,
+    fraudType: gateEvidence ? 'gate' : inputEvidence ? 'input' : outputEvidence ? 'output' : null,
     evidence
   };
 }

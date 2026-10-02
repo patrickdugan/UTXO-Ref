@@ -44,7 +44,14 @@ const OPERATOR_SECRET = 0x12345n;
 const CHALLENGER_SECRET = 0x67890n;
 const OPERATOR_XONLY = a.xOnlyPubkey(OPERATOR_SECRET).toString('hex');
 const CHALLENGER_XONLY = a.xOnlyPubkey(CHALLENGER_SECRET).toString('hex');
-const GATES = [{ type: 'and', inputs: ['a', 'b'], output: 'c' }];
+// Live circuit shape: both primary inputs are facts the verifier derives
+// from the signed state (BVM-1), and the terminal output must be 1.
+const IN_STATE = 'state_checkpoint_valid';
+const IN_PAYOUT = 'payout_vector_exact';
+const OUT = 'settlement_authorized';
+const GATES = [{ type: 'and', inputs: [IN_STATE, IN_PAYOUT], output: OUT }];
+const bits = (state, payout, out) => ({ [IN_STATE]: state, [IN_PAYOUT]: payout, [OUT]: out });
+const DERIVED = { [IN_STATE]: 1, [IN_PAYOUT]: 1 };
 
 const BODY = {
   network: NETWORK,
@@ -79,20 +86,23 @@ const STATE_VERIFICATION = {
   currentHeight: 1002
 };
 
-function buildFixture(values = { a: 1, b: 1, c: 1 }, expectedInputs = { a: 1, b: 1 }) {
+function buildFixture(values = bits(1, 1, 1), expectedInputs = DERIVED, options = {}) {
   const binding = buildSettlementTraceBindingV2({ stateEnvelope: STATE_ENVELOPE, feeSats: '1000' });
-  const wireBundle = buildWireSecretSetV2(['a', 'b', 'c']);
+  const gates = options.gates || GATES;
+  const labels = [...new Set(gates.flatMap((gate) => [...gate.inputs, gate.output]))];
+  const wireBundle = buildWireSecretSetV2(labels);
   const publicTrace = buildPublicTraceV2({
     circuitId: 'utxoref-settlement-and-v2',
     binding,
-    gates: GATES,
+    gates,
     wireBundle,
     values
   });
   const template = buildBitvmAssertionTemplateV2({
     network: NETWORK,
     publicTrace,
-    expectedInputs,
+    // null: let the builder derive every expected input.
+    ...(expectedInputs === null ? {} : { expectedInputs }),
     operatorXonly: OPERATOR_XONLY,
     challengerXonly: CHALLENGER_XONLY,
     challengeCsvBlocks: 6,
@@ -134,7 +144,7 @@ test('assertion output uses only the deterministic NUMS internal key', () => {
     buildBitvmAssertionTemplateV2({
       network: NETWORK,
       publicTrace,
-      expectedInputs: { a: 1, b: 1 },
+      expectedInputs: DERIVED,
       operatorXonly: OPERATOR_XONLY,
       challengerXonly: CHALLENGER_XONLY,
       challengeCsvBlocks: 6,
@@ -154,13 +164,13 @@ test('assertion template binds every primary circuit input', () => {
     buildBitvmAssertionTemplateV2({
       network: NETWORK,
       publicTrace,
-      expectedInputs: { a: 1 },
+      expectedInputs: { [IN_STATE]: 1 },
       operatorXonly: OPERATOR_XONLY,
       challengerXonly: CHALLENGER_XONLY,
       challengeCsvBlocks: 6,
       recoveryCsvBlocks: 144
     });
-  } catch (err) { rejected = /exactly match/.test(err.message); }
+  } catch (err) { rejected = /verifier derives from the signed state/.test(err.message); }
   assert(rejected);
 });
 
@@ -172,7 +182,7 @@ test('the P2TR tree itself commits the signed-state trace binding', () => {
   const changedTemplate = buildBitvmAssertionTemplateV2({
     network: NETWORK,
     publicTrace: changedTrace,
-    expectedInputs: { a: 1, b: 1 },
+    expectedInputs: DERIVED,
     operatorXonly: OPERATOR_XONLY,
     challengerXonly: CHALLENGER_XONLY,
     challengeCsvBlocks: 6,
@@ -233,9 +243,11 @@ test('recomputed graph hash cannot authorize a missing co-signature or redirecte
 });
 
 test('fraudulent gate trace creates an immediate committed disprove spend', () => {
-  const { graph } = buildFixture({ a: 1, b: 1, c: 0 });
+  const { graph } = buildFixture(bits(1, 1, 0));
   const graphCheck = verifyBitvmAssertionGraphV2(graph, STATE_VERIFICATION);
-  assert(graphCheck.ok && graphCheck.fraudCount === 1, graphCheck.reason);
+  // AND(1,1) revealed as 0 is a gate fraud and also a terminal-output fraud.
+  assert(graphCheck.ok && graphCheck.gateFraudCount === 1 && graphCheck.outputBindingFraudCount === 1 &&
+    graphCheck.fraudCount === 2, graphCheck.reason);
   const disprove = buildBitvmDisproveV2(graph, {
     stateVerification: STATE_VERIFICATION,
     challengerSecret: CHALLENGER_SECRET,
@@ -249,7 +261,7 @@ test('fraudulent gate trace creates an immediate committed disprove spend', () =
 });
 
 test('wrong public input creates an input-binding disprove spend', () => {
-  const { graph } = buildFixture({ a: 0, b: 1, c: 0 }, { a: 1, b: 1 });
+  const { graph } = buildFixture(bits(0, 1, 0), DERIVED);
   const disprove = buildBitvmDisproveV2(graph, {
     stateVerification: STATE_VERIFICATION,
     fraudType: 'input',
@@ -276,6 +288,94 @@ test('an honest trace exposes no spendable disprove witness', () => {
     rejected = /no constructible fraud proof/.test(err.message);
   }
   assert(rejected, 'honest trace must not produce a disprove spend');
+});
+
+// ---- BVM-1 / BVM-3 (port of readiness-assessment poc4) ----
+
+test('BVM-1: a template cannot name its own input constants', () => {
+  // The poc: trace says the state checkpoint is invalid and settlement is not
+  // authorized, with expectedInputs chosen to match. The template is refused.
+  let error = null;
+  try { buildFixture(bits(0, 1, 0), { [IN_STATE]: 0, [IN_PAYOUT]: 1 }); } catch (err) { error = err.message; }
+  assert(error && /verifier derives from the signed state/.test(error), error || 'template accepted chosen constants');
+  let unknown = null;
+  try {
+    buildFixture({ a: 1, b: 1, c: 1 }, null, { gates: [{ type: 'and', inputs: ['a', 'b'], output: 'c' }] });
+  } catch (err) { unknown = err.message; }
+  assert(unknown && /no verifier-derived value/.test(unknown), unknown || 'unbound input accepted');
+});
+
+test('BVM-1: the same trace with derived inputs is challengeable on the input and on the terminal output', () => {
+  const { graph, template } = buildFixture(bits(0, 1, 0));
+  assert(template.predicatePolicy === 'verifier-derived-inputs-terminal-one-v1' && template.terminalOutput === OUT);
+  assert(template.leaves.some((leaf) => leaf.id === `output:${OUT}:0`), 'no disprove leaf for a 0 terminal reveal');
+  const check = verifyBitvmAssertionGraphV2(graph, STATE_VERIFICATION);
+  assert(check.ok && check.predicateBound === true && check.terminalOutputBit === 0, check.reason);
+  assert(check.inputBindingFraudCount === 1 && check.outputBindingFraudCount === 1 && check.fraudCount === 2,
+    JSON.stringify(check));
+  for (const fraudType of ['input', 'output']) {
+    const disprove = buildBitvmDisproveV2(graph, {
+      stateVerification: STATE_VERIFICATION, fraudType, challengerSecret: CHALLENGER_SECRET,
+      feeSats: '400', challengeScriptPubKeyHex: CHALLENGE_SPK
+    });
+    const result = verifyBitvmDisproveV2(graph, disprove, STATE_VERIFICATION);
+    assert(result.ok && result.fraudType === fraudType, result.reason);
+  }
+});
+
+test('BVM-1: a circuit over signed-state bits that honestly computes 0 is disprovable at the terminal output', () => {
+  const binding = buildSettlementTraceBindingV2({ stateEnvelope: STATE_ENVELOPE, feeSats: '1000' });
+  const hashBits = [...Buffer.from(binding.stateCheckpointHash, 'hex')]
+    .flatMap((byte) => [7, 6, 5, 4, 3, 2, 1, 0].map((shift) => (byte >> shift) & 1));
+  const zeroIndex = hashBits.indexOf(0);
+  const hashLabel = `state_hash_bit_${zeroIndex}`;
+  const gates = [{ type: 'and', inputs: [IN_STATE, hashLabel], output: OUT }];
+  const values = { [IN_STATE]: 1, [hashLabel]: 0, [OUT]: 0 };
+  const { graph } = buildFixture(values, null, { gates });
+  const check = verifyBitvmAssertionGraphV2(graph, STATE_VERIFICATION);
+  assert(check.ok && check.gateFraudCount === 0 && check.inputBindingFraudCount === 0 &&
+    check.outputBindingFraudCount === 1, JSON.stringify(check));
+  const disprove = buildBitvmDisproveV2(graph, {
+    stateVerification: STATE_VERIFICATION, challengerSecret: CHALLENGER_SECRET,
+    feeSats: '400', challengeScriptPubKeyHex: CHALLENGE_SPK
+  });
+  assert(disprove.fraudType === 'output' && verifyBitvmDisproveV2(graph, disprove, STATE_VERIFICATION).ok);
+  // Lying about the signed-state bit is an input-binding fraud.
+  const lie = buildFixture({ [IN_STATE]: 1, [hashLabel]: 1, [OUT]: 1 }, null, { gates });
+  const lieCheck = verifyBitvmAssertionGraphV2(lie.graph, STATE_VERIFICATION);
+  assert(lieCheck.ok && lieCheck.inputBindingFraudCount === 1 && lieCheck.outputBindingFraudCount === 0,
+    JSON.stringify(lieCheck));
+});
+
+
+test('BVM-1: the funded pre-policy testnet4 graph verifies only when pinned as monitor-only', () => {
+  // The checked-in testnet4 artifact was funded before the bound-predicate
+  // policy: its expected inputs are template constants and it has no
+  // terminal-output leaf. It is refused by default and accepted, as
+  // predicateBound: false, only for its own pinned hash.
+  const fs = require('fs');
+  const path = require('path');
+  const live = path.join(__dirname, 'artifacts', 'live');
+  const artifact = JSON.parse(fs.readFileSync(path.join(live, 'btc_testnet4_utxoref_v2_latest.json'), 'utf8'));
+  const policy = JSON.parse(fs.readFileSync(path.join(live, 'utxoref_v2_watchtower_trust_policy.json'), 'utf8'));
+  const graphPolicy = policy.allowedGraphs[artifact.graph.graphHash];
+  assert(graphPolicy && graphPolicy.predicatePolicy === 'legacy-unbound-v2-monitor-only', 'live graph is not pinned as legacy');
+  const options = {
+    trustedSigners: { [graphPolicy.signerKeyId]: crypto.createPublicKey(policy.trustedSigners[graphPolicy.signerKeyId]) },
+    expectedNetwork: policy.network,
+    expectedGenesisHash: policy.genesisHash
+  };
+  assert(artifact.graph.template.predicatePolicy === undefined, 'live artifact unexpectedly carries a predicate policy');
+  const refused = verifyBitvmAssertionGraphV2(artifact.graph, options);
+  assert(!refused.ok && /predates the bound-predicate policy/.test(refused.reason), refused.reason);
+  const otherHash = verifyBitvmAssertionGraphV2(artifact.graph, {
+    ...options, legacyUnboundPredicateGraphHashes: ['00'.repeat(32)]
+  });
+  assert(!otherHash.ok, 'legacy exception applied to an unlisted graph');
+  const monitored = verifyBitvmAssertionGraphV2(artifact.graph, {
+    ...options, legacyUnboundPredicateGraphHashes: [artifact.graph.graphHash]
+  });
+  assert(monitored.ok && monitored.predicateBound === false, monitored.reason);
 });
 
 console.log(`\n${failed ? 'FAIL' : 'PASS'}: ${passed} passed${failed ? `, ${failed} failed` : ''}\n`);

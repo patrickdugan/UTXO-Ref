@@ -364,11 +364,11 @@ async function stage(runtime, args) {
     wireBundle,
     values: traceMode.values
   });
-  const expectedInputs = { state_checkpoint_valid: 1, payout_vector_exact: 1 };
+  // BVM-1: expected inputs are derived by the template builder from the
+  // signed-state binding; the terminal output gets its own disprove leaf.
   const template = buildBitvmAssertionTemplateV2({
     network: 'bitcoin-testnet4',
     publicTrace,
-    expectedInputs,
     operatorXonly: keys.operatorXonly,
     challengerXonly: keys.challengerXonly,
     challengeCsvBlocks,

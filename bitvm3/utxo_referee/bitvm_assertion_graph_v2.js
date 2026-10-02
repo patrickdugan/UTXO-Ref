@@ -35,6 +35,27 @@ const TAG_TEMPLATE = Buffer.from('UTXOREF_BITVM_ASSERTION_TEMPLATE_V2\0', 'ascii
 const TAG_GRAPH = Buffer.from('UTXOREF_BITVM_ASSERTION_GRAPH_V2\0', 'ascii');
 const NUMS_DOMAIN = 'UTXORef BitVM assertion NUMS internal key v2';
 
+// BVM-1: a template's predicate must be bound to the signed state. Every
+// primary input's expected bit is derived by the verifier (never chosen by
+// the template), and the terminal output must be 1, with a disprove leaf that
+// the challenger can use if the trace reveals 0.
+const PREDICATE_POLICY = 'verifier-derived-inputs-terminal-one-v1';
+// Graphs funded before this policy carry no predicatePolicy. They verify only
+// when the caller's pinned trust policy names the graph hash (monitoring an
+// already-funded output); they are reported with predicateBound: false.
+const LEGACY_PREDICATE_POLICY = 'legacy-unbound-v2-monitor-only';
+// Facts the verifier itself establishes before a graph can verify: the signed
+// checkpoint verifies under a pinned signer, and the settlement outputs equal
+// the payouts derived from it. Their expected value is therefore 1.
+const VERIFIED_FACT_INPUTS = Object.freeze({
+  state_checkpoint_valid: 'signed state checkpoint verifies under a pinned signer',
+  payout_vector_exact: 'settlement outputs equal the payouts derived from the signed state'
+});
+const BINDING_HASH_INPUTS = Object.freeze({
+  state_hash: 'stateCheckpointHash',
+  outputs_hash: 'outputsHash'
+});
+
 function sha256(value) {
   return crypto.createHash('sha256').update(value).digest();
 }
@@ -144,11 +165,45 @@ function normalizeExpectedInputs(value) {
   return normalized;
 }
 
+// The expected bit of every primary input, derived from the signed-state
+// binding. Supported inputs: the verified facts above, and
+// state_hash_bit_<0..255>, outputs_hash_bit_<0..255> (most significant bit
+// first) and payout_total_bit_<0..63> (least significant bit first).
+function deriveExpectedInputsV2(primaryInputs, binding) {
+  const derived = {};
+  for (const label of [...primaryInputs].sort((left, right) => left.localeCompare(right))) {
+    if (Object.prototype.hasOwnProperty.call(VERIFIED_FACT_INPUTS, label)) {
+      derived[label] = 1;
+      continue;
+    }
+    const hashBit = /^(state_hash|outputs_hash)_bit_(\d{1,3})$/.exec(label);
+    if (hashBit && Number(hashBit[2]) < 256) {
+      const hex = assertHex(binding?.[BINDING_HASH_INPUTS[hashBit[1]]], 32, `binding.${BINDING_HASH_INPUTS[hashBit[1]]}`);
+      const index = Number(hashBit[2]);
+      derived[label] = (Buffer.from(hex, 'hex')[Math.floor(index / 8)] >> (7 - (index % 8))) & 1;
+      continue;
+    }
+    const totalBit = /^payout_total_bit_(\d{1,2})$/.exec(label);
+    if (totalBit && Number(totalBit[1]) < 64) {
+      derived[label] = Number((toU64(binding?.payoutTotalSats, 'binding.payoutTotalSats') >> BigInt(totalBit[1])) & 1n);
+      continue;
+    }
+    throw new Error(`primary input ${label} has no verifier-derived value; bind every input to the signed state`);
+  }
+  return derived;
+}
+
+function buildOutputBindingLeavesV2(terminalOutput, publicWires, challengerXonly) {
+  return buildInputBindingLeavesV2({ [terminalOutput]: 1 }, publicWires, challengerXonly)
+    .map((leaf) => ({ ...leaf, kind: 'output-binding-disprove-v2' }));
+}
+
 function leafId(leaf, index) {
   if (leaf.kind === 'gate-disprove-v2') {
     return `gate:${leaf.gateIndex}:${leaf.row.inputs.join('')}:${leaf.row.output}`;
   }
   if (leaf.kind === 'input-binding-disprove-v2') return `input:${leaf.label}:${leaf.wrongBit}`;
+  if (leaf.kind === 'output-binding-disprove-v2') return `output:${leaf.label}:${leaf.wrongBit}`;
   if (leaf.kind === 'trace-root-commitment-v2') return 'trace-commitment';
   if (leaf.kind === 'cooperative-settlement-csv-v2') return 'settlement';
   if (leaf.kind === 'emergency-recovery-csv-v2') return 'recovery';
@@ -186,16 +241,26 @@ function buildBitvmAssertionTemplateV2(input = {}) {
   const operatorXonly = assertXonly(input.operatorXonly, 'operatorXonly');
   const challengerXonly = assertXonly(input.challengerXonly, 'challengerXonly');
   if (operatorXonly === challengerXonly) throw new Error('operator and challenger keys must differ');
+  const legacyUnboundPredicate = input.legacyUnboundPredicate === true;
   const challengeCsvBlocks = csvSequence(input.challengeCsvBlocks ?? DEFAULT_CHALLENGE_CSV_BLOCKS);
   const recoveryCsvBlocks = csvSequence(input.recoveryCsvBlocks ?? DEFAULT_RECOVERY_CSV_BLOCKS);
   if (recoveryCsvBlocks <= challengeCsvBlocks) {
     throw new Error('recoveryCsvBlocks must exceed challengeCsvBlocks');
   }
-  const expectedInputs = normalizeExpectedInputs(input.expectedInputs);
   const circuit = validateCircuitStructure(input.publicTrace.gates, input.publicTrace.publicWires);
-  const expectedLabels = Object.keys(expectedInputs).sort();
-  if (canonicalStringify(expectedLabels) !== canonicalStringify(circuit.primaryInputs)) {
-    throw new Error('expected input bindings must exactly match the circuit primary inputs');
+  let expectedInputs;
+  if (legacyUnboundPredicate) {
+    expectedInputs = normalizeExpectedInputs(input.expectedInputs);
+    const expectedLabels = Object.keys(expectedInputs).sort();
+    if (canonicalStringify(expectedLabels) !== canonicalStringify(circuit.primaryInputs)) {
+      throw new Error('expected input bindings must exactly match the circuit primary inputs');
+    }
+  } else {
+    expectedInputs = deriveExpectedInputsV2(circuit.primaryInputs, input.publicTrace.binding);
+    if (input.expectedInputs !== undefined &&
+        canonicalStringify(normalizeExpectedInputs(input.expectedInputs)) !== canonicalStringify(expectedInputs)) {
+      throw new Error('expected inputs must equal the values the verifier derives from the signed state');
+    }
   }
   const derivedInternalXonly = deriveAssertionNumsXonly(network);
   if (input.internalXonly && assertHex(input.internalXonly, 32, 'internalXonly') !== derivedInternalXonly) {
@@ -213,6 +278,11 @@ function buildBitvmAssertionTemplateV2(input = {}) {
     input.publicTrace.publicWires,
     challengerXonly
   );
+  const outputLeaves = legacyUnboundPredicate ? [] : buildOutputBindingLeavesV2(
+    circuit.terminalOutput,
+    input.publicTrace.publicWires,
+    challengerXonly
+  );
   const settlementScript = buildCooperativeSettlementLeafScript(
     operatorXonly,
     challengerXonly,
@@ -223,6 +293,7 @@ function buildBitvmAssertionTemplateV2(input = {}) {
   const drafts = [
     ...gateLeaves,
     ...inputLeaves,
+    ...outputLeaves,
     { kind: 'trace-root-commitment-v2', scriptHex: traceCommitmentScript },
     { kind: 'cooperative-settlement-csv-v2', scriptHex: settlementScript },
     { kind: 'emergency-recovery-csv-v2', scriptHex: recoveryScript }
@@ -257,13 +328,34 @@ function buildBitvmAssertionTemplateV2(input = {}) {
     traceCommitmentLeafCount: 1,
     leaves
   };
+  if (!legacyUnboundPredicate) {
+    // Bound-predicate templates record the policy and the terminal binding;
+    // legacy templates keep their original field set so their hashes rebuild.
+    core.predicatePolicy = PREDICATE_POLICY;
+    core.terminalOutput = circuit.terminalOutput;
+    core.outputDisproveLeafCount = outputLeaves.length;
+  }
   return { ...core, templateHash: taggedObjectHash(TAG_TEMPLATE, core) };
 }
 
-function verifyBitvmAssertionTemplateV2(template, publicTrace) {
+// options.allowLegacyUnboundPredicate: accept a template that predates the
+// bound-predicate policy. Only verifyBitvmAssertionGraphV2 sets it, and only
+// for a graph hash the caller's pinned trust policy names.
+function verifyBitvmAssertionTemplateV2(template, publicTrace, options = {}) {
   try {
     if (!template || template.kind !== 'utxoref_bitvm_assertion_template_v2' || template.version !== VERSION) {
       return { ok: false, reason: 'wrong assertion template kind or version' };
+    }
+    const legacy = template.predicatePolicy === undefined;
+    if (legacy && options.allowLegacyUnboundPredicate !== true) {
+      return {
+        ok: false,
+        reason: 'assertion template predates the bound-predicate policy: its inputs are template-chosen constants ' +
+          'and its terminal output is unconstrained (BVM-1)'
+      };
+    }
+    if (!legacy && template.predicatePolicy !== PREDICATE_POLICY) {
+      return { ok: false, reason: 'unknown assertion predicate policy' };
     }
     const expected = buildBitvmAssertionTemplateV2({
       network: template.network,
@@ -273,7 +365,8 @@ function verifyBitvmAssertionTemplateV2(template, publicTrace) {
       challengerXonly: template.challengerXonly,
       challengeCsvBlocks: template.challengeCsvBlocks,
       recoveryCsvBlocks: template.recoveryCsvBlocks,
-      internalXonly: template.internalXonly
+      internalXonly: template.internalXonly,
+      legacyUnboundPredicate: legacy
     });
     if (canonicalStringify(expected) !== canonicalStringify(template)) {
       return { ok: false, reason: 'assertion template does not reconstruct from the public trace' };
@@ -282,7 +375,8 @@ function verifyBitvmAssertionTemplateV2(template, publicTrace) {
       ok: true,
       templateHash: expected.templateHash,
       assertionTreeRoot: expected.assertionTreeRoot,
-      p2trScriptPubKey: expected.p2trScriptPubKey
+      p2trScriptPubKey: expected.p2trScriptPubKey,
+      predicateBound: !legacy
     };
   } catch (err) {
     return { ok: false, reason: err.message };
@@ -515,7 +609,11 @@ function verifyBitvmAssertionGraphV2(graph, options = {}) {
     }
     if (containsPrivateMaterial(graph)) return { ok: false, reason: 'graph package leaks private material' };
     if (graph.graphHash !== graphHash(graph)) return { ok: false, reason: 'assertion graph hash mismatch' };
-    const templateCheck = verifyBitvmAssertionTemplateV2(graph.template, graph.publicTrace);
+    const legacyAllowed = Array.isArray(options.legacyUnboundPredicateGraphHashes) &&
+      options.legacyUnboundPredicateGraphHashes.includes(graph.graphHash);
+    const templateCheck = verifyBitvmAssertionTemplateV2(graph.template, graph.publicTrace, {
+      allowLegacyUnboundPredicate: legacyAllowed
+    });
     if (!templateCheck.ok) return { ok: false, reason: `template verification failed: ${templateCheck.reason}` };
     const traceCheck = verifyPublicTraceV2(graph.publicTrace);
     if (!traceCheck.ok) return { ok: false, reason: `trace verification failed: ${traceCheck.reason}` };
@@ -607,19 +705,46 @@ function verifyBitvmAssertionGraphV2(graph, options = {}) {
       throw new Error('recovery witness transaction mismatch');
     }
 
+    const bindingFrauds = bindingFraudsV2(graph);
     return {
       ok: true,
       graphHash: graph.graphHash,
       commitmentHash: settlementCheck.commitmentHash,
       assertionTreeRoot: graph.template.assertionTreeRoot,
       p2trScriptPubKey: graph.template.p2trScriptPubKey,
-      fraudCount: traceCheck.frauds.length,
+      predicateBound: templateCheck.predicateBound,
+      // Gate frauds plus input/output binding frauds: each is a constructible disprove.
+      fraudCount: traceCheck.frauds.length + bindingFrauds.input + bindingFrauds.output,
+      gateFraudCount: traceCheck.frauds.length,
+      inputBindingFraudCount: bindingFrauds.input,
+      outputBindingFraudCount: bindingFrauds.output,
+      terminalOutputBit: graph.template.terminalOutput === undefined
+        ? null
+        : traceCheck.values[graph.template.terminalOutput],
       challengeCsvBlocks: graph.template.challengeCsvBlocks,
       recoveryCsvBlocks: graph.template.recoveryCsvBlocks
     };
   } catch (err) {
     return { ok: false, reason: err.message };
   }
+}
+
+function findOutputBindingDisproveV2(graph) {
+  if (graph.template.terminalOutput === undefined) return null;
+  const evidence = findInputBindingDisproveV2(
+    graph.publicTrace,
+    { [graph.template.terminalOutput]: 1 },
+    graph.template.challengerXonly
+  );
+  return evidence ? { ...evidence, kind: 'utxoref_bitvm_output_disprove_v2' } : null;
+}
+
+function bindingFraudsV2(graph) {
+  const values = Object.fromEntries(Object.entries(graph.publicTrace.reveals).map(([label, reveal]) => [label, reveal.bit]));
+  const input = Object.entries(graph.template.expectedInputs || {})
+    .filter(([label, bit]) => values[label] !== bit).length;
+  const output = graph.template.terminalOutput !== undefined && values[graph.template.terminalOutput] !== 1 ? 1 : 0;
+  return { input, output };
 }
 
 function selectFraudEvidence(graph, fraudType) {
@@ -629,9 +754,17 @@ function selectFraudEvidence(graph, fraudType) {
     graph.template.expectedInputs,
     graph.template.challengerXonly
   );
+  const output = findOutputBindingDisproveV2(graph);
   if (fraudType === 'gate') return gate;
   if (fraudType === 'input') return input;
-  return gate || input;
+  if (fraudType === 'output') return output;
+  return gate || input || output;
+}
+
+function fraudTypeOf(evidence) {
+  if (evidence.kind.includes('gate')) return 'gate';
+  if (evidence.kind.includes('output')) return 'output';
+  return 'input';
 }
 
 function buildBitvmDisproveV2(graph, input = {}) {
@@ -669,7 +802,7 @@ function buildBitvmDisproveV2(graph, input = {}) {
     kind: 'utxoref_bitvm_disprove_v2',
     version: VERSION,
     graphHash: graph.graphHash,
-    fraudType: evidence.kind.includes('gate') ? 'gate' : 'input',
+    fraudType: fraudTypeOf(evidence),
     leafId: leaf.id,
     evidence,
     feeSats: feeSats.toString(),
@@ -744,6 +877,11 @@ function verifyBitvmDisproveV2(graph, disprove, options = {}) {
 module.exports = {
   VERSION,
   NUMS_DOMAIN,
+  PREDICATE_POLICY,
+  LEGACY_PREDICATE_POLICY,
+  VERIFIED_FACT_INPUTS,
+  deriveExpectedInputsV2,
+  findOutputBindingDisproveV2,
   deriveAssertionNumsXonly,
   buildCooperativeSettlementLeafScript,
   buildEmergencyRecoveryLeafScript,

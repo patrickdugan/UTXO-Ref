@@ -10,10 +10,12 @@
   },
   "allowedGraphs": {
     "34dfe4a3d05264fa54cd6d99e9a07ac784c22f3011b7704847337a0543d02eee": {
-      "signerKeyId": "edc1b04417adf266e84b9c98a8eeaea70e4e9b1e885af023d19499a587dd625a"
+      "signerKeyId": "edc1b04417adf266e84b9c98a8eeaea70e4e9b1e885af023d19499a587dd625a",
+      "predicatePolicy": "legacy-unbound-v2-monitor-only"
     },
     "e98272fd3c934e8e1298b6e0a820d1b86769c4fa0606327b6e3c3a509d252531": {
-      "signerKeyId": "5d1a8edc3776eae3a65241e157b754b79f62973f617ce5e3b90a1eae2aa007bb"
+      "signerKeyId": "5d1a8edc3776eae3a65241e157b754b79f62973f617ce5e3b90a1eae2aa007bb",
+      "predicatePolicy": "legacy-unbound-v2-monitor-only"
     }
   }
 }
