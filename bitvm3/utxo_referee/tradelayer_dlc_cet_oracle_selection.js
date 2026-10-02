@@ -113,21 +113,34 @@ function buildDlcSettlementOutcomes(input = {}) {
   };
 }
 
+// DLC-5: the attestation commits to the agreed payout table (outcomesHash) as
+// well as the contract, funding outpoint and outcome, so one attestation
+// cannot select an outcome from a substituted table.
 function attestationMessage(params) {
   return stableStringify({
-    kind: 'tradelayer_dlc_oracle_attestation_v1',
+    kind: 'tradelayer_dlc_oracle_attestation_v2',
     contractId: String(params.contractId),
     fundingTxid: String(params.fundingTxid),
     fundingVout: Number(params.fundingVout),
-    outcomeId: String(params.outcomeId)
+    outcomeId: String(params.outcomeId),
+    outcomesHash: String(params.outcomesHash)
   });
 }
 
+function requireOutcomesHash(value) {
+  if (typeof value !== 'string' || !/^[0-9a-f]{64}$/.test(value)) {
+    throw new Error('outcomesHash must be the 32-byte hex hash of the agreed settlement outcomes');
+  }
+  return value;
+}
+
 /**
- * Oracle signs the chosen outcome. privateKey is an Ed25519 KeyObject or PEM.
+ * Oracle signs the chosen outcome of one agreed payout table. privateKey is an
+ * Ed25519 KeyObject or PEM.
  */
 function buildDlcOracleAttestation(params, privateKey) {
   if (!OUTCOME_IDS.includes(params.outcomeId)) throw new Error(`unknown outcomeId: ${params.outcomeId}`);
+  requireOutcomesHash(params.outcomesHash);
   const message = attestationMessage(params);
   const signature = crypto.sign(null, Buffer.from(message), privateKey).toString('hex');
   return {
@@ -136,6 +149,7 @@ function buildDlcOracleAttestation(params, privateKey) {
     fundingTxid: String(params.fundingTxid),
     fundingVout: Number(params.fundingVout),
     outcomeId: String(params.outcomeId),
+    outcomesHash: params.outcomesHash,
     message,
     signature
   };
@@ -146,6 +160,9 @@ function verifyDlcOracleAttestation(attestation, publicKey) {
     return { ok: false, reason: 'wrong attestation kind' };
   }
   if (!OUTCOME_IDS.includes(attestation.outcomeId)) return { ok: false, reason: 'unknown outcomeId' };
+  if (typeof attestation.outcomesHash !== 'string' || !/^[0-9a-f]{64}$/.test(attestation.outcomesHash)) {
+    return { ok: false, reason: 'attestation does not commit to a payout table' };
+  }
   const message = attestationMessage(attestation);
   if (message !== attestation.message) return { ok: false, reason: 'attestation message mismatch' };
   let ok = false;
@@ -165,16 +182,31 @@ function selectCetForAttestation(settlementOutcomes, attestation, options = {}) 
   if (!settlementOutcomes || settlementOutcomes.kind !== 'tradelayer_dlc_settlement_outcomes_v1') {
     throw new Error('settlementOutcomes is invalid');
   }
+  // DLC-5: the contract and funding bindings are required, not checked only
+  // when the caller happens to pass them.
+  for (const field of ['contractId', 'fundingTxid', 'fundingVout']) {
+    if (options[field] === undefined || options[field] === null) {
+      throw new Error(`selectCetForAttestation requires the expected ${field}`);
+    }
+  }
   const sig = verifyDlcOracleAttestation(attestation, options.publicKey);
   if (!sig.ok) throw new Error(`oracle attestation rejected: ${sig.reason}`);
-  if (options.contractId !== undefined && String(options.contractId) !== attestation.contractId) {
+  if (String(options.contractId) !== attestation.contractId) {
     throw new Error('attestation contractId mismatch');
   }
-  if (options.fundingTxid !== undefined && String(options.fundingTxid) !== attestation.fundingTxid) {
+  if (String(options.fundingTxid) !== attestation.fundingTxid) {
     throw new Error('attestation funding txid mismatch');
   }
-  if (options.fundingVout !== undefined && Number(options.fundingVout) !== attestation.fundingVout) {
+  if (Number(options.fundingVout) !== attestation.fundingVout) {
     throw new Error('attestation funding vout mismatch');
+  }
+  // The table must be the one the attestation commits to, and must hash to
+  // its own outcomesHash (so the outcomes cannot be swapped under the hash).
+  if (sha256Hex(stableStringify(settlementOutcomes.outcomes)) !== settlementOutcomes.outcomesHash) {
+    throw new Error('settlement outcomes do not match their outcomesHash');
+  }
+  if (attestation.outcomesHash !== settlementOutcomes.outcomesHash) {
+    throw new Error('attestation was issued for a different payout table');
   }
   const outcome = settlementOutcomes.outcomes.find((o) => o.outcomeId === attestation.outcomeId);
   if (!outcome) throw new Error(`no CET for attested outcome: ${attestation.outcomeId}`);

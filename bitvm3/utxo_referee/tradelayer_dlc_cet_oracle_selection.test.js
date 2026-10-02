@@ -56,7 +56,7 @@ test('builds three settlement outcomes that conserve collateral minus miner fee'
 
 test('oracle attestation verifies and is tamper-evident', () => {
   const { publicKey, privateKey } = crypto.generateKeyPairSync('ed25519');
-  const att = buildDlcOracleAttestation({ ...FUNDING, outcomeId: 'settle-gain' }, privateKey);
+  const att = buildDlcOracleAttestation({ ...FUNDING, outcomeId: 'settle-gain', outcomesHash: outcomes().outcomesHash }, privateKey);
   assert(verifyDlcOracleAttestation(att, publicKey).ok, 'valid attestation should verify');
 
   const tampered = { ...att, outcomeId: 'settle-loss' };
@@ -69,7 +69,7 @@ test('oracle attestation verifies and is tamper-evident', () => {
 test('selects the CET matching the attested outcome', () => {
   const { publicKey, privateKey } = crypto.generateKeyPairSync('ed25519');
   const o = outcomes();
-  const att = buildDlcOracleAttestation({ ...FUNDING, outcomeId: 'settle-loss' }, privateKey);
+  const att = buildDlcOracleAttestation({ ...FUNDING, outcomeId: 'settle-loss', outcomesHash: o.outcomesHash }, privateKey);
   const sel = selectCetForAttestation(o, att, { publicKey, ...FUNDING });
   assertEq(sel.selection.outcomeId, 'settle-loss');
   assertEq(sel.selection.winnerRole, 'bob');
@@ -80,7 +80,7 @@ test('selects the CET matching the attested outcome', () => {
 test('rejects selection when attestation does not bind the funding outpoint', () => {
   const { publicKey, privateKey } = crypto.generateKeyPairSync('ed25519');
   const o = outcomes();
-  const att = buildDlcOracleAttestation({ ...FUNDING, outcomeId: 'settle-gain' }, privateKey);
+  const att = buildDlcOracleAttestation({ ...FUNDING, outcomeId: 'settle-gain', outcomesHash: o.outcomesHash }, privateKey);
   let threw = false;
   try {
     selectCetForAttestation(o, att, { publicKey, contractId: FUNDING.contractId, fundingTxid: 'cd'.repeat(32), fundingVout: 0 });
@@ -92,11 +92,52 @@ test('rejects selection with a bad oracle signature', () => {
   const { privateKey } = crypto.generateKeyPairSync('ed25519');
   const { publicKey: otherPub } = crypto.generateKeyPairSync('ed25519');
   const o = outcomes();
-  const att = buildDlcOracleAttestation({ ...FUNDING, outcomeId: 'roll' }, privateKey);
+  const att = buildDlcOracleAttestation({ ...FUNDING, outcomeId: 'roll', outcomesHash: o.outcomesHash }, privateKey);
   let threw = false;
   try { selectCetForAttestation(o, att, { publicKey: otherPub, ...FUNDING }); }
   catch (e) { threw = /oracle attestation rejected/.test(e.message); }
   assert(threw, 'bad signature must block CET selection');
+});
+
+// DLC-5 (port of readiness-assessment poc3, DLC-5 part).
+test('selection requires the contract and funding bindings', () => {
+  const { publicKey, privateKey } = crypto.generateKeyPairSync('ed25519');
+  const o = outcomes();
+  const att = buildDlcOracleAttestation({ ...FUNDING, outcomeId: 'settle-gain', outcomesHash: o.outcomesHash }, privateKey);
+  for (const omitted of ['contractId', 'fundingTxid', 'fundingVout']) {
+    const options = { publicKey, ...FUNDING };
+    delete options[omitted];
+    let error = null;
+    try { selectCetForAttestation(o, att, options); } catch (e) { error = e.message; }
+    assert(error && error.includes(`requires the expected ${omitted}`), `selection without ${omitted} was accepted`);
+  }
+  let error = null;
+  try { selectCetForAttestation(o, att, { publicKey, ...FUNDING, contractId: 'another-contract' }); } catch (e) { error = e.message; }
+  assert(error && /contractId mismatch/.test(error), 'attestation for another contract was accepted');
+});
+
+test('an attestation selects only from the payout table it commits to', () => {
+  const { publicKey, privateKey } = crypto.generateKeyPairSync('ed25519');
+  const agreed = outcomes();
+  const inflated = buildDlcSettlementOutcomes({
+    collateralSats: 150000, minerFeeSats: 1000, bucketCapBps: 9000, realizedPnlBps: 9000, feeBps: 100, addresses: ADDRESSES
+  });
+  const att = buildDlcOracleAttestation({ ...FUNDING, outcomeId: 'settle-gain', outcomesHash: agreed.outcomesHash }, privateKey);
+  const selected = selectCetForAttestation(agreed, att, { publicKey, ...FUNDING });
+  assertEq(selected.selection.outputsSats[ADDRESSES.alice], '7500');
+  let error = null;
+  try { selectCetForAttestation(inflated, att, { publicKey, ...FUNDING }); } catch (e) { error = e.message; }
+  assert(error && /different payout table/.test(error), 'attestation selected from a substituted table');
+  // Swapping the outcomes while keeping the agreed hash is refused too.
+  const relabelled = { ...inflated, outcomesHash: agreed.outcomesHash };
+  error = null;
+  try { selectCetForAttestation(relabelled, att, { publicKey, ...FUNDING }); } catch (e) { error = e.message; }
+  assert(error && /do not match their outcomesHash/.test(error), 'outcomes swapped under the agreed hash were accepted');
+  // The table hash is signed: changing it breaks the signature.
+  assert(!verifyDlcOracleAttestation({ ...att, outcomesHash: inflated.outcomesHash }, publicKey).ok, 'outcomesHash is not signed');
+  let missing = null;
+  try { buildDlcOracleAttestation({ ...FUNDING, outcomeId: 'settle-gain' }, privateKey); } catch (e) { missing = e.message; }
+  assert(missing && /outcomesHash/.test(missing), 'attestation without a payout table was built');
 });
 
 if (failed > 0) {

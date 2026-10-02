@@ -209,7 +209,8 @@ function buildHourlyRbtcCetDecision(input = {}) {
     contractId: contract.core.contractId,
     fundingTxid: contract.core.fundingOutpoint.txid,
     fundingVout: contract.core.fundingOutpoint.vout,
-    outcomeId: policy.outcomeId
+    outcomeId: policy.outcomeId,
+    outcomesHash: settlementOutcomes.outcomesHash
   }, input.privateKey);
 
   const selectedCet = selectCetForAttestation(settlementOutcomes, attestation, {
