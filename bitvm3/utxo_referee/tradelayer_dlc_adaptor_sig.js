@@ -280,7 +280,11 @@ function schnorrSign(secret, msg32, aux32 = crypto.randomBytes(32)) {
   const k = hasEvenY(Rpoint) ? k0 : N - k0;
   const e = challenge(Rpoint.x, px, msg32);
   const s = mod(k + e * d, N);
-  return Buffer.concat([bytes32(Rpoint.x), bytes32(s)]);
+  const signature = Buffer.concat([bytes32(Rpoint.x), bytes32(s)]);
+  // DLC-8: BIP340 recommends verifying before release, so a computation
+  // fault cannot hand out a signature that leaks the key.
+  if (!schnorrVerify(bytes32(px), msg32, signature)) throw new Error('schnorrSign: produced signature does not verify');
+  return signature;
 }
 
 function schnorrVerify(pubkeyX, msg32, sig64) {

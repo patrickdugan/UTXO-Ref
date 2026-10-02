@@ -111,6 +111,8 @@ function sessionValues(aggnonce, ctx, msg32, T = null) {
   let Reff = pointAdd(R1, R2 ? pointMul(R2, b) : null);
   if (Reff === null) Reff = G; // BIP327
   const Radapt = T ? pointAdd(Reff, T) : Reff;
+  // DLC-8: a co-signer can choose its nonce so that R + T is infinity.
+  if (Radapt === null) throw new Error('MuSig2 adaptor nonce R + T is the point at infinity');
   const bNeg = !hasEvenY(Radapt);
   const Rfinal = bNeg ? pointNegate(Radapt) : Radapt; // even-y, same x as Radapt
   const e = mod(bufToBig(taggedHash('BIP0340/challenge', Buffer.concat([xbytes(Rfinal), Qx, msg32]))), N);
@@ -125,13 +127,29 @@ function sessionValues(aggnonce, ctx, msg32, T = null) {
 // leaks the private key. Use partialSignGuarded() below for anything that
 // isn't a fixed-vector conformance test.
 function partialSign(secnonce, sk, ctx, session) {
+  // DLC-8: the BIP327 Sign input checks. A 97-byte secnonce carries the
+  // signer's public key, which must match sk.
+  if (!Buffer.isBuffer(secnonce) || (secnonce.length !== 64 && secnonce.length !== 97)) {
+    throw new Error('secnonce must be a 64- or 97-byte Buffer');
+  }
+  if (!Buffer.isBuffer(sk) || sk.length !== 32) throw new Error('sk must be a 32-byte Buffer');
   const k1p = bufToBig(secnonce.slice(0, 32));
   const k2p = bufToBig(secnonce.slice(32, 64));
+  if (k1p === 0n || k1p >= N) throw new Error('first secnonce value is out of range.');
+  if (k2p === 0n || k2p >= N) throw new Error('second secnonce value is out of range.');
   const k1 = session.bNeg ? mod(N - k1p, N) : k1p;
   const k2 = session.bNeg ? mod(N - k2p, N) : k2p;
-  const dp = mod(bufToBig(sk), N);
+  const dp = bufToBig(sk);
+  if (dp === 0n || dp >= N) throw new Error('secret key value is out of range.');
   const Ppoint = pointMul(G, dp);
-  const a = keyAggCoeff(ctx.pubkeys, cbytes(Ppoint), ctx.secondKey);
+  const pk = cbytes(Ppoint);
+  if (secnonce.length === 97 && !secnonce.slice(64, 97).equals(pk)) {
+    throw new Error('Public key does not match nonce_gen argument');
+  }
+  if (!ctx.pubkeys.some((key) => key.equals(pk))) {
+    throw new Error("The signer's pubkey must be included in the list of pubkeys.");
+  }
+  const a = keyAggCoeff(ctx.pubkeys, pk, ctx.secondKey);
   const g = hasEvenY(ctx.Q) ? 1n : N - 1n;
   const d = mod(g * ctx.gacc % N * dp, N);
   const s = mod(k1 + session.b * k2 % N + session.e * a % N * d, N);

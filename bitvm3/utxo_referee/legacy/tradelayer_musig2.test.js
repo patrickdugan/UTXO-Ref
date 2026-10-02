@@ -121,5 +121,56 @@ test('2-party adaptor: needs both partials AND the oracle scalar to settle', () 
   assert(!a.schnorrVerify(m.aggregateXonly(ctx), msg, soloSig), 'a single party must not be able to settle alone');
 });
 
+// DLC-8: malformed or hostile inputs are refused with an explicit error,
+// never a TypeError from deep inside the arithmetic.
+function expectRefusal(run, expected, label) {
+  let error = null;
+  try { run(); } catch (err) { error = err; }
+  assert(error, `${label} was accepted`);
+  assert(!(error instanceof TypeError), `${label} crashed: ${error.message}`);
+  if (expected) assert(error.message.includes(expected), `${label}: unexpected error ${error.message}`);
+}
+
+test('DLC-8: BIP327 sign error vectors are refused', () => {
+  assert(sv.sign_error_test_cases.length >= 6, 'sign error vectors are missing');
+  for (const tc of sv.sign_error_test_cases) {
+    expectRefusal(() => {
+      const ctx = m.keyAgg(tc.key_indices.map((i) => hexBuf(sv.pubkeys[i])));
+      const session = m.sessionValues(hexBuf(sv.aggnonces[tc.aggnonce_index]), ctx, hexBuf(sv.msgs[tc.msg_index]), null);
+      m.partialSign(hexBuf(sv.secnonces[tc.secnonce_index]), hexBuf(sv.sk), ctx, session);
+    }, tc.error.message || null, tc.comment);
+  }
+});
+
+test('DLC-8: an adaptor nonce at infinity and out-of-range secrets are refused', () => {
+  const skA = 0x1234n;
+  const skB = 0x5678n;
+  const ctx = m.keyAgg([m.cbytes(a.pointMul(a.G, skA)), m.cbytes(a.pointMul(a.G, skB))]);
+  const msg = crypto.createHash('sha256').update('dlc-8').digest();
+  const nonce = (k1, k2) => ({
+    sec: Buffer.concat([a.bytes32(k1), a.bytes32(k2)]),
+    pub: Buffer.concat([m.cbytes(a.pointMul(a.G, k1)), m.cbytes(a.pointMul(a.G, k2))])
+  });
+  const nA = nonce(11n, 13n);
+  const nB = nonce(17n, 19n);
+  const aggnonce = m.nonceAgg([nA.pub, nB.pub]);
+  // A co-signer that knows the adaptor point can aim R + T at infinity.
+  const plain = m.sessionValues(aggnonce, ctx, msg, null);
+  expectRefusal(() => m.sessionValues(aggnonce, ctx, msg, a.pointNegate(plain.Reff)), 'point at infinity', 'R + T at infinity');
+  const session = m.sessionValues(aggnonce, ctx, msg, a.pointMul(a.G, 23n));
+  expectRefusal(() => m.partialSign(Buffer.concat([a.bytes32(0n), a.bytes32(13n)]), a.bytes32(skA), ctx, session),
+    'first secnonce value is out of range', 'zero first nonce');
+  expectRefusal(() => m.partialSign(Buffer.concat([a.bytes32(11n), a.bytes32(a.N)]), a.bytes32(skA), ctx, session),
+    'second secnonce value is out of range', 'second nonce equal to n');
+  expectRefusal(() => m.partialSign(nA.sec, a.bytes32(0n), ctx, session), 'secret key value is out of range', 'zero secret key');
+  expectRefusal(() => m.partialSign(nA.sec, a.bytes32(0x9abcn), ctx, session),
+    'must be included in the list of pubkeys', 'signer outside the key set');
+  expectRefusal(() => m.partialSign(Buffer.concat([nA.sec, m.cbytes(a.pointMul(a.G, skB))]), a.bytes32(skA), ctx, session),
+    'does not match', 'secnonce for another key');
+  expectRefusal(() => m.partialSign(nA.sec.slice(0, 63), a.bytes32(skA), ctx, session), 'secnonce must be', 'short secnonce');
+  // The honest signer still signs.
+  assert(m.partialSign(nA.sec, a.bytes32(skA), ctx, session).length === 32);
+});
+
 if (failed > 0) { console.log(`\nFAIL: ${failed} failed, ${passed} passed\n`); process.exit(1); }
 console.log(`\nPASS: ${passed} tests\n`);

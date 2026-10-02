@@ -67,7 +67,7 @@ is fixed and covered in-repo.
 | DLC-5 | Fixed | `fe76905` | Bindings required; attestation signs `outcomesHash`. `tradelayer_dlc_cet_oracle_selection.test.js`. |
 | DLC-6 | Fixed | `c995b05` | Refund leaf on the NUMS-keyed DLC output; demo rebuilt on it. `dlc_infra_hardening.test.js` NUMS test. See poc5 above. |
 | DLC-7 | Fixed on `main` before the merge | `a64a1b4` (inherited) | Funding broadcast disabled and gated by the state machine; eval "funding broadcast request fails before artifacts or RPC" and "funding finalizer contains no transaction broadcast RPC". The old M1 CET skeleton artifacts (zero miner fee, single wallet) belong to `m1_dlc_psbt_cet.js`, which is no longer on the pilot surface. |
-| DLC-8 | Fixed on `main` (signer hygiene); MuSig2 items deferred | `a64a1b4` (inherited) | `schnorrVerify`/parsing fail closed on `main`. The `sessionValues` infinity crash and `partialSign` key/nonce checks are MuSig2-only and now sit in `legacy/`; deferred with it. |
+| DLC-8 | Fixed | `a64a1b4` (inherited), follow-up | `schnorrVerify`/parsing fail closed on `main`. Follow-up: `schnorrSign` verifies its own output before returning (BIP340); legacy MuSig2 `sessionValues` refuses an adaptor nonce at infinity instead of crashing, and `partialSign` applies the BIP327 Sign checks (nonce and key range, secnonce key match, signer in the key set). `legacy/tradelayer_musig2.test.js` runs the BIP327 sign-error vectors and the infinity case. |
 
 ### BitVM
 
