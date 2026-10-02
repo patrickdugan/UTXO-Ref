@@ -6,7 +6,8 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { loadPolicy } = require('./betaPolicy');
-const { StateStore, createInvitations } = require('./betaStore');
+const { StateStore, createInvitations, privateHash } = require('./betaStore');
+const { rateLimitPathFor } = require('./rateLimiter');
 const { createBetaService, requestIp } = require('./betaService');
 const { BitcoinBackend } = require('./bitcoinBackend');
 const {
@@ -241,6 +242,9 @@ async function testPersistentRateLimits(root) {
 
   const disk = fs.readFileSync(statePath, 'utf8');
   assert.ok(!disk.includes('127.0.0.1'), 'rate ledger must not retain plaintext requester IPs');
+  const rateDisk = fs.readFileSync(rateLimitPathFor(statePath), 'utf8');
+  assert.ok(rateDisk.includes(':hour:'), 'rate counters were not persisted to the rate-limit file');
+  assert.ok(!rateDisk.includes('127.0.0.1'), 'rate-limit file must not retain plaintext requester IPs');
   assert.equal(requestIp({ headers: { 'x-forwarded-for': 'attacker-controlled' }, socket: { remoteAddress: '127.0.0.1' } }, { trustProxy: true }), '127.0.0.1');
   assert.equal(requestIp({ headers: { 'x-forwarded-for': '203.0.113.8' }, socket: { remoteAddress: '127.0.0.1' } }, { trustProxy: true }), '203.0.113.8');
 }
@@ -264,9 +268,14 @@ async function testRateLimitFloodDoesNotLockOut(root) {
   });
   const ipFor = (i) => `10.${(i >> 16) & 255}.${(i >> 8) & 255}.${i & 255}`;
   const statuses = [];
+  const stateBefore = fs.readFileSync(statePath);
   for (let i = 1; i <= 200; i++) statuses.push((await post(ipFor(i))).status);
   assert.ok(!statuses.includes(503), 'a full rate-limit table refused requests with 503');
   assert.ok(Object.keys(store.read().rateLimits).length <= 64, 'rate-limit table grew past its bound');
+  assert.ok(service.rateLimiter.size <= 64, 'in-memory rate-limit table grew past its bound');
+  // BETA-1 residual: unauthenticated POSTs do not take the state lock or
+  // rewrite the state file; counters live in their own file.
+  assert.ok(fs.readFileSync(statePath).equals(stateBefore), 'unauthenticated POSTs rewrote the beta state file');
   nowMs += 61000;
   const knownClient = await post(ipFor(1));
   assert.notEqual(knownClient.status, 503, 'a known client was locked out after the flood');
@@ -276,6 +285,36 @@ async function testRateLimitFloodDoesNotLockOut(root) {
   const second = await post(ipFor(500), '/v1/guardians/heartbeat');
   assert.notEqual(first.status, 429);
   assert.notEqual(second.status, 429, 'guardian heartbeats share the unauthenticated POST limiter');
+  service.rateLimiter.close();
+  const flushed = JSON.parse(fs.readFileSync(rateLimitPathFor(statePath), 'utf8'));
+  assert.ok(Object.keys(flushed.counters).length <= 64, 'persisted rate-limit table grew past its bound');
+}
+
+// BETA-1: counters written to the state file before the split carry over, so
+// upgrading does not reset a throttled client.
+async function testLegacyRateLimitsCarryOver(root) {
+  const statePath = path.join(root, 'legacy-rate.json');
+  const store = new StateStore(statePath);
+  const now = new Date('2026-10-01T12:00:05.000Z');
+  const nowMs = now.getTime();
+  await store.transact((state) => {
+    const ipHash = privateHash(state, 'rate-ip', '127.0.0.1');
+    state.rateLimits[`${ipHash}:minute:${Math.floor(nowMs / 60000)}`] = {
+      count: 1, createdAt: now.toISOString(), updatedAt: now.toISOString(),
+      expiresAt: new Date((Math.floor(nowMs / 60000) + 2) * 60000).toISOString()
+    };
+  });
+  const policy = policyFor(statePath, { postRequestsPerMinute: 1, postRequestsPerHour: 5 });
+  const live = await listen(createBetaService({ policy, store, bitcoin: fakeBitcoin(store), clock: () => now }));
+  try {
+    const { response } = await jsonRequest(live.baseUrl, '/v1/faucet/claim', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'idempotency-key': 'legacy-rate-01' },
+      body: JSON.stringify({ inviteToken: 'ubeta_invalid_invalid_invalid_invalid', address: TEST_ADDRESS })
+    });
+    assert.equal(response.status, 429, 'a counter from the state file was not carried over');
+  } finally { await live.close(); }
+  assert.ok(fs.existsSync(rateLimitPathFor(statePath)), 'carried-over counters were not written to the rate-limit file');
 }
 
 // BETA-2: the service refuses full-privilege cookie auth and refuses to start
@@ -512,12 +551,13 @@ async function main() {
     await testBasePath(root);
     await testPersistentRateLimits(root);
     await testRateLimitFloodDoesNotLockOut(root);
+    await testLegacyRateLimitsCarryOver(root);
     await testRestrictedRpcCredentials(root);
     await testGuardianQuorum(root);
     await testCrossProcessLock(root);
     await testBitcoinBackendCompatibility();
     testInterruptedRunRecovery();
-    console.log(JSON.stringify({ ok: true, suite: 'utxoref-testnet-beta', tests: 8 }));
+    console.log(JSON.stringify({ ok: true, suite: 'utxoref-testnet-beta', tests: 9 }));
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

@@ -88,7 +88,7 @@ is fixed and covered in-repo.
 | WT-2 | **Needs decision** | — | See below. |
 | WT-3 | Fixed | `ecfb651` | `tradelayer_send_rpc_sweep.test.js` timeout tests. The other hand-rolled RPC clients in M1-era demos were not changed; they are not on the pilot path. |
 | RES-1 | Fixed | `ca932f9` | Reserve verifiers and the beta loader derive the NUMS key. |
-| BETA-1 | Fixed | `46d7b8d` | Evict instead of refuse; heartbeats not IP-throttled. Residual: each unauthenticated POST still rewrites the state file (counters could move to memory or their own file). |
+| BETA-1 | Fixed | `46d7b8d`, follow-up | Evict instead of refuse; heartbeats not IP-throttled. Follow-up: counters moved off the state file into an in-memory limiter with its own file (flushed at most once a second and on close), so unauthenticated POSTs no longer take the state lock or rewrite the journal. `integrations/utxoref-testnet-beta/test.js` (flood leaves the state file byte-identical; pre-split counters carry over). |
 | BETA-2 | Fixed (code); operator action required | `0230948` | Cookie auth refused; startup check that `rpcwhitelist` is in force. The running beta uses the cookie, so a restricted `rpcauth` user must be provisioned before this branch is deployed. |
 | DOC-1 | Fixed | `f9f397c` | `docs/PILOT_SURFACE.md`, `CLAIMS_MATRIX.md`, `SECURITY_BLOCKERS.md`, `.github/workflows/pilot-suites.yml`. The workflow has not run (nothing pushed). |
 

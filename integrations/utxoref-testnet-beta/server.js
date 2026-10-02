@@ -86,6 +86,10 @@ async function start(env = process.env) {
   if (resolveRpcCredentials(env).source === 'rpcauth') await assertRestrictedRpc(rpc);
   const bitcoin = new BitcoinBackend(rpc, policy.wallet);
   const service = createBetaService({ policy, store, bitcoin });
+  // BETA-1: counters from before the rate-limit file now live there.
+  if (Object.keys(store.read().rateLimits).length > 0) {
+    await store.transact((state) => { state.rateLimits = {}; });
+  }
   const server = service.createServer();
   server.listen(policy.port, policy.host, () => {
     console.log(JSON.stringify({

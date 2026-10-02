@@ -11,6 +11,7 @@ const { stableStringify } = require('../../bitvm3/utxo_referee/tradelayer_pnl_ro
 const { verifyGuardianQuorumVaultManifest } = require('../../bitvm3/utxo_referee/utxoref_v2_guardian_quorum_reserve');
 const { deriveReserveVaultInternalXonly } = require('../../bitvm3/utxo_referee/taproot_reserve_vault');
 const { sha256, tokenHash, privateHash } = require('./betaStore');
+const { RateLimiter, rateLimitPathFor } = require('./rateLimiter');
 
 const EXPLORER_TX = 'https://mempool.space/testnet4/tx/';
 const BODY_LIMIT = 16 * 1024;
@@ -322,6 +323,13 @@ function createBetaService(options) {
   if (policy.requireGuardianQuorum && (!guardianRegistry || !guardianReserve)) {
     throw new Error('required guardian quorum must have a registry and funded reserve');
   }
+  const initialState = store.read();
+  const rateSalt = { privacySalt: initialState.privacySalt };
+  const rateLimiter = new RateLimiter({
+    filePath: policy.rateLimitPath || rateLimitPathFor(policy.statePath || store.filePath),
+    maxEntries: policy.rateLimitMaxEntries || RATE_LIMIT_MAX_ENTRIES,
+    legacyCounters: initialState.rateLimits
+  });
   let graphCache = null;
   let statusCache = null;
   let statusInFlight = null;
@@ -344,55 +352,26 @@ function createBetaService(options) {
     return graphCache.value;
   }
 
-  async function postRateLimit(ip, now) {
+  // BETA-1: counters are kept by RateLimiter, off the state file. A full
+  // table evicts, it never refuses: refusing (503) let unauthenticated POSTs
+  // from a few thousand addresses lock every POST route out, including
+  // guardian heartbeats.
+  function postRateLimit(ip, now) {
     const nowMs = new Date(now).getTime();
-    await store.transact((state) => {
-      const ipHash = privateHash(state, 'rate-ip', ip);
-      const windows = [
-        {
-          key: `${ipHash}:minute:${Math.floor(nowMs / 60000)}`,
-          limit: policy.postRequestsPerMinute,
-          expiresAt: new Date((Math.floor(nowMs / 60000) + 2) * 60000).toISOString()
-        },
-        {
-          key: `${ipHash}:hour:${Math.floor(nowMs / 3600000)}`,
-          limit: policy.postRequestsPerHour,
-          expiresAt: new Date((Math.floor(nowMs / 3600000) + 2) * 3600000).toISOString()
-        }
-      ];
-      for (const window of windows) {
-        const current = state.rateLimits[window.key];
-        if (current && current.count >= window.limit) throw new HttpError(429, 'rate_limited');
+    const ipHash = privateHash(rateSalt, 'rate-ip', ip);
+    const windows = [
+      {
+        key: `${ipHash}:minute:${Math.floor(nowMs / 60000)}`,
+        limit: policy.postRequestsPerMinute,
+        expiresAt: new Date((Math.floor(nowMs / 60000) + 2) * 60000).toISOString()
+      },
+      {
+        key: `${ipHash}:hour:${Math.floor(nowMs / 3600000)}`,
+        limit: policy.postRequestsPerHour,
+        expiresAt: new Date((Math.floor(nowMs / 3600000) + 2) * 3600000).toISOString()
       }
-      for (const window of windows) {
-        const current = state.rateLimits[window.key] || {
-          count: 0,
-          createdAt: now,
-          expiresAt: window.expiresAt
-        };
-        current.count += 1;
-        current.updatedAt = now;
-        state.rateLimits[window.key] = current;
-      }
-      // BETA-1: a full table evicts, it never refuses. Refusing (503) let
-      // unauthenticated POSTs from a few thousand addresses lock every POST
-      // route out, including guardian heartbeats. Expired counters go first,
-      // then the least recently updated, never the counters just written.
-      const keys = Object.keys(state.rateLimits);
-      const maxEntries = policy.rateLimitMaxEntries || RATE_LIMIT_MAX_ENTRIES;
-      if (keys.length > maxEntries / 2) {
-        for (const key of keys) {
-          if (Date.parse(state.rateLimits[key].expiresAt) <= nowMs) delete state.rateLimits[key];
-        }
-      }
-      const remaining = Object.keys(state.rateLimits);
-      if (remaining.length > maxEntries) {
-        const current = new Set(windows.map((window) => window.key));
-        const evictable = remaining.filter((key) => !current.has(key)).sort((left, right) =>
-          String(state.rateLimits[left].updatedAt).localeCompare(String(state.rateLimits[right].updatedAt)));
-        for (const key of evictable.slice(0, remaining.length - maxEntries)) delete state.rateLimits[key];
-      }
-    });
+    ];
+    if (!rateLimiter.hit(windows, now)) throw new HttpError(429, 'rate_limited');
   }
 
   async function buildBetaStatus() {
@@ -708,7 +687,7 @@ function createBetaService(options) {
       // write state only after that check, so they are not throttled by source
       // address alongside unauthenticated POSTs (BETA-1).
       if (req.method === 'POST' && routePath !== '/v1/guardians/heartbeat') {
-        await postRateLimit(requestIp(req, policy), now);
+        postRateLimit(requestIp(req, policy), now);
       }
 
       if (req.method === 'OPTIONS' && policy.publicOrigin) {
@@ -766,7 +745,12 @@ function createBetaService(options) {
     claimFaucet,
     runStress,
     acceptGuardianHeartbeat,
-    createServer: () => http.createServer(handler)
+    rateLimiter,
+    createServer: () => {
+      const server = http.createServer(handler);
+      server.on('close', () => rateLimiter.close());
+      return server;
+    }
   };
 }
 
