@@ -3,6 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 const { readJsonStrictProfile } = require('./strict_artifact_profiles');
+const { readJsonStrict } = require('./strict_artifact_ingress');
 const crypto = require('crypto');
 const { rpcFactory } = require('./tradelayer_send_rpc_sweep');
 const { addressToScriptPubKey } = require('./tradelayer_pnl_route_adapter');
@@ -25,8 +26,10 @@ const {
   containsPrivateMaterial
 } = require('./bitvm_assertion_graph_v2');
 const { txidFromUnsignedHex } = require('./recover_btc_testnet4_reserve_vault');
+const { verificationOptions: watchtowerVerificationOptions } = require('./utxoref_v2_watchtower');
 
 const DEFAULT_DATADIR = 'D:\\BitcoinTestnet';
+const DEFAULT_TRUST_POLICY = path.join(__dirname, 'artifacts', 'live', 'utxoref_v2_watchtower_trust_policy.json');
 const DEFAULT_WALLET = 'utxoref-testnet';
 const DEFAULT_RPC_PORT = 48332;
 const DEFAULT_ARTIFACT = path.join(__dirname, 'artifacts', 'live', 'btc_testnet4_utxoref_v2_latest.json');
@@ -67,6 +70,8 @@ function usage() {
     '',
     'Options:',
     '  --artifact <path>',
+    '  --trust-policy <path>     pinned trust policy for --broadcast/--status/--settle',
+    '                            (default artifacts/live/utxoref_v2_watchtower_trust_policy.json)',
     '  --datadir <path>',
     '  --wallet <name>',
     '  --secret-root <path>',
@@ -122,6 +127,7 @@ function resolveRuntime(args) {
   const wallet = args.wallet || process.env.BTCTEST_WALLET || DEFAULT_WALLET;
   const artifactPath = path.resolve(args.artifact || DEFAULT_ARTIFACT);
   const secretRoot = path.resolve(args.secretRoot || DEFAULT_SECRET_ROOT);
+  const trustPolicyPath = path.resolve(args.trustPolicy || DEFAULT_TRUST_POLICY);
   const conf = readBitcoinConf(datadir);
   const cookie = readCookie(datadir, conf);
   const rpcUser = args.rpcUser || process.env.BTC_RPC_USER || conf.rpcuser || cookie?.user;
@@ -133,6 +139,7 @@ function resolveRuntime(args) {
     wallet,
     artifactPath,
     secretRoot,
+    trustPolicyPath,
     rpc: rpcFactory({ rpcUrl, rpcUser, rpcPass, requestId: 'utxoref-v2-live' })
   };
 }
@@ -260,12 +267,19 @@ function publicKeyPem(publicKey) {
   return publicKey.export({ type: 'spki', format: 'pem' });
 }
 
-function graphVerificationOptions(artifact, currentHeight) {
-  const publicKey = crypto.createPublicKey(artifact.keyCeremony.stateSignerPublicKeyPem);
+// BVM-5: --broadcast and --settle verify against the pinned watchtower trust
+// policy, never against the signer key the artifact names for itself. A newly
+// staged graph must be reviewed and pinned (allowedGraphs) before broadcast.
+function loadPinnedTrustPolicy(trustPolicyPath) {
+  return readJsonStrict(trustPolicyPath, 'pinned UTXORef V2 trust policy', { maxBytes: 1024 * 1024 });
+}
+
+function graphVerificationOptions(artifact, currentHeight, trustPolicy) {
+  if (!trustPolicy) {
+    throw new Error('a pinned trust policy is required; the artifact cannot nominate its own trust root');
+  }
   return {
-    trustedSigners: { [artifact.keyCeremony.stateSignerKeyId]: publicKey },
-    expectedNetwork: 'bitcoin-testnet4',
-    expectedGenesisHash: artifact.chain.genesisHash,
+    ...watchtowerVerificationOptions(artifact, trustPolicy, { enforceStateAge: false }),
     currentHeight,
     maxAgeBlocks: 6
   };
@@ -499,7 +513,7 @@ async function broadcast(runtime) {
   const verificationHeight = await authorizationHeightForArtifact(runtime, artifact, chain, existing);
   const graphCheck = verifyBitvmAssertionGraphV2(
     artifact.graph,
-    graphVerificationOptions(artifact, verificationHeight)
+    graphVerificationOptions(artifact, verificationHeight, loadPinnedTrustPolicy(runtime.trustPolicyPath))
   );
   if (!graphCheck.ok) throw new Error(`staged V2 graph no longer verifies: ${graphCheck.reason}`);
   const decoded = await runtime.rpc('decoderawtransaction', [artifact.funding.signedHex]);
@@ -552,7 +566,7 @@ async function status(runtime, args = {}) {
   const verificationHeight = await authorizationHeightForArtifact(runtime, artifact, chain, fundingStatus);
   const graphCheck = verifyBitvmAssertionGraphV2(
     artifact.graph,
-    graphVerificationOptions(artifact, verificationHeight)
+    graphVerificationOptions(artifact, verificationHeight, loadPinnedTrustPolicy(runtime.trustPolicyPath))
   );
   if (!graphCheck.ok) throw new Error(`V2 graph verification failed: ${graphCheck.reason}`);
   const assertion = artifact.graph.assertionOutpoint;
