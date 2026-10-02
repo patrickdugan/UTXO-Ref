@@ -12,6 +12,7 @@
 
 const { Circuit } = require('../circuit');
 const { sha256PairCircuit } = require('../sha256');
+const { ReceiptTallyMap } = require('./m1_tally_map');
 
 const U64_BITS = 64;
 const HASH_BITS = 256;
@@ -430,6 +431,14 @@ function toTransitionWitness(state, route = 'flat') {
   const balanceClaimEpochId = resolvedClaim ? BigInt(resolvedClaim.epochId ?? epochId) : epochId;
   const balanceClaimBalanceSats = resolvedClaim ? BigInt(resolvedClaim.balanceSats ?? 0n) : 0n;
   const balanceClaimLeafHashHex = resolvedClaim ? (resolvedClaim.leafHash || null) : null;
+  // MAIN-4: the circuit proves the Merkle path from this leaf hash, so the
+  // witness must not carry a leaf that does not commit to the claimed
+  // account and balance.
+  if (resolvedClaim && balanceClaimLeafHashHex !== null &&
+      ReceiptTallyMap.hashBalanceRow(resolvedClaim.accountId, balanceClaimBalanceSats).toString('hex') !==
+        String(balanceClaimLeafHashHex).toLowerCase()) {
+    throw new Error('balance claim leafHash does not commit to its accountId and balanceSats');
+  }
   const balanceClaimRootHex = resolvedClaim ? (resolvedClaim.balanceRoot || receiptBalanceRootHex) : receiptBalanceRootHex;
   const balanceClaimIndex = resolvedClaim ? BigInt(resolvedClaim.index ?? 0n) : 0n;
   const balanceClaimSiblingHexes = resolvedClaim

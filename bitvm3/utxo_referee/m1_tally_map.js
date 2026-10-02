@@ -11,6 +11,7 @@
 
 const crypto = require('crypto');
 const { canonicalStringify, normalizeAmountSats, normalizeEpochId } = require('./m1_spec');
+const { depositOutpointKey } = require('./m1_receipt_ledger');
 
 const BALANCE_TAG = Buffer.from('UTXO_REFEREE_BALANCE_V1');
 
@@ -58,6 +59,9 @@ class ReceiptTallyMap {
     }
     this.balances = new Map(); // accountId => BigInt
     this.depositIds = new Set(options.depositIds || []);
+    // MAIN-4: credited funding outpoints ("txid:vout"), so replay is refused by
+    // outpoint and not only by the caller-chosen depositId.
+    this.depositOutpoints = new Set(options.depositOutpoints || []);
     this.redemptionIds = new Set(options.redemptionIds || []);
 
     if (options.balances) {
@@ -86,6 +90,9 @@ class ReceiptTallyMap {
     for (const [depositId] of ledger.depositEvents.entries()) {
       state.depositIds.add(depositId);
     }
+    for (const outpointKey of (ledger.depositOutpoints || new Map()).keys()) {
+      state.depositOutpoints.add(outpointKey);
+    }
     for (const [redemptionId] of ledger.redemptionEvents.entries()) {
       state.redemptionIds.add(redemptionId);
     }
@@ -111,6 +118,10 @@ class ReceiptTallyMap {
     }
     for (const id of obj.depositIds || []) {
       state.depositIds.add(ensureNonEmptyString(id, 'depositId'));
+    }
+    for (const key of obj.creditedDepositOutpoints || []) {
+      const [txid, vout] = ensureNonEmptyString(key, 'creditedDepositOutpoint').split(':');
+      state.depositOutpoints.add(depositOutpointKey({ txid, vout }));
     }
     for (const id of obj.redemptionIds || []) {
       state.redemptionIds.add(ensureNonEmptyString(id, 'redemptionId'));
@@ -152,10 +163,15 @@ class ReceiptTallyMap {
     if (this.depositIds.has(depositId)) {
       throw new Error(`duplicate depositId: ${depositId}`);
     }
+    const outpointKey = depositOutpointKey(event.chainTxRef);
+    if (outpointKey && this.depositOutpoints.has(outpointKey)) {
+      throw new Error(`deposit outpoint ${outpointKey} is already credited`);
+    }
 
     const next = this.balanceOf(accountId) + amountSats;
     this.balances.set(accountId, next);
     this.depositIds.add(depositId);
+    if (outpointKey) this.depositOutpoints.add(outpointKey);
 
     return {
       mintedSats: amountSats,
@@ -214,11 +230,15 @@ class ReceiptTallyMap {
   }
 
   _hashBalanceRow(row) {
+    return ReceiptTallyMap.hashBalanceRow(row.accountId, row.balanceSats);
+  }
+
+  static hashBalanceRow(accountId, balanceSats) {
     return sha256(Buffer.concat([
       BALANCE_TAG,
-      Buffer.from(String(row.accountId), 'utf8'),
+      Buffer.from(ensureNonEmptyString(accountId, 'accountId'), 'utf8'),
       Buffer.from(':'),
-      Buffer.from(row.balanceSats.toString(), 'utf8')
+      Buffer.from(normalizeAmountSats(balanceSats, 'balanceSats').toString(), 'utf8')
     ]));
   }
 
@@ -307,14 +327,25 @@ class ReceiptTallyMap {
     };
   }
 
+  // MAIN-4: the leaf is recomputed from the claimed account and balance. A
+  // supplied leafHash is only a cross-check; it can no longer stand in for
+  // the account and balance it is supposed to commit to.
   static verifyBalanceProof(proof, expectedRoot) {
     const root = Buffer.isBuffer(expectedRoot)
       ? expectedRoot
       : Buffer.from(expectedRoot, 'hex');
-    let current = Buffer.isBuffer(proof.leafHash)
-      ? proof.leafHash
-      : Buffer.from(proof.leafHash, 'hex');
+    let current;
+    try {
+      current = ReceiptTallyMap.hashBalanceRow(proof.accountId, proof.balanceSats);
+    } catch (_error) {
+      return false;
+    }
+    if (proof.leafHash !== undefined && proof.leafHash !== null) {
+      const supplied = Buffer.isBuffer(proof.leafHash) ? proof.leafHash : Buffer.from(String(proof.leafHash), 'hex');
+      if (!supplied.equals(current)) return false;
+    }
     let idx = Number(proof.index);
+    if (!Number.isSafeInteger(idx) || idx < 0) return false;
 
     for (const sibling of proof.siblings || []) {
       const siblingBuf = Buffer.isBuffer(sibling) ? sibling : Buffer.from(sibling, 'hex');
@@ -330,21 +361,26 @@ class ReceiptTallyMap {
   }
 
   static verifyBalanceClaim(claim, expectedRoot) {
-    const proof = {
-      accountId: claim.accountId,
-      balanceSats: BigInt(claim.balanceSats),
-      leafHash: claim.leafHash,
-      index: Number(claim.index),
-      siblings: (claim.siblings || []).map(s => Buffer.from(s, 'hex')),
-      root: claim.balanceRoot,
-      epochId: BigInt(claim.epochId)
-    };
+    let proof;
+    try {
+      proof = {
+        accountId: claim.accountId,
+        balanceSats: BigInt(claim.balanceSats),
+        leafHash: claim.leafHash,
+        index: Number(claim.index),
+        siblings: (claim.siblings || []).map(s => Buffer.from(s, 'hex')),
+        root: claim.balanceRoot,
+        epochId: BigInt(claim.epochId)
+      };
+    } catch (_error) {
+      return false;
+    }
 
     return ReceiptTallyMap.verifyBalanceProof(proof, expectedRoot);
   }
 
   toSnapshot() {
-    return {
+    const snapshot = {
       schemaVersion: this.schemaVersion,
       kind: this.kind,
       assetSymbol: this.assetSymbol,
@@ -363,6 +399,10 @@ class ReceiptTallyMap {
       depositIds: Array.from(this.depositIds).sort(),
       redemptionIds: Array.from(this.redemptionIds).sort()
     };
+    // Present only when chain-referenced deposits exist, so existing snapshot
+    // hashes of off-chain-only maps are unchanged.
+    if (this.depositOutpoints.size) snapshot.creditedDepositOutpoints = Array.from(this.depositOutpoints).sort();
+    return snapshot;
   }
 
   canonicalJson() {

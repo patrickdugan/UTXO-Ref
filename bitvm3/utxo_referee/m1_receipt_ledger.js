@@ -20,12 +20,25 @@ function ensureNonEmptyString(v, fieldName) {
   return v;
 }
 
+// MAIN-4: a chain deposit is identified by its funding outpoint, not by the
+// caller's depositId, so one outpoint can never be credited twice.
+function depositOutpointKey(chainTxRef) {
+  if (chainTxRef === undefined || chainTxRef === null) return null;
+  const txid = String(chainTxRef.txid || '').toLowerCase();
+  const vout = Number(chainTxRef.vout);
+  if (!/^[0-9a-f]{64}$/.test(txid) || !Number.isSafeInteger(vout) || vout < 0 || vout > 0xffffffff) {
+    throw new Error('chainTxRef must name a funding outpoint (32-byte txid, u32 vout)');
+  }
+  return `${txid}:${vout}`;
+}
+
 class ReceiptLedger {
   constructor(options = {}) {
     this.assetSymbol = options.assetSymbol || 'rLTC-SAT';
     this.network = options.network || 'litecoin-testnet';
     this.balances = new Map(); // accountId => BigInt
     this.depositEvents = new Map(); // depositId => event
+    this.depositOutpoints = new Map(); // "txid:vout" => depositId (credited deposits only)
     this.redemptionEvents = new Map(); // redemptionId => event
   }
 
@@ -40,10 +53,15 @@ class ReceiptLedger {
     if (this.depositEvents.has(depositId)) {
       throw new Error(`duplicate depositId: ${depositId}`);
     }
+    const outpointKey = depositOutpointKey(event.chainTxRef);
+    if (outpointKey && this.depositOutpoints.has(outpointKey)) {
+      throw new Error(`deposit outpoint ${outpointKey} is already credited as ${this.depositOutpoints.get(outpointKey)}`);
+    }
 
     const prev = this.balances.get(accountId) || 0n;
     const next = prev + amountSats;
     this.balances.set(accountId, next);
+    if (outpointKey) this.depositOutpoints.set(outpointKey, depositId);
 
     this.depositEvents.set(depositId, {
       depositId,
@@ -116,6 +134,10 @@ class ReceiptLedger {
 
     const next = prev - deposit.amountSats;
     this.balances.set(deposit.accountId, next);
+    // A rolled-back (e.g. reorged) outpoint may be credited again if it
+    // re-confirms; the net effect is still one credit.
+    const outpointKey = depositOutpointKey(deposit.chainTxRef);
+    if (outpointKey && this.depositOutpoints.get(outpointKey) === id) this.depositOutpoints.delete(outpointKey);
     deposit.status = 'rolled_back';
     deposit.rollbackReason = options.reason || null;
 
@@ -149,7 +171,7 @@ class ReceiptLedger {
   }
 
   getDeterministicSnapshot() {
-    return {
+    const snapshot = {
       assetSymbol: this.assetSymbol,
       network: this.network,
       totalSupplySats: this.totalSupplySats().toString(),
@@ -164,6 +186,10 @@ class ReceiptLedger {
         .sort(),
       redemptionIds: Array.from(this.redemptionEvents.keys()).sort()
     };
+    // Only ledgers with chain-referenced deposits carry the field, so the
+    // snapshot hash of an off-chain-only ledger is unchanged.
+    if (this.depositOutpoints.size) snapshot.creditedDepositOutpoints = Array.from(this.depositOutpoints.keys()).sort();
+    return snapshot;
   }
 
   snapshotHashHex() {
@@ -199,5 +225,6 @@ class ReceiptLedger {
 }
 
 module.exports = {
-  ReceiptLedger
+  ReceiptLedger,
+  depositOutpointKey
 };
