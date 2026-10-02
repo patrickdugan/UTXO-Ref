@@ -347,6 +347,22 @@ test('BVM-1: a circuit over signed-state bits that honestly computes 0 is dispro
     JSON.stringify(lieCheck));
 });
 
+test('BVM-3: the challenge window has a policy minimum', () => {
+  for (const challengeCsvBlocks of [0, 5]) {
+    let error = null;
+    try {
+      const fixture = buildFixture();
+      buildBitvmAssertionTemplateV2({
+        network: NETWORK, publicTrace: fixture.publicTrace, operatorXonly: OPERATOR_XONLY,
+        challengerXonly: CHALLENGER_XONLY, challengeCsvBlocks, recoveryCsvBlocks: 144
+      });
+    } catch (err) { error = err.message; }
+    assert(error && /at least 6/.test(error), `challengeCsvBlocks ${challengeCsvBlocks} accepted`);
+  }
+  const { graph } = buildFixture();
+  const raised = verifyBitvmAssertionGraphV2(graph, { ...STATE_VERIFICATION, minimumChallengeCsvBlocks: 144 });
+  assert(!raised.ok && /below the 144-block policy minimum/.test(raised.reason), raised.reason);
+});
 
 test('BVM-1: the funded pre-policy testnet4 graph verifies only when pinned as monitor-only', () => {
   // The checked-in testnet4 artifact was funded before the bound-predicate

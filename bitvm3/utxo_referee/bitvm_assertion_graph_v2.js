@@ -44,6 +44,9 @@ const PREDICATE_POLICY = 'verifier-derived-inputs-terminal-one-v1';
 // when the caller's pinned trust policy names the graph hash (monitoring an
 // already-funded output); they are reported with predicateBound: false.
 const LEGACY_PREDICATE_POLICY = 'legacy-unbound-v2-monitor-only';
+// BVM-3: policy floor for the challenge window (about one hour). The live
+// testnet4 profile uses 6; window sizing for value at risk is still open.
+const MIN_CHALLENGE_CSV_BLOCKS = 6;
 // Facts the verifier itself establishes before a graph can verify: the signed
 // checkpoint verifies under a pinned signer, and the settlement outputs equal
 // the payouts derived from it. Their expected value is therefore 1.
@@ -244,6 +247,9 @@ function buildBitvmAssertionTemplateV2(input = {}) {
   const legacyUnboundPredicate = input.legacyUnboundPredicate === true;
   const challengeCsvBlocks = csvSequence(input.challengeCsvBlocks ?? DEFAULT_CHALLENGE_CSV_BLOCKS);
   const recoveryCsvBlocks = csvSequence(input.recoveryCsvBlocks ?? DEFAULT_RECOVERY_CSV_BLOCKS);
+  if (challengeCsvBlocks < MIN_CHALLENGE_CSV_BLOCKS) {
+    throw new Error(`challengeCsvBlocks must be at least ${MIN_CHALLENGE_CSV_BLOCKS}`);
+  }
   if (recoveryCsvBlocks <= challengeCsvBlocks) {
     throw new Error('recoveryCsvBlocks must exceed challengeCsvBlocks');
   }
@@ -615,6 +621,10 @@ function verifyBitvmAssertionGraphV2(graph, options = {}) {
       allowLegacyUnboundPredicate: legacyAllowed
     });
     if (!templateCheck.ok) return { ok: false, reason: `template verification failed: ${templateCheck.reason}` };
+    const minimumChallengeCsvBlocks = Math.max(MIN_CHALLENGE_CSV_BLOCKS, Number(options.minimumChallengeCsvBlocks) || 0);
+    if (graph.template.challengeCsvBlocks < minimumChallengeCsvBlocks) {
+      return { ok: false, reason: `challenge window is below the ${minimumChallengeCsvBlocks}-block policy minimum` };
+    }
     const traceCheck = verifyPublicTraceV2(graph.publicTrace);
     if (!traceCheck.ok) return { ok: false, reason: `trace verification failed: ${traceCheck.reason}` };
     const assertionOutpoint = normalizeAssertionOutpoint(graph.assertionOutpoint, graph.template);
@@ -879,6 +889,7 @@ module.exports = {
   NUMS_DOMAIN,
   PREDICATE_POLICY,
   LEGACY_PREDICATE_POLICY,
+  MIN_CHALLENGE_CSV_BLOCKS,
   VERIFIED_FACT_INPUTS,
   deriveExpectedInputsV2,
   findOutputBindingDisproveV2,
