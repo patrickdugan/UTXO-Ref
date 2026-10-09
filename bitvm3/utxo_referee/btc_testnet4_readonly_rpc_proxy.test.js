@@ -494,24 +494,28 @@ test('WT-2: proxy with an allowlist file relays the settlement and nothing else'
   const allowlistPath = path.join(temporary, 'broadcast-allowlist.json');
   fs.writeFileSync(allowlistPath, JSON.stringify({ kind: BROADCAST_ALLOWLIST_KIND, txids: [settlementTxid] }));
   const relayed = [];
-  const upstream = http.createServer((request, response) => {
-    const chunks = [];
-    request.on('data', chunk => chunks.push(chunk));
-    request.on('end', () => {
-      const incoming = JSON.parse(Buffer.concat(chunks).toString('utf8'));
-      relayed.push(incoming);
-      const body = Buffer.from(JSON.stringify({ jsonrpc: '2.0', id: incoming.id, result: settlementTxid }), 'utf8');
-      response.writeHead(200, { 'Content-Type': 'application/json', 'Content-Length': body.length });
-      response.end(body);
-    });
-  });
-  const rpcPort = await listen(upstream);
-  const token = 'ab'.repeat(32);
-  const proxy = createReadonlyRpcProxy({
-    cookiePath, token, rpcPort, broadcastAllowlistProvider: createFileBroadcastAllowlistProvider(allowlistPath)
-  });
-  const proxyPort = await listen(proxy.server);
+  // Every server starts inside the try, so a setup failure fails the test
+  // instead of leaving a listener that keeps the process alive.
+  const servers = [];
   try {
+    const broadcastAllowlistProvider = createFileBroadcastAllowlistProvider(allowlistPath);
+    const upstream = http.createServer((request, response) => {
+      const chunks = [];
+      request.on('data', chunk => chunks.push(chunk));
+      request.on('end', () => {
+        const incoming = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+        relayed.push(incoming);
+        const body = Buffer.from(JSON.stringify({ jsonrpc: '2.0', id: incoming.id, result: settlementTxid }), 'utf8');
+        response.writeHead(200, { 'Content-Type': 'application/json', 'Content-Length': body.length });
+        response.end(body);
+      });
+    });
+    servers.push(upstream);
+    const rpcPort = await listen(upstream);
+    const token = 'ab'.repeat(32);
+    const proxy = createReadonlyRpcProxy({ cookiePath, token, rpcPort, broadcastAllowlistProvider });
+    servers.push(proxy.server);
+    const proxyPort = await listen(proxy.server);
     const sent = await post(proxyPort, token, { jsonrpc: '2.0', id: 1, method: 'sendrawtransaction', params: [settlementHex] });
     assert.equal(sent.status, 200);
     assert.equal(sent.value.result, settlementTxid);
@@ -527,8 +531,7 @@ test('WT-2: proxy with an allowlist file relays the settlement and nothing else'
     assert.equal(disabled.status, 400);
     assert.equal(relayed.length, 1);
   } finally {
-    await close(proxy.server);
-    await close(upstream);
+    for (const server of servers.reverse()) if (server.listening) await close(server);
     fs.rmSync(temporary, { recursive: true, force: true });
   }
 });
