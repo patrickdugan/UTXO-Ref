@@ -69,7 +69,31 @@ function normalizeOraclePolicy(policy) {
   if (new Set(pinnedPubkeys).size !== pinnedPubkeys.length) {
     throw new Error('oraclePolicy pinned public keys must be unique');
   }
-  return Object.freeze({ threshold: policy.threshold, total: policy.total, pinnedPubkeys: Object.freeze([...pinnedPubkeys].sort()) });
+  const normalized = {
+    threshold: policy.threshold,
+    total: policy.total,
+    pinnedPubkeys: Object.freeze([...pinnedPubkeys].sort())
+  };
+  // The oracle event the contract settles on: its id and ordered outcome
+  // list. Peers agree on it through the oracle policy digest, and adaptor
+  // signing requires announcements for exactly this event (MAIN-3). Policies
+  // without it stay valid for state tracking but cannot be signed for.
+  if (policy.eventId !== undefined || policy.outcomeMessages !== undefined) {
+    if (typeof policy.eventId !== 'string' || policy.eventId.length < 1 || Buffer.byteLength(policy.eventId, 'utf8') > 256) {
+      throw new Error('oraclePolicy.eventId must be 1..256 UTF-8 bytes');
+    }
+    if (!Array.isArray(policy.outcomeMessages) || policy.outcomeMessages.length < 1 || policy.outcomeMessages.length > 1024) {
+      throw new Error('oraclePolicy.outcomeMessages must list 1..1024 outcomes');
+    }
+    const outcomeMessages = policy.outcomeMessages.map((outcome, index) =>
+      requireHex(outcome, 32, `oraclePolicy.outcomeMessages[${index}]`));
+    if (new Set(outcomeMessages).size !== outcomeMessages.length) {
+      throw new Error('oraclePolicy outcome messages must be unique');
+    }
+    normalized.eventId = policy.eventId;
+    normalized.outcomeMessages = Object.freeze(outcomeMessages);
+  }
+  return Object.freeze(normalized);
 }
 
 function normalizeValidatorPolicy(policy) {

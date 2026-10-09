@@ -1,0 +1,708 @@
+{
+  "kind": "bitvm_channel_router_bundle",
+  "createdAt": "2026-05-04T13:54:28.388Z",
+  "plan": {
+    "kind": "bitvm_channel_router_plan",
+    "routerId": "4a8a63970aa09e201ee067d434b430cb51c3297a971544cd545018291c070676",
+    "planCore": {
+      "version": 1,
+      "protocol": "bitvm_channel_router_plan",
+      "routeIntent": {
+        "version": 1,
+        "intentId": "bitvm-router-demo-120k",
+        "useCase": "route_liquidity",
+        "destinationNodeId": "ldk-router-destination-regtest",
+        "amountSats": "120000",
+        "maxFeePpm": 1200,
+        "maxCltvDelta": 45,
+        "allowSplitShards": true,
+        "assetTicker": null,
+        "routeIntentId": "620a423f6f892c89df6c2b5d6591bc54cfe5fac7b94e40a061cf212beeb4dee2"
+      },
+      "policy": {
+        "excludeSlashable": true,
+        "allowFundingFallback": false,
+        "allowShortfall": false,
+        "minShardSats": "1000",
+        "sourcePreference": [
+          "liquidity_lease",
+          "ark_graft_manager",
+          "tlusd_liquidity_patch",
+          "dlc_subswap_funding"
+        ]
+      },
+      "inventoryId": "16e78160a3a7868b70f3aafbee96b7b28e67d671a3e1908d1e6091cb14bbbd1d",
+      "selectedChannels": [
+        {
+          "channelId": "c14d42c8059c1b757913579dec2050aeeecac50a7d19e14b442f67533683800a",
+          "routeId": "lease:lease-subswap-dlc-1777153762725",
+          "sourceType": "liquidity_lease",
+          "assignedSats": "49000",
+          "proofRefs": [
+            "a6320c602fe759b97cf3cb36503ea3bc356309d22ddc8a525488cd88e9182081"
+          ],
+          "challengeRefs": [
+            "8cb6a560b5d3ce1a0179298d7b0fc14cdcb9547ceb016fbd645556fee40f811e"
+          ],
+          "transcriptAlias": "liquidity_lease_success_evidence",
+          "carrier": "ln_htlc_subswap_to_channel_splice"
+        },
+        {
+          "channelId": "c1766ab27e059498c2d7097cee344cbe17a093593fcd858fd547b9bfb118d39e",
+          "routeId": "ldk-edge-a-inbound",
+          "sourceType": "ark_graft_manager",
+          "assignedSats": "50000",
+          "proofRefs": [
+            "4817edc177d97aaf7d6cb34141ea25690948efdb302457ae8f0a758742755f63"
+          ],
+          "challengeRefs": [
+            "4d433456727a45066a2bb5afde32529d5d3510a8f2dc4512ad082395518ec473"
+          ],
+          "transcriptAlias": "ark_graft_assignment_transcript",
+          "carrier": "ark_vtxo_connector_outpoint"
+        },
+        {
+          "channelId": "75cf01a4f75bc9d8416c63c306fe8c3f6bef5f2a6321663becceb7102f7f650a",
+          "routeId": "tlusd-edge-a-patch",
+          "sourceType": "tlusd_liquidity_patch",
+          "assignedSats": "21000",
+          "proofRefs": [
+            "be572dad87e33869a16f68f9ee5d161d91ac3cf44b6f0c43b16341f7b1cc1498"
+          ],
+          "challengeRefs": [
+            "19267048b7803ba96229d2df0bdba40439c9c3056d24d5d057a0a58716db2608"
+          ],
+          "transcriptAlias": "tlusd_patch_assignment_transcript",
+          "carrier": "taproot_asset_stake_to_ark_round"
+        }
+      ],
+      "assignedSats": "120000",
+      "shortfallSats": "0"
+    },
+    "inventory": {
+      "kind": "bitvm_channel_router_inventory",
+      "inventoryId": "16e78160a3a7868b70f3aafbee96b7b28e67d671a3e1908d1e6091cb14bbbd1d",
+      "inventoryCore": {
+        "version": 1,
+        "protocol": "bitvm_channel_router_inventory",
+        "sourceIds": {
+          "liquidityLease": "6b1278ad5dc15bf6d73f9d0ad40642581c13bd2f5f20926300c32a919dc7624b",
+          "arkManager": "811dea091e2e2907463f4c228e12752bf8d7bd24253862c2a5c83cc6bc299ad7",
+          "tlusdPatch": "2d1797f3f84cc9a2a7f3d410237f209e80852cbe92e1b69ca27d117e47410d8e",
+          "dlcSubswapFunding": "062c77fe892d7c32e93922942e22c569667ab3493ea58fc26bda90dc2161dd3f"
+        },
+        "channelIds": [
+          "c14d42c8059c1b757913579dec2050aeeecac50a7d19e14b442f67533683800a",
+          "c1766ab27e059498c2d7097cee344cbe17a093593fcd858fd547b9bfb118d39e",
+          "14c136682e1b8f51664f374fcd6384f0017c6d3992b6e5d5bea791a48b74b607",
+          "7595d5901b14af0b074c6318fd656c6cf10ecbbf16ed6fe3ad2bccde12511238",
+          "75cf01a4f75bc9d8416c63c306fe8c3f6bef5f2a6321663becceb7102f7f650a",
+          "a4827c6c7fbfd72b5a1ad823fb25989b7378ac7524c7bb43f0780c22331246c2",
+          "18921a3010a01175e20172521974a3b4bef5fcac493ce56d2c795f3993b67cc6"
+        ]
+      },
+      "channels": [
+        {
+          "kind": "bitvm_channel_router_candidate",
+          "channelId": "c14d42c8059c1b757913579dec2050aeeecac50a7d19e14b442f67533683800a",
+          "channelCore": {
+            "version": 1,
+            "protocol": "bitvm_channel_router_candidate",
+            "sourceType": "liquidity_lease",
+            "sourceId": "6b1278ad5dc15bf6d73f9d0ad40642581c13bd2f5f20926300c32a919dc7624b",
+            "routeId": "lease:lease-subswap-dlc-1777153762725",
+            "channelPurpose": "route_liquidity",
+            "networkSurface": "lightning_channel_or_splice",
+            "counterpartyNodeId": "ldk-lsp-regtest",
+            "promisedCapacitySats": "49000",
+            "availableCapacitySats": "49000",
+            "feePpm": 900,
+            "cltvDelta": 34,
+            "priority": 20,
+            "status": "settled",
+            "slashable": false,
+            "challengeAvailable": true,
+            "commitmentRef": "2ae94a2a96423191e3a47dd93dfe715f5f2a53b9657b2482d34ab47a9dbbe5b7",
+            "proofRef": "a6320c602fe759b97cf3cb36503ea3bc356309d22ddc8a525488cd88e9182081",
+            "challengeRef": "8cb6a560b5d3ce1a0179298d7b0fc14cdcb9547ceb016fbd645556fee40f811e",
+            "carrier": "ln_htlc_subswap_to_channel_splice",
+            "transcriptAlias": "liquidity_lease_success_evidence",
+            "namespaceHandle": "lease-lease-subswap-dlc-1777153762725-c2f2ebe0c4b1"
+          },
+          "proofRefs": [
+            "a6320c602fe759b97cf3cb36503ea3bc356309d22ddc8a525488cd88e9182081"
+          ],
+          "challengeRefs": [
+            "8cb6a560b5d3ce1a0179298d7b0fc14cdcb9547ceb016fbd645556fee40f811e"
+          ],
+          "jurassicMotifs": {
+            "transcriptAliases": [
+              "lease_offer",
+              "channel_or_splice_success_evidence"
+            ],
+            "namespaceHandle": "lease-lease-subswap-dlc-1777153762725-c2f2ebe0c4b1",
+            "carrierHints": [
+              "lightning_invoice",
+              "channel_or_splice_outpoint",
+              "bitvm_penalty_claim"
+            ]
+          },
+          "automationHooks": [
+            "verify_lease_success_evidence",
+            "reserve_channel_or_splice_capacity",
+            "prepare_lease_challenge_if_route_observation_fails"
+          ]
+        },
+        {
+          "kind": "bitvm_channel_router_candidate",
+          "channelId": "c1766ab27e059498c2d7097cee344cbe17a093593fcd858fd547b9bfb118d39e",
+          "channelCore": {
+            "version": 1,
+            "protocol": "bitvm_channel_router_candidate",
+            "sourceType": "ark_graft_manager",
+            "sourceId": "811dea091e2e2907463f4c228e12752bf8d7bd24253862c2a5c83cc6bc299ad7",
+            "routeId": "ldk-edge-a-inbound",
+            "channelPurpose": "route_liquidity",
+            "networkSurface": "ark_vtxo_lightning_graft",
+            "counterpartyNodeId": "ln-peer-1",
+            "promisedCapacitySats": "50000",
+            "availableCapacitySats": "50000",
+            "feePpm": 900,
+            "cltvDelta": 40,
+            "priority": 3,
+            "status": "settled",
+            "slashable": false,
+            "challengeAvailable": false,
+            "commitmentRef": "6eee3e4f74288d45aa25505e07afe3b2c4a500150605885759a8a875eba92e4d",
+            "proofRef": "4817edc177d97aaf7d6cb34141ea25690948efdb302457ae8f0a758742755f63",
+            "challengeRef": "4d433456727a45066a2bb5afde32529d5d3510a8f2dc4512ad082395518ec473",
+            "carrier": "ark_vtxo_connector_outpoint",
+            "transcriptAlias": "ark_graft_assignment_transcript",
+            "namespaceHandle": "ark_graft_manager-ldk-edge-a-inbound-dd28aeff3e27",
+            "assetTicker": null,
+            "stakeCommitmentId": null
+          },
+          "proofRefs": [
+            "4817edc177d97aaf7d6cb34141ea25690948efdb302457ae8f0a758742755f63"
+          ],
+          "challengeRefs": [
+            "4d433456727a45066a2bb5afde32529d5d3510a8f2dc4512ad082395518ec473"
+          ],
+          "jurassicMotifs": {
+            "transcriptAliases": [
+              "route_liquidity_demand",
+              "ark_graft_assignment",
+              "bitvm_challenge_evidence"
+            ],
+            "namespaceHandle": "ark_graft_manager-ldk-edge-a-inbound-dd28aeff3e27",
+            "carrierHints": [
+              "ark_vtxo",
+              "lightning_route_observation",
+              "bitvm_forfeit_or_exit_path"
+            ]
+          },
+          "automationHooks": [
+            "reserve_assignment_capacity",
+            "verify_taproot_or_vtxo_manifest",
+            "monitor_route_delivery",
+            "challenge_assignment_if_under_delivered"
+          ]
+        },
+        {
+          "kind": "bitvm_channel_router_candidate",
+          "channelId": "14c136682e1b8f51664f374fcd6384f0017c6d3992b6e5d5bea791a48b74b607",
+          "channelCore": {
+            "version": 1,
+            "protocol": "bitvm_channel_router_candidate",
+            "sourceType": "ark_graft_manager",
+            "sourceId": "811dea091e2e2907463f4c228e12752bf8d7bd24253862c2a5c83cc6bc299ad7",
+            "routeId": "ldk-edge-b-inbound",
+            "channelPurpose": "route_liquidity",
+            "networkSurface": "ark_vtxo_lightning_graft",
+            "counterpartyNodeId": "ln-peer-2",
+            "promisedCapacitySats": "75000",
+            "availableCapacitySats": "75000",
+            "feePpm": 1000,
+            "cltvDelta": 40,
+            "priority": 2,
+            "status": "settled",
+            "slashable": false,
+            "challengeAvailable": false,
+            "commitmentRef": "839fa01db0833fd7ad1a8751a132c7fb7ba080db3a8c3a844fd0bd7c0abc8e33",
+            "proofRef": "9e8b5458ed38ba482fde2c339443f6f7a3206056cc21bae05551ab9f81d5e02e",
+            "challengeRef": "44bca32a6278ac09572eb3ffd46a0e3a15876843d01e168bc3d889b83e7128ce",
+            "carrier": "ark_vtxo_connector_outpoint",
+            "transcriptAlias": "ark_graft_assignment_transcript",
+            "namespaceHandle": "ark_graft_manager-ldk-edge-b-inbound-71929c14e6b4",
+            "assetTicker": null,
+            "stakeCommitmentId": null
+          },
+          "proofRefs": [
+            "9e8b5458ed38ba482fde2c339443f6f7a3206056cc21bae05551ab9f81d5e02e"
+          ],
+          "challengeRefs": [
+            "44bca32a6278ac09572eb3ffd46a0e3a15876843d01e168bc3d889b83e7128ce"
+          ],
+          "jurassicMotifs": {
+            "transcriptAliases": [
+              "route_liquidity_demand",
+              "ark_graft_assignment",
+              "bitvm_challenge_evidence"
+            ],
+            "namespaceHandle": "ark_graft_manager-ldk-edge-b-inbound-71929c14e6b4",
+            "carrierHints": [
+              "ark_vtxo",
+              "lightning_route_observation",
+              "bitvm_forfeit_or_exit_path"
+            ]
+          },
+          "automationHooks": [
+            "reserve_assignment_capacity",
+            "verify_taproot_or_vtxo_manifest",
+            "monitor_route_delivery",
+            "challenge_assignment_if_under_delivered"
+          ]
+        },
+        {
+          "kind": "bitvm_channel_router_candidate",
+          "channelId": "7595d5901b14af0b074c6318fd656c6cf10ecbbf16ed6fe3ad2bccde12511238",
+          "channelCore": {
+            "version": 1,
+            "protocol": "bitvm_channel_router_candidate",
+            "sourceType": "ark_graft_manager",
+            "sourceId": "811dea091e2e2907463f4c228e12752bf8d7bd24253862c2a5c83cc6bc299ad7",
+            "routeId": "ldk-edge-c-inbound",
+            "channelPurpose": "route_liquidity",
+            "networkSurface": "ark_vtxo_lightning_graft",
+            "counterpartyNodeId": "ln-peer-3",
+            "promisedCapacitySats": "100000",
+            "availableCapacitySats": "0",
+            "feePpm": 1600,
+            "cltvDelta": 65,
+            "priority": 1,
+            "status": "slashable",
+            "slashable": true,
+            "challengeAvailable": true,
+            "commitmentRef": "e42e0bfeb1f57f02b3eabb6c28a0036debad77ff967200999c24f8da3229ffe2",
+            "proofRef": "773d5f0a11ae25df6470e2f23a53f909da9b6bcc94d6e87c4aedb904d2e45f35",
+            "challengeRef": "3bfd7a70f2c837e8a9b91b54c1e5e5b21cd9adae94a20df5d0506b9015825f46",
+            "carrier": "ark_vtxo_connector_outpoint",
+            "transcriptAlias": "ark_graft_assignment_transcript",
+            "namespaceHandle": "ark_graft_manager-ldk-edge-c-inbound-de351fc5d905",
+            "assetTicker": null,
+            "stakeCommitmentId": null
+          },
+          "proofRefs": [
+            "773d5f0a11ae25df6470e2f23a53f909da9b6bcc94d6e87c4aedb904d2e45f35"
+          ],
+          "challengeRefs": [
+            "3bfd7a70f2c837e8a9b91b54c1e5e5b21cd9adae94a20df5d0506b9015825f46"
+          ],
+          "jurassicMotifs": {
+            "transcriptAliases": [
+              "route_liquidity_demand",
+              "ark_graft_assignment",
+              "bitvm_challenge_evidence"
+            ],
+            "namespaceHandle": "ark_graft_manager-ldk-edge-c-inbound-de351fc5d905",
+            "carrierHints": [
+              "ark_vtxo",
+              "lightning_route_observation",
+              "bitvm_forfeit_or_exit_path"
+            ]
+          },
+          "automationHooks": [
+            "reserve_assignment_capacity",
+            "verify_taproot_or_vtxo_manifest",
+            "monitor_route_delivery",
+            "challenge_assignment_if_under_delivered"
+          ]
+        },
+        {
+          "kind": "bitvm_channel_router_candidate",
+          "channelId": "75cf01a4f75bc9d8416c63c306fe8c3f6bef5f2a6321663becceb7102f7f650a",
+          "channelCore": {
+            "version": 1,
+            "protocol": "bitvm_channel_router_candidate",
+            "sourceType": "tlusd_liquidity_patch",
+            "sourceId": "16ae7bbda1553209e7ff57db06ef01f6722781ef90516dce6a8586e7ba0d8672",
+            "routeId": "tlusd-edge-a-patch",
+            "channelPurpose": "route_liquidity",
+            "networkSurface": "taproot_asset_pledged_ark_vtxo_graft",
+            "counterpartyNodeId": "ln-peer-1",
+            "promisedCapacitySats": "30000",
+            "availableCapacitySats": "30000",
+            "feePpm": 900,
+            "cltvDelta": 40,
+            "priority": 3,
+            "status": "settled",
+            "slashable": false,
+            "challengeAvailable": false,
+            "commitmentRef": "1b1659bc17c9832ccb2ca07007c150a241f265dcca4ff7d33db6fa3fd47014b9",
+            "proofRef": "be572dad87e33869a16f68f9ee5d161d91ac3cf44b6f0c43b16341f7b1cc1498",
+            "challengeRef": "19267048b7803ba96229d2df0bdba40439c9c3056d24d5d057a0a58716db2608",
+            "carrier": "taproot_asset_stake_to_ark_round",
+            "transcriptAlias": "tlusd_patch_assignment_transcript",
+            "namespaceHandle": "tlusd_liquidity_patch-tlusd-edge-a-patch-3e252b416a13",
+            "assetTicker": "TLUSD",
+            "stakeCommitmentId": "7bd58616eaf5a2e48eeb2304143e12523c46d0a41c74bf46fea8f0a757ae67ee"
+          },
+          "proofRefs": [
+            "be572dad87e33869a16f68f9ee5d161d91ac3cf44b6f0c43b16341f7b1cc1498"
+          ],
+          "challengeRefs": [
+            "19267048b7803ba96229d2df0bdba40439c9c3056d24d5d057a0a58716db2608"
+          ],
+          "jurassicMotifs": {
+            "transcriptAliases": [
+              "route_liquidity_demand",
+              "tlusd_stake_mandate",
+              "bitvm_challenge_evidence"
+            ],
+            "namespaceHandle": "tlusd_liquidity_patch-tlusd-edge-a-patch-3e252b416a13",
+            "carrierHints": [
+              "taproot_asset_proof",
+              "lightning_route_observation",
+              "bitvm_forfeit_or_exit_path"
+            ]
+          },
+          "automationHooks": [
+            "reserve_assignment_capacity",
+            "verify_taproot_or_vtxo_manifest",
+            "monitor_route_delivery",
+            "challenge_assignment_if_under_delivered"
+          ]
+        },
+        {
+          "kind": "bitvm_channel_router_candidate",
+          "channelId": "a4827c6c7fbfd72b5a1ad823fb25989b7378ac7524c7bb43f0780c22331246c2",
+          "channelCore": {
+            "version": 1,
+            "protocol": "bitvm_channel_router_candidate",
+            "sourceType": "tlusd_liquidity_patch",
+            "sourceId": "16ae7bbda1553209e7ff57db06ef01f6722781ef90516dce6a8586e7ba0d8672",
+            "routeId": "tlusd-edge-b-patch",
+            "channelPurpose": "route_liquidity",
+            "networkSurface": "taproot_asset_pledged_ark_vtxo_graft",
+            "counterpartyNodeId": "ln-peer-2",
+            "promisedCapacitySats": "10000",
+            "availableCapacitySats": "0",
+            "feePpm": 1500,
+            "cltvDelta": 60,
+            "priority": 2,
+            "status": "slashable",
+            "slashable": true,
+            "challengeAvailable": true,
+            "commitmentRef": "3dfa5d683daeba871d29f3e92f73fe3af93200acfdde78d680e8fe6eb31e62b1",
+            "proofRef": "db3a914d0ad7539dfc9e03b7d2de9f943b1ac607a747bc6aaa2aa44efb4ace19",
+            "challengeRef": "5fbd7d05f498c40ed41f602ad0613287c14b200ce81c2f8031d5286ce631f86d",
+            "carrier": "taproot_asset_stake_to_ark_round",
+            "transcriptAlias": "tlusd_patch_assignment_transcript",
+            "namespaceHandle": "tlusd_liquidity_patch-tlusd-edge-b-patch-60ef4d63d760",
+            "assetTicker": "TLUSD",
+            "stakeCommitmentId": "7bd58616eaf5a2e48eeb2304143e12523c46d0a41c74bf46fea8f0a757ae67ee"
+          },
+          "proofRefs": [
+            "db3a914d0ad7539dfc9e03b7d2de9f943b1ac607a747bc6aaa2aa44efb4ace19"
+          ],
+          "challengeRefs": [
+            "5fbd7d05f498c40ed41f602ad0613287c14b200ce81c2f8031d5286ce631f86d"
+          ],
+          "jurassicMotifs": {
+            "transcriptAliases": [
+              "route_liquidity_demand",
+              "tlusd_stake_mandate",
+              "bitvm_challenge_evidence"
+            ],
+            "namespaceHandle": "tlusd_liquidity_patch-tlusd-edge-b-patch-60ef4d63d760",
+            "carrierHints": [
+              "taproot_asset_proof",
+              "lightning_route_observation",
+              "bitvm_forfeit_or_exit_path"
+            ]
+          },
+          "automationHooks": [
+            "reserve_assignment_capacity",
+            "verify_taproot_or_vtxo_manifest",
+            "monitor_route_delivery",
+            "challenge_assignment_if_under_delivered"
+          ]
+        },
+        {
+          "kind": "bitvm_channel_router_candidate",
+          "channelId": "18921a3010a01175e20172521974a3b4bef5fcac493ce56d2c795f3993b67cc6",
+          "channelCore": {
+            "version": 1,
+            "protocol": "bitvm_channel_router_candidate",
+            "sourceType": "dlc_subswap_funding",
+            "sourceId": "062c77fe892d7c32e93922942e22c569667ab3493ea58fc26bda90dc2161dd3f",
+            "routeId": "dlc-funding:ln-tl-oracle-dlc-1",
+            "channelPurpose": "funding_fallback",
+            "networkSurface": "ln_invoice_to_p2wsh_dlc_output",
+            "counterpartyNodeId": "zeus-wallet-demo-node",
+            "promisedCapacitySats": "49000",
+            "availableCapacitySats": "49000",
+            "feePpm": 20408,
+            "cltvDelta": 6,
+            "priority": 5,
+            "status": "verified",
+            "slashable": false,
+            "challengeAvailable": false,
+            "commitmentRef": "2ae94a2a96423191e3a47dd93dfe715f5f2a53b9657b2482d34ab47a9dbbe5b7",
+            "proofRef": "fd3e97d30b39c04dea7748cd5a7e8b057bf9e0f7656a6be7d9733c413828be43",
+            "challengeRef": null,
+            "carrier": "ln_invoice_p2wsh_htlc_dlc_funding_output",
+            "transcriptAlias": "dlc_subswap_funding_request",
+            "namespaceHandle": "dlc-subswap-ln-tl-oracle-dlc-1-79cdbfa62ea2"
+          },
+          "proofRefs": [
+            "062c77fe892d7c32e93922942e22c569667ab3493ea58fc26bda90dc2161dd3f",
+            "fd3e97d30b39c04dea7748cd5a7e8b057bf9e0f7656a6be7d9733c413828be43",
+            "72294ea469ad0973e24cfd984a38eb5dcefc618e35b40c3b95af29f374128835"
+          ],
+          "challengeRefs": [],
+          "jurassicMotifs": {
+            "transcriptAliases": [
+              "subswap_invoice_request",
+              "dlc_funding_claim"
+            ],
+            "namespaceHandle": "dlc-subswap-ln-tl-oracle-dlc-1-79cdbfa62ea2",
+            "carrierHints": [
+              "ln_invoice",
+              "p2wsh_htlc",
+              "dlc_funding_output"
+            ]
+          },
+          "automationHooks": [
+            "request_funding_invoice",
+            "watch_htlc_claim_to_dlc_output",
+            "verify_target_binding_hash"
+          ]
+        }
+      ]
+    },
+    "selectedChannels": [
+      {
+        "channelId": "c14d42c8059c1b757913579dec2050aeeecac50a7d19e14b442f67533683800a",
+        "routeId": "lease:lease-subswap-dlc-1777153762725",
+        "sourceType": "liquidity_lease",
+        "assignedSats": "49000",
+        "availableCapacitySats": "49000",
+        "feePpm": 900,
+        "cltvDelta": 34,
+        "status": "settled",
+        "score": 72809,
+        "proofRefs": [
+          "a6320c602fe759b97cf3cb36503ea3bc356309d22ddc8a525488cd88e9182081"
+        ],
+        "challengeRefs": [
+          "8cb6a560b5d3ce1a0179298d7b0fc14cdcb9547ceb016fbd645556fee40f811e"
+        ],
+        "transcriptAlias": "liquidity_lease_success_evidence",
+        "carrier": "ln_htlc_subswap_to_channel_splice"
+      },
+      {
+        "channelId": "c1766ab27e059498c2d7097cee344cbe17a093593fcd858fd547b9bfb118d39e",
+        "routeId": "ldk-edge-a-inbound",
+        "sourceType": "ark_graft_manager",
+        "assignedSats": "50000",
+        "availableCapacitySats": "50000",
+        "feePpm": 900,
+        "cltvDelta": 40,
+        "status": "settled",
+        "score": 54750,
+        "proofRefs": [
+          "4817edc177d97aaf7d6cb34141ea25690948efdb302457ae8f0a758742755f63"
+        ],
+        "challengeRefs": [
+          "4d433456727a45066a2bb5afde32529d5d3510a8f2dc4512ad082395518ec473"
+        ],
+        "transcriptAlias": "ark_graft_assignment_transcript",
+        "carrier": "ark_vtxo_connector_outpoint"
+      },
+      {
+        "channelId": "75cf01a4f75bc9d8416c63c306fe8c3f6bef5f2a6321663becceb7102f7f650a",
+        "routeId": "tlusd-edge-a-patch",
+        "sourceType": "tlusd_liquidity_patch",
+        "assignedSats": "21000",
+        "availableCapacitySats": "30000",
+        "feePpm": 900,
+        "cltvDelta": 40,
+        "status": "settled",
+        "score": 53730,
+        "proofRefs": [
+          "be572dad87e33869a16f68f9ee5d161d91ac3cf44b6f0c43b16341f7b1cc1498"
+        ],
+        "challengeRefs": [
+          "19267048b7803ba96229d2df0bdba40439c9c3056d24d5d057a0a58716db2608"
+        ],
+        "transcriptAlias": "tlusd_patch_assignment_transcript",
+        "carrier": "taproot_asset_stake_to_ark_round"
+      }
+    ],
+    "skippedSlashable": [
+      {
+        "channelId": "7595d5901b14af0b074c6318fd656c6cf10ecbbf16ed6fe3ad2bccde12511238",
+        "routeId": "ldk-edge-c-inbound",
+        "challengeRefs": [
+          "3bfd7a70f2c837e8a9b91b54c1e5e5b21cd9adae94a20df5d0506b9015825f46"
+        ]
+      },
+      {
+        "channelId": "a4827c6c7fbfd72b5a1ad823fb25989b7378ac7524c7bb43f0780c22331246c2",
+        "routeId": "tlusd-edge-b-patch",
+        "challengeRefs": [
+          "5fbd7d05f498c40ed41f602ad0613287c14b200ce81c2f8031d5286ce631f86d"
+        ]
+      }
+    ],
+    "jurassicMotifRouter": {
+      "transcriptMultiplicity": "Every shard keeps a public route transcript and a separate proof/challenge transcript.",
+      "identifierBifurcation": "The router id, public channel ids, private proof refs, and challenge refs are independently hashed but cross-bound.",
+      "carrierCamouflage": "The selected routes stay inside ordinary LN channel/splice evidence, Ark VTXOs, Taproot Asset proofs, and P2WSH HTLC funding outputs."
+    },
+    "automation": {
+      "preflight": [
+        "verify inventory candidate ids",
+        "filter slashable or over-fee channels",
+        "score eligible BitVM-backed channels",
+        "reserve route shards until the requested amount is covered"
+      ],
+      "execute": [
+        {
+          "step": 1,
+          "action": "reserve_bitvm_channel_shard",
+          "channelId": "c14d42c8059c1b757913579dec2050aeeecac50a7d19e14b442f67533683800a",
+          "routeId": "lease:lease-subswap-dlc-1777153762725",
+          "assignedSats": "49000",
+          "proofRefs": [
+            "a6320c602fe759b97cf3cb36503ea3bc356309d22ddc8a525488cd88e9182081"
+          ]
+        },
+        {
+          "step": 2,
+          "action": "reserve_bitvm_channel_shard",
+          "channelId": "c1766ab27e059498c2d7097cee344cbe17a093593fcd858fd547b9bfb118d39e",
+          "routeId": "ldk-edge-a-inbound",
+          "assignedSats": "50000",
+          "proofRefs": [
+            "4817edc177d97aaf7d6cb34141ea25690948efdb302457ae8f0a758742755f63"
+          ]
+        },
+        {
+          "step": 3,
+          "action": "reserve_bitvm_channel_shard",
+          "channelId": "75cf01a4f75bc9d8416c63c306fe8c3f6bef5f2a6321663becceb7102f7f650a",
+          "routeId": "tlusd-edge-a-patch",
+          "assignedSats": "21000",
+          "proofRefs": [
+            "be572dad87e33869a16f68f9ee5d161d91ac3cf44b6f0c43b16341f7b1cc1498"
+          ]
+        }
+      ],
+      "monitor": [
+        "watch route observations for delivered inbound capacity",
+        "refresh channel/splice, Ark, and Taproot Asset proof refs",
+        "prepare challenge transactions when a selected proof stops matching policy"
+      ],
+      "fallbackChallenges": [
+        {
+          "channelId": "7595d5901b14af0b074c6318fd656c6cf10ecbbf16ed6fe3ad2bccde12511238",
+          "routeId": "ldk-edge-c-inbound",
+          "challengeRefs": [
+            "3bfd7a70f2c837e8a9b91b54c1e5e5b21cd9adae94a20df5d0506b9015825f46"
+          ]
+        },
+        {
+          "channelId": "a4827c6c7fbfd72b5a1ad823fb25989b7378ac7524c7bb43f0780c22331246c2",
+          "routeId": "tlusd-edge-b-patch",
+          "challengeRefs": [
+            "5fbd7d05f498c40ed41f602ad0613287c14b200ce81c2f8031d5286ce631f86d"
+          ]
+        }
+      ]
+    }
+  },
+  "walletView": {
+    "kind": "wallet_bitvm_channel_router_view",
+    "status": "ready",
+    "title": "BitVM Channel Router",
+    "subtitle": "120000/120000 sats assigned across 3 shard(s)",
+    "routerId": "4a8a63970aa09e201ee067d434b430cb51c3297a971544cd545018291c070676",
+    "routeIntentId": "620a423f6f892c89df6c2b5d6591bc54cfe5fac7b94e40a061cf212beeb4dee2",
+    "targetAmountSats": "120000",
+    "assignedSats": "120000",
+    "shortfallSats": "0",
+    "maxFeePpm": 1200,
+    "maxCltvDelta": 45,
+    "selectedChannels": [
+      {
+        "channelId": "c14d42c8059c1b757913579dec2050aeeecac50a7d19e14b442f67533683800a",
+        "routeId": "lease:lease-subswap-dlc-1777153762725",
+        "sourceType": "liquidity_lease",
+        "assignedSats": "49000",
+        "feePpm": 900,
+        "cltvDelta": 34,
+        "status": "settled"
+      },
+      {
+        "channelId": "c1766ab27e059498c2d7097cee344cbe17a093593fcd858fd547b9bfb118d39e",
+        "routeId": "ldk-edge-a-inbound",
+        "sourceType": "ark_graft_manager",
+        "assignedSats": "50000",
+        "feePpm": 900,
+        "cltvDelta": 40,
+        "status": "settled"
+      },
+      {
+        "channelId": "75cf01a4f75bc9d8416c63c306fe8c3f6bef5f2a6321663becceb7102f7f650a",
+        "routeId": "tlusd-edge-a-patch",
+        "sourceType": "tlusd_liquidity_patch",
+        "assignedSats": "21000",
+        "feePpm": 900,
+        "cltvDelta": 40,
+        "status": "settled"
+      }
+    ],
+    "skippedSlashable": [
+      {
+        "channelId": "7595d5901b14af0b074c6318fd656c6cf10ecbbf16ed6fe3ad2bccde12511238",
+        "routeId": "ldk-edge-c-inbound",
+        "challengeRefs": [
+          "3bfd7a70f2c837e8a9b91b54c1e5e5b21cd9adae94a20df5d0506b9015825f46"
+        ]
+      },
+      {
+        "channelId": "a4827c6c7fbfd72b5a1ad823fb25989b7378ac7524c7bb43f0780c22331246c2",
+        "routeId": "tlusd-edge-b-patch",
+        "challengeRefs": [
+          "5fbd7d05f498c40ed41f602ad0613287c14b200ce81c2f8031d5286ce631f86d"
+        ]
+      }
+    ],
+    "actions": [
+      {
+        "id": "quote_bitvm_route",
+        "label": "Quote BitVM channel route"
+      },
+      {
+        "id": "verify_router_plan",
+        "label": "Verify router plan bindings"
+      },
+      {
+        "id": "reserve_selected_shards",
+        "label": "Reserve selected channel shards"
+      },
+      {
+        "id": "monitor_or_challenge",
+        "label": "Monitor route proofs or prepare challenge"
+      }
+    ],
+    "verification": {
+      "ok": true
+    }
+  },
+  "verification": {
+    "ok": true
+  }
+}

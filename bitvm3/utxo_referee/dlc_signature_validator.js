@@ -1,8 +1,14 @@
 'use strict';
 
 const crypto = require('crypto');
-const { parseCanonicalUnsignedTransaction } = require('./dlc_transaction_validator');
-const { bip341SighashDefault, outpoint } = require('./tradelayer_taproot');
+const {
+  parseCanonicalUnsignedTransaction,
+  parseCanonicalSignedTaprootTransaction,
+  normalizeDlcTransactionSet,
+  dlcFundingOutputForTransactionSet
+} = require('./dlc_transaction_validator');
+const { dlcSettlementSighash, settlementLeaf, buildDlcSettlementWitness } = require('./dlc_funding_output');
+const { outpoint, varint } = require('./tradelayer_taproot');
 const {
   adaptorVerify,
   schnorrVerify,
@@ -47,6 +53,36 @@ function cetIdentity(cet) {
   return `${cet.outcomeMessage}:${cet.oraclePubkeys.join(':')}:${cet.txid}`;
 }
 
+// The funding output is derived from the validated transaction set, never
+// taken from the caller. A separately supplied `funding` must describe the
+// same output, and the signer must be one of its two committed parties: a
+// signature under any other key cannot appear in a valid settlement witness.
+function settlementContext({ transactionSet, funding, signerPubkeyX }) {
+  const output = dlcFundingOutputForTransactionSet(transactionSet);
+  const committed = transactionSet.funding;
+  if (!funding || typeof funding.valueSats !== 'bigint') throw new Error('funding value is required');
+  requireHex(funding.scriptPubKeyHex, 34, 'funding.scriptPubKeyHex');
+  if (funding.valueSats !== BigInt(committed.valueSats) || funding.scriptPubKeyHex !== output.scriptPubKeyHex ||
+      (funding.txid !== undefined && funding.txid !== committed.txid) ||
+      (funding.vout !== undefined && funding.vout !== committed.vout)) {
+    throw new Error('funding does not match the validated DLC transaction set');
+  }
+  const publicKey = normalizeSignerPubkey(signerPubkeyX);
+  if (!output.partyPubkeyXs.includes(publicKey.toString('hex'))) {
+    throw new Error('signer is not a party to the two-party DLC funding output');
+  }
+  return { output, publicKey, fundingValueSats: funding.valueSats };
+}
+
+function settlementSighash(output, fundingValueSats, parsed, executionType) {
+  return dlcSettlementSighash({
+    bip341Transaction: toBip341Transaction(parsed),
+    fundingValueSats,
+    output,
+    executionType
+  });
+}
+
 function validateCetAdaptorSignatures({
   transactionSet,
   funding,
@@ -58,9 +94,7 @@ function validateCetAdaptorSignatures({
       signatures.length !== transactionSet.cets.length || !Array.isArray(thresholdOutcomeSets)) {
     throw new Error('CET signature validation requires every transaction and outcome point');
   }
-  if (!funding || typeof funding.valueSats !== 'bigint') throw new Error('funding value is required');
-  requireHex(funding.scriptPubKeyHex, 34, 'funding.scriptPubKeyHex');
-  const publicKey = normalizeSignerPubkey(signerPubkeyX);
+  const { output, publicKey, fundingValueSats } = settlementContext({ transactionSet, funding, signerPubkeyX });
   const points = new Map(thresholdOutcomeSets.map((entry) => {
     if (!entry || !Array.isArray(entry.oraclePubkeys) || !entry.outcomePoint) {
       throw new Error('invalid threshold outcome point entry');
@@ -86,11 +120,7 @@ function validateCetAdaptorSignatures({
     }
     const parsed = parseCanonicalUnsignedTransaction(cet.rawTxHex);
     if (parsed.txid !== cet.txid) throw new Error(`CET ${index} transaction digest changed after validation`);
-    const sighash = bip341SighashDefault(
-      toBip341Transaction(parsed),
-      [{ amountSats: funding.valueSats, scriptPubKey: funding.scriptPubKeyHex }],
-      0
-    );
+    const sighash = settlementSighash(output, fundingValueSats, parsed, 'cet');
     if (!adaptorVerify(publicKey, sighash, entry.presignature)) {
       throw new Error(`CET ${index} adaptor signature is invalid`);
     }
@@ -115,11 +145,10 @@ function byDuplicate(entries, identity) {
 }
 
 function validateRefundSignature({ transactionSet, funding, signerPubkeyX, signature }) {
-  if (!transactionSet || !transactionSet.refund || !funding || typeof funding.valueSats !== 'bigint') {
+  if (!transactionSet || !transactionSet.refund) {
     throw new Error('validated refund transaction and funding value are required');
   }
-  requireHex(funding.scriptPubKeyHex, 34, 'funding.scriptPubKeyHex');
-  const publicKey = normalizeSignerPubkey(signerPubkeyX);
+  const { output, publicKey, fundingValueSats } = settlementContext({ transactionSet, funding, signerPubkeyX });
   let signatureBytes;
   if (Buffer.isBuffer(signature)) signatureBytes = Buffer.from(signature);
   else {
@@ -128,11 +157,7 @@ function validateRefundSignature({ transactionSet, funding, signerPubkeyX, signa
   }
   const parsed = parseCanonicalUnsignedTransaction(transactionSet.refund.rawTxHex);
   if (parsed.txid !== transactionSet.refund.txid) throw new Error('refund transaction digest changed after validation');
-  const sighash = bip341SighashDefault(
-    toBip341Transaction(parsed),
-    [{ amountSats: funding.valueSats, scriptPubKey: funding.scriptPubKeyHex }],
-    0
-  );
+  const sighash = settlementSighash(output, fundingValueSats, parsed, 'refund');
   if (!schnorrVerify(publicKey, sighash, signatureBytes)) throw new Error('refund signature is invalid');
   const normalized = {
     txid: parsed.txid,
@@ -143,10 +168,85 @@ function validateRefundSignature({ transactionSet, funding, signerPubkeyX, signa
   return Object.freeze({ digest: sha256Hex(canonicalJson(normalized)), ...normalized });
 }
 
+function selectSettlementTransaction(transactionSet, executionType, cetTxid) {
+  if (executionType === 'refund') {
+    if (cetTxid !== undefined) throw new Error('refund settlement must not select a CET');
+    return transactionSet.refund;
+  }
+  if (executionType !== 'cet') throw new Error('executionType must be cet or refund');
+  requireHex(cetTxid, 32, 'cetTxid');
+  const transaction = transactionSet.cets.find((cet) => cet.txid === cetTxid);
+  if (!transaction) throw new Error('selected CET is absent from the committed transaction set');
+  return transaction;
+}
+
+// BIP341 script-path sighash both parties sign for one committed settlement.
+function settlementSighashForTransactionSet({ transactionSet, executionType, cetTxid }) {
+  transactionSet = normalizeDlcTransactionSet(transactionSet);
+  const output = dlcFundingOutputForTransactionSet(transactionSet);
+  const selected = selectSettlementTransaction(transactionSet, executionType, cetTxid);
+  const parsed = parseCanonicalUnsignedTransaction(selected.rawTxHex);
+  if (parsed.txid !== selected.txid) throw new Error('settlement transaction digest changed after validation');
+  return settlementSighash(output, BigInt(transactionSet.funding.valueSats), parsed, executionType);
+}
+
+// Attach the two-signature script-path witness to a committed settlement.
+// `signatures` maps each party's x-only key to its 64-byte signature hex.
+function assembleSignedSettlement({ transactionSet, executionType, cetTxid, signatures }) {
+  transactionSet = normalizeDlcTransactionSet(transactionSet);
+  const output = dlcFundingOutputForTransactionSet(transactionSet);
+  const selected = selectSettlementTransaction(transactionSet, executionType, cetTxid);
+  const witness = buildDlcSettlementWitness({ output, executionType, signatures });
+  const unsigned = Buffer.from(selected.rawTxHex, 'hex');
+  const stack = Buffer.concat([
+    varint(witness.length),
+    ...witness.map((item) => {
+      const bytes = Buffer.from(item, 'hex');
+      return Buffer.concat([varint(bytes.length), bytes]);
+    })
+  ]);
+  const signedTxHex = Buffer.concat([
+    unsigned.subarray(0, 4),
+    Buffer.from([0x00, 0x01]),
+    unsigned.subarray(4, unsigned.length - 4),
+    stack,
+    unsigned.subarray(unsigned.length - 4)
+  ]).toString('hex');
+  verifySettlementWitness({ transactionSet, executionType, cetTxid, signedTxHex });
+  return signedTxHex;
+}
+
+// A signed settlement is only acceptable when its witness is exactly the
+// committed leaf, the committed control block, and one valid signature from
+// each party over the script-path sighash. Anything else cannot confirm.
+function verifySettlementWitness({ transactionSet, executionType, cetTxid, signedTxHex }) {
+  transactionSet = normalizeDlcTransactionSet(transactionSet);
+  const output = dlcFundingOutputForTransactionSet(transactionSet);
+  const selected = selectSettlementTransaction(transactionSet, executionType, cetTxid);
+  const parsed = parseCanonicalSignedTaprootTransaction(signedTxHex);
+  if (parsed.strippedRawTxHex !== selected.rawTxHex || parsed.txid !== selected.txid) {
+    throw new Error('signed settlement does not match the validated unsigned transaction');
+  }
+  const leaf = settlementLeaf(output, executionType);
+  const [secondSignature, firstSignature, scriptHex, controlBlock] = parsed.witness[0];
+  if (scriptHex !== leaf.scriptHex || controlBlock !== leaf.controlBlock) {
+    throw new Error(`signed settlement does not spend the committed ${executionType} leaf of the funding output`);
+  }
+  const sighash = settlementSighash(output, BigInt(transactionSet.funding.valueSats), parsed.unsignedTransaction, executionType);
+  const [firstKey, secondKey] = output.partyPubkeyXs;
+  if (!schnorrVerify(Buffer.from(firstKey, 'hex'), sighash, Buffer.from(firstSignature, 'hex')) ||
+      !schnorrVerify(Buffer.from(secondKey, 'hex'), sighash, Buffer.from(secondSignature, 'hex'))) {
+    throw new Error('signed settlement witness does not carry a valid signature from both parties');
+  }
+  return parsed;
+}
+
 module.exports = {
   toBip341Transaction,
   cetIdentity,
   validateCetAdaptorSignatures,
-  validateRefundSignature
+  validateRefundSignature,
+  settlementSighashForTransactionSet,
+  assembleSignedSettlement,
+  verifySettlementWitness
 };
-

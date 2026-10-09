@@ -1,0 +1,147 @@
+{
+  "kind": "tradelayer_tx30_relay_anchor_live_run",
+  "createdAt": "2026-07-06T23:56:13.236Z",
+  "relayDbPath": "C:\\projects\\tradelayer.js\\nedb-data\\btc-test\\oracleData.db",
+  "relayRecordKey": "oracle-relay-1-1-0",
+  "relayRecord": {
+    "_id": "oracle-relay-1-1-0",
+    "type": "relay",
+    "oracleId": 1,
+    "senderAddress": "tb1qwvzaayzrgreqyyvxp77wlr60ngaqnpcyhujz2m",
+    "relayType": 1,
+    "stateHash": "dba58b2857d25e7d4753df92396684adc2181c2ec9e56e57e8cf261f17efc939",
+    "dlcRef": "rbtc-hour-listener-wallclock-001",
+    "relayBlob": "{\"eventId\":\"proc-rbtc-hour-listener-wallclock-001\",\"outcome\":\"ROLLED\",\"outcomeIndex\":0,\"stateHash\":\"dba58b2857d25e7d4753df92396684adc2181c2ec9e56e57e8cf261f17efc939\",\"timestamp\":1783381106608,\"payloadHash\":\"dba58b2857d25e7d4753df92396684adc2181c2ec9e56e57e8cf261f17efc939\",\"balancePayloadB64\":\"eyJwcm9wZXJ0eUlkIjoxLCJob2xkZXJDb3VudCI6MSwiYmFsYW5jZXMiOlt7ImFkZHJlc3MiOiJ0YjFxd3Z6YWF5enJncmVxeXl2eHA3N3dscjYwbmdhcW5wY3lodWp6Mm0iLCJhdmFpbGFibGUiOjAuMDAwMDEsInJlc2VydmVkIjowLCJtYXJnaW4iOjAsInZlc3RpbmciOjAsImNoYW5uZWxCYWxhbmNlIjowfV19\",\"oraclePubkeyHex\":\"0317e41bb70d1147a3b87d6220a2a835ad8ed9860fc92ffd51fdc18f0491d36d7d\",\"signatureHex\":\"3231ea1f590ae1b87bf6823f0e69850f2714b43e1741b4d6978f0799810feec037ba91fc68e1472e07fb267344b6427970c589965c7d636e490e7db23da03179\",\"settlement\":{\"mode\":\"none\",\"propertyId\":1,\"amount\":0,\"fromAddress\":\"tb1qwvzaayzrgreqyyvxp77wlr60ngaqnpcyhujz2m\",\"toAddress\":\"tb1qwvzaayzrgreqyyvxp77wlr60ngaqnpcyhujz2m\",\"nextPropertyId\":0}}",
+    "blockHeight": 0
+  },
+  "anchor": {
+    "kind": "tradelayer_tx30_relay_anchor_v1",
+    "envelopeHash": "db5240ced75ebaf4520a029bc07d420b4be26463fcef59f548f9623bc56520b6",
+    "relayBlobHash": "dca8e7c5964dbf2ae902cc20b757d0400434a19a25c72da5dba5100a09491821",
+    "referenceHash": "bdbcbe7558016030f36a7ad90bb3de83eca558759881544bc6245ba68611fe7a",
+    "payloadText": "tlr1:dca8e7c5964dbf2ae902cc20b757d0400434a19a25c72da5dba5100a09491821",
+    "opReturnScriptHex": "6a45746c72313a64636138653763353936346462663261653930326363323062373537643034303034333461313961323563373264613564626135313030613039343931383231",
+    "chainTxid": "88cd8bf0f9d3d7a79607ad65da81c7d8b3b28c48c75ef8aedbecbdf02b8e486c",
+    "explorer": "https://mempool.space/testnet4/tx/88cd8bf0f9d3d7a79607ad65da81c7d8b3b28c48c75ef8aedbecbdf02b8e486c",
+    "envelope": {
+      "kind": "tradelayer_tx30_relay_blob_envelope_v1",
+      "relayBlobHash": "dca8e7c5964dbf2ae902cc20b757d0400434a19a25c72da5dba5100a09491821",
+      "relayBlobBytes": 955,
+      "relayBundle": {
+        "eventId": "proc-rbtc-hour-listener-wallclock-001",
+        "outcome": "ROLLED",
+        "outcomeIndex": 0,
+        "stateHash": "dba58b2857d25e7d4753df92396684adc2181c2ec9e56e57e8cf261f17efc939",
+        "timestamp": 1783381106608,
+        "payloadHash": "dba58b2857d25e7d4753df92396684adc2181c2ec9e56e57e8cf261f17efc939",
+        "balancePayloadB64": "eyJwcm9wZXJ0eUlkIjoxLCJob2xkZXJDb3VudCI6MSwiYmFsYW5jZXMiOlt7ImFkZHJlc3MiOiJ0YjFxd3Z6YWF5enJncmVxeXl2eHA3N3dscjYwbmdhcW5wY3lodWp6Mm0iLCJhdmFpbGFibGUiOjAuMDAwMDEsInJlc2VydmVkIjowLCJtYXJnaW4iOjAsInZlc3RpbmciOjAsImNoYW5uZWxCYWxhbmNlIjowfV19",
+        "oraclePubkeyHex": "0317e41bb70d1147a3b87d6220a2a835ad8ed9860fc92ffd51fdc18f0491d36d7d",
+        "signatureHex": "3231ea1f590ae1b87bf6823f0e69850f2714b43e1741b4d6978f0799810feec037ba91fc68e1472e07fb267344b6427970c589965c7d636e490e7db23da03179",
+        "settlement": {
+          "mode": "none",
+          "propertyId": 1,
+          "amount": 0,
+          "fromAddress": "tb1qwvzaayzrgreqyyvxp77wlr60ngaqnpcyhujz2m",
+          "toAddress": "tb1qwvzaayzrgreqyyvxp77wlr60ngaqnpcyhujz2m",
+          "nextPropertyId": 0
+        }
+      },
+      "source": {
+        "chain": "BTC_TESTNET4",
+        "oracleId": 1,
+        "relayType": 1,
+        "stateHash": "dba58b2857d25e7d4753df92396684adc2181c2ec9e56e57e8cf261f17efc939",
+        "dlcRef": "rbtc-hour-listener-wallclock-001",
+        "settlementState": "ROLLED",
+        "blockHeight": 0,
+        "relayStoreKey": "oracle-relay-1-1-0"
+      },
+      "envelopeHash": "db5240ced75ebaf4520a029bc07d420b4be26463fcef59f548f9623bc56520b6"
+    },
+    "reference": {
+      "kind": "tradelayer_tx30_relay_reference_v1",
+      "protocol": "tradelayer-tx30-relay-ref",
+      "version": 1,
+      "relayBlobHash": "dca8e7c5964dbf2ae902cc20b757d0400434a19a25c72da5dba5100a09491821",
+      "payloadText": "tlr1:dca8e7c5964dbf2ae902cc20b757d0400434a19a25c72da5dba5100a09491821",
+      "payloadHex": "746c72313a64636138653763353936346462663261653930326363323062373537643034303034333461313961323563373264613564626135313030613039343931383231",
+      "payloadBytes": 69,
+      "opReturnScriptHex": "6a45746c72313a64636138653763353936346462663261653930326363323062373537643034303034333461313961323563373264613564626135313030613039343931383231",
+      "referenceHash": "bdbcbe7558016030f36a7ad90bb3de83eca558759881544bc6245ba68611fe7a"
+    },
+    "anchorHash": "4c6d2e6b6e47ca8b9382920da7e689141e43ef879048124d3d3b87753c899a4e"
+  },
+  "verification": {
+    "ok": true,
+    "errors": []
+  },
+  "broadcast": {
+    "attempted": true,
+    "ok": true,
+    "txid": "88cd8bf0f9d3d7a79607ad65da81c7d8b3b28c48c75ef8aedbecbdf02b8e486c",
+    "explorer": "https://mempool.space/testnet4/tx/88cd8bf0f9d3d7a79607ad65da81c7d8b3b28c48c75ef8aedbecbdf02b8e486c",
+    "feeBtc": 0.00000202,
+    "changePosition": 1,
+    "mempoolAccept": {
+      "txid": "88cd8bf0f9d3d7a79607ad65da81c7d8b3b28c48c75ef8aedbecbdf02b8e486c",
+      "wtxid": "aa269ea744e45652229facd4aafd321a823b3914b9a0f5d6b715972351d486b3",
+      "allowed": true,
+      "vsize": 202,
+      "fees": {
+        "base": 0.00000202,
+        "effective-feerate": 0.00001,
+        "effective-includes": [
+          "aa269ea744e45652229facd4aafd321a823b3914b9a0f5d6b715972351d486b3"
+        ]
+      }
+    },
+    "decodedVout": [
+      {
+        "value": 0,
+        "n": 0,
+        "scriptPubKey": {
+          "asm": "OP_RETURN 746c72313a64636138653763353936346462663261653930326363323062373537643034303034333461313961323563373264613564626135313030613039343931383231",
+          "desc": "raw(6a45746c72313a64636138653763353936346462663261653930326363323062373537643034303034333461313961323563373264613564626135313030613039343931383231)#a6nvynz4",
+          "hex": "6a45746c72313a64636138653763353936346462663261653930326363323062373537643034303034333461313961323563373264613564626135313030613039343931383231",
+          "type": "nulldata"
+        }
+      },
+      {
+        "value": 0.0033831,
+        "n": 1,
+        "scriptPubKey": {
+          "asm": "1 dd9b665151f76f66c4a2bd4dd026e459fe96b12a819bbc9c6ae2e7ca5c493bc4",
+          "desc": "rawtr(dd9b665151f76f66c4a2bd4dd026e459fe96b12a819bbc9c6ae2e7ca5c493bc4)#kn3m8pcx",
+          "hex": "5120dd9b665151f76f66c4a2bd4dd026e459fe96b12a819bbc9c6ae2e7ca5c493bc4",
+          "address": "tb1pmkdkv5237ahkd39zh4xaqfhyt8lfdvf2sxdme8r2utnu5hzf80zqpfs8r4",
+          "type": "witness_v1_taproot"
+        }
+      }
+    ],
+    "mempoolEntry": {
+      "vsize": 202,
+      "weight": 805,
+      "time": 1783382169,
+      "height": 143222,
+      "descendantcount": 1,
+      "descendantsize": 202,
+      "ancestorcount": 2,
+      "ancestorsize": 372,
+      "wtxid": "aa269ea744e45652229facd4aafd321a823b3914b9a0f5d6b715972351d486b3",
+      "fees": {
+        "base": 0.00000202,
+        "modified": 0.00000202,
+        "ancestor": 0.00000372,
+        "descendant": 0.00000202
+      },
+      "depends": [
+        "7708ff644168f75ca1f96baa5b5051b2737c69451edc7dc1b038d241d22a1459"
+      ],
+      "spentby": [],
+      "bip125-replaceable": true,
+      "unbroadcast": true
+    },
+    "height": 143222
+  },
+  "artifactHash": "ce07b8a3591c5472b8b4ed9493d19069b2c411d5242b1d6f601a7110084e2135"
+}

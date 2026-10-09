@@ -1,0 +1,44 @@
+{
+  "kind": "btc_testnet4_utxoref_v2_redteam_report",
+  "version": 1,
+  "observedAt": "2026-07-12T20:13:19.618Z",
+  "network": "bitcoin-testnet4",
+  "reviewAgents": 3,
+  "scopes": [
+    "bitvm-trace-and-assertion-cryptography",
+    "rbf-cpfp-and-package-propagation",
+    "watchtower-state-trust-reorg-and-rpc"
+  ],
+  "liveConflict": {
+    "fundingTxid": "389307d5195a1fcf8854d469f34b162afc3603fea4b15ac3319df1d224851469",
+    "challengeTxid": "96f52e7120f3ce53e349e9aa51fcf8b1ae36dfc5f5da4b51f3a9a5ff9b8a0482",
+    "winnerCpfpTxid": "0a4233b97346525188e99f5214e700be0d69b0ffbeb6756f689027afb86b970d",
+    "conflictedCpfpTxid": "5a37264a3becf0fa11872ae5087aa44493518c585322438bfad8da9dda33ce92",
+    "height": 143874,
+    "blockHash": "0000000000b062de482e9159dd8f829a3e13d19a1cfbb223520ac4a7e00bbe97",
+    "watcherReconciled": true
+  },
+  "attackCount": 13,
+  "reproducedBeforeFix": 7,
+  "liveChainFindings": 2,
+  "controlsAdded": 13,
+  "focusedTests": {
+    "utxorefV2": 10,
+    "bitvmTraceV2": 8,
+    "bitvmAssertionGraphV2": 9,
+    "watchtower": 12,
+    "cpfp": 8,
+    "rpcProxy": 4,
+    "rpcSweep": 11,
+    "total": 62
+  },
+  "residualRiskIds": [
+    "state-alert-log-rollback",
+    "single-artifact-monitoring",
+    "confirmed-unknown-spender-resolution",
+    "full-package-fee-policy",
+    "external-fact-semantic-boundary",
+    "nums-discrete-log-assumption"
+  ],
+  "mainnetApproved": false
+}

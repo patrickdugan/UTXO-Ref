@@ -99,6 +99,25 @@ test('committed snapshot includes hash envelope', () => {
   assertEq(committed.epochId, '9');
 });
 
+test('annotated blob preserves canonical snapshot hash', () => {
+  const state = new ReceiptTallyMap({ epochId: 14n });
+  state.applyDeposit({ depositId: 'd1', accountId: 'alice', amountSats: 100n });
+
+  const annotation = {
+    kind: 'witness-settlement-delta',
+    redeemedSats: '75',
+    pnlGainSats: '0',
+    pnlLossSats: '25',
+    netDeltaSats: '-25'
+  };
+
+  const blob = state.toAnnotatedBlob(annotation);
+  const restored = ReceiptTallyMap.fromBlob(blob);
+
+  assertEq(restored.snapshotHashHex(), state.snapshotHashHex());
+  assert(blob.includes('"deltaAnnotation"'), 'annotated blob should carry delta metadata');
+});
+
 test('balance root is deterministic across insertion order', () => {
   const a = new ReceiptTallyMap({ epochId: 3n });
   const b = new ReceiptTallyMap({ epochId: 3n });

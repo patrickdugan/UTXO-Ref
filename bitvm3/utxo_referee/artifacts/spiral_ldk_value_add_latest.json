@@ -1,0 +1,208 @@
+{
+  "kind": "spiral_ldk_value_add_brief",
+  "createdAt": "2026-04-25T21:23:17.356Z",
+  "thesis": "Make Lightning-paid advanced contract opens look like normal LDK funding, LSP, and recovery plumbing.",
+  "evidence": [
+    {
+      "theme": "funding_splicing_api",
+      "repo": "lightningdevkit/rust-lightning",
+      "commit": "b1c3e29",
+      "subject": "Introduce FundingBuilder for splice requests",
+      "url": "https://github.com/lightningdevkit/rust-lightning/commit/b1c3e29a257a70dbc273eb7080f35c42e87d6615",
+      "implication": "Contract funding should enter through funding-contribution and splice-shaped APIs."
+    },
+    {
+      "theme": "funding_splicing_api",
+      "repo": "lightningdevkit/rust-lightning",
+      "commit": "9f9fe58",
+      "subject": "Replace FundingTemplate contribution methods with FundingBuilder",
+      "url": "https://github.com/lightningdevkit/rust-lightning/commit/9f9fe58bbefaaf7023980e068230cd79c8626bc9",
+      "implication": "A useful prototype should emit deterministic funding-builder test vectors."
+    },
+    {
+      "theme": "lsps_webhooks",
+      "repo": "lightningdevkit/rust-lightning",
+      "commit": "5237c9a",
+      "subject": "Use bitreq::Url for LSPS5 webhook URLs",
+      "url": "https://github.com/lightningdevkit/rust-lightning/commit/5237c9a9a7441317b4d8e1ee6f096234792d69ce",
+      "implication": "The contract-open receipt can be delivered through LSP webhook/payment lifecycle plumbing."
+    },
+    {
+      "theme": "node_server_productization",
+      "repo": "lightningdevkit/ldk-server",
+      "commit": "9645cb1",
+      "subject": "Add OpenChannel::disable_counterparty_reserve",
+      "url": "https://github.com/lightningdevkit/ldk-server/commit/9645cb1f02020a41f0541bafded7be82a2a8470d",
+      "implication": "The demo should expose operational knobs through node/server APIs, not only library internals."
+    },
+    {
+      "theme": "vss_recovery",
+      "repo": "lightningdevkit/vss-server",
+      "commit": "b6d80c7",
+      "subject": "Add configurable request body size with 1GB hard limit",
+      "url": "https://github.com/lightningdevkit/vss-server/commit/b6d80c74ba1de4238c53eba43a055e0ad94fce41",
+      "implication": "Advanced contract state needs bounded, recoverable storage records."
+    },
+    {
+      "theme": "gossip_reliability",
+      "repo": "lightningdevkit/rapid-gossip-sync-server",
+      "commit": "b0c2bca",
+      "subject": "Fix deadlock with many peers, few threads, and slow postgres writes",
+      "url": "https://github.com/lightningdevkit/rapid-gossip-sync-server/commit/b0c2bcaa185211a852250cdb5ba9aada55795497",
+      "implication": "The contribution should include repeatable harnesses and failure-mode tests, not just happy-path demos."
+    }
+  ],
+  "adapter": {
+    "kind": "ldk_external_funding_receipt_adapter",
+    "adapterId": "e2b34586d749df08fded072f259ce61679a9ef7e67c1509165c57eb7dd6c61d2",
+    "ldkContributionCore": {
+      "version": 1,
+      "targetSurface": "LDK FundingBuilder external contribution",
+      "contractKind": "lightning_funded_bitvm_dlc_position_open",
+      "contractTranscriptId": "db4e1d8fbc44bdac33921a9080a2064d3edc4fa4c1f062994f3e3bd381e9d703",
+      "contributionAmountSats": "100000",
+      "fundingOutputCommitmentHash": "3329af156c5a58fc62d2964ba2d3524862d9ff61726d2855e42c31016b28ff86",
+      "lightningPaymentHashHex": "96a63707bb7393eb39c1f2b070b81f28dd359571c9dae54277c009c8af0ea26d",
+      "lspFlow": "LSPS quote -> hold invoice -> funding contribution -> contract-open receipt",
+      "persistenceRecordKind": "vss_contract_open_receipt_v1"
+    },
+    "traitSketch": [
+      "quote_contract_open_funding(intent) -> lightning_invoice",
+      "validate_preimage_receipt(preimage, payment_hash) -> receipt",
+      "build_external_funding_contribution(receipt, funding_output_commitment) -> contribution",
+      "persist_contract_open_receipt(vss_client, receipt_record) -> storage_version"
+    ],
+    "ldkTouchpoints": [
+      "rust-lightning::ln::funding::FundingBuilder",
+      "rust-lightning splicing tests",
+      "ldk-node payment and HRN resolution surfaces",
+      "ldk-server OpenChannel API and gRPC wrapper",
+      "vss-client/vss-server recovery records",
+      "rapid-gossip-sync repeatable harness metrics"
+    ],
+    "positionOpen": {
+      "kind": "lightning_funded_bitvm_dlc_position_open",
+      "transcriptId": "db4e1d8fbc44bdac33921a9080a2064d3edc4fa4c1f062994f3e3bd381e9d703",
+      "transcriptCore": {
+        "version": 1,
+        "userId": "alice",
+        "epochId": "1",
+        "dlcId": "dlc-1",
+        "lnAmountSats": "100750",
+        "collateralSats": "100000",
+        "swapFeeSats": "250",
+        "fundingFeeSats": "500",
+        "paymentHashHex": "96a63707bb7393eb39c1f2b070b81f28dd359571c9dae54277c009c8af0ea26d",
+        "fundingOutputCommitmentHash": "3329af156c5a58fc62d2964ba2d3524862d9ff61726d2855e42c31016b28ff86"
+      },
+      "lightning": {
+        "mode": "hold-invoice-submarine-swap",
+        "invoice": "lnbc100750n1pa24a33f10f3c90ca295227400355021b",
+        "amountMsat": "100750000",
+        "paymentHashHex": "96a63707bb7393eb39c1f2b070b81f28dd359571c9dae54277c009c8af0ea26d",
+        "preimageHex": "7c2f23d21225ad45b1380f48b511dd1427ed64db909e96e51d2585c88f192900",
+        "settlementCondition": "funding_tx_seen_and_referee_commitment_matches"
+      },
+      "fundingOutput": {
+        "kind": "bitvm_dlc_funding_output_commitment",
+        "payload": {
+          "version": 1,
+          "epochId": "1",
+          "dlcId": "dlc-1",
+          "bitvmCommitmentRoot": "0b99ad82327380925fab3d7b4a4deafc7b5b89d659515eb4619290a1037e65c9",
+          "collateralSats": "100000",
+          "refundAddress": "tb1qrefundprototype",
+          "timeoutBlock": 900144
+        },
+        "commitmentHash": "3329af156c5a58fc62d2964ba2d3524862d9ff61726d2855e42c31016b28ff86"
+      },
+      "fundingPackage": {
+        "kind": "bitvm_dlc_funding_psbt_skeleton",
+        "inputs": [
+          {
+            "role": "swap-provider-input",
+            "amountSats": "100500",
+            "source": "submarine-swap-liquidity"
+          }
+        ],
+        "outputs": [
+          {
+            "role": "bitvm-dlc-funding",
+            "amountSats": "100000",
+            "commitmentHash": "3329af156c5a58fc62d2964ba2d3524862d9ff61726d2855e42c31016b28ff86"
+          }
+        ],
+        "feeSats": "500",
+        "swapLock": {
+          "paymentHashHex": "96a63707bb7393eb39c1f2b070b81f28dd359571c9dae54277c009c8af0ea26d",
+          "successReveals": "ln_preimage_unlocks_swap_provider_claim",
+          "refundAfterBlock": 900288
+        }
+      },
+      "atomicityChecklist": {
+        "sameHashLocksLightningAndSwap": true,
+        "refundPathExists": true,
+        "fundingOutputBoundToBitvmRoot": true,
+        "feeAccountingBalances": true
+      },
+      "caveats": [
+        "Prototype invoice is deterministic test data, not a real BOLT invoice.",
+        "Production needs LDK/LND/CLN hold-invoice handling and mempool-aware refund policy."
+      ]
+    },
+    "liveClnReceipt": {
+      "network": "regtest",
+      "runDir": "/home/duganist/.local/utxoref-lightning/run/regtest-demo",
+      "channelTxid": "2a23e6ea3c963446787077f15ff479bff375a2893b9ed31520bfd628cb55a506",
+      "channelAmountSats": "500000",
+      "bolt11": "lnbcrt250n1p576zj9sp5rcdxvplgzmz4jsxe4kjef23dhmrk5w4ay3hvuk297g2axj7ruhmspp5j6nrwpamwwf7kwwp72c8pwql9rwnt9t3e8dw2snhcqyu3tcw5fksdpc2429sn6jv4nzqsnfw3ty6t6yf3pjqnrfva58gmnfdenjqun9vdjkjur5xqyjw5qcqp29qxpqysgqes8tqdtatxmrrjvlgcph5d9s7gw6ukmec0tju5dn6kmwrs422rm9ttvlyyplftzyhm0fu6pmdpujk3gnnhqwtnk5vw0ldxd895x6t0qq97dsmy",
+      "invoiceAmount": "25000msat",
+      "paymentHashHex": "96a63707bb7393eb39c1f2b070b81f28dd359571c9dae54277c009c8af0ea26d",
+      "paymentPreimageHex": "7c2f23d21225ad45b1380f48b511dd1427ed64db909e96e51d2585c88f192900",
+      "status": "complete"
+    },
+    "vssRecord": {
+      "kind": "vss_contract_open_receipt_v1",
+      "key": "contract-open/db4e1d8fbc44bdac33921a9080a2064d3edc4fa4c1f062994f3e3bd381e9d703",
+      "valueHash": "9512ccecc3850f2d1088b52d3fa76c23bc59a3c8e2fc81b5f989984c8994053c",
+      "boundedFields": [
+        "positionOpenTranscriptId",
+        "paymentHashHex",
+        "fundingOutputCommitmentHash",
+        "channelTxid",
+        "receiptStatus"
+      ]
+    },
+    "checks": {
+      "preimageMatchesReceiptHash": true,
+      "fundingOutputBoundToContract": true,
+      "contributionAmountMatchesCollateral": true,
+      "evidenceLinksPresent": true
+    }
+  },
+  "proposedMilestones": [
+    {
+      "name": "M1: LDK-shaped funding receipt vectors",
+      "deliverable": "Rust/JS vectors binding invoice preimage, FundingBuilder-style contribution, funding output, and contract transcript.",
+      "reviewSurface": "rust-lightning funding/splicing tests"
+    },
+    {
+      "name": "M2: ldk-node / ldk-server demo surface",
+      "deliverable": "CLI/API demo for contract-open quote, invoice payment, receipt verification, and replay.",
+      "reviewSurface": "ldk-node or ldk-server sample integration"
+    },
+    {
+      "name": "M3: VSS recovery record",
+      "deliverable": "Persist/reload contract-open receipt and prove the recovered state verifies against the funding transcript.",
+      "reviewSurface": "vss-client-compatible storage record tests"
+    }
+  ],
+  "pitchBoundary": [
+    "Do not ask Spiral to bless production BitVM semantics.",
+    "Present the value as reusable LDK funding, receipt, storage, and test-vector plumbing.",
+    "Keep Litecoin/testnet demos as local harness evidence, not the headline."
+  ],
+  "verification": {
+    "ok": true
+  }
+}

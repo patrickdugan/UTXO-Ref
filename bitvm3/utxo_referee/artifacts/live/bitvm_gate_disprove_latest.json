@@ -1,0 +1,19 @@
+{
+  "kind": "tradelayer_bitvm_gate_disprove",
+  "gateType": "and",
+  "asserted": {
+    "inputs": [
+      1,
+      1
+    ],
+    "output": 0
+  },
+  "disproveScript": "a820cf054cce6791d7f86e79a4fee1015e9180f60148cfb0595b0ea1ce86d389321a88a8209f5002791487bb99dd74ca529bb2ce3ff29411cbd08ab65d76c9b45ae07e7c2888a820eabfe3e2a7d97f70c161cfb2b68b0ff3406bb7423d6c14d9ae5939301b415c9a8820cac2e4bcf278e007f157d2495201b4a678667e93b2cb0f4ab925418ce4e9f947ac",
+  "p2trScriptPubKey": "5120e84f86772d6f68099e689c8d776e7e641ac96e086b4339a5da12eeca8815b56e",
+  "fundingTxid": "985914a430f661805cdb8e10c746bb424fb70a57da098f90e93d6d7d1a7e1971",
+  "spendTxid": "2be77c16ee1de2e378a882671d48a688e73a352fb849972818874de69d3e5d78",
+  "broadcast": {
+    "fundingTxid": "985914a430f661805cdb8e10c746bb424fb70a57da098f90e93d6d7d1a7e1971",
+    "spendTxid": "2be77c16ee1de2e378a882671d48a688e73a352fb849972818874de69d3e5d78"
+  }
+}

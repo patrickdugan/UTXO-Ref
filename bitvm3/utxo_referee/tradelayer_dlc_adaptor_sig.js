@@ -280,7 +280,11 @@ function schnorrSign(secret, msg32, aux32 = crypto.randomBytes(32)) {
   const k = hasEvenY(Rpoint) ? k0 : N - k0;
   const e = challenge(Rpoint.x, px, msg32);
   const s = mod(k + e * d, N);
-  return Buffer.concat([bytes32(Rpoint.x), bytes32(s)]);
+  const signature = Buffer.concat([bytes32(Rpoint.x), bytes32(s)]);
+  // DLC-8: BIP340 recommends verifying before release, so a computation
+  // fault cannot hand out a signature that leaks the key.
+  if (!schnorrVerify(bytes32(px), msg32, signature)) throw new Error('schnorrSign: produced signature does not verify');
+  return signature;
 }
 
 function schnorrVerify(pubkeyX, msg32, sig64) {
@@ -380,6 +384,22 @@ function adaptorVerify(pubkeyX, msg32, presig) {
   } catch (_error) {
     return false;
   }
+}
+
+// DLC-3: adaptorVerify checks the pre-signature against the adaptor point the
+// pre-signature itself carries. A counterparty can pre-sign under any point,
+// pass that check, and the oracle's attestation will never complete it. Use
+// this form whenever the expected point is known (the oracle outcome point).
+function adaptorVerifyForPoint(pubkeyX, msg32, presig, expectedPoint) {
+  try {
+    const { T } = presigPoints(presig);
+    const expectedX = typeof expectedPoint?.x === 'bigint' ? expectedPoint.x : bufToBig(Buffer.from(String(expectedPoint?.x), 'hex'));
+    const expectedY = typeof expectedPoint?.y === 'bigint' ? expectedPoint.y : bufToBig(Buffer.from(String(expectedPoint?.y), 'hex'));
+    if (T.x !== expectedX || T.y !== expectedY) return false;
+  } catch (_error) {
+    return false;
+  }
+  return adaptorVerify(pubkeyX, msg32, presig);
 }
 
 // Complete the pre-signature with the oracle attestation scalar t (t*G == T).
@@ -740,6 +760,7 @@ module.exports = {
   schnorrVerify,
   adaptorSign,
   adaptorVerify,
+  adaptorVerifyForPoint,
   adaptorComplete,
   adaptorExtract,
   buildDlcOracle,

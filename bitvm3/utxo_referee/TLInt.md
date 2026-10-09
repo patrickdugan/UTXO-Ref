@@ -25,6 +25,19 @@ Keep the referee core protocol-neutral while documenting how TradeLayer settleme
 - Leaves are hashed and committed as `withdrawalRoot`.
 - Claimed sweep payouts must carry matching Merkle proofs.
 
+5. Send-to-DLC mapping
+- TradeLayer/state-oracle logic tracks token sends and decides whether the sent
+  address is also registered as the funder for a follow-on DLC.
+- If a match exists, the route adapter rewrites the user-facing send address into
+  the mapped DLC funding address before building payout leaves.
+- The BitVM transition does not parse TradeLayer JSON or scan account state. It
+  verifies exact integer arithmetic for `sendBps` and then checks that the sweep
+  outputs match the committed output scripts.
+- The adapter can now consume a state-oracle send blob, select a concrete send
+  record, hash the blob/record/DLC registry, derive `sendBps` from either an
+  explicit basis-point field or an exact token amount/deposit ratio, and emit the
+  compact route plan used by the UTXO referee.
+
 ## Integration Pipeline
 
 1. Build payout leaves from finalized TradeLayer withdrawal set.
@@ -33,12 +46,23 @@ Keep the referee core protocol-neutral while documenting how TradeLayer settleme
 4. Construct sweep candidate with payout outputs and proofs.
 5. Run `verifySweep(commitment, sweep)` before acceptance/challenge flow.
 
+For send routing:
+
+1. Consume the TradeLayer state-oracle blob for the epoch.
+2. Select the send record by `sendId`, `sendTxid`, or index.
+3. Resolve the send destination against the DLC-funder registry.
+4. Derive exact `sendBps` and build payout leaves for the DLC output plus refund
+   remainder.
+5. Bind `stateOracleHash`, `selectedSendHash`, and `dlcFunderRegistryHash` in the
+   route envelope so fraud challenges can target the exact source material.
+
 ## Non-Goals Inside Referee
 
 - Price discovery or oracle validation.
 - Trade/PnL correctness.
 - Collateral or tokenomics logic.
 - General TradeLayer state transition validity.
+- Full address/DLC registry lookup inside the circuit.
 
 ## Minimal Integration Example
 
@@ -57,4 +81,3 @@ const commitment = new referee.CommitmentPackage({
   residualDest: tlResidualScriptPubKey
 });
 ```
-

@@ -1,0 +1,36 @@
+{
+  "kind": "tradelayer_live_reserve_reconciliation",
+  "createdAt": "2026-06-12T14:46:52.267Z",
+  "source": "file:C:\\projects\\UTXORef\\UTXO-Ref\\bitvm3\\utxo_referee\\artifacts\\live\\funding_wallet_listunspent_codex_e2e.json",
+  "reserve": {
+    "creditedCount": 0,
+    "observedCount": 0,
+    "reservedSats": "0",
+    "reserveSourceKind": "receipt-deposit-indexer",
+    "reserveSourceHash": "83b050299a9cfd9a07b3d7098e51b24f8d3b498b9ea69126e2a0d91d211d2134"
+  },
+  "reconciliation": {
+    "kind": "tradelayer_reserve_reconciliation_v1",
+    "network": "litecoin-testnet",
+    "epochId": "77",
+    "queueHash": "206ea73cb10ab75f72648bf5b3c218b9b2fc5551bd799fdb5d66ed5ad251fbfb",
+    "withdrawalRootHex": "76a1ef570ccb542551a02c80d7948e37253fbd396fcc2e8171402798a3a7f81e",
+    "capSats": "99000",
+    "payableCount": 2,
+    "reserveSourceKind": "receipt-deposit-indexer",
+    "reserveSourceHash": "83b050299a9cfd9a07b3d7098e51b24f8d3b498b9ea69126e2a0d91d211d2134",
+    "reservedSats": "0",
+    "marginSats": "-99000",
+    "solvent": false
+  },
+  "reconciliationHash": "097aec973e21c5903180e6f001a8bf5fb45f7438951ae1fd3315c06d1e0c6362",
+  "insolvencyChallenge": {
+    "challengeable": true,
+    "challengeHash": "c6ae745d2be3627b08a54fbc47ff7357cb508e87330162d741e45f07cae6ed8f",
+    "shortfallSats": "99000"
+  },
+  "stackHash": "d1cfb93402f569c3a7987f9a0e6d4e582dee791c53bd0f91cf090ff7aa1001d9",
+  "dashboardStatus": "needs_attention",
+  "walletAction": "pause_spend",
+  "stackVerification": "ok"
+}

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 
+const crypto = require('crypto');
 const fs = require('fs');
 const http = require('http');
 const path = require('path');
@@ -14,6 +15,9 @@ const UPSTREAM_TIMEOUT_MS = 10000;
 const TXID = /^[0-9a-f]{64}$/;
 const HEX = /^(?:[0-9a-f]{2})+$/;
 const TOKEN = /^[0-9a-f]{64}$/;
+const MAX_RAW_TRANSACTION_HEX = 800000;
+const BROADCAST_ALLOWLIST_KIND = 'utxoref_rpc_proxy_broadcast_allowlist_v1';
+const MAX_BROADCAST_ALLOWLIST_TXIDS = 256;
 
 function exactParams(params, length) {
   return Array.isArray(params) && params.length === length;
@@ -38,12 +42,100 @@ const METHOD_POLICY = Object.freeze({
     (params.length === 1 || (typeof params[1] === 'number' && Number.isFinite(params[1]) && params[1] >= 0))
 });
 
-function validateRpcRequest(value) {
+// The txid (non-witness serialization) of a raw transaction, with exact
+// consumption and canonical compact sizes; throws on anything else.
+function txidOfRawTransaction(hex) {
+  if (typeof hex !== 'string' || hex.length > MAX_RAW_TRANSACTION_HEX || !HEX.test(hex)) {
+    throw new Error('raw transaction must be bounded lowercase hex');
+  }
+  const bytes = Buffer.from(hex, 'hex');
+  let offset = 0;
+  const take = length => {
+    if (offset + length > bytes.length) throw new Error('raw transaction is truncated');
+    const slice = bytes.subarray(offset, offset + length);
+    offset += length;
+    return slice;
+  };
+  const compactSize = () => {
+    const first = take(1)[0];
+    if (first < 0xfd) return first;
+    if (first === 0xfd) {
+      const value = take(2).readUInt16LE(0);
+      if (value < 0xfd) throw new Error('non-canonical compact size');
+      return value;
+    }
+    if (first === 0xfe) {
+      const value = take(4).readUInt32LE(0);
+      if (value <= 0xffff) throw new Error('non-canonical compact size');
+      return value;
+    }
+    throw new Error('compact size exceeds the raw transaction limit');
+  };
+  const version = take(4);
+  let segwit = false;
+  if (bytes[offset] === 0x00) {
+    if (bytes[offset + 1] !== 0x01) throw new Error('invalid segwit marker');
+    offset += 2;
+    segwit = true;
+  }
+  const bodyStart = offset;
+  const inputs = compactSize();
+  if (inputs < 1) throw new Error('raw transaction has no inputs');
+  for (let index = 0; index < inputs; index++) {
+    take(36);
+    take(compactSize());
+    take(4);
+  }
+  const outputs = compactSize();
+  if (outputs < 1) throw new Error('raw transaction has no outputs');
+  for (let index = 0; index < outputs; index++) {
+    take(8);
+    take(compactSize());
+  }
+  const bodyEnd = offset;
+  if (segwit) {
+    let witnessItems = 0;
+    for (let index = 0; index < inputs; index++) {
+      const items = compactSize();
+      witnessItems += items;
+      for (let item = 0; item < items; item++) take(compactSize());
+    }
+    if (witnessItems === 0) throw new Error('segwit marker without witness data');
+  }
+  const locktime = take(4);
+  if (offset !== bytes.length) throw new Error('raw transaction has trailing bytes');
+  const stripped = Buffer.concat([version, bytes.subarray(bodyStart, bodyEnd), locktime]);
+  const once = crypto.createHash('sha256').update(stripped).digest();
+  return Buffer.from(crypto.createHash('sha256').update(once).digest()).reverse().toString('hex');
+}
+
+// WT-2: broadcast is off unless an operator pins exact txids (for example the
+// fully pre-signed settlements of the graphs it watches). Nothing else -
+// including any transaction the caller builds - can be relayed.
+function validateBroadcastRequest(params, broadcastTxids) {
+  if (!exactParams(params, 1)) return { ok: false, code: -32602, message: 'parameters violate the read-only capability' };
+  let txid;
+  try { txid = txidOfRawTransaction(params[0]); } catch (_) {
+    return { ok: false, code: -32602, message: 'raw transaction is malformed' };
+  }
+  if (!broadcastTxids.has(txid)) {
+    return { ok: false, code: -32602, message: 'transaction is not on the broadcast allowlist' };
+  }
+  return { ok: true };
+}
+
+function validateRpcRequest(value, options = {}) {
   if (!value || typeof value !== 'object' || Array.isArray(value) || value.jsonrpc !== '2.0' ||
       (typeof value.id !== 'string' && !Number.isSafeInteger(value.id)) ||
       (typeof value.id === 'string' && (value.id.length < 1 || value.id.length > 64)) ||
       typeof value.method !== 'string' || !Array.isArray(value.params)) {
     return { ok: false, code: -32600, message: 'invalid bounded JSON-RPC request' };
+  }
+  const broadcastTxids = options.broadcastTxids;
+  if (value.method === 'sendrawtransaction' && broadcastTxids instanceof Set && broadcastTxids.size > 0) {
+    const checked = validateBroadcastRequest(value.params, broadcastTxids);
+    if (!checked.ok) return checked;
+    return { ok: true, request: { jsonrpc: '2.0', id: value.id, method: value.method, params: [value.params[0]] } };
   }
   const validator = METHOD_POLICY[value.method];
   if (!validator) return { ok: false, code: -32601, message: 'method is outside the read-only capability' };
@@ -95,6 +187,22 @@ function createFileTokenProvider(tokenFile) {
     const value = readBoundedRegularFile(tokenFile, 256, 'proxy token');
     if (!TOKEN.test(value)) throw new Error('proxy token must be 256-bit lowercase hex');
     return value;
+  };
+  provider();
+  return provider;
+}
+
+function createFileBroadcastAllowlistProvider(allowlistFile) {
+  if (!path.isAbsolute(allowlistFile)) throw new Error('broadcast allowlist file must be absolute');
+  const provider = () => {
+    const value = JSON.parse(readBoundedRegularFile(allowlistFile, 65536, 'broadcast allowlist'));
+    if (!value || value.kind !== BROADCAST_ALLOWLIST_KIND || !Array.isArray(value.txids) ||
+        value.txids.length < 1 || value.txids.length > MAX_BROADCAST_ALLOWLIST_TXIDS ||
+        !value.txids.every(txid => typeof txid === 'string' && TXID.test(txid)) ||
+        new Set(value.txids).size !== value.txids.length) {
+      throw new Error(`broadcast allowlist must be ${BROADCAST_ALLOWLIST_KIND} with 1..${MAX_BROADCAST_ALLOWLIST_TXIDS} unique txids`);
+    }
+    return new Set(value.txids);
   };
   provider();
   return provider;
@@ -167,8 +275,12 @@ function createReadonlyRpcProxy({
   rpcPort = 48332,
   maxConcurrent = MAX_CONCURRENT_REQUESTS,
   maxRequestsPerMinute = MAX_AUTHENTICATED_REQUESTS_PER_MINUTE,
-  now = Date.now
+  now = Date.now,
+  broadcastAllowlistProvider = null
 }) {
+  if (broadcastAllowlistProvider !== null && typeof broadcastAllowlistProvider !== 'function') {
+    throw new Error('invalid read-only RPC proxy configuration');
+  }
   const hasStaticToken = typeof token === 'string';
   const hasTokenProvider = typeof tokenProvider === 'function';
   if (!path.isAbsolute(cookiePath) || hasStaticToken === hasTokenProvider ||
@@ -263,7 +375,11 @@ function createReadonlyRpcProxy({
           send(400, jsonRpcError(null, -32700, 'invalid JSON'));
           return;
         }
-        const validated = validateRpcRequest(value);
+        let broadcastTxids = null;
+        if (broadcastAllowlistProvider && value && value.method === 'sendrawtransaction') {
+          try { broadcastTxids = broadcastAllowlistProvider(); } catch (_) { broadcastTxids = null; }
+        }
+        const validated = validateRpcRequest(value, { broadcastTxids });
         if (!validated.ok) {
           stats.denied++;
           send(400, jsonRpcError(value && value.id, validated.code, validated.message));
@@ -307,7 +423,9 @@ if (require.main === module) {
       throw new Error('--token-file must be absolute and --port must be in 1..65535');
     }
     const tokenProvider = createFileTokenProvider(tokenFile);
-    const proxy = createReadonlyRpcProxy({ cookiePath, tokenProvider, rpcPort });
+    const allowlistFile = option('broadcast-allowlist-file');
+    const broadcastAllowlistProvider = allowlistFile ? createFileBroadcastAllowlistProvider(allowlistFile) : null;
+    const proxy = createReadonlyRpcProxy({ cookiePath, tokenProvider, rpcPort, broadcastAllowlistProvider });
     proxy.server.listen(port, '127.0.0.1', () => {
       process.stdout.write(`${JSON.stringify({
         schema: 'utxoref_bitcoin_testnet4_readonly_rpc_proxy_v1',
@@ -321,7 +439,7 @@ if (require.main === module) {
         maxConnections: MAX_CONNECTIONS,
         tokenFormat: 'lowercase-hex-256-bit',
         tokenRevalidatedPerRequest: true,
-        broadcastAllowed: false,
+        broadcastAllowed: broadcastAllowlistProvider ? 'allowlisted-txids-only' : false,
         walletRpcAllowed: false
       })}\n`);
     });
@@ -338,7 +456,10 @@ module.exports = {
   MAX_CONCURRENT_REQUESTS,
   MAX_AUTHENTICATED_REQUESTS_PER_MINUTE,
   MAX_CONNECTIONS,
+  BROADCAST_ALLOWLIST_KIND,
   createFileTokenProvider,
+  createFileBroadcastAllowlistProvider,
+  txidOfRawTransaction,
   validateRpcRequest,
   createReadonlyRpcProxy
 };

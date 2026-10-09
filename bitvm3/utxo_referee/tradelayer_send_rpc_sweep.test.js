@@ -1,0 +1,394 @@
+/**
+ * Run: node bitvm3/utxo_referee/tradelayer_send_rpc_sweep.test.js
+ */
+
+const {
+  buildTradeLayerSendStateOracleFromConsensus
+} = require('./tradelayer_send_oracle_extractor');
+const {
+  buildTradeLayerSendIntentFromStateOracle,
+  buildTradeLayerSendRoutePlan,
+  sha256Hex,
+  stableStringify
+} = require('./tradelayer_pnl_route_adapter');
+const {
+  buildTradeLayerSendSweepPlan
+} = require('./tradelayer_send_sweep_psbt');
+const {
+  createPsbtParams,
+  computeDecodedTxOutputHash,
+  preflightTradeLayerSendRpcSweep,
+  executeTradeLayerSendRpcSweep,
+  attachRpcSweepToSweepPlan
+} = require('./tradelayer_send_rpc_sweep');
+
+let passed = 0;
+let failed = 0;
+
+async function test(name, fn) {
+  try {
+    await fn();
+    console.log(`  OK  ${name}`);
+    passed++;
+  } catch (err) {
+    console.log(`  FAIL ${name}`);
+    console.log(`       ${err.message}`);
+    failed++;
+  }
+}
+
+function assert(condition, message) {
+  if (!condition) throw new Error(message || 'assertion failed');
+}
+
+function assertEq(actual, expected, message) {
+  if (actual !== expected) throw new Error(message || `expected ${expected}, got ${actual}`);
+}
+
+function clone(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+const CONSENSUS_INPUT = {
+  chain: 'litecoin-testnet',
+  epochId: '77',
+  snapshotHeight: 4696000,
+  snapshotTxid: 'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+  oracleAddress: 'tltc1qn06nctkv2sm8wdjx5fe2x0zluxlyxynq3vud87hxsfv3u8kwdcaq0xvhqa',
+  depositUnits: '10000',
+  feeSats: 1000,
+  dlcInputs: {
+    'live-send': {
+      txid: 'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff',
+      vout: 1,
+      address: 'tltc1qn06nctkv2sm8wdjx5fe2x0zluxlyxynq3vud87hxsfv3u8kwdcaq0xvhqa',
+      sats: 100000
+    }
+  },
+  dlcFunderRegistry: {
+    tltc1qkz0vft2fc4nk0u9fx4k9yk4th7zherna3zxh22: {
+      dlcRef: 'dlc-live-77',
+      dlcAddress: 'tltc1qldtqy3y0rasay8dqz6kc2nxx6zfs9e9j4veqcz'
+    }
+  },
+  transactions: [
+    {
+      txType: 2,
+      id: 'live-send',
+      txid: 'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc',
+      blockHeight: 4695999,
+      senderAddress: 'tltc1qn06nctkv2sm8wdjx5fe2x0zluxlyxynq3vud87hxsfv3u8kwdcaq0xvhqa',
+      address: 'tltc1qkz0vft2fc4nk0u9fx4k9yk4th7zherna3zxh22',
+      propertyId: 380,
+      amountUnits: '2500',
+      valid: true
+    }
+  ]
+};
+
+function sampleSweepPlan() {
+  const stateOracle = buildTradeLayerSendStateOracleFromConsensus(CONSENSUS_INPUT, {
+    selectedSendId: 'live-send'
+  });
+  const sendIntent = buildTradeLayerSendIntentFromStateOracle(stateOracle, { sendId: 'live-send' });
+  const routePlan = buildTradeLayerSendRoutePlan(sendIntent);
+  return buildTradeLayerSendSweepPlan(routePlan);
+}
+
+function mockRpc(calls, overrides = {}) {
+  return async function rpc(method, params, wallet) {
+    calls.push({ method, params, wallet: wallet || null });
+    if (overrides[method]) return overrides[method](params, wallet);
+    if (method === 'createpsbt') return 'unsigned-psbt';
+    if (method === 'getblockchaininfo') return { chain: 'test', blocks: 4696000, headers: 4696000 };
+    if (method === 'gettxout') {
+      return {
+        value: 0.001,
+        scriptPubKey: {
+          address: 'tltc1qn06nctkv2sm8wdjx5fe2x0zluxlyxynq3vud87hxsfv3u8kwdcaq0xvhqa'
+        }
+      };
+    }
+    if (method === 'getaddressinfo') return { ismine: true, solvable: true, iswatchonly: false };
+    if (method === 'walletprocesspsbt') return { complete: true, psbt: 'signed-psbt' };
+    if (method === 'finalizepsbt') return { complete: true, hex: '020000000001' };
+    if (method === 'decoderawtransaction') {
+      return {
+        txid: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        hash: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+        vsize: 123,
+        locktime: 0,
+        vout: [
+          {
+            n: 0,
+            value: 0.00025,
+            scriptPubKey: {
+              hex: '0014fb5602448f1f61d21da016ad854cc6d09302e4b2',
+              address: 'tltc1qldtqy3y0rasay8dqz6kc2nxx6zfs9e9j4veqcz',
+              type: 'witness_v0_keyhash'
+            }
+          },
+          {
+            n: 1,
+            value: 0.00074,
+            scriptPubKey: {
+              hex: '00149bf53c2ecc5436773646a273433c5fe1be431260',
+              address: 'tltc1qn06nctkv2sm8wdjx5fe2x0zluxlyxynq3vud87hxsfv3u8kwdcaq0xvhqa',
+              type: 'witness_v0_keyhash'
+            }
+          }
+        ]
+      };
+    }
+    if (method === 'testmempoolaccept') return [{ allowed: true }];
+    if (method === 'sendrawtransaction') return 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
+    throw new Error(`unexpected RPC method: ${method}`);
+  };
+}
+
+async function run() {
+  console.log('\n=== TradeLayer Send RPC Sweep Tests ===\n');
+
+  await test('extracts createpsbt params from the deterministic sweep plan', () => {
+    const sweepPlan = sampleSweepPlan();
+    const params = createPsbtParams(sweepPlan);
+    assertEq(params[0][0].vout, 1);
+    assertEq(params[1][0].tltc1qldtqy3y0rasay8dqz6kc2nxx6zfs9e9j4veqcz, '0.00025000');
+    assertEq(params[1][1].tltc1qn06nctkv2sm8wdjx5fe2x0zluxlyxynq3vud87hxsfv3u8kwdcaq0xvhqa, '0.00074000');
+    assertEq(params[2], 0);
+    assertEq(params[3], true);
+    assertEq(sweepPlan.routeTranscriptHash, sweepPlan.routeTranscript.hash);
+  });
+
+  await test('signs and finalizes without broadcasting by default', async () => {
+    const calls = [];
+    const result = await executeTradeLayerSendRpcSweep(sampleSweepPlan(), {
+      rpc: mockRpc(calls),
+      wallet: 'tl-wallet'
+    });
+
+    assert(result.ok, result.error);
+    assertEq(result.status, 'finalized');
+    assert(result.preflight.ok, 'preflight should pass');
+    assertEq(result.routeTranscriptHash, sampleSweepPlan().routeTranscriptHash);
+    assert(result.finalTxOutputHash.length === 64, 'final tx output hash should be present');
+    assert(result.finalSpendBinding.bindingHash.length === 64, 'final spend binding should be present');
+    assertEq(result.finalSpendBinding.core.routeTranscriptHash, result.routeTranscriptHash);
+    assertEq(result.broadcast.attempted, false);
+    assertEq(result.decodedTx.txid, 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
+    assert(calls.some((call) => call.method === 'walletprocesspsbt' && call.wallet === 'tl-wallet'), 'wallet signer call missing');
+    assert(!calls.some((call) => call.method === 'sendrawtransaction'), 'should not broadcast');
+  });
+
+  await test('preflights the committed input before signing', async () => {
+    const calls = [];
+    const result = await preflightTradeLayerSendRpcSweep(sampleSweepPlan(), {
+      rpc: mockRpc(calls),
+      wallet: 'tl-wallet'
+    });
+
+    assert(result.ok, 'preflight should pass');
+    assert(!result.failedChecks.includes('route_transcript_bound'), 'route transcript should be bound');
+    assert(calls.some((call) => call.method === 'gettxout'), 'gettxout check missing');
+    assert(calls.some((call) => call.method === 'getaddressinfo' && call.wallet === 'tl-wallet'), 'wallet address check missing');
+  });
+
+  await test('stops before signing if the expected route transcript hash differs', async () => {
+    const calls = [];
+    const result = await executeTradeLayerSendRpcSweep(sampleSweepPlan(), {
+      rpc: mockRpc(calls),
+      wallet: 'tl-wallet',
+      expectedRouteTranscriptHash: '00'.repeat(32)
+    });
+
+    assert(!result.ok, 'route transcript mismatch should fail');
+    assertEq(result.status, 'preflight_failed');
+    assert(result.preflight.failedChecks.includes('route_transcript_bound'), 'route_transcript_bound should fail');
+    assert(!calls.some((call) => call.method === 'createpsbt'), 'should not create PSBT after transcript mismatch');
+  });
+
+  await test('stops before signing if the embedded route transcript core is tampered', async () => {
+    const calls = [];
+    const sweepPlan = clone(sampleSweepPlan());
+    sweepPlan.routeTranscript.core.outputPlanHash = '00'.repeat(32);
+    const result = await executeTradeLayerSendRpcSweep(sweepPlan, {
+      rpc: mockRpc(calls),
+      wallet: 'tl-wallet'
+    });
+
+    assert(!result.ok, 'embedded transcript tampering should fail');
+    assertEq(result.status, 'preflight_failed');
+    assert(result.preflight.failedChecks.includes('route_transcript_bound'), 'route_transcript_bound should fail');
+    assert(!calls.some((call) => call.method === 'createpsbt'), 'should not create PSBT after embedded transcript tampering');
+  });
+
+  await test('stops before signing if the input is spent or unknown', async () => {
+    const calls = [];
+    const result = await executeTradeLayerSendRpcSweep(sampleSweepPlan(), {
+      rpc: mockRpc(calls, {
+        gettxout: () => null
+      }),
+      wallet: 'tl-wallet'
+    });
+
+    assert(!result.ok, 'spent input should fail');
+    assertEq(result.status, 'preflight_failed');
+    assert(result.preflight.failedChecks.includes('input_unspent'), 'input_unspent should fail');
+    assert(!calls.some((call) => call.method === 'createpsbt'), 'should not create PSBT after failed preflight');
+  });
+
+  await test('stops before signing if the on-chain value differs from the commitment', async () => {
+    const result = await executeTradeLayerSendRpcSweep(sampleSweepPlan(), {
+      rpc: mockRpc([], {
+        gettxout: () => ({
+          value: 0.002,
+          scriptPubKey: {
+            address: 'tltc1qn06nctkv2sm8wdjx5fe2x0zluxlyxynq3vud87hxsfv3u8kwdcaq0xvhqa'
+          }
+        })
+      }),
+      wallet: 'tl-wallet'
+    });
+
+    assert(!result.ok, 'value mismatch should fail');
+    assertEq(result.status, 'preflight_failed');
+    assert(result.preflight.failedChecks.includes('input_value_matches_commitment'), 'value check should fail');
+  });
+
+  await test('broadcasts only when requested', async () => {
+    const calls = [];
+    const result = await executeTradeLayerSendRpcSweep(sampleSweepPlan(), {
+      rpc: mockRpc(calls),
+      wallet: 'tl-wallet',
+      broadcast: true
+    });
+
+    assert(result.ok, result.error);
+    assertEq(result.status, 'broadcast');
+    assertEq(result.broadcast.sent, true);
+    assert(calls.some((call) => call.method === 'sendrawtransaction'), 'broadcast call missing');
+  });
+
+  await test('returns incomplete status if finalization does not produce hex', async () => {
+    const result = await executeTradeLayerSendRpcSweep(sampleSweepPlan(), {
+      rpc: mockRpc([], {
+        finalizepsbt: () => ({ complete: false })
+      }),
+      wallet: 'tl-wallet'
+    });
+
+    assert(!result.ok, 'incomplete result should not be ok');
+    assertEq(result.status, 'incomplete');
+    assertEq(result.error, 'PSBT finalization incomplete');
+  });
+
+  await test('attaches finalized tx details back to the sweep plan', async () => {
+    const sweepPlan = sampleSweepPlan();
+    const result = await executeTradeLayerSendRpcSweep(sweepPlan, {
+      rpc: mockRpc([]),
+      wallet: 'tl-wallet'
+    });
+    const attached = attachRpcSweepToSweepPlan(sweepPlan, result);
+
+    assertEq(attached.status, 'attached');
+    assertEq(attached.liveTxid, 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
+    assertEq(attached.signedPsbt, 'signed-psbt');
+    assertEq(attached.finalHex, '020000000001');
+    assertEq(attached.finalTxOutputHash, result.finalTxOutputHash);
+    assertEq(attached.finalSpendBinding.bindingHash, result.finalSpendBinding.bindingHash);
+  });
+
+  await test('hashes decoded final transaction outputs deterministically', () => {
+    const decoded = {
+      vout: [
+        {
+          n: 0,
+          value: 0.00025,
+          scriptPubKey: {
+            hex: '0014aa',
+            address: 'tltc1qdemo',
+            type: 'witness_v0_keyhash'
+          }
+        }
+      ]
+    };
+    const expected = sha256Hex(stableStringify({
+      kind: 'decoded_tx_output_vector_v1',
+      outputs: [
+        {
+          n: 0,
+          value: 0.00025,
+          scriptPubKeyHex: '0014aa',
+          address: 'tltc1qdemo',
+          addresses: null,
+          type: 'witness_v0_keyhash'
+        }
+      ]
+    }));
+    assertEq(computeDecodedTxOutputHash(decoded), expected);
+  });
+
+  // WT-3: every RPC call has a deadline. A Core node that accepts the
+  // connection and never answers used to stall the caller forever.
+  await test('rpcFactory rejects with a timeout when Core accepts and never answers', async () => {
+    const http = require('http');
+    const { rpcFactory } = require('./tradelayer_send_rpc_sweep');
+    const sockets = new Set();
+    const silent = http.createServer(() => { /* never respond */ });
+    silent.on('connection', (socket) => { sockets.add(socket); socket.on('close', () => sockets.delete(socket)); });
+    await new Promise((resolve) => silent.listen(0, '127.0.0.1', resolve));
+    try {
+      const rpc = rpcFactory({
+        rpcUrl: `http://127.0.0.1:${silent.address().port}`, rpcUser: 'u', rpcPass: 'p', timeoutMs: 150
+      });
+      const started = Date.now();
+      let message = null;
+      try { await rpc('getblockchaininfo'); } catch (err) { message = err.message; }
+      assert(/RPC getblockchaininfo timed out after 150 ms/.test(String(message)), `expected a timeout, got ${message}`);
+      assert(Date.now() - started < 5000, 'the timeout must fire promptly');
+    } finally {
+      for (const socket of sockets) socket.destroy();
+      await new Promise((resolve) => silent.close(resolve));
+    }
+  });
+
+  await test('rpcFactory still returns results inside the deadline and validates timeoutMs', async () => {
+    const http = require('http');
+    const { rpcFactory } = require('./tradelayer_send_rpc_sweep');
+    const server = http.createServer((req, res) => {
+      req.resume();
+      req.on('end', () => {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ result: { chain: 'regtest' }, error: null, id: 'timeout-test' }));
+      });
+    });
+    await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+    try {
+      const rpc = rpcFactory({
+        rpcUrl: `http://127.0.0.1:${server.address().port}`, rpcUser: 'u', rpcPass: 'p',
+        requestId: 'timeout-test', timeoutMs: 2000
+      });
+      assert((await rpc('getblockchaininfo')).chain === 'regtest');
+    } finally {
+      await new Promise((resolve) => server.close(resolve));
+    }
+    for (const timeoutMs of [0, -1, 1.5, 600001, 'soon']) {
+      let rejected = false;
+      try { rpcFactory({ rpcUrl: 'http://127.0.0.1:1', rpcUser: 'u', rpcPass: 'p', timeoutMs }); }
+      catch (err) { rejected = /timeoutMs/.test(err.message); }
+      assert(rejected, `timeoutMs ${timeoutMs} must be rejected`);
+    }
+  });
+
+  if (failed > 0) {
+    console.log(`\nFAIL: ${failed} failed, ${passed} passed\n`);
+    process.exit(1);
+  }
+
+  console.log(`\nPASS: ${passed} tests\n`);
+}
+
+run().catch((err) => {
+  console.error(err.message);
+  process.exit(1);
+});

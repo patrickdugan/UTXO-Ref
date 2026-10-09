@@ -11,6 +11,7 @@
 
 const crypto = require('crypto');
 const { canonicalStringify, normalizeAmountSats, normalizeEpochId } = require('./m1_spec');
+const { depositOutpointKey } = require('./m1_receipt_ledger');
 
 const BALANCE_TAG = Buffer.from('UTXO_REFEREE_BALANCE_V1');
 
@@ -31,8 +32,15 @@ function ensureNonEmptyString(v, fieldName) {
   return v;
 }
 
+// Red-team item: localeCompare can rank distinct Unicode account IDs as
+// equal, so insertion order changed the balance root. Order by UTF-16 code
+// units, which is total and locale-independent.
+function compareIds(left, right) {
+  return left < right ? -1 : left > right ? 1 : 0;
+}
+
 function sortedObjectEntries(map) {
-  return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+  return Array.from(map.entries()).sort((a, b) => compareIds(a[0], b[0]));
 }
 
 class ReceiptTallyMap {
@@ -48,6 +56,11 @@ class ReceiptTallyMap {
       this.challengeWindowLength = normalizeEpochId(options.challengeWindowLength);
       this.challengeWindowStart = challengeWindowStart;
       this.challengeWindowEnd = normalizeEpochId(challengeWindowStart + this.challengeWindowLength);
+      // Red-team item: an inconsistent end used to be silently replaced.
+      if (options.challengeWindowEnd !== undefined && options.challengeWindowEnd !== null &&
+          normalizeEpochId(options.challengeWindowEnd) !== this.challengeWindowEnd) {
+        throw new Error('challengeWindowEnd must equal challengeWindowStart + challengeWindowLength');
+      }
     } else {
       this.challengeWindowStart = challengeWindowStart;
       this.challengeWindowEnd = normalizeEpochId(options.challengeWindowEnd ?? challengeWindowStart);
@@ -58,6 +71,9 @@ class ReceiptTallyMap {
     }
     this.balances = new Map(); // accountId => BigInt
     this.depositIds = new Set(options.depositIds || []);
+    // MAIN-4: credited funding outpoints ("txid:vout"), so replay is refused by
+    // outpoint and not only by the caller-chosen depositId.
+    this.depositOutpoints = new Set(options.depositOutpoints || []);
     this.redemptionIds = new Set(options.redemptionIds || []);
 
     if (options.balances) {
@@ -76,7 +92,8 @@ class ReceiptTallyMap {
       prevSnapshotHash: options.prevSnapshotHash || null,
       challengeWindowStart: options.challengeWindowStart ?? options.epochId ?? 0n,
       challengeWindowLength: options.challengeWindowLength,
-      challengeWindowEnd: options.challengeWindowEnd ?? options.epochId ?? 0n
+      challengeWindowEnd: options.challengeWindowEnd ??
+        (options.challengeWindowLength == null ? (options.epochId ?? 0n) : undefined)
     });
 
     for (const row of ledger.getBalancesSorted()) {
@@ -85,6 +102,9 @@ class ReceiptTallyMap {
 
     for (const [depositId] of ledger.depositEvents.entries()) {
       state.depositIds.add(depositId);
+    }
+    for (const outpointKey of (ledger.depositOutpoints || new Map()).keys()) {
+      state.depositOutpoints.add(outpointKey);
     }
     for (const [redemptionId] of ledger.redemptionEvents.entries()) {
       state.redemptionIds.add(redemptionId);
@@ -103,8 +123,12 @@ class ReceiptTallyMap {
       prevSnapshotHash: obj.prevSnapshotHash || null,
       challengeWindowStart: obj.challengeWindowStart ?? obj.epochId ?? 0n,
       challengeWindowLength: obj.challengeWindowLength,
-      challengeWindowEnd: obj.challengeWindowEnd ?? obj.epochId ?? 0n
+      challengeWindowEnd: obj.challengeWindowEnd ??
+        (obj.challengeWindowLength == null ? (obj.epochId ?? 0n) : undefined)
     });
+    if (obj.kind !== undefined && obj.kind !== 'receipt-tally-map') {
+      throw new Error('snapshot kind must be receipt-tally-map');
+    }
 
     for (const row of obj.balances || []) {
       state.setBalance(row.accountId, row.balanceSats);
@@ -112,8 +136,23 @@ class ReceiptTallyMap {
     for (const id of obj.depositIds || []) {
       state.depositIds.add(ensureNonEmptyString(id, 'depositId'));
     }
+    for (const key of obj.creditedDepositOutpoints || []) {
+      const [txid, vout] = ensureNonEmptyString(key, 'creditedDepositOutpoint').split(':');
+      state.depositOutpoints.add(depositOutpointKey({ txid, vout }));
+    }
     for (const id of obj.redemptionIds || []) {
       state.redemptionIds.add(ensureNonEmptyString(id, 'redemptionId'));
+    }
+    // Red-team item: committed fields were not checked against the state they
+    // describe. Any that are present must match the reconstruction.
+    if (obj.balanceRoot !== undefined && obj.balanceRoot !== state.getBalanceMerkleRootHex()) {
+      throw new Error('snapshot balanceRoot does not match its balances');
+    }
+    if (obj.totalSupplySats !== undefined && String(obj.totalSupplySats) !== state.totalSupplySats().toString()) {
+      throw new Error('snapshot totalSupplySats does not match its balances');
+    }
+    if (obj.snapshotHash !== undefined && obj.snapshotHash !== state.snapshotHashHex()) {
+      throw new Error('snapshot hash does not match the snapshot contents');
     }
 
     return state;
@@ -141,6 +180,13 @@ class ReceiptTallyMap {
     return sum;
   }
 
+  // Red-team item: a credit could push a balance or the total supply past u64,
+  // which witness conversion then truncated.
+  _assertCreditFits(accountId, amountSats) {
+    normalizeAmountSats(this.balanceOf(accountId) + amountSats, 'resulting balanceSats');
+    normalizeAmountSats(this.totalSupplySats() + amountSats, 'resulting totalSupplySats');
+  }
+
   applyDeposit(event) {
     const depositId = ensureNonEmptyString(event.depositId, 'depositId');
     const accountId = ensureNonEmptyString(event.accountId, 'accountId');
@@ -152,10 +198,16 @@ class ReceiptTallyMap {
     if (this.depositIds.has(depositId)) {
       throw new Error(`duplicate depositId: ${depositId}`);
     }
+    const outpointKey = depositOutpointKey(event.chainTxRef);
+    if (outpointKey && this.depositOutpoints.has(outpointKey)) {
+      throw new Error(`deposit outpoint ${outpointKey} is already credited`);
+    }
+    this._assertCreditFits(accountId, amountSats);
 
     const next = this.balanceOf(accountId) + amountSats;
     this.balances.set(accountId, next);
     this.depositIds.add(depositId);
+    if (outpointKey) this.depositOutpoints.add(outpointKey);
 
     return {
       mintedSats: amountSats,
@@ -214,11 +266,15 @@ class ReceiptTallyMap {
   }
 
   _hashBalanceRow(row) {
+    return ReceiptTallyMap.hashBalanceRow(row.accountId, row.balanceSats);
+  }
+
+  static hashBalanceRow(accountId, balanceSats) {
     return sha256(Buffer.concat([
       BALANCE_TAG,
-      Buffer.from(String(row.accountId), 'utf8'),
+      Buffer.from(ensureNonEmptyString(accountId, 'accountId'), 'utf8'),
       Buffer.from(':'),
-      Buffer.from(row.balanceSats.toString(), 'utf8')
+      Buffer.from(normalizeAmountSats(balanceSats, 'balanceSats').toString(), 'utf8')
     ]));
   }
 
@@ -307,14 +363,25 @@ class ReceiptTallyMap {
     };
   }
 
+  // MAIN-4: the leaf is recomputed from the claimed account and balance. A
+  // supplied leafHash is only a cross-check; it can no longer stand in for
+  // the account and balance it is supposed to commit to.
   static verifyBalanceProof(proof, expectedRoot) {
     const root = Buffer.isBuffer(expectedRoot)
       ? expectedRoot
       : Buffer.from(expectedRoot, 'hex');
-    let current = Buffer.isBuffer(proof.leafHash)
-      ? proof.leafHash
-      : Buffer.from(proof.leafHash, 'hex');
+    let current;
+    try {
+      current = ReceiptTallyMap.hashBalanceRow(proof.accountId, proof.balanceSats);
+    } catch (_error) {
+      return false;
+    }
+    if (proof.leafHash !== undefined && proof.leafHash !== null) {
+      const supplied = Buffer.isBuffer(proof.leafHash) ? proof.leafHash : Buffer.from(String(proof.leafHash), 'hex');
+      if (!supplied.equals(current)) return false;
+    }
     let idx = Number(proof.index);
+    if (!Number.isSafeInteger(idx) || idx < 0) return false;
 
     for (const sibling of proof.siblings || []) {
       const siblingBuf = Buffer.isBuffer(sibling) ? sibling : Buffer.from(sibling, 'hex');
@@ -330,21 +397,26 @@ class ReceiptTallyMap {
   }
 
   static verifyBalanceClaim(claim, expectedRoot) {
-    const proof = {
-      accountId: claim.accountId,
-      balanceSats: BigInt(claim.balanceSats),
-      leafHash: claim.leafHash,
-      index: Number(claim.index),
-      siblings: (claim.siblings || []).map(s => Buffer.from(s, 'hex')),
-      root: claim.balanceRoot,
-      epochId: BigInt(claim.epochId)
-    };
+    let proof;
+    try {
+      proof = {
+        accountId: claim.accountId,
+        balanceSats: BigInt(claim.balanceSats),
+        leafHash: claim.leafHash,
+        index: Number(claim.index),
+        siblings: (claim.siblings || []).map(s => Buffer.from(s, 'hex')),
+        root: claim.balanceRoot,
+        epochId: BigInt(claim.epochId)
+      };
+    } catch (_error) {
+      return false;
+    }
 
     return ReceiptTallyMap.verifyBalanceProof(proof, expectedRoot);
   }
 
   toSnapshot() {
-    return {
+    const snapshot = {
       schemaVersion: this.schemaVersion,
       kind: this.kind,
       assetSymbol: this.assetSymbol,
@@ -363,6 +435,10 @@ class ReceiptTallyMap {
       depositIds: Array.from(this.depositIds).sort(),
       redemptionIds: Array.from(this.redemptionIds).sort()
     };
+    // Present only when chain-referenced deposits exist, so existing snapshot
+    // hashes of off-chain-only maps are unchanged.
+    if (this.depositOutpoints.size) snapshot.creditedDepositOutpoints = Array.from(this.depositOutpoints).sort();
+    return snapshot;
   }
 
   canonicalJson() {
@@ -379,8 +455,20 @@ class ReceiptTallyMap {
     return snapshot;
   }
 
+  getAnnotatedSnapshot(deltaAnnotation = null) {
+    const snapshot = this.getCommittedSnapshot();
+    if (deltaAnnotation) {
+      snapshot.deltaAnnotation = deltaAnnotation;
+    }
+    return snapshot;
+  }
+
   toBlob() {
     return JSON.stringify(this.getCommittedSnapshot(), null, 2);
+  }
+
+  toAnnotatedBlob(deltaAnnotation = null) {
+    return JSON.stringify(this.getAnnotatedSnapshot(deltaAnnotation), null, 2);
   }
 
   static fromBlob(blob) {
@@ -390,7 +478,16 @@ class ReceiptTallyMap {
   finalizeEpoch(nextEpochId, prevSnapshotHash = null) {
     const next = this.clone();
     next.epochId = normalizeEpochId(nextEpochId);
-    next.prevSnapshotHash = prevSnapshotHash || this.snapshotHashHex();
+    // Red-team item: finalization accepted the same or an earlier epoch, and
+    // any previous-snapshot hash. Epochs only move forward, and the link is
+    // always this snapshot.
+    if (next.epochId <= this.epochId) {
+      throw new Error(`next epoch ${next.epochId} must be greater than the current epoch ${this.epochId}`);
+    }
+    if (prevSnapshotHash !== null && prevSnapshotHash !== undefined && prevSnapshotHash !== this.snapshotHashHex()) {
+      throw new Error('prevSnapshotHash must be the hash of the snapshot being finalized');
+    }
+    next.prevSnapshotHash = this.snapshotHashHex();
     next.challengeWindowStart = next.epochId;
     next.challengeWindowLength = this.challengeWindowLength;
     next.challengeWindowEnd = normalizeEpochId(next.challengeWindowStart + next.challengeWindowLength);

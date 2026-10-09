@@ -93,10 +93,19 @@ class Circuit {
     return this.constants.one;
   }
 
+  // MAIN-4: BigInt arithmetic. JavaScript's `>>` works on 32 bits, so the old
+  // `(value >> i) & 1` repeated the low word in bits 32..63 of a 64-bit
+  // constant (1 became 1 + 2^32).
   constantBits(value, bitWidth) {
+    if (!Number.isSafeInteger(bitWidth) || bitWidth < 1) throw new Error('constantBits width must be a positive integer');
+    let constant;
+    try { constant = BigInt(value); } catch (_error) { throw new Error('constantBits value must be an integer'); }
+    if (constant < 0n || constant >= (1n << BigInt(bitWidth))) {
+      throw new Error(`constant ${constant} does not fit in ${bitWidth} bits`);
+    }
     const bits = [];
     for (let i = 0; i < bitWidth; i++) {
-      bits.push((value >> i) & 1 ? this.one() : this.zero());
+      bits.push((constant >> BigInt(i)) & 1n ? this.one() : this.zero());
     }
     return bits;
   }

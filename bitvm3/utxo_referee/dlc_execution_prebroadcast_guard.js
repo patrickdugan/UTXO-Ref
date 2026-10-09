@@ -6,6 +6,7 @@ const {
   parseCanonicalSignedTaprootTransaction,
   normalizeDlcTransactionSet
 } = require('./dlc_transaction_validator');
+const { verifySettlementWitness } = require('./dlc_signature_validator');
 
 const KIND = 'utxoref_dlc_execution_prebroadcast_policy_v1';
 const MAX_ATTEMPTS = 3;
@@ -159,6 +160,13 @@ function validateExecutionPrebroadcastPolicy({
   const parsed = parseCanonicalSignedTaprootTransaction(signedTxHex);
   if (parsed.txid !== selected.transaction.txid || parsed.strippedRawTxHex !== selected.transaction.rawTxHex) {
     throw new Error('signed execution transaction differs from the committed settlement transaction');
+  }
+  // Core is only asked about a transaction whose witness already carries both
+  // parties' signatures over the committed leaf.
+  try {
+    verifySettlementWitness({ transactionSet, executionType, cetTxid, signedTxHex });
+  } catch (error) {
+    throw new Error(`signed execution transaction witness is invalid: ${error.message}`);
   }
   const rawTransactionSha256 = sha256Hex(Buffer.from(signedTxHex, 'hex'));
   const window = policyWindow(now, ttlSeconds);

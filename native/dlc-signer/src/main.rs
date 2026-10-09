@@ -1,17 +1,17 @@
 #![deny(unsafe_op_in_unsafe_fn)]
 
 use std::{
-    collections::BTreeMap,
     env,
-    ffi::c_void,
+    ffi::{OsString, c_void},
     fs::{self, OpenOptions},
     io::{self, Read, Write},
     mem::size_of,
     ops::Deref,
+    os::windows::ffi::OsStringExt,
     path::{Path, PathBuf},
     process::{Command, Stdio},
-    ptr, thread,
-    time::{Duration, SystemTime, UNIX_EPOCH},
+    ptr,
+    time::{SystemTime, UNIX_EPOCH},
 };
 
 use base64::{Engine, engine::general_purpose::STANDARD as BASE64};
@@ -30,6 +30,9 @@ use rand_core::{OsRng, RngCore};
 use serde::Serialize;
 use serde_json::{Map, Value};
 use sha2::{Digest, Sha256};
+use utxoref_dlc_signer::{
+    canonical_json, clock_store::guard_signer_clock, signing_target::verify_signing_target,
+};
 use zeroize::{Zeroize, Zeroizing};
 
 #[repr(C)]
@@ -54,6 +57,7 @@ unsafe extern "system" {
 #[link(name = "kernel32")]
 unsafe extern "system" {
     fn GetCurrentProcess() -> *mut c_void;
+    fn GetSystemDirectoryW(buffer: *mut u16, size: u32) -> u32;
     fn GetProcessMitigationPolicy(
         process: *mut c_void,
         policy: i32,
@@ -77,15 +81,11 @@ const PROCESS_IMAGE_LOAD_POLICY: i32 = 10;
 const PROCESS_REQUEST_KIND: &str = "utxoref_dlc_native_signer_process_request_v2";
 const PROCESS_RESPONSE_KIND: &str = "utxoref_dlc_native_signer_process_response_v2";
 const MAX_EXECUTABLE_BYTES: u64 = 128 * 1024 * 1024;
-const SIGN_REQUEST_KIND: &str = "utxoref_dlc_native_adaptor_sign_request_v1";
-const AUTHORIZATION_KIND: &str = "utxoref_dlc_adaptor_sign_authorization_v3";
+const SIGN_REQUEST_KIND: &str = "utxoref_dlc_native_adaptor_sign_request_v2";
+const AUTHORIZATION_KIND: &str = "utxoref_dlc_adaptor_sign_authorization_v4";
 const PRESIGNATURE_KIND: &str = "tradelayer_dlc_adaptor_presig_v1";
 const MAX_AUTHORIZATION_TTL_SECONDS: u64 = 300;
 const MAX_AUTHORIZATION_CLOCK_SKEW_SECONDS: u64 = 30;
-const CLOCK_OBSERVATION_KIND: &str = "utxoref_dlc_signer_clock_observation_v1";
-const CLOCK_STORE_LOCK_FILE: &str = ".clock-store.lock";
-const CLOCK_STORE_LOCK_ATTEMPTS: usize = 2000;
-const MAX_CLOCK_OBSERVATIONS: usize = 4096;
 const ED25519_SPKI_PREFIX: [u8; 12] = [
     0x30, 0x2a, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70, 0x03, 0x21, 0x00,
 ];
@@ -179,51 +179,6 @@ struct VerifiedRequest {
     authorization_digest: String,
     issued_at: u64,
     expires_at: u64,
-}
-
-fn canonical_json(value: &Value) -> Result<String> {
-    match value {
-        Value::Null => Ok("null".to_owned()),
-        Value::Bool(value) => Ok(if *value { "true" } else { "false" }.to_owned()),
-        Value::String(value) => serde_json::to_string(value).map_err(|error| error.to_string()),
-        Value::Number(value) => {
-            const MAX_SAFE: u64 = 9_007_199_254_740_991;
-            if let Some(unsigned) = value.as_u64() {
-                if unsigned > MAX_SAFE {
-                    return Err("JSON integer exceeds JavaScript safe range".to_owned());
-                }
-                Ok(unsigned.to_string())
-            } else if let Some(signed) = value.as_i64() {
-                if signed.unsigned_abs() > MAX_SAFE {
-                    return Err("JSON integer exceeds JavaScript safe range".to_owned());
-                }
-                Ok(signed.to_string())
-            } else {
-                Err("floating-point JSON values are forbidden".to_owned())
-            }
-        }
-        Value::Array(values) => {
-            let encoded = values
-                .iter()
-                .map(canonical_json)
-                .collect::<Result<Vec<_>>>()?;
-            Ok(format!("[{}]", encoded.join(",")))
-        }
-        Value::Object(values) => {
-            let sorted: BTreeMap<&String, &Value> = values.iter().collect();
-            let encoded = sorted
-                .into_iter()
-                .map(|(key, value)| {
-                    Ok(format!(
-                        "{}:{}",
-                        serde_json::to_string(key).map_err(|error| error.to_string())?,
-                        canonical_json(value)?
-                    ))
-                })
-                .collect::<Result<Vec<_>>>()?;
-            Ok(format!("{{{}}}", encoded.join(",")))
-        }
-    }
 }
 
 fn sha256(bytes: &[u8]) -> [u8; 32] {
@@ -328,185 +283,6 @@ fn verify_authorization_freshness(issued_at: u64, expires_at: u64, now: u64) -> 
         return Err("signing authorization has expired".to_owned());
     }
     Ok(())
-}
-
-fn clock_observation_payload(unix_seconds: u64, identity_key_id: &str) -> Value {
-    serde_json::json!({
-        "kind": CLOCK_OBSERVATION_KIND,
-        "identityKeyId": identity_key_id,
-        "unixSeconds": unix_seconds
-    })
-}
-
-fn verify_clock_observation(
-    path: &Path,
-    runtime_key: &SigningKey,
-    identity_key_id: &str,
-) -> Result<u64> {
-    let metadata =
-        fs::symlink_metadata(path).map_err(|error| format!("signer clock observation: {error}"))?;
-    if !metadata.is_file() || metadata.file_type().is_symlink() || metadata.len() > 2048 {
-        return Err(
-            "signer clock observation must be a bounded regular non-symlink file".to_owned(),
-        );
-    }
-    let bytes = fs::read(path).map_err(|error| format!("signer clock observation: {error}"))?;
-    let observation: Value = serde_json::from_slice(&bytes)
-        .map_err(|error| format!("signer clock observation: {error}"))?;
-    if canonical_json(&observation)?.as_bytes() != bytes {
-        return Err("signer clock observation is not canonical JSON".to_owned());
-    }
-    let observation_object = object(&observation, "signer clock observation")?;
-    if observation_object.len() != 4
-        || string(observation_object, "kind")? != CLOCK_OBSERVATION_KIND
-        || string(observation_object, "identityKeyId")? != identity_key_id
-    {
-        return Err("signer clock observation schema or identity is invalid".to_owned());
-    }
-    let unix_seconds = safe_u64(observation_object, "unixSeconds")?;
-    let expected_name = format!("{unix_seconds}.clock");
-    if path.file_name().and_then(|name| name.to_str()) != Some(expected_name.as_str()) {
-        return Err("signer clock observation filename differs from its timestamp".to_owned());
-    }
-    let signature_bytes = BASE64
-        .decode(string(observation_object, "signature")?)
-        .map_err(|error| error.to_string())?;
-    let signature = Signature::from_slice(&signature_bytes).map_err(|error| error.to_string())?;
-    let payload = clock_observation_payload(unix_seconds, identity_key_id);
-    runtime_key
-        .verifying_key()
-        .verify(canonical_json(&payload)?.as_bytes(), &signature)
-        .map_err(|_| "signer clock observation signature is invalid".to_owned())?;
-    Ok(unix_seconds)
-}
-
-struct ClockStoreLock {
-    file: fs::File,
-}
-
-impl Drop for ClockStoreLock {
-    fn drop(&mut self) {
-        let _ = self.file.unlock();
-    }
-}
-
-fn acquire_clock_store_lock(observation_directory: &Path) -> Result<ClockStoreLock> {
-    let lock_path = observation_directory.join(CLOCK_STORE_LOCK_FILE);
-    let mut file = OpenOptions::new()
-        .read(true)
-        .write(true)
-        .create(true)
-        .truncate(false)
-        .open(&lock_path)
-        .map_err(|error| format!("could not open signer clock-store lock: {error}"))?;
-    let metadata = fs::symlink_metadata(&lock_path)
-        .map_err(|error| format!("could not inspect signer clock-store lock: {error}"))?;
-    if !metadata.is_file() || metadata.file_type().is_symlink() || metadata.len() > 128 {
-        return Err(
-            "signer clock-store lock must be a bounded regular non-symlink file".to_owned(),
-        );
-    }
-    for _ in 0..CLOCK_STORE_LOCK_ATTEMPTS {
-        match file.try_lock() {
-            Ok(()) => {
-                file.set_len(0)
-                    .map_err(|error| format!("could not reset signer clock-store lock: {error}"))?;
-                file.write_all(format!("{}\n", std::process::id()).as_bytes())
-                    .map_err(|error| {
-                        format!("could not persist signer clock-store lock: {error}")
-                    })?;
-                file.sync_all()
-                    .map_err(|error| format!("could not fsync signer clock-store lock: {error}"))?;
-                return Ok(ClockStoreLock { file });
-            }
-            Err(fs::TryLockError::WouldBlock) => {
-                thread::sleep(Duration::from_millis(10));
-            }
-            Err(fs::TryLockError::Error(error)) => {
-                return Err(format!("could not lock signer clock store: {error}"));
-            }
-        }
-    }
-    Err("signer clock store remained locked for twenty seconds".to_owned())
-}
-
-fn guard_signer_clock(
-    key_directory: &Path,
-    runtime_key: &SigningKey,
-    identity_key_id: &str,
-) -> Result<u64> {
-    let observation_directory = key_directory.join("clock-observations");
-    match fs::create_dir(&observation_directory) {
-        Ok(()) => {}
-        Err(error) if error.kind() == io::ErrorKind::AlreadyExists => {}
-        Err(error) => return Err(format!("could not create signer clock store: {error}")),
-    }
-    let metadata = fs::symlink_metadata(&observation_directory)
-        .map_err(|error| format!("could not inspect signer clock store: {error}"))?;
-    if !metadata.is_dir() || metadata.file_type().is_symlink() {
-        return Err("signer clock store must be a regular non-symlink directory".to_owned());
-    }
-    let _clock_store_lock = acquire_clock_store_lock(&observation_directory)?;
-    let mut paths = Vec::new();
-    for entry in fs::read_dir(&observation_directory)
-        .map_err(|error| format!("could not read signer clock store: {error}"))?
-    {
-        let path = entry.map_err(|error| error.to_string())?.path();
-        if path.file_name().and_then(|name| name.to_str()) == Some(CLOCK_STORE_LOCK_FILE) {
-            continue;
-        }
-        paths.push(path);
-    }
-    paths.sort();
-    if paths.len() > MAX_CLOCK_OBSERVATIONS {
-        return Err(format!(
-            "signer clock store exceeds {MAX_CLOCK_OBSERVATIONS} observations; reviewed rotation is required"
-        ));
-    }
-    let mut floor = 0u64;
-    for path in paths {
-        floor = floor.max(verify_clock_observation(
-            &path,
-            runtime_key,
-            identity_key_id,
-        )?);
-    }
-    let now = current_unix_seconds()?;
-    if floor > now.saturating_add(MAX_AUTHORIZATION_CLOCK_SKEW_SECONDS) {
-        return Err("signer clock rollback exceeds the permitted 30-second skew".to_owned());
-    }
-    let observation_path = observation_directory.join(format!("{now}.clock"));
-    match OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(&observation_path)
-    {
-        Ok(mut file) => {
-            let payload = clock_observation_payload(now, identity_key_id);
-            let signature = runtime_key.sign(canonical_json(&payload)?.as_bytes());
-            let observation = serde_json::json!({
-                "kind": CLOCK_OBSERVATION_KIND,
-                "identityKeyId": identity_key_id,
-                "unixSeconds": now,
-                "signature": BASE64.encode(signature.to_bytes())
-            });
-            file.write_all(canonical_json(&observation)?.as_bytes())
-                .map_err(|error| format!("could not persist signer clock observation: {error}"))?;
-            file.sync_all()
-                .map_err(|error| format!("could not fsync signer clock observation: {error}"))?;
-        }
-        Err(error) if error.kind() == io::ErrorKind::AlreadyExists => {
-            if verify_clock_observation(&observation_path, runtime_key, identity_key_id)? != now {
-                return Err("existing signer clock observation timestamp mismatch".to_owned());
-            }
-        }
-        Err(error) => {
-            return Err(format!(
-                "could not create signer clock observation: {error}"
-            ));
-        }
-    }
-    Ok(now)
 }
 
 fn decode_hex_32(value: &str, name: &str) -> Result<[u8; 32]> {
@@ -711,12 +487,41 @@ fn reject_plaintext_key_files(key_directory: &Path) -> Result<()> {
     Ok(())
 }
 
-fn powershell_path() -> Result<(PathBuf, String)> {
-    let system_root = env::var("SystemRoot")
-        .or_else(|_| env::var("WINDIR"))
-        .map_err(|_| "SystemRoot is required for the DPAPI key backend".to_owned())?;
-    let executable = PathBuf::from(&system_root)
-        .join("System32")
+fn system_directory() -> Result<PathBuf> {
+    let mut buffer = vec![0u16; 261];
+    loop {
+        let capacity = u32::try_from(buffer.len()).map_err(|error| error.to_string())?;
+        // SAFETY: buffer is a live, writable u16 buffer of exactly `capacity`
+        // elements; the call writes at most that many.
+        let length = unsafe { GetSystemDirectoryW(buffer.as_mut_ptr(), capacity) } as usize;
+        if length == 0 {
+            return Err(format!(
+                "could not locate the Windows system directory: {}",
+                io::Error::last_os_error()
+            ));
+        }
+        if length < buffer.len() {
+            buffer.truncate(length);
+            return Ok(PathBuf::from(OsString::from_wide(&buffer)));
+        }
+        // Too small: `length` is the required size including the terminator.
+        if length > 32_768 {
+            return Err("Windows system directory path is too long".to_owned());
+        }
+        buffer.resize(length, 0);
+    }
+}
+
+// MAIN-5: the system directory comes from the OS, not from SystemRoot or
+// WINDIR, which whoever starts the signer controls.
+fn powershell_path() -> Result<(PathBuf, PathBuf)> {
+    let system_directory = system_directory()?;
+    let system_root = system_directory
+        .parent()
+        .filter(|root| root.is_absolute())
+        .ok_or_else(|| "Windows system directory has no parent".to_owned())?
+        .to_path_buf();
+    let executable = system_directory
         .join("WindowsPowerShell")
         .join("v1.0")
         .join("powershell.exe");
@@ -1027,6 +832,10 @@ fn verify_request(request: &Value, policy: &NativeValidatorPolicy) -> Result<Ver
         "network",
         "stage",
         "signerPubkeyX",
+        "cetTxid",
+        "fundingTemplateDigest",
+        "oracleAnnouncementsDigest",
+        "oracleEventId",
         "sighash",
     ] {
         if string(payload_object, name)? != string(request_object, name)? {
@@ -1064,6 +873,12 @@ fn verify_request(request: &Value, policy: &NativeValidatorPolicy) -> Result<Ver
             .ok_or_else(|| "authorization adaptorPoint is required".to_owned())?,
         "authorization adaptorPoint",
     )?;
+    if string(payload_object, "cetTxid")? != string(authorization_object, "cetTxid")?
+        || string(payload_object, "oracleAnnouncementsDigest")?
+            != string(authorization_object, "oracleAnnouncementsDigest")?
+    {
+        return Err("authorization object differs from its signed payload".to_owned());
+    }
     for coordinate in ["x", "y"] {
         let expected = string(payload_point, coordinate)?;
         if expected != string(request_point, coordinate)?
@@ -1102,15 +917,31 @@ fn verify_request(request: &Value, policy: &NativeValidatorPolicy) -> Result<Ver
     if string(payload_object, "stage")? != "COUNTERPARTY_SIGNATURES_VERIFIED" {
         return Err("authorization stage is not signable".to_owned());
     }
+    // MAIN-3: never sign a bare sighash. Re-derive the CET's script-path
+    // sighash and the oracle adaptor point from the signing context, and sign
+    // only if the validator-signed payload names exactly that target.
+    let target = verify_signing_target(request_object, payload_object)?;
     Ok(VerifiedRequest {
         signer_pubkey: string(request_object, "signerPubkeyX")?.to_owned(),
-        message: decode_hex_32(string(request_object, "sighash")?, "sighash")?,
-        adaptor_x: string(request_point, "x")?.to_owned(),
-        adaptor_y: string(request_point, "y")?.to_owned(),
+        message: target.sighash,
+        adaptor_x: hex::encode(target.adaptor_x),
+        adaptor_y: hex::encode(target.adaptor_y),
         authorization_digest,
         issued_at,
         expires_at,
     })
+}
+
+fn reject_consumed_authorization(key_directory: &Path, authorization_digest: &str) -> Result<()> {
+    decode_hex_32(authorization_digest, "authorization digest")?;
+    let marker_path = key_directory
+        .join("consumed-authorizations")
+        .join(format!("{authorization_digest}.used"));
+    match fs::symlink_metadata(&marker_path) {
+        Ok(_) => Err("signer authorization was already durably consumed".to_owned()),
+        Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(()),
+        Err(error) => Err(format!("could not inspect signer replay store: {error}")),
+    }
 }
 
 fn consume_authorization(key_directory: &Path, authorization_digest: &str) -> Result<()> {
@@ -1263,9 +1094,18 @@ fn run() -> Result<()> {
         return Err("process request digest mismatch".to_owned());
     }
     let verified = verify_request(request, &validator_policy)?;
+    // MAIN-5: refuse an already-consumed authorization before writing a clock
+    // observation. The create-new marker in consume_authorization stays the
+    // authoritative check; the clock store compacts itself after each write.
+    reject_consumed_authorization(&key_directory, &verified.authorization_digest)?;
     let (runtime_key, identity_key_id) =
         runtime_identity(&key_directory, access_verifier_path, &arguments[6])?;
-    let guarded_now = guard_signer_clock(&key_directory, &runtime_key, &identity_key_id)?;
+    let guarded_now = guard_signer_clock(
+        &key_directory,
+        &runtime_key,
+        &identity_key_id,
+        current_unix_seconds,
+    )?;
     verify_authorization_freshness(verified.issued_at, verified.expires_at, guarded_now)?;
     consume_authorization(&key_directory, &verified.authorization_digest)?;
     let key_path = key_directory.join(format!("{}.key.dpapi", verified.signer_pubkey));

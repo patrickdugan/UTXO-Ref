@@ -1,0 +1,83 @@
+{
+  "kind": "wallet_stress_simulation_report",
+  "generatedAt": "2026-04-26T22:11:41.235Z",
+  "profile": "litecoin-testnet-local",
+  "sourceBundleId": "2d1797f3f84cc9a2a7f3d410237f209e80852cbe92e1b69ca27d117e47410d8e",
+  "ltcUsdPriceMicros": "85000000",
+  "scenarios": [
+    {
+      "botCount": 5000,
+      "elapsedMs": 112.945,
+      "verification": {
+        "ok": true
+      },
+      "tltcCollateralSats": "10789040000",
+      "tltcCollateralDisplay": "107.8904",
+      "tlusdStakedUnits": "9170684000",
+      "tlusdStakedDisplay": "9170.684",
+      "assignedInboundSats": "4827944000",
+      "deliveredInboundSats": "4560609653",
+      "deliveryBps": 9446,
+      "challengeCount": 2006,
+      "activeBots": 2709,
+      "verifyingBots": 285,
+      "routeCount": 154077,
+      "arkVtxoCount": 35075,
+      "averageFeePpm": 713,
+      "earnedFeesSats": "3250825",
+      "arkSavingsSats": "1965868443",
+      "sampleChallengeQueue": [
+        {
+          "botId": "tl-autobot-001",
+          "bitvmChallengeId": "787106698d5fe0401381e6aa0f80c5584841451e81e6983ca5dd27515fb399b1",
+          "requestedInboundSats": "404800",
+          "deliveredInboundSats": "373023",
+          "violations": [
+            "delivered_liquidity_below_route_quote",
+            "fee_ppm_above_patch_ceiling"
+          ]
+        },
+        {
+          "botId": "tl-autobot-002",
+          "bitvmChallengeId": "c70f7bb0b037deb0ae72d8a88c7566f4e16923fce35a73beec1aa5edf4769a86",
+          "requestedInboundSats": "324000",
+          "deliveredInboundSats": "297594",
+          "violations": [
+            "delivered_liquidity_below_route_quote",
+            "fee_ppm_above_patch_ceiling"
+          ]
+        },
+        {
+          "botId": "tl-autobot-003",
+          "bitvmChallengeId": "a08482a5424cfa8c550049b91d4cded25c151e7ad7f0966c4cd5c27ea48c520b",
+          "requestedInboundSats": "311600",
+          "deliveredInboundSats": "284833",
+          "violations": [
+            "delivered_liquidity_below_route_quote",
+            "fee_ppm_above_patch_ceiling"
+          ]
+        },
+        {
+          "botId": "tl-autobot-004",
+          "bitvmChallengeId": "aa9c81825ac49393992bfd9805d1dc66ec49ba2427ff24f9314ae1a715e6d4f7",
+          "requestedInboundSats": "577200",
+          "deliveredInboundSats": "527849",
+          "violations": [
+            "delivered_liquidity_below_route_quote",
+            "fee_ppm_above_patch_ceiling"
+          ]
+        },
+        {
+          "botId": "tl-autobot-006",
+          "bitvmChallengeId": "17ee79d4cde6c69fe6c9b1a980853c3d283802e3df479704e886bdf390163d7a",
+          "requestedInboundSats": "507600",
+          "deliveredInboundSats": "462728",
+          "violations": [
+            "delivered_liquidity_below_route_quote",
+            "fee_ppm_above_patch_ceiling"
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,83 @@
+{
+  "kind": "tradelayer_tx30_relay_anchor_live_run",
+  "createdAt": "2026-07-06T23:55:25.095Z",
+  "relayDbPath": "C:\\projects\\tradelayer.js\\nedb-data\\btc-test\\oracleData.db",
+  "relayRecordKey": "oracle-relay-1-1-0",
+  "relayRecord": {
+    "_id": "oracle-relay-1-1-0",
+    "type": "relay",
+    "oracleId": 1,
+    "senderAddress": "tb1qwvzaayzrgreqyyvxp77wlr60ngaqnpcyhujz2m",
+    "relayType": 1,
+    "stateHash": "dba58b2857d25e7d4753df92396684adc2181c2ec9e56e57e8cf261f17efc939",
+    "dlcRef": "rbtc-hour-listener-wallclock-001",
+    "relayBlob": "{\"eventId\":\"proc-rbtc-hour-listener-wallclock-001\",\"outcome\":\"ROLLED\",\"outcomeIndex\":0,\"stateHash\":\"dba58b2857d25e7d4753df92396684adc2181c2ec9e56e57e8cf261f17efc939\",\"timestamp\":1783381106608,\"payloadHash\":\"dba58b2857d25e7d4753df92396684adc2181c2ec9e56e57e8cf261f17efc939\",\"balancePayloadB64\":\"eyJwcm9wZXJ0eUlkIjoxLCJob2xkZXJDb3VudCI6MSwiYmFsYW5jZXMiOlt7ImFkZHJlc3MiOiJ0YjFxd3Z6YWF5enJncmVxeXl2eHA3N3dscjYwbmdhcW5wY3lodWp6Mm0iLCJhdmFpbGFibGUiOjAuMDAwMDEsInJlc2VydmVkIjowLCJtYXJnaW4iOjAsInZlc3RpbmciOjAsImNoYW5uZWxCYWxhbmNlIjowfV19\",\"oraclePubkeyHex\":\"0317e41bb70d1147a3b87d6220a2a835ad8ed9860fc92ffd51fdc18f0491d36d7d\",\"signatureHex\":\"3231ea1f590ae1b87bf6823f0e69850f2714b43e1741b4d6978f0799810feec037ba91fc68e1472e07fb267344b6427970c589965c7d636e490e7db23da03179\",\"settlement\":{\"mode\":\"none\",\"propertyId\":1,\"amount\":0,\"fromAddress\":\"tb1qwvzaayzrgreqyyvxp77wlr60ngaqnpcyhujz2m\",\"toAddress\":\"tb1qwvzaayzrgreqyyvxp77wlr60ngaqnpcyhujz2m\",\"nextPropertyId\":0}}",
+    "blockHeight": 0
+  },
+  "anchor": {
+    "kind": "tradelayer_tx30_relay_anchor_v1",
+    "envelopeHash": "db5240ced75ebaf4520a029bc07d420b4be26463fcef59f548f9623bc56520b6",
+    "relayBlobHash": "dca8e7c5964dbf2ae902cc20b757d0400434a19a25c72da5dba5100a09491821",
+    "referenceHash": "bdbcbe7558016030f36a7ad90bb3de83eca558759881544bc6245ba68611fe7a",
+    "payloadText": "tlr1:dca8e7c5964dbf2ae902cc20b757d0400434a19a25c72da5dba5100a09491821",
+    "opReturnScriptHex": "6a45746c72313a64636138653763353936346462663261653930326363323062373537643034303034333461313961323563373264613564626135313030613039343931383231",
+    "chainTxid": null,
+    "explorer": null,
+    "envelope": {
+      "kind": "tradelayer_tx30_relay_blob_envelope_v1",
+      "relayBlobHash": "dca8e7c5964dbf2ae902cc20b757d0400434a19a25c72da5dba5100a09491821",
+      "relayBlobBytes": 955,
+      "relayBundle": {
+        "eventId": "proc-rbtc-hour-listener-wallclock-001",
+        "outcome": "ROLLED",
+        "outcomeIndex": 0,
+        "stateHash": "dba58b2857d25e7d4753df92396684adc2181c2ec9e56e57e8cf261f17efc939",
+        "timestamp": 1783381106608,
+        "payloadHash": "dba58b2857d25e7d4753df92396684adc2181c2ec9e56e57e8cf261f17efc939",
+        "balancePayloadB64": "eyJwcm9wZXJ0eUlkIjoxLCJob2xkZXJDb3VudCI6MSwiYmFsYW5jZXMiOlt7ImFkZHJlc3MiOiJ0YjFxd3Z6YWF5enJncmVxeXl2eHA3N3dscjYwbmdhcW5wY3lodWp6Mm0iLCJhdmFpbGFibGUiOjAuMDAwMDEsInJlc2VydmVkIjowLCJtYXJnaW4iOjAsInZlc3RpbmciOjAsImNoYW5uZWxCYWxhbmNlIjowfV19",
+        "oraclePubkeyHex": "0317e41bb70d1147a3b87d6220a2a835ad8ed9860fc92ffd51fdc18f0491d36d7d",
+        "signatureHex": "3231ea1f590ae1b87bf6823f0e69850f2714b43e1741b4d6978f0799810feec037ba91fc68e1472e07fb267344b6427970c589965c7d636e490e7db23da03179",
+        "settlement": {
+          "mode": "none",
+          "propertyId": 1,
+          "amount": 0,
+          "fromAddress": "tb1qwvzaayzrgreqyyvxp77wlr60ngaqnpcyhujz2m",
+          "toAddress": "tb1qwvzaayzrgreqyyvxp77wlr60ngaqnpcyhujz2m",
+          "nextPropertyId": 0
+        }
+      },
+      "source": {
+        "chain": "BTC_TESTNET4",
+        "oracleId": 1,
+        "relayType": 1,
+        "stateHash": "dba58b2857d25e7d4753df92396684adc2181c2ec9e56e57e8cf261f17efc939",
+        "dlcRef": "rbtc-hour-listener-wallclock-001",
+        "settlementState": "ROLLED",
+        "blockHeight": 0,
+        "relayStoreKey": "oracle-relay-1-1-0"
+      },
+      "envelopeHash": "db5240ced75ebaf4520a029bc07d420b4be26463fcef59f548f9623bc56520b6"
+    },
+    "reference": {
+      "kind": "tradelayer_tx30_relay_reference_v1",
+      "protocol": "tradelayer-tx30-relay-ref",
+      "version": 1,
+      "relayBlobHash": "dca8e7c5964dbf2ae902cc20b757d0400434a19a25c72da5dba5100a09491821",
+      "payloadText": "tlr1:dca8e7c5964dbf2ae902cc20b757d0400434a19a25c72da5dba5100a09491821",
+      "payloadHex": "746c72313a64636138653763353936346462663261653930326363323062373537643034303034333461313961323563373264613564626135313030613039343931383231",
+      "payloadBytes": 69,
+      "opReturnScriptHex": "6a45746c72313a64636138653763353936346462663261653930326363323062373537643034303034333461313961323563373264613564626135313030613039343931383231",
+      "referenceHash": "bdbcbe7558016030f36a7ad90bb3de83eca558759881544bc6245ba68611fe7a"
+    },
+    "anchorHash": "cfb73b235c02b45160e1672d98894757dbd25aa53945c3b712a3fb32d635cbb3"
+  },
+  "verification": {
+    "ok": true,
+    "errors": []
+  },
+  "broadcast": {
+    "attempted": false,
+    "reason": "broadcast flag not set"
+  },
+  "artifactHash": "5353b06374986fb6b9bb1f4100d50f926e5ae1e1d5370fa2cdd1ec61048e499d"
+}

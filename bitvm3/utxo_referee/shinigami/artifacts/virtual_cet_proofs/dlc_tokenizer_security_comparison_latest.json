@@ -1,0 +1,170 @@
+{
+  "kind": "shinigami_dlc_tokenizer_security_comparison",
+  "comparisonId": "64a498b6ed99a837abe970f3a7be98b561ec64385150678b5c0e4b344f88afb6",
+  "comparisonCore": {
+    "version": 1,
+    "protocol": "shinigami_dlc_tokenizer_security_comparison",
+    "headline": "CET compression remains zero-materialization while ASPs stay optional accelerators.",
+    "bundleId": "fbfd874251a91cf2523b7c560e294282082ba65fbb534a76551fa778305518ba",
+    "proofCorpusId": "16ae3cc62b8ba2ae89bd600994737a97f14047868032cbf550e909f67d02e984",
+    "outcomeCounts": [
+      17,
+      101,
+      1001,
+      5000
+    ],
+    "models": {
+      "aspBacked": {
+        "version": 1,
+        "protocol": "asp_backed_ark_shinigami_tokenizer_model",
+        "contractCommitmentId": "4ce2f70789ab440c7cb972d5b830fcdd6dde8e162cb2e3a8e151e92895d99024",
+        "virtualCetSetId": "ba0c53477b37d438ffff70e48c17f987e1133d4f2c56ed3c07aa7efaf23dcd31",
+        "payoutRoot": "cff6d85cd4e3529f2f2943e476fb5e687b8c03e5c1abb65833c6b2c65037831d",
+        "aspId": "ark-asp-shinigami-demo",
+        "reserveId": "e5186dd50fc221414b6998eb618b4ea6067ba4e657dd238ee6b114eab677db94",
+        "reserveAmountSats": "1000000",
+        "challengeWindowBlocks": 144,
+        "watcherBountyBps": 500,
+        "custodyModel": "ark_asp_accelerated_vtxo_round_with_bitvm_reserve",
+        "happyPath": "ASP batches the selected virtual-CET payout into an Ark round and avoids on-chain CET fanout",
+        "challengePath": "Shinigami fraud claim plus BitVM reserve challenge slashes bad payout, underdelivery, or withheld exit obligations",
+        "latestViolation": "delivered_below_signed_minimum",
+        "latestClaimedSlashSats": "60000"
+      },
+      "directDlcBitvm": {
+        "version": 1,
+        "protocol": "direct_dlc_bitvm_tokenizer_model",
+        "contractCommitmentId": "4ce2f70789ab440c7cb972d5b830fcdd6dde8e162cb2e3a8e151e92895d99024",
+        "virtualCetSetId": "ba0c53477b37d438ffff70e48c17f987e1133d4f2c56ed3c07aa7efaf23dcd31",
+        "payoutRoot": "cff6d85cd4e3529f2f2943e476fb5e687b8c03e5c1abb65833c6b2c65037831d",
+        "aspId": null,
+        "reserveId": null,
+        "custodyModel": "direct_vault_with_bilateral_or_n_party_signers",
+        "happyPath": "oracle-selected virtual-CET payout root is accepted and the direct vault spends by cooperative or timeout path",
+        "challengePath": "BitVM challenge opens the Shinigami public claim if a counterparty proposes the wrong outcome, wrong payout, or omitted virtual-CET leaf",
+        "feeTradeoff": "removes ASP route and exit-withholding risk, but loses Ark round batching and ASP-funded watcher incentives",
+        "directOnchainCetWorstCaseSats": "76500"
+      }
+    },
+    "feeRows": [
+      {
+        "outcomeCount": 17,
+        "materializedCetCount": 0,
+        "directMaterializedCetWorstCase": 17,
+        "onchainCetWorstCaseSats": "76500",
+        "governedArkSats": "5475",
+        "estimatedSavingsSats": "71025",
+        "avoidsCetFanoutOnchainExposure": true
+      },
+      {
+        "outcomeCount": 101,
+        "materializedCetCount": 0,
+        "directMaterializedCetWorstCase": 101,
+        "onchainCetWorstCaseSats": "454500",
+        "governedArkSats": "5475",
+        "estimatedSavingsSats": "449025",
+        "avoidsCetFanoutOnchainExposure": true
+      },
+      {
+        "outcomeCount": 1001,
+        "materializedCetCount": 0,
+        "directMaterializedCetWorstCase": 1001,
+        "onchainCetWorstCaseSats": "4504500",
+        "governedArkSats": "5475",
+        "estimatedSavingsSats": "4499025",
+        "avoidsCetFanoutOnchainExposure": true
+      },
+      {
+        "outcomeCount": 5000,
+        "materializedCetCount": 0,
+        "directMaterializedCetWorstCase": 5000,
+        "onchainCetWorstCaseSats": "22500000",
+        "governedArkSats": "5475",
+        "estimatedSavingsSats": "22494525",
+        "avoidsCetFanoutOnchainExposure": true
+      }
+    ],
+    "threats": [
+      {
+        "threat": "wrong_payout_root",
+        "aspBacked": "Shinigami claim binds selected leaf, payout root, and collateral sum; ASP reserve slash pays users if the ASP advances the wrong payout.",
+        "directDlcBitvm": "Shinigami claim still detects the wrong payout, but the remedy is a direct BitVM challenge against the vault instead of an ASP reserve claim.",
+        "strongerModel": "tie",
+        "residualRisk": "watcher must publish the challenge before timeout"
+      },
+      {
+        "threat": "wrong_oracle_outcome",
+        "aspBacked": "ASP-signed virtual-CET settlement must match the oracle outcome hash or the route becomes slashable.",
+        "directDlcBitvm": "Counterparty cannot rely on an ASP route, but the direct vault still depends on oracle publication freshness and challenge liveness.",
+        "strongerModel": "direct_dlc_bitvm",
+        "residualRisk": "oracle compromise or stale oracle policy remains outside CET compression"
+      },
+      {
+        "threat": "omitted_virtual_cet_leaf",
+        "aspBacked": "Ark leaf root and virtual-CET set id are public inputs; omission is challenged against ASP round state.",
+        "directDlcBitvm": "Direct vault commits the virtual-CET set root before funding; omission is challenged against the funding template.",
+        "strongerModel": "tie",
+        "residualRisk": "large sets still need reproducible corpus generation and archival"
+      },
+      {
+        "threat": "asp_route_mismatch",
+        "aspBacked": "ASP can misroute, but the reserve bond and forfeit path make it economically slashable.",
+        "directDlcBitvm": "No ASP route exists, so this class disappears; users pay with slower direct coordination.",
+        "strongerModel": "direct_dlc_bitvm",
+        "residualRisk": "direct model inherits counterparty noncooperation risk"
+      },
+      {
+        "threat": "exit_withholding",
+        "aspBacked": "Exit availability is an ASP-signed obligation with reserve slash and watcher bounty.",
+        "directDlcBitvm": "No ASP can withhold an Ark exit, but the direct vault must have timeout/refund leaves and both parties must preserve transaction packages.",
+        "strongerModel": "tie",
+        "residualRisk": "timeout design and fee bumping need production hardening"
+      },
+      {
+        "threat": "liquidity_liveness",
+        "aspBacked": "ASP can batch and patch liquidity cheaply; underdelivery is measurable against signed obligations.",
+        "directDlcBitvm": "No liquidity provider liveness assumption, but no cheap batched liquidity service either.",
+        "strongerModel": "asp_backed",
+        "residualRisk": "ASP market concentration and reserve sizing"
+      },
+      {
+        "threat": "challenge_window_failure",
+        "aspBacked": "Watcher bounty funds third-party monitoring, and reserve claims define public receipts.",
+        "directDlcBitvm": "Participants or their watchtowers must monitor directly; no ASP reserve subsidizes monitoring by default.",
+        "strongerModel": "asp_backed",
+        "residualRisk": "watcher availability and mempool fee spikes"
+      }
+    ],
+    "proofMetrics": {
+      "available": true,
+      "receiptSummaryId": "4e0459641c7fb7bd452ddd69d1c9f7777628f014cf9a42f4ef38d2f9e42b34c6",
+      "verifiedCount": 2,
+      "receipts": [
+        {
+          "outcomeCount": 17,
+          "verified": true,
+          "proofBytes": 9307296,
+          "elapsedWallClock": "0:09.64",
+          "maxResidentSetKb": 12437656
+        },
+        {
+          "outcomeCount": 101,
+          "verified": false,
+          "proofBytes": null
+        },
+        {
+          "outcomeCount": 1001,
+          "verified": false,
+          "proofBytes": null
+        },
+        {
+          "outcomeCount": 5000,
+          "verified": true,
+          "proofBytes": 9347438,
+          "elapsedWallClock": "0:10.24",
+          "maxResidentSetKb": 12441100
+        }
+      ]
+    }
+  }
+}

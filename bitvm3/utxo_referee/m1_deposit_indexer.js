@@ -153,7 +153,7 @@ class ReceiptDepositIndexer {
 
     return Array.from(this.deposits.values())
       .filter(record => record.status === status)
-      .sort((a, b) => a.depositId.localeCompare(b.depositId))
+      .sort((a, b) => (a.depositId < b.depositId ? -1 : a.depositId > b.depositId ? 1 : 0))
       .map(cloneRecord);
   }
 
@@ -228,7 +228,7 @@ class ReceiptDepositIndexer {
 
   getDeterministicSnapshot() {
     const deposits = Array.from(this.deposits.values())
-      .sort((a, b) => a.depositId.localeCompare(b.depositId))
+      .sort((a, b) => (a.depositId < b.depositId ? -1 : a.depositId > b.depositId ? 1 : 0))
       .map(record => ({
         depositId: record.depositId,
         accountId: record.accountId,

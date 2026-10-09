@@ -103,6 +103,14 @@ worker; rotation is performed by the trusted coordinator while preserving ACLs.
 node eval\bitcoin-testnet4-readonly-rpc-probe.js
 ```
 
+For a watchtower, the proxy can also relay `sendrawtransaction` for exact
+txids pinned in `--broadcast-allowlist-file=<absolute path>` (kind
+`utxoref_rpc_proxy_broadcast_allowlist_v1`, at most 256 txids, re-read on every
+request). Without the file, or with a malformed one, broadcast is refused.
+Write a graph's settlement txid with
+`node bitvm3\utxo_referee\utxoref_v2_watchtower.js --write-settlement-allowlist <file>`,
+which verifies the graph first and refuses fraudulent or monitor-only graphs.
+
 ## Red-team swarm stress
 
 Run parallel verifier agents and concurrent live-UTXO freshness probes:

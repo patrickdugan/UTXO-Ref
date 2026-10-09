@@ -1,0 +1,36 @@
+{
+  "kind": "btc_testnet4_reserve_vault_recovery_receipt",
+  "version": 1,
+  "createdAt": "2026-07-10T20:04:13.620Z",
+  "network": "bitcoin-testnet4",
+  "status": "broadcast",
+  "manifestHash": "c404caca9a56350068b1bd0fd1e19bca5256a0d480b08e05e60f4fb2eec2269b",
+  "vaultId": "btc-testnet4-reserve-134473-93f953df",
+  "fundingOutpoint": "93f953df2c89faf386d14217fb4d3de62d91d3789fee83cc53acfd653882f6a6:0",
+  "amountSats": "20000",
+  "feeSats": "1000",
+  "recoveryTxid": "63f7144661328c06cc1055bd7210cea4e7bc2e8a3bf4c178e0ed4a94c73c08e9",
+  "broadcastTxid": "63f7144661328c06cc1055bd7210cea4e7bc2e8a3bf4c178e0ed4a94c73c08e9",
+  "explorer": "https://mempool.space/testnet4/tx/63f7144661328c06cc1055bd7210cea4e7bc2e8a3bf4c178e0ed4a94c73c08e9",
+  "checks": {
+    "manifest": true,
+    "onChainOutpoint": true,
+    "currentlyCountableAsReserve": false,
+    "operatorSignature": true,
+    "guardianSignature": true,
+    "mempoolAccept": true
+  },
+  "mempoolAccept": {
+    "txid": "63f7144661328c06cc1055bd7210cea4e7bc2e8a3bf4c178e0ed4a94c73c08e9",
+    "wtxid": "cebfa21125c7c3af07dd633de2afe73941927e19a9634eceb0c5fca373797b7b",
+    "allowed": true,
+    "vsize": 149,
+    "fees": {
+      "base": 0.00001,
+      "effective-feerate": 0.00006711,
+      "effective-includes": [
+        "cebfa21125c7c3af07dd633de2afe73941927e19a9634eceb0c5fca373797b7b"
+      ]
+    }
+  }
+}

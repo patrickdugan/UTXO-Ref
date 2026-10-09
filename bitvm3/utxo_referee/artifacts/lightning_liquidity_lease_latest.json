@@ -1,0 +1,92 @@
+{
+  "kind": "bitvm_lightning_liquidity_lease_bundle",
+  "bundleId": "6b1278ad5dc15bf6d73f9d0ad40642581c13bd2f5f20926300c32a919dc7624b",
+  "bundleCore": {
+    "offerId": "c2f2ebe0c4b1e4eb29c66e5f42e97151d9d58f54af02f1c28d93ffdd763c8467",
+    "successEvidenceId": "a6320c602fe759b97cf3cb36503ea3bc356309d22ddc8a525488cd88e9182081",
+    "challengeId": "8cb6a560b5d3ce1a0179298d7b0fc14cdcb9547ceb016fbd645556fee40f811e",
+    "htlcFundingTxid": "c563776fe8a6d86e7e185529d7e78e43e4066c7221589c8f688b3b63a7939ad6",
+    "dlcFundingTxid": "fd3e97d30b39c04dea7748cd5a7e8b057bf9e0f7656a6be7d9733c413828be43"
+  },
+  "offer": {
+    "kind": "bitvm_lightning_liquidity_lease_offer",
+    "terms": {
+      "version": 1,
+      "leaseId": "lease-subswap-dlc-1777153762725",
+      "lspNodeId": "ldk-lsp-regtest",
+      "clientNodeId": "utxoref-client-regtest",
+      "promisedInboundSats": "49000",
+      "leaseBlocks": 144,
+      "maxFeePpm": 1000,
+      "maxCltvDelta": 40,
+      "penaltySats": "5000",
+      "leasePremiumSats": "1000",
+      "paymentHashHex": "79cdbfa62ea28e4177514f55ae3f5d6e7dbdd780254a6aeff6428270cd5d1d3f",
+      "refundLocktime": 124
+    },
+    "offerId": "c2f2ebe0c4b1e4eb29c66e5f42e97151d9d58f54af02f1c28d93ffdd763c8467",
+    "invoiceAmountMsat": "6000000",
+    "enforceableClaim": {
+      "success": "LSP earns premium only after promised channel/splice evidence binds to the lease.",
+      "failure": "Client/watchtower can claim penalty if the lease window opens without matching route evidence."
+    }
+  },
+  "successEvidence": {
+    "kind": "bitvm_lightning_liquidity_lease_success_evidence",
+    "evidenceId": "a6320c602fe759b97cf3cb36503ea3bc356309d22ddc8a525488cd88e9182081",
+    "evidenceCore": {
+      "version": 1,
+      "offerId": "c2f2ebe0c4b1e4eb29c66e5f42e97151d9d58f54af02f1c28d93ffdd763c8467",
+      "channelOutpoint": "fd3e97d30b39c04dea7748cd5a7e8b057bf9e0f7656a6be7d9733c413828be43:0",
+      "fundingCommitmentHash": "2ae94a2a96423191e3a47dd93dfe715f5f2a53b9657b2482d34ab47a9dbbe5b7",
+      "observedInboundSats": "49000",
+      "observedFeePpm": 900,
+      "observedCltvDelta": 34,
+      "observedAtBlock": 124,
+      "source": "channel_or_splice_state_snapshot"
+    },
+    "checks": {
+      "inboundCapacityMet": true,
+      "feeCeilingMet": true,
+      "cltvCeilingMet": true,
+      "fundingOutputBound": true
+    }
+  },
+  "challengeEvidence": {
+    "kind": "bitvm_lightning_liquidity_lease_challenge",
+    "challengeId": "8cb6a560b5d3ce1a0179298d7b0fc14cdcb9547ceb016fbd645556fee40f811e",
+    "challengeCore": {
+      "version": 1,
+      "offerId": "c2f2ebe0c4b1e4eb29c66e5f42e97151d9d58f54af02f1c28d93ffdd763c8467",
+      "channelOutpoint": null,
+      "observedInboundSats": "0",
+      "observedFeePpm": 2500,
+      "observedCltvDelta": 80,
+      "challengeBlock": 124,
+      "violations": [
+        "insufficient_inbound_capacity",
+        "fee_ppm_above_ceiling",
+        "cltv_delta_above_ceiling",
+        "missing_channel_or_splice_outpoint"
+      ]
+    },
+    "penaltyClaim": {
+      "amountSats": "5000",
+      "reason": "insufficient_inbound_capacity,fee_ppm_above_ceiling,cltv_delta_above_ceiling,missing_channel_or_splice_outpoint"
+    },
+    "slashable": true
+  },
+  "routingUseCases": [
+    "LSP JIT inbound channel lease",
+    "splice-in liquidity lease with penalty if unavailable",
+    "route corridor capacity bond",
+    "watchtower-audited route-quality SLA"
+  ],
+  "caveats": [
+    "This proves committed lease terms and local regtest HTLC funding, not global route availability.",
+    "Production needs privacy-preserving route evidence and LDK-native channel/splice state hooks."
+  ],
+  "verification": {
+    "ok": true
+  }
+}

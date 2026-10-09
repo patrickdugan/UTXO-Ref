@@ -1,5 +1,5 @@
 /**
- * Milestone 1 DLC Bootstrap (Litecoin testnet)
+ * Milestone 1 DLC Bootstrap
  *
  * Builds a concrete DLC draft artifact from live wallet state:
  * - discovers latest role-address set provisioned with m1_* tooling
@@ -11,14 +11,17 @@
  *   node bitvm3/utxo_referee/m1_dlc_bootstrap.js
  *
  * Env (optional):
- *   LTC_RPC_URL=http://127.0.0.1:19332
- *   LTC_RPC_USER=user
- *   LTC_RPC_PASS=pass
- *   LTC_WALLET=tl-wallet
+ *   BITVM_CHAIN=litecoin-mainnet|litecoin-testnet|bitcoin-mainnet|bitcoin-testnet
+ *   BITVM_RPC_URL=http://127.0.0.1:9332
+ *   BITVM_RPC_USER=user
+ *   BITVM_RPC_PASS=pass
+ *   BITVM_WALLET=tl-wallet
  *   DLC_EPOCH_ID=1
  *   DLC_MATURITY_BLOCKS=1008
  *   DLC_REFUND_DELAY_BLOCKS=288
- *   DLC_PNL_PAYOUT_BPS=5000
+ *   DLC_BUCKET_CAP_BPS=500
+ *   DLC_REALIZED_PNL_BPS=500
+ *   DLC_FEE_BPS=0
  */
 
 const fs = require('fs');
@@ -27,18 +30,17 @@ const http = require('http');
 const https = require('https');
 const { URL } = require('url');
 const crypto = require('crypto');
-const { templateHashHex, RECEIPT_DLC_TEMPLATE_V1 } = require('./m1_spec');
-const { computeRouteAmounts } = require('./m1_transition');
-
-const DEFAULT_RPC_URL = process.env.LTC_RPC_URL || 'http://127.0.0.1:19332';
-const DEFAULT_RPC_USER = process.env.LTC_RPC_USER || 'user';
-const DEFAULT_RPC_PASS = process.env.LTC_RPC_PASS || 'pass';
-const DEFAULT_WALLET = process.env.LTC_WALLET || 'tl-wallet';
+const { templateHashHex, buildReceiptDlcTemplate } = require('./m1_spec');
+const { computeBoundedSettlementAmounts } = require('./m1_transition');
+const { withCommittedRouting } = require('./m1_routing_commitments');
+const { resolveChainEnv, buildEpochEventId } = require('./m1_chain_env');
 const EPOCH_ID = BigInt(process.env.DLC_EPOCH_ID || '1');
 const MATURITY_BLOCKS = Number(process.env.DLC_MATURITY_BLOCKS || '1008');
 const REFUND_DELAY_BLOCKS = Number(process.env.DLC_REFUND_DELAY_BLOCKS || '288');
 const MIN_CONFIRMATIONS = Number(process.env.DLC_MIN_CONFIRMATIONS || '1');
-const PNL_PAYOUT_BPS = Number(process.env.DLC_PNL_PAYOUT_BPS || '5000');
+const BUCKET_CAP_BPS = Number(process.env.DLC_BUCKET_CAP_BPS || '500');
+const REALIZED_PNL_BPS = Number(process.env.DLC_REALIZED_PNL_BPS || String(BUCKET_CAP_BPS));
+const FEE_BPS = Number(process.env.DLC_FEE_BPS || '0');
 const ROLE_NAMES = ['operator', 'oracle', 'alice', 'bob', 'residual'];
 
 function encodeBasicAuth(user, pass) {
@@ -193,87 +195,145 @@ async function getAddressPubkey(rpc, wallet, address) {
   return info.pubkey || null;
 }
 
-function buildBinarySettlementPaths(collateralSats, rollLocktime, pnlPayoutBps) {
-  const routeAmounts = computeRouteAmounts(collateralSats, pnlPayoutBps);
-  const rolloverCollateralSats = routeAmounts.collateralSats - routeAmounts.dustCarrySats;
+function buildBoundedSettlementPaths(collateralSats, rollLocktime, bucketCapBps, realizedPnlBps, feeBps, addresses) {
+  const bounded = computeBoundedSettlementAmounts(collateralSats, bucketCapBps, realizedPnlBps, feeBps);
+  const timeoutRemainderSats = bounded.collateralSats - bounded.rolloverCollateralSats - bounded.dustCarrySats;
+  const winnerAlice = addresses?.alice || null;
+  const winnerBob = addresses?.bob || null;
+  const residualAddress = addresses?.residual || null;
+  const operatorAddress = addresses?.operator || null;
 
   return {
-    model: 'binary-settlement',
-    payoutRatioBps: routeAmounts.pnlPayoutBps,
-    flatPayoutBps: 10000 - routeAmounts.pnlPayoutBps,
+    model: 'bounded-loss-carry-forward',
+    bucketCapBps: bounded.bucketCapBps,
+    realizedPnlBps: bounded.realizedPnlBps,
+    effectivePnlBps: bounded.effectivePnlBps,
+    feeBps: bounded.feeBps,
     paths: [
-      {
-        pathId: 'flat',
+      withCommittedRouting({
+        pathId: 'settle-gain',
         kind: 'settlement',
         recipientRole: 'alice',
-        payoutSats: routeAmounts.flatPayoutSats.toString(),
-        residualSats: (routeAmounts.collateralSats - routeAmounts.flatPayoutSats).toString(),
-        dustCarrySats: '0',
+        winnerRole: 'alice',
+        winnerAddress: winnerAlice,
+        refundRole: 'residual',
+        refundAddress: residualAddress,
+        feeRole: 'operator',
+        feeAddress: operatorAddress,
+        dustRole: 'alice',
+        dustAddress: winnerAlice,
+        bucketCapBps: bounded.bucketCapBps,
+        realizedPnlBps: bounded.realizedPnlBps,
+        effectivePnlBps: bounded.effectivePnlBps,
+        feeBps: bounded.feeBps,
+        actualPayoutSats: bounded.actualPayoutSats.toString(),
+        payoutSats: bounded.actualPayoutSats.toString(),
+        feeSats: bounded.feeSats.toString(),
+        refundSats: bounded.refundSats.toString(),
+        rolloverCollateralSats: bounded.rolloverCollateralSats.toString(),
+        residualSats: bounded.refundSats.toString(),
+        dustCarrySats: bounded.dustCarrySats.toString(),
         defaultOnExpiry: false
-      },
-      {
-        pathId: 'pnl',
+      }),
+      withCommittedRouting({
+        pathId: 'settle-loss',
         kind: 'settlement',
         recipientRole: 'bob',
-        payoutSats: routeAmounts.pnlPayoutSats.toString(),
-        residualSats: (routeAmounts.collateralSats - routeAmounts.pnlPayoutSats).toString(),
-        dustCarrySats: '0',
+        winnerRole: 'bob',
+        winnerAddress: winnerBob,
+        refundRole: 'residual',
+        refundAddress: residualAddress,
+        feeRole: 'operator',
+        feeAddress: operatorAddress,
+        dustRole: 'bob',
+        dustAddress: winnerBob,
+        bucketCapBps: bounded.bucketCapBps,
+        realizedPnlBps: bounded.realizedPnlBps,
+        effectivePnlBps: bounded.effectivePnlBps,
+        feeBps: bounded.feeBps,
+        actualPayoutSats: bounded.actualPayoutSats.toString(),
+        payoutSats: bounded.actualPayoutSats.toString(),
+        feeSats: bounded.feeSats.toString(),
+        refundSats: bounded.refundSats.toString(),
+        rolloverCollateralSats: bounded.rolloverCollateralSats.toString(),
+        residualSats: bounded.refundSats.toString(),
+        dustCarrySats: bounded.dustCarrySats.toString(),
         defaultOnExpiry: false
-      }
+      })
     ],
-    roll: {
+    roll: withCommittedRouting({
       pathId: 'roll',
       kind: 'timeout',
       defaultOnExpiry: true,
+      winnerRole: 'residual',
+      winnerAddress: residualAddress,
+      refundRole: 'residual',
+      refundAddress: residualAddress,
+      feeRole: 'operator',
+      feeAddress: operatorAddress,
+      dustRole: 'alice',
+      dustAddress: winnerAlice,
       rollLocktime: rollLocktime,
-      rolloverCollateralSats: rolloverCollateralSats.toString(),
-      residualSats: rolloverCollateralSats.toString(),
-      dustCarrySats: routeAmounts.dustCarrySats.toString()
-    },
-    dustCarrySats: routeAmounts.dustCarrySats.toString()
+      timeoutRemainderSats: timeoutRemainderSats.toString(),
+      rolloverCollateralSats: bounded.rolloverCollateralSats.toString(),
+      residualSats: bounded.rolloverCollateralSats.toString(),
+      dustCarrySats: bounded.dustCarrySats.toString()
+    }),
+    dustCarrySats: bounded.dustCarrySats.toString()
   };
 }
 
 async function run() {
+  const chainEnv = resolveChainEnv();
   const rpc = rpcFactory({
-    rpcUrl: DEFAULT_RPC_URL,
-    rpcUser: DEFAULT_RPC_USER,
-    rpcPass: DEFAULT_RPC_PASS
+    rpcUrl: chainEnv.rpcUrl,
+    rpcUser: chainEnv.rpcUser,
+    rpcPass: chainEnv.rpcPass
   });
 
   const chainInfo = await rpc('getblockchaininfo');
   const currentHeight = await rpc('getblockcount');
-  const roleSet = await pickLatestFundedRoleSet(rpc, DEFAULT_WALLET);
+  const roleSet = await pickLatestFundedRoleSet(rpc, chainEnv.wallet);
 
-  const aliceUtxo = await selectConfirmedUtxo(rpc, DEFAULT_WALLET, roleSet.addresses.alice);
-  const bobUtxo = await selectConfirmedUtxo(rpc, DEFAULT_WALLET, roleSet.addresses.bob);
+  const aliceUtxo = await selectConfirmedUtxo(rpc, chainEnv.wallet, roleSet.addresses.alice);
+  const bobUtxo = await selectConfirmedUtxo(rpc, chainEnv.wallet, roleSet.addresses.bob);
   const collateralSats = amountToSats(aliceUtxo.amount) + amountToSats(bobUtxo.amount);
 
   const maturityHeight = currentHeight + MATURITY_BLOCKS;
   const refundLocktime = maturityHeight + REFUND_DELAY_BLOCKS;
-  const settlement = buildBinarySettlementPaths(collateralSats, refundLocktime, PNL_PAYOUT_BPS);
+  const settlement = buildBoundedSettlementPaths(
+    collateralSats,
+    refundLocktime,
+    BUCKET_CAP_BPS,
+    REALIZED_PNL_BPS,
+    FEE_BPS,
+    roleSet.addresses
+  );
 
-  const operatorPubkey = await getAddressPubkey(rpc, DEFAULT_WALLET, roleSet.addresses.operator);
-  const oraclePubkey = await getAddressPubkey(rpc, DEFAULT_WALLET, roleSet.addresses.oracle);
+  const operatorPubkey = await getAddressPubkey(rpc, chainEnv.wallet, roleSet.addresses.operator);
+  const oraclePubkey = await getAddressPubkey(rpc, chainEnv.wallet, roleSet.addresses.oracle);
 
   const createdAt = new Date().toISOString();
-  const eventId = `ltc-testnet-epoch-${EPOCH_ID.toString()}-${Date.now()}`;
+  const template = buildReceiptDlcTemplate(chainEnv.chainId);
+  const eventId = buildEpochEventId(chainEnv.chainId, EPOCH_ID);
 
   const draft = {
     kind: 'm1_dlc_draft',
     createdAt,
     chain: {
+      chainId: chainEnv.chainId,
+      family: chainEnv.family,
       network: chainInfo.chain,
-      rpcUrl: DEFAULT_RPC_URL,
+      rpcUrl: chainEnv.rpcUrl,
       blockHeight: currentHeight
     },
     template: {
-      templateId: RECEIPT_DLC_TEMPLATE_V1.templateId,
-      templateHash: templateHashHex(RECEIPT_DLC_TEMPLATE_V1)
+      templateId: template.templateId,
+      templateHash: templateHashHex(template)
     },
     roleSet: {
       tag: roleSet.tag,
-      wallet: DEFAULT_WALLET,
+      wallet: chainEnv.wallet,
       addresses: roleSet.addresses,
       pubkeys: {
         operator: operatorPubkey,
@@ -290,7 +350,9 @@ async function run() {
       maturityHeight,
       refundLocktime,
       collateralSats: collateralSats.toString(),
-      payoutRatioBps: PNL_PAYOUT_BPS,
+      bucketCapBps: BUCKET_CAP_BPS,
+      realizedPnlBps: REALIZED_PNL_BPS,
+      feeBps: FEE_BPS,
       dustCarrySats: settlement.dustCarrySats,
       fundingInputs: [
         {
@@ -317,7 +379,10 @@ async function run() {
       outcomes: settlement.paths.map(path => ({
         pathId: path.pathId,
         kind: path.kind,
-        payoutSats: path.payoutSats
+        payoutSats: path.payoutSats,
+        feeSats: path.feeSats,
+        refundSats: path.refundSats,
+        rolloverCollateralSats: path.rolloverCollateralSats
       }))
     }
   };
@@ -336,13 +401,17 @@ async function run() {
   fs.writeFileSync(latestPath, rendered);
 
   console.log('=== M1 DLC Bootstrap ===');
-  console.log(`wallet=${DEFAULT_WALLET}`);
+  console.log(`chainId=${chainEnv.chainId}`);
+  console.log(`rpcNetwork=${chainInfo.chain}`);
+  console.log(`wallet=${chainEnv.wallet}`);
   console.log(`minConfirmations=${MIN_CONFIRMATIONS}`);
   console.log(`roleSetTag=${roleSet.tag}`);
-  console.log(`chain=${chainInfo.chain} height=${currentHeight}`);
+  console.log(`chainHeight=${currentHeight}`);
   console.log(`epochId=${EPOCH_ID.toString()}`);
   console.log(`collateralSats=${collateralSats.toString()}`);
-  console.log(`payoutRatioBps=${PNL_PAYOUT_BPS}`);
+  console.log(`bucketCapBps=${BUCKET_CAP_BPS}`);
+  console.log(`realizedPnlBps=${REALIZED_PNL_BPS}`);
+  console.log(`feeBps=${FEE_BPS}`);
   console.log(`dustCarrySats=${settlement.dustCarrySats}`);
   console.log(`maturityHeight=${maturityHeight}`);
   console.log(`refundLocktime=${refundLocktime}`);
