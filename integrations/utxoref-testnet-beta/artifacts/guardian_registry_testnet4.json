@@ -12,11 +12,11 @@
       "createdAt": "2026-07-15T15:37:47.664Z"
     },
     {
-      "guardianId": "e0e53a7d87a6da57b8142c1e",
+      "guardianId": "3704131ba84ee7c1ea1b687c",
       "label": "research-commons-independent",
-      "heartbeatPublicKeyPem": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEA1NStmJXjgRbYQ54Vbez71R9pyEBcDw1XF/HUpWhPDts=\n-----END PUBLIC KEY-----\n",
-      "guardianXonly": "1b3e7a404ebd38d97d2914e44877428b97b1bbb338a77740720ae2eb1b704bb0",
-      "createdAt": "2026-07-15T15:38:15.846Z"
+      "heartbeatPublicKeyPem": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAK/NWkEls1mhyvNQYjiYFrMhrM0uOuQ0FbKjowH1mI1U=\n-----END PUBLIC KEY-----\n",
+      "guardianXonly": "df82d1623e9dff4dc43456c8fb057aabb2fbf85e3796a68b3a166c8211ffa002",
+      "createdAt": "2026-10-12T12:06:53.240Z"
     }
   ]
 }

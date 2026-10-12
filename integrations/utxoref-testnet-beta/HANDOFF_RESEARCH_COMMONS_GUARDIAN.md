@@ -1,5 +1,17 @@
 # Handoff: bring the `research-commons-independent` guardian back online
 
+> **Superseded (2026-10-12, later the same day).** The old keys were not found
+> on the old PC, so the guardian was re-keyed on Patrick's new PC:
+> `research-commons-independent` is now guardianId `3704131ba84ee7c1ea1b687c`,
+> guardianXonly `df82d1623e9dff4dc43456c8fb057aabb2fbf85e3796a68b3a166c8211ffa002`,
+> pinned in `artifacts/guardian_registry_testnet4.json`. Nothing below needs
+> doing. The custody reserve `artifacts/guardian_quorum_reserve_testnet4.json`
+> still commits to the old key (`1b3e7a40…`), so the beta runs without
+> `BETA_GUARDIAN_RESERVE_PATH` until a new reserve is funded with
+> `npm run deploy:guardians` against the updated registry. The old reserve's
+> 10,000 testnet sats can only leave through its CSV recovery path.
+> The "do not" list still applies to the old PC.
+
 Written 2026-10-12 for a Claude agent on Patrick's **old PC**, which probably ran
 this guardian. Read all of it before running anything.
 
