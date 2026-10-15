@@ -35,24 +35,37 @@ $stdout = Join-Path $LogDir "stdout.log"
 $stderr = Join-Path $LogDir "stderr.log"
 Remove-Item -LiteralPath $stdout,$stderr -Force -ErrorAction SilentlyContinue
 
-$command = @"
-`$env:CHAIN='BTC_TESTNET4'
-`$env:AUTODETECT='0'
-`$env:RPC_HOST='127.0.0.1'
-`$env:RPC_PORT='$RpcPort'
-`$env:RPC_COOKIE_FILE='$cookieFile'
-`$env:TL_FORCE_TEST='1'
-`$env:TL_LISTENER_PORT='$ListenerPort'
-Set-Location '$TradeLayerRepo'
-node .\src\walletListener.js
-"@
-
-$process = Start-Process powershell `
-    -WindowStyle Hidden `
-    -ArgumentList @("-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", $command) `
-    -RedirectStandardOutput $stdout `
-    -RedirectStandardError $stderr `
-    -PassThru
+# The listener's settings travel as environment variables and the child runs a fixed command, so no parameter value
+# is ever parsed as PowerShell source (a path containing a quote used to end the quoted string in the old command).
+$listenerCommand = 'Set-Location -LiteralPath $env:TL_LISTENER_REPO; node .\src\walletListener.js'
+$encodedCommand = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($listenerCommand))
+$childEnvironment = @{
+    CHAIN = 'BTC_TESTNET4'
+    AUTODETECT = '0'
+    RPC_HOST = '127.0.0.1'
+    RPC_PORT = "$RpcPort"
+    RPC_COOKIE_FILE = $cookieFile
+    TL_FORCE_TEST = '1'
+    TL_LISTENER_PORT = "$ListenerPort"
+    TL_LISTENER_REPO = $TradeLayerRepo
+}
+$savedEnvironment = @{}
+foreach ($name in $childEnvironment.Keys) {
+    $savedEnvironment[$name] = [Environment]::GetEnvironmentVariable($name, 'Process')
+    [Environment]::SetEnvironmentVariable($name, $childEnvironment[$name], 'Process')
+}
+try {
+    $process = Start-Process powershell `
+        -WindowStyle Hidden `
+        -ArgumentList @("-NoProfile", "-ExecutionPolicy", "Bypass", "-EncodedCommand", $encodedCommand) `
+        -RedirectStandardOutput $stdout `
+        -RedirectStandardError $stderr `
+        -PassThru
+} finally {
+    foreach ($name in $childEnvironment.Keys) {
+        [Environment]::SetEnvironmentVariable($name, $savedEnvironment[$name], 'Process')
+    }
+}
 
 [pscustomobject]@{
     ProcessId = $process.Id
