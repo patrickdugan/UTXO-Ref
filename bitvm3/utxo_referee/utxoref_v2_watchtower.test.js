@@ -258,6 +258,22 @@ test('state is written atomically and resumes after a restart', () => {
   assert(state.restarts === 1);
 });
 
+test('state replacement flushes the new file before the rename and the directory after', () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'utxoref-v2-watchtower-durable-'));
+  const statePath = path.join(directory, 'state.json');
+  const { fsyncSync, renameSync } = fs;
+  const order = [];
+  fs.fsyncSync = (fd) => { order.push('fsync'); return fsyncSync(fd); };
+  fs.renameSync = (from, to) => { order.push('rename'); return renameSync(from, to); };
+  try { saveJsonAtomic(statePath, { kind: 'utxoref_v2_watchtower_state', tickCount: 1 }); }
+  finally {
+    fs.fsyncSync = fsyncSync;
+    fs.renameSync = renameSync;
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+  assert(order.join(',') === 'fsync,rename,fsync', `unexpected durable write order: ${order.join(',')}`);
+});
+
 test('wrong artifact kind fails closed', () => {
   let rejected = false;
   try { inspectArtifact({ kind: 'wrong', version: 2 }); }

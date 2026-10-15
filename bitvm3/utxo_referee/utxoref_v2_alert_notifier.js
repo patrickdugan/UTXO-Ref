@@ -1,7 +1,7 @@
 const crypto = require('crypto');
 const fs = require('fs');
 const os = require('os');
-const path = require('path');
+const { writeFileAtomic } = require('./dlc_durable_json_store');
 
 // WT-2: alert delivery for the V2 watchtower, with no npm dependencies.
 // Channels: email through a provider's HTTP API (Postmark, Resend, SendGrid,
@@ -185,10 +185,7 @@ function acknowledgeAlert(ackPath, fingerprint, at = new Date().toISOString()) {
   }
   const acknowledged = existing.acknowledged.filter((entry) => entry.fingerprint !== value).slice(-199);
   acknowledged.push({ fingerprint: value, at });
-  fs.mkdirSync(path.dirname(ackPath), { recursive: true });
-  const temporary = `${ackPath}.tmp-${process.pid}-${Date.now()}`;
-  fs.writeFileSync(temporary, `${JSON.stringify({ kind: existing.kind, acknowledged }, null, 2)}\n`);
-  fs.renameSync(temporary, ackPath);
+  writeFileAtomic(ackPath, `${JSON.stringify({ kind: existing.kind, acknowledged }, null, 2)}\n`);
   return value;
 }
 

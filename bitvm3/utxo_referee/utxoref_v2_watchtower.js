@@ -19,6 +19,7 @@ const {
 const { txidFromUnsignedHex } = require('./recover_btc_testnet4_reserve_vault');
 const { readJsonStrict } = require('./strict_artifact_ingress');
 const { readJsonStrictProfile } = require('./strict_artifact_profiles');
+const { writeFileAtomic } = require('./dlc_durable_json_store');
 const { statementFromWatchtowerTick, buildWatcherReceipt } = require('./utxoref_v2_watcher_quorum');
 const { verifyUtxorefV2FeeReserve } = require('./utxoref_v2_fee_reserve');
 const { BROADCAST_ALLOWLIST_KIND } = require('./btc_testnet4_readonly_rpc_proxy');
@@ -112,10 +113,7 @@ function readJson(filePath, fieldName, profileName = null) {
 }
 
 function saveJsonAtomic(filePath, value) {
-  fs.mkdirSync(path.dirname(filePath), { recursive: true });
-  const temporary = `${filePath}.tmp-${process.pid}-${Date.now()}`;
-  fs.writeFileSync(temporary, JSON.stringify(value, null, 2) + '\n');
-  fs.renameSync(temporary, filePath);
+  writeFileAtomic(filePath, JSON.stringify(value, null, 2) + '\n');
 }
 
 // WT-2: the RPC proxy relays only allowlisted txids. This adds the committed

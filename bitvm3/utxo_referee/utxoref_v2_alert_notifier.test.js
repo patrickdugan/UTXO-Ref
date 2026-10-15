@@ -122,7 +122,13 @@ test('a critical alert is sent once, repeats on schedule, and stops when acknowl
     nowMs += 25 * 60 * 1000;
     await notifier.handle({ kind: 'tick', result: tick('recovery_imminent', { height: 150105 }) }, state);
     assert(fake.calls.length === 4 && /\(repeat\)/.test(emails()[1].Subject), 'no repeat after the interval');
-    acknowledgeAlert(ackPath, state.notifier.lastFingerprint.slice(0, 16));
+    const { fsyncSync, renameSync } = fs;
+    const order = [];
+    fs.fsyncSync = (fd) => { order.push('fsync'); return fsyncSync(fd); };
+    fs.renameSync = (from, to) => { order.push('rename'); return renameSync(from, to); };
+    try { acknowledgeAlert(ackPath, state.notifier.lastFingerprint.slice(0, 16)); }
+    finally { fs.fsyncSync = fsyncSync; fs.renameSync = renameSync; }
+    assert(order.join(',') === 'fsync,rename,fsync', `unexpected durable write order: ${order.join(',')}`);
     assert(readAcknowledgements(ackPath).length === 1);
     nowMs += 60 * 60 * 1000;
     await notifier.handle({ kind: 'tick', result: tick('recovery_imminent') }, state);

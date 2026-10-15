@@ -154,10 +154,35 @@ function writeJsonAppendOnce(directory, name, record, { maxBytes, label = 'durab
   return finalPath;
 }
 
+// Replaces filePath with text. The new bytes are flushed before the rename and
+// the directory entry is flushed after it, so after a crash or power loss the
+// file holds either the previous content or the complete new content.
+function writeFileAtomic(filePath, text) {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  const temporaryPath = `${filePath}.tmp-${process.pid}-${crypto.randomBytes(8).toString('hex')}`;
+  try {
+    const fd = fs.openSync(temporaryPath, 'wx');
+    try {
+      fs.writeFileSync(fd, text);
+      fs.fsyncSync(fd);
+    } finally { fs.closeSync(fd); }
+    fs.renameSync(temporaryPath, filePath);
+  } catch (error) {
+    try { fs.unlinkSync(temporaryPath); } catch (_cleanupError) {}
+    throw error;
+  }
+  // Windows cannot open a directory to flush it.
+  if (process.platform !== 'win32') {
+    const directoryFd = fs.openSync(path.dirname(filePath), 'r');
+    try { fs.fsyncSync(directoryFd); } finally { fs.closeSync(directoryFd); }
+  }
+}
+
 module.exports = {
   assertNonSymlinkDirectory,
   createDurableDirectory,
   ensureNonSymlinkDirectory,
   readBoundedJson,
+  writeFileAtomic,
   writeJsonAppendOnce
 };
