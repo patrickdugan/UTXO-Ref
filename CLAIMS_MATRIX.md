@@ -39,7 +39,7 @@ refer to the 2026-10-02 readiness assessment; see
 | Claim | File(s) | Class | Evidence / limits |
 |---|---|---|---|
 | One two-party DLC funding output with an oracle-settled CET leaf and a CSV refund leaf, no key path (MAIN-1, DLC-6) | `dlc_funding_output.js`, `dlc_transaction_validator.js`, `dlc_signature_validator.js` | LOCAL_SIMULATION | `dlc_infra_hardening.test.js`, `eval/dlc_security_eval.js`. Not yet funded on any network. |
-| Counterparty CET shares verified before funding (DLC-4) | `dlc_signature_validator.js` | LOCAL_SIMULATION | Each party gives full adaptor signatures under its own key; no MuSig2. |
+| Counterparty CET shares verified before funding (DLC-4) | `dlc_signature_validator.js` | PROTOTYPE_ONLY | Each party gives full adaptor signatures under its own key; no MuSig2. The verifier is tested, but no production state transition calls it, so counterparty signatures are not checked before funding (review A-3, open). |
 | Signer signs only a committed CET's derived sighash and oracle point (MAIN-3) | `dlc_signing_target.js`, `dlc_crypto_provider.js`, `native/dlc-signer/src/signing_target.rs` | LOCAL_SIMULATION | JS and Rust checked against the same vectors (`cargo test --lib`). The Windows signer binary has **not** been rebuilt for this source. |
 | 2-of-3 threshold oracle outcome points | `dlc_threshold_oracle.js` | LOCAL_SIMULATION | Supersedes the "Oracle threshold / multi-oracle: NOT_IMPLEMENTED" row. Oracles are still in-process in tests. |
 | BitVM V2 predicate bound to signed state, terminal output must be 1 (BVM-1) | `bitvm_assertion_graph_v2.js` | LOCAL_SIMULATION | The two graphs funded on testnet4 (`34dfe4a3…`, `e98272fd…`) predate this and are monitored as `legacy-unbound-v2-monitor-only`. |
