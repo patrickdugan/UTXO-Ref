@@ -1,5 +1,7 @@
 const assert = require('assert');
+const http = require('http');
 
+const { createServer } = require('./server');
 const { sha256Hex } = require('../../bitvm3/utxo_referee/tradelayer_pnl_route_adapter');
 const {
   verifyBetaGatePackage,
@@ -184,6 +186,41 @@ function testPrototypeCrossReferencesBindSubswapAndMinting() {
   assert.strictEqual(crossRef.tradeLayerTaprootMinting.assetBinding.ticker, 'tUSD');
 }
 
+async function testSpendEvaluationIgnoresRequestPolicy() {
+  const pkg = samplePackage();
+  const server = createServer();
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  try {
+    const post = (body) => fetch(`http://127.0.0.1:${server.address().port}/v1/watchtower/spend-proposals/evaluate`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body)
+    }).then((response) => response.json());
+    const proposal = {
+      vaultId: 'vault-1',
+      amountSats: '999999999',
+      feeSats: '100',
+      outputs: [{ address: 'tb1qattacker', sats: 999999999 }],
+      unsignedTxHash: 'd'.repeat(64)
+    };
+    const evaluation = await post({
+      proposal,
+      policy: { allowTestnet: true, requireConfirmedReserve: false, requireUnspentReserve: false }
+    });
+    assert.strictEqual(evaluation.ok, false);
+    assert.strictEqual(evaluation.guardianAction, 'REFUSE');
+    assert(evaluation.errors.includes('real-money gate is closed'));
+    const oversize = await fetch(`http://127.0.0.1:${server.address().port}/v1/watchtower/spend-proposals/evaluate`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ proposal: { memo: 'x'.repeat(1024 * 1024) } })
+    });
+    assert.strictEqual(oversize.status, 413);
+  } finally {
+    server.close();
+  }
+}
+
 const tests = [
   testBetaGateSummaryBlocksRealMoney,
   testPackageTamperFailsHash,
@@ -195,4 +232,7 @@ const tests = [
 ];
 
 for (const test of tests) test();
-console.log(`betweenbits-utxoref-adapter tests passed (${tests.length}/${tests.length})`);
+testSpendEvaluationIgnoresRequestPolicy().then(() => {
+  const count = tests.length + 1;
+  console.log(`betweenbits-utxoref-adapter tests passed (${count}/${count})`);
+});

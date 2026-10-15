@@ -1,3 +1,4 @@
+const fs = require('fs');
 const http = require('http');
 const url = require('url');
 
@@ -19,14 +20,30 @@ function send(res, statusCode, body) {
   res.end(text);
 }
 
+// Spend policy is server configuration. A missing file leaves the default empty policy, which refuses every spend
+// while the real-money gate is closed.
+function loadSpendPolicy(env = process.env) {
+  if (!env.UTXOREF_SPEND_POLICY_PATH) return {};
+  return JSON.parse(fs.readFileSync(env.UTXOREF_SPEND_POLICY_PATH, 'utf8'));
+}
+
+const MAX_BODY_BYTES = 16 * 1024;
+
 function readBody(req) {
   return new Promise((resolve, reject) => {
-    let body = '';
+    const chunks = [];
+    let size = 0;
     req.on('data', (chunk) => {
-      body += chunk;
-      if (body.length > 1024 * 1024) reject(new Error('request body too large'));
+      size += chunk.length;
+      if (size > MAX_BODY_BYTES) {
+        const err = new Error('request body too large');
+        err.statusCode = 413;
+        return reject(err);
+      }
+      chunks.push(chunk);
     });
     req.on('end', () => {
+      const body = Buffer.concat(chunks).toString('utf8');
       if (!body.trim()) return resolve({});
       try {
         resolve(JSON.parse(body));
@@ -40,6 +57,7 @@ function readBody(req) {
 
 function createServer(options = {}) {
   const artifactsDir = options.artifactsDir;
+  const spendPolicy = options.spendPolicy || loadSpendPolicy();
 
   return http.createServer(async (req, res) => {
     try {
@@ -95,13 +113,13 @@ function createServer(options = {}) {
         return send(res, 200, evaluateSpendProposal({
           betaGatePackage,
           proposal: body.proposal,
-          policy: body.policy
+          policy: spendPolicy
         }));
       }
 
       return send(res, 404, { ok: false, error: 'not_found' });
     } catch (err) {
-      return send(res, 500, { ok: false, error: err.message });
+      return send(res, err.statusCode || 500, { ok: false, error: err.message });
     }
   });
 }
@@ -117,4 +135,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { createServer };
+module.exports = { createServer, loadSpendPolicy };
