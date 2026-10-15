@@ -83,7 +83,7 @@ test('rejects a queue whose withdrawal root is not the root of its payable entri
   const honest = buildTradeLayerWithdrawalQueue({ requests: REQUESTS });
   // Root of a tree paying 1 BTC to an attacker, substituted in both places and rehashed.
   const attacker = buildTradeLayerWithdrawalQueue({
-    requests: [{ id: 'wd-attacker', address: 'tltc1qkz0vft2fc4nk0u9fx4k9yk4th7zherna3zxh22', sats: 100000000 }]
+    requests: [{ id: 'wd-attacker', txid: 'cc'.repeat(32), address: 'tltc1qkz0vft2fc4nk0u9fx4k9yk4th7zherna3zxh22', sats: 100000000 }]
   });
   const forged = clone(honest);
   forged.queueCore.withdrawalRootHex = attacker.queueCore.withdrawalRootHex;
@@ -141,6 +141,36 @@ test('rejects two ids producing the identical payout leaf (double-pay guard)', (
     threw = /duplicate withdrawal payout/.test(err.message);
   }
   assert(threw, 'identical payout leaf across distinct ids must be rejected');
+});
+
+test('rejects the same withdrawal repeated with an uppercase address', () => {
+  let threw = false;
+  try {
+    buildTradeLayerWithdrawalQueue({
+      requests: [
+        { id: 'wd-a', txid: 'ab'.repeat(32), address: REQUESTS[0].address, sats: 25000, propertyId: 0 },
+        { id: 'wd-b', txid: 'ab'.repeat(32), address: REQUESTS[0].address.toUpperCase(), sats: 25000, propertyId: 0 }
+      ]
+    });
+  } catch (err) {
+    threw = /duplicate withdrawal payout/.test(err.message);
+  }
+  assert(threw, 'bech32 case must not create a second payout for one withdrawal');
+});
+
+test('rejects a withdrawal entry that omits its origin txid', () => {
+  let threw = false;
+  try {
+    buildTradeLayerWithdrawalQueue({
+      requests: [
+        { id: 'wd-a', txid: 'ab'.repeat(32), address: REQUESTS[0].address, sats: 25000, propertyId: 0 },
+        { id: 'wd-b', address: REQUESTS[0].address, sats: 25000, propertyId: 0 }
+      ]
+    });
+  } catch (err) {
+    threw = /requires txid/.test(err.message);
+  }
+  assert(threw, 'an entry without its origin txid must be rejected');
 });
 
 test('allows one send txid to fan out to distinct recipients', () => {

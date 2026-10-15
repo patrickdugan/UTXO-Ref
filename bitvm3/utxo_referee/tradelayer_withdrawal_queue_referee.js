@@ -24,11 +24,12 @@ function toSats(value, fieldName) {
 function normalizeRequest(request, index) {
   if (!request || typeof request !== 'object') throw new Error(`request[${index}] must be an object`);
   if (!request.address) throw new Error(`request[${index}] requires address`);
+  if (!request.txid) throw new Error(`request[${index}] requires txid (origin send)`);
   const sats = toSats(request.sats ?? request.amountSats, `request[${index}].sats`);
   if (sats <= 0n) throw new Error(`request[${index}].sats must be positive`);
   return {
     id: String(request.id || request.withdrawalId || `${request.txid || 'request'}:${index}`),
-    txid: request.txid ? String(request.txid).toLowerCase() : null,
+    txid: String(request.txid).toLowerCase(),
     address: String(request.address),
     sats: sats.toString(),
     propertyId: request.propertyId ?? null,
@@ -41,7 +42,7 @@ function normalizeRequest(request, index) {
 // payable set so an unknown status cannot become a payout.
 const PAYABLE_STATUSES = Object.freeze(['approved', 'settled']);
 
-function queueEntries(requests) {
+function queueEntries(requests, network) {
   if (!Array.isArray(requests) || !requests.length) throw new Error('withdrawal requests must be a non-empty array');
   const entries = requests.map(normalizeRequest);
   const seenIds = new Set();
@@ -49,11 +50,12 @@ function queueEntries(requests) {
   for (const entry of entries) {
     if (seenIds.has(entry.id)) throw new Error(`duplicate withdrawal request id: ${entry.id}`);
     seenIds.add(entry.id);
-    // Two distinct ids producing the identical payout leaf (same origin txid,
-    // recipient, amount, and property) would double-pay the same withdrawal.
-    // A single send txid that legitimately fans out to several recipients does
-    // not collide here, because those entries differ by address and/or amount.
-    const payoutFingerprint = `${entry.txid || ''}|${entry.address}|${entry.sats}|${entry.propertyId ?? ''}`;
+    // Two distinct ids paying the same withdrawal would double-pay it. The payout
+    // identity is the recipient script (not the address spelling), amount,
+    // property and origin send. A send that fans out to several recipients does
+    // not collide, because those entries differ by script and/or amount.
+    const scriptHex = addressToScriptPubKey(entry.address, network).toString('hex');
+    const payoutFingerprint = `${scriptHex}|${entry.sats}|${entry.propertyId ?? ''}|${entry.txid}`;
     if (seenPayouts.has(payoutFingerprint)) {
       throw new Error(`duplicate withdrawal payout: ${entry.id} repeats ${payoutFingerprint}`);
     }
@@ -101,7 +103,7 @@ function queueCommitment({ entries, network, epochId, residualDest }) {
 function buildTradeLayerWithdrawalQueue(input = {}) {
   const network = input.network || 'litecoin-testnet';
   const epochId = BigInt(input.epochId ?? 0);
-  const entries = queueEntries(input.requests || input.withdrawals || []);
+  const entries = queueEntries(input.requests || input.withdrawals || [], network);
   const residualDest = residualScript(input, network);
   const built = queueCommitment({ entries, network, epochId, residualDest });
   const queueCore = {
@@ -143,7 +145,7 @@ function verifyTradeLayerWithdrawalQueue(queue) {
   const queueHash = sha256Hex(queue.queueCore);
   if (queue.queueHash !== queueHash) return { ok: false, reason: 'queue hash mismatch', queueHash };
   const core = queue.queueCore;
-  const entries = queueEntries(core.entries || []);
+  const entries = queueEntries(core.entries || [], core.network);
   if (sha256Hex(entries) !== core.queueRoot) return { ok: false, reason: 'queue root mismatch' };
   let rebuilt;
   try {
