@@ -76,11 +76,13 @@ function manifest(overrides = {}) {
   });
 }
 
-function chainTxout(m = manifest(), overrides = {}) {
+// Confirmations as the node reports them at the given tip: the funding UTXO
+// confirmed at observedAtHeight is (tip - observedAtHeight + 1) deep.
+function chainTxout(m = manifest(), overrides = {}, tip = 1200) {
   return {
     value: 0.001,
     scriptPubKey: { hex: m.core.p2trScriptPubKey },
-    confirmations: 12,
+    confirmations: tip - Number(m.core.observedAtHeight) + 1,
     ...overrides
   };
 }
@@ -225,6 +227,31 @@ test('live vault UTXO is counted only when scriptPubKey and amount match', () =>
   assert(!badScript.ok && /scriptPubKey mismatch/.test(badScript.reason), 'script mismatch should reject');
 });
 
+test('a manifest cannot declare a later anchor than its funding confirmation', () => {
+  // Real UTXO confirmed at 1000 (201 confirmations at tip 1200). The operator declares
+  // observedAtHeight = the tip, which would move the CSV maturity past the real one.
+  const forged = manifest({ observedAtHeight: 1200 });
+  const result = verifyTaprootReserveVaultOnChain(forged, {
+    txout: chainTxout(forged, { confirmations: 201 }),
+    currentHeight: 1200,
+    network: 'bitcoin-testnet4'
+  });
+
+  assert(!result.ok && !result.counted, 'declared anchor must not count');
+  assert(/confirmation height/.test(result.reason), result.reason);
+});
+
+test('a funding UTXO with no confirmations cannot anchor the recovery window', () => {
+  const m = manifest();
+  const result = verifyTaprootReserveVaultOnChain(m, {
+    txout: chainTxout(m, { confirmations: 0 }),
+    currentHeight: 1200,
+    network: 'bitcoin-testnet4'
+  });
+
+  assert(!result.counted, 'unconfirmed vault UTXO must not count');
+});
+
 test('spent or missing vault UTXO contributes zero reserve', () => {
   const set = vaultSet(manifest(), null);
   assertEq(set.reservedSats, '0');
@@ -233,11 +260,11 @@ test('spent or missing vault UTXO contributes zero reserve', () => {
 
 test('vault is rejected once recovery is mature or inside the risk window', () => {
   const m = manifest();
-  const nearMaturity = vaultSet(m, chainTxout(m), 1000 + 2016 - 100);
+  const nearMaturity = vaultSet(m, chainTxout(m, {}, 1000 + 2016 - 100), 1000 + 2016 - 100);
   assertEq(nearMaturity.reservedSats, '0');
   assert(/risk window/.test(nearMaturity.core.vaults[0].verification.reason));
 
-  const mature = vaultSet(m, chainTxout(m), 1000 + 2016);
+  const mature = vaultSet(m, chainTxout(m, {}, 1000 + 2016), 1000 + 2016);
   assertEq(mature.reservedSats, '0');
   assert(/mature/.test(mature.core.vaults[0].verification.reason));
 });
@@ -335,7 +362,7 @@ test('guardian refuses stale or insolvent reserve policy', () => {
   assert(!refusedInsolvent.approved);
   assert(refusedInsolvent.policyResult.failedChecks.includes('reserve_solvency'));
 
-  const staleSet = vaultSet(m, chainTxout(m), 1000 + 2016 - 100);
+  const staleSet = vaultSet(m, chainTxout(m, {}, 1000 + 2016 - 100), 1000 + 2016 - 100);
   const staleRec = solventReconciliation(staleSet, 1);
   const refusedStale = approveTaprootReserveVaultSpend({
     manifest: m,
@@ -343,6 +370,7 @@ test('guardian refuses stale or insolvent reserve policy', () => {
     guardianSecret: GUARDIAN_SECRET,
     reserveReconciliation: staleRec,
     withdrawalQueue: queue(1),
+    vaultTxout: chainTxout(m, {}, 1000 + 2016 - 100),
     currentHeight: 1000 + 2016 - 100
   });
   assert(!refusedStale.approved);
@@ -369,6 +397,7 @@ test('guardian approves and signs only the exact policy-matching transaction', (
     reserveReconciliation: rec,
     reserveEvidence: set,
     withdrawalQueue: q,
+    vaultTxout: chainTxout(m),
     currentHeight: 1200
   });
   assert(approval.approved, JSON.stringify(approval.policyResult.failedChecks));

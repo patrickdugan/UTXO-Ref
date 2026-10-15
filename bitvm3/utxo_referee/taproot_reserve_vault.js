@@ -399,6 +399,17 @@ function normalizeChainTxoutForEvidence(txout) {
   };
 }
 
+// The CSV anchor is the height the funding UTXO confirmed at. The node reports
+// confirmations rather than a height, so the height is the tip minus the depth
+// plus one. A manifest cannot choose this value.
+function fundingConfirmationHeight(txout, currentHeight) {
+  const confirmations = Number(txout.confirmations);
+  if (!Number.isInteger(confirmations) || confirmations < 1) return { error: 'vault UTXO is not confirmed' };
+  const tip = Number(currentHeight);
+  if (!Number.isInteger(tip) || tip < 0) return { error: 'chain tip height is required to anchor the vault' };
+  return { height: tip - confirmations + 1 };
+}
+
 function verifyTaprootReserveVaultOnChain(manifest, options = {}) {
   const manifestCheck = verifyTaprootReserveVaultManifest(manifest, options);
   if (!manifestCheck.ok) return { ok: false, counted: false, reason: manifestCheck.reason, manifestCheck };
@@ -433,6 +444,20 @@ function verifyTaprootReserveVaultOnChain(manifest, options = {}) {
       chainTxout: txout,
       expectedScriptPubKey: core.p2trScriptPubKey,
       actualScriptPubKey: txout.scriptPubKey
+    };
+  }
+  const anchor = fundingConfirmationHeight(txout, options.currentHeight);
+  if (anchor.error) {
+    return { ok: false, counted: false, reason: anchor.error, manifestCheck, chainTxout: txout };
+  }
+  if (anchor.height !== Number(core.observedAtHeight)) {
+    return {
+      ok: false,
+      counted: false,
+      reason: 'observedAtHeight does not match the funding UTXO confirmation height',
+      manifestCheck,
+      chainTxout: txout,
+      confirmationHeight: anchor.height
     };
   }
   if (!manifestCheck.countable) {
@@ -641,9 +666,9 @@ function guardianPolicyChecks(input, txParsed, manifestCheck, reconciliationChec
     checks.push({ name, ok: !!ok, details });
   }
 
-  add('vault_manifest', manifestCheck.ok && manifestCheck.countable, {
-    reason: manifestCheck.ok ? manifestCheck.recoveryStatus.reason : manifestCheck.reason,
-    countable: manifestCheck.countable === true
+  add('vault_manifest', manifestCheck.ok && manifestCheck.counted, {
+    reason: manifestCheck.reason,
+    counted: manifestCheck.counted === true
   });
   add('reserve_solvency', reconciliationCheck.ok && reconciliationCheck.solvent === true, {
     reason: reconciliationCheck.reason || null,
@@ -700,8 +725,10 @@ function approveTaprootReserveVaultSpend(input = {}) {
   });
   const txParsed = tr.parseTx(proposal.core.unsignedTxHex);
   const inputIndex = Number(proposal.core.inputIndex || 0);
-  const manifestCheck = verifyTaprootReserveVaultManifest(input.manifest, {
+  const manifestCheck = verifyTaprootReserveVaultOnChain(input.manifest, {
+    txout: input.vaultTxout,
     currentHeight: input.currentHeight,
+    network: input.manifest.core.network,
     recoveryRiskMarginBlocks: input.recoveryRiskMarginBlocks
   });
   const {

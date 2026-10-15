@@ -321,6 +321,13 @@ async function main() {
   const currentHeight = Number(await rpc('getblockcount'));
   let reserveSet;
   let reserveEvidenceMode;
+  const vaultTxout = args.broadcast
+    ? await rpc('gettxout', [fundingTxid, 0, true])
+    : {
+      valueSats: lockSats,
+      scriptPubKey: { hex: manifest.core.p2trScriptPubKey },
+      confirmations: currentHeight - observedAtHeight + 1
+    };
   if (args.broadcast) {
     reserveSet = await buildTaprootReserveVaultSetFromRpc({
       rpc,
@@ -337,11 +344,7 @@ async function main() {
       currentHeight,
       manifests: [manifest],
       chainTxouts: {
-        [`${fundingTxid}:0`]: {
-          valueSats: lockSats,
-          scriptPubKey: { hex: manifest.core.p2trScriptPubKey },
-          confirmations: 0
-        }
+        [`${fundingTxid}:0`]: vaultTxout
       }
     });
     reserveEvidenceMode = 'dry-run-simulated-chain-txout';
@@ -389,6 +392,7 @@ async function main() {
     guardianSecret,
     reserveReconciliation: reconciliation,
     withdrawalQueue,
+    vaultTxout,
     currentHeight
   });
 
@@ -410,6 +414,7 @@ async function main() {
     guardianSecret,
     reserveReconciliation: reconciliation,
     withdrawalQueue,
+    vaultTxout,
     currentHeight
   });
 
