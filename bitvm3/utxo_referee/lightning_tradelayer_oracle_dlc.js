@@ -313,6 +313,18 @@ function verifyTradeLayerVwapStateOracle(vwapStateOracle, oraclePolicy = null) {
   if (computeVwapScaledPrice(vwapStateOracle.validTrades).toString() !== vwapStateOracle.summaryCore.vwapScaledPrice) {
     return { ok: false, reason: 'VWAP arithmetic mismatch' };
   }
+  let recomputedDeviationBps;
+  try {
+    recomputedDeviationBps = priceDeviationBps(
+      vwapStateOracle.summaryCore.lastAcceptedScaledPrice,
+      vwapStateOracle.summaryCore.vwapScaledPrice
+    );
+  } catch (err) {
+    return { ok: false, reason: err.message };
+  }
+  if (recomputedDeviationBps !== vwapStateOracle.summaryCore.priceDeviationBps) {
+    return { ok: false, reason: 'VWAP price deviation mismatch' };
+  }
   if (sha256Hex(vwapStateOracle.payloadText) !== vwapStateOracle.payloadHash) {
     return { ok: false, reason: 'VWAP payload hash mismatch' };
   }
@@ -325,16 +337,16 @@ function verifyTradeLayerVwapStateOracle(vwapStateOracle, oraclePolicy = null) {
   ) {
     return { ok: false, reason: 'VWAP publisher proof mismatch' };
   }
-  if (oraclePolicy) {
-    if (vwapStateOracle.publisherAddress !== oraclePolicy.designatedOracleAddress) {
-      return { ok: false, reason: 'VWAP designated oracle address mismatch' };
-    }
-    if (vwapStateOracle.summaryCore.lastAcceptedScaledPrice !== oraclePolicy.lastAcceptedScaledPrice) {
-      return { ok: false, reason: 'VWAP previous mark mismatch' };
-    }
-    if (vwapStateOracle.summaryCore.priceDeviationBps > oraclePolicy.maxDeviationBps) {
-      return { ok: false, reason: 'VWAP price outside 5pct solvency band' };
-    }
+  // A mark is settlement input only inside the policy band, so the policy is required.
+  if (!oraclePolicy) return { ok: false, reason: 'VWAP oracle policy required to settle on a VWAP mark' };
+  if (vwapStateOracle.publisherAddress !== oraclePolicy.designatedOracleAddress) {
+    return { ok: false, reason: 'VWAP designated oracle address mismatch' };
+  }
+  if (vwapStateOracle.summaryCore.lastAcceptedScaledPrice !== oraclePolicy.lastAcceptedScaledPrice) {
+    return { ok: false, reason: 'VWAP previous mark mismatch' };
+  }
+  if (vwapStateOracle.summaryCore.priceDeviationBps > oraclePolicy.maxDeviationBps) {
+    return { ok: false, reason: 'VWAP price outside 5pct solvency band' };
   }
   return { ok: true };
 }

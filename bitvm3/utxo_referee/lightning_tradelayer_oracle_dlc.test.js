@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+const { sha256Hex, stableStringify } = require('./tradelayer_pnl_route_adapter');
 const {
   encodeTradeLayerPublishOracleData,
   decodeTradeLayerPublishOracleData,
@@ -109,6 +110,31 @@ test('TradeLayer VWAP state oracle commits valid trades and bounded mark movemen
     maxDeviationBps: vwap.summaryCore.maxDeviationBps
   });
   assert(result.ok, result.reason);
+});
+
+test('rejects a VWAP summary that understates its price deviation', () => {
+  const vwap = buildTradeLayerVwapStateOracle();
+  const forged = JSON.parse(JSON.stringify(vwap));
+  forged.summaryCore.priceDeviationBps = 0;
+  forged.summaryCommitmentId = sha256Hex(stableStringify(forged.summaryCore));
+  forged.payloadText = vwap.payloadText.replace(vwap.summaryCommitmentId.slice(0, 32), forged.summaryCommitmentId.slice(0, 32));
+  forged.payloadHash = sha256Hex(forged.payloadText);
+  forged.opReturnScriptHex = buildOpReturnScriptHex(forged.payloadText);
+  const result = verifyTradeLayerVwapStateOracle(forged, {
+    designatedOracleAddress: vwap.designatedOracleAddress,
+    lastAcceptedScaledPrice: vwap.summaryCore.lastAcceptedScaledPrice,
+    maxDeviationBps: vwap.summaryCore.maxDeviationBps
+  });
+
+  assert(!result.ok, 'an understated deviation must not pass the band');
+  assertEq(result.reason, 'VWAP price deviation mismatch');
+});
+
+test('a VWAP mark is refused for settlement without its oracle policy', () => {
+  const vwap = buildTradeLayerVwapStateOracle();
+  const result = verifyTradeLayerVwapStateOracle(vwap);
+
+  assert(!result.ok, 'the band cannot be checked without the policy');
 });
 
 test('TradeLayer VWAP challenge catches bad arithmetic against the valid trade set', () => {
