@@ -247,6 +247,10 @@ async function testPersistentRateLimits(root) {
   assert.ok(!rateDisk.includes('127.0.0.1'), 'rate-limit file must not retain plaintext requester IPs');
   assert.equal(requestIp({ headers: { 'x-forwarded-for': 'attacker-controlled' }, socket: { remoteAddress: '127.0.0.1' } }, { trustProxy: true }), '127.0.0.1');
   assert.equal(requestIp({ headers: { 'x-forwarded-for': '203.0.113.8' }, socket: { remoteAddress: '127.0.0.1' } }, { trustProxy: true }), '203.0.113.8');
+  // A client can prepend entries; the trusted proxy appends the address it received from, which is the last one.
+  assert.equal(requestIp({ headers: { 'x-forwarded-for': '198.51.100.9, 203.0.113.8' }, socket: { remoteAddress: '127.0.0.1' } }, { trustProxy: true }), '203.0.113.8');
+  assert.throws(() => loadPolicy({ BETA_PUBLIC_ORIGIN: 'https://beta.example.org' }), /BETA_TRUST_PROXY must be set/);
+  assert.equal(loadPolicy({ BETA_PUBLIC_ORIGIN: 'https://beta.example.org', BETA_TRUST_PROXY: '0' }).trustProxy, false);
 }
 
 // BETA-1 (port of readiness-assessment poc6): a flood of unauthenticated POSTs

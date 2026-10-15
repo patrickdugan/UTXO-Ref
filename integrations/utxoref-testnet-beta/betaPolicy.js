@@ -18,6 +18,9 @@ function basePath(value) {
 }
 
 function loadPolicy(env = process.env) {
+  if (env.BETA_PUBLIC_ORIGIN && env.BETA_TRUST_PROXY === undefined) {
+    throw new Error('BETA_TRUST_PROXY must be set to 0 or 1 when BETA_PUBLIC_ORIGIN is set');
+  }
   const root = path.join(__dirname, '..', '..');
   return {
     serviceName: 'utxoref-testnet-beta',

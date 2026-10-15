@@ -231,7 +231,9 @@ function guardianReserveStatus(deployment, txout, currentHeight) {
 
 function requestIp(req, policy) {
   if (policy.trustProxy) {
-    const forwarded = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
+    // The trusted proxy appends the address it received from, so the last entry is the one clients cannot forge.
+    const entries = String(req.headers['x-forwarded-for'] || '').split(',');
+    const forwarded = entries[entries.length - 1].trim();
     if (net.isIP(forwarded)) return forwarded;
   }
   return req.socket.remoteAddress || 'unknown';

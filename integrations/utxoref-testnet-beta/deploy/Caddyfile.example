@@ -3,7 +3,10 @@ beta.example.org {
   request_body {
     max_size 16KB
   }
-  reverse_proxy 127.0.0.1:8790
+  reverse_proxy 127.0.0.1:8790 {
+    # Replace any client-supplied X-Forwarded-For with the connecting address.
+    header_up X-Forwarded-For {remote_host}
+  }
   header {
     Strict-Transport-Security "max-age=31536000; includeSubDomains"
     -Server

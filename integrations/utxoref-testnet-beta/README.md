@@ -95,7 +95,7 @@ For Nginx, load `deploy/nginx-http-waf.example` in the `http {}` context and pla
 1. Create a dedicated unprivileged `utxoref-beta` account and `/var/lib/utxoref-beta` owned by it.
 2. Install the repository read-only under `/opt/utxoref/UTXO-Ref`.
 3. Install `.env.example` as mode `0600` at `/etc/utxoref-beta.env`.
-4. Set `BETA_PUBLIC_ORIGIN` to the exact HTTPS origin and enable `BETA_TRUST_PROXY=1` only when direct access to port `8790` is blocked.
+4. Set `BETA_PUBLIC_ORIGIN` to the exact HTTPS origin. Set `BETA_TRUST_PROXY` explicitly: `1` only when direct access to port `8790` is blocked and the proxy overwrites or appends `X-Forwarded-For`; the service refuses to start if it is unset.
    Set `BETA_BASE_PATH` when the service shares a hostname, for example `/utxoref-beta`.
 5. Start Core, load the faucet wallet, start the service, then verify `/v1/beta/status` reports `betaReady: true`.
 6. Run the 500-request status test and one self-claim before issuing invitations.
