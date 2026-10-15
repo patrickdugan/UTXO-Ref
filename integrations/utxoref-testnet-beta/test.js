@@ -13,7 +13,7 @@ const { BitcoinBackend } = require('./bitcoinBackend');
 const {
   SERVICE_RPC_METHODS,
   assertRestrictedRpc,
-  recoverInterruptedRuns,
+  recoverInterruptedWork,
   resolveRpcCredentials
 } = require('./server');
 const { stableStringify, sha256Hex } = require('../../bitvm3/utxo_referee/tradelayer_pnl_route_adapter');
@@ -340,6 +340,14 @@ async function testRestrictedRpcCredentials(root) {
   await assert.rejects(assertRestrictedRpc(async () => { throw new Error('connect ECONNREFUSED'); }), /could not confirm/);
 }
 
+// The quorum gate is on whenever a guardian registry is configured, unless the operator turns it off explicitly.
+function testGuardianQuorumGateDefaults() {
+  assert.strictEqual(loadPolicy({}).requireGuardianQuorum, false);
+  assert.strictEqual(loadPolicy({ BETA_GUARDIAN_REGISTRY_PATH: '/etc/registry.json' }).requireGuardianQuorum, true);
+  assert.strictEqual(loadPolicy({ BETA_GUARDIAN_REGISTRY_PATH: '/etc/registry.json', BETA_REQUIRE_GUARDIAN_QUORUM: '1' }).requireGuardianQuorum, true);
+  assert.strictEqual(loadPolicy({ BETA_GUARDIAN_REGISTRY_PATH: '/etc/registry.json', BETA_REQUIRE_GUARDIAN_QUORUM: '0' }).requireGuardianQuorum, false);
+}
+
 function guardianFixture(label) {
   const heartbeat = crypto.generateKeyPairSync('ed25519');
   const ecdh = crypto.createECDH('secp256k1');
@@ -536,15 +544,68 @@ async function testBitcoinBackendCompatibility() {
   assert.equal(await backend.findFaucetTransaction('aabbccddeeff001122334455'), TEST_TXID);
 }
 
-function testInterruptedRunRecovery() {
-  const state = { stressRuns: {
-    running: { status: 'running' },
-    complete: { status: 'complete' }
-  } };
-  assert.equal(recoverInterruptedRuns(state, '2026-07-14T00:00:00.000Z'), 1);
+// A restart leaves in-flight work with an unknown outcome: stress runs fail, and a claim still in `sending` becomes
+// broadcast_unknown so it stays counted and waits for reconcile.js instead of being re-sent.
+function testInterruptedWorkRecovery() {
+  const state = {
+    stressRuns: {
+      running: { status: 'running' },
+      complete: { status: 'complete' }
+    },
+    claims: {
+      sending: { status: 'sending', txid: null },
+      broadcast: { status: 'broadcast', txid: TEST_TXID }
+    }
+  };
+  assert.equal(recoverInterruptedWork(state, '2026-07-14T00:00:00.000Z'), 2);
   assert.equal(state.stressRuns.running.status, 'failed');
   assert.equal(state.stressRuns.running.errorCode, 'service_restarted');
   assert.equal(state.stressRuns.complete.status, 'complete');
+  assert.equal(state.claims.sending.status, 'broadcast_unknown');
+  assert.equal(state.claims.sending.errorCode, 'service_restarted');
+  assert.equal(state.claims.broadcast.status, 'broadcast');
+}
+
+// Several claims arrive together, and the wallet can afford only two of them above the reserve floor. The balance
+// each claim checks must include the claims before it, so exactly two broadcast.
+async function testConcurrentClaimsRespectReserveFloor(root) {
+  const statePath = path.join(root, 'reserve-floor.json');
+  const store = new StateStore(statePath);
+  let balanceSats = 254000;
+  const sends = [];
+  const bitcoin = {
+    async status() {
+      return {
+        chain: 'testnet4', blocks: 150000, headers: 150000,
+        initialBlockDownload: false, verificationProgress: 1, pruned: true,
+        walletTrustedSats: String(balanceSats), walletPendingSats: '0'
+      };
+    },
+    async validateDestination(address) {
+      return { address, scriptPubKey: `0014${'00'.repeat(20)}` };
+    },
+    async sendFaucet(_address, amountSats, claimId) {
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      balanceSats -= amountSats + 1000;
+      sends.push(claimId);
+      return TEST_TXID;
+    },
+    async getTxout() { return null; }
+  };
+  const policy = policyFor(statePath, { ipClaimsPerDay: 10, postRequestsPerMinute: 100, postRequestsPerHour: 100 });
+  const service = createBetaService({ policy, store, bitcoin });
+  const tokens = [];
+  for (let index = 0; index < 5; index++) tokens.push(await createInvite(store));
+  const claimWith = (token, index) => service.claimFaucet({
+    inviteToken: token,
+    address: `tb1q${String(index).padStart(38, 'a')}`
+  }, { headers: { 'idempotency-key': `reserve-floor-claim-${index}` }, socket: { remoteAddress: '127.0.0.1' } })
+    .then(() => 'broadcast', (err) => err.code || err.message);
+  const outcomes = await Promise.all(tokens.map(claimWith));
+  assert.equal(sends.length, 2, `expected two claims above the floor, got ${sends.length}: ${outcomes.join(',')}`);
+  assert.deepStrictEqual(outcomes.filter((outcome) => outcome === 'broadcast').length, 2);
+  assert.ok(outcomes.includes('faucet_reserve_floor'));
+  assert.ok(balanceSats >= 250000, 'the reserve floor was breached');
 }
 
 async function main() {
@@ -560,8 +621,10 @@ async function main() {
     await testGuardianQuorum(root);
     await testCrossProcessLock(root);
     await testBitcoinBackendCompatibility();
-    testInterruptedRunRecovery();
-    console.log(JSON.stringify({ ok: true, suite: 'utxoref-testnet-beta', tests: 9 }));
+    await testConcurrentClaimsRespectReserveFloor(root);
+    testInterruptedWorkRecovery();
+    testGuardianQuorumGateDefaults();
+    console.log(JSON.stringify({ ok: true, suite: 'utxoref-testnet-beta', tests: 13 }));
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

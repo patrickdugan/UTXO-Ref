@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
+const { writeAtomicPrivate } = require('../shared/service');
 
 function sha256(value) {
   return crypto.createHash('sha256').update(String(value)).digest('hex');
@@ -37,11 +38,7 @@ function validateState(state) {
 
 function saveAtomic(filePath, state) {
   validateState(state);
-  fs.mkdirSync(path.dirname(filePath), { recursive: true });
-  const temporary = `${filePath}.${process.pid}.${crypto.randomBytes(6).toString('hex')}.tmp`;
-  fs.writeFileSync(temporary, `${JSON.stringify(state, null, 2)}\n`, { flag: 'wx', mode: 0o600 });
-  fs.renameSync(temporary, filePath);
-  try { fs.chmodSync(filePath, 0o600); } catch (_err) { /* Best effort on Windows. */ }
+  writeAtomicPrivate(filePath, `${JSON.stringify(state, null, 2)}\n`);
 }
 
 function sleep(milliseconds) {
