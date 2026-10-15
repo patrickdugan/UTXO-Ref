@@ -184,9 +184,12 @@ def heartbeat_once(args):
     try:
         http_status, receipt = post_json(submit_url, envelope, args.timeout)
     except GuardianRefusal as refusal:
-        # The service checks freshness before it stores anything, so a stale envelope was never committed and
-        # its sequence number is still free. Drop it and observe again on the next run.
-        if refusal.status == 409 and "stale_guardian_heartbeat" in refusal.body:
+        # The service validates an envelope before it stores anything. A stale or malformed envelope was never
+        # committed and never will be, so its sequence number is still free: drop it and observe again on the
+        # next run. Configuration refusals (401, 404) and sequence conflicts (409) keep the same bytes, which are
+        # correct once an operator has fixed the registry or the state.
+        never_valid = refusal.status == 400 or (refusal.status == 409 and "stale_guardian_heartbeat" in refusal.body)
+        if never_valid:
             pending_path.unlink()
         raise
     if http_status not in (200, 201) or receipt.get("accepted") is not True:
