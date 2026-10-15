@@ -49,6 +49,15 @@ function percent(value) {
   return `${Number(value).toFixed(2)}%`;
 }
 
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function scrub(value) {
   const oldSubstrate = new RegExp(['li', 'tecoin'].join(''), 'gi');
   const oldBadge = new RegExp(['ltc', '-testnet'].join(''), 'gi');
@@ -192,7 +201,7 @@ function renderLanes(dashboard) {
       : lane.amountUnits
         ? tlusd(lane.amountUnits)
         : Number(lane.count).toLocaleString();
-    div.innerHTML = `<span>${scrub(lane.label)}</span><strong>${amount}</strong><small>${scrub(lane.id)}</small>`;
+    div.innerHTML = `<span>${escapeHtml(scrub(lane.label))}</span><strong>${amount}</strong><small>${escapeHtml(scrub(lane.id))}</small>`;
     laneRail.appendChild(div);
   });
 }
@@ -216,11 +225,11 @@ function renderTimeline(dashboard) {
 function showChallenge(item) {
   $('dialogTitle').textContent = `${item.botId} BitVM Challenge`;
   $('dialogBody').innerHTML = [
-    detailRow('Challenge ID', short(item.bitvmChallengeId)),
+    detailRow('Challenge ID', escapeHtml(short(item.bitvmChallengeId))),
     detailRow('Promised liquidity', sats(item.requestedInboundSats)),
     detailRow('Delivered liquidity', sats(item.deliveredInboundSats)),
     detailRow('Shortfall', sats(Number(item.requestedInboundSats) - Number(item.deliveredInboundSats))),
-    detailRow('Violations', item.violations.join(', ')),
+    detailRow('Violations', escapeHtml(item.violations.join(', '))),
     detailRow('Remedy', 'slash ASP bond or force Ark exit/forfeit path')
   ].join('');
   $('challengeDialog').showModal();
@@ -233,9 +242,9 @@ function renderQueue(dashboard) {
     const div = document.createElement('div');
     div.className = 'queue-item';
     div.innerHTML = `
-      <strong>${item.botId}</strong>
+      <strong>${escapeHtml(item.botId)}</strong>
       <span>${sats(item.deliveredInboundSats)} / ${sats(item.requestedInboundSats)}</span>
-      <small>${item.violations.join(', ')}</small>
+      <small>${escapeHtml(item.violations.join(', '))}</small>
     `;
     div.addEventListener('click', () => showChallenge(item));
     queue.appendChild(div);
@@ -261,11 +270,11 @@ function renderProfilePanel(status) {
   if (!status) return;
   $('profileMode').textContent = status.profile.mode;
   $('profilePanel').innerHTML = [
-    detailRow('Profile', scrub(status.activeProfileId)),
-    detailRow('Chain', scrub(status.chain.chain)),
-    detailRow('RPC', scrub(status.chain.rpcUrl)),
-    detailRow('Wallet', status.chain.wallet),
-    detailRow('LND', status.lnd ? `${status.lnd.network} ${status.lnd.grpcHost}` : 'not active'),
+    detailRow('Profile', escapeHtml(scrub(status.activeProfileId))),
+    detailRow('Chain', escapeHtml(scrub(status.chain.chain))),
+    detailRow('RPC', escapeHtml(scrub(status.chain.rpcUrl))),
+    detailRow('Wallet', escapeHtml(status.chain.wallet)),
+    detailRow('LND', status.lnd ? escapeHtml(`${status.lnd.network} ${status.lnd.grpcHost}`) : 'not active'),
     detailRow('Artifact', status.artifacts.lnbtcTlusdLiquidityPatch.exists ? 'loaded' : 'missing'),
     detailRow('Wallet ready', status.readiness.walletViewReady)
   ].join('');
@@ -283,7 +292,7 @@ function renderProofGraph(walletView, dashboard) {
     ['Fleet dashboard', dashboard.dashboardId]
   ];
   $('proofGraph').innerHTML = nodes
-    .map(([label, value]) => `<div class="proof-node" title="${value || ''}"><strong>${label}</strong><span>${short(value)}</span></div>`)
+    .map(([label, value]) => `<div class="proof-node" title="${escapeHtml(value || '')}"><strong>${label}</strong><span>${escapeHtml(short(value))}</span></div>`)
     .join('');
 }
 
@@ -299,7 +308,7 @@ function renderProtocolTrace(walletView, dashboard) {
     ['BitVM guard', short(walletView.liquidityPatch.challenge.challengeId), `${scenario.detector} watches for ${scenario.label.toLowerCase()}`]
   ];
   $('protocolTrace').innerHTML = steps
-    .map(([label, value, note]) => `<div class="trace-step"><strong>${label}</strong><span>${value}</span><small>${note}</small></div>`)
+    .map(([label, value, note]) => `<div class="trace-step"><strong>${label}</strong><span>${escapeHtml(value)}</span><small>${escapeHtml(note)}</small></div>`)
     .join('');
 }
 
@@ -331,7 +340,7 @@ function renderLnCompatibility(walletView, dashboard) {
   const inbound = Number(dashboard.totals.assignedInboundSats);
   $('lnCompatibility').innerHTML = [
     detailRow('Invoice amount', sats(walletView.conversion.lnbtcSats)),
-    detailRow('Payment hash', short(walletView.conversion.subswapFundingTxid)),
+    detailRow('Payment hash', escapeHtml(short(walletView.conversion.subswapFundingTxid))),
     detailRow('Preimage source', 'subswap fulfillment witness'),
     detailRow('CLTV delta', `${cltvDelta} blocks`),
     detailRow('Route fee', `${dashboard.totals.averageFeePpm} ppm`),
@@ -398,13 +407,13 @@ function renderIntegrationChecklist(status) {
   const adapterReady = state.adapterFeed?.verification?.ok;
   const rows = [
     ['LDK Node', adapterReady ? 'mocked' : 'pending', 'event fixture normalized into reviewer feed'],
-    ['LND', status.lnd ? 'local' : 'pending', status.lnd ? status.lnd.grpcHost : 'not wired'],
+    ['LND', status.lnd ? 'local' : 'pending', status.lnd ? escapeHtml(status.lnd.grpcHost) : 'not wired'],
     ['Core Lightning', 'pending', 'adapter contract documented'],
     ['Bark / Ark', adapterReady ? 'mocked' : 'pending', 'VTXO batch fixture and exit event'],
     ['Taproot Assets', adapterReady ? 'mocked' : 'pending', 'transfer-proof fixture present'],
     ['TradeLayer tx33', adapterReady ? 'mocked' : 'pending', 'synthetic USD fixture present'],
-    ['Modular testnet', status.chain.chain ? 'local' : 'mocked', scrub(status.chain.rpcUrl)],
-    ['Bitcoin testnet', status.lnd ? 'remote' : 'pending', status.lnd ? status.lnd.network : 'future LND profile']
+    ['Modular testnet', status.chain.chain ? 'local' : 'mocked', escapeHtml(scrub(status.chain.rpcUrl))],
+    ['Bitcoin testnet', status.lnd ? 'remote' : 'pending', status.lnd ? escapeHtml(status.lnd.network) : 'future LND profile']
   ];
   $('integrationChecklist').innerHTML = rows
     .map(([name, stateLabel, note]) => `<div class="check-item"><div><strong>${name}</strong><small>${note}</small></div><span class="status ${stateLabel}">${stateLabel}</span></div>`)
@@ -447,7 +456,7 @@ function buildInvariants(dashboard, walletView, ark) {
 
 function renderInvariantLedger(dashboard, walletView, ark) {
   $('invariantLedger').innerHTML = buildInvariants(dashboard, walletView, ark)
-    .map(([name, ok, note]) => `<div class="invariant-item ${ok ? 'pass' : 'fail'}"><span class="source-badge ${ok ? 'live' : 'planned'}">${ok ? 'pass' : 'fail'}</span><strong>${name}</strong><small>${note}</small></div>`)
+    .map(([name, ok, note]) => `<div class="invariant-item ${ok ? 'pass' : 'fail'}"><span class="source-badge ${ok ? 'live' : 'planned'}">${ok ? 'pass' : 'fail'}</span><strong>${escapeHtml(name)}</strong><small>${escapeHtml(note)}</small></div>`)
     .join('');
 }
 
@@ -463,7 +472,7 @@ function renderArtifactLinks(dashboard, walletView) {
     ['Public dashboard', '/dashboard', 'live alias']
   ];
   $('artifactLinks').innerHTML = links
-    .map(([label, href, note]) => `<a class="artifact-link" href="${href}" target="_blank" rel="noreferrer"><strong>${label}</strong><span>${short(note)}</span></a>`)
+    .map(([label, href, note]) => `<a class="artifact-link" href="${escapeHtml(href)}" target="_blank" rel="noreferrer"><strong>${escapeHtml(label)}</strong><span>${escapeHtml(short(note))}</span></a>`)
     .join('');
 }
 
@@ -478,17 +487,17 @@ function renderAdapterFeed(adapterFeed) {
   $('adapterFeedStatus').textContent = `${adapterFeed.verification.normalizedEvents} normalized`;
   $('adapterFeedStatus').className = `source-badge ${adapterFeed.verification.ok ? 'mock' : 'planned'}`;
   $('adapterSummary').innerHTML = Object.entries(adapterFeed.adapters)
-    .map(([key, adapter]) => metric(adapter.name, adapter.eventCount.toLocaleString(), `${key}: ${adapter.lastEventType}`))
+    .map(([key, adapter]) => metric(escapeHtml(adapter.name), adapter.eventCount.toLocaleString(), escapeHtml(`${key}: ${adapter.lastEventType}`)))
     .join('');
   $('adapterEventFeed').innerHTML = adapterFeed.events
     .slice(-12)
     .reverse()
     .map(item => `
       <div class="event-item">
-        <strong>${item.adapter}</strong>
-        <span>${item.sourceType}</span>
-        <small>${item.dashboardImpact}</small>
-        <span class="source-badge mock">${item.status}</span>
+        <strong>${escapeHtml(item.adapter)}</strong>
+        <span>${escapeHtml(item.sourceType)}</span>
+        <small>${escapeHtml(item.dashboardImpact)}</small>
+        <span class="source-badge mock">${escapeHtml(item.status)}</span>
       </div>
     `)
     .join('');
@@ -535,13 +544,13 @@ function renderDeploymentHealth(dashboard) {
   $('healthStatus').textContent = apiOk ? 'healthy' : 'degraded';
   $('healthStatus').className = `source-badge ${apiOk ? 'live' : 'planned'}`;
   $('deploymentHealth').innerHTML = [
-    metric('Deployment URL', location.host || 'local sidecar', 'dashboard host'),
+    metric('Deployment URL', escapeHtml(location.host || 'local sidecar'), 'dashboard host'),
     metric('Dashboard API', `${Math.round(latencies.dashboard?.ms || 0)} ms`, latencies.dashboard?.ok ? 'ok' : 'failed'),
     metric('Status API', `${Math.round(latencies.status?.ms || 0)} ms`, latencies.status?.ok ? 'ok' : 'failed'),
     metric('Wallet API', `${Math.round(latencies.walletView?.ms || 0)} ms`, latencies.walletView?.ok ? 'ok' : 'failed'),
     metric('Adapter API', `${Math.round(latencies.adapterFeed?.ms || 0)} ms`, latencies.adapterFeed?.ok ? 'ok' : 'failed'),
     metric('5k status', dashboard.totals.botCount >= 5000 && dashboard.verification?.ok ? 'pass' : 'sampled', `${dashboard.totals.botCount.toLocaleString()} bots loaded`),
-    metric('Git ref', commit, 'deployed build marker')
+    metric('Git ref', escapeHtml(commit), 'deployed build marker')
   ].join('');
 }
 
@@ -551,10 +560,10 @@ function renderTable(dashboard) {
   dashboard.bots.slice(0, 80).forEach(bot => {
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td>${bot.botId}</td>
-      <td>${scrub(bot.lane)}</td>
-      <td><span class="${statusClass(bot.status)}">${bot.status}</span></td>
-      <td>${bot.tltcDisplay}</td>
+      <td>${escapeHtml(bot.botId)}</td>
+      <td>${escapeHtml(scrub(bot.lane))}</td>
+      <td><span class="${escapeHtml(statusClass(bot.status))}">${escapeHtml(bot.status)}</span></td>
+      <td>${escapeHtml(bot.tltcDisplay)}</td>
       <td>${Number(bot.tlusdDisplay).toLocaleString()}</td>
       <td>${bot.routeCount}</td>
       <td>${compactSats(bot.deliveredInboundSats)}</td>
