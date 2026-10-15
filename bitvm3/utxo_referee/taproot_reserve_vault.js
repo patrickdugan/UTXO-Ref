@@ -10,7 +10,8 @@
  */
 
 const crypto = require('crypto');
-const { stableStringify, sha256Hex } = require('./tradelayer_pnl_route_adapter');
+const { stableStringify, sha256Hex, addressToScriptPubKey } = require('./tradelayer_pnl_route_adapter');
+const { verifyTradeLayerWithdrawalQueue } = require('./tradelayer_withdrawal_queue_referee');
 const tr = require('./tradelayer_taproot');
 const ts = require('./tradelayer_taproot_script');
 const { buildTaprootTree, controlBlockWithPath } = require('./tradelayer_taproot_tree');
@@ -650,6 +651,32 @@ function buildVaultSpendProposal(input = {}) {
   };
 }
 
+// The guardian signs only the transaction its proposal names, and only if the proposal
+// is the one that was hashed.
+function proposalIntegrityReason(proposal, txParsed) {
+  if (!proposal?.core || sha256Hex(proposal.core) !== proposal.proposalHash) return 'proposal hash mismatch';
+  if (proposal.approvedTxOutputHash !== outputVectorHashFromParsed(txParsed)) {
+    return 'approved output hash does not match the transaction';
+  }
+  return null;
+}
+
+// The spend may pay only the payable withdrawals of the verified queue: one output
+// per payable entry, at its committed amount and script.
+function committedOutputsMismatch(txParsed, withdrawalQueue, network) {
+  const verified = verifyTradeLayerWithdrawalQueue(withdrawalQueue);
+  if (!verified.ok) return `invalid withdrawal queue: ${verified.reason}`;
+  const payable = new Set(withdrawalQueue.queueCore.payableRequestIds);
+  const committed = withdrawalQueue.queueCore.entries
+    .filter((entry) => payable.has(entry.id))
+    .map((entry) => `${addressToScriptPubKey(entry.address, network).toString('hex')}:${entry.sats}`)
+    .sort();
+  const actual = normalizeTxOutputsFromParsed(txParsed)
+    .map((output) => `${output.scriptPubKey}:${output.valueSats}`)
+    .sort();
+  return stableStringify(actual) === stableStringify(committed) ? null : 'transaction outputs differ from the committed payouts';
+}
+
 function guardianPolicyChecks(input, txParsed, manifestCheck, reconciliationCheck) {
   const manifest = input.manifest;
   const core = manifest.core;
@@ -675,6 +702,10 @@ function guardianPolicyChecks(input, txParsed, manifestCheck, reconciliationChec
     solvent: reconciliationCheck.solvent === true,
     reconciliationHash: input.reserveReconciliation?.reconciliationHash || null
   });
+  const integrityIssue = proposalIntegrityReason(input.proposal, txParsed);
+  add('proposal_integrity', !integrityIssue, { reason: integrityIssue });
+  const payoutIssue = committedOutputsMismatch(txParsed, input.withdrawalQueue, core.network);
+  add('committed_outputs', !payoutIssue, { reason: payoutIssue });
   add('expected_outputs', txOutputsEqualExpected(txParsed, input.proposal.core.expectedOutputs || input.expectedOutputs), {
     approvedTxOutputHash: outputVectorHashFromParsed(txParsed)
   });

@@ -201,13 +201,16 @@ produced a nonsense multi-million-block "age." Fixed by having
 up front and pass it in explicitly, so all height math in that path is now
 on one consistent absolute scale.
 
-**Status (2026-10-14, review D): recovery window anchored on chain.** The
+**Status (2026-10-14, review D): recovery window anchored on chain, spend outputs bound to the queue.** The
 vault CSV maturity is computed from the funding UTXO confirmation height
 (tip minus confirmations plus one), not from the operator-declared
 `observedAtHeight`. A manifest whose declared anchor differs is not counted,
-and the guardian's vault check uses the same chain evidence. The guardian still
-does not check that spend outputs belong to the committed payout set; that
-gap is open.
+and the guardian's vault check uses the same chain evidence. The guardian now
+requires the spend outputs to equal the verified withdrawal queue's payable
+entries exactly (script and amount) and refuses a proposal whose output hash
+does not match its transaction. The guardian still needs the queue itself to
+be the committed payout set, which depends on the queue builder and on
+guardian independence (blocker #3).
 
 **Required before pilot:** Use the BTC testnet4 vault evidence path for any
 claim that reserves are encumbered. The legacy snapshot mode must remain

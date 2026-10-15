@@ -377,6 +377,62 @@ test('guardian refuses stale or insolvent reserve policy', () => {
   assert(refusedStale.policyResult.failedChecks.includes('vault_manifest'));
 });
 
+test('guardian refuses a spend to a payee the withdrawal queue did not commit', () => {
+  const m = manifest();
+  const set = vaultSet(m);
+  const q = queue(97000);
+  const rec = solventReconciliation(set, 97000);
+  const attackerSpk = addressToScriptPubKey('tb1qw508d6qejxtdg4y5r3zarvary0c5xw7kxpjzsx', 'bitcoin-testnet4').toString('hex');
+  const proposal = buildVaultSpendProposal({
+    manifest: m,
+    unsignedTxHex: spendTxHex(97000, attackerSpk),
+    expectedOutputs: [{ valueSats: 97000, scriptPubKey: attackerSpk }],
+    reserveReconciliation: rec,
+    withdrawalQueue: q
+  });
+  const approval = approveTaprootReserveVaultSpend({
+    manifest: m,
+    proposal,
+    guardianSecret: GUARDIAN_SECRET,
+    reserveReconciliation: rec,
+    reserveEvidence: set,
+    withdrawalQueue: q,
+    vaultTxout: chainTxout(m),
+    currentHeight: 1200
+  });
+  assert(!approval.approved, 'guardian must not sign outputs outside the committed payout set');
+  assert(approval.policyResult.failedChecks.includes('committed_outputs'), JSON.stringify(approval.policyResult.failedChecks));
+  assert(!approval.signature, 'no guardian signature for an uncommitted payee');
+});
+
+test('guardian refuses a proposal whose output hash does not match its transaction', () => {
+  const m = manifest();
+  const set = vaultSet(m);
+  const q = queue(97000);
+  const rec = solventReconciliation(set, 97000);
+  const proposal = buildVaultSpendProposal({
+    manifest: m,
+    unsignedTxHex: spendTxHex(97000),
+    expectedOutputs: [{ valueSats: 97000, scriptPubKey: PAYOUT_SPK }],
+    reserveReconciliation: rec,
+    withdrawalQueue: q
+  });
+  const tampered = clone(proposal);
+  tampered.approvedTxOutputHash = '00'.repeat(32);
+  const approval = approveTaprootReserveVaultSpend({
+    manifest: m,
+    proposal: tampered,
+    guardianSecret: GUARDIAN_SECRET,
+    reserveReconciliation: rec,
+    reserveEvidence: set,
+    withdrawalQueue: q,
+    vaultTxout: chainTxout(m),
+    currentHeight: 1200
+  });
+  assert(!approval.approved, 'a proposal that does not hash to its transaction must be refused');
+  assert(approval.policyResult.failedChecks.includes('proposal_integrity'), JSON.stringify(approval.policyResult.failedChecks));
+});
+
 test('guardian approves and signs only the exact policy-matching transaction', () => {
   const m = manifest();
   const q = queue(97000);
