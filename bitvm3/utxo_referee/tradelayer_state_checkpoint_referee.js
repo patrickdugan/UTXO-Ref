@@ -22,9 +22,17 @@ function txidRoot(txids) {
   return sha256Hex(txids);
 }
 
+// A txid is either accepted or rejected by a checkpoint, never both.
+function acceptedRejectedOverlap(acceptedTxids, rejectedTxids) {
+  const accepted = new Set(acceptedTxids);
+  return rejectedTxids.find((txid) => accepted.has(txid)) || null;
+}
+
 function buildTradeLayerStateCheckpoint(input = {}) {
   const acceptedTxids = normalizeTxids(input.acceptedTxids || ['11'.repeat(32)], 'acceptedTxids');
   const rejectedTxids = normalizeTxids(input.rejectedTxids || [], 'rejectedTxids');
+  const overlap = acceptedRejectedOverlap(acceptedTxids, rejectedTxids);
+  if (overlap) throw new Error(`txid ${overlap} is both accepted and rejected`);
   const previousStateRoot = normalizeHex32(input.previousStateRoot || '00'.repeat(32), 'previousStateRoot');
   const nextStateRoot = normalizeHex32(
     input.nextStateRoot || sha256Hex({ previousStateRoot, acceptedTxids, rejectedTxids }),
@@ -85,6 +93,9 @@ function verifyTradeLayerStateCheckpoint(checkpoint) {
   }
   if (checkpoint.core.rejectedTxRoot !== txidRoot(rejectedTxids)) {
     return { ok: false, reason: 'rejected tx root mismatch' };
+  }
+  if (acceptedRejectedOverlap(acceptedTxids, rejectedTxids)) {
+    return { ok: false, reason: 'accepted and rejected txids overlap' };
   }
   const checkpointHash = sha256Hex(checkpoint.core);
   if (checkpoint.checkpointHash !== checkpointHash) {
@@ -167,7 +178,8 @@ function verifyTradeLayerCheckpointFraudProof(proof, checkpoint) {
   if (!proof.core || typeof proof.core !== 'object') {
     return { ok: false, reason: 'fraud proof core is missing' };
   }
-  if (checkpoint && proof.core.checkpointHash !== checkpoint.checkpointHash) {
+  if (!checkpoint) return { ok: false, reason: 'checkpoint required to verify fraud proof' };
+  if (proof.core.checkpointHash !== checkpoint.checkpointHash) {
     return { ok: false, reason: 'fraud proof checkpoint mismatch' };
   }
   const proofHash = sha256Hex(proof.core);
