@@ -103,6 +103,10 @@ function claimHashOk(claim) {
   return { ok: true, claimHash };
 }
 
+function sameOutpoint(value, expected) {
+  try { return normalizeOutpoint(value) === expected; } catch (_err) { return false; }
+}
+
 function importsByKind(liveImportBundle = {}) {
   const imports = Array.isArray(liveImportBundle.imports) ? liveImportBundle.imports : [];
   return {
@@ -157,7 +161,9 @@ function verifyCamouflagedWatchtowerCadenceClaim(claim, context = {}) {
   }
   add('claim_hash', true, { claimHash: base.claimHash });
 
-  const currentHeight = Number(context.currentHeight ?? context.liveImportBundle?.node?.blocks ?? 0);
+  // The height comes from the same live chain snapshot that binds the reserve,
+  // never from the caller: a caller-chosen height could make a stale claim fresh.
+  const currentHeight = Number(context.liveImportBundle?.node?.blocks ?? 0);
   const ageBlocks = currentHeight - claim.core.publicationHeight;
   add('cadence_freshness', Number.isInteger(currentHeight) && ageBlocks >= 0 && ageBlocks <= claim.core.expectedCadenceBlocks, {
     currentHeight,
@@ -190,7 +196,7 @@ function verifyCamouflagedWatchtowerCadenceClaim(claim, context = {}) {
   add('live_reserve_status', vault?.bindings?.bindingStatus === 'live_unspent_reserve_countable', {
     bindingStatus: vault?.bindings?.bindingStatus || null
   });
-  add('reserve_outpoint', vault?.chain_ref?.outpoint === claim.core.reserveOutpoint, {
+  add('reserve_outpoint', sameOutpoint(vault?.chain_ref?.outpoint, claim.core.reserveOutpoint), {
     expected: vault?.chain_ref?.outpoint || null,
     actual: claim.core.reserveOutpoint
   });
