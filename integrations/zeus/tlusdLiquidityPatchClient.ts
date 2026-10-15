@@ -1,3 +1,5 @@
+import { callSidecar, normalizeSidecarBaseUrl } from './sidecarClient';
+
 export type WalletDemoBackendConfig = {
   kind: 'utxoref_wallet_demo_backend_config';
   activeProfileId: 'litecoin-testnet-local' | 'bitcoin-testnet-lnd' | string;
@@ -149,27 +151,23 @@ export type WalletDemoStatus = {
 
 export class TlusdLiquidityPatchClient {
   baseUrl: string;
+  token?: string;
 
-  constructor(baseUrl = 'http://127.0.0.1:8787') {
-    this.baseUrl = baseUrl.replace(/\/$/, '');
+  constructor(baseUrl = 'http://127.0.0.1:8787', token?: string) {
+    this.baseUrl = normalizeSidecarBaseUrl(baseUrl);
+    this.token = token;
   }
 
   async getBackendConfig(): Promise<WalletDemoBackendConfig> {
-    const response = await fetch(`${this.baseUrl}/v1/wallet-demo/config`);
-    if (!response.ok) throw new Error(`wallet demo config failed: ${response.status}`);
-    return response.json();
+    return callSidecar(this, 'wallet demo config', '/v1/wallet-demo/config');
   }
 
   async getDemoStatus(): Promise<WalletDemoStatus> {
-    const response = await fetch(`${this.baseUrl}/v1/wallet-demo/status`);
-    if (!response.ok) throw new Error(`wallet demo status failed: ${response.status}`);
-    return response.json();
+    return callSidecar(this, 'wallet demo status', '/v1/wallet-demo/status');
   }
 
   async getWalletView(): Promise<TlusdLiquidityPatchWalletView> {
-    const response = await fetch(`${this.baseUrl}/v1/lnbtc-tlusd-liquidity-patch/wallet-view`);
-    if (!response.ok) throw new Error(`TLUSD liquidity patch view failed: ${response.status}`);
-    return response.json();
+    return callSidecar(this, 'TLUSD liquidity patch view', '/v1/lnbtc-tlusd-liquidity-patch/wallet-view');
   }
 
   async verifyPatch(): Promise<{
@@ -181,13 +179,7 @@ export class TlusdLiquidityPatchClient {
     assignedInboundSats: string;
     slashableAssignments: number;
   }> {
-    const response = await fetch(`${this.baseUrl}/v1/lnbtc-tlusd-liquidity-patch/verify`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: '{}'
-    });
-    if (!response.ok) throw new Error(`TLUSD liquidity patch verify failed: ${response.status}`);
-    return response.json();
+    return callSidecar(this, 'TLUSD liquidity patch verify', '/v1/lnbtc-tlusd-liquidity-patch/verify', { method: 'POST' });
   }
 
   async prepareChallenge(): Promise<{
@@ -197,12 +189,6 @@ export class TlusdLiquidityPatchClient {
     assignmentChallenges: Array<{ routeId: string; violations: string[] }>;
     violations: string[];
   }> {
-    const response = await fetch(`${this.baseUrl}/v1/lnbtc-tlusd-liquidity-patch/challenge`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: '{}'
-    });
-    if (!response.ok) throw new Error(`TLUSD liquidity patch challenge failed: ${response.status}`);
-    return response.json();
+    return callSidecar(this, 'TLUSD liquidity patch challenge', '/v1/lnbtc-tlusd-liquidity-patch/challenge', { method: 'POST' });
   }
 }
