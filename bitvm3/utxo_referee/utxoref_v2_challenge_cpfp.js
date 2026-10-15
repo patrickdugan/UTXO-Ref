@@ -6,7 +6,7 @@ const { readJsonStrictProfile } = require('./strict_artifact_profiles');
 const { rpcFactory } = require('./tradelayer_send_rpc_sweep');
 const tr = require('./tradelayer_taproot');
 const { txidFromUnsignedHex } = require('./recover_btc_testnet4_reserve_vault');
-const { loadState, saveJsonAtomic, inspectChallengePath, withStateLock } = require('./utxoref_v2_watchtower');
+const { loadState, saveJsonAtomic, inspectChallengePath, withStateLock, btcToSats } = require('./utxoref_v2_watchtower');
 
 const DEFAULT_STATE_PATH = path.join(__dirname, 'artifacts', 'live', 'utxoref_v2_watchtower_state.json');
 const DEFAULT_ARTIFACT_PATH = path.join(__dirname, 'artifacts', 'live', 'btc_testnet4_utxoref_v2_latest.json');
@@ -55,14 +55,6 @@ function positiveSats(value, fieldName) {
   const text = String(value || '');
   if (!/^[1-9][0-9]*$/.test(text)) throw new Error(`${fieldName} must be a positive integer`);
   return BigInt(text);
-}
-
-function btcToSats(value) {
-  const text = String(value);
-  if (!/^[0-9]+(?:\.[0-9]+)?$/.test(text)) throw new Error('Core returned an invalid BTC amount');
-  const [whole, fraction = ''] = text.split('.');
-  if (fraction.length > 8) throw new Error('Core returned a sub-satoshi BTC amount');
-  return BigInt(whole) * 100000000n + BigInt((fraction + '00000000').slice(0, 8));
 }
 
 function nativeSegwitScript(scriptPubKeyHex) {

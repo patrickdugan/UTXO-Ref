@@ -22,6 +22,7 @@ const { readJsonStrictProfile } = require('./strict_artifact_profiles');
 const { acquireDirectoryLock, writeFileAtomic } = require('./dlc_durable_json_store');
 const { statementFromWatchtowerTick, buildWatcherReceipt } = require('./utxoref_v2_watcher_quorum');
 const { verifyUtxorefV2FeeReserve } = require('./utxoref_v2_fee_reserve');
+const { DEFAULT_MAX_STATE_AGE_BLOCKS } = require('./utxoref_v2');
 const { BROADCAST_ALLOWLIST_KIND } = require('./btc_testnet4_readonly_rpc_proxy');
 const {
   notifierConfigFromEnv,
@@ -254,7 +255,11 @@ function trustBindingForArtifact(artifact, trustPolicy) {
   };
 }
 
-const MAX_STATE_AGE_AT_AUTHORIZATION_BLOCKS = 6;
+// The one freshness rule for an authorization: a checkpoint is fresh when its
+// age in blocks is a non-negative integer no greater than the state limit.
+function stateAgeIsFresh(ageBlocks) {
+  return Number.isSafeInteger(ageBlocks) && ageBlocks >= 0 && ageBlocks <= DEFAULT_MAX_STATE_AGE_BLOCKS;
+}
 
 // State freshness limits what a checkpoint may newly AUTHORIZE (a payout). It
 // must never limit a challenge: a disprove only punishes fraud that is provable
@@ -273,7 +278,7 @@ function verificationOptions(artifact, trustPolicy, options = {}) {
   return {
     ...base,
     currentHeight: authorization.height,
-    maxAgeBlocks: MAX_STATE_AGE_AT_AUTHORIZATION_BLOCKS
+    maxAgeBlocks: DEFAULT_MAX_STATE_AGE_BLOCKS
   };
 }
 
@@ -306,8 +311,7 @@ function authorizationPolicy(inspected, activeBlockHash, state, currentHeight, a
   const reorged = activeBlockHash !== inspected.authorizationBlockHash;
   const snapshotHeight = Number(inspected.stateSnapshotHeight);
   const ageBlocks = Number(currentHeight) - snapshotHeight;
-  const stale = !Number.isSafeInteger(ageBlocks) || ageBlocks < 0 ||
-    ageBlocks > MAX_STATE_AGE_AT_AUTHORIZATION_BLOCKS;
+  const stale = !stateAgeIsFresh(ageBlocks);
   const tracked = challengeStateBindsArtifact(artifact, state);
   return {
     reorged,
@@ -341,8 +345,7 @@ function inspectArtifact(artifact, trustPolicy, inspectOptions = {}) {
   if (!verification.ok) throw new Error(`public assertion graph failed verification: ${verification.reason}`);
   const stateSnapshotHeight = Number(artifact.graph.settlement?.stateEnvelope?.body?.snapshotHeight);
   const ageAtAuthorization = authorization.height - stateSnapshotHeight;
-  const stateFreshAtAuthorization = Number.isSafeInteger(ageAtAuthorization) && ageAtAuthorization >= 0 &&
-    ageAtAuthorization <= MAX_STATE_AGE_AT_AUTHORIZATION_BLOCKS;
+  const stateFreshAtAuthorization = stateAgeIsFresh(ageAtAuthorization);
   const gateEvidence = findGateDisproveV2(artifact.graph.publicTrace, artifact.graph.template.challengerXonly);
   const inputEvidence = findInputBindingDisproveV2(
     artifact.graph.publicTrace,
@@ -493,17 +496,26 @@ function replacementFeeCandidates(args, assertionAmountSats, currentFeeSats) {
   return feeCandidates(args, assertionAmountSats).filter((candidate) => Number(candidate) > current);
 }
 
-function coreValueToSats(value) {
-  const text = Number(value).toFixed(8);
-  if (!/^[0-9]+\.[0-9]{8}$/.test(text)) throw new Error('Core returned an invalid BTC amount');
-  const [whole, fraction] = text.split('.');
-  return BigInt(whole) * 100000000n + BigInt(fraction);
+// Core reports BTC with at most eight decimals. A value that is not a whole
+// number of satoshis is refused, never rounded: every amount check in the
+// watcher and the CPFP tools goes through this one parser.
+function btcToSats(value) {
+  if (typeof value === 'string' && /^(0|[1-9][0-9]*)(\.[0-9]{1,8})?$/.test(value)) {
+    const [whole, fraction = ''] = value.split('.');
+    return BigInt(whole) * 100000000n + BigInt(fraction.padEnd(8, '0'));
+  }
+  if (typeof value === 'number' && Number.isFinite(value) && value >= 0) {
+    const scaled = value * 100000000;
+    const sats = Math.round(scaled);
+    if (Number.isSafeInteger(sats) && Math.abs(scaled - sats) <= 0.001) return BigInt(sats);
+  }
+  throw new Error('Core returned an invalid BTC amount');
 }
 
 function assertTrackedOutputBinding(challenge, tracked, txout) {
   const expectedScript = String(tracked.scriptPubKeyHex || challenge.challengeScriptPubKeyHex || '').toLowerCase();
   if (!expectedScript) throw new Error('tracked challenge output has no bound scriptPubKey');
-  if (coreValueToSats(txout.value) !== BigInt(tracked.outputSats)) {
+  if (btcToSats(txout.value) !== BigInt(tracked.outputSats)) {
     throw new Error('tracked challenge output amount does not match Core');
   }
   if (String(txout.scriptPubKey?.hex || '').toLowerCase() !== expectedScript) {
@@ -522,7 +534,7 @@ function assertChallengeTransactionBinding(artifact, tracked, decoded) {
   if (Number(input.sequence) !== 0xfffffffd) throw new Error('tracked challenge sequence is not BIP125 replaceable');
   if (!Array.isArray(decoded.vout) || decoded.vout.length !== 1) throw new Error('tracked challenge must have exactly one output');
   const output = decoded.vout[0];
-  if (coreValueToSats(output.value) !== BigInt(tracked.outputSats)) throw new Error('tracked challenge decoded amount mismatch');
+  if (btcToSats(output.value) !== BigInt(tracked.outputSats)) throw new Error('tracked challenge decoded amount mismatch');
   if (String(output.scriptPubKey?.hex || '').toLowerCase() !== String(tracked.challengeScriptPubKeyHex || '').toLowerCase()) {
     throw new Error('tracked challenge decoded script mismatch');
   }
@@ -1145,7 +1157,7 @@ module.exports = {
   isFeePolicyReject,
   isFeePolicyError,
   replacementFeeCandidates,
-  coreValueToSats,
+  btcToSats,
   assertTrackedOutputBinding,
   assertChallengeTransactionBinding,
   assertRpcSnapshotTip,
