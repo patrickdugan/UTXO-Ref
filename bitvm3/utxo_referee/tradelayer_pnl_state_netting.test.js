@@ -17,7 +17,8 @@ const {
   buildTradeLayerPnlNettingSettlement,
   verifyTradeLayerPnlNettingSettlement,
   buildTradeLayerPnlNettingChallenge,
-  verifyTradeLayerPnlNettingChallenge
+  verifyTradeLayerPnlNettingChallenge,
+  stableStringify
 } = require('./tradelayer_pnl_state_netting');
 
 let passed = 0;
@@ -215,6 +216,22 @@ test('requires the state oracle blob to verify a settlement', () => {
   const result = verifyTradeLayerPnlNettingSettlement(settlement, {});
 
   assert(!result.ok, 'settlement must not verify without its state oracle');
+});
+
+test('orders netting accounts by code unit so canonically equal IDs do not tie', () => {
+  // Precomposed and combining-accent spellings that localeCompare may rank as equal.
+  const precomposed = 'tltc1\u00e9payee';
+  const combining = 'tltc1e\u0301payee';
+  const edge = (toAddress) => ({ fromAddress: A, toAddress, sats: '1000', edgeId: 'e' });
+  const settle = (edges) => {
+    const netBalances = computeNetBalances(edges);
+    return { netBalances, folded: foldPnlNettingGraph(netBalances) };
+  };
+  const forward = settle([edge(precomposed), edge(combining)]);
+  const reverse = settle([edge(combining), edge(precomposed)]);
+
+  assertEq(stableStringify(forward.netBalances), stableStringify(reverse.netBalances));
+  assertEq(stableStringify(forward.folded), stableStringify(reverse.folded));
 });
 
 test('rejects claimed PNL arithmetic that does not match the price move', () => {

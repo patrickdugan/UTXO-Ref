@@ -55,6 +55,11 @@ function minBigInt(a, b) {
   return a < b ? a : b;
 }
 
+// Code-unit order: localeCompare can rank distinct Unicode addresses as equal.
+function compareIds(left, right) {
+  return left < right ? -1 : left > right ? 1 : 0;
+}
+
 function normalizeObjectList(value, fieldName) {
   if (!value) return [];
   if (Array.isArray(value)) return value;
@@ -267,7 +272,7 @@ function computeNetBalances(edges) {
 
   return [...map.entries()]
     .filter(([, netSats]) => netSats !== 0n)
-    .sort(([a], [b]) => a.localeCompare(b))
+    .sort(([a], [b]) => compareIds(a, b))
     .map(([address, netSats]) => ({
       address,
       netSats: netSats.toString(),
@@ -279,11 +284,11 @@ function foldPnlNettingGraph(netBalances) {
   const payers = netBalances
     .filter((row) => BigInt(row.netSats) < 0n)
     .map((row) => ({ address: row.address, remaining: -BigInt(row.netSats) }))
-    .sort((a, b) => a.address.localeCompare(b.address));
+    .sort((a, b) => compareIds(a.address, b.address));
   const receivers = netBalances
     .filter((row) => BigInt(row.netSats) > 0n)
     .map((row) => ({ address: row.address, remaining: BigInt(row.netSats) }))
-    .sort((a, b) => a.address.localeCompare(b.address));
+    .sort((a, b) => compareIds(a.address, b.address));
 
   const foldedEdges = [];
   let payerIndex = 0;
