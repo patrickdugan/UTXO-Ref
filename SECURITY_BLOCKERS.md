@@ -28,7 +28,7 @@ Per-finding status, commits and tests are in
 | 7 | Bond economics / windows | A 6-block minimum challenge window is enforced (BVM-3); sizing to value at risk is open. |
 | 8 | Single oracle | 2-of-3 threshold oracles in the DLC path; oracles are still operator-run in tests. |
 | 9 | Refund path | The CSV refund leaf now sits on the DLC funding output itself, with a NUMS internal key (DLC-6, MAIN-1). Not yet run on-chain in that form. |
-| 10 | Fee bumping / reorgs | CPFP and TRUC/P2A paths, reorg-aware challenge lifecycle and drills exist; see `CLAIMS_MATRIX.md`. |
+| 10 | Fee bumping / reorgs | CPFP (BIP125 RBF) paths on the V2 challenge path, reorg-aware challenge lifecycle and drills exist; see `CLAIMS_MATRIX.md`. |
 | 11 | Audit surface | `docs/PILOT_SURFACE.md` rewritten for the merged branch; CI runs every suite and both evals. |
 
 New items from the assessment that remain open are listed in
