@@ -65,13 +65,17 @@ function normalizeInput(input, options = {}) {
     sweepPlan,
     fraudChallengeBundle: fraudChallenges
   });
-  const productionPolicy = options.productionPolicy || input.productionPolicy || buildTradeLayerSendProductionPolicy(stateOracleBlob, {
+  // The options the production policy was built from. Verification rebuilds the
+  // policy from the same set, so supplied inputs are the ones the policy is bound to.
+  const policyOptions = {
     ...selectOptions,
     routePlan,
     observedOutputs: routePlan.outputPlan,
     currentHeight: options.currentHeight,
-    policy: options.policy
-  });
+    policy: options.policy,
+    ...input.productionPolicyInputs
+  };
+  const productionPolicy = options.productionPolicy || input.productionPolicy || buildTradeLayerSendProductionPolicy(stateOracleBlob, policyOptions);
 
   return {
     stateOracleBlob,
@@ -81,7 +85,8 @@ function normalizeInput(input, options = {}) {
     sweepPlan,
     fraudChallenges,
     walletFlow,
-    productionPolicy
+    productionPolicy,
+    policyOptions
   };
 }
 
@@ -138,7 +143,10 @@ function buildTradeLayerSendWatchtowerReport(input, options = {}) {
     });
   }
 
-  const policyCheck = verifyTradeLayerSendProductionPolicy(normalized.productionPolicy);
+  const policyCheck = verifyTradeLayerSendProductionPolicy(normalized.productionPolicy, {
+    ...normalized.policyOptions,
+    stateOracleBlob: normalized.stateOracleBlob
+  });
   if (!policyCheck.ok) {
     addAlert(alerts, 'production_policy_invalid', policyCheck.reason, {
       policyHash: normalized.productionPolicy?.policyHash || null

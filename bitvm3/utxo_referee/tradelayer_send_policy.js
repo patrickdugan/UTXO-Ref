@@ -222,7 +222,9 @@ function buildTradeLayerSendProductionPolicy(stateOracleBlob, options = {}) {
   };
 }
 
-function verifyTradeLayerSendProductionPolicy(policyResult) {
+// walletAction and the check results are functions of the state oracle and the
+// verifier's own options, so the result is rebuilt rather than trusted.
+function verifyTradeLayerSendProductionPolicy(policyResult, options = {}) {
   if (!policyResult || typeof policyResult !== 'object') {
     return { ok: false, reason: 'policy result must be an object' };
   }
@@ -258,12 +260,25 @@ function verifyTradeLayerSendProductionPolicy(policyResult) {
   if (policyResult.policyHash !== policyHash) {
     return { ok: false, reason: 'policy hash mismatch', policyHash };
   }
+  if (!options.stateOracleBlob) {
+    return { ok: false, reason: 'state oracle blob required to verify production policy' };
+  }
+
+  let rebuilt;
+  try {
+    rebuilt = buildTradeLayerSendProductionPolicy(options.stateOracleBlob, options);
+  } catch (err) {
+    return { ok: false, reason: `state oracle does not rebuild a production policy: ${err.message}` };
+  }
+  if (rebuilt.policyHash !== policyHash) {
+    return { ok: false, reason: 'policy does not match the state oracle and verifier options', rebuiltPolicyHash: rebuilt.policyHash };
+  }
 
   return {
     ok: true,
     policyHash,
-    walletAction: policyResult.walletAction,
-    failedChecks
+    walletAction: rebuilt.walletAction,
+    failedChecks: rebuilt.failedChecks
   };
 }
 

@@ -272,20 +272,29 @@ function buildArtifact(stateOracleBlob, cliArgs) {
     observedSweep
   });
   const walletFlowVerification = verifyTradeLayerSendWalletFlow(walletFlow);
-  const productionPolicy = buildTradeLayerSendProductionPolicy(stateOracleBlob, {
+  const productionPolicyInputs = {
     ...options,
+    requireOracleSignature: cliArgs.requireOracleSignature
+  };
+  const productionPolicy = buildTradeLayerSendProductionPolicy(stateOracleBlob, {
+    ...productionPolicyInputs,
+    routePlan,
+    observedOutputs: routePlan.outputPlan
+  });
+  const productionPolicyVerification = verifyTradeLayerSendProductionPolicy(productionPolicy, {
+    ...productionPolicyInputs,
     routePlan,
     observedOutputs: routePlan.outputPlan,
-    requireOracleSignature: cliArgs.requireOracleSignature
+    stateOracleBlob
   });
-  const productionPolicyVerification = verifyTradeLayerSendProductionPolicy(productionPolicy);
   const watchtowerReport = buildTradeLayerSendWatchtowerReport({
     stateOracleBlob,
     routePlan,
     sweepPlan: sweepTx,
     fraudChallenges,
     walletFlow,
-    productionPolicy
+    productionPolicy,
+    productionPolicyInputs
   }, options);
   const watchtowerVerification = verifyTradeLayerSendWatchtowerReport(watchtowerReport);
 
@@ -327,6 +336,7 @@ function buildArtifact(stateOracleBlob, cliArgs) {
     walletFlow,
     walletFlowVerification,
     productionPolicy,
+    productionPolicyInputs,
     productionPolicyVerification,
     watchtowerReport,
     watchtowerVerification,
@@ -382,7 +392,8 @@ async function attachRpcSweepIfRequested(artifact, stateOracleBlob, cliArgs) {
     sweepPlan: artifact.sweepTx,
     fraudChallenges: artifact.fraudChallenges,
     walletFlow: artifact.walletFlow,
-    productionPolicy: artifact.productionPolicy
+    productionPolicy: artifact.productionPolicy,
+    productionPolicyInputs: artifact.productionPolicyInputs
   }, options);
   artifact.watchtowerVerification = verifyTradeLayerSendWatchtowerReport(artifact.watchtowerReport);
 
