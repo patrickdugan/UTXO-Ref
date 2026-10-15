@@ -17,6 +17,13 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ed25519, ec
 
 
+class GuardianRefusal(RuntimeError):
+    def __init__(self, message, status, body):
+        super().__init__(message)
+        self.status = status
+        self.body = body
+
+
 def utc_now():
     return datetime.now(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
 
@@ -121,18 +128,12 @@ def post_json(url, value, timeout):
             return response.status, json.loads(response.read().decode("utf-8"))
     except urllib.error.HTTPError as error:
         body = error.read().decode("utf-8", errors="replace")
-        raise RuntimeError(f"POST {url} returned HTTP {error.code}: {body[:500]}") from error
+        message = f"POST {url} returned HTTP {error.code}: {body[:500]}"
+        raise GuardianRefusal(message, error.code, body) from error
 
 
-def heartbeat_once(args):
-    state_dir = pathlib.Path(args.state_dir).resolve()
-    identity = read_json(state_dir / "identity.json")
-    if not identity:
-        raise RuntimeError("guardian identity is not initialized")
-    sequence_state = read_json(state_dir / "sequence.json", {"sequence": 0})
-    sequence = int(sequence_state.get("sequence", 0)) + 1
+def build_envelope(args, state_dir, identity, sequence):
     status_url = f"{args.base_url.rstrip('/')}/v1/beta/status"
-    submit_url = f"{args.base_url.rstrip('/')}/v1/guardians/heartbeat"
     status = fetch_json(status_url, args.timeout)
     if status.get("chain", {}).get("network") != "testnet4":
         raise RuntimeError("guardian observed the wrong Bitcoin network")
@@ -157,17 +158,42 @@ def heartbeat_once(args):
     }
     private_key = load_private(state_dir)
     signature = private_key.sign(canonical(core))
-    envelope = {
+    return {
         "kind": "utxoref_beta_guardian_heartbeat",
         "version": 1,
         "core": core,
         "signature": base64.b64encode(signature).decode("ascii"),
     }
-    http_status, receipt = post_json(submit_url, envelope, args.timeout)
+
+
+def heartbeat_once(args):
+    state_dir = pathlib.Path(args.state_dir).resolve()
+    identity = read_json(state_dir / "identity.json")
+    if not identity:
+        raise RuntimeError("guardian identity is not initialized")
+    # A signed envelope is persisted before it is sent. Until the service accepts it, every retry resends
+    # those exact bytes, so one sequence number is never bound to two observations.
+    pending_path = state_dir / "pending_heartbeat.json"
+    envelope = read_json(pending_path)
+    if envelope is None:
+        sequence_state = read_json(state_dir / "sequence.json", {"sequence": 0})
+        sequence = int(sequence_state.get("sequence", 0)) + 1
+        envelope = build_envelope(args, state_dir, identity, sequence)
+        write_json(pending_path, envelope, private=True)
+    submit_url = f"{args.base_url.rstrip('/')}/v1/guardians/heartbeat"
+    try:
+        http_status, receipt = post_json(submit_url, envelope, args.timeout)
+    except GuardianRefusal as refusal:
+        # The service checks freshness before it stores anything, so a stale envelope was never committed and
+        # its sequence number is still free. Drop it and observe again on the next run.
+        if refusal.status == 409 and "stale_guardian_heartbeat" in refusal.body:
+            pending_path.unlink()
+        raise
     if http_status not in (200, 201) or receipt.get("accepted") is not True:
         raise RuntimeError("guardian heartbeat was not accepted")
-    write_json(state_dir / "sequence.json", {"sequence": sequence, "acceptedAt": utc_now()}, private=True)
+    write_json(state_dir / "sequence.json", {"sequence": envelope["core"]["sequence"], "acceptedAt": utc_now()}, private=True)
     write_json(state_dir / "latest_receipt.json", receipt)
+    pending_path.unlink()
     return receipt
 
 
