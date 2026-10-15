@@ -43,12 +43,39 @@ function loadJournal(journalPath) {
 }
 
 // Write-then-rename so a crash mid-write can never leave a half-written,
-// unparseable journal file behind.
+// unparseable journal file behind. The temporary file is fsynced before the
+// rename so the rename never publishes an empty or partial reservation.
 function saveJournalAtomic(journalPath, journal) {
   fs.mkdirSync(path.dirname(journalPath), { recursive: true });
   const tmp = `${journalPath}.tmp-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  fs.writeFileSync(tmp, JSON.stringify(journal, null, 2) + '\n');
+  const fd = fs.openSync(tmp, 'wx', 0o600);
+  try {
+    fs.writeFileSync(fd, JSON.stringify(journal, null, 2) + '\n');
+    fs.fsyncSync(fd);
+  } finally {
+    fs.closeSync(fd);
+  }
   fs.renameSync(tmp, journalPath);
+}
+
+// The load, check and save in reserveNonceUsage must be one critical section
+// across processes, or two writers can each reserve the same secnonce. The
+// lock is an exclusively created directory, as in the oracle event store. A
+// lock left behind by a crash fails closed until an operator removes it.
+function withJournalLock(journalPath, run) {
+  fs.mkdirSync(path.dirname(journalPath), { recursive: true });
+  const lockPath = `${journalPath}.lock`;
+  try {
+    fs.mkdirSync(lockPath);
+  } catch (error) {
+    if (error.code === 'EEXIST') throw new Error(`nonce journal is locked by another writer: ${lockPath}`);
+    throw error;
+  }
+  try {
+    return run();
+  } finally {
+    fs.rmdirSync(lockPath);
+  }
 }
 
 class NonceReuseError extends Error {
@@ -78,20 +105,22 @@ function reserveNonceUsage(secnonce, msg32, options = {}) {
   const nonceKey = sha256Hex(secnonce);
   const messageKey = sha256Hex(msg32);
 
-  const journal = loadJournal(journalPath);
-  const existing = journal[nonceKey];
+  return withJournalLock(journalPath, () => {
+    const journal = loadJournal(journalPath);
+    const existing = journal[nonceKey];
 
-  if (existing === undefined) {
-    journal[nonceKey] = { messageKey, firstUsedAt: new Date().toISOString() };
-    saveJournalAtomic(journalPath, journal);
-    return { reused: false, nonceKey, messageKey };
-  }
+    if (existing === undefined) {
+      journal[nonceKey] = { messageKey, firstUsedAt: new Date().toISOString() };
+      saveJournalAtomic(journalPath, journal);
+      return { reused: false, nonceKey, messageKey };
+    }
 
-  if (existing.messageKey === messageKey) {
-    return { reused: true, nonceKey, messageKey };
-  }
+    if (existing.messageKey === messageKey) {
+      return { reused: true, nonceKey, messageKey };
+    }
 
-  throw new NonceReuseError(nonceKey, messageKey, existing);
+    throw new NonceReuseError(nonceKey, messageKey, existing);
+  });
 }
 
 module.exports = {
