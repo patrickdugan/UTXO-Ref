@@ -19,7 +19,7 @@ const {
 const { txidFromUnsignedHex } = require('./recover_btc_testnet4_reserve_vault');
 const { readJsonStrict } = require('./strict_artifact_ingress');
 const { readJsonStrictProfile } = require('./strict_artifact_profiles');
-const { writeFileAtomic } = require('./dlc_durable_json_store');
+const { acquireDirectoryLock, writeFileAtomic } = require('./dlc_durable_json_store');
 const { statementFromWatchtowerTick, buildWatcherReceipt } = require('./utxoref_v2_watcher_quorum');
 const { verifyUtxorefV2FeeReserve } = require('./utxoref_v2_fee_reserve');
 const { BROADCAST_ALLOWLIST_KIND } = require('./btc_testnet4_readonly_rpc_proxy');
@@ -141,19 +141,51 @@ function appendJsonLine(filePath, value) {
   fs.appendFileSync(filePath, JSON.stringify(value) + '\n');
 }
 
+function newState() {
+  return {
+    kind: 'utxoref_v2_watchtower_state',
+    startedAt: new Date().toISOString(),
+    tickCount: 0,
+    alertCount: 0,
+    lastAlertFingerprint: null,
+    lastStatus: null
+  };
+}
+
+function readState(filePath) {
+  return fs.existsSync(filePath) ? readJson(filePath, 'watchtower state', 'utxoref-v2-watchtower-state') : newState();
+}
+
+// Loading counts a restart. The watchtower loads once at startup and each tick
+// reads the file with readState instead.
 function loadState(filePath) {
-  if (!fs.existsSync(filePath)) {
-    return {
-      kind: 'utxoref_v2_watchtower_state',
-      startedAt: new Date().toISOString(),
-      tickCount: 0,
-      alertCount: 0,
-      lastAlertFingerprint: null,
-      lastStatus: null
-    };
-  }
-  const existing = readJson(filePath, 'watchtower state', 'utxoref-v2-watchtower-state');
+  if (!fs.existsSync(filePath)) return newState();
+  const existing = readState(filePath);
   return { ...existing, resumedAt: new Date().toISOString(), restarts: Number(existing.restarts || 0) + 1 };
+}
+
+// The state file has one writer at a time. Every read-modify-write of it (a
+// watchtower tick, a CPFP broadcast, a reserve CPFP broadcast) runs under this
+// lock, so one process never saves a stale copy over another's record.
+async function withStateLock(statePath, run) {
+  fs.mkdirSync(path.dirname(statePath), { recursive: true });
+  const release = acquireDirectoryLock(
+    `${statePath}.lock`,
+    `watchtower state is locked (remove ${statePath}.lock if no watchtower or CPFP process is running)`
+  );
+  try { return await run(); }
+  finally { release(); }
+}
+
+// One tick is one locked read-modify-write: the state is read as it is on disk
+// now, not as it was when the watchtower started.
+async function runLockedIteration(args, rpc, statePath, deps = {}) {
+  return withStateLock(statePath, async () => {
+    const state = readState(statePath);
+    const iteration = await runWatchtowerIteration(args, rpc, state, deps);
+    saveJsonAtomic(statePath, state);
+    return { iteration, state };
+  });
 }
 
 function parseSecretFile(filePath) {
@@ -1039,7 +1071,7 @@ async function main() {
   const statePath = path.resolve(args.statePath || DEFAULT_STATE_PATH);
   const intervalMs = Number(args.pollIntervalMs || DEFAULT_POLL_INTERVAL_MS);
   if (!Number.isSafeInteger(intervalMs) || intervalMs < 1000) throw new Error('poll interval must be at least 1000 ms');
-  const state = loadState(statePath);
+  await withStateLock(statePath, async () => saveJsonAtomic(statePath, loadState(statePath)));
   const notifierConfig = notifierConfigFromEnv(process.env);
   const notifier = createAlertNotifier(notifierConfig, {
     ackPath: path.resolve(args.ackPath || ackPathFor(statePath)),
@@ -1049,11 +1081,16 @@ async function main() {
   console.error(`[utxoref-v2-watchtower] alerts: ${notifier.enabled ? notifier.channels.join(', ') : 'alert file only'}; ` +
     `heartbeat: ${heartbeatUrl ? 'on' : 'off'}; settlement broadcast: ${args.broadcastSettlement ? 'on' : 'off'}`);
   do {
-    const iteration = await runWatchtowerIteration(args, rpc, state, { notifier, heartbeatUrl });
-    if (iteration.ok) console.log(JSON.stringify(iteration.result));
-    else console.error(`[utxoref-v2-watchtower] tick failed: ${iteration.error.message}`);
-    if (state.notifier?.lastError) console.error(`[utxoref-v2-watchtower] alert delivery: ${state.notifier.lastError.message}`);
-    saveJsonAtomic(statePath, state);
+    let tick = null;
+    try {
+      tick = await runLockedIteration(args, rpc, statePath, { notifier, heartbeatUrl });
+    } catch (err) {
+      if (err.code !== 'LOCK_HELD') throw err;
+      console.error(`[utxoref-v2-watchtower] tick deferred: ${err.message}`);
+    }
+    if (tick?.iteration.ok) console.log(JSON.stringify(tick.iteration.result));
+    else if (tick) console.error(`[utxoref-v2-watchtower] tick failed: ${tick.iteration.error.message}`);
+    if (tick?.state.notifier?.lastError) console.error(`[utxoref-v2-watchtower] alert delivery: ${tick.state.notifier.lastError.message}`);
     if (args.once) break;
     await new Promise((resolve) => setTimeout(resolve, intervalMs));
   } while (true);
@@ -1098,5 +1135,7 @@ module.exports = {
   recordTickFailure,
   recordTickSuccess,
   saveJsonAtomic,
-  loadState
+  loadState,
+  withStateLock,
+  runLockedIteration
 };

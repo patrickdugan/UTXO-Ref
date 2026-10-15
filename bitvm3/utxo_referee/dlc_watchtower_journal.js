@@ -9,6 +9,7 @@ const { evaluateDlcChainSnapshot } = require('./dlc_chain_guard');
 const { captureDlcAnchorRecoverySnapshot } = require('./dlc_bitcoin_core_observer');
 const { evaluateDlcAnchorRecovery } = require('./dlc_anchor_recovery_guard');
 const {
+  acquireDirectoryLock,
   assertNonSymlinkDirectory,
   ensureNonSymlinkDirectory,
   readBoundedJson,
@@ -194,14 +195,12 @@ class DlcWatchtowerJournal {
     return fs.readdirSync(directory).filter((name) => /^observation-[0-9]{12}\.json$/.test(name)).sort();
   }
   _withLock(contractId, run) {
-    const lock = path.join(this.baseDirectory, `.${contractKey(contractId)}.lock`);
-    try { fs.mkdirSync(lock, { mode: 0o700 }); }
-    catch (error) {
-      if (error.code === 'EEXIST') throw new Error(`DLC watchtower journal lock is held for ${contractId}`);
-      throw error;
-    }
+    const release = acquireDirectoryLock(
+      path.join(this.baseDirectory, `.${contractKey(contractId)}.lock`),
+      `DLC watchtower journal lock is held for ${contractId}`
+    );
     try { return run(); }
-    finally { fs.rmdirSync(lock); }
+    finally { release(); }
   }
   _write(record) {
     const directory = this._directory(record.contractId);

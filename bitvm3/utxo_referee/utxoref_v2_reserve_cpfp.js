@@ -27,6 +27,7 @@ const {
   loadState,
   saveJsonAtomic,
   inspectChallengePath,
+  withStateLock,
   assertRpcSnapshotTip
 } = require('./utxoref_v2_watchtower');
 
@@ -887,27 +888,31 @@ async function main() {
   if (args.help) { console.log(usage()); return; }
   if (!args.guardianApproval) throw new Error('--guardian-approval is required');
   if (!args.challengerSecretFile) throw new Error('--challenger-secret-file is required');
-  const inputs = loadInputs(args);
-  const approvals = (args.guardianApprovals || [args.guardianApproval]).map((approvalPath, index) =>
-    readJsonStrictProfile(
-      path.resolve(approvalPath),
-      'utxoref-v2-reserve-cpfp-approval',
-      `guardian approval ${index + 1}`
-    )
-  );
-  const challengerSecret = readSecretFile(args.challengerSecretFile, 'challengerSecret');
-  const outcome = await runReserveCpfp(
-    inputs.state,
-    args,
-    resolveRpc(args),
-    inputs.artifact,
-    inputs.reserve,
-    approvals,
-    challengerSecret
-  );
-  if (outcome.action === 'reserve_cpfp_broadcast' || outcome.action === 'reserve_cpfp_replaced') {
-    saveJsonAtomic(inputs.statePath, inputs.state);
-  }
+  const statePath = path.resolve(args.statePath || DEFAULT_STATE_PATH);
+  const outcome = await withStateLock(statePath, async () => {
+    const inputs = loadInputs(args);
+    const approvals = (args.guardianApprovals || [args.guardianApproval]).map((approvalPath, index) =>
+      readJsonStrictProfile(
+        path.resolve(approvalPath),
+        'utxoref-v2-reserve-cpfp-approval',
+        `guardian approval ${index + 1}`
+      )
+    );
+    const challengerSecret = readSecretFile(args.challengerSecretFile, 'challengerSecret');
+    const attempt = await runReserveCpfp(
+      inputs.state,
+      args,
+      resolveRpc(args),
+      inputs.artifact,
+      inputs.reserve,
+      approvals,
+      challengerSecret
+    );
+    if (attempt.action === 'reserve_cpfp_broadcast' || attempt.action === 'reserve_cpfp_replaced') {
+      saveJsonAtomic(inputs.statePath, inputs.state);
+    }
+    return attempt;
+  });
   console.log(JSON.stringify(outcome));
 }
 

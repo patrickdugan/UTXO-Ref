@@ -5,6 +5,8 @@ const {
   parseArgs,
   inspectArtifact,
   inspectChallengePath,
+  withStateLock,
+  runLockedIteration,
   authorizationPolicy,
   challengeStateBindsArtifact,
   deterministicChallengeAux,
@@ -398,6 +400,53 @@ asyncTest('fee-bump tools inspect a graph whose checkpoint went stale before aut
     const view = inspectChallengePath(artifact, trustPolicy);
     assert(view.fraudDetected === true && view.predicateBound === true, 'the challenge path must still see the fraud');
     assert(view.stateFreshAtAuthorization === false, 'staleness must still be reported as data');
+  } finally { fs.rmSync(directory, { recursive: true, force: true }); }
+});
+
+asyncTest('a tick keeps a CPFP child that another process recorded after the watchtower started', async () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'utxoref-v2-watchtower-shared-state-'));
+  try {
+    const snapshot = 150000;
+    const { artifactPath, trustPolicyPath, rpcAt, graph } = fraudFixture(directory, snapshot);
+    const statePath = path.join(directory, 'state.json');
+    const args = { artifact: artifactPath, trustPolicy: trustPolicyPath, alertPath: path.join(directory, 'alerts.jsonl'), statePath };
+    saveJsonAtomic(statePath, {
+      kind: 'utxoref_v2_watchtower_state', tickCount: 0,
+      challenge: { graphHash: graph.graphHash, txid: 'cd'.repeat(32), vout: 0, outputSats: '99000', feeSats: '1000', confirmation: null, replacements: [] }
+    });
+    const cpfp = { txid: 'ef'.repeat(32), feeSats: '2000', outputSats: '98000', parentTxid: 'cd'.repeat(32) };
+    // The CPFP CLI records its child while the watchtower is running.
+    await withStateLock(statePath, async () => {
+      const cli = loadState(statePath);
+      cli.challenge.cpfp = cpfp;
+      saveJsonAtomic(statePath, cli);
+    });
+    const { iteration } = await runLockedIteration(args, rpcAt(snapshot + 6, 0), statePath, {});
+    assert(iteration.ok === true, 'the tick must run');
+    const onDisk = JSON.parse(fs.readFileSync(statePath, 'utf8'));
+    assert(onDisk.tickCount === 1, 'the tick must be saved');
+    assert(onDisk.challenge.cpfp && onDisk.challenge.cpfp.txid === cpfp.txid, 'the tick overwrote the CPFP child');
+  } finally { fs.rmSync(directory, { recursive: true, force: true }); }
+});
+
+asyncTest('a tick is deferred without reading the chain while another process holds the state lock', async () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'utxoref-v2-watchtower-locked-state-'));
+  try {
+    const snapshot = 150000;
+    const { artifactPath, trustPolicyPath, rpcAt } = fraudFixture(directory, snapshot);
+    const statePath = path.join(directory, 'state.json');
+    const args = { artifact: artifactPath, trustPolicy: trustPolicyPath, alertPath: path.join(directory, 'alerts.jsonl'), statePath };
+    saveJsonAtomic(statePath, { kind: 'utxoref_v2_watchtower_state', tickCount: 0 });
+    let rpcCalls = 0;
+    const rpc = async (method, params) => { rpcCalls += 1; return rpcAt(snapshot + 6, 0)(method, params); };
+    let code = null;
+    await withStateLock(statePath, async () => {
+      try { await runLockedIteration(args, rpc, statePath, {}); }
+      catch (err) { code = err.code; }
+    });
+    assert(code === 'LOCK_HELD', `a held state lock must defer the tick, got ${code}`);
+    assert(rpcCalls === 0, 'a deferred tick must not read the chain');
+    assert(JSON.parse(fs.readFileSync(statePath, 'utf8')).tickCount === 0, 'a deferred tick must not write state');
   } finally { fs.rmSync(directory, { recursive: true, force: true }); }
 });
 

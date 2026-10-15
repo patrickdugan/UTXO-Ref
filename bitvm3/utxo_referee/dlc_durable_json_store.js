@@ -154,6 +154,17 @@ function writeJsonAppendOnce(directory, name, record, { maxBytes, label = 'durab
   return finalPath;
 }
 
+// Takes an exclusive lock by creating lockPath as a directory, which only one
+// process can do at a time. The returned function releases the lock.
+function acquireDirectoryLock(lockPath, heldMessage) {
+  try { fs.mkdirSync(lockPath, { mode: 0o700 }); }
+  catch (error) {
+    if (error.code === 'EEXIST') throw Object.assign(new Error(heldMessage), { code: 'LOCK_HELD' });
+    throw error;
+  }
+  return () => fs.rmdirSync(lockPath);
+}
+
 // Replaces filePath with text. The new bytes are flushed before the rename and
 // the directory entry is flushed after it, so after a crash or power loss the
 // file holds either the previous content or the complete new content.
@@ -179,6 +190,7 @@ function writeFileAtomic(filePath, text) {
 }
 
 module.exports = {
+  acquireDirectoryLock,
   assertNonSymlinkDirectory,
   createDurableDirectory,
   ensureNonSymlinkDirectory,
