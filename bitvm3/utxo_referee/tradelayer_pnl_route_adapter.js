@@ -231,13 +231,19 @@ function deriveEpochId(routePlan) {
   return crypto.createHash('sha256').update(String(seed), 'utf8').digest().readBigUInt64LE(0);
 }
 
+// Every value that moves sats is committed here: the funding amount, the miner fee
+// and the network, not only the payout vector.
 function computeTradeLayerPlanHash(routePlan) {
+  const optionalString = (value) => (value === undefined || value === null ? null : String(value));
   return sha256Hex({
     revealTxid: routePlan.revealTxid,
     payloadHash: routePlan.payloadHash,
     dlcRef: routePlan.envelope?.dlcRef,
     grantTxid: routePlan.dlcInput?.txid,
     grantVout: routePlan.dlcInput?.vout,
+    grantSats: optionalString(routePlan.dlcInput?.sats),
+    network: optionalString(routePlan.network),
+    feeSats: optionalString(routePlan.feeSats),
     outputPlan: routePlan.outputPlan
   });
 }
@@ -873,11 +879,12 @@ function verifyTradeLayerPnlRoutePlan(routePlan, options = {}) {
   }
 
   const observedPayoutTotalSats = bundle.sweep.totalPayoutSats();
-  const inputSats = routePlan.dlcInput?.sats !== undefined
-    ? toSats(routePlan.dlcInput.sats, 'routePlan.dlcInput.sats')
-    : null;
+  if (routePlan.dlcInput?.sats === undefined) {
+    return { ok: false, reason: 'route plan dlcInput.sats is required', recomputedPlanHash };
+  }
+  const inputSats = toSats(routePlan.dlcInput.sats, 'routePlan.dlcInput.sats');
   const feeSats = routePlan.feeSats !== undefined ? toSats(routePlan.feeSats, 'routePlan.feeSats') : 0n;
-  if (inputSats !== null && observedPayoutTotalSats + feeSats !== inputSats) {
+  if (observedPayoutTotalSats + feeSats !== inputSats) {
     return {
       ok: false,
       reason: `route accounting mismatch: payouts ${observedPayoutTotalSats} + fee ${feeSats} != input ${inputSats}`,

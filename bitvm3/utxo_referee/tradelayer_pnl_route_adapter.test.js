@@ -69,7 +69,7 @@ function withOracleSignature(blob) {
 const ROUTE_PLAN = {
   revealTxid: 'cad205c65afaf6b2dc72f3e6e47e9b7fc3d3284d7ed95c5f965bfced2a0327b1',
   payloadHash: 'db736014390df5c72d66fa365f6307b74d5fe1bfaed620bc0bfb87564117a1fd',
-  planHash: 'b55881472150bad9c821926d81cc9963c48f4f5b35583df8b88e07cb163ba895',
+  planHash: '8c10fd390c05fda3f73c4ee67d94b0cac7e6beff0753dc8aa0b574d9d9b4ec08',
   dlcInput: {
     txid: '26228560e070a76e7516aaa502d2e74acdf2359f71ea9aa7b5d8623279c5d510',
     vout: 0,
@@ -194,9 +194,34 @@ test('rejects an observed output that does not match the committed payout leaf',
   assert(String(result.reason).includes('invalid Merkle proof'), 'expected invalid proof');
 });
 
+test('binds the miner fee, funding amount and network into the plan hash', () => {
+  const baseHash = computeTradeLayerPlanHash(ROUTE_PLAN);
+  const fee = clone(ROUTE_PLAN);
+  fee.feeSats = 2001;
+  const funding = clone(ROUTE_PLAN);
+  funding.dlcInput.sats = funding.dlcInput.sats + 1;
+  const network = clone(ROUTE_PLAN);
+  network.network = 'bitcoin-testnet4';
+
+  assert(computeTradeLayerPlanHash(fee) !== baseHash, 'miner fee must be committed');
+  assert(computeTradeLayerPlanHash(funding) !== baseHash, 'funding amount must be committed');
+  assert(computeTradeLayerPlanHash(network) !== baseHash, 'network must be committed');
+});
+
+test('rejects a route plan with no committed funding amount even when its hash is recomputed', () => {
+  const bad = clone(ROUTE_PLAN);
+  delete bad.dlcInput.sats;
+  bad.planHash = computeTradeLayerPlanHash(bad);
+  const result = verifyTradeLayerPnlRoutePlan(bad);
+
+  assert(!result.ok, 'a route that spends an input without its amount must not verify');
+  assert(String(result.reason).includes('dlcInput.sats'), result.reason);
+});
+
 test('rejects payout plus fee accounting mismatch', () => {
   const bad = clone(ROUTE_PLAN);
   bad.feeSats = 1999;
+  bad.planHash = computeTradeLayerPlanHash(bad);
   const result = verifyTradeLayerPnlRoutePlan(bad);
   assert(!result.ok, 'wrong fee should fail');
   assert(String(result.reason).includes('route accounting mismatch'), 'expected accounting mismatch');
