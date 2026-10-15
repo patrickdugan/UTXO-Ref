@@ -433,6 +433,64 @@ test('guardian refuses a proposal whose output hash does not match its transacti
   assert(approval.policyResult.failedChecks.includes('proposal_integrity'), JSON.stringify(approval.policyResult.failedChecks));
 });
 
+const RESIDUAL_ADDRESS = 'tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sl5k7';
+
+function residualSpend({ residualScriptAddress, residualOutputs = 1 }) {
+  const m = manifest();
+  const set = vaultSet(m);
+  const q = buildTradeLayerWithdrawalQueue({
+    network: 'bitcoin-testnet4',
+    epochId: 77,
+    residualAddress: RESIDUAL_ADDRESS,
+    requests: [{ id: 'wd-1', txid: '11'.repeat(32), address: PAYOUT_ADDRESS, sats: 90000, propertyId: 0, status: 'approved' }]
+  });
+  const rec = buildTradeLayerReserveReconciliation({
+    network: 'bitcoin-testnet4',
+    queue: q,
+    reserve: set,
+    observedAtHeight: set.currentHeight,
+    currentHeight: set.currentHeight,
+    maxReserveAgeBlocks: 6
+  });
+  const residualSpk = addressToScriptPubKey(residualScriptAddress, 'bitcoin-testnet4').toString('hex');
+  const outputs = [{ valueSats: 90000, script: PAYOUT_SPK }];
+  for (let i = 0; i < residualOutputs; i += 1) outputs.push({ valueSats: 7000, script: residualSpk });
+  const unsignedTxHex = tr.serializeUnsignedTx(2, [
+    { outpoint: tr.outpoint(FUNDING_TXID, 0), sequence: 0xfffffffd }
+  ], outputs, 0);
+  const proposal = buildVaultSpendProposal({
+    manifest: m,
+    unsignedTxHex,
+    expectedOutputs: outputs.map((o) => ({ valueSats: o.valueSats, scriptPubKey: o.script })),
+    reserveReconciliation: rec,
+    withdrawalQueue: q
+  });
+  return approveTaprootReserveVaultSpend({
+    manifest: m,
+    proposal,
+    guardianSecret: GUARDIAN_SECRET,
+    reserveReconciliation: rec,
+    reserveEvidence: set,
+    withdrawalQueue: q,
+    vaultTxout: chainTxout(m),
+    currentHeight: 1200
+  });
+}
+
+test('guardian approves a spend that returns the remainder to the committed residual destination', () => {
+  const approval = residualSpend({ residualScriptAddress: RESIDUAL_ADDRESS });
+  assert(approval.approved, JSON.stringify(approval.policyResult.failedChecks));
+});
+
+test('guardian refuses a residual output to a destination the queue did not commit, or a second one', () => {
+  const elsewhere = residualSpend({ residualScriptAddress: 'tb1qw508d6qejxtdg4y5r3zarvary0c5xw7kxpjzsx' });
+  assert(!elsewhere.approved, 'a residual output must go to the committed residual destination');
+  assert(elsewhere.policyResult.failedChecks.includes('committed_outputs'));
+  const twoResiduals = residualSpend({ residualScriptAddress: RESIDUAL_ADDRESS, residualOutputs: 2 });
+  assert(!twoResiduals.approved, 'at most one residual output is allowed');
+  assert(twoResiduals.policyResult.failedChecks.includes('committed_outputs'));
+});
+
 test('guardian approves and signs only the exact policy-matching transaction', () => {
   const m = manifest();
   const q = queue(97000);

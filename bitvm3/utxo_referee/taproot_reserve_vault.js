@@ -661,20 +661,28 @@ function proposalIntegrityReason(proposal, txParsed) {
   return null;
 }
 
-// The spend may pay only the payable withdrawals of the verified queue: one output
-// per payable entry, at its committed amount and script.
+// The spend pays each payable withdrawal of the verified queue once, at its committed
+// amount and script, and may return the remainder in one output to the queue's committed
+// residual destination. Nothing else may be paid.
 function committedOutputsMismatch(txParsed, withdrawalQueue, network) {
   const verified = verifyTradeLayerWithdrawalQueue(withdrawalQueue);
   if (!verified.ok) return `invalid withdrawal queue: ${verified.reason}`;
-  const payable = new Set(withdrawalQueue.queueCore.payableRequestIds);
-  const committed = withdrawalQueue.queueCore.entries
+  const { queueCore } = withdrawalQueue;
+  const payable = new Set(queueCore.payableRequestIds);
+  const unmatchedPayouts = queueCore.entries
     .filter((entry) => payable.has(entry.id))
-    .map((entry) => `${addressToScriptPubKey(entry.address, network).toString('hex')}:${entry.sats}`)
-    .sort();
-  const actual = normalizeTxOutputsFromParsed(txParsed)
-    .map((output) => `${output.scriptPubKey}:${output.valueSats}`)
-    .sort();
-  return stableStringify(actual) === stableStringify(committed) ? null : 'transaction outputs differ from the committed payouts';
+    .map((entry) => `${addressToScriptPubKey(entry.address, network).toString('hex')}:${entry.sats}`);
+  const residualOutputs = [];
+  for (const output of normalizeTxOutputsFromParsed(txParsed)) {
+    const index = unmatchedPayouts.indexOf(`${output.scriptPubKey}:${output.valueSats}`);
+    if (index >= 0) unmatchedPayouts.splice(index, 1);
+    else residualOutputs.push(output);
+  }
+  if (unmatchedPayouts.length > 0) return 'transaction omits committed payouts';
+  if (residualOutputs.length > 1 || residualOutputs.some((output) => output.scriptPubKey !== queueCore.residualDestHex)) {
+    return 'transaction pays outputs the queue did not commit';
+  }
+  return null;
 }
 
 function guardianPolicyChecks(input, txParsed, manifestCheck, reconciliationCheck) {
