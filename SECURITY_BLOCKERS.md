@@ -212,6 +212,8 @@ does not match its transaction. The guardian still needs the queue itself to
 be the committed payout set, which depends on the queue builder and on
 guardian independence (blocker #3).
 
+Reserve verdicts are now derived, not read back. `verifyTradeLayerReserveReconciliation` reports solvent only when the caller supplies the reserve evidence that resolves to the committed source hash and reservedSats, and when it has a live height for an observed reserve; the verifier's own staleness window applies. The guardian, the send policy and the stack builder pass their evidence. The watchtower daemon and the BTC testnet4 demo still read the artifact's solvent flag and hold no evidence; that is open.
+
 **Required before pilot:** Use the BTC testnet4 vault evidence path for any
 claim that reserves are encumbered. The legacy snapshot mode must remain
 documented as weaker demo evidence. For production, validate independent
