@@ -32,6 +32,24 @@ function ensureNonSymlinkDirectory(directory, label = 'durable JSON') {
   return assertNonSymlinkDirectory(directory, label);
 }
 
+// An entry created or removed in a directory is durable only after that
+// directory is fsynced. Node cannot open a directory for fsync on Windows, so
+// there the flush is a no-op and the gap is recorded as a maintainer decision.
+function flushDirectory(directory) {
+  if (process.platform === 'win32') return;
+  const fd = fs.openSync(directory, 'r');
+  try {
+    fs.fsyncSync(fd);
+  } finally {
+    fs.closeSync(fd);
+  }
+}
+
+function createDurableDirectory(directory) {
+  fs.mkdirSync(directory, { mode: 0o700 });
+  flushDirectory(path.dirname(directory));
+}
+
 function sameOpenedFile(metadata, expected) {
   return metadata.isFile() && metadata.nlink === 1n &&
     metadata.dev === expected.dev && metadata.ino === expected.ino && metadata.size === expected.size &&
@@ -110,6 +128,7 @@ function writeJsonAppendOnce(directory, name, record, { maxBytes, label = 'durab
     // unlinking the temporary name leaves nlink=2, which all reads reject.
     fs.linkSync(temporaryPath, finalPath);
     fs.unlinkSync(temporaryPath);
+    flushDirectory(directory);
     const before = fs.lstatSync(finalPath, { bigint: true });
     if (!before.isFile() || before.isSymbolicLink() || before.nlink !== 1n) {
       throw new Error(`${label} publication did not produce one regular file`);
@@ -137,6 +156,7 @@ function writeJsonAppendOnce(directory, name, record, { maxBytes, label = 'durab
 
 module.exports = {
   assertNonSymlinkDirectory,
+  createDurableDirectory,
   ensureNonSymlinkDirectory,
   readBoundedJson,
   writeJsonAppendOnce

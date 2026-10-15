@@ -10,6 +10,7 @@ const {
 } = require('./dlc_canonical_json');
 const {
   assertNonSymlinkDirectory,
+  createDurableDirectory,
   ensureNonSymlinkDirectory,
   readBoundedJson,
   writeJsonAppendOnce
@@ -124,7 +125,7 @@ class DlcSigningAuthorizationStore {
     requireHash(providerIdentity, 'providerIdentity');
     const directory = this._directory(contractId, authorizationId);
     try {
-      fs.mkdirSync(directory, { mode: 0o700 });
+      createDurableDirectory(directory);
     } catch (error) {
       if (error.code !== 'EEXIST') throw error;
       const existing = this._readDirectory(directory);

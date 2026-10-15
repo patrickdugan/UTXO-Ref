@@ -1700,6 +1700,8 @@ test('durable JSON rejects pathname swaps during reads and final publication flu
     let publishSwapped = false;
     fs.fsyncSync = function swappingFsyncSync(fd) {
       const result = originalFsyncSync(fd);
+      // Directory flushes are not file flushes; only file fsyncs are counted.
+      if (fs.fstatSync(fd).isDirectory()) return result;
       fsyncCalls++;
       if (fsyncCalls === 2) {
         const publishPath = path.join(directory, 'publish.json');
@@ -1921,6 +1923,46 @@ test('native isolated signing receives only an authenticated public request', ()
       contract, signingContext, authorization: midflightAuthorization
     }).execute(), /runtime closure changed during execution/);
   } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test('one-shot publication and marker creation flush their directory entries', () => {
+  if (process.platform === 'win32') return; // Node cannot open a directory for fsync on Windows
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'utxoref-directory-flush-'));
+  const originalFsyncSync = fs.fsyncSync;
+  const flushedInodes = new Set();
+  fs.fsyncSync = function recordingFsyncSync(fd) {
+    const opened = fs.fstatSync(fd);
+    if (opened.isDirectory()) flushedInodes.add(opened.ino);
+    return originalFsyncSync(fd);
+  };
+  try {
+    const recordDirectory = path.join(directory, 'record-directory');
+    fs.mkdirSync(recordDirectory);
+    writeJsonAppendOnce(recordDirectory, 'consumed.json', { sequence: 0 }, {
+      maxBytes: 4096, label: 'directory flush record'
+    });
+    assert(flushedInodes.has(fs.statSync(recordDirectory).ino), 'publication did not flush its record directory');
+
+    const storeDirectory = path.join(directory, 'signing-store');
+    const store = new DlcSigningAuthorizationStore(storeDirectory);
+    flushedInodes.clear();
+    store.consume({
+      network: 'bitcoin-regtest',
+      contractId: 'directory-flush-contract',
+      authorizationId: 'directory-flush-authorization',
+      stateRecordHash: digest('directory-flush-state'),
+      authorizationDigest: digest('directory-flush-authorization-digest'),
+      providerIdentity: digest('directory-flush-provider')
+    });
+    assert(flushedInodes.has(fs.statSync(storeDirectory).ino),
+      'consumption did not flush the directory that holds its marker');
+    const markerName = fs.readdirSync(storeDirectory).find((name) => /^[0-9a-f]{64}$/.test(name));
+    assert(flushedInodes.has(fs.statSync(path.join(storeDirectory, markerName)).ino),
+      'consumption did not flush the marker directory');
+  } finally {
+    fs.fsyncSync = originalFsyncSync;
     fs.rmSync(directory, { recursive: true, force: true });
   }
 });

@@ -6,6 +6,7 @@ const path = require('path');
 const { canonicalize, canonicalJson, transitionDlcContract, normalizeDlcContract } = require('./dlc_contract_state');
 const {
   assertNonSymlinkDirectory,
+  createDurableDirectory,
   ensureNonSymlinkDirectory,
   readBoundedJson,
   writeJsonAppendOnce
@@ -164,7 +165,7 @@ class DlcBroadcastAuthorizationStore {
 
     const key = authorizationKey(contractState.contractId, transition.idempotencyKey, transition.requestHash);
     const directory = this._directory(key);
-    try { fs.mkdirSync(directory, { mode: 0o700 }); } catch (error) {
+    try { createDurableDirectory(directory); } catch (error) {
       if (error.code !== 'EEXIST') throw error;
       const existing = this._read(key);
       throw new Error(existing.transitionRequestHash === transition.requestHash
