@@ -617,6 +617,31 @@ async function monitorChallenge(rpc, state, currentHeight, expectedTipHash = nul
       txout = candidate;
       break;
     }
+    // No replaced child is live either: the parent challenge output may still
+    // be, so the child is dropped and the parent is monitored again.
+    if (!txout) {
+      const parent = await rpc('gettxout', [challenge.txid, 0, true]);
+      if (parent) {
+        challenge.conflicts = [
+          ...(challenge.conflicts || []),
+          {
+            txid: tracked.txid,
+            feeSats: String(tracked.feeSats),
+            outputSats: String(tracked.outputSats),
+            lostAt: new Date().toISOString(),
+            reason: 'cpfp-evicted-parent-unspent'
+          }
+        ];
+        delete challenge.cpfp;
+        if (challenge.feeReserveLifecycle) {
+          challenge.feeReserveLifecycle.activeCpfpTxid = null;
+          challenge.feeReserveLifecycle.status = 'cpfp_evicted';
+        }
+        tracked = challenge;
+        role = 'challenge';
+        txout = parent;
+      }
+    }
   }
   if (txout) assertTrackedOutputBinding(challenge, tracked, txout);
   assertRpcSnapshotTip(txout, expectedTipHash, 'challenge output');

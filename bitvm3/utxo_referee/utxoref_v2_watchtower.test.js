@@ -18,6 +18,7 @@ const {
   assertChallengeTransactionBinding,
   assertRpcSnapshotTip,
   deriveChallengeLifecycle,
+  monitorChallenge,
   saveJsonAtomic,
   loadState
 } = require('./utxoref_v2_watchtower');
@@ -427,6 +428,27 @@ asyncTest('a tick keeps a CPFP child that another process recorded after the wat
     assert(onDisk.tickCount === 1, 'the tick must be saved');
     assert(onDisk.challenge.cpfp && onDisk.challenge.cpfp.txid === cpfp.txid, 'the tick overwrote the CPFP child');
   } finally { fs.rmSync(directory, { recursive: true, force: true }); }
+});
+
+asyncTest('an evicted CPFP child falls back to the parent challenge output', async () => {
+  const parentTxid = 'cd'.repeat(32);
+  const childTxid = 'ef'.repeat(32);
+  const script = `0014${'44'.repeat(20)}`;
+  const state = { challenge: {
+    graphHash: 'aa'.repeat(32), txid: parentTxid, vout: 0, outputSats: '99000', feeSats: '1000',
+    challengeScriptPubKeyHex: script, confirmation: null, replacements: [],
+    cpfp: { txid: childTxid, vout: 0, feeSats: '2000', outputSats: '98000', parentTxid, scriptPubKeyHex: script, confirmation: null, replacements: [] }
+  } };
+  const parentOut = { value: 0.00099, scriptPubKey: { hex: script }, confirmations: 0 };
+  const rpc = async (method, params) => {
+    if (method === 'gettxout') return params[0] === parentTxid ? parentOut : null;
+    throw new Error(`unexpected ${method}`);
+  };
+  const result = await monitorChallenge(rpc, state, 100, null);
+  assert(result.txid === parentTxid && result.role === 'challenge', `expected the parent, got ${result.txid} ${result.role}`);
+  assert(result.action === 'challenge_in_mempool', `expected challenge_in_mempool, got ${result.action}`);
+  assert(state.challenge.cpfp === undefined, 'the evicted child must not stay tracked');
+  assert(state.challenge.conflicts.length === 1 && state.challenge.conflicts[0].txid === childTxid, 'the evicted child must be recorded');
 });
 
 asyncTest('a tick is deferred without reading the chain while another process holds the state lock', async () => {
