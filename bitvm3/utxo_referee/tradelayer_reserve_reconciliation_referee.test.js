@@ -195,6 +195,33 @@ test('a reconciliation that was fresh at build time is caught stale at verify ti
   assertEq(staleCheck.mathSolvent, true, 'the math itself is unchanged - only the freshness policy blocks it');
 });
 
+test('rejects a deposit snapshot that lists one credited deposit twice', () => {
+  const queue = buildQueue();
+  const deposit = { depositId: 'd1', status: 'credited', amountSats: 5000, txid: 'aa'.repeat(32), vout: 0 };
+  let threw = false;
+  try {
+    buildTradeLayerReserveReconciliation({ queue, reserve: { kind: 'receipt-deposit-indexer', deposits: [deposit, { ...deposit }] } });
+  } catch (err) {
+    threw = /duplicate credited deposit/.test(err.message);
+  }
+  assert(threw, 'a repeated credited deposit must not be counted twice');
+});
+
+test('rejects two deposit ids that spend the same outpoint', () => {
+  const queue = buildQueue();
+  const outpoint = { status: 'credited', amountSats: 5000, txid: 'aa'.repeat(32), vout: 0 };
+  let threw = false;
+  try {
+    buildTradeLayerReserveReconciliation({
+      queue,
+      reserve: { kind: 'receipt-deposit-indexer', deposits: [{ ...outpoint, depositId: 'd1' }, { ...outpoint, depositId: 'd2' }] }
+    });
+  } catch (err) {
+    threw = /duplicate credited deposit/.test(err.message);
+  }
+  assert(threw, 'one outpoint must not be credited under two deposit ids');
+});
+
 test('currentHeight before observedAtHeight (reorg/bad input) fails closed, not silently accepted', () => {
   const queue = buildQueue();
   const rec = buildTradeLayerReserveReconciliation({

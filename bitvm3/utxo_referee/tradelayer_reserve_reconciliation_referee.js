@@ -81,9 +81,19 @@ function reservedSatsFromDepositSnapshot(snapshot) {
   if (!Array.isArray(snapshot.deposits)) {
     throw new Error('deposit indexer snapshot requires a deposits array');
   }
+  // A deposit is one UTXO credited once: reject a repeated depositId or a second
+  // depositId for the same outpoint, so the reserve cannot be counted twice.
+  const depositIds = new Set();
+  const outpoints = new Set();
   let sum = 0n;
   for (const deposit of snapshot.deposits) {
     if (deposit && deposit.status === 'credited') {
+      const outpoint = `${deposit.txid}:${deposit.vout}`;
+      if (depositIds.has(String(deposit.depositId)) || outpoints.has(outpoint)) {
+        throw new Error(`duplicate credited deposit: ${deposit.depositId} (${outpoint})`);
+      }
+      depositIds.add(String(deposit.depositId));
+      outpoints.add(outpoint);
       sum += toSats(deposit.amountSats, `deposit ${deposit.depositId}`);
     }
   }
