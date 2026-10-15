@@ -8,6 +8,10 @@ This sidecar exposes the wallet-facing flow for funding a UTXORef DLC/BitVM temp
 - TradeLayer listener: `http://127.0.0.1:3000`
 - WebRTC RPC route, when running: `http://127.0.0.1:18878/rpc/route`
 
+## Authentication
+
+Every `POST` route requires `Authorization: Bearer <token>`, where the token is the single line in the file named by `SIDECAR_API_TOKEN_FILE`. The sidecar refuses to start if that file is readable by group or others (use mode 0600). With no token file configured, every `POST` is refused. Bodies must be `application/json` and at most 16 KiB.
+
 ## LND REST Environment
 
 The pay endpoint uses LND REST and reads credentials from environment variables:
@@ -39,11 +43,11 @@ For local throwaway testing with a trusted node, `LND_REST_INSECURE=1` disables 
 
 2. `POST /v1/dlc-subswap-funding/pay`
 
-   Pays `request.requestCore.submarineSwap.invoice` via LND REST and returns the payment preimage proof.
+   Body: `{"requestId": "..."}`. Pays the invoice of a request this process quoted, via LND REST, and returns the payment preimage proof. Each quoted request can be paid once; the fee limit comes from `UTXOREF_LND_MAX_FEE_SATS` or the quoted swap fee.
 
 3. `POST /v1/dlc-subswap-funding/tlbtc-mint-intent`
 
-   Verifies the preimage against the request payment hash and returns a TradeLayer call descriptor:
+   Body: `{"requestId": "...", "recipientAddress": "..."}`. Only a request paid through step 2 yields a mint intent. The grant's `fromAddress` comes from `TL_PROCEDURAL_ADMIN_ADDRESS`, and the DLC state from the `TL_DLC_*` environment. The intent is a TradeLayer call descriptor:
 
    ```json
    {

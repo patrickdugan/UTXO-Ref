@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+const crypto = require('crypto');
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
@@ -126,14 +127,32 @@ function walletDemoStatus() {
   };
 }
 
+// The bearer token gates every POST route. It is read once from a file that must not be group or world accessible.
+function loadSidecarApiToken(env = process.env) {
+  if (!env.SIDECAR_API_TOKEN_FILE) return '';
+  if (fs.statSync(env.SIDECAR_API_TOKEN_FILE).mode & 0o077) {
+    throw new Error(`${env.SIDECAR_API_TOKEN_FILE} must not be group or world accessible (use mode 0600)`);
+  }
+  return fs.readFileSync(env.SIDECAR_API_TOKEN_FILE, 'utf8').trim();
+}
+
+const sidecarApiToken = loadSidecarApiToken();
+
+function postAuthorized(req) {
+  if (!sidecarApiToken) return false;
+  const expected = Buffer.from(`Bearer ${sidecarApiToken}`);
+  const given = Buffer.from(String(req.headers.authorization || ''));
+  return given.length === expected.length && crypto.timingSafeEqual(given, expected);
+}
+
 function sendJson(res, status, payload) {
   const body = `${JSON.stringify(payload, null, 2)}\n`;
+  // Only read-only GETs are readable cross-origin; the preflight for writes gets no CORS grant.
+  const cors = res.req && res.req.method === 'GET' ? { 'access-control-allow-origin': '*' } : {};
   res.writeHead(status, {
     'content-type': 'application/json',
     'cache-control': 'no-store',
-    'access-control-allow-origin': '*',
-    'access-control-allow-methods': 'GET,POST,OPTIONS',
-    'access-control-allow-headers': 'content-type'
+    ...cors
   });
   res.end(body);
 }
@@ -148,10 +167,26 @@ function sendFile(res, filePath, contentType) {
   res.end(body);
 }
 
+const MAX_BODY_BYTES = 16 * 1024;
+
+function httpError(statusCode, message) {
+  const err = new Error(message);
+  err.statusCode = statusCode;
+  return err;
+}
+
 function readBody(req) {
   return new Promise((resolve, reject) => {
+    if (!String(req.headers['content-type'] || '').startsWith('application/json')) {
+      return reject(httpError(415, 'content-type must be application/json'));
+    }
     const chunks = [];
-    req.on('data', chunk => chunks.push(chunk));
+    let size = 0;
+    req.on('data', chunk => {
+      size += chunk.length;
+      if (size > MAX_BODY_BYTES) return reject(httpError(413, 'request body too large'));
+      chunks.push(chunk);
+    });
     req.on('end', () => {
       const raw = Buffer.concat(chunks).toString('utf8');
       if (!raw) return resolve({});
@@ -398,16 +433,17 @@ function compactId(value, prefix, length = 8) {
   return `${prefix}${cleaned.slice(0, length) || '0'}`;
 }
 
-function paymentProofFromExecution(request) {
-  const proof = request && request.executionProof;
-  if (!proof || !proof.paymentPreimageHex) return null;
-  return {
-    kind: 'utxoref_dlc_subswap_lnd_payment_proof',
-    status: 'paid',
-    paymentHashHex: proof.paymentHashHex,
-    paymentPreimageHex: proof.paymentPreimageHex,
-    source: 'executionProof'
-  };
+// Requests this process quoted, keyed by requestId. `paymentProof` is set only by a successful LND payment
+// made through /pay; `paying` marks a payment in flight so one request is never paid twice.
+const issuedDlcSubswapRequests = new Map();
+const MAX_ISSUED_DLC_REQUESTS = 1000;
+
+function rememberIssuedDlcSubswapRequest(request) {
+  if (issuedDlcSubswapRequests.has(request.requestId)) return;
+  if (issuedDlcSubswapRequests.size >= MAX_ISSUED_DLC_REQUESTS) {
+    throw httpError(503, 'too many quoted requests; restart the sidecar to clear them');
+  }
+  issuedDlcSubswapRequests.set(request.requestId, { request, paymentProof: null, paying: false });
 }
 
 function verifyPaymentProofForRequest(request, paymentProof) {
@@ -430,31 +466,37 @@ function verifyPaymentProofForRequest(request, paymentProof) {
   return { ok: true, paymentHashHex: expectedHash };
 }
 
-function buildTlbtcMintIntent({ request, paymentProof, recipientAddress, fromAddress, overrides = {} }) {
+function buildTlbtcMintIntent({ requestId, recipientAddress }) {
+  const issued = issuedDlcSubswapRequests.get(requestId);
+  if (!issued) {
+    return { ok: false, reason: 'unknown requestId: quote and pay the request first' };
+  }
+  const request = issued.request;
   const requestVerification = verifyDlcSubswapFundingRequest(request);
   if (!requestVerification.ok) {
     return { ok: false, reason: requestVerification.reason, requestVerification };
   }
-  const effectivePaymentProof = paymentProof || paymentProofFromExecution(request);
-  const paymentVerification = verifyPaymentProofForRequest(request, effectivePaymentProof);
+  const paymentVerification = verifyPaymentProofForRequest(request, issued.paymentProof);
   if (!paymentVerification.ok) {
     return { ok: false, reason: paymentVerification.reason, requestVerification, paymentVerification };
+  }
+  const grantFromAddress = String(process.env.TL_PROCEDURAL_ADMIN_ADDRESS || '').trim();
+  if (!grantFromAddress) {
+    return { ok: false, reason: 'TL_PROCEDURAL_ADMIN_ADDRESS is not configured' };
   }
   const core = request.requestCore;
   const recipient = String(recipientAddress || '').trim();
   if (!recipient) throw new Error('recipientAddress is required for tlBTC mint intent');
   const requestedCollateralSats = core.submarineSwap.requestedCollateralSats;
   const amountGranted = satsToBtcString(requestedCollateralSats);
-  const propertyId = Number(overrides.propertyId || process.env.TL_TLBTC_PROPERTY_ID || 1);
+  const propertyId = Number(process.env.TL_TLBTC_PROPERTY_ID || 1);
   const dlcTemplateId = String(
-    overrides.dlcTemplateId ||
-      process.env.TL_DLC_TEMPLATE_ID ||
+    process.env.TL_DLC_TEMPLATE_ID ||
       compactId(core.targetDlc.contractCommitmentId || core.targetBindingHash, 'tpl')
   );
-  const dlcContractId = String(overrides.dlcContractId || process.env.TL_DLC_CONTRACT_ID || '');
-  const settlementState = String(overrides.settlementState || process.env.TL_DLC_SETTLEMENT_STATE || 'FUNDED').toUpperCase();
-  const dlcHash = String(overrides.dlcHash || process.env.TL_DLC_HASH || core.targetBindingHash);
-  const grantFromAddress = String(fromAddress || process.env.TL_PROCEDURAL_ADMIN_ADDRESS || recipient);
+  const dlcContractId = String(process.env.TL_DLC_CONTRACT_ID || '');
+  const settlementState = String(process.env.TL_DLC_SETTLEMENT_STATE || 'FUNDED').toUpperCase();
+  const dlcHash = String(process.env.TL_DLC_HASH || core.targetBindingHash);
   const params = {
     fromAddress: grantFromAddress,
     propertyId,
@@ -670,6 +712,9 @@ function lnbtcTlusdLiquidityPatchWalletView(patch) {
 
 async function handle(req, res) {
   if (req.method === 'OPTIONS') return sendJson(res, 204, {});
+  if (req.method === 'POST' && !postAuthorized(req)) {
+    return sendJson(res, 401, { ok: false, reason: 'missing or invalid bearer token' });
+  }
 
   try {
     if (req.method === 'GET' && req.url === '/health') {
@@ -802,6 +847,7 @@ async function handle(req, res) {
     if (req.method === 'POST' && req.url === '/v1/dlc-subswap-funding/quote') {
       const body = await readBody(req);
       const request = latestDlcSubswapFundingRequest(dlcSubswapOverridesFromBody(body));
+      rememberIssuedDlcSubswapRequest(request);
       return sendJson(res, 200, {
         request,
         walletView: buildDlcSubswapFundingWalletView(request)
@@ -810,46 +856,49 @@ async function handle(req, res) {
 
     if (req.method === 'POST' && req.url === '/v1/dlc-subswap-funding/pay') {
       const body = await readBody(req);
-      const request = body.request || latestDlcSubswapFundingRequest(dlcSubswapOverridesFromBody(body));
-      const verification = verifyDlcSubswapFundingRequest(request);
+      const issued = issuedDlcSubswapRequests.get(String(body.requestId || ''));
+      if (!issued) {
+        return sendJson(res, 404, { ok: false, reason: 'unknown requestId: quote the request first' });
+      }
+      if (issued.paymentProof || issued.paying) {
+        return sendJson(res, 409, { ok: false, reason: 'request is already paid or a payment is in flight' });
+      }
+      const verification = verifyDlcSubswapFundingRequest(issued.request);
       if (!verification.ok) {
         return sendJson(res, 400, { ok: false, reason: verification.reason, verification });
       }
-      const core = request.requestCore;
-      const paymentProof = await payInvoiceViaLndRest({
-        invoice: core.submarineSwap.invoice,
-        feeLimitSats: body.feeLimitSats || body.maxFeeSats || process.env.UTXOREF_LND_MAX_FEE_SATS || core.submarineSwap.swapFeeSats,
-        timeoutSeconds: body.timeoutSeconds || 60,
-        paymentHashHex: core.submarineSwap.paymentHashHex
-      });
-      const paymentVerification = verifyPaymentProofForRequest(request, paymentProof);
+      const core = issued.request.requestCore;
+      issued.paying = true;
+      let paymentProof;
+      try {
+        paymentProof = await payInvoiceViaLndRest({
+          invoice: core.submarineSwap.invoice,
+          feeLimitSats: process.env.UTXOREF_LND_MAX_FEE_SATS || core.submarineSwap.swapFeeSats,
+          timeoutSeconds: 60,
+          paymentHashHex: core.submarineSwap.paymentHashHex
+        });
+      } finally {
+        issued.paying = false;
+      }
+      const paymentVerification = verifyPaymentProofForRequest(issued.request, paymentProof);
+      if (paymentVerification.ok) issued.paymentProof = paymentProof;
       return sendJson(res, paymentVerification.ok ? 200 : 502, {
         ok: paymentVerification.ok,
-        request,
+        request: issued.request,
         paymentProof: {
           ...paymentProof,
-          requestId: request.requestId
+          requestId: issued.request.requestId
         },
         paymentVerification,
-        walletView: buildDlcSubswapFundingWalletView(request)
+        walletView: buildDlcSubswapFundingWalletView(issued.request)
       });
     }
 
     if (req.method === 'POST' && req.url === '/v1/dlc-subswap-funding/tlbtc-mint-intent') {
       const body = await readBody(req);
-      const request = body.request || latestDlcSubswapFundingRequest();
       const intent = buildTlbtcMintIntent({
-        request,
-        paymentProof: body.paymentProof,
-        recipientAddress: body.recipientAddress || body.address || body.redeemAddress,
-        fromAddress: body.fromAddress || body.adminAddress,
-        overrides: {
-          propertyId: body.propertyId,
-          dlcTemplateId: body.dlcTemplateId,
-          dlcContractId: body.dlcContractId,
-          settlementState: body.settlementState,
-          dlcHash: body.dlcHash
-        }
+        requestId: String(body.requestId || ''),
+        recipientAddress: body.recipientAddress || body.address || body.redeemAddress
       });
       return sendJson(res, intent.ok ? 200 : 400, intent);
     }
@@ -1048,7 +1097,7 @@ async function handle(req, res) {
 
     return sendJson(res, 404, { error: 'not found' });
   } catch (err) {
-    return sendJson(res, 500, { error: err.message });
+    return sendJson(res, err.statusCode || 500, { error: err.message });
   }
 }
 
@@ -1073,6 +1122,7 @@ module.exports = {
   latestDlcSubswapFundingRequest,
   latestBitvmChannelRouterBundle,
   buildTlbtcMintIntent,
+  loadSidecarApiToken,
   verifyPaymentProofForRequest,
   walletDemoStatus,
   handle,
