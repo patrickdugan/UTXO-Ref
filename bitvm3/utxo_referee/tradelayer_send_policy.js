@@ -13,6 +13,7 @@ const {
 const {
   verifyTradeLayerReserveReconciliation
 } = require('./tradelayer_reserve_reconciliation_referee');
+const { toSats } = require('./money');
 
 const DEFAULT_POLICY = {
   challengeWindowBlocks: 144,
@@ -26,16 +27,6 @@ const DEFAULT_POLICY = {
   allowedOracleKeyIds: [],
   pauseOnFailure: true
 };
-
-function toSats(value, fieldName) {
-  if (typeof value === 'bigint') return value;
-  if (typeof value === 'number') {
-    if (!Number.isSafeInteger(value)) throw new Error(`${fieldName} must be a safe integer`);
-    return BigInt(value);
-  }
-  if (typeof value === 'string' && /^-?\d+$/.test(value)) return BigInt(value);
-  throw new Error(`${fieldName} must be an integer sat amount`);
-}
 
 function normalizePolicy(options = {}) {
   const source = options.policy || {};

@@ -2,6 +2,7 @@ const {
   stableStringify,
   sha256Hex
 } = require('./tradelayer_pnl_route_adapter');
+const { toInt, decimalToUnits: scaledDecimalToUnits } = require('./money');
 
 const DEFAULT_UNIT_SCALE = 100000000n;
 
@@ -20,36 +21,15 @@ function pick(value, ...keys) {
 }
 
 function parseIntegerLike(value, fieldName) {
-  if (typeof value === 'bigint') return value.toString();
-  if (typeof value === 'number') {
-    if (!Number.isSafeInteger(value)) throw new Error(`${fieldName} must be a safe integer`);
-    return String(value);
-  }
-  const text = String(value);
-  if (!/^-?\d+$/.test(text)) throw new Error(`${fieldName} must be an integer`);
-  return text;
+  return toInt(value, fieldName, { signed: true }).toString();
 }
 
 function decimalToUnits(value, fieldName, unitScale = DEFAULT_UNIT_SCALE) {
-  if (value === undefined || value === null || value === '') {
-    throw new Error(`${fieldName} is required`);
-  }
-  if (typeof value === 'bigint') return value.toString();
-  if (typeof value === 'number' && Number.isInteger(value)) return String(value);
-
-  const text = String(value);
-  if (/^-?\d+$/.test(text)) return text;
-  if (!/^-?\d+(\.\d+)?$/.test(text)) throw new Error(`${fieldName} must be numeric`);
-
-  const negative = text.startsWith('-');
-  const clean = negative ? text.slice(1) : text;
-  const [whole, fraction = ''] = clean.split('.');
-  const scaleDigits = unitScale.toString().length - 1;
-  if (fraction.length > scaleDigits) {
-    throw new Error(`${fieldName} has more than ${scaleDigits} decimal places`);
-  }
-  const units = BigInt(whole) * unitScale + BigInt((fraction + '0'.repeat(scaleDigits)).slice(0, scaleDigits));
-  return `${negative ? '-' : ''}${units.toString()}`;
+  return scaledDecimalToUnits(value, fieldName, {
+    scale: unitScale,
+    integersAreUnits: true,
+    signed: true
+  }).toString();
 }
 
 function normalizeTxType(row) {

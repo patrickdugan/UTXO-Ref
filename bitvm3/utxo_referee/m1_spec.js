@@ -12,6 +12,7 @@
 const crypto = require('crypto');
 const { PayoutLeaf, CommitmentPackage } = require('./types');
 const { getChainProfile } = require('./m1_chain_env');
+const { toInt } = require('./money');
 
 const U64_MAX = (1n << 64n) - 1n;
 
@@ -105,25 +106,17 @@ function buildReceiptDlcTemplate(chainId = 'litecoin-testnet') {
 
 const RECEIPT_DLC_TEMPLATE_V1 = Object.freeze(buildReceiptDlcTemplate('litecoin-testnet'));
 
-function toBigInt(value, fieldName) {
-  try {
-    return BigInt(value);
-  } catch (e) {
-    throw new Error(`${fieldName} must be convertible to BigInt`);
-  }
-}
-
 function normalizeEpochId(epochId) {
-  const v = toBigInt(epochId, 'epochId');
-  if (v < 0n || v > U64_MAX) {
+  const v = toInt(epochId, 'epochId');
+  if (v > U64_MAX) {
     throw new Error('epochId must be within uint64 range');
   }
   return v;
 }
 
 function normalizeAmountSats(amountSats, fieldName = 'amountSats') {
-  const v = toBigInt(amountSats, fieldName);
-  if (v < 0n || v > U64_MAX) {
+  const v = toInt(amountSats, fieldName);
+  if (v > U64_MAX) {
     throw new Error(`${fieldName} must be within uint64 range`);
   }
   return v;

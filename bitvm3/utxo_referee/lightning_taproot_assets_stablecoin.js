@@ -8,6 +8,7 @@
 
 const crypto = require('crypto');
 const { canonicalStringify, normalizeAmountSats } = require('./m1_spec');
+const { toInt } = require('./money');
 const { buildJurassicMechanismRefs } = require('./jurassic_bitvm_mechanisms');
 
 const HEX_32_RE = /^[0-9a-f]{64}$/i;
@@ -44,12 +45,6 @@ function normalizeOutpoint(value, fieldName) {
   return `${parts[0].toLowerCase()}:${Number(parts[1])}`;
 }
 
-function normalizeUint(value, fieldName) {
-  const normalized = BigInt(value);
-  if (normalized < 0n) throw new Error(`${fieldName} must be non-negative`);
-  return normalized;
-}
-
 function buildTaprootAssetDescriptor(options = {}) {
   const ticker = normalizeString(options.ticker || 'USDSIM', 'ticker');
   const decimalDisplay = Number(options.decimalDisplay ?? 6);
@@ -79,7 +74,7 @@ function buildTaprootAssetDescriptor(options = {}) {
 
 function buildTaprootAssetProofCommitment(options = {}) {
   const asset = options.asset || buildTaprootAssetDescriptor(options);
-  const amountUnits = normalizeUint(options.amountUnits || 25000000n, 'amountUnits');
+  const amountUnits = toInt(options.amountUnits || 25000000n, 'amountUnits');
   const anchorOutpoint = normalizeOutpoint(
     options.anchorOutpoint || `${sha256Hex(`anchor:${asset.descriptorId}`)}:1`,
     'anchorOutpoint'
@@ -118,7 +113,7 @@ function buildStablecoinRfqQuote(options = {}) {
   const assetProof = options.assetProof || buildTaprootAssetProofCommitment({ ...options, asset });
   const edgeNodeId = normalizeString(options.edgeNodeId || 'tap-edge-node-regtest', 'edgeNodeId');
   const clientNodeId = normalizeString(options.clientNodeId || 'tap-client-regtest', 'clientNodeId');
-  const assetAmountUnits = normalizeUint(options.assetAmountUnits || assetProof.proofCore.amountUnits, 'assetAmountUnits');
+  const assetAmountUnits = toInt(options.assetAmountUnits || assetProof.proofCore.amountUnits, 'assetAmountUnits');
   const btcRouteSats = normalizeAmountSats(options.btcRouteSats || 25000n, 'btcRouteSats');
   const maxSpreadPpm = Number(options.maxSpreadPpm ?? 5000);
   const quotedSpreadPpm = Number(options.quotedSpreadPpm ?? 3000);

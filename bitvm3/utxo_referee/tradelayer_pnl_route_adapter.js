@@ -16,8 +16,8 @@ const {
 } = require('./types');
 const { buildTreeWithProofs } = require('./merkle');
 const { verifySweep } = require('./verify');
+const { toSats, decimalToUnits } = require('./money');
 
-const COIN = 100000000n;
 const BECH32_CHARSET = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
 const BECH32_CONST = 1;
 const BECH32M_CONST = 0x2bc830a3;
@@ -48,26 +48,6 @@ function stableStringify(value) {
   }
   if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
   return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${stableStringify(value[key])}`).join(',')}}`;
-}
-
-function toSats(value, fieldName) {
-  if (typeof value === 'bigint') return value;
-  if (typeof value === 'number') {
-    if (!Number.isSafeInteger(value)) throw new Error(`${fieldName} must be a safe integer sat amount`);
-    return BigInt(value);
-  }
-  if (typeof value === 'string') {
-    if (!/^-?\d+$/.test(value)) throw new Error(`${fieldName} must be an integer sat amount`);
-    return BigInt(value);
-  }
-  throw new Error(`${fieldName} must be an integer sat amount`);
-}
-
-function ltcToSats(value, fieldName) {
-  const text = String(value);
-  if (!/^\d+(\.\d{1,8})?$/.test(text)) throw new Error(`${fieldName} must be a decimal coin amount`);
-  const [whole, fraction = ''] = text.split('.');
-  return BigInt(whole) * COIN + BigInt((fraction + '00000000').slice(0, 8));
 }
 
 function validateBps(value, fieldName) {
@@ -219,7 +199,7 @@ function normalizeOutputPlan(outputPlan) {
   return outputPlan.map((output, index) => {
     const sats = output.sats !== undefined
       ? toSats(output.sats, `outputPlan[${index}].sats`)
-      : ltcToSats(output.amount, `outputPlan[${index}].amount`);
+      : decimalToUnits(output.amount, `outputPlan[${index}].amount`);
     if (sats <= 0n) throw new Error(`outputPlan[${index}] must be positive`);
     return { ...output, sats };
   });

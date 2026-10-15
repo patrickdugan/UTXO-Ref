@@ -39,6 +39,7 @@
 const {
   sha256Hex
 } = require('./tradelayer_pnl_route_adapter');
+const { toSats } = require('./money');
 const {
   verifyTradeLayerWithdrawalQueue
 } = require('./tradelayer_withdrawal_queue_referee');
@@ -64,17 +65,6 @@ function computeStaleness(observedAtHeight, currentHeight, maxReserveAgeBlocks) 
     return { checked: true, ageBlocks, stale: true, reason: 'currentHeight precedes observedAtHeight' };
   }
   return { checked: true, ageBlocks, stale: ageBlocks > maxReserveAgeBlocks };
-}
-
-function toSats(value, fieldName) {
-  if (typeof value === 'bigint') return value;
-  if (typeof value === 'number') {
-    if (!Number.isSafeInteger(value)) throw new Error(`${fieldName} must be a safe integer`);
-    if (value < 0) throw new Error(`${fieldName} must be non-negative`);
-    return BigInt(value);
-  }
-  if (typeof value === 'string' && /^\d+$/.test(value)) return BigInt(value);
-  throw new Error(`${fieldName} must be an integer sat amount`);
 }
 
 function reservedSatsFromDepositSnapshot(snapshot) {

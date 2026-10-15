@@ -16,6 +16,7 @@ const {
   buildTradeLayerPnlCommitment,
   verifyTradeLayerPnlRoutePlan
 } = require('./tradelayer_pnl_route_adapter');
+const { toInt, toSats } = require('./money');
 
 const CHALLENGE_TYPES = [
   'omitted_pnl_row',
@@ -26,25 +27,9 @@ const CHALLENGE_TYPES = [
   'wrong_state_oracle_hash'
 ];
 
-function toInt(value, fieldName) {
-  if (typeof value === 'bigint') return value;
-  if (typeof value === 'number') {
-    if (!Number.isSafeInteger(value)) throw new Error(`${fieldName} must be a safe integer`);
-    return BigInt(value);
-  }
-  if (typeof value === 'string' && /^-?\d+$/.test(value)) return BigInt(value);
-  throw new Error(`${fieldName} must be an integer`);
-}
-
 function optionalInt(value, fieldName) {
   if (value === undefined || value === null || value === '') return null;
-  return toInt(value, fieldName);
-}
-
-function toSats(value, fieldName) {
-  const sats = toInt(value, fieldName);
-  if (sats < 0n) throw new Error(`${fieldName} must be non-negative`);
-  return sats;
+  return toInt(value, fieldName, { signed: true });
 }
 
 function abs(value) {
@@ -177,11 +162,11 @@ function deriveBilateralPnlRow(rawRow, stateOracleBlob = {}, options = {}, index
   const positionId = String(row.positionId ?? row.id ?? rowId);
   const parties = normalizePartyModel(row);
 
-  const entryPrice = toInt(row.entryPrice ?? row.openPrice, `pnlRows[${index}].entryPrice`);
-  const closePrice = toInt(priceFromMarkSource(row, stateOracleBlob, options, contractId), `pnlRows[${index}].closePrice`);
-  const quantityUnits = toInt(row.quantityUnits ?? row.quantity ?? row.size ?? 1, `pnlRows[${index}].quantityUnits`);
+  const entryPrice = toInt(row.entryPrice ?? row.openPrice, `pnlRows[${index}].entryPrice`, { signed: true });
+  const closePrice = toInt(priceFromMarkSource(row, stateOracleBlob, options, contractId), `pnlRows[${index}].closePrice`, { signed: true });
+  const quantityUnits = toInt(row.quantityUnits ?? row.quantity ?? row.size ?? 1, `pnlRows[${index}].quantityUnits`, { signed: true });
   if (quantityUnits <= 0n) throw new Error(`pnlRows[${index}].quantityUnits must be positive`);
-  const priceScale = toInt(row.priceScale ?? stateOracleBlob.priceScale ?? options.priceScale ?? 1, `pnlRows[${index}].priceScale`);
+  const priceScale = toInt(row.priceScale ?? stateOracleBlob.priceScale ?? options.priceScale ?? 1, `pnlRows[${index}].priceScale`, { signed: true });
   if (priceScale <= 0n) throw new Error(`pnlRows[${index}].priceScale must be positive`);
   const collateralSats = toSats(
     row.collateralSats ?? row.lossCapSats ?? row.maxTransferSats ?? options.defaultCollateralSats,

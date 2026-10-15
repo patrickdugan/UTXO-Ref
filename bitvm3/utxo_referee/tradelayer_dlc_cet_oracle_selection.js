@@ -20,19 +20,10 @@
 const crypto = require('crypto');
 const { computeBoundedSettlementAmounts } = require('./m1_transition');
 const { sha256Hex, stableStringify } = require('./tradelayer_pnl_route_adapter');
+const { toSats } = require('./money');
 
 const DUST_LIMIT_SATS = 546n;
 const OUTCOME_IDS = Object.freeze(['settle-gain', 'settle-loss', 'roll']);
-
-function toSats(value, field) {
-  if (typeof value === 'bigint') return value;
-  if (typeof value === 'number') {
-    if (!Number.isSafeInteger(value) || value < 0) throw new Error(`${field} must be a non-negative safe integer`);
-    return BigInt(value);
-  }
-  if (typeof value === 'string' && /^\d+$/.test(value)) return BigInt(value);
-  throw new Error(`${field} must be an integer sat amount`);
-}
 
 function addOutput(map, address, sats) {
   if (!address || sats <= 0n) return;

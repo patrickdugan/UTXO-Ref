@@ -14,6 +14,7 @@ const sp = require('./tradelayer_send_sweep_psbt');
 const lr = require('./tradelayer_live_reserve_adapter');
 const ex = require('./tradelayer_send_oracle_extractor');
 const rb = require('./tradelayer_rbtc_hourly_autoroll');
+const { normalizeAmountSats } = require('./m1_spec');
 
 let passed = 0;
 let failed = 0;
@@ -45,6 +46,16 @@ function outcome(fn) {
 
 const ADDR = 'tltc1qkz0vft2fc4nk0u9fx4k9yk4th7zherna3zxh22';
 const BAD_INTEGERS = [-1, '-1', 1.5, '1.5', '', '0x10', ' 5', '5 ', Number.MAX_SAFE_INTEGER + 1, true, null];
+
+const RBTC_BASE = {
+  startsAtUnix: 1000,
+  durationSeconds: 3600,
+  vaultAddress: ADDR,
+  fundingAddress: ADDR,
+  fundingOutpoint: { txid: 'aa'.repeat(32), vout: 0 },
+  rbtcPropertyId: 1,
+  dlcRef: 'x'
+};
 
 console.log('\n=== Money Units Characterization ===\n');
 
@@ -92,10 +103,11 @@ test('route output amount (decimal LTC) parses up to eight places', () => {
   assertEq(payoutFor('0.5'), '50000000');
   assertEq(payoutFor(0.5), '50000000');
   assertEq(payoutFor('0.00000001'), '1');
+  assertEq(payoutFor(1e-8), '1');
   assertEq(payoutFor('0.1'), '10000000');
   assertEq(payoutFor('21000000'), '2100000000000000');
   assertEq(payoutFor(21000000), '2100000000000000');
-  for (const value of ['0.123456789', 1e-8, '1e-8', '', '-1', 0.1 + 0.2, '1.', '.5', ' 0.5', '0x1']) {
+  for (const value of ['0.123456789', '1e-8', '', '-1', 0.1 + 0.2, '1.', '.5', ' 0.5', '0x1']) {
     assertEq(outcome(() => payoutFor(value)), 'ERR', `amount ${JSON.stringify(value)}`);
   }
 });
@@ -158,6 +170,16 @@ test('rbtc starting balance is a non-negative integer of base units', () => {
   for (const value of ['-1', '1.5', '1e3']) {
     assertEq(outcome(() => balance(value)), 'ERR', `balance ${JSON.stringify(value)}`);
   }
+});
+
+// Encodings that the older helpers accepted silently (BigInt('') is 0n, BigInt('0x10') is 16n).
+test('empty, hex and padded amounts are refused by every amount parser', () => {
+  for (const value of ['', '0x10', ' 5']) {
+    assertEq(outcome(() => lr.toAmountSats({ txid: 'aa', vout: 0, amountSats: value })), 'ERR', `live amountSats ${JSON.stringify(value)}`);
+    assertEq(outcome(() => normalizeAmountSats(value)), 'ERR', `normalizeAmountSats ${JSON.stringify(value)}`);
+    assertEq(outcome(() => rb.buildHourlyRbtcDlcContract({ ...RBTC_BASE, startingRbtcBalance: value })), 'ERR', `rbtc ${JSON.stringify(value)}`);
+  }
+  assertEq(outcome(() => normalizeAmountSats('5')), '5');
 });
 
 test('addressToScriptPubKey is the single bech32 decoder used by the route layer', () => {
