@@ -241,10 +241,11 @@ function buildTradeLayerBitvmStackBundle(input = {}) {
   // Reconcile the payable withdrawal cap against the credited deposit reserve
   // backing this sweep (the funded DLC/UTXORef input). A live caller can pass a
   // deposit-indexer or ledger snapshot via input.reserve instead.
+  const reserve = input.reserve || { reservedSats: routePlan.dlcInput.sats };
   const reserveReconciliation = buildTradeLayerReserveReconciliation({
     network: routePlan.network,
     queue: withdrawalQueue,
-    reserve: input.reserve || { reservedSats: routePlan.dlcInput.sats },
+    reserve,
     // SECURITY_BLOCKERS.md #4: opt-in freshness window - pass observedAtHeight
     // (when the reserve snapshot was taken) and currentHeight to fail-closed
     // on a stale reserve proof. Omitted by default for backward compatibility.
@@ -258,6 +259,7 @@ function buildTradeLayerBitvmStackBundle(input = {}) {
     observedOutputs: routePlan.outputPlan,
     currentHeight: input.currentHeight || stateOracleBlob.snapshotHeight,
     reserveReconciliation,
+    reserveEvidence: reserve,
     withdrawalQueue
   });
   const watchtower = buildTradeLayerSendWatchtowerReport({

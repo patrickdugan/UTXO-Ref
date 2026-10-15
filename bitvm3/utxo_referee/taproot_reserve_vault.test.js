@@ -253,8 +253,9 @@ test('taproot reserve vault set drives a solvent reconciliation', () => {
     currentHeight: set.currentHeight,
     maxReserveAgeBlocks: 6
   });
-  const result = verifyTradeLayerReserveReconciliation(rec, q, { currentHeight: set.currentHeight });
+  const result = verifyTradeLayerReserveReconciliation(rec, q, { currentHeight: set.currentHeight, reserve: set });
   assert(result.ok, result.reason);
+  assert(result.solvent, 'the vault set must recompute to the committed reserve');
   assert(rec.solvent, 'cap 97000 <= vault reserve 100000');
   assertEq(rec.core.reserveSourceKind, 'taproot-reserve-vault-set');
   assertEq(rec.core.reserveEvidenceSummary.countedVaultCount, 1);
@@ -351,7 +352,8 @@ test('guardian refuses stale or insolvent reserve policy', () => {
 test('guardian approves and signs only the exact policy-matching transaction', () => {
   const m = manifest();
   const q = queue(97000);
-  const rec = solventReconciliation(vaultSet(m), 97000);
+  const set = vaultSet(m);
+  const rec = solventReconciliation(set, 97000);
   const unsignedTxHex = spendTxHex(97000);
   const proposal = buildVaultSpendProposal({
     manifest: m,
@@ -365,6 +367,7 @@ test('guardian approves and signs only the exact policy-matching transaction', (
     proposal,
     guardianSecret: GUARDIAN_SECRET,
     reserveReconciliation: rec,
+    reserveEvidence: set,
     withdrawalQueue: q,
     currentHeight: 1200
   });

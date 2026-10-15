@@ -180,11 +180,12 @@ function buildTradeLayerSendProductionPolicy(stateOracleBlob, options = {}) {
     const reconciliation = options.reserveReconciliation;
     const reconciliationVerification = verifyTradeLayerReserveReconciliation(
       reconciliation,
-      options.withdrawalQueue
+      options.withdrawalQueue,
+      { currentHeight, reserve: options.reserveEvidence }
     );
-    checks.push(check('reserve_solvency', reconciliationVerification.ok && reconciliation.solvent === true, {
+    checks.push(check('reserve_solvency', reconciliationVerification.ok && reconciliationVerification.solvent === true, {
       reason: reconciliationVerification.ok ? null : reconciliationVerification.reason,
-      solvent: reconciliation.solvent === true,
+      solvent: reconciliationVerification.solvent === true,
       reconciliationHash: reconciliation.reconciliationHash || null,
       capSats: reconciliation.core?.capSats || null,
       reservedSats: reconciliation.core?.reservedSats || null,

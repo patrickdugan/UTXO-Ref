@@ -709,7 +709,8 @@ function approveTaprootReserveVaultSpend(input = {}) {
   } = require('./tradelayer_reserve_reconciliation_referee');
   const reconciliationCheck = input.reserveReconciliation
     ? verifyTradeLayerReserveReconciliation(input.reserveReconciliation, input.withdrawalQueue, {
-        currentHeight: input.currentHeight
+        currentHeight: input.currentHeight,
+        reserve: input.reserveEvidence
       })
     : { ok: false, reason: 'missing reserve reconciliation', solvent: false };
   const policyResult = guardianPolicyChecks({

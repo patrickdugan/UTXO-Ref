@@ -9,6 +9,11 @@ const {
   buildTradeLayerSendProductionPolicy,
   verifyTradeLayerSendProductionPolicy
 } = require('./tradelayer_send_policy');
+const { buildTradeLayerWithdrawalQueue } = require('./tradelayer_withdrawal_queue_referee');
+const {
+  buildTradeLayerReserveReconciliation
+} = require('./tradelayer_reserve_reconciliation_referee');
+const { sha256Hex } = require('./tradelayer_pnl_route_adapter');
 
 let passed = 0;
 let failed = 0;
@@ -142,6 +147,36 @@ test('rejects an unapproved oracle address', () => {
 
   assert(!policy.ok, 'policy should fail');
   assert(policy.failedChecks.includes('oracle_address_allowed'), 'oracle address allow list should fail');
+});
+
+test('reserve_solvency follows the verified reserve, not the reconciliation flag', () => {
+  const stateOracle = buildTradeLayerSendStateOracleFromConsensus(CONSENSUS_INPUT, {
+    selectedSendId: 'live-send'
+  });
+  stateOracle.registryHeight = CONSENSUS_INPUT.registryHeight;
+  const queue = buildTradeLayerWithdrawalQueue({
+    requests: [{ id: 'w1', txid: '11'.repeat(32), address: 'tltc1qldtqy3y0rasay8dqz6kc2nxx6zfs9e9j4veqcz', sats: 5000, propertyId: 380 }]
+  });
+  const honest = buildTradeLayerReserveReconciliation({ queue, reserve: 1000 });
+  const forged = clone(honest);
+  forged.core.reservedSats = '999999';
+  forged.core.marginSats = '994999';
+  forged.core.mathSolvent = true;
+  forged.core.solvent = true;
+  forged.solvent = true;
+  forged.reconciliationHash = sha256Hex(forged.core);
+
+  const policy = buildTradeLayerSendProductionPolicy(stateOracle, {
+    sendId: 'live-send',
+    currentHeight: 4696000,
+    allowedOracleAddresses: [CONSENSUS_INPUT.oracleAddress],
+    reserveReconciliation: forged,
+    withdrawalQueue: queue,
+    reserveEvidence: 1000
+  });
+
+  assert(!policy.ok, 'a reserve that does not match its evidence must block the sweep');
+  assert(policy.failedChecks.includes('reserve_solvency'), 'reserve_solvency should fail');
 });
 
 test('detects policy hash tampering', () => {

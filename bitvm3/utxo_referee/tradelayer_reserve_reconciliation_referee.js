@@ -260,16 +260,40 @@ function verifyTradeLayerReserveReconciliation(reconciliation, queue, options = 
     if (queue.queueCore.totalSats !== core.capSats) return { ok: false, reason: 'cap mismatch against queue' };
   }
 
-  // SECURITY_BLOCKERS.md #4: re-check staleness against a FRESH currentHeight
-  // supplied at verify time, not just the height recorded at build time. A
-  // reconciliation that was fresh when built can go stale by the time it's
-  // actually used to gate a spend - this is what catches that, every time
-  // the gate is checked, not just once.
-  let solvent = builtSolvent;
+  // The reserve must be the one the reconciliation names. Evidence is the caller's
+  // input: without it the reserve is unproven and the verdict is not solvent.
+  let evidenceVerified = false;
+  if (options.reserve !== undefined) {
+    let resolved;
+    try {
+      resolved = resolveReserve(options.reserve);
+    } catch (err) {
+      return { ok: false, reason: `reserve evidence does not resolve: ${err.message}` };
+    }
+    if (resolved.reserveSourceHash !== core.reserveSourceHash) {
+      return { ok: false, reason: 'reserve source hash mismatch' };
+    }
+    if (resolved.reservedSats.toString() !== core.reservedSats) {
+      return { ok: false, reason: 'reservedSats does not match reserve evidence' };
+    }
+    evidenceVerified = true;
+  }
+
+  // Freshness is judged by the verifier's own window and the caller's live height,
+  // never by the window or build-time result recorded in the artifact. An observed
+  // reserve with no live height cannot be shown fresh.
+  const maxReserveAgeBlocks = options.maxReserveAgeBlocks !== undefined
+    ? Number(options.maxReserveAgeBlocks)
+    : DEFAULT_MAX_RESERVE_AGE_BLOCKS;
+  let solvent = builtSolvent && evidenceVerified;
   let liveStaleness = null;
-  if (options.currentHeight !== undefined && options.currentHeight !== null && core.observedAtHeight !== null) {
-    liveStaleness = computeStaleness(core.observedAtHeight, options.currentHeight, core.maxReserveAgeBlocks);
-    if (liveStaleness.stale) solvent = false;
+  if (core.observedAtHeight !== null && core.observedAtHeight !== undefined) {
+    if (options.currentHeight === undefined || options.currentHeight === null) {
+      solvent = false;
+    } else {
+      liveStaleness = computeStaleness(core.observedAtHeight, options.currentHeight, maxReserveAgeBlocks);
+      if (liveStaleness.stale) solvent = false;
+    }
   }
 
   return {
@@ -277,6 +301,7 @@ function verifyTradeLayerReserveReconciliation(reconciliation, queue, options = 
     reconciliationHash,
     solvent,
     mathSolvent,
+    reserveEvidenceVerified: evidenceVerified,
     capSats: capSats.toString(),
     reservedSats: reservedSats.toString(),
     marginSats: marginSats.toString(),
