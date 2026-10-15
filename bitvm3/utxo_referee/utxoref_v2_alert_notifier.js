@@ -270,10 +270,12 @@ async function send(fetchImpl, request) {
     headers['Content-Type'] = 'text/plain; charset=utf-8';
     payload = request.text;
   }
+  // Provider tokens travel in headers, so a redirect is an error, not a hop.
   const response = await fetchImpl(request.url, {
     method: 'POST',
     headers,
     body: payload,
+    redirect: 'error',
     signal: AbortSignal.timeout(DELIVERY_TIMEOUT_MS)
   });
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -370,7 +372,12 @@ function createAlertNotifier(config, options = {}) {
     if (!channels.length) return { queued: Boolean(decided), delivered: 0 };
     if (decided) {
       const alert = buildAlert(decided, new Date(nowMs).toISOString());
-      for (const channel of channels) n.pending.push({ channel: channelLabel(channel), alert });
+      for (const channel of channels) {
+        const label = channelLabel(channel);
+        if (!n.pending.some((item) => item.channel === label && item.alert.fingerprint === alert.fingerprint)) {
+          n.pending.push({ channel: label, alert });
+        }
+      }
     }
     n.sentAt = n.sentAt.filter((at) => nowMs - at < 3600 * 1000);
     const remaining = [];
@@ -393,7 +400,15 @@ function createAlertNotifier(config, options = {}) {
         remaining.push(item);
       }
     }
-    n.pending = remaining.slice(-MAX_PENDING);
+    // Only non-critical alerts are shed, oldest first; a critical one is kept
+    // until it is delivered, and every shed alert is counted.
+    let shed = Math.max(0, remaining.filter((item) => item.alert.severity !== 'critical').length - MAX_PENDING);
+    n.pending = remaining.filter((item) => {
+      if (item.alert.severity === 'critical' || shed === 0) return true;
+      shed--;
+      n.dropped = (n.dropped || 0) + 1;
+      return false;
+    });
     return { queued: Boolean(decided), delivered };
   }
 
@@ -406,7 +421,7 @@ async function pingHeartbeat(url, options = {}) {
   const fetchImpl = options.fetchImpl || globalThis.fetch;
   const at = new Date((options.now || Date.now)()).toISOString();
   try {
-    const response = await fetchImpl(url, { method: 'GET', signal: AbortSignal.timeout(DELIVERY_TIMEOUT_MS) });
+    const response = await fetchImpl(url, { method: 'GET', redirect: 'error', signal: AbortSignal.timeout(DELIVERY_TIMEOUT_MS) });
     if (!response.ok) return { ok: false, at, error: `HTTP ${response.status}` };
     return { ok: true, at };
   } catch (err) {
