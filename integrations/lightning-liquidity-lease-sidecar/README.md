@@ -24,6 +24,10 @@ $env:LND_TLS_CERT_PATH = "C:\path\to\tls.cert"
 
 For local throwaway testing with a trusted node, `LND_REST_INSECURE=1` disables TLS verification.
 
+The macaroon must allow reading payments (`GET /v1/payments`) as well as sending them. The sidecar treats a request as paid only when LND's payment list shows a `SUCCEEDED` payment for the request's payment hash whose preimage hashes to it. It never trusts its own memory of a payment.
+
+Quoted requests are stored in `SIDECAR_REQUEST_STORE_PATH` (default `runtime/dlc-subswap-requests.json`, written mode 0600). `SIDECAR_MAX_QUOTED_REQUESTS` (default 1000) bounds the store; when it is full the oldest request that is neither being paid nor known to be settled is dropped.
+
 ## Endpoint Flow
 
 1. `POST /v1/dlc-subswap-funding/quote`
@@ -47,7 +51,7 @@ For local throwaway testing with a trusted node, `LND_REST_INSECURE=1` disables 
 
 3. `POST /v1/dlc-subswap-funding/tlbtc-mint-intent`
 
-   Body: `{"requestId": "...", "recipientAddress": "..."}`. Only a request paid through step 2 yields a mint intent. The grant's `fromAddress` comes from `TL_PROCEDURAL_ADMIN_ADDRESS`, and the DLC state from the `TL_DLC_*` environment. The intent is a TradeLayer call descriptor:
+   Body: `{"requestId": "...", "recipientAddress": "..."}`. Only a request that LND reports as settled yields a mint intent; a restart does not change that. The grant's `fromAddress` comes from `TL_PROCEDURAL_ADMIN_ADDRESS`, and the DLC state from the `TL_DLC_*` environment. The intent is a TradeLayer call descriptor:
 
    ```json
    {

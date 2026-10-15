@@ -6,9 +6,11 @@ const fs = require('fs');
 const path = require('path');
 const {
   paymentHashFromPreimageHex,
-  payInvoiceViaLndRest
+  payInvoiceViaLndRest,
+  findSettledPaymentViaLndRest
 } = require('./lndRestClient');
 const { buildWalletDemoConfig, verifyWalletDemoConfig } = require('../wallet-demo/walletBackendProfiles');
+const { HttpError, sendJson: sendJsonBody, readJsonBody, boundedInteger, writeAtomicPrivate } = require('../shared/service');
 const { buildStressDashboard, verifyStressDashboard } = require('../wallet-demo/stressDashboard');
 const { buildAdapterFeed } = require('../wallet-dashboard-vercel/api/adapterFeed');
 const {
@@ -145,16 +147,10 @@ function postAuthorized(req) {
   return given.length === expected.length && crypto.timingSafeEqual(given, expected);
 }
 
+// Only read-only GETs are readable cross-origin; the preflight for writes gets no CORS grant.
 function sendJson(res, status, payload) {
-  const body = `${JSON.stringify(payload, null, 2)}\n`;
-  // Only read-only GETs are readable cross-origin; the preflight for writes gets no CORS grant.
   const cors = res.req && res.req.method === 'GET' ? { 'access-control-allow-origin': '*' } : {};
-  res.writeHead(status, {
-    'content-type': 'application/json',
-    'cache-control': 'no-store',
-    ...cors
-  });
-  res.end(body);
+  sendJsonBody(res, status, payload, cors);
 }
 
 function sendFile(res, filePath, contentType) {
@@ -165,39 +161,6 @@ function sendFile(res, filePath, contentType) {
     'access-control-allow-origin': '*'
   });
   res.end(body);
-}
-
-const MAX_BODY_BYTES = 16 * 1024;
-
-function httpError(statusCode, message) {
-  const err = new Error(message);
-  err.statusCode = statusCode;
-  return err;
-}
-
-function readBody(req) {
-  return new Promise((resolve, reject) => {
-    if (!String(req.headers['content-type'] || '').startsWith('application/json')) {
-      return reject(httpError(415, 'content-type must be application/json'));
-    }
-    const chunks = [];
-    let size = 0;
-    req.on('data', chunk => {
-      size += chunk.length;
-      if (size > MAX_BODY_BYTES) return reject(httpError(413, 'request body too large'));
-      chunks.push(chunk);
-    });
-    req.on('end', () => {
-      const raw = Buffer.concat(chunks).toString('utf8');
-      if (!raw) return resolve({});
-      try {
-        resolve(JSON.parse(raw));
-      } catch (err) {
-        reject(err);
-      }
-    });
-    req.on('error', reject);
-  });
 }
 
 function walletView(lease, subswap) {
@@ -433,17 +396,57 @@ function compactId(value, prefix, length = 8) {
   return `${prefix}${cleaned.slice(0, length) || '0'}`;
 }
 
-// Requests this process quoted, keyed by requestId. `paymentProof` is set only by a successful LND payment
-// made through /pay; `paying` marks a payment in flight so one request is never paid twice.
-const issuedDlcSubswapRequests = new Map();
-const MAX_ISSUED_DLC_REQUESTS = 1000;
+// Requests this process quoted, keyed by requestId, persisted so a restart does not orphan a request the wallet
+// is about to pay or has paid. `settled` caches what LND reported (settledPaymentProof), and only protects the
+// entry from eviction: a mint always asks LND again. `paying` marks a payment in flight, so one request is never
+// paid twice at once.
+const requestStorePath = path.resolve(process.env.SIDECAR_REQUEST_STORE_PATH ||
+  path.join(__dirname, 'runtime', 'dlc-subswap-requests.json'));
+const MAX_ISSUED_DLC_REQUESTS = boundedInteger(process.env.SIDECAR_MAX_QUOTED_REQUESTS || 1000, 2, 100000);
+if (MAX_ISSUED_DLC_REQUESTS === null) throw new Error('SIDECAR_MAX_QUOTED_REQUESTS must be an integer in 2..100000');
 
+function loadIssuedDlcSubswapRequests(filePath) {
+  const issued = new Map();
+  if (!fs.existsSync(filePath)) return issued;
+  const store = readJson(filePath);
+  if (!store || store.kind !== 'utxoref_dlc_subswap_request_store' || store.version !== 1 || !Array.isArray(store.entries)) {
+    throw new Error(`${filePath} is not a sidecar DLC request store`);
+  }
+  for (const entry of store.entries) {
+    issued.set(entry.request.requestId, { request: entry.request, settled: entry.settled === true, paying: false });
+  }
+  return issued;
+}
+
+const issuedDlcSubswapRequests = loadIssuedDlcSubswapRequests(requestStorePath);
+
+function saveIssuedDlcSubswapRequests() {
+  const entries = [...issuedDlcSubswapRequests.values()].map(({ request, settled }) => ({ request, settled }));
+  writeAtomicPrivate(requestStorePath, `${JSON.stringify({
+    kind: 'utxoref_dlc_subswap_request_store',
+    version: 1,
+    entries
+  }, null, 2)}\n`);
+}
+
+// A full table forgets the oldest request that is not being paid, preferring one not known to be settled. It
+// never refuses a new quote.
 function rememberIssuedDlcSubswapRequest(request) {
   if (issuedDlcSubswapRequests.has(request.requestId)) return;
   if (issuedDlcSubswapRequests.size >= MAX_ISSUED_DLC_REQUESTS) {
-    throw httpError(503, 'too many quoted requests; restart the sidecar to clear them');
+    const entries = [...issuedDlcSubswapRequests];
+    const victim = entries.find(([, issued]) => !issued.paying && !issued.settled) ||
+      entries.find(([, issued]) => !issued.paying);
+    if (victim) issuedDlcSubswapRequests.delete(victim[0]);
   }
-  issuedDlcSubswapRequests.set(request.requestId, { request, paymentProof: null, paying: false });
+  issuedDlcSubswapRequests.set(request.requestId, { request, settled: false, paying: false });
+  saveIssuedDlcSubswapRequests();
+}
+
+function markSettled(issued) {
+  if (issued.settled) return;
+  issued.settled = true;
+  saveIssuedDlcSubswapRequests();
 }
 
 function verifyPaymentProofForRequest(request, paymentProof) {
@@ -466,7 +469,27 @@ function verifyPaymentProofForRequest(request, paymentProof) {
   return { ok: true, paymentHashHex: expectedHash };
 }
 
-function buildTlbtcMintIntent({ requestId, recipientAddress }) {
+// The payment proof is what LND reports as settled for the request's payment hash. Errors from LND are a 502:
+// nothing is minted while the record cannot be read.
+async function settledPaymentProof(request) {
+  const paymentHashHex = request.requestCore.submarineSwap.paymentHashHex;
+  let settled;
+  try {
+    settled = await findSettledPaymentViaLndRest({ paymentHashHex });
+  } catch (err) {
+    throw new HttpError(502, 'lnd_lookup_failed', `LND payment lookup failed: ${err.message}`);
+  }
+  if (!settled) return null;
+  return {
+    kind: 'utxoref_dlc_subswap_lnd_payment_proof',
+    status: 'paid',
+    paymentHashHex: settled.paymentHashHex,
+    paymentPreimageHex: settled.paymentPreimageHex,
+    source: 'lnd-list-payments'
+  };
+}
+
+async function buildTlbtcMintIntent({ requestId, recipientAddress }) {
   const issued = issuedDlcSubswapRequests.get(requestId);
   if (!issued) {
     return { ok: false, reason: 'unknown requestId: quote and pay the request first' };
@@ -476,17 +499,22 @@ function buildTlbtcMintIntent({ requestId, recipientAddress }) {
   if (!requestVerification.ok) {
     return { ok: false, reason: requestVerification.reason, requestVerification };
   }
-  const paymentVerification = verifyPaymentProofForRequest(request, issued.paymentProof);
+  const paymentProof = await settledPaymentProof(request);
+  if (!paymentProof) {
+    return { ok: false, reason: 'payment is not settled in LND', requestVerification };
+  }
+  const paymentVerification = verifyPaymentProofForRequest(request, paymentProof);
   if (!paymentVerification.ok) {
     return { ok: false, reason: paymentVerification.reason, requestVerification, paymentVerification };
   }
+  markSettled(issued);
   const grantFromAddress = String(process.env.TL_PROCEDURAL_ADMIN_ADDRESS || '').trim();
   if (!grantFromAddress) {
     return { ok: false, reason: 'TL_PROCEDURAL_ADMIN_ADDRESS is not configured' };
   }
   const core = request.requestCore;
   const recipient = String(recipientAddress || '').trim();
-  if (!recipient) throw new Error('recipientAddress is required for tlBTC mint intent');
+  if (!recipient) throw new HttpError(400, 'invalid_request', 'recipientAddress is required for tlBTC mint intent');
   const requestedCollateralSats = core.submarineSwap.requestedCollateralSats;
   const amountGranted = satsToBtcString(requestedCollateralSats);
   const propertyId = Number(process.env.TL_TLBTC_PROPERTY_ID || 1);
@@ -845,7 +873,7 @@ async function handle(req, res) {
     }
 
     if (req.method === 'POST' && req.url === '/v1/dlc-subswap-funding/quote') {
-      const body = await readBody(req);
+      const body = await readJsonBody(req, { requireJson: true });
       const request = latestDlcSubswapFundingRequest(dlcSubswapOverridesFromBody(body));
       rememberIssuedDlcSubswapRequest(request);
       return sendJson(res, 200, {
@@ -855,33 +883,41 @@ async function handle(req, res) {
     }
 
     if (req.method === 'POST' && req.url === '/v1/dlc-subswap-funding/pay') {
-      const body = await readBody(req);
+      const body = await readJsonBody(req, { requireJson: true });
       const issued = issuedDlcSubswapRequests.get(String(body.requestId || ''));
       if (!issued) {
         return sendJson(res, 404, { ok: false, reason: 'unknown requestId: quote the request first' });
       }
-      if (issued.paymentProof || issued.paying) {
-        return sendJson(res, 409, { ok: false, reason: 'request is already paid or a payment is in flight' });
+      if (issued.paying) {
+        return sendJson(res, 409, { ok: false, reason: 'a payment for this request is in flight' });
       }
       const verification = verifyDlcSubswapFundingRequest(issued.request);
       if (!verification.ok) {
         return sendJson(res, 400, { ok: false, reason: verification.reason, verification });
       }
       const core = issued.request.requestCore;
-      issued.paying = true;
       let paymentProof;
+      issued.paying = true;
       try {
-        paymentProof = await payInvoiceViaLndRest({
-          invoice: core.submarineSwap.invoice,
-          feeLimitSats: process.env.UTXOREF_LND_MAX_FEE_SATS || core.submarineSwap.swapFeeSats,
-          timeoutSeconds: 60,
-          paymentHashHex: core.submarineSwap.paymentHashHex
-        });
+        if (await settledPaymentProof(issued.request)) {
+          markSettled(issued);
+          return sendJson(res, 409, { ok: false, reason: 'request is already paid' });
+        }
+        try {
+          paymentProof = await payInvoiceViaLndRest({
+            invoice: core.submarineSwap.invoice,
+            feeLimitSats: process.env.UTXOREF_LND_MAX_FEE_SATS || core.submarineSwap.swapFeeSats,
+            timeoutSeconds: 60,
+            paymentHashHex: core.submarineSwap.paymentHashHex
+          });
+        } catch (err) {
+          throw new HttpError(502, 'lnd_payment_failed', err.message);
+        }
       } finally {
         issued.paying = false;
       }
       const paymentVerification = verifyPaymentProofForRequest(issued.request, paymentProof);
-      if (paymentVerification.ok) issued.paymentProof = paymentProof;
+      if (paymentVerification.ok) markSettled(issued);
       return sendJson(res, paymentVerification.ok ? 200 : 502, {
         ok: paymentVerification.ok,
         request: issued.request,
@@ -895,8 +931,8 @@ async function handle(req, res) {
     }
 
     if (req.method === 'POST' && req.url === '/v1/dlc-subswap-funding/tlbtc-mint-intent') {
-      const body = await readBody(req);
-      const intent = buildTlbtcMintIntent({
+      const body = await readJsonBody(req, { requireJson: true });
+      const intent = await buildTlbtcMintIntent({
         requestId: String(body.requestId || ''),
         recipientAddress: body.recipientAddress || body.address || body.redeemAddress
       });
@@ -904,7 +940,7 @@ async function handle(req, res) {
     }
 
     if (req.method === 'POST' && req.url === '/v1/bitvm-channel-router/quote') {
-      const body = await readBody(req);
+      const body = await readJsonBody(req, { requireJson: true });
       const bundle = latestBitvmChannelRouterBundle({
         routeIntent: body.routeIntent || {
           intentId: body.intentId,
@@ -923,7 +959,7 @@ async function handle(req, res) {
     }
 
     if (req.method === 'POST' && req.url === '/v1/liquidity-lease/quote') {
-      const body = await readBody(req);
+      const body = await readJsonBody(req, { requireJson: true });
       const lease = readJson(leasePath);
       return sendJson(res, 200, {
         kind: 'liquidity_lease_quote',
@@ -1072,7 +1108,7 @@ async function handle(req, res) {
     }
 
     if (req.method === 'POST' && req.url === '/v1/bitvm-channel-router/verify') {
-      const body = await readBody(req);
+      const body = await readJsonBody(req, { requireJson: true });
       if (body.plan) {
         return sendJson(res, 200, verifyBitvmChannelRouterPlan(body.plan));
       }
@@ -1080,7 +1116,7 @@ async function handle(req, res) {
     }
 
     if (req.method === 'POST' && req.url === '/v1/dlc-subswap-funding/verify') {
-      const body = await readBody(req);
+      const body = await readJsonBody(req, { requireJson: true });
       const request = body.request || latestDlcSubswapFundingRequest();
       return sendJson(res, 200, verifyDlcSubswapFundingRequest(request));
     }
@@ -1097,7 +1133,8 @@ async function handle(req, res) {
 
     return sendJson(res, 404, { error: 'not found' });
   } catch (err) {
-    return sendJson(res, err.statusCode || 500, { error: err.message });
+    if (err instanceof HttpError) return sendJson(res, err.statusCode, { error: err.message });
+    return sendJson(res, 500, { error: 'internal server error' });
   }
 }
 
