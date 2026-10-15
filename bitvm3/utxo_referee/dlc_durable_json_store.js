@@ -161,10 +161,19 @@ function writeJsonAppendOnce(directory, name, record, { maxBytes, label = 'durab
 // reclaimed instead of blocking every later run. Any other held lock fails
 // closed. The returned function releases the lock.
 const LOCK_OWNER_FILE = 'owner.json';
+// A holder writes its owner record right after creating the lock directory. A
+// lock with no readable record that is older than this was abandoned between
+// those two steps, and nothing will ever write its record.
+const LOCK_OWNER_GRACE_MS = 10000;
 
 function readLockOwner(lockPath) {
   try { return JSON.parse(fs.readFileSync(path.join(lockPath, LOCK_OWNER_FILE), 'utf8')); }
   catch (_error) { return null; }
+}
+
+function lockWithoutOwnerIsAbandoned(lockPath) {
+  try { return Date.now() - fs.statSync(lockPath).mtimeMs > LOCK_OWNER_GRACE_MS; }
+  catch (_error) { return false; }
 }
 
 function lockOwnerIsGone(owner) {
@@ -178,11 +187,12 @@ function lockOwnerIsGone(owner) {
 // over in between), it is put back.
 function reclaimAbandonedLock(lockPath) {
   const owner = readLockOwner(lockPath);
-  if (!lockOwnerIsGone(owner)) return false;
+  if (owner ? !lockOwnerIsGone(owner) : !lockWithoutOwnerIsAbandoned(lockPath)) return false;
   const aside = `${lockPath}.abandoned-${process.pid}-${crypto.randomBytes(4).toString('hex')}`;
   try { fs.renameSync(lockPath, aside); } catch (_error) { return false; }
   const moved = readLockOwner(aside);
-  if (moved && moved.pid === owner.pid && moved.host === owner.host) {
+  const sameHolder = owner ? Boolean(moved) && moved.pid === owner.pid && moved.host === owner.host : moved === null;
+  if (sameHolder) {
     fs.rmSync(aside, { recursive: true, force: true });
     return true;
   }

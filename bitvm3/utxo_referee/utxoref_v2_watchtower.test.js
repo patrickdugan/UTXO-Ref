@@ -498,8 +498,14 @@ test('a state lock left by a process that no longer exists is reclaimed, any oth
     fs.rmSync(lockPath, { recursive: true });
 
     plant(null);
-    assert(heldCode() === 'LOCK_HELD', 'a lock without an owner record must stay held');
+    assert(heldCode() === 'LOCK_HELD', 'a lock without an owner record must stay held while it is fresh');
     fs.rmSync(lockPath, { recursive: true });
+
+    plant(null);
+    const sixMinutesAgo = new Date(Date.now() - 360000);
+    fs.utimesSync(lockPath, sixMinutesAgo, sixMinutesAgo);
+    assert(heldCode() === null, 'a lock abandoned before its owner record was written must be reclaimed');
+    assert(!fs.existsSync(lockPath), 'the abandoned lock must leave nothing behind');
   } finally { fs.rmSync(directory, { recursive: true, force: true }); }
 });
 
