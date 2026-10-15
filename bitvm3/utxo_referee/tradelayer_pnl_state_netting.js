@@ -463,33 +463,8 @@ function buildTradeLayerPnlNettingSettlement(stateOracleBlob, options = {}) {
   };
 }
 
-function verifyPositiveNetOutputs(netBalances, outputPlan) {
-  const positives = netBalances
-    .filter((row) => BigInt(row.netSats) > 0n)
-    .map((row) => ({ address: row.address, sats: BigInt(row.netSats).toString() }))
-    .sort((a, b) => a.address.localeCompare(b.address));
-  const outputs = outputPlan
-    .map((output) => ({
-      accountAddress: output.accountAddress || output.address,
-      sats: String(output.sats)
-    }))
-    .sort((a, b) => a.accountAddress.localeCompare(b.accountAddress));
-
-  if (positives.length !== outputs.length) {
-    return { ok: false, reason: `positive PNL output count mismatch: expected ${positives.length}, got ${outputs.length}` };
-  }
-  for (let i = 0; i < positives.length; i++) {
-    if (positives[i].address !== outputs[i].accountAddress || positives[i].sats !== outputs[i].sats) {
-      return {
-        ok: false,
-        reason: 'positive PNL output mismatch',
-        expected: positives[i],
-        actual: outputs[i]
-      };
-    }
-  }
-  return { ok: true };
-}
+const SETTLEMENT_FIELDS = ['core', 'rows', 'grossEdges', 'netBalances', 'foldedEdges', 'routePlan'];
+const PAYOUT_FIELDS = ['withdrawalRootHex', 'commitmentHashHex', 'totalSats'];
 
 function verifyTradeLayerPnlNettingSettlement(settlement, options = {}) {
   if (!settlement || settlement.kind !== 'tradelayer_pnl_netting_settlement') {
@@ -503,37 +478,22 @@ function verifyTradeLayerPnlNettingSettlement(settlement, options = {}) {
   if (settlementHash !== settlement.settlementHash) {
     return { ok: false, reason: 'settlement hash mismatch', settlementHash };
   }
-  if (options.expectedStateOracleHash && options.expectedStateOracleHash !== settlement.core.stateOracleHash) {
-    return { ok: false, reason: 'state oracle hash mismatch', expectedStateOracleHash: options.expectedStateOracleHash };
+  if (!options.stateOracleBlob) {
+    return { ok: false, reason: 'state oracle blob required to verify settlement' };
   }
 
-  const checks = [
-    ['pnlRowRoot', rootHex(settlement.rows || [])],
-    ['grossEdgeRoot', rootHex(settlement.grossEdges || [])],
-    ['netBalanceRoot', rootHex(settlement.netBalances || [])],
-    ['foldedEdgeRoot', rootHex(settlement.foldedEdges || [])]
-  ];
-  for (const [field, recomputed] of checks) {
-    if (settlement.core[field] !== recomputed) {
-      return { ok: false, reason: `${field} mismatch`, recomputed };
-    }
+  // Internal hashes only show that the settlement agrees with itself. The rows, edges,
+  // roots and payouts must be the deterministic output of the committed oracle blob.
+  let rebuilt;
+  try {
+    rebuilt = buildTradeLayerPnlNettingSettlement(options.stateOracleBlob, options);
+  } catch (err) {
+    return { ok: false, reason: `state oracle does not rebuild a settlement: ${err.message}` };
   }
-
-  const recomputedNet = computeNetBalances(settlement.grossEdges || []);
-  if (rootHex(recomputedNet) !== settlement.core.netBalanceRoot) {
-    return { ok: false, reason: 'gross edge graph does not recompute the committed net balance root' };
-  }
-  const recomputedFolded = foldPnlNettingGraph(settlement.netBalances || []);
-  if (rootHex(recomputedFolded) !== settlement.core.foldedEdgeRoot) {
-    return { ok: false, reason: 'folded graph does not recompute from net balances' };
-  }
-
-  const outputCheck = verifyPositiveNetOutputs(settlement.netBalances || [], settlement.routePlan?.outputPlan || []);
-  if (!outputCheck.ok) return outputCheck;
-
-  const routePlanHash = computeTradeLayerPlanHash(settlement.routePlan);
-  if (settlement.core.routePlanHash !== routePlanHash || settlement.routePlan.planHash !== routePlanHash) {
-    return { ok: false, reason: 'route plan hash mismatch', routePlanHash };
+  const mismatch = SETTLEMENT_FIELDS.find((field) => stableStringify(settlement[field]) !== stableStringify(rebuilt[field]));
+  if (mismatch) return { ok: false, reason: `${mismatch} does not match the state oracle` };
+  if (PAYOUT_FIELDS.some((field) => settlement.payout?.[field] !== rebuilt.payout[field])) {
+    return { ok: false, reason: 'payout does not match the state oracle' };
   }
 
   const routeResult = verifyTradeLayerPnlRoutePlan(settlement.routePlan, {
@@ -542,20 +502,13 @@ function verifyTradeLayerPnlNettingSettlement(settlement, options = {}) {
   });
   if (!routeResult.ok) return { ok: false, reason: `route plan failed: ${routeResult.reason}`, routeResult };
 
-  if (settlement.core.withdrawalRootHex !== routeResult.withdrawalRootHex) {
-    return { ok: false, reason: 'withdrawal root mismatch', withdrawalRootHex: routeResult.withdrawalRootHex };
-  }
-  if (settlement.core.commitmentHashHex !== routeResult.commitmentHashHex) {
-    return { ok: false, reason: 'commitment hash mismatch', commitmentHashHex: routeResult.commitmentHashHex };
-  }
-
   return {
     ok: true,
     settlementHash,
     stateOracleHash: settlement.core.stateOracleHash,
     rowCount: settlement.core.rowCount,
     totalPositiveNetSats: settlement.core.totalPositiveNetSats,
-    routePlanHash
+    routePlanHash: settlement.core.routePlanHash
   };
 }
 
