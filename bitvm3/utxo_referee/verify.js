@@ -53,6 +53,9 @@ function deriveSettlementRouting(state, destinations = {}) {
   const collateralSats = toBigInt(state.collateralSats ?? 0n, 'state.collateralSats');
   const feeSats = toBigInt(state.feeSats ?? 0n, 'state.feeSats');
   const dustCarrySats = toBigInt(state.dustCarrySats ?? 0n, 'state.dustCarrySats');
+  if (collateralSats < 0n || feeSats < 0n || dustCarrySats < 0n) {
+    throw new Error('collateral, fee and dust carry cannot be negative');
+  }
   const actualPayoutSats = toBigInt(
     state.actualPayoutSats ?? state.payoutSats ?? 0n,
     'state.actualPayoutSats'
