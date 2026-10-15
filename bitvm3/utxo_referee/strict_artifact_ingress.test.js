@@ -56,6 +56,16 @@ test('accepts exact integers larger than the JS safe range as strings', () => {
   assert(value.amountSats === '9007199254740993');
 });
 
+test('rejects unsafe JSON integers under any key, including inside arrays', () => {
+  assert(rejects('{"amount":9007199254740993}', /safe integer/));
+  assert(rejects('{"amountsSats":[9007199254740993]}', /safe integer/));
+  assert(rejects('{"amountsSats":[1.5]}', /safe integer/));
+});
+
+test('applies identifier checks to array items under plural identifier keys', () => {
+  assert(rejects('{"txids":["\\u00e9"]}', /identifier must be printable ASCII/));
+});
+
 test('rejects Unicode schema keys and identifier values', () => {
   assert(rejects('{"k\\u0456nd":"x"}', /printable ASCII/));
   assert(rejects('{"contractId":"contr\\u0430ct"}', /identifier must be printable ASCII/));

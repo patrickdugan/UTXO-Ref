@@ -11,9 +11,9 @@ const DEFAULT_POLICY = Object.freeze({
   maxIdentifierBytes: 512
 });
 
-const IDENTIFIER_KEY_RE = /(?:^|_)(?:id|label|role|kind|network|address|txid|hash|xonly|outpoint|circuit|epoch|scriptpubkeyhex)$/i;
-const CAMEL_IDENTIFIER_KEY_RE = /(?:Id|Label|Role|Kind|Network|Address|Txid|Hash|Xonly|Outpoint|CircuitId|EpochId|ScriptPubKeyHex)$/;
-const INTEGER_KEY_RE = /(?:Sats|Blocks|Height|Vout|Sequence|Version|Index|Count)$/i;
+const IDENTIFIER_KEY_RE = /(?:^|_)(?:id|label|role|kind|network|address|txid|hash|xonly|outpoint|circuit|epoch|scriptpubkeyhex)s?$/i;
+const CAMEL_IDENTIFIER_KEY_RE = /(?:Id|Label|Role|Kind|Network|Address|Txid|Hash|Xonly|Outpoint|CircuitId|EpochId|ScriptPubKeyHex)s?$/;
+const INTEGER_KEY_RE = /(?:Sats|Blocks|Height|Vout|Sequence|Version|Index|Count)s?$/i;
 
 function mergePolicy(options = {}) {
   const policy = { ...DEFAULT_POLICY, ...options };
@@ -101,6 +101,9 @@ function parseJsonStrict(text, fieldName = 'JSON artifact', options = {}) {
     offset += raw.length;
     const value = Number(raw);
     if (!Number.isFinite(value)) fail('number is not finite');
+    if (Number.isInteger(value) && !Number.isSafeInteger(value)) {
+      fail('integer is outside the safe integer range; encode it as a canonical integer string');
+    }
     return value;
   }
 
@@ -174,7 +177,7 @@ function parseJsonStrict(text, fieldName = 'JSON artifact', options = {}) {
 function validateSemanticEncodings(value, fieldName, policy) {
   function visit(item, key, path) {
     if (Array.isArray(item)) {
-      for (let index = 0; index < item.length; index++) visit(item[index], String(index), `${path}[${index}]`);
+      for (let index = 0; index < item.length; index++) visit(item[index], key, `${path}[${index}]`);
       return;
     }
     if (!item || typeof item !== 'object') {
