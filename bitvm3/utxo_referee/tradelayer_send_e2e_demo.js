@@ -12,6 +12,7 @@ const {
   buildTradeLayerSendIntentFromStateOracle,
   buildTradeLayerSendRoutePlan,
   buildTradeLayerPnlCommitment,
+  buildTradeLayerSendRouteTranscript,
   verifyTradeLayerSendStateOracleRoute
 } = require('./tradelayer_pnl_route_adapter');
 const {
@@ -351,7 +352,10 @@ function rpcSweepOptionsFromCli(cliArgs) {
 async function attachRpcSweepIfRequested(artifact, stateOracleBlob, cliArgs) {
   if (!cliArgs.rpcSweep) return artifact;
 
-  const rpcOptions = rpcSweepOptionsFromCli(cliArgs);
+  const rpcOptions = {
+    ...rpcSweepOptionsFromCli(cliArgs),
+    expectedRouteTranscriptHash: buildTradeLayerSendRouteTranscript(artifact.routePlan).hash
+  };
   const rpcSweep = await executeTradeLayerSendRpcSweep(artifact.sweepTx, rpcOptions);
   artifact.rpcSweep = {
     ...rpcSweep,
