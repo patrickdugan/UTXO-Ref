@@ -2195,6 +2195,31 @@ test('transaction validator binds every CET and refund to the funding outpoint',
   }), /P2WPKH or P2TR/);
 });
 
+test('transaction set pays each outcome one CET even across oracle subsets', () => {
+  const fixture = transactionFixture();
+  const [leftScript, rightScript] = [fixture.firstOutputs[0], fixture.firstOutputs[1]].map((output) => output.scriptPubKeyHex);
+  const divergentOutputs = [
+    { valueSats: 39000n, scriptPubKeyHex: leftScript },
+    { valueSats: 60000n, scriptPubKeyHex: rightScript },
+    fixture.firstOutputs[2]
+  ];
+  const sameOutcomeOtherSubset = {
+    outcomeMessage: fixture.cets[0].outcomeMessage,
+    oraclePubkeys: ['22'.repeat(32), '33'.repeat(32)],
+    rawTxHex: fixture.spend(divergentOutputs, 100),
+    expectedOutputs: divergentOutputs,
+    locktime: 100
+  };
+  expectThrow(() => validateDlcTransactionSet({
+    funding: fixture.funding,
+    cets: [fixture.cets[0], sameOutcomeOtherSubset],
+    refund: fixture.refund,
+    minFeeSats: 500n,
+    maxFeeSats: 2000n,
+    feePolicy: fixture.feePolicy
+  }), /more than one CET for outcome/);
+});
+
 test('transaction parser rejects noncanonical counts and ineffective locktimes', () => {
   const fixture = transactionFixture();
   const valid = fixture.cets[0].rawTxHex;

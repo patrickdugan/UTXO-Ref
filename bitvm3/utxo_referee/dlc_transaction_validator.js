@@ -364,7 +364,7 @@ function validateDlcTransactionSet(input) {
   if (!Array.isArray(cets) || cets.length < 1 || cets.length > 4096 || !refund) {
     throw new Error('DLC transaction set requires 1..4096 CETs and one refund');
   }
-  const identities = new Set();
+  const outcomes = new Set();
   const validatedCets = cets.map((cet, index) => {
     requireHex(cet.outcomeMessage, 32, `cets[${index}].outcomeMessage`);
     if (!Array.isArray(cet.oraclePubkeys) || cet.oraclePubkeys.length < 2 ||
@@ -373,9 +373,13 @@ function validateDlcTransactionSet(input) {
         [...cet.oraclePubkeys].sort().join(':') !== cet.oraclePubkeys.join(':')) {
       throw new Error(`cets[${index}].oraclePubkeys must be a sorted unique threshold subset`);
     }
-    const identity = `${cet.outcomeMessage}:${cet.oraclePubkeys.join(':')}`;
-    if (identities.has(identity)) throw new Error('DLC transaction set contains a duplicate CET identity');
-    identities.add(identity);
+    // An outcome has one payout. Oracle subsets only choose which attestations
+    // complete that CET, so a second CET for the same outcome would let whoever
+    // obtains the attestations pick the payout.
+    if (outcomes.has(cet.outcomeMessage)) {
+      throw new Error(`DLC transaction set has more than one CET for outcome ${cet.outcomeMessage}`);
+    }
+    outcomes.add(cet.outcomeMessage);
     const spend = validateSpend({
       rawTxHex: cet.rawTxHex,
       funding: normalizedFunding,
