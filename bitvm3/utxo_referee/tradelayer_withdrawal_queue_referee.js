@@ -6,6 +6,7 @@ const {
   buildTreeWithProofs
 } = require('./merkle');
 const {
+  stableStringify,
   sha256Hex,
   addressToScriptPubKey
 } = require('./tradelayer_pnl_route_adapter');
@@ -71,10 +72,9 @@ function residualScript(options, network) {
   return Buffer.from('6a', 'hex');
 }
 
-function buildTradeLayerWithdrawalQueue(input = {}) {
-  const network = input.network || 'litecoin-testnet';
-  const epochId = BigInt(input.epochId ?? 0);
-  const entries = queueEntries(input.requests || input.withdrawals || []);
+// The payout tree, cap and commitment a queue commits to. Build and verify both derive
+// them here, so the committed root is always the root of the entries that were checked.
+function queueCommitment({ entries, network, epochId, residualDest }) {
   const payable = approvedEntries(entries);
   const leaves = payable.map((entry) => new PayoutLeaf({
     epochId,
@@ -87,8 +87,23 @@ function buildTradeLayerWithdrawalQueue(input = {}) {
     epochId,
     withdrawalRoot: root,
     capSats: totalSats,
-    residualDest: residualScript(input, network)
+    residualDest
   });
+  return {
+    payable,
+    root,
+    proofs,
+    totalSats,
+    commitmentHash: commitment.hash()
+  };
+}
+
+function buildTradeLayerWithdrawalQueue(input = {}) {
+  const network = input.network || 'litecoin-testnet';
+  const epochId = BigInt(input.epochId ?? 0);
+  const entries = queueEntries(input.requests || input.withdrawals || []);
+  const residualDest = residualScript(input, network);
+  const built = queueCommitment({ entries, network, epochId, residualDest });
   const queueCore = {
     kind: 'tradelayer_withdrawal_queue_v1',
     chain: input.chain || network,
@@ -97,11 +112,12 @@ function buildTradeLayerWithdrawalQueue(input = {}) {
     epochId: epochId.toString(),
     stateRoot: input.stateRoot || null,
     entries,
-    payableRequestIds: payable.map((entry) => entry.id),
+    payableRequestIds: built.payable.map((entry) => entry.id),
     queueRoot: sha256Hex(entries),
-    withdrawalRootHex: root.toString('hex'),
-    commitmentHashHex: commitment.hash().toString('hex'),
-    totalSats: totalSats.toString()
+    residualDestHex: residualDest.toString('hex'),
+    withdrawalRootHex: built.root.toString('hex'),
+    commitmentHashHex: built.commitmentHash.toString('hex'),
+    totalSats: built.totalSats.toString()
   };
 
   return {
@@ -110,12 +126,12 @@ function buildTradeLayerWithdrawalQueue(input = {}) {
     queueCore,
     commitment: {
       epochId: epochId.toString(),
-      withdrawalRootHex: root.toString('hex'),
-      commitmentHashHex: commitment.hash().toString('hex'),
-      capSats: totalSats.toString()
+      withdrawalRootHex: built.root.toString('hex'),
+      commitmentHashHex: built.commitmentHash.toString('hex'),
+      capSats: built.totalSats.toString()
     },
-    proofs: proofs.map((proof, index) => ({
-      requestId: payable[index].id,
+    proofs: built.proofs.map((proof, index) => ({
+      requestId: built.payable[index].id,
       proof
     }))
   };
@@ -126,12 +142,33 @@ function verifyTradeLayerWithdrawalQueue(queue) {
   if (!queue.queueCore || typeof queue.queueCore !== 'object') return { ok: false, reason: 'queue core missing' };
   const queueHash = sha256Hex(queue.queueCore);
   if (queue.queueHash !== queueHash) return { ok: false, reason: 'queue hash mismatch', queueHash };
-  const entries = queueEntries(queue.queueCore.entries || []);
-  if (sha256Hex(entries) !== queue.queueCore.queueRoot) return { ok: false, reason: 'queue root mismatch' };
-  const totalSats = approvedEntries(entries).reduce((sum, entry) => sum + BigInt(entry.sats), 0n);
-  if (totalSats.toString() !== queue.queueCore.totalSats) return { ok: false, reason: 'queue total mismatch' };
-  if (queue.commitment?.withdrawalRootHex !== queue.queueCore.withdrawalRootHex) {
+  const core = queue.queueCore;
+  const entries = queueEntries(core.entries || []);
+  if (sha256Hex(entries) !== core.queueRoot) return { ok: false, reason: 'queue root mismatch' };
+  let rebuilt;
+  try {
+    rebuilt = queueCommitment({
+      entries,
+      network: core.network,
+      epochId: BigInt(core.epochId),
+      residualDest: Buffer.from(core.residualDestHex, 'hex')
+    });
+  } catch (err) {
+    return { ok: false, reason: `queue does not rebuild: ${err.message}` };
+  }
+  if (rebuilt.totalSats.toString() !== core.totalSats) return { ok: false, reason: 'queue total mismatch' };
+  if (rebuilt.root.toString('hex') !== core.withdrawalRootHex) return { ok: false, reason: 'withdrawal root mismatch' };
+  if (rebuilt.commitmentHash.toString('hex') !== core.commitmentHashHex) {
+    return { ok: false, reason: 'commitment hash mismatch' };
+  }
+  if (stableStringify(rebuilt.payable.map((entry) => entry.id)) !== stableStringify(core.payableRequestIds)) {
+    return { ok: false, reason: 'payable request ids mismatch' };
+  }
+  if (queue.commitment?.withdrawalRootHex !== core.withdrawalRootHex) {
     return { ok: false, reason: 'commitment withdrawal root mismatch' };
+  }
+  if (queue.commitment?.commitmentHashHex !== core.commitmentHashHex) {
+    return { ok: false, reason: 'commitment hash mismatch' };
   }
   return {
     ok: true,

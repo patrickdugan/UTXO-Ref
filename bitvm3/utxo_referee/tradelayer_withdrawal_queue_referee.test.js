@@ -2,6 +2,7 @@
  * Run: node bitvm3/utxo_referee/tradelayer_withdrawal_queue_referee.test.js
  */
 
+const { sha256Hex } = require('./tradelayer_pnl_route_adapter');
 const {
   buildTradeLayerWithdrawalQueue,
   verifyTradeLayerWithdrawalQueue,
@@ -76,6 +77,22 @@ test('rejects queue total tampering', () => {
 
   assert(!result.ok, 'tampered queue should fail');
   assert(String(result.reason).includes('queue hash mismatch') || String(result.reason).includes('queue total mismatch'), 'expected queue mismatch');
+});
+
+test('rejects a queue whose withdrawal root is not the root of its payable entries', () => {
+  const honest = buildTradeLayerWithdrawalQueue({ requests: REQUESTS });
+  // Root of a tree paying 1 BTC to an attacker, substituted in both places and rehashed.
+  const attacker = buildTradeLayerWithdrawalQueue({
+    requests: [{ id: 'wd-attacker', address: 'tltc1qkz0vft2fc4nk0u9fx4k9yk4th7zherna3zxh22', sats: 100000000 }]
+  });
+  const forged = clone(honest);
+  forged.queueCore.withdrawalRootHex = attacker.queueCore.withdrawalRootHex;
+  forged.commitment.withdrawalRootHex = attacker.queueCore.withdrawalRootHex;
+  forged.queueHash = sha256Hex(forged.queueCore);
+  const result = verifyTradeLayerWithdrawalQueue(forged);
+
+  assert(!result.ok, 'forged withdrawal root must not verify');
+  assertEq(result.reason, 'withdrawal root mismatch');
 });
 
 test('builds challengeable omission and amount mismatch proofs', () => {
