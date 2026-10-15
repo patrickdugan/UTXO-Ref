@@ -4,6 +4,7 @@ const path = require('path');
 const {
   parseArgs,
   inspectArtifact,
+  inspectChallengePath,
   authorizationPolicy,
   challengeStateBindsArtifact,
   deterministicChallengeAux,
@@ -379,6 +380,24 @@ asyncTest('a fraudulent assertion is still challengeable after the state checkpo
       assert(fs.existsSync(alertPath), `height ${height}: the challenge request must be alerted`);
       if (height > snapshot + 6) assert(tick.authorization.stale === true, 'staleness must still be reported');
     }
+  } finally { fs.rmSync(directory, { recursive: true, force: true }); }
+});
+
+asyncTest('fee-bump tools inspect a graph whose checkpoint went stale before authorization on the challenge path', async () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'utxoref-v2-watchtower-cpfp-stale-'));
+  try {
+    const snapshot = 150000;
+    const { artifactPath, trustPolicyPath } = fraudFixture(directory, snapshot);
+    const artifact = JSON.parse(fs.readFileSync(artifactPath, 'utf8'));
+    const trustPolicy = JSON.parse(fs.readFileSync(trustPolicyPath, 'utf8'));
+    artifact.verificationAtBroadcast.height = snapshot + 7;
+    let authorizationRejected = false;
+    try { inspectArtifact(artifact, trustPolicy); }
+    catch (err) { authorizationRejected = /state checkpoint is stale/.test(err.message); }
+    assert(authorizationRejected, 'the authorization view must still reject the stale checkpoint');
+    const view = inspectChallengePath(artifact, trustPolicy);
+    assert(view.fraudDetected === true && view.predicateBound === true, 'the challenge path must still see the fraud');
+    assert(view.stateFreshAtAuthorization === false, 'staleness must still be reported as data');
   } finally { fs.rmSync(directory, { recursive: true, force: true }); }
 });
 

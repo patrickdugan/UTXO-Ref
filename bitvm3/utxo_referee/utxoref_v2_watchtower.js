@@ -120,7 +120,7 @@ function saveJsonAtomic(filePath, value) {
 // settlement of one graph, after the same verification a tick performs, and
 // refuses graphs whose settlement the watchtower would not broadcast.
 function settlementAllowlist(artifact, trustPolicy, existing = null) {
-  const inspected = inspectArtifact(artifact, trustPolicy, { requireFreshState: false });
+  const inspected = inspectChallengePath(artifact, trustPolicy);
   if (inspected.fraudDetected) throw new Error('refusing to allowlist the settlement of a graph whose trace contains fraud');
   if (inspected.predicateBound !== true) throw new Error('refusing to allowlist the settlement of a monitor-only graph');
   if (!inspected.stateFreshAtAuthorization) throw new Error('refusing to allowlist a graph whose state was stale at authorization');
@@ -285,6 +285,12 @@ function authorizationPolicy(inspected, activeBlockHash, state, currentHeight, a
     settlementAuthorityFresh: !reorged && !stale,
     authorizedForNewChallenge: true
   };
+}
+
+// The challenge-path view that the watchtower and every fee-bump tool share.
+// Freshness at authorization is returned as data and never refuses a challenge.
+function inspectChallengePath(artifact, trustPolicy) {
+  return inspectArtifact(artifact, trustPolicy, { requireFreshState: false });
 }
 
 // `requireFreshState: false` is the watchtower's challenge-path view: the graph
@@ -748,7 +754,7 @@ async function runTick(args, rpc, state) {
   const trustPolicy = readJson(trustPolicyPath, 'watchtower trust policy', 'utxoref-v2-trust-policy');
   // Challenge-path inspection: state age and the authorization block are
   // reported below but never stop the watchtower from watching or challenging.
-  const inspected = inspectArtifact(artifact, trustPolicy, { requireFreshState: false });
+  const inspected = inspectChallengePath(artifact, trustPolicy);
   const chain = await rpc('getblockchaininfo');
   if (chain.chain !== 'testnet4') throw new Error(`wrong chain: ${chain.chain}`);
   const authorizationBlock = await rpc('getblockhash', [inspected.authorizationHeight]).catch(() => null);
@@ -1069,6 +1075,7 @@ module.exports = {
   verificationOptions,
   authorizationPolicy,
   inspectArtifact,
+  inspectChallengePath,
   settlementAllowlist,
   verifyConfiguredFeeReserve,
   deterministicChallengeAux,

@@ -26,7 +26,7 @@ const { txidFromUnsignedHex } = require('./recover_btc_testnet4_reserve_vault');
 const {
   loadState,
   saveJsonAtomic,
-  inspectArtifact,
+  inspectChallengePath,
   assertRpcSnapshotTip
 } = require('./utxoref_v2_watchtower');
 
@@ -877,7 +877,7 @@ function loadInputs(args) {
   const artifact = readJsonStrictProfile(artifactPath, 'utxoref-v2-public-artifact', 'public artifact');
   const trustPolicy = readJsonStrictProfile(trustPolicyPath, 'utxoref-v2-trust-policy', 'trust policy');
   const reserve = readJsonStrictProfile(path.resolve(args.feeReserve), 'utxoref-v2-fee-reserve', 'fee reserve');
-  const inspected = inspectArtifact(artifact, trustPolicy);
+  const inspected = inspectChallengePath(artifact, trustPolicy);
   assertTrustPolicyReserve(inspected, reserve);
   return { statePath, state, artifact, trustPolicy, reserve, inspected };
 }

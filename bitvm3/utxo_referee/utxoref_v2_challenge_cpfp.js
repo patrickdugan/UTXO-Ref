@@ -6,7 +6,7 @@ const { readJsonStrictProfile } = require('./strict_artifact_profiles');
 const { rpcFactory } = require('./tradelayer_send_rpc_sweep');
 const tr = require('./tradelayer_taproot');
 const { txidFromUnsignedHex } = require('./recover_btc_testnet4_reserve_vault');
-const { loadState, saveJsonAtomic, inspectArtifact } = require('./utxoref_v2_watchtower');
+const { loadState, saveJsonAtomic, inspectChallengePath } = require('./utxoref_v2_watchtower');
 
 const DEFAULT_STATE_PATH = path.join(__dirname, 'artifacts', 'live', 'utxoref_v2_watchtower_state.json');
 const DEFAULT_ARTIFACT_PATH = path.join(__dirname, 'artifacts', 'live', 'btc_testnet4_utxoref_v2_latest.json');
@@ -258,7 +258,7 @@ async function main() {
   const state = loadState(statePath);
   const artifact = readJsonStrictProfile(artifactPath, 'utxoref-v2-public-artifact', 'public artifact');
   const trustPolicy = readJsonStrictProfile(trustPolicyPath, 'utxoref-v2-trust-policy', 'trust policy');
-  inspectArtifact(artifact, trustPolicy);
+  inspectChallengePath(artifact, trustPolicy);
   const outcome = await runCpfp(state, args, resolveRpc(args), artifact);
   if (outcome.action === 'cpfp_broadcast' || outcome.action === 'cpfp_replaced') saveJsonAtomic(statePath, state);
   console.log(JSON.stringify(outcome));
