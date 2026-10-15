@@ -88,12 +88,14 @@ function reservedSatsFromDepositSnapshot(snapshot) {
   let sum = 0n;
   for (const deposit of snapshot.deposits) {
     if (deposit && deposit.status === 'credited') {
-      const outpoint = `${deposit.txid}:${deposit.vout}`;
-      if (depositIds.has(String(deposit.depositId)) || outpoints.has(outpoint)) {
-        throw new Error(`duplicate credited deposit: ${deposit.depositId} (${outpoint})`);
+      const outpoint = deposit.txid !== undefined && deposit.vout !== undefined
+        ? `${deposit.txid}:${deposit.vout}`
+        : null;
+      if (depositIds.has(String(deposit.depositId)) || (outpoint !== null && outpoints.has(outpoint))) {
+        throw new Error(`duplicate credited deposit: ${deposit.depositId}${outpoint ? ` (${outpoint})` : ''}`);
       }
       depositIds.add(String(deposit.depositId));
-      outpoints.add(outpoint);
+      if (outpoint !== null) outpoints.add(outpoint);
       sum += toSats(deposit.amountSats, `deposit ${deposit.depositId}`);
     }
   }

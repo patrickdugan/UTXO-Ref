@@ -260,6 +260,19 @@ test('rejects a deposit snapshot that lists one credited deposit twice', () => {
   assert(threw, 'a repeated credited deposit must not be counted twice');
 });
 
+test('distinct credited deposits without an outpoint are each counted', () => {
+  const queue = buildQueue();
+  const reserve = {
+    kind: 'receipt-deposit-indexer',
+    deposits: [
+      { depositId: 'd1', status: 'credited', amountSats: 5000 },
+      { depositId: 'd2', status: 'credited', amountSats: 7000 }
+    ]
+  };
+  assertEq(reservedSatsFromDepositSnapshot(reserve).toString(), '12000');
+  assert(buildTradeLayerReserveReconciliation({ queue, reserve }), 'both deposits should build');
+});
+
 test('rejects two deposit ids that spend the same outpoint', () => {
   const queue = buildQueue();
   const outpoint = { status: 'credited', amountSats: 5000, txid: 'aa'.repeat(32), vout: 0 };
