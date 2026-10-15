@@ -688,7 +688,7 @@ asyncTest('WT-2: a refused settlement broadcast is an alert, not a failed tick',
 
 asyncTest('WT-2: the deployed proxy relays only the pinned settlement it derives itself', async () => {
   const http = require('http');
-  const { createSettlementBroadcastPolicy, createProxy, validateRpcPayload } = require('./utxoref_v2_rpc_proxy');
+  const { createSettlementBroadcastPolicy, createProxy, validateRpcRequest } = require('./utxoref_v2_rpc_proxy');
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'utxoref-v2-proxy-settle-'));
   const servers = [];
   try {
@@ -711,11 +711,11 @@ asyncTest('WT-2: the deployed proxy relays only the pinned settlement it derives
     assert(policy().size === 1 && policy().has(honestTxid), 'only the honest settlement may be relayed');
     assert(policy.describe().refused.some((entry) => /contains fraud/.test(entry.reason)));
     const send = (hex) => ({ jsonrpc: '2.0', id: 1, method: 'sendrawtransaction', params: [hex] });
-    assert(validateRpcPayload(send(honest.graph.settlementPath.witnessTxHex), { broadcastTxids: policy }).ok === true);
-    assert(validateRpcPayload(send(fraud.graph.settlementPath.witnessTxHex), { broadcastTxids: policy }).statusCode === 403);
-    assert(validateRpcPayload(send(honest.graph.recoveryPath.witnessTxHex), { broadcastTxids: policy }).statusCode === 403);
-    assert(validateRpcPayload(send('00'), { broadcastTxids: policy }).statusCode === 400);
-    assert(validateRpcPayload(send(honest.graph.settlementPath.witnessTxHex)).statusCode === 403,
+    assert(validateRpcRequest(send(honest.graph.settlementPath.witnessTxHex), { broadcastTxids: policy }).ok === true);
+    assert(validateRpcRequest(send(fraud.graph.settlementPath.witnessTxHex), { broadcastTxids: policy }).code === -32602);
+    assert(validateRpcRequest(send(honest.graph.recoveryPath.witnessTxHex), { broadcastTxids: policy }).code === -32602);
+    assert(validateRpcRequest(send('00'), { broadcastTxids: policy }).code === -32602);
+    assert(validateRpcRequest(send(honest.graph.settlementPath.witnessTxHex)).code === -32601,
       'without a settlement policy the proxy must not relay anything');
 
     // End to end through the proxy to a stand-in Core.
@@ -752,7 +752,7 @@ asyncTest('WT-2: the deployed proxy relays only the pinned settlement it derives
     const sent = await post(send(honest.graph.settlementPath.witnessTxHex));
     assert(sent.status === 200 && sent.body.result === honestTxid, `relay failed: ${JSON.stringify(sent)}`);
     const refused = await post(send(fraud.graph.settlementPath.witnessTxHex));
-    assert(refused.status === 403);
+    assert(refused.status === 400);
     assert(relayed.length === 1 && relayed[0].method === 'sendrawtransaction', 'the fraudulent settlement reached Core');
     const health = await (await fetch(`http://127.0.0.1:${proxy.address().port}/health`)).json();
     assert(health.broadcast === 'pinned-settlements-only');

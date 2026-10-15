@@ -2,7 +2,7 @@ const {
   ALLOWED_METHODS,
   parseArgs,
   authorized,
-  validateRpcPayload
+  validateRpcRequest
 } = require('./utxoref_v2_rpc_proxy');
 
 let passed = 0;
@@ -39,12 +39,20 @@ test('CLI parser accepts a localhost-only binding configuration', () => {
 
 test('malformed authenticated payloads fail without dereferencing them', () => {
   for (const payload of [null, [], 'x', 7, { method: 'gettxout', params: 'wrong' }]) {
-    const result = validateRpcPayload(payload);
-    assert(!result.ok && result.statusCode === 400);
+    const result = validateRpcRequest(payload);
+    assert(!result.ok && result.code === -32600);
   }
-  const forbidden = validateRpcPayload({ method: 'sendrawtransaction', params: [] });
-  assert(!forbidden.ok && forbidden.statusCode === 403);
-  assert(validateRpcPayload({ method: 'gettxout', params: [] }).ok);
+  const forbidden = validateRpcRequest({ jsonrpc: '1.0', id: 1, method: 'sendrawtransaction', params: [] });
+  assert(!forbidden.ok && forbidden.code === -32601);
+  assert(!validateRpcRequest({ jsonrpc: '2.0', id: 1, method: 'gettxout', params: [] }).ok);
+  assert(!validateRpcRequest({ jsonrpc: '2.0', id: 1, method: 'constructor', params: [] }).ok, 'prototype names are not methods');
+});
+
+test('the watcher calls its RPC client sends (JSON-RPC 1.0, getrawtransaction) are permitted', () => {
+  const txid = '11'.repeat(32);
+  assert(validateRpcRequest({ jsonrpc: '1.0', id: 'utxoref-v2-watchtower', method: 'gettxout', params: [txid, 0, true] }).ok);
+  assert(validateRpcRequest({ jsonrpc: '1.0', id: 'utxoref-v2-watchtower', method: 'getrawtransaction', params: [txid, true] }).ok);
+  assert(!validateRpcRequest({ jsonrpc: '1.0', id: 'utxoref-v2-watchtower', method: 'getrawtransaction', params: [txid, false] }).ok);
 });
 
 console.log(`\n${failed ? 'FAIL' : 'PASS'}: ${passed} passed${failed ? `, ${failed} failed` : ''}\n`);
