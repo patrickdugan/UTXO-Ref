@@ -177,12 +177,13 @@ function aggregateWatcherReceipts(receipts, policyInput, options = {}) {
   const thresholdMet = accepted.length >= policy.threshold;
   const faultDomainsMet = faultDomains.size >= policy.minFaultDomains;
   const statement = receipts[0].core.statement;
-  if (options.currentHeight !== undefined) {
-    const currentHeight = integer(options.currentHeight, 'currentHeight');
-    const ageBlocks = currentHeight - statement.height;
-    if (ageBlocks < 0 || ageBlocks > policy.maxStatementAgeBlocks) {
-      throw new Error(`watcher statement age ${ageBlocks} exceeds policy`);
-    }
+  // Freshness is judged against a height the caller supplies from its own
+  // chain view; without one the quorum cannot say whether its statements are
+  // current, so there is no quorum to report.
+  const currentHeight = integer(options.currentHeight, 'currentHeight');
+  const ageBlocks = currentHeight - statement.height;
+  if (ageBlocks < 0 || ageBlocks > policy.maxStatementAgeBlocks) {
+    throw new Error(`watcher statement age ${ageBlocks} exceeds policy`);
   }
   if (options.expectedBestBlockHash && statement.bestBlockHash !== hex32(options.expectedBestBlockHash, 'expectedBestBlockHash')) {
     throw new Error('watcher quorum statement is not on the expected chain tip');

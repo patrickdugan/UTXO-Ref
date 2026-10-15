@@ -70,7 +70,7 @@ test('two allowlisted watchers in distinct fault domains form a quorum', () => {
 test('duplicate watcher receipts cannot satisfy threshold', () => {
   const first = receipt(0);
   let rejected = false;
-  try { aggregateWatcherReceipts([first, first], policy()); } catch (err) { rejected = /duplicate watcher/.test(err.message); }
+  try { aggregateWatcherReceipts([first, first], policy(), { currentHeight: 101 }); } catch (err) { rejected = /duplicate watcher/.test(err.message); }
   assert(rejected);
 });
 
@@ -83,13 +83,13 @@ test('distinct keys in one fault domain do not satisfy independence policy', () 
   });
   const aReceipt = buildWatcherReceipt(statement(), { watcherId: 'watcher-a', faultDomain: 'shared-vps' }, identities[0].keys.privateKey);
   const bReceipt = buildWatcherReceipt(statement(), { watcherId: 'watcher-b', faultDomain: 'shared-vps' }, identities[1].keys.privateKey);
-  const quorum = aggregateWatcherReceipts([aReceipt, bReceipt], sameDomainPolicy);
+  const quorum = aggregateWatcherReceipts([aReceipt, bReceipt], sameDomainPolicy, { currentHeight: 101 });
   assert(!quorum.ok && quorum.core.thresholdMet && !quorum.core.faultDomainsMet);
 });
 
 test('watchers on different chain tips cannot form a quorum', () => {
   let rejected = false;
-  try { aggregateWatcherReceipts([receipt(0), receipt(1, statement({ bestBlockHash: '99'.repeat(32) }))], policy()); }
+  try { aggregateWatcherReceipts([receipt(0), receipt(1, statement({ bestBlockHash: '99'.repeat(32) }))], policy(), { currentHeight: 101 }); }
   catch (err) { rejected = /disagree/.test(err.message); }
   assert(rejected);
 });
@@ -100,11 +100,11 @@ test('round, height, and expected tip prevent stale receipt replay', () => {
   catch (err) { stale = /age/.test(err.message); }
   assert(stale);
   let wrongTip = false;
-  try { aggregateWatcherReceipts([receipt(0), receipt(1)], policy(), { expectedBestBlockHash: 'aa'.repeat(32) }); }
+  try { aggregateWatcherReceipts([receipt(0), receipt(1)], policy(), { currentHeight: 101, expectedBestBlockHash: 'aa'.repeat(32) }); }
   catch (err) { wrongTip = /expected chain tip/.test(err.message); }
   assert(wrongTip);
   let wrongRound = false;
-  try { aggregateWatcherReceipts([receipt(0), receipt(1, statement({ roundId: 'round-100-b' }))], policy()); }
+  try { aggregateWatcherReceipts([receipt(0), receipt(1, statement({ roundId: 'round-100-b' }))], policy(), { currentHeight: 101 }); }
   catch (err) { wrongRound = /disagree/.test(err.message); }
   assert(wrongRound);
 });
@@ -124,8 +124,17 @@ test('tampered statements, signatures, identities, and reused policy keys fail c
   assert(rejected);
 });
 
+test('a quorum cannot be judged without a chain height, and a stale statement is refused', () => {
+  let refused = false;
+  try { aggregateWatcherReceipts([receipt(0), receipt(1)], policy()); } catch (err) { refused = /currentHeight/.test(err.message); }
+  assert(refused, 'a quorum without a chain height must be refused, not reported as fresh');
+  let stale = false;
+  try { aggregateWatcherReceipts([receipt(0), receipt(1)], policy(), { currentHeight: 200 }); } catch (err) { stale = /exceeds policy/.test(err.message); }
+  assert(stale, 'a statement older than the policy allows must be refused');
+});
+
 test('an under-threshold receipt set remains explicit evidence, not a quorum', () => {
-  const quorum = aggregateWatcherReceipts([receipt(0)], policy());
+  const quorum = aggregateWatcherReceipts([receipt(0)], policy(), { currentHeight: 101 });
   assert(!quorum.ok && !quorum.core.thresholdMet);
 });
 
