@@ -450,6 +450,37 @@ asyncTest('a tick is deferred without reading the chain while another process ho
   } finally { fs.rmSync(directory, { recursive: true, force: true }); }
 });
 
+test('a state lock left by a process that no longer exists is reclaimed, any other held lock is not', () => {
+  const { acquireDirectoryLock } = require('./dlc_durable_json_store');
+  const { spawnSync } = require('child_process');
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'utxoref-v2-lock-'));
+  try {
+    const lockPath = path.join(directory, 'state.json.lock');
+    const plant = (owner) => {
+      fs.mkdirSync(lockPath);
+      if (owner) fs.writeFileSync(path.join(lockPath, 'owner.json'), JSON.stringify(owner));
+    };
+    const heldCode = () => { try { acquireDirectoryLock(lockPath, 'held')(); return null; } catch (error) { return error.code; } };
+    const deadPid = spawnSync(process.execPath, ['-e', '']).pid;
+
+    plant({ pid: deadPid, host: os.hostname() });
+    assert(heldCode() === null, 'a lock whose holder exited must be reclaimed');
+    assert(!fs.existsSync(lockPath), 'a reclaimed and released lock must leave nothing behind');
+
+    plant({ pid: process.pid, host: os.hostname() });
+    assert(heldCode() === 'LOCK_HELD', 'a lock held by a live process must stay held');
+    fs.rmSync(lockPath, { recursive: true });
+
+    plant({ pid: deadPid, host: 'another-host.invalid' });
+    assert(heldCode() === 'LOCK_HELD', 'a lock from another host must stay held');
+    fs.rmSync(lockPath, { recursive: true });
+
+    plant(null);
+    assert(heldCode() === 'LOCK_HELD', 'a lock without an owner record must stay held');
+    fs.rmSync(lockPath, { recursive: true });
+  } finally { fs.rmSync(directory, { recursive: true, force: true }); }
+});
+
 asyncTest('a reorged authorization block does not stop a challenge either', async () => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'utxoref-v2-watchtower-reorg-'));
   try {

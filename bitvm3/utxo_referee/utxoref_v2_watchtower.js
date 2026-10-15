@@ -171,7 +171,7 @@ async function withStateLock(statePath, run) {
   fs.mkdirSync(path.dirname(statePath), { recursive: true });
   const release = acquireDirectoryLock(
     `${statePath}.lock`,
-    `watchtower state is locked (remove ${statePath}.lock if no watchtower or CPFP process is running)`
+    `watchtower state is locked (remove ${statePath}.lock if no watchtower or CPFP process is running on any host)`
   );
   try { return await run(); }
   finally { release(); }
