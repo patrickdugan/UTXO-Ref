@@ -315,6 +315,14 @@ test('a state-root proof needs a recomputed root, and a checkpoint with no accep
   assertEq(invalid.challengeable, false, 'an empty accepted set has no invalid accepted tx');
 });
 
+// ---- rBTC escrow release: a receipt is authorised only by the TLZK proof it names ----
+test('an rBTC settlement receipt with no TLZK source bundle is refused', () => {
+  const rb = require('./rbtc_dlc_zk_settlement_adapter');
+  const core = { version: 1, protocol: 'utxoref_rbtc_dlc_bitvm_settlement_receipt', sourceBundleId: 'a'.repeat(64), tlzkClaimId: 'b'.repeat(64), tlzkReceiptId: 'c'.repeat(64), expectedPayoutRoot: 'd'.repeat(64), observedPayoutRoot: 'd'.repeat(64), bitvmAction: 'authorize_dlc_escrow_release_if_roots_match' };
+  const forged = { kind: 'utxoref_rbtc_dlc_bitvm_settlement_receipt', receiptCore: core };
+  assertEq(rb.verifyRbtcDlcBitvmSettlementReceipt(forged).ok, false, 'matching roots alone do not release escrow');
+});
+
 // ---- policy: registry freshness is judged against a live height, never the snapshot ----
 const POLICY_BLOB = {
   kind: 'tradelayer-send-state-oracle-v1',
