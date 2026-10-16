@@ -170,8 +170,11 @@ function readLockOwner(lockPath) {
   catch (_error) { return null; }
 }
 
+// Locks written before the host was recorded carry only a pid. They were
+// written by the same local store, so they are judged on this host.
 function lockOwnerIsGone(owner) {
-  if (!owner || !Number.isSafeInteger(owner.pid) || owner.host !== os.hostname()) return false;
+  if (!owner || !Number.isSafeInteger(owner.pid)) return false;
+  if (owner.host !== undefined && owner.host !== os.hostname()) return false;
   try { process.kill(owner.pid, 0); return false; }
   catch (error) { return error.code === 'ESRCH'; }
 }

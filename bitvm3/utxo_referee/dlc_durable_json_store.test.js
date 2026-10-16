@@ -49,6 +49,13 @@ try {
     assert(!fs.existsSync(lockPath), 'released lock was not removed');
   });
 
+  test('a lock written by the earlier pid-only format is reclaimed after its holder dies', () => {
+    const lockPath = path.join(root, 'pid-only.lock');
+    plantLock(lockPath, { pid: DEAD_PID });
+    acquireDirectoryLock(lockPath, 'held')();
+    assert(!fs.existsSync(lockPath), 'pid-only lock was not reclaimed');
+  });
+
   test('a lock held by a live process is never reclaimed', () => {
     const lockPath = path.join(root, 'live.lock');
     plantLock(lockPath, heldBy({ pid: process.pid }));
