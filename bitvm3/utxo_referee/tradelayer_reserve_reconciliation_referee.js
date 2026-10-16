@@ -39,19 +39,24 @@
 const {
   sha256Hex
 } = require('./tradelayer_pnl_route_adapter');
-const { toSats } = require('./money');
+const { toInt, toSats } = require('./money');
 const {
   verifyTradeLayerWithdrawalQueue
 } = require('./tradelayer_withdrawal_queue_referee');
 const {
   reservedSatsFromTaprootReserveVaultSet
 } = require('./taproot_reserve_vault');
+const { verifyChallengeVerdict } = require('./challenge_verdict');
 
 // Default staleness window: 6 blocks (~15 min at Litecoin's ~2.5 min target
 // block time). Deliberately tight - this is a mitigation for "reserve proof
 // can go stale," not a substitute for actual on-chain encumbrance. Override
 // via options.maxReserveAgeBlocks per call if a different window is needed.
 const DEFAULT_MAX_RESERVE_AGE_BLOCKS = 6;
+
+function reserveAgeWindow(value) {
+  return value === undefined ? DEFAULT_MAX_RESERVE_AGE_BLOCKS : Number(toInt(value, 'maxReserveAgeBlocks'));
+}
 
 function computeStaleness(observedAtHeight, currentHeight, maxReserveAgeBlocks) {
   if (observedAtHeight === undefined || observedAtHeight === null
@@ -79,7 +84,7 @@ function reservedSatsFromDepositSnapshot(snapshot) {
   for (const deposit of snapshot.deposits) {
     if (deposit && deposit.status === 'credited') {
       const outpoint = deposit.txid !== undefined && deposit.vout !== undefined
-        ? `${deposit.txid}:${deposit.vout}`
+        ? `${String(deposit.txid).toLowerCase()}:${String(deposit.vout)}`
         : null;
       if (depositIds.has(String(deposit.depositId)) || (outpoint !== null && outpoints.has(outpoint))) {
         throw new Error(`duplicate credited deposit: ${deposit.depositId}${outpoint ? ` (${outpoint})` : ''}`);
@@ -124,18 +129,23 @@ function resolveReserve(reserve) {
     };
   }
 
+  // A structured snapshot is read by its kind alone. A field of the same name on
+  // it cannot stand in for the deposits or the ledger total it was built from.
+  if (reserve.kind === 'receipt-deposit-indexer') {
+    if (reserve.reservedSats !== undefined || reserve.totalSupplySats !== undefined) {
+      throw new Error('receipt-deposit-indexer snapshot must not carry reservedSats or totalSupplySats');
+    }
+    return {
+      reservedSats: reservedSatsFromDepositSnapshot(reserve),
+      reserveSourceKind: 'receipt-deposit-indexer',
+      reserveSourceHash: sha256Hex(reserve)
+    };
+  }
   if (reserve.reservedSats !== undefined) {
     const reservedSats = toSats(reserve.reservedSats, 'reserve.reservedSats');
     return {
       reservedSats,
       reserveSourceKind: reserve.kind || 'explicit',
-      reserveSourceHash: sha256Hex(reserve)
-    };
-  }
-  if (reserve.kind === 'receipt-deposit-indexer') {
-    return {
-      reservedSats: reservedSatsFromDepositSnapshot(reserve),
-      reserveSourceKind: 'receipt-deposit-indexer',
       reserveSourceHash: sha256Hex(reserve)
     };
   }
@@ -164,9 +174,7 @@ function buildTradeLayerReserveReconciliation(input = {}) {
   const marginSats = reservedSats - capSats;
   const mathSolvent = marginSats >= 0n;
 
-  const maxReserveAgeBlocks = input.maxReserveAgeBlocks !== undefined
-    ? Number(input.maxReserveAgeBlocks)
-    : DEFAULT_MAX_RESERVE_AGE_BLOCKS;
+  const maxReserveAgeBlocks = reserveAgeWindow(input.maxReserveAgeBlocks);
   const observedAtHeight = input.observedAtHeight !== undefined && input.observedAtHeight !== null
     ? Number(input.observedAtHeight)
     : null;
@@ -243,9 +251,10 @@ function verifyTradeLayerReserveReconciliation(reconciliation, queue, options = 
     return { ok: false, reason: 'solvency flag mismatch' };
   }
 
-  // If the caller supplies the queue, bind the reconciliation to it so a cap
-  // checked against one queue cannot be replayed against another.
-  if (queue) {
+  // The cap is only as good as the queue it is read from. Without the queue the
+  // verdict cannot be solvent, whatever the self-declared core says.
+  const queueBound = queue !== undefined && queue !== null;
+  if (queueBound) {
     const queueResult = verifyTradeLayerWithdrawalQueue(queue);
     if (!queueResult.ok) return { ok: false, reason: `invalid withdrawal queue: ${queueResult.reason}` };
     if (queue.queueHash !== core.queueHash) return { ok: false, reason: 'queue hash mismatch' };
@@ -274,10 +283,8 @@ function verifyTradeLayerReserveReconciliation(reconciliation, queue, options = 
   // Freshness is judged by the verifier's own window and the caller's live height,
   // never by the window or build-time result recorded in the artifact. An observed
   // reserve with no live height cannot be shown fresh.
-  const maxReserveAgeBlocks = options.maxReserveAgeBlocks !== undefined
-    ? Number(options.maxReserveAgeBlocks)
-    : DEFAULT_MAX_RESERVE_AGE_BLOCKS;
-  let solvent = builtSolvent && evidenceVerified;
+  const maxReserveAgeBlocks = reserveAgeWindow(options.maxReserveAgeBlocks);
+  let solvent = builtSolvent && evidenceVerified && queueBound;
   let liveStaleness = null;
   if (core.observedAtHeight !== null && core.observedAtHeight !== undefined) {
     if (options.currentHeight === undefined || options.currentHeight === null) {
@@ -303,6 +310,10 @@ function verifyTradeLayerReserveReconciliation(reconciliation, queue, options = 
   };
 }
 
+function insolvencyChallengeable(core) {
+  return BigInt(core.capSats) > BigInt(core.reservedSats);
+}
+
 /**
  * Build a challengeable insolvency proof: the committed withdrawal cap exceeds
  * the proven reserve. This is the fraud handle for "the queue promised to pay
@@ -315,7 +326,6 @@ function buildTradeLayerReserveInsolvencyChallenge(reconciliation) {
   const capSats = toSats(core.capSats, 'core.capSats');
   const reservedSats = toSats(core.reservedSats, 'core.reservedSats');
   const shortfallSats = capSats - reservedSats;
-  const challengeable = shortfallSats > 0n;
 
   const challengeCore = {
     kind: 'tradelayer_reserve_insolvency_challenge_v1',
@@ -330,26 +340,38 @@ function buildTradeLayerReserveInsolvencyChallenge(reconciliation) {
   return {
     kind: 'tradelayer_reserve_insolvency_challenge',
     challengeHash: sha256Hex(challengeCore),
-    challengeable,
+    challengeable: insolvencyChallengeable(challengeCore),
     core: challengeCore
   };
 }
 
-function verifyTradeLayerReserveInsolvencyChallenge(challenge, reconciliation) {
-  if (!challenge || challenge.kind !== 'tradelayer_reserve_insolvency_challenge') {
-    return { ok: false, reason: 'wrong challenge kind' };
+function verifyTradeLayerReserveInsolvencyChallenge(challenge, reconciliation, queue, options = {}) {
+  if (!reconciliation) return { ok: false, reason: 'reconciliation required to judge an insolvency challenge' };
+  if (!queue || options.reserve === undefined) {
+    return { ok: false, reason: 'queue and reserve evidence required to judge an insolvency challenge' };
   }
-  if (!challenge.core || typeof challenge.core !== 'object') {
-    return { ok: false, reason: 'challenge core missing' };
+  const reconciled = verifyTradeLayerReserveReconciliation(reconciliation, queue, options);
+  if (!reconciled.ok) return { ok: false, reason: `invalid reconciliation: ${reconciled.reason}` };
+  const verdict = verifyChallengeVerdict(challenge, {
+    kind: 'tradelayer_reserve_insolvency_challenge',
+    coreKind: 'tradelayer_reserve_insolvency_challenge_v1',
+    verdict: insolvencyChallengeable
+  });
+  if (!verdict.ok) return verdict;
+  const { core } = challenge;
+  if (core.shortfallSats !== (BigInt(core.capSats) - BigInt(core.reservedSats)).toString()) {
+    return { ok: false, reason: 'shortfall does not follow from the cap and the reserve' };
   }
-  const challengeHash = sha256Hex(challenge.core);
-  if (challenge.challengeHash !== challengeHash) {
-    return { ok: false, reason: 'challenge hash mismatch', challengeHash };
-  }
-  if (reconciliation && challenge.core.reconciliationHash !== reconciliation.reconciliationHash) {
-    return { ok: false, reason: 'reconciliation hash mismatch' };
-  }
-  return { ok: true, challengeHash, challengeable: challenge.challengeable };
+  const bound = {
+    reconciliationHash: reconciliation.reconciliationHash,
+    queueHash: reconciliation.core.queueHash,
+    reserveSourceHash: reconciliation.core.reserveSourceHash,
+    capSats: reconciliation.core.capSats,
+    reservedSats: reconciliation.core.reservedSats
+  };
+  const mismatch = Object.keys(bound).find((field) => core[field] !== bound[field]);
+  if (mismatch) return { ok: false, reason: `challenge ${mismatch} does not match the reconciliation` };
+  return verdict;
 }
 
 module.exports = {

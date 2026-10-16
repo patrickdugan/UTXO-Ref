@@ -232,14 +232,16 @@ test('an insolvency challenge is bound to the reconciliation it names', () => {
   assertEq(reconciliation.solvent, false, 'the cap exceeds the reserve');
   const challenge = rr.buildTradeLayerReserveInsolvencyChallenge(reconciliation);
   assertEq(challenge.challengeable, true);
-  assertEq(rr.verifyTradeLayerReserveInsolvencyChallenge(challenge, reconciliation).ok, true);
+  assertEq(rr.verifyTradeLayerReserveInsolvencyChallenge(challenge, reconciliation, queue(), { reserve }).ok, true);
 
   const forgedFlag = { ...challenge, challengeable: false };
-  assertEq(rr.verifyTradeLayerReserveInsolvencyChallenge(forgedFlag, reconciliation).ok, false, 'a flag that disagrees with the shortfall');
+  assertEq(rr.verifyTradeLayerReserveInsolvencyChallenge(forgedFlag, reconciliation, queue(), { reserve }).ok, false, 'a flag that disagrees with the shortfall');
 
   const otherCore = { ...reconciliation.core, capSats: '10', marginSats: '49990' };
   const otherReconciliation = { ...reconciliation, core: otherCore, reconciliationHash: pa.sha256Hex(otherCore) };
-  assertEq(rr.verifyTradeLayerReserveInsolvencyChallenge(challenge, otherReconciliation).ok, false, 'the reconciliation must be the one the challenge recomputes from');
+  assertEq(rr.verifyTradeLayerReserveInsolvencyChallenge(challenge, otherReconciliation, queue(), { reserve }).ok, false, 'the reconciliation must be the one the challenge recomputes from');
+
+  assertEq(rr.verifyTradeLayerReserveInsolvencyChallenge(challenge, reconciliation).ok, false, 'the cap and the reserve are judged against the queue and the evidence');
 });
 
 // ---- perp challenge: the verdict follows from the claim ----
