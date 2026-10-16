@@ -17,6 +17,7 @@ const pol = require('./tradelayer_send_policy');
 const tv = require('./taproot_reserve_vault');
 const dlcSig = require('./tradelayer_dlc_adaptor_sig');
 const lp = require('./tradelayer_utxoref_live_path');
+const ext = require('./tradelayer_send_oracle_extractor');
 
 let passed = 0;
 let failed = 0;
@@ -327,6 +328,13 @@ test('registry freshness fails without a live height and fails once the live hei
   assertEq(freshness.ok, false, 'no live height means no proof of freshness');
   const stale = pol.buildTradeLayerSendProductionPolicy(POLICY_BLOB, { policy: { minChallengeWindowBlocks: 1 }, currentHeight: 1000 + 2016 + 10 });
   assertEq(stale.checks.find((item) => item.name === 'registry_freshness').ok, false, 'past maxRegistryAgeBlocks is stale');
+});
+
+// ---- extractor: a send is consensus-valid only when its row says so ----
+test('a send row with no validity flag is not taken as consensus-valid', () => {
+  const row = { id: 'unflagged', txid: 'cc'.repeat(32), txType: 2, senderAddress: LTC, address: LTC_2, propertyId: 380, amountUnits: '2500' };
+  const input = { chain: 'litecoin-testnet', epochId: '77', transactions: [row] };
+  assert(throwsWith(() => ext.buildTradeLayerSendStateOracleFromConsensus(input, { selectedSendId: 'unflagged' }), /no consensus-valid/), 'an unflagged row is not a send');
 });
 
 // ---- output scripts: an address and a scriptPubKey that disagree are refused ----

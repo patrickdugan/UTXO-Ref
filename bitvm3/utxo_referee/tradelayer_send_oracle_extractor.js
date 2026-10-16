@@ -39,11 +39,11 @@ function normalizeTxType(row) {
   return Number.isFinite(n) ? n : null;
 }
 
+// A send is consensus-valid only when its row says so. An absent flag is not evidence.
 function isConsensusValid(row) {
   if (row.valid === false || row.consensusValid === false || row.isValid === false) return false;
   if (typeof row.status === 'string' && /invalid|rejected|failed/i.test(row.status)) return false;
-  if (row.reason && row.valid === false) return false;
-  return true;
+  return row.valid === true || row.consensusValid === true || row.isValid === true;
 }
 
 function isSendCandidate(row) {
