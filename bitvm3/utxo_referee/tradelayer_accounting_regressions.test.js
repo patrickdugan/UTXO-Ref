@@ -396,6 +396,21 @@ test('the live path refuses a sweep output whose script disagrees with its addre
   assert(throwsWith(() => lp.buildDecodedFinalTxFromSweepPlan(plan), /disagree/), 'the decoded tx must not pair an address with another script');
 });
 
+// ---- artifacts: a bundle verifies the same after a JSON round trip, as a file on disk is read back ----
+test('a stablecoin bundle with an unset field verifies after a JSON round trip', () => {
+  const lsc = require('./lightning_taproot_assets_stablecoin');
+  const lease = require('./lightning_liquidity_lease');
+  const htlcProof = { lightning: { paymentHashHex: 'aa'.repeat(32) }, swap: { fundingTxid: 'bb'.repeat(32), refundLocktime: 10 }, dlcFunding: { claimTxid: 'cc'.repeat(32), outputVout: 1, commitmentHash: 'dd'.repeat(32), outputAmountSats: '10000' } };
+  const preimageHex = '00'.repeat(32);
+  const bundle = lsc.buildTaprootAssetsStablecoinBundle({
+    paymentHashHex: crypto.createHash('sha256').update(Buffer.from(preimageHex, 'hex')).digest('hex'),
+    preimageHex, btcRouteSats: 49000n, deliveredBtcSats: 49000n, observedBlock: 100, expiryBlock: 144,
+    liquidityLease: lease.buildLiquidityLeaseBundle({ htlcProof }), challengeDeliveredBtcSats: 0n, challengeObservedBlock: 145
+  });
+  assert(lsc.verifyTaprootAssetsStablecoinBundle(bundle).ok, 'the in-memory bundle verifies');
+  assert(lsc.verifyTaprootAssetsStablecoinBundle(JSON.parse(JSON.stringify(bundle))).ok, 'the bundle read back from JSON verifies');
+});
+
 if (failed > 0) {
   console.log(`\nFAIL: ${failed} failed, ${passed} passed\n`);
   process.exit(1);

@@ -10,6 +10,7 @@ const crypto = require('crypto');
 const { canonicalStringify, normalizeAmountSats } = require('./m1_spec');
 const { toInt } = require('./money');
 const { buildJurassicMechanismRefs } = require('./jurassic_bitvm_mechanisms');
+const { verifyLiquidityLeaseBundle } = require('./lightning_liquidity_lease');
 
 const HEX_32_RE = /^[0-9a-f]{64}$/i;
 
@@ -163,6 +164,31 @@ function buildStablecoinRfqQuote(options = {}) {
   };
 }
 
+// The settlement checks the quote, the asset proof and the settlement core determine.
+// The lease check is passed in: only the caller holds the lease bundle it is read from.
+function stablecoinSettlementChecks(proofAssetId, quoteCore, core, leaseVerified) {
+  return {
+    assetProofMatchesQuote: proofAssetId === quoteCore.assetId,
+    deliveredAmountMet: BigInt(core.deliveredBtcSats) >= BigInt(quoteCore.btcRouteSats),
+    spreadCeilingMet: core.observedSpreadPpm <= quoteCore.maxSpreadPpm,
+    routingFeeCeilingMet: core.observedRoutingFeePpm <= quoteCore.maxRoutingFeePpm,
+    paymentHashMatched: core.preimageHashHex === core.paymentHashHex,
+    quoteNotExpired: core.observedBlock <= quoteCore.expiryBlock,
+    bitvmLeaseVerified: leaseVerified
+  };
+}
+
+// The violations a challenge core shows against the quote. Builder and verifier both call this.
+function stablecoinViolations(quoteCore, core) {
+  const violations = [];
+  if (core.observedAssetId !== quoteCore.assetId) violations.push('asset_id_mismatch');
+  if (BigInt(core.deliveredBtcSats) < BigInt(quoteCore.btcRouteSats)) violations.push('btc_route_amount_shortfall');
+  if (core.observedSpreadPpm > quoteCore.maxSpreadPpm) violations.push('spread_ppm_above_quote');
+  if (core.observedRoutingFeePpm > quoteCore.maxRoutingFeePpm) violations.push('routing_fee_ppm_above_quote');
+  if (core.observedBlock > quoteCore.expiryBlock) violations.push('quote_expired_before_settlement');
+  return violations;
+}
+
 function buildStablecoinSettlementEvidence(options = {}) {
   const asset = options.asset || buildTaprootAssetDescriptor(options);
   const assetProof = options.assetProof || buildTaprootAssetProofCommitment({ ...options, asset });
@@ -208,15 +234,12 @@ function buildStablecoinSettlementEvidence(options = {}) {
     kind: 'taproot_asset_lightning_stablecoin_settlement_evidence',
     settlementId: hashCanonical(settlementCore),
     settlementCore,
-    checks: {
-      assetProofMatchesQuote: assetProof.proofCore.assetId === rfqQuote.quoteCore.assetId,
-      deliveredAmountMet: deliveredBtcSats >= BigInt(rfqQuote.quoteCore.btcRouteSats),
-      spreadCeilingMet: observedSpreadPpm <= rfqQuote.quoteCore.maxSpreadPpm,
-      routingFeeCeilingMet: observedRoutingFeePpm <= rfqQuote.quoteCore.maxRoutingFeePpm,
-      paymentHashMatched: observedPaymentHashHex === paymentHashHex,
-      quoteNotExpired: observedBlock <= rfqQuote.quoteCore.expiryBlock,
-      bitvmLeaseVerified: Boolean(liquidityLease && liquidityLease.verification && liquidityLease.verification.ok)
-    }
+    checks: stablecoinSettlementChecks(
+      assetProof.proofCore.assetId,
+      rfqQuote.quoteCore,
+      settlementCore,
+      Boolean(liquidityLease && verifyLiquidityLeaseBundle(liquidityLease).ok)
+    )
   };
 }
 
@@ -228,12 +251,13 @@ function buildStablecoinChallengeEvidence(options = {}) {
   const observedRoutingFeePpm = Number(options.observedRoutingFeePpm ?? rfqQuote.quoteCore.maxRoutingFeePpm + 1);
   const observedBlock = Number(options.observedBlock || rfqQuote.quoteCore.expiryBlock + 1);
 
-  const violations = [];
-  if (observedAssetId !== rfqQuote.quoteCore.assetId) violations.push('asset_id_mismatch');
-  if (deliveredBtcSats < BigInt(rfqQuote.quoteCore.btcRouteSats)) violations.push('btc_route_amount_shortfall');
-  if (observedSpreadPpm > rfqQuote.quoteCore.maxSpreadPpm) violations.push('spread_ppm_above_quote');
-  if (observedRoutingFeePpm > rfqQuote.quoteCore.maxRoutingFeePpm) violations.push('routing_fee_ppm_above_quote');
-  if (observedBlock > rfqQuote.quoteCore.expiryBlock) violations.push('quote_expired_before_settlement');
+  const violations = stablecoinViolations(rfqQuote.quoteCore, {
+    observedAssetId,
+    deliveredBtcSats: deliveredBtcSats.toString(),
+    observedSpreadPpm,
+    observedRoutingFeePpm,
+    observedBlock
+  });
 
   const challengeCore = {
     version: 1,
@@ -301,6 +325,7 @@ function buildTaprootAssetsStablecoinBundle(options = {}) {
     asset,
     assetProof,
     rfqQuote,
+    liquidityLease: options.liquidityLease || null,
     settlementEvidence,
     challengeEvidence,
     thesis:
@@ -325,10 +350,36 @@ function verifyTaprootAssetsStablecoinBundle(bundle) {
   if (bundle.bundleId !== hashCanonical(bundle.bundleCore)) {
     return { ok: false, reason: 'bundle id mismatch' };
   }
-  for (const [name, passed] of Object.entries(bundle.settlementEvidence.checks || {})) {
-    if (!passed) return { ok: false, reason: `settlement evidence failed: ${name}` };
+  const { rfqQuote, assetProof, liquidityLease, settlementEvidence: evidence, challengeEvidence: challenge } = bundle;
+  const quoteCore = rfqQuote.quoteCore;
+  if (evidence.settlementId !== hashCanonical(evidence.settlementCore)) {
+    return { ok: false, reason: 'settlement id mismatch' };
   }
-  if (!bundle.challengeEvidence.slashable) {
+  if (bundle.bundleCore.settlementId !== evidence.settlementId) {
+    return { ok: false, reason: 'bundle does not bind settlement' };
+  }
+  const leaseVerified = Boolean(liquidityLease)
+    && verifyLiquidityLeaseBundle(liquidityLease).ok
+    && liquidityLease.bundleId === evidence.settlementCore.liquidityLeaseBundleId;
+  const derived = stablecoinSettlementChecks(assetProof.proofCore.assetId, quoteCore, evidence.settlementCore, leaseVerified);
+  for (const [name, passed] of Object.entries(derived)) {
+    if (!passed) return { ok: false, reason: `settlement evidence failed: ${name}` };
+    if ((evidence.checks || {})[name] !== passed) return { ok: false, reason: `settlement check does not follow: ${name}` };
+  }
+  if (challenge.challengeId !== hashCanonical(challenge.challengeCore)) {
+    return { ok: false, reason: 'challenge id mismatch' };
+  }
+  if (bundle.bundleCore.challengeId !== challenge.challengeId) {
+    return { ok: false, reason: 'bundle does not bind the challenge' };
+  }
+  const violations = stablecoinViolations(quoteCore, challenge.challengeCore);
+  if (hashCanonical(violations) !== hashCanonical(challenge.challengeCore.violations)) {
+    return { ok: false, reason: 'challenge violations do not follow from its core' };
+  }
+  if (challenge.slashable !== (violations.length > 0)) {
+    return { ok: false, reason: 'challenge slashable flag does not follow from its violations' };
+  }
+  if (!challenge.slashable) {
     return { ok: false, reason: 'challenge should be slashable in demo bundle' };
   }
   return { ok: true };

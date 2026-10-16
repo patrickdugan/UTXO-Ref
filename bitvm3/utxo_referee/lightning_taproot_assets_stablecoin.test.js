@@ -8,6 +8,13 @@ const {
   buildTaprootAssetsStablecoinBundle,
   verifyTaprootAssetsStablecoinBundle
 } = require('./lightning_taproot_assets_stablecoin');
+const { buildLiquidityLeaseBundle } = require('./lightning_liquidity_lease');
+
+const LEASE_HTLC = {
+  lightning: { paymentHashHex: 'aa'.repeat(32) },
+  swap: { fundingTxid: 'bb'.repeat(32), refundLocktime: 10 },
+  dlcFunding: { claimTxid: 'cc'.repeat(32), outputVout: 1, commitmentHash: 'dd'.repeat(32), outputAmountSats: '10000' }
+};
 
 let passed = 0;
 let failed = 0;
@@ -71,7 +78,7 @@ test('stablecoin bundle verifies positive settlement and challenge evidence', ()
     deliveredBtcSats: 49000n,
     observedBlock: 100,
     expiryBlock: 144,
-    liquidityLease: { bundleId: 'lease', verification: { ok: true } },
+    liquidityLease: buildLiquidityLeaseBundle({ htlcProof: LEASE_HTLC }),
     challengeDeliveredBtcSats: 0n,
     challengeObservedBlock: 145
   });
@@ -80,6 +87,40 @@ test('stablecoin bundle verifies positive settlement and challenge evidence', ()
   assert(bundle.bundleCore.jurassicMechanismRefId === bundle.rfqQuote.quoteCore.jurassicMechanisms.refId, 'missing Jurassic ref binding');
   assert(bundle.settlementEvidence.settlementCore.proofAnchorHandleId === bundle.rfqQuote.quoteCore.proofAnchorHandleId, 'settlement should bind proof anchor handle');
   assert(bundle.challengeEvidence.slashable, 'challenge should be slashable');
+});
+
+function hashCanonical(value) {
+  return crypto.createHash('sha256').update(require('./m1_spec').canonicalStringify(value)).digest('hex');
+}
+
+test('a settlement cannot claim a lease that does not verify', () => {
+  const preimageHex = '00'.repeat(32);
+  const paymentHashHex = crypto.createHash('sha256').update(Buffer.from(preimageHex, 'hex')).digest('hex');
+  const lease = buildLiquidityLeaseBundle({ htlcProof: LEASE_HTLC });
+  const bogus = { ...lease, successEvidence: { ...lease.successEvidence, evidenceCore: { ...lease.successEvidence.evidenceCore, observedInboundSats: '1' } } };
+  const bundle = buildTaprootAssetsStablecoinBundle({
+    paymentHashHex, preimageHex, btcRouteSats: 49000n, deliveredBtcSats: 49000n, observedBlock: 100, expiryBlock: 144,
+    liquidityLease: bogus, challengeDeliveredBtcSats: 0n, challengeObservedBlock: 145
+  });
+  const verification = verifyTaprootAssetsStablecoinBundle(bundle);
+  assert(!verification.ok && /bitvmLeaseVerified/.test(verification.reason), 'a lease that fails its own verification is not a verified lease');
+});
+
+test('a stablecoin challenge whose violations do not follow from its core is refused', () => {
+  const preimageHex = '00'.repeat(32);
+  const paymentHashHex = crypto.createHash('sha256').update(Buffer.from(preimageHex, 'hex')).digest('hex');
+  const bundle = buildTaprootAssetsStablecoinBundle({
+    paymentHashHex, preimageHex, btcRouteSats: 49000n, deliveredBtcSats: 49000n, observedBlock: 100, expiryBlock: 144,
+    liquidityLease: buildLiquidityLeaseBundle({ htlcProof: LEASE_HTLC }), challengeDeliveredBtcSats: 0n, challengeObservedBlock: 145
+  });
+  assert(verifyTaprootAssetsStablecoinBundle(bundle).ok, 'the honest bundle verifies');
+  const forged = JSON.parse(JSON.stringify(bundle));
+  forged.challengeEvidence.challengeCore.violations = [];
+  forged.challengeEvidence.challengeId = hashCanonical(forged.challengeEvidence.challengeCore);
+  forged.bundleCore.challengeId = forged.challengeEvidence.challengeId;
+  forged.bundleId = hashCanonical(forged.bundleCore);
+  const verification = verifyTaprootAssetsStablecoinBundle(forged);
+  assert(!verification.ok && /violations/.test(verification.reason), 'violations are recomputed from the core');
 });
 
 if (failed) {
