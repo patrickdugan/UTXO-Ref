@@ -44,7 +44,8 @@ const {
   verifyTradeLayerWithdrawalQueue
 } = require('./tradelayer_withdrawal_queue_referee');
 const {
-  reservedSatsFromTaprootReserveVaultSet
+  reservedSatsFromTaprootReserveVaultSet,
+  outpointKey
 } = require('./taproot_reserve_vault');
 const { verifyChallengeVerdict } = require('./challenge_verdict');
 
@@ -84,7 +85,7 @@ function reservedSatsFromDepositSnapshot(snapshot) {
   for (const deposit of snapshot.deposits) {
     if (deposit && deposit.status === 'credited') {
       const outpoint = deposit.txid !== undefined && deposit.vout !== undefined
-        ? `${String(deposit.txid).toLowerCase()}:${String(deposit.vout)}`
+        ? outpointKey({ txid: deposit.txid, vout: deposit.vout })
         : null;
       if (depositIds.has(String(deposit.depositId)) || (outpoint !== null && outpoints.has(outpoint))) {
         throw new Error(`duplicate credited deposit: ${deposit.depositId}${outpoint ? ` (${outpoint})` : ''}`);

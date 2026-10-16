@@ -1,7 +1,7 @@
 const {
   sha256Hex,
   stableStringify,
-  addressToScriptPubKey,
+  scriptPubKeyForOutput,
   buildTradeLayerSendRouteTranscript
 } = require('./tradelayer_pnl_route_adapter');
 const {
@@ -78,8 +78,7 @@ function buildDecodedFinalTxFromSweepPlan(sweepPlan, options = {}) {
       }
     ],
     vout: outputs.map((output, index) => {
-      const scriptHex = output.scriptPubKey
-        || addressToScriptPubKey(output.address, network).toString('hex');
+      const scriptHex = scriptPubKeyForOutput(output, network).toString('hex');
       return {
         n: index,
         value: coinStringToNumber(output.coinAmount),
@@ -98,8 +97,7 @@ function buildDecodedFinalTxFromSweepPlan(sweepPlan, options = {}) {
 function expectedOutputsFromSweepPlan(sweepPlan) {
   const network = sweepPlan.network || 'litecoin-testnet';
   return (sweepPlan.outputs || []).map((output, index) => {
-    const scriptPubKeyHex = output.scriptPubKey
-      || addressToScriptPubKey(output.address, network).toString('hex');
+    const scriptPubKeyHex = scriptPubKeyForOutput(output, network).toString('hex');
     return {
       n: index,
       role: output.role || null,

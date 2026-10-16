@@ -9,6 +9,7 @@
 
 const crypto = require('crypto');
 const { canonicalStringify, normalizeAmountSats } = require('./m1_spec');
+const { toInt } = require('./money');
 const {
   buildTaprootAssetsStablecoinBundle,
   verifyTaprootAssetsStablecoinBundle
@@ -44,9 +45,7 @@ function normalizeHex32(value, fieldName) {
 }
 
 function normalizeUnits(value, fieldName) {
-  const normalized = BigInt(value);
-  if (normalized < 0n) throw new Error(`${fieldName} must be non-negative`);
-  return normalized;
+  return toInt(value, fieldName);
 }
 
 function usdUnitsFromBtcSats(btcSats, btcUsdPriceMicros) {

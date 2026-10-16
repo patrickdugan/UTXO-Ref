@@ -16,6 +16,7 @@ const cp = require('./tradelayer_state_checkpoint_referee');
 const pol = require('./tradelayer_send_policy');
 const tv = require('./taproot_reserve_vault');
 const dlcSig = require('./tradelayer_dlc_adaptor_sig');
+const lp = require('./tradelayer_utxoref_live_path');
 
 let passed = 0;
 let failed = 0;
@@ -379,6 +380,12 @@ test('a checkpoint fraud proof must place its txid where the checkpoint does', (
   const proof = cp.buildTradeLayerCheckpointFraudProof(checkpoint, { proofType: 'invalid_accepted_tx', txid: 'ee'.repeat(32), rejectReason: 'x' });
   const forged = { ...rehashed(proof, { ...proof.core, claimed: { ...proof.core.claimed, includedInAcceptedSet: true } }, 'proofHash'), challengeable: true };
   assertEq(cp.verifyTradeLayerCheckpointFraudProof(forged, checkpoint).ok, false, 'inclusion follows from the accepted set');
+});
+
+test('the live path refuses a sweep output whose script disagrees with its address', () => {
+  const other = pa.addressToScriptPubKey(LTC_2, 'litecoin-testnet').toString('hex');
+  const plan = { network: 'litecoin-testnet', input: { txid: 'dd'.repeat(32), vout: 0, sats: '100000' }, outputs: [{ address: LTC, scriptPubKey: other, coinAmount: '0.00001000', sats: '1000' }] };
+  assert(throwsWith(() => lp.buildDecodedFinalTxFromSweepPlan(plan), /disagree/), 'the decoded tx must not pair an address with another script');
 });
 
 if (failed > 0) {

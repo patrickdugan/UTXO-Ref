@@ -970,6 +970,7 @@ module.exports = {
   stableStringify,
   sha256Hex,
   addressToScriptPubKey,
+  scriptPubKeyForOutput,
   computeTradeLayerPlanHash,
   buildTradeLayerSendRouteTranscript,
   verifyTradeLayerSendRouteTranscript,

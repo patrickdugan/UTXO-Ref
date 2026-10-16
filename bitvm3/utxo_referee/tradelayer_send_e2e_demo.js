@@ -6,7 +6,7 @@ const { resolveChainEnv } = require('./m1_chain_env');
 const {
   stableStringify,
   sha256Hex,
-  addressToScriptPubKey,
+  scriptPubKeyForOutput,
   buildTradeLayerSendOracleCommitment,
   verifyTradeLayerSendOracleSignature,
   buildTradeLayerSendIntentFromStateOracle,
@@ -105,6 +105,7 @@ function usage() {
     '  --require-oracle-signature  Require a valid Ed25519 oracle signature.',
     '  --oracle-public-key <pem>  Pinned oracle public key (PEM file). A signature must verify under it.',
     '  --oracle-key-id <id>  Key id of the pinned oracle key, checked against the policy allow-list.',
+    '  --current-height <n>  Live chain height. Without it the registry is not shown fresh and the watchtower pauses.',
     '  --help              Show this help.'
   ].join('\n');
 }
@@ -167,7 +168,7 @@ function outputWithScript(output, network) {
   return {
     role: output.role || null,
     address: output.address || null,
-    scriptPubKey: output.scriptPubKey || addressToScriptPubKey(output.address, network).toString('hex'),
+    scriptPubKey: scriptPubKeyForOutput(output, network).toString('hex'),
     sats: String(output.sats),
     amountBps: output.amountBps ?? null,
     oracleAddress: output.oracleAddress || null,
@@ -182,7 +183,8 @@ function selectOptionsFromCli(cliArgs) {
     sendIndex: cliArgs.sendIndex,
     requireOracleSignature: cliArgs.requireOracleSignature,
     oraclePublicKeyPem: cliArgs.oraclePublicKey ? fs.readFileSync(cliArgs.oraclePublicKey, 'utf8') : undefined,
-    oracleKeyId: cliArgs.oracleKeyId
+    oracleKeyId: cliArgs.oracleKeyId,
+    currentHeight: cliArgs.currentHeight
   };
   Object.keys(options).forEach((key) => options[key] === undefined && delete options[key]);
   return options;
