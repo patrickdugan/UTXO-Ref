@@ -100,7 +100,7 @@ console.log('\n=== TradeLayer Send Watchtower Tests ===\n');
 
 test('allows a coherent state oracle, route transcript, sweep plan, flow, and policy', () => {
   const blob = stateOracle();
-  const report = buildTradeLayerSendWatchtowerReport(blob, { sendId: 'live-send' });
+  const report = buildTradeLayerSendWatchtowerReport(blob, { sendId: 'live-send', currentHeight: blob.snapshotHeight });
   const result = verifyTradeLayerSendWatchtowerReport(report);
 
   assert(result.ok, result.reason);
@@ -108,6 +108,13 @@ test('allows a coherent state oracle, route transcript, sweep plan, flow, and po
   assertEq(report.action, 'allow_cooperative_sweep');
   assertEq(report.alerts.length, 0);
   assertEq(report.challengeBundle, null);
+});
+
+test('pauses when no live height is given, since the registry cannot be shown fresh', () => {
+  const report = buildTradeLayerSendWatchtowerReport(stateOracle(), { sendId: 'live-send' });
+  assert(!report.ok, 'a registry with no live height is not fresh');
+  assert(report.alerts.some((alert) => alert.code === 'production_policy_failed'), 'expected a policy alert');
+  assert(report.alerts[0].details.failedChecks.includes('registry_freshness'), 'expected the freshness check to fail');
 });
 
 test('pauses and emits a challenge bundle when the sweep transcript is rebound', () => {

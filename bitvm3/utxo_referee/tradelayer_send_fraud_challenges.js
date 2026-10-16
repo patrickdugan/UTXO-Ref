@@ -181,7 +181,8 @@ function buildChallengeEntries(stateOracleBlob, routePlan, binding, options = {}
   const wrongSendBps = routePlan.sendBps === 10000 ? 9999 : routePlan.sendBps + 1;
   const wrongSendSats = (BigInt(sendSats) + 1n).toString();
   const routeTranscript = buildTradeLayerSendRouteTranscript(routePlan);
-  const currentHeight = Number(options.currentHeight ?? (Number(stateOracleBlob.snapshotHeight || 0) + Number(options.maxSnapshotAgeBlocks || 144) + 1));
+  // Without a live height the snapshot's age is unknown, so it is not called stale.
+  const currentHeight = Number(options.currentHeight ?? stateOracleBlob.snapshotHeight ?? 0);
   const snapshotHeight = Number(stateOracleBlob.snapshotHeight || 0);
   const maxSnapshotAgeBlocks = Number(options.maxSnapshotAgeBlocks || 144);
 
