@@ -479,15 +479,24 @@ function buildTaprootReserveVaultSet(input = {}) {
   const reserveEpochId = String(input.reserveEpochId ?? manifests[0]?.core?.reserveEpochId ?? '0');
   const recoveryRiskMarginBlocks = Number(input.recoveryRiskMarginBlocks ?? DEFAULT_RECOVERY_RISK_MARGIN_BLOCKS);
   let reservedSats = 0n;
+  // One funding outpoint backs at most one counted vault. A second manifest naming
+  // the same UTXO is kept in the set as rejected, so the reserve is not counted twice.
+  const countedOutpoints = new Set();
   const vaults = manifests.map((manifest, index) => {
     const txout = chainTxoutForManifest(manifest, input.chainTxouts || input.txouts, index);
-    const verification = verifyTaprootReserveVaultOnChain(manifest, {
-      txout,
-      currentHeight,
-      network,
-      recoveryRiskMarginBlocks
-    });
-    if (verification.counted) reservedSats += toSats(verification.amountSats, 'verification.amountSats');
+    const outpoint = manifest?.core?.fundingOutpoint ? outpointKey(manifest.core.fundingOutpoint) : null;
+    const verification = outpoint !== null && countedOutpoints.has(outpoint)
+      ? { ok: false, counted: false, reason: 'duplicate funding outpoint' }
+      : verifyTaprootReserveVaultOnChain(manifest, {
+        txout,
+        currentHeight,
+        network,
+        recoveryRiskMarginBlocks
+      });
+    if (verification.counted) {
+      reservedSats += toSats(verification.amountSats, 'verification.amountSats');
+      countedOutpoints.add(outpoint);
+    }
     return {
       vaultId: manifest?.core?.vaultId || null,
       outpoint: manifest?.core?.fundingOutpoint ? outpointKey(manifest.core.fundingOutpoint) : null,
