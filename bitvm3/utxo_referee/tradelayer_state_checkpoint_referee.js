@@ -30,7 +30,7 @@ function acceptedRejectedOverlap(acceptedTxids, rejectedTxids) {
 }
 
 function buildTradeLayerStateCheckpoint(input = {}) {
-  const acceptedTxids = normalizeTxids(input.acceptedTxids || ['11'.repeat(32)], 'acceptedTxids');
+  const acceptedTxids = normalizeTxids(input.acceptedTxids || [], 'acceptedTxids');
   const rejectedTxids = normalizeTxids(input.rejectedTxids || [], 'rejectedTxids');
   const overlap = acceptedRejectedOverlap(acceptedTxids, rejectedTxids);
   if (overlap) throw new Error(`txid ${overlap} is both accepted and rejected`);
@@ -142,7 +142,7 @@ function buildTradeLayerCheckpointFraudProof(checkpoint, options = {}) {
     };
   } else if (proofType === 'state_root_mismatch') {
     claimed = {
-      recomputedNextStateRoot: normalizeHex32(options.recomputedNextStateRoot || 'aa'.repeat(32), 'recomputedNextStateRoot'),
+      recomputedNextStateRoot: normalizeHex32(options.recomputedNextStateRoot, 'recomputedNextStateRoot'),
       publishedNextStateRoot: checkpoint.core.nextStateRoot
     };
   } else {

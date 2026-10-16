@@ -307,6 +307,14 @@ test('a checkpoint fraud proof whose top-level type differs from its hashed core
   assertEq(cp.verifyTradeLayerCheckpointFraudProof(relabelled, checkpoint).ok, false, 'the labelled type must be the hashed one');
 });
 
+// ---- checkpoints: a default never supplies the fact a fraud claim turns on ----
+test('a state-root proof needs a recomputed root, and a checkpoint with no accepted txids accepts none', () => {
+  const checkpoint = cp.buildTradeLayerStateCheckpoint({ rejectedTxids: [] });
+  assert(throwsWith(() => cp.buildTradeLayerCheckpointFraudProof(checkpoint, { proofType: 'state_root_mismatch' }), /recomputedNextStateRoot/), 'an invented root would make an honest checkpoint challengeable');
+  const invalid = cp.buildTradeLayerCheckpointFraudProof(checkpoint, { proofType: 'invalid_accepted_tx' });
+  assertEq(invalid.challengeable, false, 'an empty accepted set has no invalid accepted tx');
+});
+
 // ---- policy: registry freshness is judged against a live height, never the snapshot ----
 const POLICY_BLOB = {
   kind: 'tradelayer-send-state-oracle-v1',
