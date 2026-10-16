@@ -103,6 +103,8 @@ function usage() {
     '  --rpc-pass <pass>    Override BITVM/LTC/BTC RPC password for --rpc-sweep.',
     '  --rpc-wallet <name>  Override BITVM/LTC/BTC wallet for --rpc-sweep.',
     '  --require-oracle-signature  Require a valid Ed25519 oracle signature.',
+    '  --oracle-public-key <pem>  Pinned oracle public key (PEM file). A signature must verify under it.',
+    '  --oracle-key-id <id>  Key id of the pinned oracle key, checked against the policy allow-list.',
     '  --help              Show this help.'
   ].join('\n');
 }
@@ -178,7 +180,9 @@ function selectOptionsFromCli(cliArgs) {
     sendId: cliArgs.sendId,
     sendTxid: cliArgs.sendTxid,
     sendIndex: cliArgs.sendIndex,
-    requireOracleSignature: cliArgs.requireOracleSignature
+    requireOracleSignature: cliArgs.requireOracleSignature,
+    oraclePublicKeyPem: cliArgs.oraclePublicKey ? fs.readFileSync(cliArgs.oraclePublicKey, 'utf8') : undefined,
+    oracleKeyId: cliArgs.oracleKeyId
   };
   Object.keys(options).forEach((key) => options[key] === undefined && delete options[key]);
   return options;

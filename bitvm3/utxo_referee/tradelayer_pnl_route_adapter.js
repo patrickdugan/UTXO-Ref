@@ -465,6 +465,8 @@ function buildTradeLayerSendOracleSigningPayload(stateOracleBlob, options = {}) 
   };
 }
 
+// The oracle key is the verifier's pin. A key carried in the blob or its signature
+// envelope would let whoever built the blob choose the key that checks it.
 function readOracleSignatureEnvelope(stateOracleBlob, options = {}) {
   const source = options.oracleSignature
     || stateOracleBlob.oracleSignature
@@ -476,22 +478,21 @@ function readOracleSignatureEnvelope(stateOracleBlob, options = {}) {
     return {
       algorithm: options.oracleSignatureAlgorithm || 'ed25519',
       signatureHex: source,
-      publicKeyPem: options.oraclePublicKeyPem || stateOracleBlob.oraclePublicKeyPem,
-      keyId: options.oracleKeyId || stateOracleBlob.oracleKeyId || null
+      payloadHash: null
     };
   }
 
   return {
     algorithm: source.algorithm || options.oracleSignatureAlgorithm || 'ed25519',
     signatureHex: source.signatureHex || source.signature || source.hex,
-    publicKeyPem: source.publicKeyPem || options.oraclePublicKeyPem || stateOracleBlob.oraclePublicKeyPem,
-    keyId: source.keyId || options.oracleKeyId || stateOracleBlob.oracleKeyId || null,
     payloadHash: source.payloadHash || null
   };
 }
 
 function verifyTradeLayerSendOracleSignature(stateOracleBlob, options = {}) {
   const envelope = readOracleSignatureEnvelope(stateOracleBlob, options);
+  const pinnedPem = options.oraclePublicKeyPem || null;
+  const keyId = options.oracleKeyId || null;
   const signing = buildTradeLayerSendOracleSigningPayload(stateOracleBlob, options);
   const signingSummary = {
     payloadHash: signing.payloadHash,
@@ -499,12 +500,13 @@ function verifyTradeLayerSendOracleSignature(stateOracleBlob, options = {}) {
     sendRecordHash: signing.sendRecordHash,
     dlcFunderRegistryHash: signing.dlcFunderRegistryHash
   };
+  const required = !!options.requireOracleSignature;
 
   if (!envelope) {
     return {
       ok: false,
       reason: 'missing oracle signature',
-      required: !!options.requireOracleSignature,
+      required,
       algorithm: 'ed25519',
       ...signingSummary
     };
@@ -514,7 +516,7 @@ function verifyTradeLayerSendOracleSignature(stateOracleBlob, options = {}) {
     return {
       ok: false,
       reason: `unsupported oracle signature algorithm: ${envelope.algorithm}`,
-      required: !!options.requireOracleSignature,
+      required,
       ...signingSummary
     };
   }
@@ -522,15 +524,15 @@ function verifyTradeLayerSendOracleSignature(stateOracleBlob, options = {}) {
     return {
       ok: false,
       reason: 'oracle signature must be hex',
-      required: !!options.requireOracleSignature,
+      required,
       ...signingSummary
     };
   }
-  if (!envelope.publicKeyPem) {
+  if (!pinnedPem) {
     return {
       ok: false,
-      reason: 'missing oracle public key PEM',
-      required: !!options.requireOracleSignature,
+      reason: 'missing pinned oracle public key PEM',
+      required,
       ...signingSummary
     };
   }
@@ -538,9 +540,9 @@ function verifyTradeLayerSendOracleSignature(stateOracleBlob, options = {}) {
     return {
       ok: false,
       reason: `oracle signature payload hash mismatch: expected ${envelope.payloadHash}, recomputed ${signing.payloadHash}`,
-      required: !!options.requireOracleSignature,
+      required,
       ...signingSummary,
-      keyId: envelope.keyId
+      keyId
     };
   }
 
@@ -549,25 +551,25 @@ function verifyTradeLayerSendOracleSignature(stateOracleBlob, options = {}) {
     verified = crypto.verify(
       null,
       Buffer.from(signing.payload, 'utf8'),
-      envelope.publicKeyPem,
+      pinnedPem,
       Buffer.from(envelope.signatureHex, 'hex')
     );
   } catch (err) {
     return {
       ok: false,
       reason: `oracle signature verification failed: ${err.message}`,
-      required: !!options.requireOracleSignature,
+      required,
       ...signingSummary,
-      keyId: envelope.keyId
+      keyId
     };
   }
 
   return {
     ok: verified,
     reason: verified ? null : 'invalid oracle signature',
-    required: !!options.requireOracleSignature,
+    required,
     algorithm: 'ed25519',
-    keyId: envelope.keyId,
+    keyId,
     payloadHash: signing.payloadHash,
     oracleBlobHash: signing.oracleBlobHash,
     sendRecordHash: signing.sendRecordHash,
@@ -912,7 +914,10 @@ function verifyTradeLayerSendRoutePlan(sendIntent, options = {}) {
 function verifyTradeLayerSendStateOracleRoute(stateOracleBlob, options = {}) {
   const oracleCommitment = buildTradeLayerSendOracleCommitment(stateOracleBlob, options);
   const oracleSignature = verifyTradeLayerSendOracleSignature(stateOracleBlob, options);
-  if ((options.requireOracleSignature || stateOracleBlob.oracleSignature || stateOracleBlob.signature) && !oracleSignature.ok) {
+  // A pinned oracle key is a claim that the blob is signed, so an unsigned blob fails against it.
+  const signatureDemanded = !!(options.requireOracleSignature || options.oraclePublicKeyPem)
+    || !!(stateOracleBlob.oracleSignature || stateOracleBlob.signature);
+  if (signatureDemanded && !oracleSignature.ok) {
     return {
       ok: false,
       reason: oracleSignature.reason,

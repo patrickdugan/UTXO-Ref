@@ -46,7 +46,9 @@ function normalizeInput(input, options = {}) {
     sendId: options.sendId,
     sendTxid: options.sendTxid,
     sendIndex: options.sendIndex,
-    requireOracleSignature: options.requireOracleSignature
+    requireOracleSignature: options.requireOracleSignature,
+    oraclePublicKeyPem: options.oraclePublicKeyPem,
+    oracleKeyId: options.oracleKeyId
   };
   Object.keys(selectOptions).forEach((key) => selectOptions[key] === undefined && delete selectOptions[key]);
 

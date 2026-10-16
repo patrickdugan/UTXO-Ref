@@ -184,6 +184,8 @@ test('a blob-carried public key cannot verify a signature over a pinned oracle k
   assertEq(sig.ok, false, 'the pinned key decides, not the blob');
   const route = pa.verifyTradeLayerSendStateOracleRoute(forged, { oraclePublicKeyPem: pinnedPem, requireOracleSignature: true });
   assertEq(route.ok, false, 'the route verdict inherits the pinned-key check');
+  const unsignedRoute = pa.verifyTradeLayerSendStateOracleRoute(ORACLE_BLOB, { oraclePublicKeyPem: pinnedPem });
+  assertEq(unsignedRoute.ok, false, 'a pinned key demands a signature on the blob');
 
   const honest = signBlob(ORACLE_BLOB, pinned.privateKey, { keyId: 'oracle-1' });
   const ok = pa.verifyTradeLayerSendOracleSignature(honest, { oraclePublicKeyPem: pinnedPem, oracleKeyId: 'oracle-1', requireOracleSignature: true });

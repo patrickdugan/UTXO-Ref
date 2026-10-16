@@ -87,7 +87,9 @@ function buildTradeLayerSendProductionPolicy(stateOracleBlob, options = {}) {
     sendId: options.sendId,
     sendTxid: options.sendTxid,
     sendIndex: options.sendIndex,
-    requireOracleSignature: policy.requireOracleSignature
+    requireOracleSignature: policy.requireOracleSignature,
+    oraclePublicKeyPem: options.oraclePublicKeyPem,
+    oracleKeyId: options.oracleKeyId
   };
   Object.keys(selectOptions).forEach((key) => selectOptions[key] === undefined && delete selectOptions[key]);
 
