@@ -147,12 +147,14 @@ function canonicalStringify(value) {
     return JSON.stringify(value);
   }
 
+  // The same form JSON gives: an undefined array item is null and an undefined key is absent,
+  // so an object hashes the same in memory and after a JSON round trip.
   if (Array.isArray(value)) {
-    const items = value.map(v => canonicalStringify(v)).join(',');
+    const items = value.map(v => canonicalStringify(v === undefined ? null : v)).join(',');
     return `[${items}]`;
   }
 
-  const keys = Object.keys(value).sort();
+  const keys = Object.keys(value).filter(k => value[k] !== undefined).sort();
   const pairs = keys.map(k => `${JSON.stringify(k)}:${canonicalStringify(value[k])}`);
   return `{${pairs.join(',')}}`;
 }
