@@ -176,6 +176,22 @@ function buildVirtualCetSet(options = {}) {
   };
 }
 
+function settlementChecks(contractCore, virtualCetSet, settlementCore, selectedCet) {
+  const payouts = settlementCore.payouts || {};
+  return {
+    selectedCetInCommittedSet: virtualCetSet.virtualCetSetCore.virtualCetIds.includes(selectedCet.virtualCetId),
+    attestationBindsOutcome: String(settlementCore.oracleAttestationHex ?? '').length === 64
+      && selectedCet.cetCore.outcomeId === settlementCore.oracleOutcomeId,
+    payoutSumPreservesCollateral:
+      BigInt(selectedCet.cetCore.offerPayoutSats) + BigInt(selectedCet.cetCore.acceptPayoutSats) ===
+      BigInt(contractCore.totalCollateralSats),
+    payoutsFollowCet: String(payouts[contractCore.offerParty.name]?.amountSats) === String(selectedCet.cetCore.offerPayoutSats)
+      && String(payouts[contractCore.acceptParty.name]?.amountSats) === String(selectedCet.cetCore.acceptPayoutSats),
+    arkTransitionPresent: Boolean(selectedCet.arkTransitionId),
+    noOnchainCetBroadcast: true
+  };
+}
+
 function buildArkDlcSettlement(options = {}) {
   const contract = options.contract || buildArkDlcContract(options);
   const virtualCetSet = options.virtualCetSet || buildVirtualCetSet({ contract });
@@ -218,16 +234,21 @@ function buildArkDlcSettlement(options = {}) {
     settlementId: hashCanonical(settlementCore),
     settlementCore,
     selectedCet,
-    checks: {
-      selectedCetInCommittedSet: virtualCetSet.virtualCetSetCore.virtualCetIds.includes(selectedCet.virtualCetId),
-      attestationBindsOutcome: oracleAttestationHex.length === 64 && selectedCet.cetCore.outcomeId === oracleOutcomeId,
-      payoutSumPreservesCollateral:
-        BigInt(selectedCet.cetCore.offerPayoutSats) + BigInt(selectedCet.cetCore.acceptPayoutSats) ===
-        BigInt(contract.contractCore.totalCollateralSats),
-      arkTransitionPresent: Boolean(selectedCet.arkTransitionId),
-      noOnchainCetBroadcast: true
-    }
+    checks: settlementChecks(contract.contractCore, virtualCetSet, settlementCore, selectedCet)
   };
+}
+
+function challengeViolations({ virtualCetSet, oracleOutcomeId, aspSettledOutcomeId, missingExitPath, missingForfeitPath }) {
+  const aspSettledCet = virtualCetSet.virtualCets.find(cet => cet.cetCore.outcomeId === aspSettledOutcomeId);
+  const violations = [];
+  if (!aspSettledCet) violations.push('asp_settled_unknown_outcome');
+  if (aspSettledOutcomeId !== oracleOutcomeId) violations.push('asp_settled_wrong_oracle_outcome');
+  if (aspSettledCet && !virtualCetSet.virtualCetSetCore.virtualCetIds.includes(aspSettledCet.virtualCetId)) {
+    violations.push('asp_transition_not_in_committed_virtual_cet_set');
+  }
+  if (missingExitPath) violations.push('missing_user_exit_path');
+  if (missingForfeitPath) violations.push('missing_asp_forfeit_path');
+  return { violations, aspSettledCet };
 }
 
 function buildArkDlcAspChallenge(options = {}) {
@@ -240,18 +261,13 @@ function buildArkDlcAspChallenge(options = {}) {
   );
   const missingExitPath = Boolean(options.missingExitPath);
   const missingForfeitPath = Boolean(options.missingForfeitPath);
-  const aspSettledCet = virtualCetSet.virtualCets.find(cet => cet.cetCore.outcomeId === aspSettledOutcomeId);
-
-  const violations = [];
-  if (!aspSettledCet) violations.push('asp_settled_unknown_outcome');
-  if (aspSettledOutcomeId !== honestSettlement.settlementCore.oracleOutcomeId) {
-    violations.push('asp_settled_wrong_oracle_outcome');
-  }
-  if (aspSettledCet && !virtualCetSet.virtualCetSetCore.virtualCetIds.includes(aspSettledCet.virtualCetId)) {
-    violations.push('asp_transition_not_in_committed_virtual_cet_set');
-  }
-  if (missingExitPath) violations.push('missing_user_exit_path');
-  if (missingForfeitPath) violations.push('missing_asp_forfeit_path');
+  const { violations, aspSettledCet } = challengeViolations({
+    virtualCetSet,
+    oracleOutcomeId: honestSettlement.settlementCore.oracleOutcomeId,
+    aspSettledOutcomeId,
+    missingExitPath,
+    missingForfeitPath
+  });
 
   const challengeCore = {
     version: 1,
@@ -395,6 +411,18 @@ function verifyArkDlcSettlementBundle(bundle) {
   if (bundle.virtualCetSet.virtualCetSetId !== hashCanonical(bundle.virtualCetSet.virtualCetSetCore)) {
     return { ok: false, reason: 'virtual CET set mismatch' };
   }
+  const cets = bundle.virtualCetSet.virtualCets || [];
+  const cetIds = cets.map(cet => cet.virtualCetId);
+  if (JSON.stringify(cetIds) !== JSON.stringify(bundle.virtualCetSet.virtualCetSetCore.virtualCetIds)) {
+    return { ok: false, reason: 'virtual CET ids do not match the committed set' };
+  }
+  for (const cet of cets) {
+    if (cet.virtualCetId !== hashCanonical(cet.cetCore)) return { ok: false, reason: 'virtual CET id mismatch' };
+    const total = BigInt(cet.cetCore.offerPayoutSats) + BigInt(cet.cetCore.acceptPayoutSats);
+    if (total !== BigInt(bundle.contract.contractCore.totalCollateralSats)) {
+      return { ok: false, reason: 'virtual CET does not preserve collateral' };
+    }
+  }
   if (!bundle.taprootProofManifest) {
     return { ok: false, reason: 'missing taproot proof manifest' };
   }
@@ -414,13 +442,50 @@ function verifyArkDlcSettlementBundle(bundle) {
   ) {
     return { ok: false, reason: 'taproot proof manifest does not bind selected virtual CET' };
   }
-  for (const [name, passed] of Object.entries(bundle.settlementEvidence.checks || {})) {
+  const evidence = bundle.settlementEvidence;
+  if (evidence.settlementId !== hashCanonical(evidence.settlementCore)) {
+    return { ok: false, reason: 'settlement id mismatch' };
+  }
+  if (bundle.bundleCore.settlementId !== evidence.settlementId) {
+    return { ok: false, reason: 'bundle does not bind the settlement' };
+  }
+  const selectedCet = cets.find(cet => cet.cetCore.outcomeId === evidence.settlementCore.oracleOutcomeId);
+  if (!selectedCet || hashCanonical(selectedCet) !== hashCanonical(evidence.selectedCet)) {
+    return { ok: false, reason: 'settlement does not select the CET for its oracle outcome' };
+  }
+  const recomputed = settlementChecks(bundle.contract.contractCore, bundle.virtualCetSet, evidence.settlementCore, selectedCet);
+  for (const [name, passed] of Object.entries(recomputed)) {
     if (!passed) return { ok: false, reason: `settlement evidence failed: ${name}` };
+    if ((evidence.checks || {})[name] !== passed) return { ok: false, reason: `settlement check does not follow: ${name}` };
   }
   if (!bundle.settlementEvidence.settlementCore.noOnchainCetBroadcast) {
     return { ok: false, reason: 'settlement must avoid on-chain CET in happy path' };
   }
-  if (!bundle.challengeEvidence.slashable) {
+  const challenge = bundle.challengeEvidence;
+  if (challenge.challengeId !== hashCanonical(challenge.challengeCore)) {
+    return { ok: false, reason: 'challenge id mismatch' };
+  }
+  if (bundle.bundleCore.challengeId !== challenge.challengeId) {
+    return { ok: false, reason: 'bundle does not bind the challenge' };
+  }
+  if (challenge.challengeCore.honestSettlementId !== evidence.settlementId) {
+    return { ok: false, reason: 'challenge does not name the bundle settlement' };
+  }
+  const core = challenge.challengeCore;
+  const { violations } = challengeViolations({
+    virtualCetSet: bundle.virtualCetSet,
+    oracleOutcomeId: core.oracleOutcomeId,
+    aspSettledOutcomeId: core.aspSettledOutcomeId,
+    missingExitPath: core.missingExitPath,
+    missingForfeitPath: core.missingForfeitPath
+  });
+  if (hashCanonical(violations) !== hashCanonical(core.violations)) {
+    return { ok: false, reason: 'challenge violations do not follow from its core' };
+  }
+  if (challenge.slashable !== (violations.length > 0)) {
+    return { ok: false, reason: 'challenge slashable flag does not follow from its violations' };
+  }
+  if (!challenge.slashable) {
     return { ok: false, reason: 'demo challenge should be slashable' };
   }
   if (bundle.feeModel.modelId !== hashCanonical(bundle.feeModel.modelCore)) {
