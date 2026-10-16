@@ -179,12 +179,22 @@ function addressToScriptPubKey(address, network = 'litecoin-testnet') {
   return Buffer.concat([Buffer.from([versionOpcode, program.length]), program]);
 }
 
+function hexBytes(text, fieldName) {
+  if (typeof text !== 'string' || !/^([0-9a-fA-F]{2})+$/.test(text)) throw new Error(`${fieldName} must be hex`);
+  return Buffer.from(text, 'hex');
+}
+
+// When an output names both an address and a script, the script is what is paid, so
+// the two must describe the same output.
 function scriptPubKeyForOutput(output, network) {
   if (output.scriptPubKey) {
     const script = Buffer.isBuffer(output.scriptPubKey)
       ? output.scriptPubKey
-      : Buffer.from(String(output.scriptPubKey), 'hex');
+      : hexBytes(output.scriptPubKey, 'scriptPubKey');
     if (!script.length) throw new Error('scriptPubKey cannot be empty');
+    if (output.address && !addressToScriptPubKey(output.address, network).equals(script)) {
+      throw new Error('output address and scriptPubKey disagree');
+    }
     return script;
   }
   if (!output.address) throw new Error('output must include address or scriptPubKey');
@@ -761,14 +771,15 @@ function outputPlanHasAddress(outputPlan, address) {
   return outputPlan.some((output) => output.address === address);
 }
 
-function leafKey(leaf) {
-  return `${leaf.recipientScriptPubKey.toString('hex')}:${leaf.amountSats.toString()}`;
+// The identity of a payout for duplicate and sweep matching: the script and the amount.
+function payoutKey(recipientScriptPubKey, amountSats) {
+  return `${recipientScriptPubKey.toString('hex')}:${amountSats.toString()}`;
 }
 
 function buildSweepOutputs(observedOutputs, committed, network) {
   const remaining = new Map();
   committed.leaves.forEach((leaf, index) => {
-    const key = leafKey(leaf);
+    const key = payoutKey(leaf.recipientScriptPubKey, leaf.amountSats);
     const indexes = remaining.get(key) || [];
     indexes.push(index);
     remaining.set(key, indexes);
@@ -776,7 +787,7 @@ function buildSweepOutputs(observedOutputs, committed, network) {
 
   return normalizeOutputPlan(observedOutputs).map((output, index) => {
     const recipientScriptPubKey = scriptPubKeyForOutput(output, network);
-    const key = `${recipientScriptPubKey.toString('hex')}:${output.sats.toString()}`;
+    const key = payoutKey(recipientScriptPubKey, output.sats);
     const indexes = remaining.get(key) || [];
     const leafIndex = indexes.length ? indexes.shift() : Math.min(index, committed.proofs.length - 1);
     if (indexes.length) remaining.set(key, indexes);
