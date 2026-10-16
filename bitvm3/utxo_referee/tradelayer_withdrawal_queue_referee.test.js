@@ -97,7 +97,10 @@ test('rejects a queue whose withdrawal root is not the root of its payable entri
 
 test('builds challengeable omission and amount mismatch proofs', () => {
   const queue = buildTradeLayerWithdrawalQueue({ requests: REQUESTS });
-  const omission = buildTradeLayerWithdrawalQueueChallenge(queue, {
+  // An omission is a payable request missing from the committed queue. wd-1 is in
+  // the full queue, so the omission is claimed against the queue without it.
+  const withheld = buildTradeLayerWithdrawalQueue({ requests: REQUESTS.slice(1) });
+  const omission = buildTradeLayerWithdrawalQueueChallenge(withheld, {
     challengeType: 'omitted_withdrawal',
     request: REQUESTS[0]
   });
@@ -106,7 +109,7 @@ test('builds challengeable omission and amount mismatch proofs', () => {
     request: REQUESTS[1]
   });
 
-  assert(verifyTradeLayerWithdrawalQueueChallenge(omission, queue).ok, 'omission proof should verify');
+  assert(verifyTradeLayerWithdrawalQueueChallenge(omission, withheld).ok, 'omission proof should verify');
   assert(verifyTradeLayerWithdrawalQueueChallenge(amount, queue).ok, 'amount proof should verify');
   assert(omission.challengeable, 'omission should be challengeable');
   assert(amount.challengeable, 'amount mismatch should be challengeable');

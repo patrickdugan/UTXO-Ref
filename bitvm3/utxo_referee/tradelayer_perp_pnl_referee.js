@@ -11,6 +11,7 @@ const {
   addressToScriptPubKey
 } = require('./tradelayer_pnl_route_adapter');
 const { toInt } = require('./money');
+const { verifyChallengeVerdict } = require('./challenge_verdict');
 
 function boundedAbs(value, cap) {
   const abs = value < 0n ? -value : value;
@@ -202,6 +203,24 @@ function verifyTradeLayerPerpPnlSettlement(settlement) {
   };
 }
 
+// The terms a claim is compared against, as the settlement states them.
+function perpExpected(settlement) {
+  return {
+    transferSats: settlement.settlementCore.transferSats,
+    winnerAddress: settlement.settlementCore.tokenDelta.winnerAddress,
+    withdrawalRootHex: settlement.settlementCore.withdrawalRootHex
+  };
+}
+
+// The claim is challengeable when it differs from what the settlement terms derive.
+function perpChallengeable(core) {
+  const claimed = core.claimed || {};
+  const expected = core.expected || {};
+  return core.challengeType === 'wrong_destination'
+    ? claimed.winnerAddress !== expected.winnerAddress
+    : claimed.transferSats !== expected.transferSats;
+}
+
 function buildTradeLayerPerpPnlChallenge(settlement, options = {}) {
   const result = verifyTradeLayerPerpPnlSettlement(settlement);
   if (!result.ok) throw new Error(`invalid settlement: ${result.reason}`);
@@ -217,32 +236,34 @@ function buildTradeLayerPerpPnlChallenge(settlement, options = {}) {
     kind: 'tradelayer_perp_pnl_challenge_v1',
     challengeType,
     settlementHash: settlement.settlementHash,
-    expected: {
-      transferSats: settlement.settlementCore.transferSats,
-      winnerAddress: settlement.settlementCore.tokenDelta.winnerAddress,
-      withdrawalRootHex: settlement.settlementCore.withdrawalRootHex
-    },
+    expected: perpExpected(settlement),
     claimed
   };
   return {
     kind: 'tradelayer_perp_pnl_challenge',
     challengeType,
     challengeHash: sha256Hex(core),
-    challengeable: true,
+    challengeable: perpChallengeable(core),
     core
   };
 }
 
 function verifyTradeLayerPerpPnlChallenge(challenge, settlement) {
-  if (!challenge || challenge.kind !== 'tradelayer_perp_pnl_challenge') {
-    return { ok: false, reason: 'wrong challenge kind' };
-  }
-  if (settlement && challenge.core?.settlementHash !== settlement.settlementHash) {
+  if (!settlement) return { ok: false, reason: 'settlement required to judge a perp challenge' };
+  const settled = verifyTradeLayerPerpPnlSettlement(settlement);
+  if (!settled.ok) return { ok: false, reason: `invalid settlement: ${settled.reason}` };
+  if (challenge?.core?.settlementHash !== settlement.settlementHash) {
     return { ok: false, reason: 'settlement hash mismatch' };
   }
-  const challengeHash = sha256Hex(challenge.core);
-  if (challenge.challengeHash !== challengeHash) return { ok: false, reason: 'challenge hash mismatch', challengeHash };
-  return { ok: true, challengeHash, challengeable: challenge.challengeable };
+  if (stableStringify(challenge.core.expected) !== stableStringify(perpExpected(settlement))) {
+    return { ok: false, reason: 'expected terms do not follow from the settlement' };
+  }
+  return verifyChallengeVerdict(challenge, {
+    kind: 'tradelayer_perp_pnl_challenge',
+    coreKind: 'tradelayer_perp_pnl_challenge_v1',
+    labelField: 'challengeType',
+    verdict: perpChallengeable
+  });
 }
 
 module.exports = {

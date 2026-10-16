@@ -11,6 +11,7 @@ const {
   addressToScriptPubKey
 } = require('./tradelayer_pnl_route_adapter');
 const { toSats } = require('./money');
+const { verifyChallengeVerdict } = require('./challenge_verdict');
 
 function normalizeRequest(request, index) {
   if (!request || typeof request !== 'object') throw new Error(`request[${index}] must be an object`);
@@ -136,7 +137,12 @@ function verifyTradeLayerWithdrawalQueue(queue) {
   const queueHash = sha256Hex(queue.queueCore);
   if (queue.queueHash !== queueHash) return { ok: false, reason: 'queue hash mismatch', queueHash };
   const core = queue.queueCore;
-  const entries = queueEntries(core.entries || [], core.network);
+  let entries;
+  try {
+    entries = queueEntries(core.entries || [], core.network);
+  } catch (err) {
+    return { ok: false, reason: `queue entries do not parse: ${err.message}` };
+  }
   if (sha256Hex(entries) !== core.queueRoot) return { ok: false, reason: 'queue root mismatch' };
   let rebuilt;
   try {
@@ -172,11 +178,55 @@ function verifyTradeLayerWithdrawalQueue(queue) {
   };
 }
 
+// The queue entry a claim names, or null. Entry ids are unique (queueEntries refuses a repeat).
+function queueEntryFor(queue, requestId) {
+  return queue.queueCore.entries.find((entry) => entry.id === String(requestId)) || null;
+}
+
+// Each fact a claim states about a request must be what the queue holds for it.
+function claimMismatch(core, queue) {
+  const claimed = core.claimed || {};
+  const entry = queueEntryFor(queue, claimed.requestId);
+  switch (core.challengeType) {
+    case 'omitted_withdrawal':
+      return claimed.includedInPayableSet === queue.queueCore.payableRequestIds.includes(String(claimed.requestId))
+        ? null
+        : 'includedInPayableSet does not match the queue';
+    case 'duplicate_withdrawal':
+      return Number(claimed.duplicateCount) === (entry ? 1 : 0) ? null : 'duplicateCount does not match the queue';
+    case 'amount_mismatch':
+      return entry && claimed.expectedSats === entry.sats ? null : 'expectedSats is not the queue amount';
+    case 'destination_mismatch':
+      return entry && claimed.expectedAddress === entry.address ? null : 'expectedAddress is not the queue address';
+    default:
+      return `unknown withdrawal challenge type: ${core.challengeType}`;
+  }
+}
+
+// Challengeable when the queue shows the claim true. A request the queue holds is not
+// omitted, whatever its status: a pending or rejected entry is held out on purpose.
+function withdrawalChallengeable(core, queue) {
+  const claimed = core.claimed || {};
+  switch (core.challengeType) {
+    case 'omitted_withdrawal':
+      return !queueEntryFor(queue, claimed.requestId);
+    case 'duplicate_withdrawal':
+      return Number(claimed.duplicateCount) > 1;
+    case 'amount_mismatch':
+      return claimed.expectedSats !== claimed.claimedSats;
+    case 'destination_mismatch':
+      return claimed.expectedAddress !== claimed.claimedAddress;
+    default:
+      return false;
+  }
+}
+
 function buildTradeLayerWithdrawalQueueChallenge(queue, options = {}) {
   const result = verifyTradeLayerWithdrawalQueue(queue);
   if (!result.ok) throw new Error(`invalid queue: ${result.reason}`);
   const challengeType = options.challengeType || 'omitted_withdrawal';
   const request = options.request || queue.queueCore.entries[0];
+  const requestId = String(request.id ?? request.withdrawalId);
   const expected = {
     queueHash: queue.queueHash,
     queueRoot: queue.queueCore.queueRoot,
@@ -185,24 +235,24 @@ function buildTradeLayerWithdrawalQueueChallenge(queue, options = {}) {
   let claimed;
   if (challengeType === 'omitted_withdrawal') {
     claimed = {
-      requestId: request.id,
+      requestId,
       requestHash: sha256Hex(request),
-      includedInPayableSet: false
+      includedInPayableSet: queue.queueCore.payableRequestIds.includes(requestId)
     };
   } else if (challengeType === 'duplicate_withdrawal') {
     claimed = {
-      requestId: request.id,
+      requestId,
       duplicateCount: Number(options.duplicateCount || 2)
     };
   } else if (challengeType === 'amount_mismatch') {
     claimed = {
-      requestId: request.id,
+      requestId,
       expectedSats: String(request.sats),
       claimedSats: (BigInt(request.sats) + 1n).toString()
     };
   } else if (challengeType === 'destination_mismatch') {
     claimed = {
-      requestId: request.id,
+      requestId,
       expectedAddress: request.address,
       claimedAddress: options.claimedAddress || `${request.address}:wrong`
     };
@@ -215,30 +265,31 @@ function buildTradeLayerWithdrawalQueueChallenge(queue, options = {}) {
     expected,
     claimed
   };
-  const challengeable = (
-    challengeType === 'omitted_withdrawal'
-    || (challengeType === 'duplicate_withdrawal' && claimed.duplicateCount > 1)
-    || (challengeType === 'amount_mismatch' && claimed.expectedSats !== claimed.claimedSats)
-    || (challengeType === 'destination_mismatch' && claimed.expectedAddress !== claimed.claimedAddress)
-  );
   return {
     kind: 'tradelayer_withdrawal_queue_challenge',
     challengeType,
     challengeHash: sha256Hex(core),
-    challengeable,
+    challengeable: withdrawalChallengeable(core, queue),
     core
   };
 }
 
+// The queue is the input every claim is read against, so it is required.
 function verifyTradeLayerWithdrawalQueueChallenge(challenge, queue) {
-  if (!challenge || challenge.kind !== 'tradelayer_withdrawal_queue_challenge') {
-    return { ok: false, reason: 'wrong challenge kind' };
-  }
-  if (!challenge.core || typeof challenge.core !== 'object') return { ok: false, reason: 'challenge core missing' };
-  if (queue && challenge.core.expected.queueHash !== queue.queueHash) return { ok: false, reason: 'queue hash mismatch' };
-  const challengeHash = sha256Hex(challenge.core);
-  if (challenge.challengeHash !== challengeHash) return { ok: false, reason: 'challenge hash mismatch', challengeHash };
-  return { ok: true, challengeHash, challengeable: challenge.challengeable };
+  if (!queue) return { ok: false, reason: 'queue required to judge a withdrawal challenge' };
+  const queueResult = verifyTradeLayerWithdrawalQueue(queue);
+  if (!queueResult.ok) return { ok: false, reason: `invalid queue: ${queueResult.reason}` };
+  if (challenge?.core?.expected?.queueHash !== queue.queueHash) return { ok: false, reason: 'queue hash mismatch' };
+  const verdict = verifyChallengeVerdict(challenge, {
+    kind: 'tradelayer_withdrawal_queue_challenge',
+    coreKind: 'tradelayer_withdrawal_queue_challenge_v1',
+    labelField: 'challengeType',
+    verdict: (core) => withdrawalChallengeable(core, queue)
+  });
+  if (!verdict.ok) return verdict;
+  const mismatch = claimMismatch(challenge.core, queue);
+  if (mismatch) return { ok: false, reason: mismatch };
+  return verdict;
 }
 
 module.exports = {

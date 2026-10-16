@@ -294,10 +294,10 @@ test('a checkpoint fraud proof whose top-level type differs from its hashed core
   const checkpoint = cp.buildTradeLayerStateCheckpoint({ acceptedTxids: ['11'.repeat(32)], rejectedTxids: [] });
   const notChallengeable = cp.buildTradeLayerCheckpointFraudProof(checkpoint, {
     proofType: 'invalid_accepted_tx',
-    txid: '11'.repeat(32),
+    txid: 'ee'.repeat(32),
     rejectReason: 'x'
   });
-  assertEq(notChallengeable.challengeable, false, 'the honest checkpoint has no invalid accepted tx');
+  assertEq(notChallengeable.challengeable, false, 'a txid outside the accepted set is not an invalid accepted tx');
   assertEq(cp.verifyTradeLayerCheckpointFraudProof(notChallengeable, checkpoint).ok, true);
   const relabelled = { ...notChallengeable, proofType: 'state_root_mismatch' };
   assertEq(cp.verifyTradeLayerCheckpointFraudProof(relabelled, checkpoint).ok, false, 'the labelled type must be the hashed one');
@@ -335,6 +335,48 @@ test('an output whose scriptPubKey does not match its address is refused, and sc
   assert(throwsWith(() => pa.buildTradeLayerPnlCommitment(notHex, { epochId: 1 }), /scriptPubKey must be hex/), 'hex must be canonical');
   const agree = { route: 'pnl-netting', network: 'litecoin-testnet', outputPlan: [{ address: LTC, scriptPubKey: pa.addressToScriptPubKey(LTC, 'litecoin-testnet').toString('hex'), sats: '1000' }] };
   assertEq(pa.buildTradeLayerPnlCommitment(agree, { epochId: 1 }).payoutTotalSats, 1000n);
+});
+
+// ---- claims are read against the committed inputs they name, not taken as written ----
+function rehashed(challenge, core, hashField = 'challengeHash') {
+  return { ...challenge, core, [hashField]: pa.sha256Hex(core) };
+}
+
+test('a request the queue holds but does not pay is not omitted', () => {
+  const held = { id: 'wd-held', txid: '33'.repeat(32), address: PAYOUT_2, sats: '2000', propertyId: 0, status: 'pending' };
+  const q = wq.buildTradeLayerWithdrawalQueue({
+    network: NET,
+    epochId: 77,
+    requests: [{ id: 'wd-1', txid: '11'.repeat(32), address: PAYOUT, sats: 97000, propertyId: 0, status: 'approved' }, held]
+  });
+  const claim = wq.buildTradeLayerWithdrawalQueueChallenge(q, { challengeType: 'omitted_withdrawal', request: held });
+  assertEq(claim.challengeable, false, 'a pending request is held out of the payable set on purpose');
+  assertEq(wq.verifyTradeLayerWithdrawalQueueChallenge(claim, q).ok, true);
+});
+
+test('an amount or destination challenge must name what the queue holds for that request', () => {
+  const q = queue();
+  const amount = wq.buildTradeLayerWithdrawalQueueChallenge(q, { challengeType: 'amount_mismatch' });
+  assertEq(amount.challengeable, true, 'the default claim is one sat off');
+  const inflated = rehashed(amount, { ...amount.core, claimed: { ...amount.core.claimed, expectedSats: '90000', claimedSats: '90001' } });
+  assertEq(wq.verifyTradeLayerWithdrawalQueueChallenge(inflated, q).ok, false, 'expectedSats must be the queue entry amount');
+  const destination = wq.buildTradeLayerWithdrawalQueueChallenge(q, { challengeType: 'destination_mismatch' });
+  const elsewhere = rehashed(destination, { ...destination.core, claimed: { ...destination.core.claimed, expectedAddress: PAYOUT_2 } });
+  assertEq(wq.verifyTradeLayerWithdrawalQueueChallenge(elsewhere, q).ok, false, 'expectedAddress must be the queue entry address');
+});
+
+test('a perp challenge must name the settlement terms it claims against', () => {
+  const settlement = pp.buildTradeLayerPerpPnlSettlement({ network: 'litecoin-testnet', epochId: 1, priceScale: 1, position: POSITION, close: { price: 100 } });
+  const challenge = pp.buildTradeLayerPerpPnlChallenge(settlement, { challengeType: 'wrong_pnl_transfer' });
+  const forged = rehashed(challenge, { ...challenge.core, expected: { ...challenge.core.expected, transferSats: '999' } });
+  assertEq(pp.verifyTradeLayerPerpPnlChallenge(forged, settlement).ok, false, 'expected terms come from the settlement');
+});
+
+test('a checkpoint fraud proof must place its txid where the checkpoint does', () => {
+  const checkpoint = cp.buildTradeLayerStateCheckpoint({ acceptedTxids: ['11'.repeat(32)], rejectedTxids: [] });
+  const proof = cp.buildTradeLayerCheckpointFraudProof(checkpoint, { proofType: 'invalid_accepted_tx', txid: 'ee'.repeat(32), rejectReason: 'x' });
+  const forged = { ...rehashed(proof, { ...proof.core, claimed: { ...proof.core.claimed, includedInAcceptedSet: true } }, 'proofHash'), challengeable: true };
+  assertEq(cp.verifyTradeLayerCheckpointFraudProof(forged, checkpoint).ok, false, 'inclusion follows from the accepted set');
 });
 
 if (failed > 0) {
