@@ -29,13 +29,9 @@
 
 const fs = require('fs');
 const path = require('path');
-const crypto = require('crypto');
+const { sha256Hex } = require('../dlc_canonical_json');
 
 const DEFAULT_JOURNAL_PATH = path.join(__dirname, '..', 'artifacts', 'live', 'nonce_journal.json');
-
-function sha256Hex(buf) {
-  return crypto.createHash('sha256').update(Buffer.isBuffer(buf) ? buf : Buffer.from(buf)).digest('hex');
-}
 
 function loadJournal(journalPath) {
   if (!fs.existsSync(journalPath)) return {};

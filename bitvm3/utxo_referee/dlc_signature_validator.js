@@ -1,11 +1,12 @@
 'use strict';
 
-const crypto = require('crypto');
+const { compareCodeUnits, sha256Hex, requireHex } = require('./dlc_canonical_json');
 const {
   parseCanonicalUnsignedTransaction,
   parseCanonicalSignedTaprootTransaction,
   normalizeDlcTransactionSet,
-  dlcFundingOutputForTransactionSet
+  dlcFundingOutputForTransactionSet,
+  outcomeKey
 } = require('./dlc_transaction_validator');
 const { dlcSettlementSighash, settlementLeaf, buildDlcSettlementWitness } = require('./dlc_funding_output');
 const { outpoint, varint } = require('./tradelayer_taproot');
@@ -15,17 +16,6 @@ const {
   bytes32
 } = require('./tradelayer_dlc_adaptor_sig');
 const { canonicalJson } = require('./dlc_contract_state');
-
-function sha256Hex(value) {
-  return crypto.createHash('sha256').update(value).digest('hex');
-}
-
-function requireHex(value, bytes, fieldName) {
-  if (typeof value !== 'string' || !new RegExp(`^[0-9a-f]{${bytes * 2}}$`).test(value)) {
-    throw new Error(`${fieldName} must be lowercase ${bytes}-byte hex`);
-  }
-  return value;
-}
 
 function normalizeSignerPubkey(signerPubkeyX) {
   if (Buffer.isBuffer(signerPubkeyX) && signerPubkeyX.length === 32) return Buffer.from(signerPubkeyX);
@@ -50,7 +40,7 @@ function toBip341Transaction(transaction) {
 }
 
 function cetIdentity(cet) {
-  return `${cet.outcomeMessage}:${cet.oraclePubkeys.join(':')}:${cet.txid}`;
+  return `${outcomeKey(cet)}:${cet.txid}`;
 }
 
 // The funding output is derived from the validated transaction set, never
@@ -99,7 +89,7 @@ function validateCetAdaptorSignatures({
     if (!entry || !Array.isArray(entry.oraclePubkeys) || !entry.outcomePoint) {
       throw new Error('invalid threshold outcome point entry');
     }
-    return [`${entry.outcomeMessage}:${entry.oraclePubkeys.join(':')}`, entry.outcomePoint];
+    return [outcomeKey(entry), entry.outcomePoint];
   }));
   const byIdentity = new Map(signatures.map((entry) => {
     if (!entry || typeof entry.identity !== 'string' || !entry.presignature) throw new Error('invalid CET adaptor signature entry');
@@ -112,7 +102,7 @@ function validateCetAdaptorSignatures({
     const identity = cetIdentity(cet);
     const entry = byIdentity.get(identity);
     if (!entry) throw new Error(`missing adaptor signature for CET ${index}`);
-    const point = points.get(`${cet.outcomeMessage}:${cet.oraclePubkeys.join(':')}`);
+    const point = points.get(outcomeKey(cet));
     if (!point) throw new Error(`missing threshold outcome point for CET ${index}`);
     if (entry.presignature.Tx !== bytes32(point.x).toString('hex') ||
         entry.presignature.Ty !== bytes32(point.y).toString('hex')) {
@@ -130,7 +120,7 @@ function validateCetAdaptorSignatures({
       sighash: sighash.toString('hex'),
       presignature: entry.presignature
     };
-  }).sort((left, right) => left.identity.localeCompare(right.identity));
+  }).sort((left, right) => compareCodeUnits(left.identity, right.identity));
   if (byIdentity.size !== normalized.length) throw new Error('unexpected CET adaptor signature entry');
   return Object.freeze({
     digest: sha256Hex(canonicalJson(normalized)),

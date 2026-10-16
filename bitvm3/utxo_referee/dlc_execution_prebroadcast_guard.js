@@ -1,6 +1,6 @@
 'use strict';
 
-const crypto = require('crypto');
+const { sha256Hex, requireHash } = require('./dlc_canonical_json');
 const { canonicalJson, normalizeDlcContract } = require('./dlc_contract_state');
 const {
   parseCanonicalSignedTaprootTransaction,
@@ -18,17 +18,6 @@ const RPC_METHODS = Object.freeze([
   'decoderawtransaction',
   'testmempoolaccept'
 ]);
-
-function sha256Hex(value) {
-  return crypto.createHash('sha256').update(value).digest('hex');
-}
-
-function requireHash(value, fieldName) {
-  if (typeof value !== 'string' || !/^[0-9a-f]{64}$/.test(value)) {
-    throw new Error(`${fieldName} must be lowercase 32-byte hex`);
-  }
-  return value;
-}
 
 function requireSafeInteger(value, fieldName, minimum = 0) {
   if (!Number.isSafeInteger(value) || value < minimum) throw new Error(`${fieldName} is invalid`);

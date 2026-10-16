@@ -6,13 +6,9 @@
  *   DLC_FUZZ_WORKERS=4
  */
 
-const crypto = require('crypto');
 const { Worker, isMainThread, parentPort, workerData } = require('worker_threads');
 const a = require('./tradelayer_dlc_adaptor_sig');
-
-function sha256(value) {
-  return crypto.createHash('sha256').update(value).digest();
-}
+const { sha256 } = require('./dlc_canonical_json');
 
 function scalar(label) {
   return (a.bufToBig(sha256(label)) % (a.N - 1n)) + 1n;

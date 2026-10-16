@@ -1,6 +1,6 @@
 'use strict';
 
-const crypto = require('crypto');
+const { sha256Hex } = require('./dlc_canonical_json');
 const fs = require('fs');
 const path = require('path');
 const {
@@ -28,10 +28,6 @@ const {
 
 const KIND = 'utxoref_dlc_oracle_event_record_v1';
 const MAX_RECORD_BYTES = 1048576;
-
-function sha256Hex(value) {
-  return crypto.createHash('sha256').update(value).digest('hex');
-}
 
 function eventKey(oraclePubkey, eventId) {
   if (typeof oraclePubkey !== 'string' || !/^[0-9a-f]{64}$/.test(oraclePubkey)) {

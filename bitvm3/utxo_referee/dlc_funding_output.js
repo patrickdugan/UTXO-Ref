@@ -19,10 +19,10 @@
  * refund additionally needs the committed relative delay to have passed.
  */
 
-const crypto = require('crypto');
 const ts = require('./tradelayer_taproot_script');
 const { buildTaprootTree, controlBlockWithPath } = require('./tradelayer_taproot_tree');
 const a = require('./tradelayer_dlc_adaptor_sig');
+const { sha256 } = require('./dlc_canonical_json');
 
 const KIND = 'utxoref_dlc_funding_output_v1';
 const INTERNAL_KEY_POLICY = 'deterministic-nums-no-keypath-v1';
@@ -41,7 +41,7 @@ let cachedInternalXonly = null;
 function deriveDlcFundingInternalXonly() {
   if (cachedInternalXonly) return cachedInternalXonly;
   for (let counter = 0; counter < 1024; counter++) {
-    const candidate = crypto.createHash('sha256').update(`${NUMS_DOMAIN}:${counter}`, 'utf8').digest();
+    const candidate = sha256(`${NUMS_DOMAIN}:${counter}`);
     try {
       a.liftX(a.bufToBig(candidate));
       cachedInternalXonly = candidate.toString('hex');

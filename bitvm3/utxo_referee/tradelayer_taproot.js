@@ -13,14 +13,10 @@
  * on a Core build with no taproot address tooling.
  */
 
-const crypto = require('crypto');
 const {
   N, G, mod, pointMul, pointAdd, liftX, taggedHash, bytes32, bufToBig
 } = require('./tradelayer_dlc_adaptor_sig');
-
-function sha256(buf) {
-  return crypto.createHash('sha256').update(buf).digest();
-}
+const { sha256 } = require('./dlc_canonical_json');
 
 function hasEvenYPoint(point) {
   return mod(point.y, 2n) === 0n;

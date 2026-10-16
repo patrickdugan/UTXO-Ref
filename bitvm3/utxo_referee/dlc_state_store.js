@@ -1,9 +1,9 @@
 'use strict';
 
-const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const { normalizeDlcContract, transitionDlcContract } = require('./dlc_contract_state');
+const { sha256Hex } = require('./dlc_canonical_json');
 const {
   assertNonSymlinkDirectory,
   ensureNonSymlinkDirectory,
@@ -28,7 +28,7 @@ function requireContractId(value) {
 }
 
 function contractKey(contractId) {
-  return crypto.createHash('sha256').update(Buffer.from(requireContractId(contractId), 'utf8')).digest('hex');
+  return sha256Hex(Buffer.from(requireContractId(contractId), 'utf8'));
 }
 
 class DlcStateStore {
