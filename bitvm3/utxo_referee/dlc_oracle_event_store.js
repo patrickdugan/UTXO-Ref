@@ -14,6 +14,7 @@ const {
 } = require('./tradelayer_dlc_adaptor_sig');
 const { canonicalize, canonicalJson } = require('./dlc_contract_state');
 const {
+  acquireDirectoryLock,
   assertNonSymlinkDirectory,
   ensureNonSymlinkDirectory,
   readBoundedJson,
@@ -98,26 +99,12 @@ class DlcOracleEventStore {
 
   _withLock(key, run) {
     this._requireOpen();
-    const lockDirectory = this._lockDirectory(key);
-    const ownerPath = path.join(lockDirectory, 'owner.json');
-    try {
-      fs.mkdirSync(lockDirectory, { mode: 0o700 });
-    } catch (error) {
-      if (error.code === 'EEXIST') throw new Error(`oracle event store lock is held for ${key}`);
-      throw error;
-    }
-    try {
-      fs.writeFileSync(ownerPath, JSON.stringify({ pid: process.pid }), { mode: 0o600, flag: 'wx' });
-    } catch (error) {
-      try { fs.unlinkSync(ownerPath); } catch (_cleanupError) {}
-      try { fs.rmdirSync(lockDirectory); } catch (_cleanupError) {}
-      throw error;
-    }
-    try {
-      return run();
-    } finally {
-      try { fs.unlinkSync(ownerPath); } finally { fs.rmdirSync(lockDirectory); }
-    }
+    const release = acquireDirectoryLock(
+      this._lockDirectory(key),
+      `oracle event store lock is held for ${key}`
+    );
+    try { return run(); }
+    finally { release(); }
   }
 
   _files(key) {

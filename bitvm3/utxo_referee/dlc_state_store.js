@@ -5,6 +5,7 @@ const path = require('path');
 const { normalizeDlcContract, transitionDlcContract } = require('./dlc_contract_state');
 const { sha256Hex } = require('./dlc_canonical_json');
 const {
+  acquireDirectoryLock,
   assertNonSymlinkDirectory,
   ensureNonSymlinkDirectory,
   readBoundedJson,
@@ -47,26 +48,12 @@ class DlcStateStore {
   }
 
   _withLock(contractId, run) {
-    const lockDirectory = this._lockDirectory(contractId);
-    const ownerPath = path.join(lockDirectory, 'owner.json');
-    try {
-      fs.mkdirSync(lockDirectory, { mode: 0o700 });
-    } catch (error) {
-      if (error.code === 'EEXIST') throw new Error(`DLC state store lock is held for ${contractId}`);
-      throw error;
-    }
-    try {
-      fs.writeFileSync(ownerPath, JSON.stringify({ pid: process.pid }), { mode: 0o600, flag: 'wx' });
-    } catch (error) {
-      try { fs.unlinkSync(ownerPath); } catch (_cleanupError) {}
-      try { fs.rmdirSync(lockDirectory); } catch (_cleanupError) {}
-      throw error;
-    }
-    try {
-      return run();
-    } finally {
-      try { fs.unlinkSync(ownerPath); } finally { fs.rmdirSync(lockDirectory); }
-    }
+    const release = acquireDirectoryLock(
+      this._lockDirectory(contractId),
+      `DLC state store lock is held for ${contractId}`
+    );
+    try { return run(); }
+    finally { release(); }
   }
 
   _revisionFiles(contractId) {
