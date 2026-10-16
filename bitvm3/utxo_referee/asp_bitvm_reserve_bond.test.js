@@ -26,6 +26,11 @@ function assert(condition, message) {
   if (!condition) throw new Error(message);
 }
 
+// The verifier pins the ASP key; these tests pin the key the bundle was signed with.
+function pinnedAsp(bundle) {
+  return { aspPublicKeyPem: bundle.obligationSet.aspPublicKeyPem };
+}
+
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
 }
@@ -38,7 +43,7 @@ test('reserve bundle verifies a slashable LN liquidity underdelivery claim', () 
     promisedInboundSats: 250000n,
     deliveredInboundSats: 190000n
   });
-  const result = verifyAspBitvmReserveBundle(bundle);
+  const result = verifyAspBitvmReserveBundle(bundle, pinnedAsp(bundle));
 
   assert(result.ok, result.reason || 'bundle should verify');
   assert(bundle.reserve.reserveCore.reserveAmountSats === '1000000', 'reserve amount mismatch');
@@ -97,7 +102,7 @@ test('virtual CET payout root mismatch can select the reserve slash path', () =>
     obligationType: 'virtual-cet-settlement',
     observedPayoutRoot: '0'.repeat(64)
   });
-  const result = verifyAspBitvmReserveBundle(bundle);
+  const result = verifyAspBitvmReserveBundle(bundle, pinnedAsp(bundle));
 
   assert(result.ok, result.reason || 'bundle should verify');
   assert(bundle.misbehaviorClaim.claimCore.violation === 'wrong_virtual_cet_payout_root', 'wrong violation');
@@ -110,7 +115,7 @@ test('exit withholding can select the reserve slash path', () => {
     exitAvailable: false,
     withdrawalAmountSats: 125000n
   });
-  const result = verifyAspBitvmReserveBundle(bundle);
+  const result = verifyAspBitvmReserveBundle(bundle, pinnedAsp(bundle));
 
   assert(result.ok, result.reason || 'bundle should verify');
   assert(bundle.misbehaviorClaim.claimCore.violation === 'exit_path_withheld', 'wrong violation');
@@ -121,7 +126,7 @@ test('verification fails on tampered ASP obligation signature', () => {
   const bundle = clone(buildAspBitvmReserveBundle());
   bundle.obligationSet.obligations[1].aspSignature = 'bad-signature';
 
-  const result = verifyAspBitvmReserveBundle(bundle);
+  const result = verifyAspBitvmReserveBundle(bundle, pinnedAsp(bundle));
   assert(!result.ok, 'bad ASP signature should fail');
 });
 
@@ -142,7 +147,7 @@ test('verification fails when claim exceeds reserve amount', () => {
     .update(require('./m1_spec').canonicalStringify(bundle.zkReceipt.receiptCore))
     .digest('hex');
 
-  const result = verifyAspBitvmReserveBundle(bundle);
+  const result = verifyAspBitvmReserveBundle(bundle, pinnedAsp(bundle));
   assert(!result.ok, 'oversized slash should fail');
 });
 
@@ -159,7 +164,7 @@ test('verification fails when the opened verifier step is tampered', () => {
     .update(require('./m1_spec').canonicalStringify(bundle.disputeSimulation.simulationCore))
     .digest('hex');
 
-  const result = verifyAspBitvmReserveBundle(bundle);
+  const result = verifyAspBitvmReserveBundle(bundle, pinnedAsp(bundle));
   assert(!result.ok, 'tampered opened step should fail');
 });
 
@@ -176,8 +181,36 @@ test('verification fails when the opened verifier script check is tampered', () 
     .update(require('./m1_spec').canonicalStringify(bundle.disputeSimulation.simulationCore))
     .digest('hex');
 
-  const result = verifyAspBitvmReserveBundle(bundle);
+  const result = verifyAspBitvmReserveBundle(bundle, pinnedAsp(bundle));
   assert(!result.ok, 'tampered script check should fail');
+});
+
+test('an ASP obligation signature is checked under the pinned key, not one the bundle carries', () => {
+  const bundle = buildAspBitvmReserveBundle();
+  const other = require('crypto').generateKeyPairSync('ed25519').publicKey.export({ type: 'spki', format: 'pem' });
+  const result = verifyAspBitvmReserveBundle(bundle, { aspPublicKeyPem: other });
+  assert(!result.ok, 'a signature by another key must not verify');
+});
+
+test('an obligation digest that anyone can compute is not an ASP signature', () => {
+  const bundle = clone(buildAspBitvmReserveBundle());
+  const obligation = bundle.obligationSet.obligations[0];
+  const digest = require('crypto').createHash('sha256').update(`asp-signature:${bundle.reserve.reserveCore.aspId}:${obligation.obligationId}`).digest('hex');
+  obligation.aspSignature = digest;
+  const result = verifyAspBitvmReserveBundle(bundle, pinnedAsp(bundle));
+  assert(!result.ok, 'the old public digest must not verify');
+});
+
+test('verification without a pinned ASP key is refused', () => {
+  const bundle = buildAspBitvmReserveBundle();
+  const result = verifyAspBitvmReserveBundle(bundle);
+  assert(!result.ok && /pinned/.test(result.reason), 'a bundle is not verified against its own key');
+});
+
+test('the verifier trace reports the signature check it actually ran', () => {
+  const bundle = buildAspBitvmReserveBundle();
+  const step = bundle.verifierTrace.steps.find((item) => item.stepCore.opcode === 'verify-asp-signature');
+  assert(step && step.stepCore.output.matched === true, 'a genuine signature matches');
 });
 
 if (failed) {

@@ -89,7 +89,41 @@ function buildAspReserveBond(options = {}) {
   };
 }
 
+// The ASP signs each obligation with its own Ed25519 key. A verifier checks the signature
+// under the public key it pins; a key or a digest the bundle carries is not a pin.
+function aspObligationMessage(aspId, obligationId) {
+  return `asp-obligation:${aspId}:${obligationId}`;
+}
+
+function signAspObligation(privateKey, aspId, obligationId) {
+  return crypto.sign(null, Buffer.from(aspObligationMessage(aspId, obligationId), 'utf8'), privateKey).toString('hex');
+}
+
+function aspObligationSignatureMatches(obligation, aspId, publicKeyPem) {
+  try {
+    return crypto.verify(
+      null,
+      Buffer.from(aspObligationMessage(aspId, obligation.obligationId), 'utf8'),
+      publicKeyPem,
+      Buffer.from(String(obligation.aspSignature), 'hex')
+    );
+  } catch (_err) {
+    return false;
+  }
+}
+
+function aspSigningKey(options = {}) {
+  const privateKey = options.aspPrivateKey
+    ? crypto.createPrivateKey(options.aspPrivateKey)
+    : crypto.generateKeyPairSync('ed25519').privateKey;
+  return {
+    privateKey,
+    publicKeyPem: crypto.createPublicKey(privateKey).export({ type: 'spki', format: 'pem' })
+  };
+}
+
 function buildDefaultObligations(reserve, shinigamiBundle, options = {}) {
+  if (!options.aspPrivateKey) throw new Error('aspPrivateKey is required to sign obligations');
   const promisedInboundSats = normalizeAmountSats(options.promisedInboundSats || 250000n, 'promisedInboundSats');
   const deliveredInboundSats = normalizeAmountSats(options.deliveredInboundSats || 190000n, 'deliveredInboundSats');
   const withdrawalAmountSats = normalizeAmountSats(options.withdrawalAmountSats || 100000n, 'withdrawalAmountSats');
@@ -149,7 +183,7 @@ function buildDefaultObligations(reserve, shinigamiBundle, options = {}) {
       kind: 'asp_signed_service_obligation',
       obligationId,
       obligationCore,
-      aspSignature: sha256Hex(`asp-signature:${aspId}:${obligationId}`)
+      aspSignature: signAspObligation(options.aspPrivateKey, aspId, obligationId)
     };
   });
 }
@@ -157,7 +191,8 @@ function buildDefaultObligations(reserve, shinigamiBundle, options = {}) {
 function buildAspObligationSet(options = {}) {
   const reserve = options.reserve || buildAspReserveBond(options);
   const shinigamiBundle = options.shinigamiBundle || buildShinigamiVirtualCetBundle(options);
-  const obligations = options.obligations || buildDefaultObligations(reserve, shinigamiBundle, options);
+  const signing = aspSigningKey(options);
+  const obligations = options.obligations || buildDefaultObligations(reserve, shinigamiBundle, { ...options, aspPrivateKey: signing.privateKey });
   const obligationSetCore = {
     version: 1,
     protocol: 'asp_obligation_set',
@@ -172,6 +207,7 @@ function buildAspObligationSet(options = {}) {
     kind: 'asp_obligation_set',
     obligationRoot: hashCanonical(obligationSetCore),
     obligationSetCore,
+    aspPublicKeyPem: signing.publicKeyPem,
     obligations
   };
 }
@@ -342,7 +378,7 @@ function buildBitvmZkVerifierTrace(options = {}) {
     ['bind-reserve-outpoint', { reserveOutpoint: reserve.reserveCore.reserveOutpoint }, { reserveId: reserve.reserveId }],
     ['bind-obligation-root', { obligationRoot: obligationSet.obligationRoot }, { obligationCount: obligationSet.obligations.length }],
     ['select-obligation', { obligationId: selected.obligationId }, { obligationType: selected.obligationCore.obligationType }],
-    ['verify-asp-signature', { aspSignature: selected.aspSignature }, { matched: true }],
+    ['verify-asp-signature', { aspSignature: selected.aspSignature }, { matched: aspObligationSignatureMatches(selected, reserve.reserveCore.aspId, obligationSet.aspPublicKeyPem) }],
     ['decode-liquidity-obligation', { obligationType: selected.obligationCore.obligationType }, { comparator: isLiquidity ? 'observed_sats < promised_sats' : 'observed_state != promised_state' }],
     ['load-promised-sats', { promisedState: selected.obligationCore.promisedState }, { promisedSats: promised.toString(), promisedState: selected.obligationCore.promisedState }],
     ['load-observed-sats', { observedState: selected.obligationCore.observedState }, { observedSats: observed.toString(), observedState: selected.obligationCore.observedState }],
@@ -855,7 +891,8 @@ function buildAspBitvmReserveBundle(options = {}) {
   return bundle;
 }
 
-function verifyAspBitvmReserveBundle(bundle) {
+function verifyAspBitvmReserveBundle(bundle, options = {}) {
+  if (!options.aspPublicKeyPem) return { ok: false, reason: 'ASP public key must be pinned' };
   if (!bundle || bundle.kind !== 'asp_bitvm_reserve_bundle') {
     return { ok: false, reason: 'wrong bundle kind' };
   }
@@ -879,8 +916,7 @@ function verifyAspBitvmReserveBundle(bundle) {
     if (obligation.obligationId !== hashCanonical(obligation.obligationCore)) {
       return { ok: false, reason: `obligation id mismatch: ${obligation.obligationCore.obligationType}` };
     }
-    const expectedSig = sha256Hex(`asp-signature:${bundle.reserve.reserveCore.aspId}:${obligation.obligationId}`);
-    if (obligation.aspSignature !== expectedSig) {
+    if (!aspObligationSignatureMatches(obligation, bundle.reserve.reserveCore.aspId, options.aspPublicKeyPem)) {
       return { ok: false, reason: `ASP signature mismatch: ${obligation.obligationCore.obligationType}` };
     }
   }
@@ -934,7 +970,7 @@ function buildAspReserveDashboardProof(options = {}) {
     kind: 'asp_bitvm_reserve_dashboard_proof',
     generatedAt: options.generatedAt || '2026-05-05T00:00:00.000Z',
     source: 'utxoref-asp-bitvm-reserve',
-    verification: verifyAspBitvmReserveBundle(bundle),
+    verification: verifyAspBitvmReserveBundle(bundle, { aspPublicKeyPem: bundle.obligationSet.aspPublicKeyPem }),
     bundleId: bundle.bundleId,
     reserveId: bundle.reserve.reserveId,
     claimId: bundle.misbehaviorClaim.claimId,
