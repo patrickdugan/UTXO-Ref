@@ -411,6 +411,16 @@ test('a stablecoin bundle with an unset field verifies after a JSON round trip',
   assert(lsc.verifyTaprootAssetsStablecoinBundle(JSON.parse(JSON.stringify(bundle))).ok, 'the bundle read back from JSON verifies');
 });
 
+// ---- carried verifications: a bundle's own verification field is never the verdict ----
+test('a lease bundle that carries a passing verification field is not shown as verified', () => {
+  const lease = require('./lightning_liquidity_lease');
+  const wallet = require('./lightning_wallet_integration');
+  const htlcProof = { lightning: { paymentHashHex: 'aa'.repeat(32) }, swap: { fundingTxid: 'bb'.repeat(32), refundLocktime: 10 }, dlcFunding: { claimTxid: 'cc'.repeat(32), outputVout: 1, commitmentHash: 'dd'.repeat(32), outputAmountSats: '10000' } };
+  const bundle = lease.buildLiquidityLeaseBundle({ htlcProof, promisedInboundSats: 20000n, observedInboundSats: 10000n });
+  const forged = { ...bundle, verification: { ok: true } };
+  assertEq(wallet.buildWalletIntegrationManifest({ leaseBundle: forged, subswapProof: htlcProof }).walletView.status, 'needs_attention', 'the verdict is recomputed');
+});
+
 if (failed > 0) {
   console.log(`\nFAIL: ${failed} failed, ${passed} passed\n`);
   process.exit(1);
