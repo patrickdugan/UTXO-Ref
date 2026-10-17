@@ -15,16 +15,15 @@
 
 const { ReceiptDepositIndexer } = require('./m1_deposit_indexer');
 const { ReceiptLedger } = require('./m1_receipt_ledger');
+const { toSats, decimalToUnits } = require('./money');
 
 function toAmountSats(row) {
   if (row.amountSats !== undefined && row.amountSats !== null) {
-    const n = Number(row.amountSats);
-    if (!Number.isInteger(n) || n < 0) throw new Error(`invalid amountSats for ${row.txid}:${row.vout}`);
-    return n;
+    return toSats(row.amountSats, `invalid amountSats for ${row.txid}:${row.vout}`);
   }
   if (row.amount !== undefined) {
     // Litecoin Core reports amount in whole LTC; convert to integer sats.
-    return Math.round(Number(row.amount) * 1e8);
+    return decimalToUnits(row.amount, `UTXO ${row.txid}:${row.vout} amount`);
   }
   throw new Error(`UTXO ${row.txid}:${row.vout} has no amount`);
 }

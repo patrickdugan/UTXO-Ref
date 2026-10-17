@@ -13,6 +13,7 @@ const {
 const {
   verifyTradeLayerReserveReconciliation
 } = require('./tradelayer_reserve_reconciliation_referee');
+const { toSats } = require('./money');
 
 const DEFAULT_POLICY = {
   challengeWindowBlocks: 144,
@@ -26,16 +27,6 @@ const DEFAULT_POLICY = {
   allowedOracleKeyIds: [],
   pauseOnFailure: true
 };
-
-function toSats(value, fieldName) {
-  if (typeof value === 'bigint') return value;
-  if (typeof value === 'number') {
-    if (!Number.isSafeInteger(value)) throw new Error(`${fieldName} must be a safe integer`);
-    return BigInt(value);
-  }
-  if (typeof value === 'string' && /^-?\d+$/.test(value)) return BigInt(value);
-  throw new Error(`${fieldName} must be an integer sat amount`);
-}
 
 function normalizePolicy(options = {}) {
   const source = options.policy || {};
@@ -96,7 +87,9 @@ function buildTradeLayerSendProductionPolicy(stateOracleBlob, options = {}) {
     sendId: options.sendId,
     sendTxid: options.sendTxid,
     sendIndex: options.sendIndex,
-    requireOracleSignature: policy.requireOracleSignature
+    requireOracleSignature: policy.requireOracleSignature,
+    oraclePublicKeyPem: options.oraclePublicKeyPem,
+    oracleKeyId: options.oracleKeyId
   };
   Object.keys(selectOptions).forEach((key) => selectOptions[key] === undefined && delete selectOptions[key]);
 
@@ -113,11 +106,15 @@ function buildTradeLayerSendProductionPolicy(stateOracleBlob, options = {}) {
   const maxByBps = maxFeeByBps(inputSats, policy.maxFeeBpsOfInput);
   const effectiveFeeCap = maxFeeSats < maxByBps ? maxFeeSats : maxByBps;
   const dustLimitSats = toSats(policy.dustLimitSats, 'policy.dustLimitSats');
-  const currentHeight = Number(options.currentHeight ?? stateOracleBlob.snapshotHeight ?? 0);
+  // Freshness is judged against the live height the caller supplies. Without one the
+  // registry is not shown fresh, rather than measured against the snapshot it came from.
+  const currentHeight = options.currentHeight === undefined || options.currentHeight === null
+    ? null
+    : Number(options.currentHeight);
   const regHeight = registryHeight(stateOracleBlob);
-  const registryAgeBlocks = Math.max(0, currentHeight - regHeight);
+  const registryAgeBlocks = currentHeight === null ? null : Math.max(0, currentHeight - regHeight);
   const oracleAddress = String(stateOracleBlob.oracleAddress || '');
-  const oracleKeyId = oracleSignature.keyId || stateOracleBlob.oracleKeyId || null;
+  const oracleKeyId = oracleSignature.keyId || null;
   const outputs = routePlan.outputPlan || [];
 
   const checks = [
@@ -139,7 +136,7 @@ function buildTradeLayerSendProductionPolicy(stateOracleBlob, options = {}) {
         sats: String(output.sats)
       }))
     }),
-    check('registry_freshness', registryAgeBlocks <= policy.maxRegistryAgeBlocks, {
+    check('registry_freshness', registryAgeBlocks !== null && registryAgeBlocks <= policy.maxRegistryAgeBlocks, {
       currentHeight,
       registryHeight: regHeight,
       registryAgeBlocks,

@@ -9,6 +9,7 @@
 const crypto = require('crypto');
 const { canonicalStringify, normalizeAmountSats } = require('./m1_spec');
 const { buildJurassicMechanismRefs } = require('./jurassic_bitvm_mechanisms');
+const { verifyLiquidityLeaseBundle } = require('./lightning_liquidity_lease');
 const {
   buildArkTaprootMiniscriptProofManifest,
   verifyArkTaprootMiniscriptProofManifest
@@ -164,6 +165,33 @@ function buildArkLiquidityGraftQuote(options = {}) {
   };
 }
 
+// The settlement checks the template, VTXO, quote and settlement core determine. The lease
+// check is passed in: only a caller holding the lease bundle can state it.
+function arkGraftSettlementChecks({ template, vtxo, quote, core, leaseVerified }) {
+  return {
+    templateBindsVtxo: vtxo.vtxoCore.templateCommitmentId === template.templateCommitmentId,
+    vtxoCoversPromisedInbound: BigInt(vtxo.vtxoCore.vtxoAmountSats) >= BigInt(quote.quoteCore.promisedInboundSats),
+    deliveredInboundMet: BigInt(core.deliveredInboundSats) >= BigInt(quote.quoteCore.promisedInboundSats),
+    feeCeilingMet: core.observedFeePpm <= quote.quoteCore.maxFeePpm,
+    cltvCeilingMet: core.observedCltvDelta <= quote.quoteCore.maxCltvDelta,
+    paymentHashMatched: core.preimageHashHex === core.paymentHashHex,
+    arkExitPathPresent: Boolean(vtxo.vtxoCore.exitTxid),
+    arkForfeitPathPresent: Boolean(vtxo.vtxoCore.forfeitTxid),
+    bitvmLeaseVerified: leaseVerified
+  };
+}
+
+// The violations a challenge core shows against the quote. Builder and verifier both call this.
+function arkGraftViolations(quoteCore, core) {
+  const violations = [];
+  if (BigInt(core.deliveredInboundSats) < BigInt(quoteCore.promisedInboundSats)) violations.push('insufficient_ark_grafted_liquidity');
+  if (core.observedFeePpm > quoteCore.maxFeePpm) violations.push('fee_ppm_above_graft_quote');
+  if (core.observedCltvDelta > quoteCore.maxCltvDelta) violations.push('cltv_delta_above_graft_quote');
+  if (core.missingExitPath) violations.push('missing_ark_exit_path');
+  if (core.missingForfeitPath) violations.push('missing_ark_forfeit_path');
+  return violations;
+}
+
 function buildArkGraftSettlementEvidence(options = {}) {
   const template = options.template || buildArkTemplateCommitment(options);
   const vtxo = options.vtxo || buildArkVtxoLiquidityCommitment({ ...options, template });
@@ -216,17 +244,13 @@ function buildArkGraftSettlementEvidence(options = {}) {
     kind: 'ark_ln_liquidity_graft_settlement_evidence',
     settlementId: hashCanonical(settlementCore),
     settlementCore,
-    checks: {
-      templateBindsVtxo: vtxo.vtxoCore.templateCommitmentId === template.templateCommitmentId,
-      vtxoCoversPromisedInbound: BigInt(vtxo.vtxoCore.vtxoAmountSats) >= BigInt(quote.quoteCore.promisedInboundSats),
-      deliveredInboundMet: deliveredInboundSats >= BigInt(quote.quoteCore.promisedInboundSats),
-      feeCeilingMet: observedFeePpm <= quote.quoteCore.maxFeePpm,
-      cltvCeilingMet: observedCltvDelta <= quote.quoteCore.maxCltvDelta,
-      paymentHashMatched: observedPaymentHashHex === paymentHashHex,
-      arkExitPathPresent: Boolean(vtxo.vtxoCore.exitTxid),
-      arkForfeitPathPresent: Boolean(vtxo.vtxoCore.forfeitTxid),
-      bitvmLeaseVerified: Boolean(liquidityLease && liquidityLease.verification && liquidityLease.verification.ok)
-    }
+    checks: arkGraftSettlementChecks({
+      template,
+      vtxo,
+      quote,
+      core: settlementCore,
+      leaseVerified: Boolean(liquidityLease && verifyLiquidityLeaseBundle(liquidityLease).ok)
+    })
   };
 }
 
@@ -239,12 +263,13 @@ function buildArkGraftChallengeEvidence(options = {}) {
   const missingExitPath = Boolean(options.missingExitPath);
   const missingForfeitPath = Boolean(options.missingForfeitPath);
 
-  const violations = [];
-  if (deliveredInboundSats < BigInt(quote.quoteCore.promisedInboundSats)) violations.push('insufficient_ark_grafted_liquidity');
-  if (observedFeePpm > quote.quoteCore.maxFeePpm) violations.push('fee_ppm_above_graft_quote');
-  if (observedCltvDelta > quote.quoteCore.maxCltvDelta) violations.push('cltv_delta_above_graft_quote');
-  if (missingExitPath) violations.push('missing_ark_exit_path');
-  if (missingForfeitPath) violations.push('missing_ark_forfeit_path');
+  const violations = arkGraftViolations(quote.quoteCore, {
+    deliveredInboundSats: deliveredInboundSats.toString(),
+    observedFeePpm,
+    observedCltvDelta,
+    missingExitPath,
+    missingForfeitPath
+  });
 
   const challengeCore = {
     version: 1,
@@ -429,6 +454,7 @@ function buildArkLiquidityGraftBundle(options = {}) {
     taprootProofManifest,
     settlementEvidence,
     challengeEvidence,
+    liquidityLease: options.liquidityLease || null,
     costModel,
     thesis:
       'Use Ark VTXOs as fast temporary liquidity grafts for LN edge routes, reducing fee volatility while BitVM/DLC commitments enforce the liquidity lease if the ASP/LSP fails.',
@@ -465,10 +491,35 @@ function verifyArkLiquidityGraftBundle(bundle) {
   if (bundle.taprootProofManifest.manifestCore.vtxoCommitmentId !== bundle.vtxo.vtxoCommitmentId) {
     return { ok: false, reason: 'taproot proof manifest does not bind VTXO commitment' };
   }
-  for (const [name, passed] of Object.entries(bundle.settlementEvidence.checks || {})) {
-    if (!passed) return { ok: false, reason: `settlement evidence failed: ${name}` };
+  const { template, vtxo, quote, liquidityLease, settlementEvidence: evidence, challengeEvidence: challenge } = bundle;
+  if (evidence.settlementId !== hashCanonical(evidence.settlementCore)) {
+    return { ok: false, reason: 'settlement id mismatch' };
   }
-  if (!bundle.challengeEvidence.slashable) {
+  if (bundle.bundleCore.settlementId !== evidence.settlementId) {
+    return { ok: false, reason: 'bundle does not bind settlement' };
+  }
+  const leaseVerified = Boolean(liquidityLease)
+    && verifyLiquidityLeaseBundle(liquidityLease).ok
+    && liquidityLease.bundleId === evidence.settlementCore.liquidityLeaseBundleId;
+  const derived = arkGraftSettlementChecks({ template, vtxo, quote, core: evidence.settlementCore, leaseVerified });
+  for (const [name, passed] of Object.entries(derived)) {
+    if (!passed) return { ok: false, reason: `settlement evidence failed: ${name}` };
+    if ((evidence.checks || {})[name] !== passed) return { ok: false, reason: `settlement check does not follow: ${name}` };
+  }
+  if (challenge.challengeId !== hashCanonical(challenge.challengeCore)) {
+    return { ok: false, reason: 'challenge id mismatch' };
+  }
+  if (bundle.bundleCore.challengeId !== challenge.challengeId) {
+    return { ok: false, reason: 'bundle does not bind the challenge' };
+  }
+  const violations = arkGraftViolations(quote.quoteCore, challenge.challengeCore);
+  if (hashCanonical(violations) !== hashCanonical(challenge.challengeCore.violations)) {
+    return { ok: false, reason: 'challenge violations do not follow from its core' };
+  }
+  if (challenge.slashable !== (violations.length > 0)) {
+    return { ok: false, reason: 'challenge slashable flag does not follow from its violations' };
+  }
+  if (!challenge.slashable) {
     return { ok: false, reason: 'challenge should be slashable in demo bundle' };
   }
   if (!bundle.costModel || bundle.costModel.modelId !== hashCanonical(bundle.costModel.modelCore)) {

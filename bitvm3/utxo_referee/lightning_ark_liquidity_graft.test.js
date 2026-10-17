@@ -9,6 +9,7 @@ const {
   buildArkLiquidityGraftBundle,
   verifyArkLiquidityGraftBundle
 } = require('./lightning_ark_liquidity_graft');
+const { buildLiquidityLeaseBundle } = require('./lightning_liquidity_lease');
 
 let passed = 0;
 let failed = 0;
@@ -65,6 +66,53 @@ test('graft quote commits to promised inbound and payment hash', () => {
   assert(quote.quoteCore.roundCarrierCommitmentId.length === 64, 'missing round carrier commitment');
 });
 
+const { canonicalStringify } = require('./m1_spec');
+
+function hashCanonical(value) {
+  return crypto.createHash('sha256').update(canonicalStringify(value)).digest('hex');
+}
+
+// The honest graft bundle from the test above, as data, so a test can edit it.
+function honestGraftBundle() {
+  const preimageHex = '33'.repeat(32);
+  return buildArkLiquidityGraftBundle({
+    paymentHashHex: crypto.createHash('sha256').update(Buffer.from(preimageHex, 'hex')).digest('hex'),
+    preimageHex,
+    vtxoAmountSats: 49000n,
+    promisedInboundSats: 49000n,
+    deliveredInboundSats: 49000n,
+    observedFeePpm: 900,
+    observedCltvDelta: 34,
+    liquidityLease: buildLiquidityLeaseBundle({
+      htlcProof: {
+        lightning: { paymentHashHex: 'aa'.repeat(32) },
+        swap: { fundingTxid: 'bb'.repeat(32), refundLocktime: 10 },
+        dlcFunding: { claimTxid: 'cc'.repeat(32), outputVout: 1, commitmentHash: 'dd'.repeat(32), outputAmountSats: '10000' }
+      }
+    }),
+    challengeDeliveredInboundSats: 0n,
+    challengeMissingForfeitPath: true
+  });
+}
+
+test('an Ark graft challenge whose violations do not follow from its core is refused', () => {
+  const bundle = JSON.parse(JSON.stringify(honestGraftBundle()));
+  assert(verifyArkLiquidityGraftBundle(bundle).ok, 'the honest bundle verifies');
+  bundle.challengeEvidence.challengeCore.violations = [];
+  bundle.challengeEvidence.challengeId = hashCanonical(bundle.challengeEvidence.challengeCore);
+  bundle.bundleCore.challengeId = bundle.challengeEvidence.challengeId;
+  bundle.bundleId = hashCanonical(bundle.bundleCore);
+  const verification = verifyArkLiquidityGraftBundle(bundle);
+  assert(!verification.ok && /violations/.test(verification.reason), 'violations are recomputed from the core');
+});
+
+test('an Ark graft settlement cannot claim a lease that does not verify', () => {
+  const bundle = JSON.parse(JSON.stringify(honestGraftBundle()));
+  bundle.liquidityLease.successEvidence.evidenceCore.observedInboundSats = '1';
+  const verification = verifyArkLiquidityGraftBundle(bundle);
+  assert(!verification.ok && /bitvmLeaseVerified/.test(verification.reason), 'a lease that fails its own verification is not a verified lease');
+});
+
 test('bundle verifies Ark graft plus BitVM lease settlement', () => {
   const preimageHex = '33'.repeat(32);
   const paymentHashHex = crypto.createHash('sha256').update(Buffer.from(preimageHex, 'hex')).digest('hex');
@@ -76,15 +124,13 @@ test('bundle verifies Ark graft plus BitVM lease settlement', () => {
     deliveredInboundSats: 49000n,
     observedFeePpm: 900,
     observedCltvDelta: 34,
-    liquidityLease: {
-      bundleId: 'lease-demo',
-      verification: { ok: true },
-      successEvidence: {
-        evidenceCore: {
-          channelOutpoint: `${'44'.repeat(32)}:0`
-        }
+    liquidityLease: buildLiquidityLeaseBundle({
+      htlcProof: {
+        lightning: { paymentHashHex: 'aa'.repeat(32) },
+        swap: { fundingTxid: 'bb'.repeat(32), refundLocktime: 10 },
+        dlcFunding: { claimTxid: 'cc'.repeat(32), outputVout: 1, commitmentHash: 'dd'.repeat(32), outputAmountSats: '10000' }
       }
-    },
+    }),
     challengeDeliveredInboundSats: 0n,
     challengeMissingForfeitPath: true
   });

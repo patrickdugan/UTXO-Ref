@@ -50,16 +50,18 @@ function clone(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
+const ORACLE_KEY = generateKeyPairSync('ed25519');
+const ORACLE_PINNED = {
+  oraclePublicKeyPem: ORACLE_KEY.publicKey.export({ type: 'spki', format: 'pem' }),
+  oracleKeyId: 'test-oracle-ed25519'
+};
+
 function withOracleSignature(blob) {
   const signed = clone(blob);
-  const { publicKey, privateKey } = generateKeyPairSync('ed25519');
-  const publicKeyPem = publicKey.export({ type: 'spki', format: 'pem' });
   const signing = buildTradeLayerSendOracleSigningPayload(signed);
-  const signatureHex = sign(null, Buffer.from(signing.payload, 'utf8'), privateKey).toString('hex');
+  const signatureHex = sign(null, Buffer.from(signing.payload, 'utf8'), ORACLE_KEY.privateKey).toString('hex');
   signed.oracleSignature = {
     algorithm: 'ed25519',
-    keyId: 'test-oracle-ed25519',
-    publicKeyPem,
     payloadHash: signing.payloadHash,
     signatureHex
   };
@@ -326,11 +328,11 @@ test('verifies a state-oracle send route into the mapped DLC funding output', ()
 
 test('verifies an Ed25519 signature over the state-oracle send payload', () => {
   const signed = withOracleSignature(SEND_STATE_ORACLE);
-  const signatureResult = verifyTradeLayerSendOracleSignature(signed, { requireOracleSignature: true });
+  const signatureResult = verifyTradeLayerSendOracleSignature(signed, { ...ORACLE_PINNED, requireOracleSignature: true });
   assert(signatureResult.ok, signatureResult.reason);
   assertEq(signatureResult.keyId, 'test-oracle-ed25519');
 
-  const routeResult = verifyTradeLayerSendStateOracleRoute(signed, { requireOracleSignature: true });
+  const routeResult = verifyTradeLayerSendStateOracleRoute(signed, { ...ORACLE_PINNED, requireOracleSignature: true });
   assert(routeResult.ok, routeResult.reason);
   assert(routeResult.oracleSignature.ok, routeResult.oracleSignature.reason);
 });
@@ -338,7 +340,7 @@ test('verifies an Ed25519 signature over the state-oracle send payload', () => {
 test('rejects a tampered state-oracle blob when signature is required', () => {
   const signed = withOracleSignature(SEND_STATE_ORACLE);
   signed.sends[0].amountUnits = '3000';
-  const result = verifyTradeLayerSendStateOracleRoute(signed, { requireOracleSignature: true });
+  const result = verifyTradeLayerSendStateOracleRoute(signed, { ...ORACLE_PINNED, requireOracleSignature: true });
   assert(!result.ok, 'tampered oracle blob should fail signature verification');
   assert(String(result.reason).includes('payload hash mismatch') || String(result.reason).includes('invalid oracle signature'), 'expected signature failure');
 });

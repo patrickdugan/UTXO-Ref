@@ -1,11 +1,11 @@
 const {
   normalizeNetwork,
-  toSats,
   outpointKey,
   buildTaprootReserveVaultManifest,
   verifyTaprootReserveVaultOnChain,
   normalizeChainTxoutForEvidence
 } = require('./taproot_reserve_vault');
+const { toSats } = require('./money');
 const { sha256Hex } = require('./tradelayer_pnl_route_adapter');
 
 const DEFAULT_RECOVERY_SAFETY_BLOCKS = 6;

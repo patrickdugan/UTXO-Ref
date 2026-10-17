@@ -2,9 +2,9 @@ const { sha256Hex, stableStringify } = require('./tradelayer_pnl_route_adapter')
 const ts = require('./tradelayer_taproot_script');
 const a = require('./tradelayer_dlc_adaptor_sig');
 const { buildTaprootTree, controlBlockWithPath } = require('./tradelayer_taproot_tree');
+const { toSats } = require('./money');
 const {
   normalizeNetwork,
-  toSats,
   outpointKey,
   requireReserveVaultInternalXonly,
   buildRecoveryLeafScript,

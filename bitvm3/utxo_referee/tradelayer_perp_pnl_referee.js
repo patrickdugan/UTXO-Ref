@@ -10,16 +10,8 @@ const {
   sha256Hex,
   addressToScriptPubKey
 } = require('./tradelayer_pnl_route_adapter');
-
-function toInt(value, fieldName) {
-  if (typeof value === 'bigint') return value;
-  if (typeof value === 'number') {
-    if (!Number.isSafeInteger(value)) throw new Error(`${fieldName} must be a safe integer`);
-    return BigInt(value);
-  }
-  if (typeof value === 'string' && /^-?\d+$/.test(value)) return BigInt(value);
-  throw new Error(`${fieldName} must be an integer`);
-}
+const { toInt } = require('./money');
+const { verifyChallengeVerdict } = require('./challenge_verdict');
 
 function boundedAbs(value, cap) {
   const abs = value < 0n ? -value : value;
@@ -100,11 +92,11 @@ function buildTradeLayerPerpPnlSettlement(input = {}) {
   const network = input.network || 'litecoin-testnet';
   const epochId = String(input.epochId ?? 0);
   const side = String(position.side || 'long').toLowerCase();
-  const entryPrice = toInt(position.entryPrice, 'position.entryPrice');
-  const closePrice = toInt(close.price ?? close.closePrice, 'close.price');
-  const quantityUnits = toInt(position.quantityUnits ?? 1, 'position.quantityUnits');
-  const priceScale = toInt(input.priceScale ?? position.priceScale ?? 1, 'priceScale');
-  const collateralSats = toInt(position.collateralSats ?? input.collateralSats, 'position.collateralSats');
+  const entryPrice = toInt(position.entryPrice, 'position.entryPrice', { signed: true });
+  const closePrice = toInt(close.price ?? close.closePrice, 'close.price', { signed: true });
+  const quantityUnits = toInt(position.quantityUnits ?? 1, 'position.quantityUnits', { signed: true });
+  const priceScale = toInt(input.priceScale ?? position.priceScale ?? 1, 'priceScale', { signed: true });
+  const collateralSats = toInt(position.collateralSats ?? input.collateralSats, 'position.collateralSats', { signed: true });
   const traderAddress = position.traderAddress || input.traderAddress;
   const counterpartyAddress = position.counterpartyAddress || input.counterpartyAddress;
   const derived = derivePerpSettlement({
@@ -173,11 +165,11 @@ function verifyTradeLayerPerpPnlSettlement(settlement) {
       network: core.network,
       epochId: core.epochId,
       side: core.side,
-      entryPrice: toInt(core.entryPrice, 'settlementCore.entryPrice'),
-      closePrice: toInt(core.closePrice, 'settlementCore.closePrice'),
-      quantityUnits: toInt(core.quantityUnits, 'settlementCore.quantityUnits'),
-      priceScale: toInt(core.priceScale, 'settlementCore.priceScale'),
-      collateralSats: toInt(core.collateralSats, 'settlementCore.collateralSats'),
+      entryPrice: toInt(core.entryPrice, 'settlementCore.entryPrice', { signed: true }),
+      closePrice: toInt(core.closePrice, 'settlementCore.closePrice', { signed: true }),
+      quantityUnits: toInt(core.quantityUnits, 'settlementCore.quantityUnits', { signed: true }),
+      priceScale: toInt(core.priceScale, 'settlementCore.priceScale', { signed: true }),
+      collateralSats: toInt(core.collateralSats, 'settlementCore.collateralSats', { signed: true }),
       traderAddress: core.traderAddress,
       counterpartyAddress: core.counterpartyAddress
     });
@@ -211,6 +203,24 @@ function verifyTradeLayerPerpPnlSettlement(settlement) {
   };
 }
 
+// The terms a claim is compared against, as the settlement states them.
+function perpExpected(settlement) {
+  return {
+    transferSats: settlement.settlementCore.transferSats,
+    winnerAddress: settlement.settlementCore.tokenDelta.winnerAddress,
+    withdrawalRootHex: settlement.settlementCore.withdrawalRootHex
+  };
+}
+
+// The claim is challengeable when it differs from what the settlement terms derive.
+function perpChallengeable(core) {
+  const claimed = core.claimed || {};
+  const expected = core.expected || {};
+  return core.challengeType === 'wrong_destination'
+    ? claimed.winnerAddress !== expected.winnerAddress
+    : claimed.transferSats !== expected.transferSats;
+}
+
 function buildTradeLayerPerpPnlChallenge(settlement, options = {}) {
   const result = verifyTradeLayerPerpPnlSettlement(settlement);
   if (!result.ok) throw new Error(`invalid settlement: ${result.reason}`);
@@ -226,32 +236,34 @@ function buildTradeLayerPerpPnlChallenge(settlement, options = {}) {
     kind: 'tradelayer_perp_pnl_challenge_v1',
     challengeType,
     settlementHash: settlement.settlementHash,
-    expected: {
-      transferSats: settlement.settlementCore.transferSats,
-      winnerAddress: settlement.settlementCore.tokenDelta.winnerAddress,
-      withdrawalRootHex: settlement.settlementCore.withdrawalRootHex
-    },
+    expected: perpExpected(settlement),
     claimed
   };
   return {
     kind: 'tradelayer_perp_pnl_challenge',
     challengeType,
     challengeHash: sha256Hex(core),
-    challengeable: true,
+    challengeable: perpChallengeable(core),
     core
   };
 }
 
 function verifyTradeLayerPerpPnlChallenge(challenge, settlement) {
-  if (!challenge || challenge.kind !== 'tradelayer_perp_pnl_challenge') {
-    return { ok: false, reason: 'wrong challenge kind' };
-  }
-  if (settlement && challenge.core?.settlementHash !== settlement.settlementHash) {
+  if (!settlement) return { ok: false, reason: 'settlement required to judge a perp challenge' };
+  const settled = verifyTradeLayerPerpPnlSettlement(settlement);
+  if (!settled.ok) return { ok: false, reason: `invalid settlement: ${settled.reason}` };
+  if (challenge?.core?.settlementHash !== settlement.settlementHash) {
     return { ok: false, reason: 'settlement hash mismatch' };
   }
-  const challengeHash = sha256Hex(challenge.core);
-  if (challenge.challengeHash !== challengeHash) return { ok: false, reason: 'challenge hash mismatch', challengeHash };
-  return { ok: true, challengeHash, challengeable: challenge.challengeable };
+  if (stableStringify(challenge.core.expected) !== stableStringify(perpExpected(settlement))) {
+    return { ok: false, reason: 'expected terms do not follow from the settlement' };
+  }
+  return verifyChallengeVerdict(challenge, {
+    kind: 'tradelayer_perp_pnl_challenge',
+    coreKind: 'tradelayer_perp_pnl_challenge_v1',
+    labelField: 'challengeType',
+    verdict: perpChallengeable
+  });
 }
 
 module.exports = {

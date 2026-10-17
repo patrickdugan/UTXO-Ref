@@ -12,6 +12,7 @@
 const crypto = require('crypto');
 const { PayoutLeaf, CommitmentPackage } = require('./types');
 const { getChainProfile } = require('./m1_chain_env');
+const { toInt } = require('./money');
 
 const U64_MAX = (1n << 64n) - 1n;
 
@@ -105,25 +106,17 @@ function buildReceiptDlcTemplate(chainId = 'litecoin-testnet') {
 
 const RECEIPT_DLC_TEMPLATE_V1 = Object.freeze(buildReceiptDlcTemplate('litecoin-testnet'));
 
-function toBigInt(value, fieldName) {
-  try {
-    return BigInt(value);
-  } catch (e) {
-    throw new Error(`${fieldName} must be convertible to BigInt`);
-  }
-}
-
 function normalizeEpochId(epochId) {
-  const v = toBigInt(epochId, 'epochId');
-  if (v < 0n || v > U64_MAX) {
+  const v = toInt(epochId, 'epochId');
+  if (v > U64_MAX) {
     throw new Error('epochId must be within uint64 range');
   }
   return v;
 }
 
 function normalizeAmountSats(amountSats, fieldName = 'amountSats') {
-  const v = toBigInt(amountSats, fieldName);
-  if (v < 0n || v > U64_MAX) {
+  const v = toInt(amountSats, fieldName);
+  if (v > U64_MAX) {
     throw new Error(`${fieldName} must be within uint64 range`);
   }
   return v;
@@ -154,12 +147,14 @@ function canonicalStringify(value) {
     return JSON.stringify(value);
   }
 
+  // The same form JSON gives: an undefined array item is null and an undefined key is absent,
+  // so an object hashes the same in memory and after a JSON round trip.
   if (Array.isArray(value)) {
-    const items = value.map(v => canonicalStringify(v)).join(',');
+    const items = value.map(v => canonicalStringify(v === undefined ? null : v)).join(',');
     return `[${items}]`;
   }
 
-  const keys = Object.keys(value).sort();
+  const keys = Object.keys(value).filter(k => value[k] !== undefined).sort();
   const pairs = keys.map(k => `${JSON.stringify(k)}:${canonicalStringify(value[k])}`);
   return `{${pairs.join(',')}}`;
 }

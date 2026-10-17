@@ -110,6 +110,15 @@ test('builds one challenge for every send-route fraud surface', () => {
   assert(bundle.bundleHash.length === 64, 'bundle hash should be present');
 });
 
+test('a snapshot is not called stale when the caller gives no live height', () => {
+  const stateOracle = buildTradeLayerSendStateOracleFromConsensus(CONSENSUS_INPUT, {
+    selectedSendId: 'live-send'
+  });
+  const bundle = buildTradeLayerSendFraudChallengeBundle(stateOracle, { sendId: 'live-send' });
+  const stale = bundle.challenges.find((challenge) => challenge.challengeType === 'stale_oracle_snapshot');
+  assertEq(stale.challengeable, false, 'staleness is a claim about a live height the verifier was not given');
+});
+
 test('verifies challenge ids, root, bundle hash and predicates', () => {
   const stateOracle = buildTradeLayerSendStateOracleFromConsensus(CONSENSUS_INPUT, {
     selectedSendId: 'live-send'

@@ -1,6 +1,7 @@
 const {
   sha256Hex
 } = require('./tradelayer_pnl_route_adapter');
+const { verifyChallengeVerdict } = require('./challenge_verdict');
 
 const HEX32_RE = /^[0-9a-f]{64}$/i;
 
@@ -29,7 +30,7 @@ function acceptedRejectedOverlap(acceptedTxids, rejectedTxids) {
 }
 
 function buildTradeLayerStateCheckpoint(input = {}) {
-  const acceptedTxids = normalizeTxids(input.acceptedTxids || ['11'.repeat(32)], 'acceptedTxids');
+  const acceptedTxids = normalizeTxids(input.acceptedTxids || [], 'acceptedTxids');
   const rejectedTxids = normalizeTxids(input.rejectedTxids || [], 'rejectedTxids');
   const overlap = acceptedRejectedOverlap(acceptedTxids, rejectedTxids);
   if (overlap) throw new Error(`txid ${overlap} is both accepted and rejected`);
@@ -141,7 +142,7 @@ function buildTradeLayerCheckpointFraudProof(checkpoint, options = {}) {
     };
   } else if (proofType === 'state_root_mismatch') {
     claimed = {
-      recomputedNextStateRoot: normalizeHex32(options.recomputedNextStateRoot || 'aa'.repeat(32), 'recomputedNextStateRoot'),
+      recomputedNextStateRoot: normalizeHex32(options.recomputedNextStateRoot, 'recomputedNextStateRoot'),
       publishedNextStateRoot: checkpoint.core.nextStateRoot
     };
   } else {
@@ -156,44 +157,53 @@ function buildTradeLayerCheckpointFraudProof(checkpoint, options = {}) {
     claimed,
     evidence: options.evidence || {}
   };
-  const challengeable = (
-    (proofType === 'invalid_accepted_tx' && claimed.includedInAcceptedSet && claimed.txValid === false)
-    || (proofType === 'omitted_valid_tx' && !claimed.includedInAcceptedSet && claimed.txValid && claimed.inclusionRequired)
-    || (proofType === 'state_root_mismatch' && claimed.recomputedNextStateRoot !== claimed.publishedNextStateRoot)
-  );
-
   return {
     kind: 'tradelayer_state_checkpoint_fraud_proof',
     proofType,
     proofHash: sha256Hex(core),
-    challengeable,
+    challengeable: fraudProofChallengeable(core),
     core
   };
 }
 
+function fraudProofChallengeable(core) {
+  const claimed = core.claimed || {};
+  return Boolean(
+    (core.proofType === 'invalid_accepted_tx' && claimed.includedInAcceptedSet && claimed.txValid === false)
+    || (core.proofType === 'omitted_valid_tx' && !claimed.includedInAcceptedSet && claimed.txValid && claimed.inclusionRequired)
+    || (core.proofType === 'state_root_mismatch' && claimed.recomputedNextStateRoot !== claimed.publishedNextStateRoot)
+  );
+}
+
+// The claim's facts are read against the checkpoint it names.
+function fraudProofClaimMismatch(core, checkpoint) {
+  const claimed = core.claimed || {};
+  if (core.proofType === 'state_root_mismatch') {
+    return claimed.publishedNextStateRoot === checkpoint.core.nextStateRoot ? null : 'published root is not the checkpoint next state root';
+  }
+  return claimed.includedInAcceptedSet === checkpoint.core.acceptedTxids.includes(claimed.txid)
+    ? null
+    : 'includedInAcceptedSet does not match the checkpoint';
+}
+
 function verifyTradeLayerCheckpointFraudProof(proof, checkpoint) {
-  if (!proof || proof.kind !== 'tradelayer_state_checkpoint_fraud_proof') {
-    return { ok: false, reason: 'wrong fraud proof kind' };
-  }
-  if (!proof.core || typeof proof.core !== 'object') {
-    return { ok: false, reason: 'fraud proof core is missing' };
-  }
   if (!checkpoint) return { ok: false, reason: 'checkpoint required to verify fraud proof' };
+  const checkpointResult = verifyTradeLayerStateCheckpoint(checkpoint);
+  if (!checkpointResult.ok) return { ok: false, reason: `invalid checkpoint: ${checkpointResult.reason}` };
+  const verdict = verifyChallengeVerdict(proof, {
+    kind: 'tradelayer_state_checkpoint_fraud_proof',
+    coreKind: 'tradelayer_state_checkpoint_fraud_proof_v1',
+    hashField: 'proofHash',
+    labelField: 'proofType',
+    verdict: fraudProofChallengeable
+  });
+  if (!verdict.ok) return verdict;
   if (proof.core.checkpointHash !== checkpoint.checkpointHash) {
     return { ok: false, reason: 'fraud proof checkpoint mismatch' };
   }
-  const proofHash = sha256Hex(proof.core);
-  if (proof.proofHash !== proofHash) return { ok: false, reason: 'fraud proof hash mismatch', proofHash };
-  const claimed = proof.core.claimed || {};
-  const expectedChallengeable = (
-    (proof.proofType === 'invalid_accepted_tx' && claimed.includedInAcceptedSet && claimed.txValid === false)
-    || (proof.proofType === 'omitted_valid_tx' && !claimed.includedInAcceptedSet && claimed.txValid && claimed.inclusionRequired)
-    || (proof.proofType === 'state_root_mismatch' && claimed.recomputedNextStateRoot !== claimed.publishedNextStateRoot)
-  );
-  if (proof.challengeable !== expectedChallengeable) {
-    return { ok: false, reason: 'fraud proof challengeable flag mismatch' };
-  }
-  return { ok: true, proofHash, challengeable: proof.challengeable };
+  const mismatch = fraudProofClaimMismatch(proof.core, checkpoint);
+  if (mismatch) return { ok: false, reason: mismatch };
+  return { ok: true, proofHash: verdict.challengeHash, challengeable: verdict.challengeable };
 }
 
 module.exports = {

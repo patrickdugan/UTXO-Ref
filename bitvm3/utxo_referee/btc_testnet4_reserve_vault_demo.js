@@ -34,6 +34,7 @@ const {
 const tr = require('./tradelayer_taproot');
 const ts = require('./tradelayer_taproot_script');
 const a = require('./tradelayer_dlc_adaptor_sig');
+const { decimalToUnits } = require('./money');
 const {
   buildTaprootReserveVaultTemplate,
   buildTaprootReserveVaultManifest,
@@ -41,7 +42,6 @@ const {
   buildTaprootReserveVaultSetFromRpc,
   buildVaultSpendProposal,
   approveTaprootReserveVaultSpend,
-  coinValueToSats,
   csvSequence
 } = require('./taproot_reserve_vault');
 
@@ -201,7 +201,7 @@ function randScalar() {
 function pickFundingUtxo(unspent, requiredSats) {
   const candidates = unspent
     .filter((row) => row.spendable !== false)
-    .map((row) => ({ ...row, amountSats: coinValueToSats(row.amount, 'utxo.amount') }))
+    .map((row) => ({ ...row, amountSats: decimalToUnits(row.amount, 'utxo.amount') }))
     .filter((row) => row.amountSats >= BigInt(requiredSats))
     .sort((x, y) => (x.amountSats < y.amountSats ? -1 : x.amountSats > y.amountSats ? 1 : 0));
   return candidates[0] || null;

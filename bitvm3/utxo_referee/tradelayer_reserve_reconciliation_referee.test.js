@@ -141,7 +141,7 @@ test('builds and verifies a challengeable insolvency proof', () => {
   const challenge = buildTradeLayerReserveInsolvencyChallenge(insolvent);
   assert(challenge.challengeable, 'shortfall should be challengeable');
   assertEq(challenge.core.shortfallSats, '49000');
-  assert(verifyTradeLayerReserveInsolvencyChallenge(challenge, insolvent).ok, 'challenge should verify');
+  assert(verifyTradeLayerReserveInsolvencyChallenge(challenge, insolvent, queue, { reserve: 50000 }).ok, 'challenge should verify');
 
   const solvent = buildTradeLayerReserveReconciliation({ queue, reserve: 100000 });
   const noChallenge = buildTradeLayerReserveInsolvencyChallenge(solvent);

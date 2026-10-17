@@ -6,7 +6,7 @@ const {
   sha256Hex,
   verifyTradeLayerSendRouteTranscript
 } = require('./tradelayer_pnl_route_adapter');
-const { satsToCoinString } = require('./tradelayer_send_sweep_psbt');
+const { decimalToUnits, satsToCoinString, toSats } = require('./money');
 
 function encodeBasicAuth(user, pass) {
   return `Basic ${Buffer.from(`${user}:${pass}`).toString('base64')}`;
@@ -175,7 +175,7 @@ function decodedTxMismatch(sweepPlan, decodedTx) {
   const vout = Array.isArray(decodedTx?.vout) ? decodedTx.vout : [];
   if (vout.length !== committed.length) return 'transaction output count differs from the route transcript';
   for (let i = 0; i < committed.length; i++) {
-    const sats = coinValueToSats(vout[i].value, 'decoded output value');
+    const sats = decimalToUnits(vout[i].value, 'decoded output value');
     if (vout[i].scriptPubKey?.address !== committed[i].address || sats !== BigInt(committed[i].sats)) {
       return 'transaction outputs differ from the route transcript';
     }
@@ -213,28 +213,6 @@ function normalizeRpcOptions(options = {}) {
     requireRouteTranscript: options.requireRouteTranscript !== false,
     expectedRouteTranscriptHash: options.expectedRouteTranscriptHash || options.routeTranscriptHash || null
   };
-}
-
-function coinValueToSats(value, fieldName) {
-  if (typeof value === 'number') {
-    if (!Number.isFinite(value)) throw new Error(`${fieldName} must be finite`);
-    return BigInt(Math.round(value * 100000000));
-  }
-  const text = String(value);
-  if (!/^\d+(\.\d{1,8})?$/.test(text)) throw new Error(`${fieldName} must be a coin amount`);
-  const [whole, fraction = ''] = text.split('.');
-  return BigInt(whole) * 100000000n + BigInt((fraction + '00000000').slice(0, 8));
-}
-
-function inputSatsFromSweepPlan(sweepPlan) {
-  const value = sweepPlan?.input?.sats;
-  if (typeof value === 'bigint') return value;
-  if (typeof value === 'number') {
-    if (!Number.isSafeInteger(value)) throw new Error('sweepPlan.input.sats must be a safe integer');
-    return BigInt(value);
-  }
-  if (typeof value === 'string' && /^\d+$/.test(value)) return BigInt(value);
-  throw new Error('sweepPlan.input.sats must be an integer sat amount');
 }
 
 function normalizeDecodedTxOutputs(decodedTx) {
@@ -319,7 +297,7 @@ async function preflightTradeLayerSendRpcSweep(sweepPlan, options = {}) {
   addCheck('sweep_matches_route_transcript', !layoutMismatch, { reason: layoutMismatch });
 
   const input = sweepPlan.input || {};
-  const expectedSats = inputSatsFromSweepPlan(sweepPlan);
+  const expectedSats = toSats(sweepPlan.input?.sats, 'sweepPlan.input.sats');
   let txout = null;
   try {
     txout = await rpc('gettxout', [input.txid, Number(input.vout), true]);
@@ -336,7 +314,7 @@ async function preflightTradeLayerSendRpcSweep(sweepPlan, options = {}) {
   }
 
   if (txout) {
-    const actualSats = coinValueToSats(txout.value, 'gettxout.value');
+    const actualSats = decimalToUnits(txout.value, 'gettxout.value');
     addCheck('input_value_matches_commitment', actualSats === expectedSats, {
       expectedSats: expectedSats.toString(),
       actualSats: actualSats.toString()

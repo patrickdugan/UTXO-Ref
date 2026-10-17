@@ -12,6 +12,7 @@
 const crypto = require('crypto');
 const { stableStringify, sha256Hex, addressToScriptPubKey } = require('./tradelayer_pnl_route_adapter');
 const { verifyTradeLayerWithdrawalQueue } = require('./tradelayer_withdrawal_queue_referee');
+const { toSats, decimalToUnits } = require('./money');
 const tr = require('./tradelayer_taproot');
 const ts = require('./tradelayer_taproot_script');
 const { buildTaprootTree, controlBlockWithPath } = require('./tradelayer_taproot_tree');
@@ -36,28 +37,6 @@ function normalizeNetwork(network) {
   if (n === 'regtest' || n === 'bitcoin-regtest') return 'bitcoin-regtest';
   if (n === 'main' || n === 'mainnet' || n === 'bitcoin') return 'bitcoin';
   return n;
-}
-
-function toSats(value, fieldName) {
-  if (typeof value === 'bigint') return value;
-  if (typeof value === 'number') {
-    if (!Number.isSafeInteger(value)) throw new Error(`${fieldName} must be a safe integer`);
-    if (value < 0) throw new Error(`${fieldName} must be non-negative`);
-    return BigInt(value);
-  }
-  if (typeof value === 'string' && /^\d+$/.test(value)) return BigInt(value);
-  throw new Error(`${fieldName} must be an integer sat amount`);
-}
-
-function coinValueToSats(value, fieldName) {
-  if (typeof value === 'number') {
-    if (!Number.isFinite(value)) throw new Error(`${fieldName} must be finite`);
-    return BigInt(Math.round(value * 100000000));
-  }
-  const text = String(value);
-  if (!/^\d+(\.\d{1,8})?$/.test(text)) throw new Error(`${fieldName} must be a coin amount`);
-  const [whole, fraction = ''] = text.split('.');
-  return BigInt(whole) * 100000000n + BigInt((fraction + '00000000').slice(0, 8));
 }
 
 function assertHex(value, bytes, fieldName) {
@@ -390,7 +369,7 @@ function normalizeChainTxoutForEvidence(txout) {
     : txout.scriptPubKey?.hex;
   const valueSats = txout.valueSats !== undefined
     ? toSats(txout.valueSats, 'txout.valueSats')
-    : coinValueToSats(txout.value, 'txout.value');
+    : decimalToUnits(txout.value, 'txout.value');
   return {
     present: true,
     valueSats: valueSats.toString(),
@@ -500,15 +479,24 @@ function buildTaprootReserveVaultSet(input = {}) {
   const reserveEpochId = String(input.reserveEpochId ?? manifests[0]?.core?.reserveEpochId ?? '0');
   const recoveryRiskMarginBlocks = Number(input.recoveryRiskMarginBlocks ?? DEFAULT_RECOVERY_RISK_MARGIN_BLOCKS);
   let reservedSats = 0n;
+  // One funding outpoint backs at most one counted vault. A second manifest naming
+  // the same UTXO is kept in the set as rejected, so the reserve is not counted twice.
+  const countedOutpoints = new Set();
   const vaults = manifests.map((manifest, index) => {
     const txout = chainTxoutForManifest(manifest, input.chainTxouts || input.txouts, index);
-    const verification = verifyTaprootReserveVaultOnChain(manifest, {
-      txout,
-      currentHeight,
-      network,
-      recoveryRiskMarginBlocks
-    });
-    if (verification.counted) reservedSats += toSats(verification.amountSats, 'verification.amountSats');
+    const outpoint = manifest?.core?.fundingOutpoint ? outpointKey(manifest.core.fundingOutpoint) : null;
+    const verification = outpoint !== null && countedOutpoints.has(outpoint)
+      ? { ok: false, counted: false, reason: 'duplicate funding outpoint' }
+      : verifyTaprootReserveVaultOnChain(manifest, {
+        txout,
+        currentHeight,
+        network,
+        recoveryRiskMarginBlocks
+      });
+    if (verification.counted) {
+      reservedSats += toSats(verification.amountSats, 'verification.amountSats');
+      countedOutpoints.add(outpoint);
+    }
     return {
       vaultId: manifest?.core?.vaultId || null,
       outpoint: manifest?.core?.fundingOutpoint ? outpointKey(manifest.core.fundingOutpoint) : null,
@@ -844,8 +832,6 @@ module.exports = {
   DEFAULT_RECOVERY_CSV_DELAY,
   DEFAULT_RECOVERY_RISK_MARGIN_BLOCKS,
   normalizeNetwork,
-  toSats,
-  coinValueToSats,
   csvSequence,
   outpointKey,
   deriveReserveVaultInternalXonly,

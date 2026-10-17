@@ -97,6 +97,50 @@ test('lease bundle verifies against HTLC/DLC funding proof', () => {
   assert(bundle.challengeEvidence.slashable, 'demo challenge should be slashable');
 });
 
+const { canonicalStringify } = require('./m1_spec');
+
+function hashCanonical(value) {
+  return require('crypto').createHash('sha256').update(canonicalStringify(value)).digest('hex');
+}
+
+// Edit a bundle and re-derive the ids above the edit, so only the verifier's recomputation can refuse it.
+function rebound(bundle, edit) {
+  const out = JSON.parse(JSON.stringify(bundle));
+  edit(out);
+  out.successEvidence.evidenceId = hashCanonical(out.successEvidence.evidenceCore);
+  out.challengeEvidence.challengeId = hashCanonical(out.challengeEvidence.challengeCore);
+  out.bundleCore.successEvidenceId = out.successEvidence.evidenceId;
+  out.bundleCore.challengeId = out.challengeEvidence.challengeId;
+  out.bundleId = hashCanonical(out.bundleCore);
+  return out;
+}
+
+const LEASE_HTLC = {
+  lightning: { paymentHashHex: 'aa'.repeat(32) },
+  swap: { fundingTxid: 'bb'.repeat(32), refundLocktime: 10 },
+  dlcFunding: { claimTxid: 'cc'.repeat(32), outputVout: 1, commitmentHash: 'dd'.repeat(32), outputAmountSats: '10000' }
+};
+
+test('a lease challenge whose violations do not follow from its core is refused', () => {
+  const bundle = buildLiquidityLeaseBundle({ htlcProof: LEASE_HTLC, promisedInboundSats: 20000n, observedInboundSats: 30000n });
+  assert(verifyLiquidityLeaseBundle(bundle).ok, 'the honest bundle verifies');
+  const forged = rebound(bundle, (b) => {
+    b.challengeEvidence.challengeCore.violations = [];
+  });
+  const result = verifyLiquidityLeaseBundle(forged);
+  assert(!result.ok && /violations/.test(result.reason), 'violations are recomputed from the core');
+});
+
+test('a lease success check cannot stand against the evidence core it was derived from', () => {
+  const bundle = buildLiquidityLeaseBundle({ htlcProof: LEASE_HTLC, promisedInboundSats: 20000n, observedInboundSats: 30000n });
+  assert(verifyLiquidityLeaseBundle(bundle).ok, 'the honest bundle verifies');
+  const forged = rebound(bundle, (b) => {
+    b.successEvidence.evidenceCore.observedInboundSats = '10000';
+  });
+  const result = verifyLiquidityLeaseBundle(forged);
+  assert(!result.ok && /inboundCapacityMet/.test(result.reason), 'the carried check is recomputed from the core');
+});
+
 test('lease bundle rejects insufficient success evidence', () => {
   const htlcProof = {
     lightning: { paymentHashHex: 'aa'.repeat(32) },

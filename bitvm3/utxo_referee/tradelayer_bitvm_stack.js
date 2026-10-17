@@ -241,7 +241,7 @@ function buildTradeLayerBitvmStackBundle(input = {}) {
   });
   const checkpointFraudProof = buildTradeLayerCheckpointFraudProof(stateCheckpoint, {
     proofType: 'state_root_mismatch',
-    recomputedNextStateRoot: 'aa'.repeat(32)
+    recomputedNextStateRoot: input.recomputedNextStateRoot || stateCheckpoint.core.nextStateRoot
   });
   const withdrawalQueue = buildTradeLayerWithdrawalQueue({
     network: routePlan.network,

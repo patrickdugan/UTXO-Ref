@@ -9,6 +9,7 @@
 
 const crypto = require('crypto');
 const { canonicalStringify, normalizeAmountSats } = require('./m1_spec');
+const { toInt } = require('./money');
 const {
   derivePreimageHex,
   derivePaymentHashHex,
@@ -56,7 +57,7 @@ function normalizePositiveInteger(value, fieldName) {
 function normalizePositiveBigInt(value, fieldName) {
   let bigint;
   try {
-    bigint = BigInt(value);
+    bigint = toInt(value, fieldName);
   } catch (_err) {
     throw new Error(`${fieldName} must be a positive integer`);
   }
