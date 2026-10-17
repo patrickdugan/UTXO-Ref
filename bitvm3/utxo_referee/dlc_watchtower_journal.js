@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const { canonicalize, canonicalJson, normalizeDlcContract } = require('./dlc_contract_state');
+const { requireHash, sha256Hex } = require('./dlc_canonical_json');
 const { normalizeDlcTransactionSet } = require('./dlc_transaction_validator');
 const { evaluateDlcChainSnapshot } = require('./dlc_chain_guard');
 const { captureDlcAnchorRecoverySnapshot } = require('./dlc_bitcoin_core_observer');
@@ -25,11 +26,6 @@ const {
 const KIND = 'utxoref_dlc_watchtower_observation_v1';
 const MAX_RECORD_BYTES = 4194304;
 
-function hash(value) { return crypto.createHash('sha256').update(value).digest('hex'); }
-function requireHash(value, name) {
-  if (typeof value !== 'string' || !/^[0-9a-f]{64}$/.test(value)) throw new Error(`${name} must be lowercase hash`);
-  return value;
-}
 function requireId(value, name) {
   if (typeof value !== 'string' || !/^[A-Za-z0-9._:-]{1,128}$/.test(value)) {
     throw new Error(`${name} contains unsafe characters`);
@@ -50,16 +46,16 @@ function recordDigest(record) {
   delete unsigned.recordDigest;
   delete unsigned.signature;
   delete unsigned.recordHash;
-  return hash(Buffer.from(canonicalJson(unsigned), 'utf8'));
+  return sha256Hex(Buffer.from(canonicalJson(unsigned), 'utf8'));
 }
 function recordHash(record) {
   const value = { ...canonicalize(record, 'DLC watchtower record') };
   delete value.recordHash;
-  return hash(Buffer.from(canonicalJson(value), 'utf8'));
+  return sha256Hex(Buffer.from(canonicalJson(value), 'utf8'));
 }
 function contractKey(contractId) {
   requireId(contractId, 'contractId');
-  return hash(Buffer.from(contractId, 'utf8'));
+  return sha256Hex(Buffer.from(contractId, 'utf8'));
 }
 function observationType(record) { return record.observationType === undefined ? 'chain' : record.observationType; }
 
@@ -86,7 +82,7 @@ function validateObservationRecord(record, publicKey, expected = {}) {
       record.evaluation.halt !== !record.evaluation.ok ||
       typeof record.evaluation.status !== 'string' || !/^[A-Z][A-Z0-9_]{0,63}$/.test(record.evaluation.status) ||
       typeof record.evaluation.reason !== 'string' || record.evaluation.reason.length < 1 || record.evaluation.reason.length > 512 ||
-      record.snapshotDigest !== hash(Buffer.from(canonicalJson(record.snapshot), 'utf8'))) {
+      record.snapshotDigest !== sha256Hex(Buffer.from(canonicalJson(record.snapshot), 'utf8'))) {
     throw new Error('DLC watchtower snapshot or evaluation is malformed');
   }
   if (observationType(record) === 'anchor-recovery') {
@@ -150,7 +146,7 @@ function validateObservationRecord(record, publicKey, expected = {}) {
     throw new Error('DLC watchtower alert does not match its evaluation');
   }
   const der = publicKeyDer(publicKey);
-  const keyId = hash(der);
+  const keyId = sha256Hex(der);
   if (record.watchtowerKeyId !== keyId || (expected.watchtowerKeyId && expected.watchtowerKeyId !== keyId) ||
       (expected.watchtowerId && record.watchtowerId !== expected.watchtowerId) ||
       (expected.contractId && record.contractId !== expected.contractId) ||
@@ -183,7 +179,7 @@ class DlcWatchtowerJournal {
     this.watchtowerId = watchtowerId;
     this.publicKey = asPublicKey(effectivePublicKey);
     this.privateKey = privateKey;
-    this.watchtowerKeyId = hash(der);
+    this.watchtowerKeyId = sha256Hex(der);
     ensureNonSymlinkDirectory(this.baseDirectory, 'DLC watchtower journal');
   }
 
@@ -221,7 +217,7 @@ class DlcWatchtowerJournal {
   _appendSignedRecord({ chain, contractState, transactionSet, observationType: type, snapshot, evaluation }) {
     const normalizedSnapshot = normalize(snapshot);
     const normalizedEvaluation = normalize(evaluation);
-    const snapshotDigest = hash(Buffer.from(canonicalJson(normalizedSnapshot), 'utf8'));
+    const snapshotDigest = sha256Hex(Buffer.from(canonicalJson(normalizedSnapshot), 'utf8'));
     const latestSameType = [...chain.records].reverse().find((record) => observationType(record) === type);
     if (latestSameType && latestSameType.snapshotDigest === snapshotDigest &&
         latestSameType.contractStateRecordHash === contractState.recordHash) return latestSameType;

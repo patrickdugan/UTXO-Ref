@@ -1,13 +1,10 @@
 'use strict';
 
 const { normalizeDlcContract } = require('./dlc_contract_state');
+const { requireHash } = require('./dlc_canonical_json');
 const { normalizeDlcTransactionSet } = require('./dlc_transaction_validator');
 const MAX_MONEY = 2100000000000000n;
 
-function requireHash(value, name) {
-  if (typeof value !== 'string' || !/^[0-9a-f]{64}$/.test(value)) throw new Error(`${name} must be lowercase hash`);
-  return value;
-}
 function requireDecimal(value, name) {
   if (typeof value !== 'string' || value.length > 16 || !/^(0|[1-9][0-9]*)$/.test(value)) {
     throw new Error(`${name} must be canonical decimal sats`);

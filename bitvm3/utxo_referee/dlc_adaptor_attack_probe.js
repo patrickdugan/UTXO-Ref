@@ -5,12 +5,8 @@
  * exploit is blocked. This script never touches RPC, wallets, or the network.
  */
 
-const crypto = require('crypto');
 const a = require('./tradelayer_dlc_adaptor_sig');
-
-function sha256(value) {
-  return crypto.createHash('sha256').update(value).digest();
-}
+const { sha256 } = require('./dlc_canonical_json');
 
 function expectThrow(fn, pattern) {
   try {

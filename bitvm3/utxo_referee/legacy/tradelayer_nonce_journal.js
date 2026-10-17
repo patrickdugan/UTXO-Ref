@@ -29,13 +29,10 @@
 
 const fs = require('fs');
 const path = require('path');
-const crypto = require('crypto');
+const { sha256Hex } = require('../dlc_canonical_json');
+const { acquireDirectoryLock } = require('../dlc_durable_json_store');
 
 const DEFAULT_JOURNAL_PATH = path.join(__dirname, '..', 'artifacts', 'live', 'nonce_journal.json');
-
-function sha256Hex(buf) {
-  return crypto.createHash('sha256').update(Buffer.isBuffer(buf) ? buf : Buffer.from(buf)).digest('hex');
-}
 
 function loadJournal(journalPath) {
   if (!fs.existsSync(journalPath)) return {};
@@ -60,22 +57,16 @@ function saveJournalAtomic(journalPath, journal) {
 
 // The load, check and save in reserveNonceUsage must be one critical section
 // across processes, or two writers can each reserve the same secnonce. The
-// lock is an exclusively created directory, as in the oracle event store. A
-// lock left behind by a crash fails closed until an operator removes it.
+// lock is the shared durable-store directory lock, so a lock left by a crashed
+// writer is reclaimed rather than blocking the journal.
 function withJournalLock(journalPath, run) {
   fs.mkdirSync(path.dirname(journalPath), { recursive: true });
-  const lockPath = `${journalPath}.lock`;
-  try {
-    fs.mkdirSync(lockPath);
-  } catch (error) {
-    if (error.code === 'EEXIST') throw new Error(`nonce journal is locked by another writer: ${lockPath}`);
-    throw error;
-  }
-  try {
-    return run();
-  } finally {
-    fs.rmdirSync(lockPath);
-  }
+  const release = acquireDirectoryLock(
+    `${journalPath}.lock`,
+    `nonce journal is locked by another writer: ${journalPath}.lock`
+  );
+  try { return run(); }
+  finally { release(); }
 }
 
 class NonceReuseError extends Error {

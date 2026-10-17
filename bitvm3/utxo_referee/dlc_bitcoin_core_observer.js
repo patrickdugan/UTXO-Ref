@@ -1,6 +1,6 @@
 'use strict';
 
-const crypto = require('crypto');
+const { requireHash, sha256Hex } = require('./dlc_canonical_json');
 const { normalizeDlcContract } = require('./dlc_contract_state');
 const { normalizeDlcTransactionSet } = require('./dlc_transaction_validator');
 const { evaluateDlcChainSnapshot } = require('./dlc_chain_guard');
@@ -8,12 +8,6 @@ const { settlementAnchor, evaluateDlcAnchorRecovery } = require('./dlc_anchor_re
 
 const MAX_MONEY = 2100000000000000n;
 
-function requireHash(value, fieldName) {
-  if (typeof value !== 'string' || !/^[0-9a-f]{64}$/.test(value)) {
-    throw new Error(`${fieldName} must be lowercase 32-byte hex`);
-  }
-  return value;
-}
 function requireNodeId(value, fieldName) {
   if (typeof value !== 'string' || !/^[A-Za-z0-9._:-]{1,128}$/.test(value)) {
     throw new Error(`${fieldName} contains unsafe characters`);
@@ -229,7 +223,7 @@ function decodeProposedRecovery({ rpc, rawTxHex, anchor, bestBlockHash }) {
     txid,
     wtxid,
     version: transaction.version,
-    rawTxDigest: crypto.createHash('sha256').update(Buffer.from(rawTxHex, 'hex')).digest('hex'),
+    rawTxDigest: sha256Hex(Buffer.from(rawTxHex, 'hex')),
     feeSats: (inputValue - outputValue).toString(),
     vsize: transaction.vsize,
     relayPeers: 0,

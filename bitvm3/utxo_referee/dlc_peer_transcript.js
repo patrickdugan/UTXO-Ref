@@ -1,7 +1,7 @@
 'use strict';
 
 const crypto = require('crypto');
-const { canonicalize, canonicalJson } = require('./dlc_canonical_json');
+const { canonicalize, canonicalJson, sha256Hex, requireHash } = require('./dlc_canonical_json');
 const { normalizeDlcTransactionSet } = require('./dlc_transaction_validator');
 const { normalizeDlcContract } = require('./dlc_contract_state');
 
@@ -39,10 +39,6 @@ const TYPE_POLICY = Object.freeze({
   })
 });
 
-function sha256Hex(value) {
-  return crypto.createHash('sha256').update(value).digest('hex');
-}
-
 function computeOraclePolicyDigest(oraclePolicy) {
   if (!oraclePolicy || typeof oraclePolicy !== 'object') throw new Error('oraclePolicy is malformed');
   return sha256Hex(Buffer.from(canonicalJson(oraclePolicy), 'utf8'));
@@ -52,13 +48,6 @@ function deepFreeze(value) {
   if (value && typeof value === 'object' && !Object.isFrozen(value)) {
     for (const child of Object.values(value)) deepFreeze(child);
     Object.freeze(value);
-  }
-  return value;
-}
-
-function requireHash(value, fieldName) {
-  if (typeof value !== 'string' || !/^[0-9a-f]{64}$/.test(value)) {
-    throw new Error(`${fieldName} must be lowercase 32-byte hex`);
   }
   return value;
 }

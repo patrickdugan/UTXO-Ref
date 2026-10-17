@@ -1,7 +1,14 @@
 'use strict';
 
-const crypto = require('crypto');
-const { snapshotPlainData, canonicalize, canonicalJson } = require('./dlc_canonical_json');
+const {
+  snapshotPlainData,
+  canonicalize,
+  canonicalJson,
+  compareCodeUnits,
+  sha256,
+  sha256Hex,
+  requireHex
+} = require('./dlc_canonical_json');
 const { buildDlcFundingOutput } = require('./dlc_funding_output');
 
 const MAX_MONEY = 21000000n * 100000000n;
@@ -13,19 +20,10 @@ const TRUC_MAX_UNCONFIRMED_CLUSTER_TRANSACTIONS = 2;
 const MAX_SETTLEMENT_LEAF_SCRIPT_BYTES = 128;
 const MAX_SETTLEMENT_CONTROL_BLOCK_BYTES = 33 + 32 * 8;
 
-function sha256(value) {
-  return crypto.createHash('sha256').update(value).digest();
-}
-
-function sha256Hex(value) {
-  return sha256(value).toString('hex');
-}
-
-function requireHex(value, bytes, fieldName) {
-  if (typeof value !== 'string' || !new RegExp(`^[0-9a-f]{${bytes * 2}}$`).test(value)) {
-    throw new Error(`${fieldName} must be lowercase ${bytes}-byte hex`);
-  }
-  return value;
+// An outcome and the oracle subset that completes it. One outcome has one CET,
+// so this key orders CETs and names their signature points.
+function outcomeKey(entry) {
+  return `${entry.outcomeMessage}:${entry.oraclePubkeys.join(':')}`;
 }
 
 class Reader {
@@ -395,8 +393,7 @@ function validateDlcTransactionSet(input) {
       oraclePubkeys: [...cet.oraclePubkeys],
       ...serializeValidatedSpend(spend)
     };
-  }).sort((left, right) =>
-    `${left.outcomeMessage}:${left.oraclePubkeys.join(':')}`.localeCompare(`${right.outcomeMessage}:${right.oraclePubkeys.join(':')}`));
+  }).sort((left, right) => compareCodeUnits(outcomeKey(left), outcomeKey(right)));
 
   const refundSpend = validateSpend({
     rawTxHex: refund.rawTxHex,
@@ -529,5 +526,6 @@ module.exports = {
   validateDlcTransactionSet,
   normalizeDlcTransactionSet,
   validateDlcTransactionSetCommitments,
-  dlcFundingOutputForTransactionSet
+  dlcFundingOutputForTransactionSet,
+  outcomeKey
 };

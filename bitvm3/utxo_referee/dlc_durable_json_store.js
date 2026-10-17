@@ -158,41 +158,50 @@ function writeJsonAppendOnce(directory, name, record, { maxBytes, label = 'durab
 // Takes an exclusive lock by creating lockPath as a directory, which only one
 // process can do at a time. The holder records its pid and host in the
 // directory, so a lock left by a process that no longer exists on this host is
-// reclaimed instead of blocking every later run. Any other held lock fails
-// closed. The returned function releases the lock.
+// reclaimed instead of blocking every later run. A lock with no readable owner
+// is reclaimed once it is older than the grace period, which covers a crash
+// between creating the directory and writing the owner. Any other held lock
+// fails closed. The returned function releases the lock.
 const LOCK_OWNER_FILE = 'owner.json';
-// A holder writes its owner record right after creating the lock directory. A
-// lock with no readable record that is older than this was abandoned between
-// those two steps, and nothing will ever write its record.
-const LOCK_OWNER_GRACE_MS = 10000;
+const OWNERLESS_LOCK_GRACE_MS = 60 * 1000;
 
 function readLockOwner(lockPath) {
   try { return JSON.parse(fs.readFileSync(path.join(lockPath, LOCK_OWNER_FILE), 'utf8')); }
   catch (_error) { return null; }
 }
 
-function lockWithoutOwnerIsAbandoned(lockPath) {
-  try { return Date.now() - fs.statSync(lockPath).mtimeMs > LOCK_OWNER_GRACE_MS; }
-  catch (_error) { return false; }
-}
-
+// Locks written before the host was recorded carry only a pid. They were
+// written by the same local store, so they are judged on this host.
 function lockOwnerIsGone(owner) {
-  if (!owner || !Number.isSafeInteger(owner.pid) || owner.host !== os.hostname()) return false;
+  if (!owner || !Number.isSafeInteger(owner.pid)) return false;
+  if (owner.host !== undefined && owner.host !== os.hostname()) return false;
   try { process.kill(owner.pid, 0); return false; }
   catch (error) { return error.code === 'ESRCH'; }
 }
 
+function lockAgeMs(lockPath) {
+  try { return Date.now() - fs.lstatSync(lockPath).mtimeMs; }
+  catch (_error) { return 0; }
+}
+
+function lockIsAbandoned(lockPath, owner) {
+  return owner ? lockOwnerIsGone(owner) : lockAgeMs(lockPath) > OWNERLESS_LOCK_GRACE_MS;
+}
+
+function sameLockOwner(left, right) {
+  if (left === null || right === null) return left === right;
+  return left.pid === right.pid && left.host === right.host;
+}
+
 // Moves an abandoned lock aside and discards it. The move is checked after the
-// fact: if what was moved is not the dead holder's lock (another process took
-// over in between), it is put back.
+// fact: if what was moved is not the abandoned lock (another process took over
+// in between), it is put back.
 function reclaimAbandonedLock(lockPath) {
   const owner = readLockOwner(lockPath);
-  if (owner ? !lockOwnerIsGone(owner) : !lockWithoutOwnerIsAbandoned(lockPath)) return false;
+  if (!lockIsAbandoned(lockPath, owner)) return false;
   const aside = `${lockPath}.abandoned-${process.pid}-${crypto.randomBytes(4).toString('hex')}`;
   try { fs.renameSync(lockPath, aside); } catch (_error) { return false; }
-  const moved = readLockOwner(aside);
-  const sameHolder = owner ? Boolean(moved) && moved.pid === owner.pid && moved.host === owner.host : moved === null;
-  if (sameHolder) {
+  if (sameLockOwner(readLockOwner(aside), owner) && lockIsAbandoned(aside, owner)) {
     fs.rmSync(aside, { recursive: true, force: true });
     return true;
   }
