@@ -1,4 +1,7 @@
 const assert = require('assert');
+const os = require('os');
+const path = require('path');
+process.env.SIDECAR_REQUEST_STORE_PATH = path.join(os.tmpdir(), `tlbtc-mint-intent-${process.pid}.json`);
 const {
   buildTlbtcMintIntent,
   latestDlcSubswapFundingRequest,
@@ -19,12 +22,16 @@ assert.strictEqual(forgedCheck.ok, false);
 
 // A mint intent exists only for a request this process quoted and paid. The artifact's recorded
 // execution proof and any caller-supplied preimage are not enough; see dlcSubswapHttp.test.js for the paid path.
-const intent = buildTlbtcMintIntent({
-  requestId: request.requestId,
-  recipientAddress: 'tb1qwvzaayzrgreqyyvxp77wlr60ngaqnpcyhujz2m'
+(async () => {
+  const intent = await buildTlbtcMintIntent({
+    requestId: request.requestId,
+    recipientAddress: 'tb1qwvzaayzrgreqyyvxp77wlr60ngaqnpcyhujz2m'
+  });
+  assert.strictEqual(intent.ok, false);
+  assert.strictEqual(intent.reason, 'unknown requestId: quote and pay the request first');
+  assert.strictEqual(intent.tradeLayer, undefined);
+  console.log('tlbtcMintIntent tests ok');
+})().catch((err) => {
+  console.error(err);
+  process.exit(1);
 });
-assert.strictEqual(intent.ok, false);
-assert.strictEqual(intent.reason, 'unknown requestId: quote and pay the request first');
-assert.strictEqual(intent.tradeLayer, undefined);
-
-console.log('tlbtcMintIntent tests ok');

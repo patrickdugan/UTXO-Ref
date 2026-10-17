@@ -1,10 +1,10 @@
 const path = require('path');
+const { boundedInteger } = require('../shared/service');
 
 function integer(value, fallback, minimum, maximum, name) {
-  const parsed = value === undefined || value === '' ? fallback : Number(value);
-  if (!Number.isSafeInteger(parsed) || parsed < minimum || parsed > maximum) {
-    throw new Error(`${name} must be an integer in ${minimum}..${maximum}`);
-  }
+  if (value === undefined || value === '') return fallback;
+  const parsed = boundedInteger(value, minimum, maximum);
+  if (parsed === null) throw new Error(`${name} must be an integer in ${minimum}..${maximum}`);
   return parsed;
 }
 
@@ -22,6 +22,11 @@ function loadPolicy(env = process.env) {
     throw new Error('BETA_TRUST_PROXY must be set to 0 or 1 when BETA_PUBLIC_ORIGIN is set');
   }
   const root = path.join(__dirname, '..', '..');
+  const guardianRegistryPath = env.BETA_GUARDIAN_REGISTRY_PATH ? path.resolve(env.BETA_GUARDIAN_REGISTRY_PATH) : null;
+  // A configured guardian registry means the quorum gates betaReady. Only an explicit 0 turns that off.
+  const requireGuardianQuorum = env.BETA_REQUIRE_GUARDIAN_QUORUM === undefined || env.BETA_REQUIRE_GUARDIAN_QUORUM === ''
+    ? guardianRegistryPath !== null
+    : env.BETA_REQUIRE_GUARDIAN_QUORUM === '1';
   return {
     serviceName: 'utxoref-testnet-beta',
     chain: 'testnet4',
@@ -32,9 +37,9 @@ function loadPolicy(env = process.env) {
     statePath: path.resolve(env.BETA_STATE_PATH || path.join(__dirname, 'runtime', 'state.json')),
     artifactPath: path.resolve(env.BETA_ARTIFACT_PATH || path.join(root, 'bitvm3', 'utxo_referee', 'artifacts', 'live', 'btc_testnet4_utxoref_v2_latest.json')),
     trustPolicyPath: path.resolve(env.BETA_TRUST_POLICY_PATH || path.join(root, 'bitvm3', 'utxo_referee', 'artifacts', 'live', 'utxoref_v2_watchtower_trust_policy.json')),
-    guardianRegistryPath: env.BETA_GUARDIAN_REGISTRY_PATH ? path.resolve(env.BETA_GUARDIAN_REGISTRY_PATH) : null,
+    guardianRegistryPath,
     guardianReservePath: env.BETA_GUARDIAN_RESERVE_PATH ? path.resolve(env.BETA_GUARDIAN_RESERVE_PATH) : null,
-    requireGuardianQuorum: env.BETA_REQUIRE_GUARDIAN_QUORUM === '1',
+    requireGuardianQuorum,
     guardianHeartbeatMaxAgeSeconds: integer(env.BETA_GUARDIAN_HEARTBEAT_MAX_AGE_SECONDS, 180, 30, 3600, 'BETA_GUARDIAN_HEARTBEAT_MAX_AGE_SECONDS'),
     guardianClockSkewSeconds: integer(env.BETA_GUARDIAN_CLOCK_SKEW_SECONDS, 60, 0, 600, 'BETA_GUARDIAN_CLOCK_SKEW_SECONDS'),
     faucetAmountSats: integer(env.BETA_FAUCET_AMOUNT_SATS, 1000, 330, 100000, 'BETA_FAUCET_AMOUNT_SATS'),

@@ -24,7 +24,7 @@ class FakeBeta:
     def __init__(self):
         self.stored = None
         self.drop_next_response = True
-        self.stale_next = False
+        self.refuse_next = None
         self.received = []
 
 
@@ -52,9 +52,10 @@ def make_handler(beta):
             envelope = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
             beta.received.append(envelope)
             core = envelope["core"]
-            if beta.stale_next:
-                beta.stale_next = False
-                return self._send(409, {"error": "stale_guardian_heartbeat"})
+            if beta.refuse_next:
+                status, error = beta.refuse_next
+                beta.refuse_next = None
+                return self._send(status, {"error": error})
             digest = hashlib.sha256(agent.canonical(core)).hexdigest()
             if beta.stored and core["sequence"] == beta.stored["sequence"]:
                 if beta.stored["digest"] != digest:
@@ -121,29 +122,46 @@ def lost_response_is_retried(state_dir, args, beta):
     assert beta.received[2]["core"]["sequence"] == 2
 
 
-def stale_pending_is_reobserved(state_dir, args, beta):
-    # A stale refusal happens before anything is stored, so the pending envelope is dropped and the
-    # same sequence number is observed again on the next run.
-    try:
-        agent.heartbeat_once(args)
-    except Exception:
-        pass
-    else:
-        raise AssertionError("expected the stale refusal to fail the first run")
-    assert not (state_dir / "pending_heartbeat.json").exists()
-    assert read_sequence(state_dir) == 0
+# A refusal that a validating service makes before storing (400, or 409 stale) means the envelope is discarded.
+def refused_envelope_is_discarded(state_dir, args, beta):
+    for status, error in ((409, "stale_guardian_heartbeat"), (400, "invalid_guardian_observation")):
+        beta.refuse_next = (status, error)
+        try:
+            agent.heartbeat_once(args)
+        except agent.GuardianRefusal:
+            pass
+        else:
+            raise AssertionError(f"expected {error} to fail the run")
+        assert not (state_dir / "pending_heartbeat.json").exists(), f"{error} left the envelope pending"
+        assert read_sequence(state_dir) == 0
     receipt = agent.heartbeat_once(args)
     assert receipt["duplicate"] is False, receipt
+    assert read_sequence(state_dir) == 1
+
+
+# A configuration refusal keeps the signed envelope, so the retry after the operator's fix sends the same bytes.
+def configuration_refusal_keeps_envelope(state_dir, args, beta):
+    beta.refuse_next = (401, "unknown_guardian")
+    try:
+        agent.heartbeat_once(args)
+    except agent.GuardianRefusal:
+        pass
+    else:
+        raise AssertionError("expected the unknown guardian refusal to fail the run")
+    assert (state_dir / "pending_heartbeat.json").exists(), "a configuration refusal must keep the envelope"
+    receipt = agent.heartbeat_once(args)
+    assert receipt["duplicate"] is False, receipt
+    assert beta.received[0] == beta.received[1], "the retry must resend the identical envelope"
     assert read_sequence(state_dir) == 1
 
 
 def main():
     beta = FakeBeta()
     run_against(beta, lost_response_is_retried)
-    beta = FakeBeta()
-    beta.drop_next_response = False
-    beta.stale_next = True
-    run_against(beta, stale_pending_is_reobserved)
+    for check in (refused_envelope_is_discarded, configuration_refusal_keeps_envelope):
+        beta = FakeBeta()
+        beta.drop_next_response = False
+        run_against(beta, check)
     print("guardianAgent tests ok")
 
 

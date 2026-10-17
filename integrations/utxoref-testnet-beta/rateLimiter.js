@@ -1,6 +1,6 @@
-const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
+const { writeAtomicPrivate } = require('../shared/service');
 
 const RATE_LIMIT_KIND = 'utxoref_testnet_beta_rate_limits';
 const RATE_LIMIT_FILE_LIMIT = 4 * 1024 * 1024;
@@ -110,11 +110,7 @@ class RateLimiter {
 
   flush() {
     const counters = Object.fromEntries(this.counters);
-    const temporary = `${this.filePath}.${process.pid}.${crypto.randomBytes(6).toString('hex')}.tmp`;
-    fs.writeFileSync(temporary, `${JSON.stringify({ kind: RATE_LIMIT_KIND, version: 1, counters })}\n`,
-      { flag: 'wx', mode: 0o600 });
-    fs.renameSync(temporary, this.filePath);
-    try { fs.chmodSync(this.filePath, 0o600); } catch (_err) { /* Best effort on Windows. */ }
+    writeAtomicPrivate(this.filePath, `${JSON.stringify({ kind: RATE_LIMIT_KIND, version: 1, counters })}\n`);
     this.dirty = false;
   }
 

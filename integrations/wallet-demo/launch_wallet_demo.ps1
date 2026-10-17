@@ -65,9 +65,12 @@ if (-not $NoStartSidecar) {
 $BaseUrl = "http://127.0.0.1:$Port"
 
 Invoke-Step "Smoke sidecar endpoints" {
+  # The sidecar refuses every POST without its bearer token, so the verify smoke call needs SIDECAR_API_TOKEN_FILE.
+  if (-not $env:SIDECAR_API_TOKEN_FILE) { throw "SIDECAR_API_TOKEN_FILE must name the sidecar token file (mode 0600) for the verify smoke call" }
+  $token = (Get-Content -Raw -LiteralPath $env:SIDECAR_API_TOKEN_FILE).Trim()
   $status = Invoke-RestMethod -Uri "$BaseUrl/v1/wallet-demo/status"
   $stress = Invoke-RestMethod -Uri "$BaseUrl/v1/wallet-demo/stress-dashboard"
-  $verify = Invoke-RestMethod -Method Post -Uri "$BaseUrl/v1/lnbtc-tlusd-liquidity-patch/verify"
+  $verify = Invoke-RestMethod -Method Post -Uri "$BaseUrl/v1/lnbtc-tlusd-liquidity-patch/verify" -Headers @{ Authorization = "Bearer $token"; "Content-Type" = "application/json" } -Body "{}"
   $view = Invoke-RestMethod -Uri "$BaseUrl/v1/lnbtc-tlusd-liquidity-patch/wallet-view"
 
   $summary = [ordered]@{

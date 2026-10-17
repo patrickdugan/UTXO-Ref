@@ -2,11 +2,7 @@ const fs = require('fs');
 const http = require('http');
 const https = require('https');
 const crypto = require('crypto');
-
-function envValue(env, name, fallback = '') {
-  const value = env[name];
-  return value === undefined || value === null || value === '' ? fallback : String(value);
-}
+const { envValue } = require('../shared/service');
 
 function fileHex(filePath) {
   return fs.readFileSync(filePath).toString('hex');
@@ -50,12 +46,12 @@ function paymentHashFromPreimageHex(preimageHex) {
   return crypto.createHash('sha256').update(Buffer.from(preimageHex, 'hex')).digest('hex');
 }
 
-function postJson(config, pathname, body, timeoutMs = 60000) {
+function lndRequest(config, method, pathname, body, timeoutMs = 60000) {
   const url = new URL(pathname, config.restUrl);
   const transport = url.protocol === 'http:' ? http : https;
-  const payload = JSON.stringify(body || {});
+  const payload = body === undefined ? '' : JSON.stringify(body);
   const options = {
-    method: 'POST',
+    method,
     hostname: url.hostname,
     port: url.port || (url.protocol === 'http:' ? 80 : 443),
     path: `${url.pathname}${url.search}`,
@@ -99,21 +95,26 @@ function postJson(config, pathname, body, timeoutMs = 60000) {
   });
 }
 
+function requireConfigured(env) {
+  const config = buildLndRestConfig(env);
+  if (!config.configured) {
+    throw new Error(`LND REST not configured: missing ${config.missing.join(', ')}`);
+  }
+  return config;
+}
+
 async function payInvoiceViaLndRest({
   invoice,
   feeLimitSats = 1000,
   timeoutSeconds = 60,
   paymentHashHex = '',
   env = process.env,
-  requestImpl = postJson
+  requestImpl = lndRequest
 }) {
   if (!invoice || typeof invoice !== 'string') throw new Error('invoice is required');
-  const config = buildLndRestConfig(env);
-  if (!config.configured) {
-    throw new Error(`LND REST not configured: missing ${config.missing.join(', ')}`);
-  }
+  const config = requireConfigured(env);
 
-  const response = await requestImpl(config, '/v1/channels/transactions', {
+  const response = await requestImpl(config, 'POST', '/v1/channels/transactions', {
     payment_request: invoice,
     fee_limit: { fixed: String(Math.max(0, Number(feeLimitSats || 0))) },
     timeout_seconds: Number(timeoutSeconds || 60)
@@ -148,9 +149,40 @@ async function payInvoiceViaLndRest({
   };
 }
 
+// LND's record of a settled payment for one payment hash, newest first. The scan is bounded: at most
+// `maxPages` pages of `pageSize` payments. Returns null when LND has no SUCCEEDED payment for the hash.
+async function findSettledPaymentViaLndRest({
+  paymentHashHex,
+  env = process.env,
+  requestImpl = lndRequest,
+  pageSize = 100,
+  maxPages = 20
+}) {
+  const expected = String(paymentHashHex || '').toLowerCase();
+  if (!/^[0-9a-f]{64}$/.test(expected)) throw new Error('paymentHashHex must be 32 bytes of hex');
+  const config = requireConfigured(env);
+  let indexOffset = '0';
+  for (let page = 0; page < maxPages; page++) {
+    const query = `include_incomplete=false&reversed=true&max_payments=${pageSize}&index_offset=${indexOffset}`;
+    const response = await requestImpl(config, 'GET', `/v1/payments?${query}`);
+    const payments = Array.isArray(response.payments) ? response.payments : [];
+    const match = payments.find(payment =>
+      String(payment.payment_hash || '').toLowerCase() === expected && payment.status === 'SUCCEEDED');
+    if (match) {
+      const paymentPreimageHex = decodeLndByteString(match.payment_preimage);
+      if (paymentHashFromPreimageHex(paymentPreimageHex) !== expected) return null;
+      return { paymentHashHex: expected, paymentPreimageHex };
+    }
+    if (payments.length < pageSize || response.first_index_offset === undefined) return null;
+    indexOffset = String(response.first_index_offset);
+  }
+  throw new Error(`LND payment scan for ${expected} exceeded ${maxPages} pages`);
+}
+
 module.exports = {
   buildLndRestConfig,
   decodeLndByteString,
   paymentHashFromPreimageHex,
-  payInvoiceViaLndRest
+  payInvoiceViaLndRest,
+  findSettledPaymentViaLndRest
 };

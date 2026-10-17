@@ -4,7 +4,7 @@ Invite-gated Bitcoin testnet4 console for a real UTXORef referee graph, a bounde
 
 Current operator beta: `https://api.layerwallet.com/utxoref-beta/`. It is served through a path-scoped TLS reverse proxy and a loopback-only reverse tunnel to the local testnet4 node; availability therefore depends on the operator workstation, node, service, and tunnel remaining online.
 
-The service deliberately has no generic wallet or RPC endpoint. Faucet signing remains inside the local Bitcoin Core wallet. Invite tokens are stored only as hashes, requester IPs are stored as salted hashes, and every claim is written to disk before Bitcoin Core is asked to broadcast. Destination addresses remain in receipts because they become public when a claim is broadcast.
+The service deliberately has no generic wallet or RPC endpoint. Faucet signing remains inside the local Bitcoin Core wallet. Invite tokens are stored only as hashes of 24 random bytes. Requester IPs are stored as SHA-256 hashes with a per-state salt that lives in the same state file, so they are pseudonymous rather than anonymous: whoever holds the state file can enumerate IPv4 addresses. Treat the state file as personal data. Every claim is written to disk before Bitcoin Core is asked to broadcast. Destination addresses remain in receipts because they become public when a claim is broadcast.
 
 ## Beta surface
 
@@ -121,6 +121,8 @@ npm run deploy:guardians -- --registry artifacts/guardian_registry_testnet4.json
 ```
 
 Set `BETA_GUARDIAN_RESERVE_PATH` to the resulting public artifact. When guardian quorum is required, readiness fails closed unless the manifest verifies, the exact Taproot outpoint is confirmed and unspent, and the threshold heartbeat quorum is fresh.
+
+The funding txid is written to `<output>.funding-pending.json` as soon as Core returns it. If the deployment fails after that point, the error names the txid. Resolve it by hand: confirm the txid in the wallet, produce the reserve artifact, then delete the pending file. A new `--broadcast` refuses to run while the pending file exists.
 
 After the funding transaction confirms, bind the manifest's CSV clock to the actual Core funding height:
 

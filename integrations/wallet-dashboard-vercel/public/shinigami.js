@@ -62,7 +62,7 @@ function renderFlow(projection) {
   const nodes = projection.flow.map((item, index) => {
     const [x, y] = points[index];
     return `
-      <g class="shinigami-svg-node ${item.id}" transform="translate(${x} ${y})">
+      <g class="shinigami-svg-node ${escapeHtml(item.id)}" transform="translate(${x} ${y})">
         <rect width="180" height="112" rx="8"></rect>
         <text x="16" y="30">${escapeHtml(item.label)}</text>
         <text x="16" y="58">${escapeHtml(short(item.commitment))}</text>
@@ -171,10 +171,10 @@ function renderAspReserve(projection) {
   $('aspReserveBond').innerHTML = `
     <div class="shinigami-hero-grid">
       ${[
-        metric('Reserve', sats(summary.reserveAmountSats), escapeHtml(short(summary.reserveOutpoint))),
-        metric('Obligations', summary.obligationCount.toLocaleString(), escapeHtml(short(summary.obligationRoot))),
-        metric('Slash claim', sats(summary.claimedSlashSats), escapeHtml(summary.selectedViolation)),
-        metric('Challenge', summary.slashable ? 'slashable' : 'watch', escapeHtml(short(summary.challengeId)))
+        metric('Reserve', sats(summary.reserveAmountSats), short(summary.reserveOutpoint)),
+        metric('Obligations', summary.obligationCount.toLocaleString(), short(summary.obligationRoot)),
+        metric('Slash claim', sats(summary.claimedSlashSats), summary.selectedViolation),
+        metric('Challenge', summary.slashable ? 'slashable' : 'watch', short(summary.challengeId))
       ].join('')}
     </div>
     <div class="reserve-flow">${flowCards}</div>

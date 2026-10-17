@@ -1,9 +1,6 @@
-const DEFAULT_SIDECAR_URL = 'http://127.0.0.1:8787';
+const { envValue } = require('../shared/service');
 
-function envValue(env, name, fallback = '') {
-  const value = env[name];
-  return value === undefined || value === null || value === '' ? fallback : String(value);
-}
+const DEFAULT_SIDECAR_URL = 'http://127.0.0.1:8787';
 
 function sidecarEndpoints(baseUrl) {
   const normalized = baseUrl.replace(/\/$/, '');
