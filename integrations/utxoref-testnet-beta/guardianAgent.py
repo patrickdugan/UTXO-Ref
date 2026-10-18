@@ -8,6 +8,7 @@ import json
 import os
 import pathlib
 import secrets
+import signal
 import socket
 import stat
 import sys
@@ -72,9 +73,47 @@ def write_json(path, value, private=False):
         os.chmod(path, stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IROTH)
 
 
+if os.name == "nt":
+    import ctypes
+    from ctypes import wintypes
+
+    _kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    _kernel32.OpenProcess.argtypes = (wintypes.DWORD, wintypes.BOOL, wintypes.DWORD)
+    _kernel32.OpenProcess.restype = wintypes.HANDLE
+    _kernel32.GetExitCodeProcess.argtypes = (wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD))
+    _kernel32.GetExitCodeProcess.restype = wintypes.BOOL
+    _kernel32.GetProcessTimes.argtypes = (wintypes.HANDLE,) + (ctypes.POINTER(wintypes.FILETIME),) * 4
+    _kernel32.GetProcessTimes.restype = wintypes.BOOL
+    _kernel32.CloseHandle.argtypes = (wintypes.HANDLE,)
+    _kernel32.CloseHandle.restype = wintypes.BOOL
+    PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+    STILL_ACTIVE = 259
+    ERROR_INVALID_PARAMETER = 87
+
+
+@contextlib.contextmanager
+def windows_process(pid):
+    handle = _kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, pid)
+    if not handle:
+        yield None, ctypes.get_last_error()
+        return
+    try:
+        yield handle, 0
+    finally:
+        _kernel32.CloseHandle(handle)
+
+
+# os.kill(pid, 0) is not a liveness probe on Windows: signal 0 there is CTRL_C_EVENT. OpenProcess fails with
+# ERROR_INVALID_PARAMETER only when no such process exists; any other failure (access denied) means it does.
 def pid_alive(pid):
     if os.name == "nt":
-        return True
+        with windows_process(pid) as (handle, error):
+            if handle is None:
+                return error != ERROR_INVALID_PARAMETER
+            code = wintypes.DWORD()
+            if not _kernel32.GetExitCodeProcess(handle, ctypes.byref(code)):
+                return True
+            return code.value == STILL_ACTIVE
     try:
         os.kill(pid, 0)
     except ProcessLookupError:
@@ -84,11 +123,55 @@ def pid_alive(pid):
     return True
 
 
+# When pid started, as an opaque string, or None where the platform does not say. A live pid whose start differs
+# from the one in a lock is a reused pid, not the lock's owner. Windows gives the creation FILETIME, which no
+# later process (after a reboot either) can share; Linux gives clock ticks since boot (/proc stat field 22,
+# counted past the parenthesised command name), so it is compared together with the boot id.
+def process_start_time(pid):
+    if os.name == "nt":
+        with windows_process(pid) as (handle, _error):
+            if handle is None:
+                return None
+            times = [wintypes.FILETIME() for _ in range(4)]
+            if not _kernel32.GetProcessTimes(handle, *(ctypes.byref(value) for value in times)):
+                return None
+            return str((times[0].dwHighDateTime << 32) | times[0].dwLowDateTime)
+    if sys.platform.startswith("linux"):
+        try:
+            line = pathlib.Path(f"/proc/{pid}/stat").read_text()
+        except OSError:
+            return None
+        fields = line[line.rfind(")") + 2:].split()
+        return fields[19] if len(fields) > 19 and fields[19].isdigit() else None
+    return None
+
+
+def boot_id():
+    if not sys.platform.startswith("linux"):
+        return None
+    try:
+        return pathlib.Path("/proc/sys/kernel/random/boot_id").read_text().strip() or None
+    except OSError:
+        return None
+
+
+def lock_owner_record():
+    record = {"pid": os.getpid(), "host": socket.gethostname(), "createdAt": utc_now()}
+    started = process_start_time(os.getpid())
+    if started:
+        record["startTime"] = started
+    booted = boot_id()
+    if booted:
+        record["bootId"] = booted
+    return (json.dumps(record, sort_keys=True) + "\n").encode("utf-8")
+
+
 # One agent at a time per state directory. The owner record is linked into place already complete, so a lock file
-# is never seen empty. A lock is reclaimed only when its owner is a dead pid on this host; otherwise the run refuses.
+# is never seen empty. A lock is reclaimed only when its owner on this host is gone: its pid is dead, it was written
+# in an earlier boot, or its pid now belongs to a process that started later. Otherwise the run refuses.
 def acquire_state_lock(state_dir):
     lock = state_dir / LOCK_NAME
-    owner = (json.dumps({"pid": os.getpid(), "host": socket.gethostname(), "createdAt": utc_now()}, sort_keys=True) + "\n").encode("utf-8")
+    owner = lock_owner_record()
     for _ in range(3):
         staging = state_dir / f".{LOCK_NAME}.{os.getpid()}.{secrets.token_hex(4)}"
         write_private(staging, owner)
@@ -118,9 +201,24 @@ def read_lock(lock):
 def owner_is_dead(held):
     try:
         owner = json.loads(held)
-    except ValueError:
+        pid = int(owner["pid"])
+    except (ValueError, KeyError, TypeError):
         return False
-    return owner.get("host") == socket.gethostname() and not pid_alive(int(owner["pid"]))
+    if owner.get("host") != socket.gethostname():
+        return False
+    recorded_boot = owner.get("bootId")
+    if isinstance(recorded_boot, str):
+        current_boot = boot_id()
+        if current_boot and current_boot != recorded_boot:
+            return True
+    if not pid_alive(pid):
+        return True
+    recorded_start = owner.get("startTime")
+    if isinstance(recorded_start, str):
+        current_start = process_start_time(pid)
+        if current_start and current_start != recorded_start:
+            return True
+    return False
 
 
 def reclaim_dead_lock(lock, dead):
@@ -345,6 +443,34 @@ def parse_args():
     return parser.parse_args()
 
 
+# The run command. SIGTERM or SIGINT between heartbeats exits at once; during one it lets the heartbeat finish
+# and release the state lock first. A second signal exits at once, and the release still runs on the way out.
+def run_forever(args, heartbeat=heartbeat_once, sleep=time.sleep, install_handler=signal.signal):
+    stopping = {"in_heartbeat": False, "requested": False}
+
+    def request_stop(_signum, _frame):
+        if stopping["in_heartbeat"] and not stopping["requested"]:
+            stopping["requested"] = True
+            print("guardian: stopping after the current heartbeat", file=sys.stderr, flush=True)
+            return
+        raise SystemExit(0)
+
+    for name in ("SIGTERM", "SIGINT"):
+        install_handler(getattr(signal, name), request_stop)
+    while not stopping["requested"]:
+        stopping["in_heartbeat"] = True
+        try:
+            receipt = heartbeat(args)
+            print(json.dumps(receipt, separators=(",", ":")), flush=True)
+        except Exception as error:
+            print(f"guardian heartbeat failed: {error}", file=sys.stderr, flush=True)
+        finally:
+            stopping["in_heartbeat"] = False
+        if stopping["requested"]:
+            break
+        sleep(max(30, args.interval))
+
+
 def main():
     args = parse_args()
     if args.command == "init":
@@ -353,13 +479,7 @@ def main():
     if args.command == "once":
         print(json.dumps(heartbeat_once(args), indent=2))
         return
-    while True:
-        try:
-            receipt = heartbeat_once(args)
-            print(json.dumps(receipt, separators=(",", ":")), flush=True)
-        except Exception as error:
-            print(f"guardian heartbeat failed: {error}", file=sys.stderr, flush=True)
-        time.sleep(max(30, args.interval))
+    run_forever(args)
 
 
 if __name__ == "__main__":
