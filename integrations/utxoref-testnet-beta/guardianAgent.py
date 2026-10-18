@@ -166,35 +166,47 @@ def build_envelope(args, state_dir, identity, sequence):
     }
 
 
+def reserved_sequence(state_dir):
+    return int(read_json(state_dir / "sequence.json", {"sequence": 0}).get("sequence", 0))
+
+
+def reserve_sequence(state_dir, sequence):
+    write_json(state_dir / "sequence.json", {"sequence": sequence}, private=True)
+
+
 def heartbeat_once(args):
     state_dir = pathlib.Path(args.state_dir).resolve()
     identity = read_json(state_dir / "identity.json")
     if not identity:
         raise RuntimeError("guardian identity is not initialized")
     # A signed envelope is persisted before it is sent. Until the service accepts it, every retry resends
-    # those exact bytes, so one sequence number is never bound to two observations.
+    # those exact bytes, so one sequence number is never bound to two observations. The number is reserved
+    # before its envelope is built, so a dropped envelope never frees a number for reuse: the service may
+    # already have committed it, and a fresh observation under the same number is equivocation.
     pending_path = state_dir / "pending_heartbeat.json"
     envelope = read_json(pending_path)
     if envelope is None:
-        sequence_state = read_json(state_dir / "sequence.json", {"sequence": 0})
-        sequence = int(sequence_state.get("sequence", 0)) + 1
+        sequence = reserved_sequence(state_dir) + 1
+        reserve_sequence(state_dir, sequence)
         envelope = build_envelope(args, state_dir, identity, sequence)
         write_json(pending_path, envelope, private=True)
+    elif envelope["core"]["sequence"] > reserved_sequence(state_dir):
+        # An envelope persisted before reservation existed may already be committed under its number.
+        reserve_sequence(state_dir, envelope["core"]["sequence"])
     submit_url = f"{args.base_url.rstrip('/')}/v1/guardians/heartbeat"
     try:
         http_status, receipt = post_json(submit_url, envelope, args.timeout)
     except GuardianRefusal as refusal:
-        # The service validates an envelope before it stores anything. A stale or malformed envelope was never
-        # committed and never will be, so its sequence number is still free: drop it and observe again on the
-        # next run. Configuration refusals (401, 404) and sequence conflicts (409) keep the same bytes, which are
-        # correct once an operator has fixed the registry or the state.
+        # The service validates an envelope before it stores anything, so a stale or malformed envelope was never
+        # committed. Its number stays reserved, so the next run observes again under the next number. Configuration
+        # refusals (401, 404) and sequence conflicts (409) keep the same bytes, which are correct once an operator
+        # has fixed the registry or the state.
         never_valid = refusal.status == 400 or (refusal.status == 409 and "stale_guardian_heartbeat" in refusal.body)
         if never_valid:
             pending_path.unlink()
         raise
     if http_status not in (200, 201) or receipt.get("accepted") is not True:
         raise RuntimeError("guardian heartbeat was not accepted")
-    write_json(state_dir / "sequence.json", {"sequence": envelope["core"]["sequence"], "acceptedAt": utc_now()}, private=True)
     write_json(state_dir / "latest_receipt.json", receipt)
     pending_path.unlink()
     return receipt

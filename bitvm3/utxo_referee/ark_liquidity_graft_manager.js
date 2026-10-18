@@ -8,6 +8,7 @@
  */
 
 const crypto = require('crypto');
+const { toInt } = require('./money');
 const { canonicalStringify, normalizeAmountSats } = require('./m1_spec');
 const {
   buildArkTemplateCommitment,
@@ -133,7 +134,7 @@ function normalizeRouteIntent(intent, index) {
     counterpartyNodeId: normalizeString(intent.counterpartyNodeId || `ln-peer-${index + 1}`, 'counterpartyNodeId'),
     requestedInboundSats: normalizeAmountSats(intent.requestedInboundSats || intent.amountSats || 50000n, 'requestedInboundSats').toString(),
     leaseBlocks: Number(intent.leaseBlocks || 144),
-    maxFeePpm: Number(intent.maxFeePpm ?? 1000),
+    maxFeePpm: Number(toInt(intent.maxFeePpm ?? 1000, 'maxFeePpm')),
     maxCltvDelta: Number(intent.maxCltvDelta ?? 40),
     priority: Number(intent.priority || 0),
     requiredByBlock: Number(intent.requiredByBlock || 0),
@@ -213,7 +214,7 @@ function buildObservationMap(routeIntents, options = {}) {
             override.deliveredInboundSats !== undefined
               ? normalizeAmountSats(override.deliveredInboundSats, 'deliveredInboundSats')
               : BigInt(route.requestedInboundSats),
-          observedFeePpm: Number(override.observedFeePpm ?? route.maxFeePpm),
+          observedFeePpm: Number(toInt(override.observedFeePpm ?? route.maxFeePpm, 'observedFeePpm')),
           observedCltvDelta: Number(override.observedCltvDelta ?? route.maxCltvDelta),
           observedBlock: Number(override.observedBlock || options.observedBlock || 0),
           missingExitPath: Boolean(override.missingExitPath),

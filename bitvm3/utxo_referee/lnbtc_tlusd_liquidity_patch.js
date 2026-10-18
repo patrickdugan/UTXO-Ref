@@ -145,7 +145,7 @@ function buildTlUsdLiquidityStake(options = {}) {
     'routingNotionalSats'
   );
   const lockBlocks = Number(options.lockBlocks || 1008);
-  const targetYieldPpm = Number(options.targetYieldPpm ?? 4200);
+  const targetYieldPpm = Number(toInt(options.targetYieldPpm ?? 4200, 'targetYieldPpm'));
   const slashReserveUnits = normalizeUnits(options.slashReserveUnits || stakedTlUsdUnits / 20n, 'slashReserveUnits');
   const stakeCore = {
     version: 1,

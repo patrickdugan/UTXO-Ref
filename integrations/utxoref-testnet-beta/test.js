@@ -3,8 +3,10 @@
 const assert = require('assert');
 const crypto = require('crypto');
 const fs = require('fs');
+const http = require('http');
 const os = require('os');
 const path = require('path');
+const { execFile, spawnSync } = require('child_process');
 const { loadPolicy } = require('./betaPolicy');
 const { StateStore, createInvitations, privateHash } = require('./betaStore');
 const { rateLimitPathFor } = require('./rateLimiter');
@@ -21,6 +23,8 @@ const taprootScript = require('../../bitvm3/utxo_referee/tradelayer_taproot_scri
 const { buildGuardianQuorumVaultManifest } = require('../../bitvm3/utxo_referee/utxoref_v2_guardian_quorum_reserve');
 
 const TEST_TXID = 'ab'.repeat(32);
+const AGENT_SCRIPT = path.join(__dirname, 'guardianAgent.py');
+const GRAPH_HASH = '34dfe4a3d05264fa54cd6d99e9a07ac784c22f3011b7704847337a0543d02eee';
 const TEST_ADDRESS = `tb1q${'a'.repeat(38)}`;
 
 function policyFor(statePath, overrides = {}) {
@@ -512,6 +516,105 @@ async function testGuardianQuorum(root) {
   } finally { await live.close(); }
 }
 
+// The guardian agent is Python and needs its cryptography module. The lost-response case runs the real agent
+// CLI against the real service over loopback; a proxy drops the first response after the service committed it.
+function guardianAgentPython() {
+  const python = process.env.GUARDIAN_AGENT_PYTHON || 'python3';
+  return spawnSync(python, ['-c', 'import cryptography'], { stdio: 'ignore' }).status === 0 ? python : null;
+}
+
+function runGuardianAgent(python, stateDir, baseUrl) {
+  return new Promise((resolve) => {
+    execFile(python, [AGENT_SCRIPT, 'once', '--state-dir', stateDir, '--base-url', baseUrl, '--graph-hash', GRAPH_HASH, '--timeout', '5'],
+      (error, stdout, stderr) => resolve({ ok: !error, stdout, stderr }));
+  });
+}
+
+function dropFirstHeartbeatResponse(upstreamBaseUrl) {
+  let dropNext = true;
+  return http.createServer((req, res) => {
+    const chunks = [];
+    req.on('data', (chunk) => chunks.push(chunk));
+    req.on('end', () => {
+      const upstream = http.request(`${upstreamBaseUrl}${req.url}`, { method: req.method, headers: req.headers }, (upRes) => {
+        const parts = [];
+        upRes.on('data', (chunk) => parts.push(chunk));
+        upRes.on('end', () => {
+          if (dropNext && req.method === 'POST' && req.url === '/v1/guardians/heartbeat') {
+            dropNext = false;
+            req.socket.destroy();
+            return;
+          }
+          res.writeHead(upRes.statusCode, upRes.headers);
+          res.end(Buffer.concat(parts));
+        });
+      });
+      upstream.on('error', () => res.destroy());
+      upstream.end(Buffer.concat(chunks));
+    });
+  });
+}
+
+async function testGuardianAgentLostResponseRecovery(root) {
+  const python = guardianAgentPython();
+  if (!python) {
+    console.log('SKIP guardian agent lost-response recovery: cryptography is not installed for GUARDIAN_AGENT_PYTHON or python3');
+    return;
+  }
+  const agentUnits = spawnSync(python, [path.join(__dirname, 'test_guardianAgent.py')], { encoding: 'utf8' });
+  assert.equal(agentUnits.status, 0, agentUnits.stdout + agentUnits.stderr);
+  const stateDir = path.join(root, 'guardian-agent');
+  const init = spawnSync(python, [AGENT_SCRIPT, 'init', '--state-dir', stateDir, '--label', 'agent-guardian'], { encoding: 'utf8' });
+  assert.equal(init.status, 0, init.stderr);
+  const identity = JSON.parse(fs.readFileSync(path.join(stateDir, 'identity.json'), 'utf8'));
+  const peer = guardianFixture('peer-guardian');
+  const registryPath = path.join(root, 'agent-registry.json');
+  const registry = {
+    kind: 'utxoref_beta_guardian_registry',
+    version: 1,
+    graphHash: GRAPH_HASH,
+    quorum: 2,
+    guardians: [identity, peer].map((guardian) => ({
+      guardianId: guardian.guardianId,
+      label: guardian.label,
+      guardianXonly: guardian.guardianXonly,
+      heartbeatPublicKeyPem: guardian.heartbeatPublicKeyPem
+    }))
+  };
+  fs.writeFileSync(registryPath, `${JSON.stringify(registry, null, 2)}\n`);
+
+  // The agent stamps observations with its own wall clock, so the heartbeat window is kept short and real time passes.
+  const store = new StateStore(path.join(root, 'agent-state.json'));
+  const policy = policyFor(store.filePath, {
+    guardianRegistryPath: registryPath,
+    guardianHeartbeatMaxAgeSeconds: 2,
+    guardianClockSkewSeconds: 0
+  });
+  const live = await listen(createBetaService({ policy, store, bitcoin: fakeBitcoin(store) }));
+  const proxy = dropFirstHeartbeatResponse(live.baseUrl);
+  await new Promise((resolve) => proxy.listen(0, '127.0.0.1', resolve));
+  const agentUrl = `http://127.0.0.1:${proxy.address().port}`;
+  try {
+    const lost = await runGuardianAgent(python, stateDir, agentUrl);
+    assert.equal(lost.ok, false, 'the dropped response must fail the first run');
+    assert.ok(fs.existsSync(path.join(stateDir, 'pending_heartbeat.json')), 'the committed envelope stays pending');
+
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+    const stale = await runGuardianAgent(python, stateDir, agentUrl);
+    assert.equal(stale.ok, false, 'a retry past the heartbeat window is refused');
+    assert.match(stale.stderr, /stale_guardian_heartbeat/);
+
+    const next = await runGuardianAgent(python, stateDir, agentUrl);
+    assert.equal(next.ok, true, `the agent must recover after a stale drop: ${next.stderr}`);
+    const receipt = JSON.parse(fs.readFileSync(path.join(stateDir, 'latest_receipt.json'), 'utf8'));
+    assert.equal(receipt.sequence, 2, 'sequence 1 was committed, so the recovered heartbeat is sequence 2');
+    assert.equal(fs.existsSync(path.join(stateDir, 'pending_heartbeat.json')), false);
+  } finally {
+    proxy.close();
+    await live.close();
+  }
+}
+
 async function testCrossProcessLock(root) {
   const statePath = path.join(root, 'lock.json');
   const first = new StateStore(statePath);
@@ -619,12 +722,13 @@ async function main() {
     await testLegacyRateLimitsCarryOver(root);
     await testRestrictedRpcCredentials(root);
     await testGuardianQuorum(root);
+    await testGuardianAgentLostResponseRecovery(root);
     await testCrossProcessLock(root);
     await testBitcoinBackendCompatibility();
     await testConcurrentClaimsRespectReserveFloor(root);
     testInterruptedWorkRecovery();
     testGuardianQuorumGateDefaults();
-    console.log(JSON.stringify({ ok: true, suite: 'utxoref-testnet-beta', tests: 13 }));
+    console.log(JSON.stringify({ ok: true, suite: 'utxoref-testnet-beta', tests: 14 }));
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

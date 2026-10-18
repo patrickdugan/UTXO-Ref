@@ -1,4 +1,5 @@
 const crypto = require('crypto');
+const { toInt } = require('./money');
 const { canonicalStringify, normalizeAmountSats } = require('./m1_spec');
 const { verifyLiquidityLeaseBundle } = require('./lightning_liquidity_lease');
 const { verifyArkLiquidityGraftManagerBundle } = require('./ark_liquidity_graft_manager');
@@ -45,7 +46,7 @@ function makeCandidate(core, refs = {}) {
     ...core,
     promisedCapacitySats: satsString(core.promisedCapacitySats || core.availableCapacitySats, 'promisedCapacitySats'),
     availableCapacitySats: satsString(core.availableCapacitySats, 'availableCapacitySats'),
-    feePpm: Number(core.feePpm || 0),
+    feePpm: Number(toInt(core.feePpm || 0, 'feePpm')),
     cltvDelta: Number(core.cltvDelta || 0),
     priority: Number(core.priority || 0),
     slashable: Boolean(core.slashable)
@@ -316,7 +317,7 @@ function normalizeRouteIntent(intent = {}) {
     useCase: normalizeString(intent.useCase || 'route_liquidity', 'useCase'),
     destinationNodeId: normalizeString(intent.destinationNodeId || 'ldk-router-destination-regtest', 'destinationNodeId'),
     amountSats,
-    maxFeePpm: Number(intent.maxFeePpm ?? 1200),
+    maxFeePpm: Number(toInt(intent.maxFeePpm ?? 1200, 'maxFeePpm')),
     maxCltvDelta: Number(intent.maxCltvDelta ?? 45),
     allowSplitShards: intent.allowSplitShards !== false,
     assetTicker: intent.assetTicker || null

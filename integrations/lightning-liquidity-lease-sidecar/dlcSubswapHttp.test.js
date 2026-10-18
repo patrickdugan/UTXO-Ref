@@ -185,19 +185,6 @@ async function run(sidecar, base) {
     await new Promise((resolve) => restartedServer.close(resolve));
   }
 
-  // A full quote table never refuses a new quote: the oldest request that is neither paying nor settled goes.
-  // The paid request survives eviction, so it can still mint after the table turns over.
-  const churn = [];
-  for (let index = 0; index < 3; index++) {
-    const hash = crypto.createHash('sha256').update(`churn-${index}`).digest('hex');
-    churn.push(await post(base, quoteRoute, quoteBody(hash, `lntb-churn-${index}`)));
-  }
-  assert.ok(churn.every((quote) => quote.status === 200), 'a full quote table refused a new quote');
-  const evictedUnpaid = await post(base, payRoute, { requestId: unpaidQuote.json.request.requestId });
-  assert.strictEqual(evictedUnpaid.status, 404);
-  const stillPaid = await post(base, mintRoute, { requestId, recipientAddress: RECIPIENT });
-  assert.strictEqual(stillPaid.status, 200, 'eviction dropped a settled request');
-
   // An LND payment failure is a 502 that leaves the request payable: the next attempt is not refused as in flight.
   const failing = await post(base, quoteRoute, quoteBody(crypto.createHash('sha256').update('failing').digest('hex'), 'lntb-failing'));
   lndFailNextPayment = true;
@@ -218,6 +205,18 @@ async function run(sidecar, base) {
   assert.strictEqual(malformed.status, 400);
   const notObject = await post(base, mintRoute, '[1]', {});
   assert.strictEqual(notObject.status, 400);
+
+  // The table holds every request this process quoted, so a full table refuses a new quote instead of forgetting
+  // an unpaid one. A request already in the table is still quoted, and the paid request still mints.
+  const full = await post(base, quoteRoute, quoteBody(crypto.createHash('sha256').update('full').digest('hex'), 'lntb-full'));
+  assert.strictEqual(full.status, 503);
+  assert.match(full.json.reason, /quote table is full/);
+  const requoted = await post(base, quoteRoute, quoteBody(crypto.createHash('sha256').update('failing').digest('hex'), 'lntb-failing'));
+  assert.strictEqual(requoted.status, 200, 'a request already in a full table was refused');
+  assert.strictEqual(requoted.json.request.requestId, failing.json.request.requestId);
+  const stillPaid = await post(base, mintRoute, { requestId, recipientAddress: RECIPIENT });
+  assert.strictEqual(stillPaid.status, 200, 'a full table dropped a paid request');
+  assert.strictEqual(unpaidQuote.status, 200);
 
   // A token file readable by group or others is refused at startup.
   const looseFile = path.join(tokenDir, 'loose');

@@ -15,6 +15,9 @@ const lr = require('./tradelayer_live_reserve_adapter');
 const ex = require('./tradelayer_send_oracle_extractor');
 const rb = require('./tradelayer_rbtc_hourly_autoroll');
 const { normalizeAmountSats } = require('./m1_spec');
+const { buildAspReserveBond } = require('./asp_bitvm_reserve_bond');
+const { csvSequence } = require('./taproot_reserve_vault');
+const { buildArkGraftCostModel } = require('./lightning_ark_liquidity_graft');
 
 let passed = 0;
 let failed = 0;
@@ -185,6 +188,37 @@ test('empty, hex and padded amounts are refused by every amount parser', () => {
 test('addressToScriptPubKey is the single bech32 decoder used by the route layer', () => {
   const script = addressToScriptPubKey(ADDR, 'litecoin-testnet').toString('hex');
   assertEq(script.slice(0, 4), '0014');
+});
+
+// One spelling per integer field: the bps, fee-ppm and block-delay fields reject the
+// same non-canonical forms as the amount fields, in every module that reads them.
+test('bps, ppm and csv delay fields refuse non-canonical integer spellings in every module', () => {
+  const asp = (value) => { buildAspReserveBond({ watcherBountyBps: value }); return 'OK'; };
+  const ppm = (value) => { buildArkGraftCostModel({ arkAspFeePpm: value }); return 'OK'; };
+  for (const value of ['0x10', ' 16 ', '1e3', '16.0', '', true, 1.5]) {
+    assertEq(outcome(() => asp(value)), 'ERR', `asp watcherBountyBps ${JSON.stringify(value)}`);
+    assertEq(outcome(() => csvSequence(value)), 'ERR', `csv ${JSON.stringify(value)}`);
+    assertEq(outcome(() => ppm(value)), 'ERR', `ppm ${JSON.stringify(value)}`);
+  }
+  assertEq(outcome(() => asp('250')), 'OK');
+  assertEq(outcome(() => csvSequence('144')), '144');
+  assertEq(outcome(() => ppm(250)), 'OK');
+});
+
+// The number and string spellings of one decimal amount must produce the same units,
+// or both must fail. A JSON number cannot carry trailing zeros, so the string form
+// is canonicalised the same way.
+test('a decimal amount has one meaning whether it arrives as a number or a string', () => {
+  const money = require('./money');
+  const units = (value, options) => outcome(() => money.decimalToUnits(value, 'f', options));
+  assertEq(units('1.100000000', {}), '110000000');
+  assertEq(units(1.1, {}), '110000000');
+  assertEq(units('5.00000000', { integersAreUnits: true }), '5');
+  assertEq(units(5, { integersAreUnits: true }), '5');
+  assertEq(units(1e20, { integersAreUnits: true }), 'ERR');
+  assertEq(outcome(() => money.toInt(1e20, 'f')), 'ERR');
+  assertEq(units('1.100000001', {}), 'ERR');
+  assertEq(units(1.100000001, {}), 'ERR');
 });
 
 if (failed > 0) {

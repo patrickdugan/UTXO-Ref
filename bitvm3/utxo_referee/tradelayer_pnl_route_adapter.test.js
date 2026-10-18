@@ -305,6 +305,21 @@ test('rejects a send route amount that does not equal the committed basis points
   assert(threw, 'expected send amount mismatch');
 });
 
+test('accepts sendBps only as one canonical integer spelling', () => {
+  const plan = (sendBps) => buildTradeLayerSendRoutePlan({ ...clone(SEND_INTENT), sendBps }).sendSats;
+  assertEq(plan(2500), '25000');
+  assertEq(plan('2500'), '25000');
+  for (const value of ['', ' 2500 ', '2500.0', '0x9c4', '1e3', true, [2500], 2500.5, '-1', 10001]) {
+    let threw = false;
+    try {
+      plan(value);
+    } catch (err) {
+      threw = String(err.message).includes('sendIntent.sendBps');
+    }
+    assert(threw, `sendBps ${JSON.stringify(value)} should be refused`);
+  }
+});
+
 test('builds a send intent from a TradeLayer state oracle blob', () => {
   const commitment = buildTradeLayerSendOracleCommitment(SEND_STATE_ORACLE);
   const intent = buildTradeLayerSendIntentFromStateOracle(SEND_STATE_ORACLE);

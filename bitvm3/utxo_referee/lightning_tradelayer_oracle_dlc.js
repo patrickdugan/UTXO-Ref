@@ -201,7 +201,7 @@ function buildTradeLayerVwapStateOracle(options = {}) {
   );
   const vwapScaledPrice = computeVwapScaledPrice(validTrades).toString();
   const lastAcceptedScaledPrice = priceToScaledInt(options.lastAcceptedPrice ?? '64000').toString();
-  const maxDeviationBps = Number(options.maxDeviationBps ?? DEFAULT_MAX_PRICE_DEVIATION_BPS);
+  const maxDeviationBps = Number(toInt(options.maxDeviationBps ?? DEFAULT_MAX_PRICE_DEVIATION_BPS, 'maxDeviationBps'));
   if (!Number.isSafeInteger(maxDeviationBps) || maxDeviationBps <= 0) {
     throw new Error('maxDeviationBps must be a positive safe integer');
   }
@@ -363,7 +363,7 @@ function buildTradeLayerVwapStateOracleChallenge(vwapStateOracle, options = {}) 
     options.claimedPublisherAddress || vwapStateOracle.publisherAddress,
     'claimedPublisherAddress'
   );
-  const claimedDeviationBps = Number(options.claimedDeviationBps ?? vwapStateOracle.summaryCore.priceDeviationBps);
+  const claimedDeviationBps = Number(toInt(options.claimedDeviationBps ?? vwapStateOracle.summaryCore.priceDeviationBps, 'claimedDeviationBps'));
   const violations = [];
   if (claimedSummaryCommitmentId !== vwapStateOracle.summaryCommitmentId) {
     violations.push('vwap_summary_commitment_mismatch');
@@ -508,7 +508,7 @@ function buildTradeLayerPricePublishTrigger(options = {}) {
     'publisherAddress'
   );
   const lastAcceptedScaledPrice = priceToScaledInt(options.lastAcceptedPrice ?? '64000').toString();
-  const maxDeviationBps = Number(options.maxDeviationBps ?? DEFAULT_MAX_PRICE_DEVIATION_BPS);
+  const maxDeviationBps = Number(toInt(options.maxDeviationBps ?? DEFAULT_MAX_PRICE_DEVIATION_BPS, 'maxDeviationBps'));
   if (!Number.isSafeInteger(maxDeviationBps) || maxDeviationBps <= 0) {
     throw new Error('maxDeviationBps must be a positive safe integer');
   }
@@ -689,7 +689,7 @@ function buildBilateralLnDlcContract(options = {}) {
   const entryPrice = options.entryPrice ?? '65000';
   const entryPriceScaled = priceToScaledInt(entryPrice);
   const lastAcceptedScaledPrice = priceToScaledInt(options.lastAcceptedPrice ?? '64000');
-  const maxDeviationBps = Number(options.maxDeviationBps ?? DEFAULT_MAX_PRICE_DEVIATION_BPS);
+  const maxDeviationBps = Number(toInt(options.maxDeviationBps ?? DEFAULT_MAX_PRICE_DEVIATION_BPS, 'maxDeviationBps'));
   if (!Number.isSafeInteger(maxDeviationBps) || maxDeviationBps <= 0) {
     throw new Error('maxDeviationBps must be a positive safe integer');
   }
@@ -890,7 +890,7 @@ function buildBitvmDlcChallenge(contract, trigger, settlement, options = {}) {
     options.claimedPublisherAddress || trigger.publisherAddress,
     'claimedPublisherAddress'
   );
-  const claimedDeviationBps = Number(options.claimedDeviationBps ?? trigger.priceDeviationBps);
+  const claimedDeviationBps = Number(toInt(options.claimedDeviationBps ?? trigger.priceDeviationBps, 'claimedDeviationBps'));
   const policy = contract.contractCore.oraclePolicy;
   const violations = [];
   if (claimedPayloadHash !== trigger.payloadHash) violations.push('wrong_tradelayer_payload_hash');

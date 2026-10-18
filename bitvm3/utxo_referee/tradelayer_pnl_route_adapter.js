@@ -16,7 +16,7 @@ const {
 } = require('./types');
 const { buildTreeWithProofs } = require('./merkle');
 const { verifySweep } = require('./verify');
-const { toSats, decimalToUnits } = require('./money');
+const { toInt, toSats, decimalToUnits } = require('./money');
 
 const BECH32_CHARSET = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
 const BECH32_CONST = 1;
@@ -51,11 +51,9 @@ function stableStringify(value) {
 }
 
 function validateBps(value, fieldName) {
-  const n = Number(value);
-  if (!Number.isInteger(n) || n < 0 || n > 10000) {
-    throw new Error(`${fieldName} must be an integer in 0..10000`);
-  }
-  return n;
+  const n = toInt(value, fieldName, { signed: true, noun: 'integer in 0..10000' });
+  if (n < 0n || n > 10000n) throw new Error(`${fieldName} must be an integer in 0..10000`);
+  return Number(n);
 }
 
 function bech32Polymod(values) {

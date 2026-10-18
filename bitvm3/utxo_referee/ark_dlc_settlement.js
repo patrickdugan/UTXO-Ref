@@ -9,6 +9,7 @@
  */
 
 const crypto = require('crypto');
+const { toInt } = require('./money');
 const { canonicalStringify, normalizeAmountSats } = require('./m1_spec');
 const {
   buildArkTaprootMiniscriptProofManifest,
@@ -296,8 +297,8 @@ function buildArkDlcAspChallenge(options = {}) {
 function buildArkDlcFeeModel(options = {}) {
   const outcomeCount = Number(options.outcomeCount || 5000);
   const feeRateSatVb = Number(options.feeRateSatVb ?? 25);
-  const cetVbytes = Number(options.cetVbytes ?? 180);
-  const arkRoundVbytes = Number(options.arkRoundVbytes ?? 450);
+  const cetVbytes = Number(toInt(options.cetVbytes ?? 180, 'cetVbytes'));
+  const arkRoundVbytes = Number(toInt(options.arkRoundVbytes ?? 450, 'arkRoundVbytes'));
   const arkRoundParticipants = Math.max(1, Number(options.arkRoundParticipants ?? 50));
   const aspFeeSats = normalizeAmountSats(options.aspFeeSats ?? 250n, 'aspFeeSats');
   const bitvmChallengeReserveSats = normalizeAmountSats(

@@ -26,7 +26,7 @@ For local throwaway testing with a trusted node, `LND_REST_INSECURE=1` disables 
 
 The macaroon must allow reading payments (`GET /v1/payments`) as well as sending them. The sidecar treats a request as paid only when LND's payment list shows a `SUCCEEDED` payment for the request's payment hash whose preimage hashes to it. It never trusts its own memory of a payment.
 
-Quoted requests are stored in `SIDECAR_REQUEST_STORE_PATH` (default `runtime/dlc-subswap-requests.json`, written mode 0600). `SIDECAR_MAX_QUOTED_REQUESTS` (default 1000) bounds the store; when it is full the oldest request that is neither being paid nor known to be settled is dropped.
+Quoted requests are stored in `SIDECAR_REQUEST_STORE_PATH` (default `runtime/dlc-subswap-requests.json`, written mode 0600). `SIDECAR_MAX_QUOTED_REQUESTS` (default 1000) bounds the store. Entries are never dropped, so when it is full new quotes get a 503 until the cap is raised or the store is cleared.
 
 ## Endpoint Flow
 

@@ -591,7 +591,7 @@ function renderProfilePanel(status) {
     detailRow('Chain', escapeHtml(scrub(status.chain.chain))),
     detailRow('RPC', escapeHtml(scrub(status.chain.rpcUrl))),
     detailRow('Wallet', escapeHtml(status.chain.wallet)),
-    detailRow('LND', status.lnd ? `${status.lnd.network} ${status.lnd.grpcHost}` : 'not active'),
+    detailRow('LND', status.lnd ? escapeHtml(`${status.lnd.network} ${status.lnd.grpcHost}`) : 'not active'),
     detailRow('LN discovery', escapeHtml(status.lightningDiscovery?.publicRegistry || 'public gossip only')),
     detailRow('Candidate peers', `${status.lightningDiscovery?.candidatePeers?.filter(peer => peer.tcpOpen).length || 0} TCP reachable`),
     detailRow('Artifact', status.artifacts.lnbtcTlusdLiquidityPatch.exists ? 'loaded' : 'missing'),

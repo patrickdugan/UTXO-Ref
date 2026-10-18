@@ -143,6 +143,14 @@ test('vault manifest hash is deterministic and script tree verifies', () => {
   assert(a1.core.p2trScriptPubKey.startsWith('5120'), 'vault output must be P2TR');
 });
 
+// Without a live height the manifest is only shape-checked, so it must not be reported as countable.
+test('manifest-only verification is not countable without a live height', () => {
+  const result = verifyTaprootReserveVaultManifest(manifest());
+  assert(result.ok, result.reason);
+  assert(result.countable === false, 'a manifest with no live height must not count');
+  assert(result.recoveryStatus.checked === false, 'no recovery check ran without a height');
+});
+
 // RES-1 regression (ports poc11): an operator-held Taproot internal key gives
 // the operator a key-path spend that needs no guardian and no CSV, so the
 // builder refuses it and a hand-built manifest for it must not count as reserve.
