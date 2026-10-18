@@ -9,6 +9,17 @@
  *   toSats(value, field)                     non-negative integer sat amount
  *   decimalToUnits(value, field, options)    decimal amount scaled to base units
  *   satsToCoinString(sats)                   sats as eight-place coin text
+ *
+ * Amount spelling rule (decimalToUnits), stated once here:
+ *   - The spelling fixes the scale. Text with no decimal point (and no exponent)
+ *     is an integer. A number is spelled by its integer digits when it is integer-
+ *     valued, and by its shortest decimal text otherwise.
+ *   - With `integersAreUnits`, an integer spelling is base units ('5' -> 5). Any
+ *     decimal point is a coin amount and is scaled ('5.0' and '5.00000000' ->
+ *     500000000 at eight places). Without the flag, every amount is scaled.
+ *   - Trailing zeros never change the spelling. They are stripped only to test
+ *     whether the fraction has more digits than the scale allows, so
+ *     '1.100000000' is accepted at eight places and '1.100000001' is refused.
  */
 
 const COIN = 100000000n;
@@ -54,11 +65,10 @@ function decimalText(value, field, decimals) {
 }
 
 /**
- * Scale a decimal amount to base units.
+ * Scale a decimal amount to base units. See the spelling rule at the top of this file.
  *
- * `integersAreUnits` decides what a bare integer means. Token amounts in TradeLayer
- * payloads are already base units, so the extractor passes true. Coin amounts are
- * whole coins, so the default is false. The choice is made per field, at the call.
+ * Token amounts in TradeLayer payloads pass `integersAreUnits: true`. Coin amounts
+ * are whole coins, so the default is false. The choice is made per field, at the call.
  */
 function decimalToUnits(value, field, { scale = COIN, integersAreUnits = false, signed = false } = {}) {
   if (value === undefined || value === null || value === '') throw new Error(`${field} is required`);
@@ -68,11 +78,11 @@ function decimalToUnits(value, field, { scale = COIN, integersAreUnits = false, 
     throw new Error(`${field} must be a decimal amount`);
   }
   const negative = text.startsWith('-');
-  const [whole, rawFraction = ''] = (negative ? text.slice(1) : text).split('.');
-  const fraction = rawFraction.replace(/0+$/, '');
+  const [whole, rawFraction] = (negative ? text.slice(1) : text).split('.');
+  const fraction = (rawFraction ?? '').replace(/0+$/, '');
   if (fraction.length > decimals) throw new Error(`${field} has more than ${decimals} decimal places`);
   let units;
-  if (fraction === '' && integersAreUnits) {
+  if (rawFraction === undefined && integersAreUnits) {
     units = BigInt(whole);
   } else {
     units = BigInt(whole) * scale + BigInt((fraction + '0'.repeat(decimals)).slice(0, decimals));

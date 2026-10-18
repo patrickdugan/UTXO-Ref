@@ -213,12 +213,52 @@ test('a decimal amount has one meaning whether it arrives as a number or a strin
   const units = (value, options) => outcome(() => money.decimalToUnits(value, 'f', options));
   assertEq(units('1.100000000', {}), '110000000');
   assertEq(units(1.1, {}), '110000000');
-  assertEq(units('5.00000000', { integersAreUnits: true }), '5');
+  assertEq(units('5.00000000', { integersAreUnits: true }), '500000000');
   assertEq(units(5, { integersAreUnits: true }), '5');
   assertEq(units(1e20, { integersAreUnits: true }), 'ERR');
   assertEq(outcome(() => money.toInt(1e20, 'f')), 'ERR');
   assertEq(units('1.100000001', {}), 'ERR');
   assertEq(units(1.100000001, {}), 'ERR');
+});
+
+// The spelling of an amount fixes its scale. Under integersAreUnits, integer text
+// (and an integer-valued number, whose text is its integer digits) is base units;
+// any decimal point is a coin amount and is scaled. Trailing zeros never change
+// the spelling. Each row: [value, options, expected].
+test('the amount spelling rule, table-driven, for strings and numbers', () => {
+  const money = require('./money');
+  const units = (value, options) => outcome(() => money.decimalToUnits(value, 'f', options));
+  const TOKEN = { integersAreUnits: true };
+  const COINS = {};
+  const SIGNED_TOKEN = { integersAreUnits: true, signed: true };
+  const rows = [
+    ['5', TOKEN, '5'],
+    ['5.0', TOKEN, '500000000'],
+    ['5.00000000', TOKEN, '500000000'],
+    ['2500.00000000', TOKEN, '250000000000'],
+    [5, TOKEN, '5'],
+    [1.1, TOKEN, '110000000'],
+    ['1.100000000', TOKEN, '110000000'],
+    ['1.100000001', TOKEN, 'ERR'],
+    ['1e3', TOKEN, 'ERR'],
+    [1e3, TOKEN, '1000'],
+    ['-0', SIGNED_TOKEN, '0'],
+    ['-0', TOKEN, 'ERR'],
+    ['', TOKEN, 'ERR'],
+    [' 5', TOKEN, 'ERR'],
+    ['5', COINS, '500000000'],
+    ['5.0', COINS, '500000000'],
+    ['5.00000000', COINS, '500000000'],
+    [5, COINS, '500000000'],
+    [1.1, COINS, '110000000'],
+    ['1.100000000', COINS, '110000000'],
+    ['1e3', COINS, 'ERR'],
+    ['', COINS, 'ERR'],
+    [' 5', COINS, 'ERR']
+  ];
+  for (const [value, options, expected] of rows) {
+    assertEq(units(value, options), expected, `${JSON.stringify(value)} ${JSON.stringify(options)}`);
+  }
 });
 
 if (failed > 0) {

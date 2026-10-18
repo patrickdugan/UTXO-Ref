@@ -93,6 +93,12 @@ test('converts decimal token amounts into integer units', () => {
   assertEq(decimalToUnits('0.00000001', 'amount'), '1');
 });
 
+test('an eight-place decimal token amount is scaled, not read as base units', () => {
+  assertEq(decimalToUnits('2500.00000000', 'amount'), '250000000000');
+  assertEq(decimalToUnits('2500.0', 'amount'), '250000000000');
+  assertEq(decimalToUnits('2500', 'amount'), '2500');
+});
+
 test('extracts only consensus-valid tx type 2 sends into state oracle blob', () => {
   const blob = buildTradeLayerSendStateOracleFromConsensus(CONSENSUS_INPUT, {
     selectedSendId: 'live-send'
