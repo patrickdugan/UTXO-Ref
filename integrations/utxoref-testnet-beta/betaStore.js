@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const { writeAtomicPrivate } = require('../shared/service');
+const { withDirectoryLockAsync } = require('../../bitvm3/utxo_referee/dlc_durable_json_store');
 
 function sha256(value) {
   return crypto.createHash('sha256').update(String(value)).digest('hex');
@@ -45,35 +46,24 @@ function sleep(milliseconds) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
-async function acquireLock(filePath, options = {}) {
-  const lockPath = `${filePath}.lock`;
-  const timeoutMs = Number(options.timeoutMs || 5000);
-  const staleMs = Number(options.staleMs || 30000);
-  const startedAt = Date.now();
+const STATE_LOCK_WAIT_MS = 5000;
+
+// Writers of one state file take turns, waiting up to STATE_LOCK_WAIT_MS for
+// the holder. The shared directory lock decides who holds it: a live holder is
+// never displaced by age, and a dead one is reclaimed.
+async function withStateFileLock(filePath, run) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
-  while (true) {
+  const startedAt = Date.now();
+  for (;;) {
+    let entered = false;
     try {
-      const fd = fs.openSync(lockPath, 'wx', 0o600);
-      fs.writeFileSync(fd, `${JSON.stringify({ pid: process.pid, createdAt: new Date().toISOString() })}\n`);
-      fs.closeSync(fd);
-      return () => {
-        try { fs.unlinkSync(lockPath); } catch (err) {
-          if (err.code !== 'ENOENT') throw err;
-        }
-      };
+      return await withDirectoryLockAsync(`${filePath}.lock`, 'beta state is locked by another writer', async () => {
+        entered = true;
+        return run();
+      });
     } catch (err) {
-      if (err.code !== 'EEXIST') throw err;
-      try {
-        const ageMs = Date.now() - fs.statSync(lockPath).mtimeMs;
-        if (ageMs > staleMs) {
-          fs.unlinkSync(lockPath);
-          continue;
-        }
-      } catch (statError) {
-        if (statError.code === 'ENOENT') continue;
-        throw statError;
-      }
-      if (Date.now() - startedAt >= timeoutMs) throw new Error('timed out acquiring beta state lock');
+      if (entered || err.code !== 'LOCK_HELD') throw err;
+      if (Date.now() - startedAt >= STATE_LOCK_WAIT_MS) throw new Error('timed out acquiring beta state lock');
       await sleep(25);
     }
   }
@@ -145,17 +135,12 @@ class StateStore {
   }
 
   transact(callback) {
-    const operation = this.tail.then(async () => {
-      const release = await acquireLock(this.filePath);
-      try {
-        const state = loadState(this.filePath);
-        const result = await callback(state);
-        saveAtomic(this.filePath, state);
-        return result;
-      } finally {
-        release();
-      }
-    });
+    const operation = this.tail.then(() => withStateFileLock(this.filePath, async () => {
+      const state = loadState(this.filePath);
+      const result = await callback(state);
+      saveAtomic(this.filePath, state);
+      return result;
+    }));
     this.tail = operation.catch(() => undefined);
     return operation;
   }
@@ -170,6 +155,5 @@ module.exports = {
   tokenHash,
   privateHash,
   createInvitations,
-  acquireLock,
   StateStore
 };

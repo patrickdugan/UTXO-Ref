@@ -631,6 +631,34 @@ async function testCrossProcessLock(root) {
   assert.ok(state.stressRuns.b);
 }
 
+// A live writer's lock is never broken by age. The lock is planted in the form
+// the beta store wrote before: a lock file with a live pid, older than 30 s.
+async function testLiveWriterLockIsNotBrokenByAge(root) {
+  const statePath = path.join(root, 'live-holder.json');
+  const lockPath = `${statePath}.lock`;
+  fs.writeFileSync(lockPath, JSON.stringify({ pid: process.ppid, createdAt: new Date().toISOString() }));
+  const past = new Date(Date.now() - 40000);
+  fs.utimesSync(lockPath, past, past);
+  let ran = false;
+  await assert.rejects(new StateStore(statePath).transact(() => { ran = true; }), (err) => {
+    return err.message === 'timed out acquiring beta state lock';
+  });
+  assert.equal(ran, false, 'a writer entered while a live writer held the state lock');
+  assert.ok(fs.existsSync(lockPath), 'the live writer lost its lock');
+}
+
+// A writer that died holding the state lock must not block the next start.
+async function testDeadWriterLockIsReclaimed(root) {
+  const statePath = path.join(root, 'dead-holder.json');
+  const lockPath = `${statePath}.lock`;
+  fs.mkdirSync(lockPath);
+  const deadPid = spawnSync(process.execPath, ['-e', '']).pid;
+  fs.writeFileSync(path.join(lockPath, 'owner.json'), JSON.stringify({ pid: deadPid, host: os.hostname(), token: 'c'.repeat(32) }));
+  await new StateStore(statePath).transact((state) => { state.stressRuns.restart = { status: 'complete' }; });
+  assert.ok(new StateStore(statePath).read().stressRuns.restart, 'the restarted writer did not commit');
+  assert.ok(!fs.existsSync(lockPath), 'the reclaimed state lock was not released');
+}
+
 async function testBitcoinBackendCompatibility() {
   const calls = [];
   const rpc = async (method, args, wallet) => {
@@ -724,11 +752,13 @@ async function main() {
     await testGuardianQuorum(root);
     await testGuardianAgentLostResponseRecovery(root);
     await testCrossProcessLock(root);
+    await testLiveWriterLockIsNotBrokenByAge(root);
+    await testDeadWriterLockIsReclaimed(root);
     await testBitcoinBackendCompatibility();
     await testConcurrentClaimsRespectReserveFloor(root);
     testInterruptedWorkRecovery();
     testGuardianQuorumGateDefaults();
-    console.log(JSON.stringify({ ok: true, suite: 'utxoref-testnet-beta', tests: 14 }));
+    console.log(JSON.stringify({ ok: true, suite: 'utxoref-testnet-beta', tests: 16 }));
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
