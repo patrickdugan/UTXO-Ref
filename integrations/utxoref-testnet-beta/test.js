@@ -663,6 +663,22 @@ async function testLiveWriterLockIsNotBrokenByAge(root) {
   }
 }
 
+// A transact callback that starts another transact on the same state file would
+// wait for the transaction that is waiting for it. It must fail at once instead.
+async function testNestedTransactIsRefused(root) {
+  const statePath = path.join(root, 'nested.json');
+  const store = new StateStore(statePath);
+  const nested = store.transact(() => store.transact(() => 'inner'));
+  const outcome = await Promise.race([
+    nested.then(() => 'resolved', (err) => err.message),
+    new Promise((resolve) => setTimeout(resolve, 2000)).then(() => 'still pending')
+  ]);
+  assert.match(outcome, /nested transact/, `nested transact on the same instance must fail, got: ${outcome}`);
+  const otherInstance = store.transact(() => new StateStore(statePath).transact(() => 'inner'));
+  await assert.rejects(otherInstance, /nested transact/);
+  assert.equal(await store.transact(() => 'after'), 'after', 'the store must keep working after a refused nested call');
+}
+
 // A writer that died holding the state lock must not block the next start.
 async function testDeadWriterLockIsReclaimed(root) {
   const statePath = path.join(root, 'dead-holder.json');
@@ -769,12 +785,13 @@ async function main() {
     await testGuardianAgentLostResponseRecovery(root);
     await testCrossProcessLock(root);
     await testLiveWriterLockIsNotBrokenByAge(root);
+    await testNestedTransactIsRefused(root);
     await testDeadWriterLockIsReclaimed(root);
     await testBitcoinBackendCompatibility();
     await testConcurrentClaimsRespectReserveFloor(root);
     testInterruptedWorkRecovery();
     testGuardianQuorumGateDefaults();
-    console.log(JSON.stringify({ ok: true, suite: 'utxoref-testnet-beta', tests: 16 }));
+    console.log(JSON.stringify({ ok: true, suite: 'utxoref-testnet-beta', tests: 17 }));
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

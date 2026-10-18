@@ -1,8 +1,12 @@
 const crypto = require('crypto');
+const { AsyncLocalStorage } = require('async_hooks');
 const fs = require('fs');
 const path = require('path');
 const { writeAtomicPrivate } = require('../shared/service');
 const { withDirectoryLockAsync } = require('../../bitvm3/utxo_referee/dlc_durable_json_store');
+
+// The state files whose transact callback runs in the current async context.
+const runningTransactions = new AsyncLocalStorage();
 
 function sha256(value) {
   return crypto.createHash('sha256').update(String(value)).digest('hex');
@@ -135,12 +139,19 @@ class StateStore {
   }
 
   transact(callback) {
-    const operation = this.tail.then(() => withStateFileLock(this.filePath, async () => {
-      const state = loadState(this.filePath);
-      const result = await callback(state);
-      saveAtomic(this.filePath, state);
-      return result;
-    }));
+    const running = runningTransactions.getStore() ?? new Set();
+    if (running.has(this.filePath)) {
+      return Promise.reject(new Error(`nested transact on ${this.filePath} would wait for the transaction that is running it`));
+    }
+    const operation = this.tail.then(() => withStateFileLock(this.filePath, () => runningTransactions.run(
+      new Set(running).add(this.filePath),
+      async () => {
+        const state = loadState(this.filePath);
+        const result = await callback(state);
+        saveAtomic(this.filePath, state);
+        return result;
+      }
+    )));
     this.tail = operation.catch(() => undefined);
     return operation;
   }
