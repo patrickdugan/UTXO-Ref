@@ -6,7 +6,7 @@ const fs = require('fs');
 const http = require('http');
 const os = require('os');
 const path = require('path');
-const { execFile, spawnSync } = require('child_process');
+const { execFile, spawn, spawnSync } = require('child_process');
 const { loadPolicy } = require('./betaPolicy');
 const { StateStore, createInvitations, privateHash } = require('./betaStore');
 const { rateLimitPathFor } = require('./rateLimiter');
@@ -631,20 +631,36 @@ async function testCrossProcessLock(root) {
   assert.ok(state.stressRuns.b);
 }
 
-// A live writer's lock is never broken by age. The lock is planted in the form
-// the beta store wrote before: a lock file with a live pid, older than 30 s.
+// A live writer's lock is never broken by age. The holder is a real process that
+// took the lock through the shared directory lock, so the lock is the directory
+// with a live owner that the beta store writes.
 async function testLiveWriterLockIsNotBrokenByAge(root) {
   const statePath = path.join(root, 'live-holder.json');
   const lockPath = `${statePath}.lock`;
-  fs.writeFileSync(lockPath, JSON.stringify({ pid: process.ppid, createdAt: new Date().toISOString() }));
-  const past = new Date(Date.now() - 40000);
-  fs.utimesSync(lockPath, past, past);
-  let ran = false;
-  await assert.rejects(new StateStore(statePath).transact(() => { ran = true; }), (err) => {
-    return err.message === 'timed out acquiring beta state lock';
-  });
-  assert.equal(ran, false, 'a writer entered while a live writer held the state lock');
-  assert.ok(fs.existsSync(lockPath), 'the live writer lost its lock');
+  const libPath = path.join(__dirname, '../../bitvm3/utxo_referee/dlc_durable_json_store.js');
+  const holder = spawn(process.execPath, ['-e', `
+    const { acquireDirectoryLock } = require(${JSON.stringify(libPath)});
+    acquireDirectoryLock(${JSON.stringify(lockPath)}, 'held');
+    console.log('LOCKED');
+    setInterval(() => {}, 1000);
+  `], { stdio: ['ignore', 'pipe', 'inherit'] });
+  try {
+    await new Promise((resolve, reject) => {
+      holder.stdout.on('data', (chunk) => { if (String(chunk).includes('LOCKED')) resolve(); });
+      holder.on('exit', (code) => reject(new Error(`lock holder exited with ${code}`)));
+    });
+    const past = new Date(Date.now() - 40000);
+    fs.utimesSync(lockPath, past, past);
+    let ran = false;
+    await assert.rejects(new StateStore(statePath).transact(() => { ran = true; }), (err) => {
+      return err.message === 'timed out acquiring beta state lock';
+    });
+    assert.equal(ran, false, 'a writer entered while a live writer held the state lock');
+    const owner = JSON.parse(fs.readFileSync(path.join(lockPath, 'owner.json'), 'utf8'));
+    assert.equal(owner.pid, holder.pid, 'the live writer lost its lock');
+  } finally {
+    holder.kill();
+  }
 }
 
 // A writer that died holding the state lock must not block the next start.
