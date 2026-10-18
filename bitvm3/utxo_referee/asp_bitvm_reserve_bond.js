@@ -899,8 +899,18 @@ function verifyAspBitvmReserveBundle(bundle, options = {}) {
   if (bundle.reserve.reserveId !== hashCanonical(bundle.reserve.reserveCore)) {
     return { ok: false, reason: 'reserve id mismatch' };
   }
-  if (bundle.obligationSet.obligationRoot !== hashCanonical(bundle.obligationSet.obligationSetCore)) {
+  const { obligationSetCore, obligations } = bundle.obligationSet;
+  if (bundle.obligationSet.obligationRoot !== hashCanonical(obligationSetCore)) {
     return { ok: false, reason: 'obligation root mismatch' };
+  }
+  if (obligationSetCore.reserveId !== bundle.reserve.reserveId || obligationSetCore.aspId !== bundle.reserve.reserveCore.aspId) {
+    return { ok: false, reason: 'obligation set is for another reserve' };
+  }
+  if (canonicalStringify(obligationSetCore.obligationIds) !== canonicalStringify(obligations.map(item => item.obligationId))) {
+    return { ok: false, reason: 'obligation set does not match its root' };
+  }
+  if (obligationSetCore.obligationSignatureRoot !== hashCanonical(obligations.map(item => item.aspSignature))) {
+    return { ok: false, reason: 'obligation signature root mismatch' };
   }
   const shinigamiVerification = verifyShinigamiVirtualCetBundle(bundle.shinigamiBundle);
   if (!shinigamiVerification.ok) {
@@ -909,9 +919,12 @@ function verifyAspBitvmReserveBundle(bundle, options = {}) {
   if (bundle.bundleCore.shinigamiBundleId !== bundle.shinigamiBundle.bundleId) {
     return { ok: false, reason: 'Shinigami bundle id mismatch' };
   }
-  for (const obligation of bundle.obligationSet.obligations) {
+  for (const obligation of obligations) {
     if (obligation.obligationId !== hashCanonical(obligation.obligationCore)) {
       return { ok: false, reason: `obligation id mismatch: ${obligation.obligationCore.obligationType}` };
+    }
+    if (obligation.obligationCore.reserveId !== bundle.reserve.reserveId || obligation.obligationCore.aspId !== bundle.reserve.reserveCore.aspId) {
+      return { ok: false, reason: `obligation not bound to this reserve: ${obligation.obligationCore.obligationType}` };
     }
     if (!aspObligationSignatureMatches(obligation, bundle.reserve.reserveCore.aspId, options.aspPublicKeyPem)) {
       return { ok: false, reason: `ASP signature mismatch: ${obligation.obligationCore.obligationType}` };
@@ -926,6 +939,12 @@ function verifyAspBitvmReserveBundle(bundle, options = {}) {
   }
   if (bundle.misbehaviorClaim.claimId !== hashCanonical(bundle.misbehaviorClaim.claimCore)) {
     return { ok: false, reason: 'misbehavior claim id mismatch' };
+  }
+  if (bundle.misbehaviorClaim.claimCore.reserveId !== bundle.reserve.reserveId) {
+    return { ok: false, reason: 'misbehavior claim does not bind reserve' };
+  }
+  if (bundle.misbehaviorClaim.claimCore.obligationRoot !== bundle.obligationSet.obligationRoot) {
+    return { ok: false, reason: 'misbehavior claim does not bind obligation root' };
   }
   if (bundle.zkReceipt.receiptId !== hashCanonical(bundle.zkReceipt.receiptCore)) {
     return { ok: false, reason: 'ZK receipt id mismatch' };
@@ -946,6 +965,12 @@ function verifyAspBitvmReserveBundle(bundle, options = {}) {
   }
   if (bundle.bitvmChallenge.challengeCore.claimId !== bundle.misbehaviorClaim.claimId) {
     return { ok: false, reason: 'BitVM challenge does not bind claim' };
+  }
+  if (
+    bundle.bitvmChallenge.challengeCore.reserveId !== bundle.reserve.reserveId ||
+    bundle.bitvmChallenge.challengeCore.obligationRoot !== bundle.obligationSet.obligationRoot
+  ) {
+    return { ok: false, reason: 'BitVM challenge does not bind reserve or obligation root' };
   }
   const disputeVerification = verifyBitvmVerifierDisputeSimulation(bundle.disputeSimulation, bundle);
   if (!disputeVerification.ok) {

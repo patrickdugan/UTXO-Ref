@@ -201,6 +201,54 @@ test('an obligation digest that anyone can compute is not an ASP signature', () 
   assert(!result.ok, 'the old public digest must not verify');
 });
 
+function sha256OfCanonical(value) {
+  return require('crypto').createHash('sha256').update(require('./m1_spec').canonicalStringify(value)).digest('hex');
+}
+
+// Both spliced sets are signed by the same ASP key, so only the set and reserve binding can refuse them.
+function sameAspBundle(options = {}) {
+  const aspPrivateKey = options.aspPrivateKey
+    || require('crypto').generateKeyPairSync('ed25519').privateKey.export({ type: 'pkcs8', format: 'pem' });
+  return { aspPrivateKey, bundle: buildAspBitvmReserveBundle({ ...options, aspPrivateKey }) };
+}
+
+test('verification fails when an unselected obligation is dropped from the set', () => {
+  const { bundle } = sameAspBundle({ reserveAmountSats: 1000000n });
+  const dropped = clone(bundle);
+  const selectedId = dropped.misbehaviorClaim.claimCore.obligationId;
+  dropped.obligationSet.obligations = dropped.obligationSet.obligations.filter(
+    (item) => item.obligationId === selectedId || item.obligationCore.obligationType !== 'exit-availability'
+  );
+  const result = verifyAspBitvmReserveBundle(dropped, pinnedAsp(dropped));
+  assert(!result.ok && /obligation set does not match its root/.test(result.reason), `dropped obligation should fail: ${JSON.stringify(result)}`);
+});
+
+test('verification fails when an ASP-signed obligation from another reserve is spliced into the set', () => {
+  const { aspPrivateKey, bundle } = sameAspBundle({ reserveAmountSats: 1000000n });
+  const { bundle: other } = sameAspBundle({ aspPrivateKey, reserveAmountSats: 2000000n, promisedInboundSats: 300000n, deliveredInboundSats: 300000n });
+  assert(other.reserve.reserveId !== bundle.reserve.reserveId, 'fixture must be a different reserve');
+  const spliced = clone(bundle);
+  const slot = spliced.obligationSet.obligations.findIndex((item) => item.obligationCore.obligationType === 'virtual-cet-settlement');
+  spliced.obligationSet.obligations[slot] = clone(other.obligationSet.obligations.find((item) => item.obligationCore.obligationType === 'virtual-cet-settlement'));
+  // The forger recommits the set root, so only the per-obligation reserve binding can refuse the splice.
+  const core = spliced.obligationSet.obligationSetCore;
+  core.obligationIds = spliced.obligationSet.obligations.map((item) => item.obligationId);
+  core.obligationSignatureRoot = sha256OfCanonical(spliced.obligationSet.obligations.map((item) => item.aspSignature));
+  spliced.obligationSet.obligationRoot = sha256OfCanonical(core);
+  const result = verifyAspBitvmReserveBundle(spliced, pinnedAsp(spliced));
+  assert(!result.ok && /not bound to this reserve/.test(result.reason), `foreign obligation should fail: ${JSON.stringify(result)}`);
+});
+
+test('a misbehavior claim must bind the reserve and obligation root of its bundle', () => {
+  const { aspPrivateKey, bundle } = sameAspBundle({ reserveAmountSats: 1000000n });
+  const { bundle: other } = sameAspBundle({ aspPrivateKey, reserveAmountSats: 2000000n, promisedInboundSats: 300000n, deliveredInboundSats: 100000n });
+  const rebound = clone(bundle);
+  rebound.misbehaviorClaim.claimCore.reserveId = other.reserve.reserveId;
+  rebound.misbehaviorClaim.claimId = sha256OfCanonical(rebound.misbehaviorClaim.claimCore);
+  const result = verifyAspBitvmReserveBundle(rebound, pinnedAsp(rebound));
+  assert(!result.ok && /misbehavior claim does not bind reserve/.test(result.reason), `rebound claim should fail: ${JSON.stringify(result)}`);
+});
+
 test('verification without a pinned ASP key is refused', () => {
   const bundle = buildAspBitvmReserveBundle();
   const result = verifyAspBitvmReserveBundle(bundle);
