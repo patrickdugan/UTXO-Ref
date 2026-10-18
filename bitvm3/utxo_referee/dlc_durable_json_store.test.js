@@ -148,6 +148,14 @@ if (role === 'contend') {
     assert(!fs.existsSync(lockPath), 'the holder did not release its lock');
   });
 
+  test('a release that finds an extra file in the lock directory still removes the lock', () => {
+    const lockPath = path.join(root, 'extra-file.lock');
+    const release = acquireDirectoryLock(lockPath, 'held');
+    fs.writeFileSync(path.join(lockPath, 'extra'), 'stray');
+    release();
+    assert(!fs.existsSync(lockPath), 'release left the lock directory behind');
+  });
+
   test('release refuses to remove a lock another holder took over', () => {
     const lockPath = path.join(root, 'taken-over.lock');
     const release = acquireDirectoryLock(lockPath, 'held');

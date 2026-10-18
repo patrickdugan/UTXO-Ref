@@ -246,14 +246,18 @@ function reclaimAbandonedLock(lockPath) {
   return false;
 }
 
+// The lock is released by one rename, owner record included, so the lock path
+// is never a directory without an owner. A failure to remove the moved copy
+// leaves the lock released.
 function releaseDirectoryLock(lockPath, token) {
   heldLockTokens.delete(token);
   const owner = readLockOwner(lockPath);
   if (!owner || owner.token !== token) {
     throw Object.assign(new Error(`lock ${lockPath} was taken over while held; it was not removed`), { code: 'LOCK_LOST' });
   }
-  fs.rmSync(path.join(lockPath, LOCK_OWNER_FILE), { force: true });
-  fs.rmdirSync(lockPath);
+  const released = `${lockPath}.released-${process.pid}-${crypto.randomBytes(4).toString('hex')}`;
+  fs.renameSync(lockPath, released);
+  fs.rmSync(released, { recursive: true, force: true });
 }
 
 function acquireDirectoryLock(lockPath, heldMessage) {
