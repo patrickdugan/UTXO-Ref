@@ -35,6 +35,8 @@ function payment(i) {
 const knownInvoices = new Map();
 const lndPayments = [];
 const lndCalls = [];
+// How long the fake LND holds a payment before it settles, so a test can keep a payment in flight across the TTL.
+let lndPayDelayMs = 0;
 const fakeLnd = http.createServer((req, res) => {
   let raw = '';
   req.on('data', (chunk) => { raw += chunk; });
@@ -52,12 +54,14 @@ const fakeLnd = http.createServer((req, res) => {
       res.end(JSON.stringify({ error: 'no route to destination' }));
       return;
     }
-    lndPayments.push({ payment_hash: known.paymentHashHex, payment_preimage: known.preimageHex, status: 'SUCCEEDED', value_sat: '12345' });
-    res.end(JSON.stringify({
-      payment_preimage: Buffer.from(known.preimageHex, 'hex').toString('base64'),
-      payment_hash: Buffer.from(known.paymentHashHex, 'hex').toString('base64'),
-      payment_route: {}
-    }));
+    setTimeout(() => {
+      lndPayments.push({ payment_hash: known.paymentHashHex, payment_preimage: known.preimageHex, status: 'SUCCEEDED', value_sat: '12345' });
+      res.end(JSON.stringify({
+        payment_preimage: Buffer.from(known.preimageHex, 'hex').toString('base64'),
+        payment_hash: Buffer.from(known.paymentHashHex, 'hex').toString('base64'),
+        payment_route: {}
+      }));
+    }, lndPayDelayMs);
   });
 });
 
@@ -190,6 +194,23 @@ async function main() {
   const recovered = await quote(node.base, 20);
   assert.strictEqual(recovered.status, 200, 'the table did not recover after its quotes expired');
   log('a full table of live quotes returns 503 and recovers when they expire');
+
+  // A payment that LND is still settling when the TTL passes is not dropped: a quote that arrives meanwhile does not
+  // prune it, the payment settles, and the request mints.
+  const slow = await quote(node.base, 60);
+  assert.strictEqual(slow.status, 200);
+  const slowId = slow.json.request.requestId;
+  lndPayDelayMs = (TTL_SECONDS + 1) * 1000;
+  const slowPay = pay(node.base, slowId);
+  await sleep(TTL_SECONDS * 1000 + 300);
+  const duringPay = await quote(node.base, 61);
+  assert.strictEqual(duringPay.status, 200, 'a quote during a slow pay was refused');
+  const slowPaid = await slowPay;
+  lndPayDelayMs = 0;
+  assert.strictEqual(slowPaid.status, 200, `a slow payment across the TTL was refused: ${JSON.stringify(slowPaid.json)}`);
+  const slowMint = await mint(node.base, slowId);
+  assert.strictEqual(slowMint.status, 200, `a payment that settled after the TTL did not mint: ${JSON.stringify(slowMint.json)}`);
+  log('a payment still in flight across the TTL survives a quote that prunes, and mints');
 
   // A restart keeps the lifecycle: a paid request still mints, a quoted one still pays, a minted one stays refused.
   const paidId = await quotedAndPaid(node.base, 30);

@@ -498,11 +498,11 @@ function saveIssuedDlcSubswapRequests() {
   }, null, 2)}\n`);
 }
 
-// Drops quotes that expired unpaid. Paid requests are never dropped here.
+// Drops quotes that expired unpaid and have no payment in flight. Paid requests and requests being paid are kept.
 function pruneExpiredQuotes(now) {
   let dropped = false;
   for (const [requestId, issued] of issuedDlcSubswapRequests) {
-    if (issued.state === 'quoted' && now >= issued.expiresAt) {
+    if (issued.state === 'quoted' && !issued.paying && now >= issued.expiresAt) {
       issuedDlcSubswapRequests.delete(requestId);
       dropped = true;
     }
