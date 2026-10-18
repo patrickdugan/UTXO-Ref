@@ -2,6 +2,7 @@ const {
   sha256Hex
 } = require('./tradelayer_pnl_route_adapter');
 const { verifyChallengeVerdict } = require('./challenge_verdict');
+const { toInt } = require('./money');
 
 const HEX32_RE = /^[0-9a-f]{64}$/i;
 
@@ -51,7 +52,7 @@ function buildTradeLayerStateCheckpoint(input = {}) {
     kind: 'tradelayer_state_checkpoint_v1',
     chain: input.chain || 'litecoin-testnet',
     epochId: String(input.epochId ?? 0),
-    height: Number(input.height ?? 0),
+    height: Number(toInt(input.height ?? 0, 'height')),
     previousStateRoot,
     nextStateRoot,
     acceptedTxids,
@@ -59,7 +60,7 @@ function buildTradeLayerStateCheckpoint(input = {}) {
     rejectedTxids,
     rejectedTxRoot: txidRoot(rejectedTxids),
     publisher,
-    fraudWindowBlocks: Number(input.fraudWindowBlocks || 144)
+    fraudWindowBlocks: Number(toInt(input.fraudWindowBlocks ?? 144, 'fraudWindowBlocks'))
   };
 
   return {

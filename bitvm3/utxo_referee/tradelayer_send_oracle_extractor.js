@@ -174,7 +174,7 @@ function buildTradeLayerSendStateOracleFromConsensus(input, options = {}) {
     kind: 'tradelayer-send-state-oracle-v1',
     chain: options.chain || input.chain || input.network || 'litecoin-testnet',
     epochId: String(options.epochId ?? input.epochId ?? input.snapshotHeight ?? selected.blockHeight ?? 0),
-    snapshotHeight: Number(options.snapshotHeight ?? input.snapshotHeight ?? input.height ?? selected.blockHeight ?? 0),
+    snapshotHeight: Number(toInt(options.snapshotHeight ?? input.snapshotHeight ?? input.height ?? selected.blockHeight ?? 0, 'snapshotHeight')),
     snapshotTxid: options.snapshotTxid || input.snapshotTxid || input.blockHash || input.bestBlockHash || sourceHash,
     oracleAddress: options.oracleAddress || input.oracleAddress || null,
     selectedSendId,

@@ -119,6 +119,45 @@ test('a snapshot is not called stale when the caller gives no live height', () =
   assertEq(stale.challengeable, false, 'staleness is a claim about a live height the verifier was not given');
 });
 
+// Recomputes the ids, root and bundle hash of a bundle whose cores were edited, so
+// the only thing left to judge is the predicate the verifier re-runs on each core.
+function resealBundle(bundle) {
+  const { sha256Hex } = require('./tradelayer_pnl_route_adapter');
+  for (const challenge of bundle.challenges) {
+    challenge.challengeId = sha256Hex(challenge.challengeCore);
+  }
+  bundle.challengeRoot = sha256Hex(bundle.challenges.map((challenge) => challenge.challengeId));
+  bundle.bundleHash = sha256Hex({
+    kind: 'tradelayer_send_bitvm_fraud_challenge_bundle_v1',
+    binding: bundle.binding,
+    challengeTypes: bundle.challenges.map((challenge) => challenge.challengeType),
+    challengeRoot: bundle.challengeRoot
+  });
+  return bundle;
+}
+
+test('a stale-snapshot claim with a non-integer age is refused, not read as zero', () => {
+  const stateOracle = buildTradeLayerSendStateOracleFromConsensus(CONSENSUS_INPUT, {
+    selectedSendId: 'live-send'
+  });
+  const bundle = buildTradeLayerSendFraudChallengeBundle(stateOracle, {
+    sendId: 'live-send',
+    currentHeight: 4800000
+  });
+  const stale = bundle.challenges.find((challenge) => challenge.challengeType === 'stale_oracle_snapshot');
+  assertEq(stale.challengeable, true, 'the honest fixture is stale at this height');
+  stale.challengeCore.claimed.snapshotAgeBlocks = '';
+  stale.challengeCore.challengeable = false;
+  stale.challengeable = false;
+  let result;
+  try {
+    result = verifyTradeLayerSendFraudChallengeBundle(resealBundle(bundle));
+  } catch (err) {
+    result = { ok: false, reason: err.message };
+  }
+  assert(!result.ok, `a non-integer snapshot age must not verify: ${result.reason}`);
+});
+
 test('verifies challenge ids, root, bundle hash and predicates', () => {
   const stateOracle = buildTradeLayerSendStateOracleFromConsensus(CONSENSUS_INPUT, {
     selectedSendId: 'live-send'
