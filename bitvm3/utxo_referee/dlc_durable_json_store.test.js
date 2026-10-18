@@ -7,6 +7,7 @@
  */
 
 const crypto = require('crypto');
+const { spawnSync } = require('child_process');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -129,6 +130,35 @@ try {
     ageLock(lockPath);
     acquireDirectoryLock(lockPath, 'held')();
     assert(!fs.existsSync(lockPath), 'aged owner-less lock was not reclaimed');
+  });
+
+  test('a second copy of the module in this process refuses a lock the first copy holds', () => {
+    const lockPath = path.join(root, 'second-copy.lock');
+    const libPath = require.resolve('./dlc_durable_json_store');
+    const release = acquireDirectoryLock(lockPath, 'held');
+    delete require.cache[libPath];
+    const secondCopy = require(libPath);
+    let code = null;
+    try { secondCopy.acquireDirectoryLock(lockPath, 'held'); } catch (err) { code = err.code; }
+    release();
+    assert(code === 'LOCK_HELD', `a lock held by another copy of the module must stay held, got ${code}`);
+    assert(!fs.existsSync(lockPath), 'released lock was not removed');
+  });
+
+  test('a worker thread cannot take a directory lock, because it shares the pid of the process holding it', () => {
+    const lockPath = path.join(root, 'worker-thread.lock');
+    const libPath = require.resolve('./dlc_durable_json_store');
+    const worker = `const { parentPort } = require('worker_threads');
+const { acquireDirectoryLock } = require(${JSON.stringify(libPath)});
+try { acquireDirectoryLock(${JSON.stringify(lockPath)}, 'held')(); parentPort.postMessage('ACQUIRED'); }
+catch (err) { parentPort.postMessage(err.code || err.message); }`;
+    const child = spawnSync(process.execPath, ['-e', `const { Worker } = require('worker_threads');
+const w = new Worker(${JSON.stringify(worker)}, { eval: true });
+w.on('message', (m) => console.log('RESULT ' + m));
+w.on('error', (e) => { console.log('RESULT ERROR ' + e.message); });`], { encoding: 'utf8' });
+    const result = /RESULT (.*)/.exec(child.stdout);
+    assert(result && result[1] !== 'ACQUIRED', `a worker thread must not acquire a directory lock, got ${result && result[1]}`);
+    assert(!fs.existsSync(lockPath), 'a refused worker thread must leave no lock behind');
   });
 
   test('the DLC state store recovers a contract lock left by a crashed writer', () => {

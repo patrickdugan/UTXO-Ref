@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const { isMainThread } = require('worker_threads');
 
 function requireByteLimit(maxBytes) {
   if (!Number.isSafeInteger(maxBytes) || maxBytes < 2 || maxBytes > 16 * 1024 * 1024) {
@@ -169,7 +170,10 @@ const LOCK_OWNER_FILE = 'owner.json';
 const OWNERLESS_LOCK_GRACE_MS = 60 * 1000;
 // Tokens of the locks this process holds right now. A pid can be reused after a
 // crash, so a lock recorded with this pid is live only while its token is here.
-const heldLockTokens = new Set();
+// The set lives on globalThis so every copy of this module in the process sees
+// the same locks. A worker thread has its own globalThis and shares the pid, so
+// acquireDirectoryLock refuses to run off the main thread.
+const heldLockTokens = (globalThis[Symbol.for('utxoref.dlc.heldLockTokens')] ??= new Set());
 
 function readLockOwner(lockPath) {
   try { return JSON.parse(fs.readFileSync(path.join(lockPath, LOCK_OWNER_FILE), 'utf8')); }
@@ -236,6 +240,10 @@ function releaseDirectoryLock(lockPath, token) {
 }
 
 function acquireDirectoryLock(lockPath, heldMessage) {
+  if (!isMainThread) {
+    throw Object.assign(new Error('directory locks are taken on the main thread only: a worker thread shares the pid of the process that holds them'),
+      { code: 'LOCK_OFF_MAIN_THREAD' });
+  }
   for (let attempt = 0; ; attempt++) {
     try { fs.mkdirSync(lockPath, { mode: 0o700 }); break; }
     catch (error) {
