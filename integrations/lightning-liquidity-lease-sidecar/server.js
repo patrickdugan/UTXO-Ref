@@ -397,9 +397,9 @@ function compactId(value, prefix, length = 8) {
 }
 
 // Requests this process quoted, keyed by requestId, persisted so a restart does not orphan a request the wallet
-// is about to pay or has paid. `settled` caches what LND reported (settledPaymentProof), and only protects the
-// entry from eviction: a mint always asks LND again. `paying` marks a payment in flight, so one request is never
-// paid twice at once.
+// is about to pay or has paid. `paying` marks a payment in flight, so one request is never paid twice at once.
+// Entries are never dropped: nothing records that a paid request has been minted, so no entry is known to be safe
+// to forget. A full table refuses new quotes.
 const requestStorePath = path.resolve(process.env.SIDECAR_REQUEST_STORE_PATH ||
   path.join(__dirname, 'runtime', 'dlc-subswap-requests.json'));
 const MAX_ISSUED_DLC_REQUESTS = boundedInteger(process.env.SIDECAR_MAX_QUOTED_REQUESTS || 1000, 2, 100000);
@@ -413,7 +413,7 @@ function loadIssuedDlcSubswapRequests(filePath) {
     throw new Error(`${filePath} is not a sidecar DLC request store`);
   }
   for (const entry of store.entries) {
-    issued.set(entry.request.requestId, { request: entry.request, settled: entry.settled === true, paying: false });
+    issued.set(entry.request.requestId, { request: entry.request, paying: false });
   }
   return issued;
 }
@@ -421,7 +421,7 @@ function loadIssuedDlcSubswapRequests(filePath) {
 const issuedDlcSubswapRequests = loadIssuedDlcSubswapRequests(requestStorePath);
 
 function saveIssuedDlcSubswapRequests() {
-  const entries = [...issuedDlcSubswapRequests.values()].map(({ request, settled }) => ({ request, settled }));
+  const entries = [...issuedDlcSubswapRequests.values()].map(({ request }) => ({ request }));
   writeAtomicPrivate(requestStorePath, `${JSON.stringify({
     kind: 'utxoref_dlc_subswap_request_store',
     version: 1,
@@ -429,24 +429,13 @@ function saveIssuedDlcSubswapRequests() {
   }, null, 2)}\n`);
 }
 
-// A full table forgets the oldest request that is not being paid, preferring one not known to be settled. It
-// never refuses a new quote.
+// Returns false when the table is full of requests this process must keep; the caller refuses the quote.
 function rememberIssuedDlcSubswapRequest(request) {
-  if (issuedDlcSubswapRequests.has(request.requestId)) return;
-  if (issuedDlcSubswapRequests.size >= MAX_ISSUED_DLC_REQUESTS) {
-    const entries = [...issuedDlcSubswapRequests];
-    const victim = entries.find(([, issued]) => !issued.paying && !issued.settled) ||
-      entries.find(([, issued]) => !issued.paying);
-    if (victim) issuedDlcSubswapRequests.delete(victim[0]);
-  }
-  issuedDlcSubswapRequests.set(request.requestId, { request, settled: false, paying: false });
+  if (issuedDlcSubswapRequests.has(request.requestId)) return true;
+  if (issuedDlcSubswapRequests.size >= MAX_ISSUED_DLC_REQUESTS) return false;
+  issuedDlcSubswapRequests.set(request.requestId, { request, paying: false });
   saveIssuedDlcSubswapRequests();
-}
-
-function markSettled(issued) {
-  if (issued.settled) return;
-  issued.settled = true;
-  saveIssuedDlcSubswapRequests();
+  return true;
 }
 
 function verifyPaymentProofForRequest(request, paymentProof) {
@@ -507,7 +496,6 @@ async function buildTlbtcMintIntent({ requestId, recipientAddress }) {
   if (!paymentVerification.ok) {
     return { ok: false, reason: paymentVerification.reason, requestVerification, paymentVerification };
   }
-  markSettled(issued);
   const grantFromAddress = String(process.env.TL_PROCEDURAL_ADMIN_ADDRESS || '').trim();
   if (!grantFromAddress) {
     return { ok: false, reason: 'TL_PROCEDURAL_ADMIN_ADDRESS is not configured' };
@@ -875,7 +863,9 @@ async function handle(req, res) {
     if (req.method === 'POST' && req.url === '/v1/dlc-subswap-funding/quote') {
       const body = await readJsonBody(req, { requireJson: true });
       const request = latestDlcSubswapFundingRequest(dlcSubswapOverridesFromBody(body));
-      rememberIssuedDlcSubswapRequest(request);
+      if (!rememberIssuedDlcSubswapRequest(request)) {
+        return sendJson(res, 503, { ok: false, reason: 'quote table is full: raise SIDECAR_MAX_QUOTED_REQUESTS or clear the request store' });
+      }
       return sendJson(res, 200, {
         request,
         walletView: buildDlcSubswapFundingWalletView(request)
@@ -900,7 +890,6 @@ async function handle(req, res) {
       issued.paying = true;
       try {
         if (await settledPaymentProof(issued.request)) {
-          markSettled(issued);
           return sendJson(res, 409, { ok: false, reason: 'request is already paid' });
         }
         try {
@@ -917,7 +906,6 @@ async function handle(req, res) {
         issued.paying = false;
       }
       const paymentVerification = verifyPaymentProofForRequest(issued.request, paymentProof);
-      if (paymentVerification.ok) markSettled(issued);
       return sendJson(res, paymentVerification.ok ? 200 : 502, {
         ok: paymentVerification.ok,
         request: issued.request,
