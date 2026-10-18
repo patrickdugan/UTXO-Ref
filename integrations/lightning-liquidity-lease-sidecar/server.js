@@ -130,9 +130,11 @@ function walletDemoStatus() {
 }
 
 // The bearer token gates every POST route. It is read once from a file that must not be group or world accessible.
+// Windows has no mode bits (stat reports 0o666 for any writable file whatever its ACL), so there the check is
+// skipped and the file's ACL is what protects it: keep it under the operator's own profile.
 function loadSidecarApiToken(env = process.env) {
   if (!env.SIDECAR_API_TOKEN_FILE) return '';
-  if (fs.statSync(env.SIDECAR_API_TOKEN_FILE).mode & 0o077) {
+  if (process.platform !== 'win32' && (fs.statSync(env.SIDECAR_API_TOKEN_FILE).mode & 0o077)) {
     throw new Error(`${env.SIDECAR_API_TOKEN_FILE} must not be group or world accessible (use mode 0600)`);
   }
   return fs.readFileSync(env.SIDECAR_API_TOKEN_FILE, 'utf8').trim();

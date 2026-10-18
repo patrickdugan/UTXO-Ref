@@ -220,9 +220,14 @@ async function run(sidecar, base) {
   assert.strictEqual(stillMinted.status, 409, 'a full table let a minted request mint again');
   assert.strictEqual(unpaidQuote.status, 200);
 
-  // A token file readable by group or others is refused at startup.
+  // A token file readable by group or others is refused at startup. Windows has no mode bits to check (its ACL
+  // protects the file), so there the same file loads.
   const looseFile = path.join(tokenDir, 'loose');
   fs.writeFileSync(looseFile, TOKEN, { mode: 0o644 });
   fs.chmodSync(looseFile, 0o644);
-  assert.throws(() => sidecar.loadSidecarApiToken({ SIDECAR_API_TOKEN_FILE: looseFile }), /mode 0600/);
+  if (process.platform === 'win32') {
+    assert.strictEqual(sidecar.loadSidecarApiToken({ SIDECAR_API_TOKEN_FILE: looseFile }), TOKEN);
+  } else {
+    assert.throws(() => sidecar.loadSidecarApiToken({ SIDECAR_API_TOKEN_FILE: looseFile }), /mode 0600/);
+  }
 }

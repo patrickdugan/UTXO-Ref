@@ -10,7 +10,7 @@ This sidecar exposes the wallet-facing flow for funding a UTXORef DLC/BitVM temp
 
 ## Authentication
 
-Every `POST` route requires `Authorization: Bearer <token>`, where the token is the single line in the file named by `SIDECAR_API_TOKEN_FILE`. The sidecar refuses to start if that file is readable by group or others (use mode 0600). With no token file configured, every `POST` is refused. Bodies must be `application/json` and at most 16 KiB.
+Every `POST` route requires `Authorization: Bearer <token>`, where the token is the single line in the file named by `SIDECAR_API_TOKEN_FILE`. The sidecar refuses to start if that file is readable by group or others (use mode 0600). Windows files have ACLs instead of mode bits, so there the check is skipped: keep the token file under the operator's own profile. With no token file configured, every `POST` is refused. Bodies must be `application/json` and at most 16 KiB.
 
 ## LND REST Environment
 

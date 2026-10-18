@@ -74,7 +74,8 @@ function testWriteAtomicPrivate() {
     }
     assert.ok(synced.length >= 1, 'the file was renamed into place without fsync');
     assert.strictEqual(fs.readFileSync(target, 'utf8'), '{"ok":true}\n');
-    assert.strictEqual(fs.statSync(target).mode & 0o777, 0o600);
+    // Windows reports 0o666 for any writable file: its permissions are ACLs, not mode bits.
+    if (process.platform !== 'win32') assert.strictEqual(fs.statSync(target).mode & 0o777, 0o600);
     assert.deepStrictEqual(fs.readdirSync(root), ['state.json']);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
