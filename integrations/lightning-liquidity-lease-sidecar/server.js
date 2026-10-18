@@ -576,14 +576,15 @@ async function buildTlbtcMintIntent({ requestId, recipientAddress }) {
   if (!issued) {
     return { ok: false, reason: 'unknown requestId: quote and pay the request first' };
   }
-  if (issued.state === 'quoted' && Date.now() >= issued.expiresAt) throw new HttpError(410, 'quote_expired', QUOTE_EXPIRED);
   const request = issued.request;
   const requestVerification = verifyDlcSubswapFundingRequest(request);
   if (!requestVerification.ok) {
     return { ok: false, reason: requestVerification.reason, requestVerification };
   }
+  // LND is asked before the expiry gate: a payment LND has settled is granted even if the sidecar never recorded it.
   const paymentProof = await settledPaymentProof(request);
   if (!paymentProof) {
+    if (issued.state === 'quoted' && Date.now() >= issued.expiresAt) throw new HttpError(410, 'quote_expired', QUOTE_EXPIRED);
     return { ok: false, reason: 'payment is not settled in LND', requestVerification };
   }
   const paymentVerification = verifyPaymentProofForRequest(request, paymentProof);

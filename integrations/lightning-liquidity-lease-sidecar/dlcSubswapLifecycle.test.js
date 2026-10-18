@@ -212,6 +212,16 @@ async function main() {
   assert.strictEqual(slowMint.status, 200, `a payment that settled after the TTL did not mint: ${JSON.stringify(slowMint.json)}`);
   log('a payment still in flight across the TTL survives a quote that prunes, and mints');
 
+  // LND settled a payment the sidecar never recorded (the process died before saving paid). Once the quote has
+  // expired, mint still asks LND and grants it: a settled payment is never refused as expired.
+  const unrecorded = payment(62);
+  knownInvoices.set(unrecorded.invoice, unrecorded);
+  const unrecordedId = (await quote(node.base, 62)).json.request.requestId;
+  lndPayments.push({ payment_hash: unrecorded.paymentHashHex, payment_preimage: unrecorded.preimageHex, status: 'SUCCEEDED', value_sat: '12345' });
+  await wait();
+  assert.strictEqual((await mint(node.base, unrecordedId)).status, 200, 'a payment LND settled before expiry was refused as expired');
+  log('a payment LND settled but the sidecar did not record is minted after the quote expired');
+
   // A restart keeps the lifecycle: a paid request still mints, a quoted one still pays, a minted one stays refused.
   const paidId = await quotedAndPaid(node.base, 30);
   const quotedId = (await quote(node.base, 31)).json.request.requestId;
