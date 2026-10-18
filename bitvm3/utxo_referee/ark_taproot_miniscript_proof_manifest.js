@@ -9,6 +9,7 @@
 
 const crypto = require('crypto');
 const { canonicalStringify, normalizeAmountSats } = require('./m1_spec');
+const { csvSequence } = require('./csv_delay');
 
 const HEX_32_RE = /^[0-9a-f]{64}$/i;
 const TAPROOT_PATH_ALGORITHM = 'ark_tapbranch_v1_structural_sha256';
@@ -171,8 +172,8 @@ function buildPolicyLeaf(role, policyExpression, options = {}) {
 
 function buildArkTaprootLeafSet(options = {}) {
   const templateCore = extractTemplateCore(options);
-  const exitDelayBlocks = Number(options.exitDelayBlocks ?? templateCore.exitDelayBlocks ?? 144);
-  const aspForfeitCsv = Number(options.aspForfeitCsv ?? templateCore.aspForfeitCsv ?? 2000);
+  const exitDelayBlocks = csvSequence(options.exitDelayBlocks ?? templateCore.exitDelayBlocks ?? 144, 'exitDelayBlocks');
+  const aspForfeitCsv = csvSequence(options.aspForfeitCsv ?? templateCore.aspForfeitCsv ?? 2000, 'aspForfeitCsv');
   const aspPubkeyHex = normalizeHex32(
     options.aspPubkeyHex || sha256Hex(`asp-key:${templateCore.aspId || options.aspId || 'ark-asp-regtest'}`),
     'aspPubkeyHex'

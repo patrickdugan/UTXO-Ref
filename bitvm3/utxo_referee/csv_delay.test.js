@@ -10,6 +10,7 @@ const { buildTimeoutLeafScript } = require('./tradelayer_bitvm_dispute');
 const { buildRefundLeafScript } = require('./tradelayer_dlc_refund_cet_demo');
 const { buildDlcRefundLeafScript } = require('./dlc_funding_output');
 const { buildRecoveryLeafScript } = require('./taproot_reserve_vault');
+const { buildArkTaprootLeafSet } = require('./ark_taproot_miniscript_proof_manifest');
 
 let passed = 0;
 let failed = 0;
@@ -71,6 +72,28 @@ test('every CSV leaf refuses zero, hex, exponent, empty, padded, fractional and 
       assert(refuses(() => build(delay)), `${name}: delay ${JSON.stringify(delay)} must be refused`);
     }
   }
+});
+
+// The ark leaves are miniscript policies, so their delays are checked by refusal only: the same bad delay must throw
+// from the exit leaf and from the forfeit leaf.
+const ARK_LEAVES = {
+  'ark owner exit': (delay) => buildArkTaprootLeafSet({ exitDelayBlocks: delay }),
+  'ark asp forfeit': (delay) => buildArkTaprootLeafSet({ aspForfeitCsv: delay })
+};
+
+test('every ark CSV leaf refuses zero, hex, exponent, empty, padded, fractional and out-of-range delays', () => {
+  const bad = ['0x10', '', '1e3', '16.5', ' 144', '0', 0, 65536, -1, true, 'abc', -5];
+  for (const [name, build] of Object.entries(ARK_LEAVES)) {
+    for (const delay of bad) {
+      assert(refuses(() => build(delay)), `${name}: delay ${JSON.stringify(delay)} must be refused`);
+    }
+  }
+});
+
+test("an ark exit leaf given '144' is older(144) with a 144-block timelock", () => {
+  const exit = buildArkTaprootLeafSet({ exitDelayBlocks: '144' }).find((leaf) => leaf.role === 'owner_csv_exit');
+  assertEq(exit.leafCore.relativeTimelockBlocks, 144);
+  assert(exit.leafCore.policyExpression.startsWith('and_v(v:older(144),pk('), exit.leafCore.policyExpression);
 });
 
 if (failed > 0) {
