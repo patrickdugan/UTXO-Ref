@@ -46,7 +46,7 @@ function short(value) {
 function txidLink(step, label = null) {
   if (!step?.txid || !step?.explorer) return short(step?.txid);
   const text = label || step.label || short(step.txid);
-  return `<a class="txid-link" href="${escapeHtml(step.explorer)}" target="_blank" rel="noreferrer" title="${escapeHtml(step.txid)}">${escapeHtml(text)}<code>${short(step.txid)}</code></a>`;
+  return `<a class="txid-link" href="${escapeHtml(safeHref(step.explorer))}" target="_blank" rel="noreferrer" title="${escapeHtml(step.txid)}">${escapeHtml(text)}<code>${short(step.txid)}</code></a>`;
 }
 
 function anchorTxidLink(step, label = null) {
@@ -54,7 +54,7 @@ function anchorTxidLink(step, label = null) {
   const explorer = step?.explorer || step?.anchorExplorer;
   if (!txid || !explorer) return short(txid);
   const text = label || step.label || short(txid);
-  return `<a class="txid-link" href="${escapeHtml(explorer)}" target="_blank" rel="noreferrer" title="${escapeHtml(txid)}">${escapeHtml(text)}<code>${short(txid)}</code></a>`;
+  return `<a class="txid-link" href="${escapeHtml(safeHref(explorer))}" target="_blank" rel="noreferrer" title="${escapeHtml(txid)}">${escapeHtml(text)}<code>${short(txid)}</code></a>`;
 }
 
 function directTxidLink(txid, label = 'inspect') {
@@ -88,6 +88,16 @@ function scrub(value) {
     .replace(oldBadge, 'Bitcoin testnet')
     .replace(oldTicker, 'testnet collateral')
     .replace(oldUnit, 'testnet coin');
+}
+
+// Only web and relative links may be opened from the dashboard. Anything else, such as javascript: or data:, is "#".
+function safeHref(value) {
+  const text = String(value ?? '').trim();
+  try {
+    return /^https?:$/.test(new URL(text, 'https://relative.invalid/').protocol) ? text : '#';
+  } catch (_err) {
+    return '#';
+  }
 }
 
 function escapeHtml(value) {
@@ -413,7 +423,7 @@ function renderUseCases(walletView, testnetProof) {
     const txLinks = useCase.bitcoinEvidence
       .map(txid => txLookup.get(txid))
       .filter(Boolean)
-      .map(step => `<a href="${escapeHtml(step.explorer)}" target="_blank" rel="noreferrer">${escapeHtml(step.label)}<code>${short(step.txid)}</code></a>`)
+      .map(step => `<a href="${escapeHtml(safeHref(step.explorer))}" target="_blank" rel="noreferrer">${escapeHtml(step.label)}<code>${short(step.txid)}</code></a>`)
       .join('');
     const offchain = useCase.offchainProofs
       .map(kind => `<span>${escapeHtml(kind)}</span>`)
@@ -444,9 +454,9 @@ function renderPureBtcRouteDemo(walletView) {
   if (!demo) return;
   const cards = demo.stages.map((stage, index) => {
     const primary = stage.explorer
-      ? `<a href="${escapeHtml(stage.explorer)}" target="_blank" rel="noreferrer">${short(stage.txid)}</a>`
+      ? `<a href="${escapeHtml(safeHref(stage.explorer))}" target="_blank" rel="noreferrer">${short(stage.txid)}</a>`
       : stage.anchorExplorer
-        ? `<a href="${escapeHtml(stage.anchorExplorer)}" target="_blank" rel="noreferrer">${short(stage.anchorTxid)}</a>`
+        ? `<a href="${escapeHtml(safeHref(stage.anchorExplorer))}" target="_blank" rel="noreferrer">${short(stage.anchorTxid)}</a>`
         : `<code>${short(stage.channelTxid || stage.paymentHash)}</code>`;
     const rows = [
       stage.amountSats ? ['Amount', sats(stage.amountSats)] : null,
@@ -613,7 +623,7 @@ function renderProofGraph(walletView, dashboard) {
   $('proofGraph').innerHTML = nodes
     .map(([label, value, href]) => {
       const rendered = href
-        ? `<a href="${escapeHtml(href)}" target="_blank" rel="noreferrer">${short(value)}</a>`
+        ? `<a href="${escapeHtml(safeHref(href))}" target="_blank" rel="noreferrer">${short(value)}</a>`
         : `<span>${short(value)}</span>`;
       return `<div class="proof-node" title="${escapeHtml(value || '')}"><strong>${escapeHtml(label)}</strong>${rendered}</div>`;
     })
@@ -951,7 +961,7 @@ function renderArtifactLinks(dashboard, walletView) {
     ['Public dashboard', '/dashboard', 'live alias']
   ];
   $('artifactLinks').innerHTML = links
-    .map(([label, href, note]) => `<a class="artifact-link" href="${escapeHtml(href)}" target="_blank" rel="noreferrer"><strong>${escapeHtml(label)}</strong><span>${short(note)}</span></a>`)
+    .map(([label, href, note]) => `<a class="artifact-link" href="${escapeHtml(safeHref(href))}" target="_blank" rel="noreferrer"><strong>${escapeHtml(label)}</strong><span>${short(note)}</span></a>`)
     .join('');
 }
 
@@ -979,7 +989,7 @@ function renderBitcoinTestnetProof(testnetProof) {
     `;
       }
       return `
-      <a class="txid-card" href="${escapeHtml(step.explorer)}" target="_blank" rel="noreferrer" title="${escapeHtml(step.txid)}">
+      <a class="txid-card" href="${escapeHtml(safeHref(step.explorer))}" target="_blank" rel="noreferrer" title="${escapeHtml(step.txid)}">
         <em>${escapeHtml(tag)}</em>
         <strong>${escapeHtml(step.label)}</strong>
         <code>${short(step.txid)}</code>
@@ -1011,7 +1021,7 @@ function renderAdapterFeed(adapterFeed) {
         <strong>${escapeHtml(item.adapter)}</strong>
         <span>${escapeHtml(item.sourceType)}</span>
         <small>${escapeHtml(item.dashboardImpact)}</small>
-        ${item.evidenceUrl ? `<a class="event-proof" href="${escapeHtml(item.evidenceUrl)}" target="_blank" rel="noreferrer">txid</a>` : ''}
+        ${item.evidenceUrl ? `<a class="event-proof" href="${escapeHtml(safeHref(item.evidenceUrl))}" target="_blank" rel="noreferrer">txid</a>` : ''}
         <span class="source-badge proof">${escapeHtml(item.status)}</span>
       </div>
     `)

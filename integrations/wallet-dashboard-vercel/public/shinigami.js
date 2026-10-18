@@ -47,7 +47,7 @@ function renderHero(proof) {
   $('shinigamiHero').innerHTML = [
     metric('Virtual CETs', summary.virtualCetCount.toLocaleString(), 'committed Ark leaves'),
     metric('Materialized CETs', summary.materializedCetCount.toLocaleString(), 'happy path broadcasts none'),
-    metric('Selected outcome', summary.selectedOutcomeId, 'oracle-bound virtual leaf'),
+    metric('Selected outcome', escapeHtml(summary.selectedOutcomeId), 'oracle-bound virtual leaf'),
     metric('Amount', sats(statement.amountSats), `${statement.exitDelayBlocks} block exit delay`)
   ].join('');
 }
@@ -119,8 +119,8 @@ function renderCompression(projection) {
     metric('Ark leaves', c.arkLeafCount.toLocaleString(), 'VTXO leaf layer'),
     metric('On-chain CET txids', c.onchainCetTxidsPublished.toLocaleString(), 'none in happy path'),
     metric('Avoided fanout', c.avoidedOnchainCetTxids.toLocaleString(), 'kept virtual'),
-    metric('Selected outcome', c.selectedOutcomeId, 'single leaf proved'),
-    metric('Receipt', c.proofReceiptStatus, 'deterministic scaffold')
+    metric('Selected outcome', escapeHtml(c.selectedOutcomeId), 'single leaf proved'),
+    metric('Receipt', escapeHtml(c.proofReceiptStatus), 'deterministic scaffold')
   ].join('');
 }
 

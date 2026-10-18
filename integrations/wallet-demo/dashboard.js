@@ -49,6 +49,16 @@ function percent(value) {
   return `${Number(value).toFixed(2)}%`;
 }
 
+// Only web and relative links may be opened from the dashboard. Anything else, such as javascript: or data:, is "#".
+function safeHref(value) {
+  const text = String(value ?? '').trim();
+  try {
+    return /^https?:$/.test(new URL(text, 'https://relative.invalid/').protocol) ? text : '#';
+  } catch (_err) {
+    return '#';
+  }
+}
+
 function escapeHtml(value) {
   return String(value ?? '')
     .replace(/&/g, '&amp;')
@@ -472,7 +482,7 @@ function renderArtifactLinks(dashboard, walletView) {
     ['Public dashboard', '/dashboard', 'live alias']
   ];
   $('artifactLinks').innerHTML = links
-    .map(([label, href, note]) => `<a class="artifact-link" href="${escapeHtml(href)}" target="_blank" rel="noreferrer"><strong>${escapeHtml(label)}</strong><span>${escapeHtml(short(note))}</span></a>`)
+    .map(([label, href, note]) => `<a class="artifact-link" href="${escapeHtml(safeHref(href))}" target="_blank" rel="noreferrer"><strong>${escapeHtml(label)}</strong><span>${escapeHtml(short(note))}</span></a>`)
     .join('');
 }
 
