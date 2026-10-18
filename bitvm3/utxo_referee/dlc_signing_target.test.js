@@ -7,9 +7,12 @@
  * and refuses every invalid signing context in them.
  */
 
+const crypto = require('crypto');
 const path = require('path');
 const { deriveSigningContextTarget } = require('./dlc_signing_target');
-const { deriveDlcFundingInternalXonly } = require('./dlc_funding_output');
+const { deriveDlcFundingInternalXonly, buildDlcFundingOutput } = require('./dlc_funding_output');
+const { canonicalJson } = require('./dlc_canonical_json');
+const { normalizeDlcTransactionSet } = require('./dlc_transaction_validator');
 
 const vectors = require(path.join(__dirname, '..', '..', 'native', 'dlc-signer', 'tests', 'signing_target_vectors.json'));
 
@@ -45,6 +48,47 @@ for (const invalid of vectors.invalid) {
     assert(threw, `${invalid.name} was accepted`);
   });
 }
+
+// A transaction set as a peer could hand it over: every digest recomputed so
+// that only the field under test can make it fail.
+const sha256Hex = (value) => crypto.createHash('sha256').update(value).digest('hex');
+function redigestTransactionSet(set) {
+  set.fundingTemplateDigest = sha256Hex(canonicalJson(set.funding));
+  set.cetSetDigest = sha256Hex(canonicalJson(set.cets));
+  set.refundTransactionDigest = sha256Hex(canonicalJson(set.refund));
+  set.feePolicyDigest = sha256Hex(canonicalJson(set.feePolicy));
+  set.validationDigest = sha256Hex(canonicalJson({
+    fundingTemplateDigest: set.fundingTemplateDigest,
+    cetSetDigest: set.cetSetDigest,
+    refundTransactionDigest: set.refundTransactionDigest,
+    feePolicyDigest: set.feePolicyDigest
+  }));
+  return set;
+}
+const vectorTransactionSet = () => JSON.parse(JSON.stringify(vectors.valid.signingContext.transactionSet));
+
+test('the refund delay must be a JSON number: string and BigInt spellings are refused', () => {
+  normalizeDlcTransactionSet(redigestTransactionSet(vectorTransactionSet()));
+  const csv = vectorTransactionSet().funding.refundCsvBlocks;
+  assert(Number.isSafeInteger(csv), 'vector refund delay is not a number');
+  // Strings survive canonical JSON, so the funding output itself must refuse them.
+  for (const spelling of [String(csv), `0${csv}`]) {
+    const set = vectorTransactionSet();
+    set.funding.refundCsvBlocks = spelling;
+    let error = null;
+    try { normalizeDlcTransactionSet(redigestTransactionSet(set)); } catch (err) { error = err; }
+    assert(error && /refundCsvBlocks must be an integer/.test(error.message),
+      `refund delay ${JSON.stringify(spelling)} was not refused by the funding output check: ${error ? error.message : 'accepted'}`);
+  }
+  // (A BigInt never reaches the validator: canonical JSON refuses it first.)
+  const parties = vectorTransactionSet().funding.partyPubkeyXs;
+  for (const spelling of [String(csv), `0${csv}`, BigInt(csv)]) {
+    let direct = null;
+    try { buildDlcFundingOutput({ partyPubkeyXs: parties, refundCsvBlocks: spelling }); } catch (err) { direct = err; }
+    assert(direct && /refundCsvBlocks must be an integer/.test(direct.message),
+      `buildDlcFundingOutput accepted ${typeof spelling} ${String(spelling)}`);
+  }
+});
 
 console.log(`\n${failed ? 'FAIL' : 'PASS'}: ${passed} passed${failed ? `, ${failed} failed` : ''}\n`);
 if (failed) process.exit(1);

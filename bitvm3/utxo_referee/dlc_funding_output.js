@@ -81,6 +81,14 @@ function sortPartyPubkeyXs(first, second) {
   return normalizePartyPubkeyXs([first, second].sort());
 }
 
+// The refund delay is a typed integer: a string or BigInt spelling of the
+// same value would give the funding template a second canonical digest and
+// disagree with the Rust signer, which accepts only JSON numbers.
+function normalizeRefundCsvBlocks(value) {
+  if (!Number.isSafeInteger(value)) throw new Error('refundCsvBlocks must be an integer in 1..65535');
+  return csvSequence(value, 'refundCsvBlocks');
+}
+
 function twoOfTwo(partyPubkeyXs) {
   return Buffer.concat([
     Buffer.from([OP_PUSH32]), Buffer.from(partyPubkeyXs[0], 'hex'),
@@ -96,7 +104,7 @@ function buildDlcCetLeafScript(partyPubkeyXs) {
 function buildDlcRefundLeafScript(partyPubkeyXs, refundCsvBlocks) {
   const keys = normalizePartyPubkeyXs(partyPubkeyXs);
   return Buffer.concat([
-    pushScriptNum(csvSequence(refundCsvBlocks, 'refundCsvBlocks')),
+    pushScriptNum(normalizeRefundCsvBlocks(refundCsvBlocks)),
     Buffer.from([OP_CHECKSEQUENCEVERIFY, OP_DROP]),
     twoOfTwo(keys)
   ]).toString('hex');
@@ -105,7 +113,7 @@ function buildDlcRefundLeafScript(partyPubkeyXs, refundCsvBlocks) {
 function buildDlcFundingOutput(input) {
   if (!input || typeof input !== 'object') throw new Error('DLC funding output arguments are required');
   const partyPubkeyXs = normalizePartyPubkeyXs(input.partyPubkeyXs);
-  const refundCsvBlocks = csvSequence(input.refundCsvBlocks, 'refundCsvBlocks');
+  const refundCsvBlocks = normalizeRefundCsvBlocks(input.refundCsvBlocks);
   const internalXonly = deriveDlcFundingInternalXonly();
   if (input.internalXonly !== undefined && input.internalXonly !== internalXonly) {
     throw new Error('custom internal key is forbidden; the DLC funding output requires the deterministic NUMS key');
