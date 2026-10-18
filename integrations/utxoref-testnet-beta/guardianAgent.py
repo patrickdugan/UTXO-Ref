@@ -2,10 +2,13 @@
 
 import argparse
 import base64
+import contextlib
 import hashlib
 import json
 import os
 import pathlib
+import secrets
+import socket
 import stat
 import sys
 import time
@@ -24,6 +27,13 @@ class GuardianRefusal(RuntimeError):
         self.body = body
 
 
+class StateLocked(RuntimeError):
+    pass
+
+
+LOCK_NAME = "guardian.lock"
+
+
 def utc_now():
     return datetime.now(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
 
@@ -32,11 +42,23 @@ def canonical(value):
     return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
 
 
+def fsync_directory(path):
+    if os.name == "nt":
+        return
+    descriptor = os.open(path, os.O_RDONLY)
+    try:
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+
+
 def write_private(path, data):
     path.parent.mkdir(parents=True, exist_ok=True)
     descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, stat.S_IRUSR | stat.S_IWUSR)
     with os.fdopen(descriptor, "wb") as handle:
         handle.write(data)
+        handle.flush()
+        os.fsync(handle.fileno())
     os.chmod(path, stat.S_IRUSR | stat.S_IWUSR)
 
 
@@ -45,8 +67,92 @@ def write_json(path, value, private=False):
     temporary = path.with_name(f"{path.name}.{os.getpid()}.tmp")
     write_private(temporary, payload)
     os.replace(temporary, path)
+    fsync_directory(path.parent)
     if not private:
         os.chmod(path, stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IROTH)
+
+
+def pid_alive(pid):
+    if os.name == "nt":
+        return True
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
+# One agent at a time per state directory. The owner record is linked into place already complete, so a lock file
+# is never seen empty. A lock is reclaimed only when its owner is a dead pid on this host; otherwise the run refuses.
+def acquire_state_lock(state_dir):
+    lock = state_dir / LOCK_NAME
+    owner = (json.dumps({"pid": os.getpid(), "host": socket.gethostname(), "createdAt": utc_now()}, sort_keys=True) + "\n").encode("utf-8")
+    for _ in range(3):
+        staging = state_dir / f".{LOCK_NAME}.{os.getpid()}.{secrets.token_hex(4)}"
+        write_private(staging, owner)
+        try:
+            os.link(staging, lock)
+        except FileExistsError:
+            held = read_lock(lock)
+            if held is not None:
+                if not owner_is_dead(held):
+                    raise StateLocked(f"guardian state is held by another agent: {held.decode('utf-8', 'replace').strip()}")
+                reclaim_dead_lock(lock, held)
+            continue
+        finally:
+            staging.unlink(missing_ok=True)
+        fsync_directory(state_dir)
+        return lock, owner
+    raise StateLocked("could not acquire the guardian state lock")
+
+
+def read_lock(lock):
+    try:
+        return lock.read_bytes()
+    except FileNotFoundError:
+        return None
+
+
+def owner_is_dead(held):
+    try:
+        owner = json.loads(held)
+    except ValueError:
+        return False
+    return owner.get("host") == socket.gethostname() and not pid_alive(int(owner["pid"]))
+
+
+def reclaim_dead_lock(lock, dead):
+    moved = lock.with_name(f"{lock.name}.reclaim.{os.getpid()}.{secrets.token_hex(4)}")
+    try:
+        os.replace(lock, moved)
+    except FileNotFoundError:
+        return
+    if moved.read_bytes() == dead:
+        moved.unlink()
+        return
+    # Another agent wrote a live lock between the read and the move. Put it back rather than delete it.
+    try:
+        os.link(moved, lock)
+    except FileExistsError:
+        raise StateLocked("guardian state lock changed hands while it was being reclaimed")
+    moved.unlink()
+
+
+def release_state_lock(token):
+    lock, owner = token
+    if read_lock(lock) == owner:
+        lock.unlink(missing_ok=True)
+
+
+@contextlib.contextmanager
+def state_lock(state_dir):
+    token = acquire_state_lock(state_dir)
+    try:
+        yield
+    finally:
+        release_state_lock(token)
 
 
 def read_json(path, fallback=None):
@@ -58,6 +164,11 @@ def read_json(path, fallback=None):
 
 def initialize(state_dir, label):
     state_dir.mkdir(parents=True, exist_ok=True)
+    with state_lock(state_dir):
+        return initialize_locked(state_dir, label)
+
+
+def initialize_locked(state_dir, label):
     ed_path = state_dir / "heartbeat_ed25519.pem"
     secp_path = state_dir / "guardian_secp256k1.hex"
     identity_path = state_dir / "identity.json"
@@ -176,6 +287,11 @@ def reserve_sequence(state_dir, sequence):
 
 def heartbeat_once(args):
     state_dir = pathlib.Path(args.state_dir).resolve()
+    with state_lock(state_dir):
+        return heartbeat_locked(args, state_dir)
+
+
+def heartbeat_locked(args, state_dir):
     identity = read_json(state_dir / "identity.json")
     if not identity:
         raise RuntimeError("guardian identity is not initialized")
