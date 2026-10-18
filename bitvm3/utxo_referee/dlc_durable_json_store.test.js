@@ -11,7 +11,7 @@ const { spawnSync } = require('child_process');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { acquireDirectoryLock } = require('./dlc_durable_json_store');
+const { acquireDirectoryLock, lockIdentity, parseProcStatStartTicks } = require('./dlc_durable_json_store');
 const { DlcStateStore } = require('./dlc_state_store');
 const { DlcOracleEventStore } = require('./dlc_oracle_event_store');
 const { reserveNonceUsage, NonceReuseError } = require('./legacy/tradelayer_nonce_journal');
@@ -55,6 +55,19 @@ function assertOwnFailureKept(err, lockPath, message) {
 function ageLock(lockPath) {
   const past = new Date(Date.now() - OWNERLESS_AGE_MS);
   fs.utimesSync(lockPath, past, past);
+}
+// The boot id and process start time come from /proc on Linux; here they are
+// replaced so the reclaim decisions run on every platform.
+function withLockIdentity(identity, run) {
+  const original = { bootId: lockIdentity.bootId, processStartTicks: lockIdentity.processStartTicks };
+  lockIdentity.bootId = () => identity.bootId ?? null;
+  lockIdentity.processStartTicks = (pid) => (identity.startTicks ? identity.startTicks(pid) : null);
+  try { return run(); }
+  finally { Object.assign(lockIdentity, original); }
+}
+function lockCode(lockPath) {
+  try { acquireDirectoryLock(lockPath, 'held')(); return null; }
+  catch (err) { return err.code; }
 }
 
 console.log('\n=== DLC Durable Store Lock Tests ===\n');
@@ -130,6 +143,74 @@ try {
     ageLock(lockPath);
     acquireDirectoryLock(lockPath, 'held')();
     assert(!fs.existsSync(lockPath), 'aged owner-less lock was not reclaimed');
+  });
+
+  test('the process start time is field 22 of /proc/<pid>/stat, counted past the command name', () => {
+    const stat = '4242 (node (a) b) S 1 4242 4242 0 -1 4194560 300 0 0 0 5 2 0 0 20 0 11 0 987654 1000 200 18446744073709551615';
+    assert(parseProcStatStartTicks(stat) === '987654', `start ticks parsed as ${parseProcStatStartTicks(stat)}`);
+    assert(parseProcStatStartTicks('garbage') === null, 'a stat line without a command name must not parse');
+  });
+
+  test('an acquisition records the boot id and process start time when the platform provides them', () => {
+    const lockPath = path.join(root, 'identity.lock');
+    withLockIdentity({ bootId: 'boot-a', startTicks: () => '1234' }, () => {
+      const release = acquireDirectoryLock(lockPath, 'held');
+      const owner = JSON.parse(fs.readFileSync(path.join(lockPath, 'owner.json'), 'utf8'));
+      release();
+      assert(owner.bootId === 'boot-a' && owner.startTicks === '1234', `owner record ${JSON.stringify(owner)}`);
+    });
+    withLockIdentity({}, () => {
+      const release = acquireDirectoryLock(lockPath, 'held');
+      const owner = JSON.parse(fs.readFileSync(path.join(lockPath, 'owner.json'), 'utf8'));
+      release();
+      assert(!('bootId' in owner) && !('startTicks' in owner), `owner record ${JSON.stringify(owner)}`);
+    });
+  });
+
+  test('a lock from an earlier boot is reclaimed even when its pid is alive now', () => {
+    const lockPath = path.join(root, 'earlier-boot.lock');
+    withLockIdentity({ bootId: 'boot-b' }, () => {
+      plantLock(lockPath, { ...heldBy({ pid: process.ppid }), token: 'a'.repeat(32), bootId: 'boot-b' });
+      assert(lockCode(lockPath) === 'LOCK_HELD', 'a live holder from this boot must keep the lock');
+      fs.rmSync(lockPath, { recursive: true, force: true });
+      plantLock(lockPath, { ...heldBy({ pid: process.ppid }), token: 'a'.repeat(32), bootId: 'boot-a' });
+      assert(lockCode(lockPath) === null, 'a lock written before the reboot was not reclaimed');
+      assert(!fs.existsSync(lockPath), 'reclaimed lock was not released');
+    });
+  });
+
+  test('a lock whose pid now belongs to a process started later is reclaimed', () => {
+    const lockPath = path.join(root, 'reused-pid.lock');
+    withLockIdentity({ bootId: 'boot-a', startTicks: (pid) => (pid === process.ppid ? '5000' : null) }, () => {
+      plantLock(lockPath, { ...heldBy({ pid: process.ppid }), token: 'b'.repeat(32), bootId: 'boot-a', startTicks: '5000' });
+      assert(lockCode(lockPath) === 'LOCK_HELD', 'the holder that started when the lock was taken must keep it');
+      fs.rmSync(lockPath, { recursive: true, force: true });
+      plantLock(lockPath, { ...heldBy({ pid: process.ppid }), token: 'b'.repeat(32), bootId: 'boot-a', startTicks: '4000' });
+      assert(lockCode(lockPath) === null, 'a lock whose pid was reused was not reclaimed');
+    });
+    withLockIdentity({}, () => {
+      plantLock(lockPath, { ...heldBy({ pid: process.ppid }), token: 'b'.repeat(32), bootId: 'boot-a', startTicks: '4000' });
+      assert(lockCode(lockPath) === 'LOCK_HELD', 'without a start time to compare, a live pid must keep the lock');
+      fs.rmSync(lockPath, { recursive: true, force: true });
+    });
+  });
+
+  test('an owner record that exists but cannot be read keeps the lock held past the grace period', () => {
+    const lockPath = path.join(root, 'unreadable-owner.lock');
+    fs.mkdirSync(lockPath);
+    fs.mkdirSync(path.join(lockPath, 'owner.json'));
+    ageLock(lockPath);
+    assert(lockCode(lockPath) === 'LOCK_HELD', 'an unreadable owner record was treated as ownerless');
+    fs.rmSync(lockPath, { recursive: true, force: true });
+  });
+
+  test('a held lock reports its holder', () => {
+    const lockPath = path.join(root, 'reported-holder.lock');
+    plantLock(lockPath, heldBy({ pid: process.ppid }));
+    let holder = null;
+    try { acquireDirectoryLock(lockPath, 'held'); } catch (err) { holder = err.holder; }
+    assert(holder && holder.pid === process.ppid && holder.host === os.hostname(), `holder ${JSON.stringify(holder)}`);
+    fs.rmSync(lockPath, { recursive: true, force: true });
   });
 
   test('a second copy of the module in this process refuses a lock the first copy holds', () => {

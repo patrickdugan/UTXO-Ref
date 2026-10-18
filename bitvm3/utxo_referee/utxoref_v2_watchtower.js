@@ -1050,6 +1050,71 @@ function recordTickSuccess(state) {
   state.consecutiveFailures = 0;
 }
 
+// A tick that cannot take the state lock is deferred, not failed: a CPFP tool
+// holds it briefly. A lock that stays held (its holder hung, or it was left on
+// another host or by a reused pid where that cannot be told apart) means the
+// watchtower is not watching, so the deferrals are counted here, in memory,
+// since the state file cannot be written without the lock. From the alert
+// failure threshold on, they reach the alert file once and the notifier as a
+// critical tick failure that repeats until acknowledged.
+function createLockDeferrals(args, statePath) {
+  const deferrals = { consecutive: 0, logged: false, notifierState: {} };
+  return {
+    get consecutive() { return deferrals.consecutive; },
+    async defer(err, notifier, threshold, at = new Date().toISOString()) {
+      deferrals.consecutive += 1;
+      const holder = err.holder ? ` (holder pid ${err.holder.pid} on ${err.holder.host || 'an unrecorded host'})` : '';
+      const alert = {
+        kind: 'utxoref_v2_watchtower_tick_failure',
+        at,
+        action: 'watchtower_tick_failed',
+        message: `ticks deferred, state lock held${holder}: ${err.message}`,
+        artifact: path.resolve(args.artifact || DEFAULT_ARTIFACT),
+        consecutiveFailures: deferrals.consecutive
+      };
+      if (deferrals.consecutive >= threshold && !deferrals.logged) {
+        deferrals.logged = true;
+        appendJsonLine(args.alertPath || DEFAULT_ALERT_PATH, alert);
+      }
+      if (notifier) await notifier.handle({ kind: 'failure', alert }, deferrals.notifierState);
+      return alert;
+    },
+    clear() {
+      const cleared = deferrals.consecutive;
+      deferrals.consecutive = 0;
+      deferrals.logged = false;
+      deferrals.notifierState = {};
+      return cleared;
+    }
+  };
+}
+
+// SIGTERM (systemd stop) and SIGINT (Ctrl-C) end the loop between ticks, so an
+// orderly stop never leaves the state lock behind. A second signal exits at
+// once; the lock it may leave names a dead process and is reclaimed.
+function createStopSignal({ on = (signal, handler) => process.on(signal, handler), exit = (code) => process.exit(code), log = console.error } = {}) {
+  let requested = false;
+  let wake = null;
+  const handler = (signal) => {
+    if (requested) exit(signal === 'SIGINT' ? 130 : 143);
+    requested = true;
+    log(`[utxoref-v2-watchtower] ${signal}: stopping after the current tick`);
+    if (wake) wake();
+  };
+  on('SIGTERM', () => handler('SIGTERM'));
+  on('SIGINT', () => handler('SIGINT'));
+  return {
+    get requested() { return requested; },
+    sleep(ms) {
+      return new Promise((resolve) => {
+        const done = () => { clearTimeout(timer); wake = null; resolve(); };
+        const timer = setTimeout(done, ms);
+        wake = done;
+      });
+    }
+  };
+}
+
 function ackPathFor(statePath) {
   return statePath.endsWith('.json') ? `${statePath.slice(0, -5)}.acks.json` : `${statePath}.acks.json`;
 }
@@ -1107,7 +1172,6 @@ async function main() {
   const statePath = path.resolve(args.statePath || DEFAULT_STATE_PATH);
   const intervalMs = Number(args.pollIntervalMs || DEFAULT_POLL_INTERVAL_MS);
   if (!Number.isSafeInteger(intervalMs) || intervalMs < 1000) throw new Error('poll interval must be at least 1000 ms');
-  await withStateLock(statePath, async () => saveJsonAtomic(statePath, loadState(statePath)));
   const notifierConfig = notifierConfigFromEnv(process.env);
   const notifier = createAlertNotifier(notifierConfig, {
     ackPath: path.resolve(args.ackPath || ackPathFor(statePath)),
@@ -1116,20 +1180,33 @@ async function main() {
   const heartbeatUrl = args.heartbeatUrl || notifierConfig.heartbeatUrl;
   console.error(`[utxoref-v2-watchtower] alerts: ${notifier.enabled ? notifier.channels.join(', ') : 'alert file only'}; ` +
     `heartbeat: ${heartbeatUrl ? 'on' : 'off'}; settlement broadcast: ${args.broadcastSettlement ? 'on' : 'off'}`);
+  const deferrals = createLockDeferrals(args, statePath);
+  const stop = createStopSignal();
+  // Startup records the restart under the lock like any tick, and a held lock
+  // is retried each interval instead of exiting into a restart loop.
+  let started = false;
   do {
     let tick = null;
     try {
+      if (!started) {
+        await withStateLock(statePath, async () => saveJsonAtomic(statePath, loadState(statePath)));
+        started = true;
+      }
       tick = await runLockedIteration(args, rpc, statePath, { notifier, heartbeatUrl });
+      const cleared = deferrals.clear();
+      if (cleared) console.error(`[utxoref-v2-watchtower] state lock acquired after ${cleared} deferred tick(s)`);
     } catch (err) {
-      if (err.code !== 'LOCK_HELD') throw err;
-      console.error(`[utxoref-v2-watchtower] tick deferred: ${err.message}`);
+      // --once is a single attempt: a held lock is its failure, as before.
+      if (err.code !== 'LOCK_HELD' || args.once) throw err;
+      const alert = await deferrals.defer(err, notifier, notifierConfig.failureThreshold);
+      console.error(`[utxoref-v2-watchtower] ${alert.message} (${alert.consecutiveFailures} in a row)`);
     }
     if (tick?.iteration.ok) console.log(JSON.stringify(tick.iteration.result));
     else if (tick) console.error(`[utxoref-v2-watchtower] tick failed: ${tick.iteration.error.message}`);
     if (tick?.state.notifier?.lastError) console.error(`[utxoref-v2-watchtower] alert delivery: ${tick.state.notifier.lastError.message}`);
-    if (args.once) break;
-    await new Promise((resolve) => setTimeout(resolve, intervalMs));
-  } while (true);
+    if (args.once || stop.requested) break;
+    await stop.sleep(intervalMs);
+  } while (!stop.requested);
 }
 
 if (require.main === module) {
@@ -1168,6 +1245,8 @@ module.exports = {
   runTick,
   runWatchtowerIteration,
   ackPathFor,
+  createLockDeferrals,
+  createStopSignal,
   recordTickFailure,
   recordTickSuccess,
   saveJsonAtomic,
