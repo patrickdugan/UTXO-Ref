@@ -156,14 +156,18 @@ function writeJsonAppendOnce(directory, name, record, { maxBytes, label = 'durab
 }
 
 // Takes an exclusive lock by creating lockPath as a directory, which only one
-// process can do at a time. The holder records its pid and host in the
-// directory, so a lock left by a process that no longer exists on this host is
-// reclaimed instead of blocking every later run. A lock with no readable owner
-// is reclaimed once it is older than the grace period, which covers a crash
-// between creating the directory and writing the owner. Any other held lock
-// fails closed. The returned function releases the lock.
+// process can do at a time. The holder records its pid, host and a random
+// per-acquisition token in the directory, so a lock left by a process that no
+// longer exists on this host is reclaimed instead of blocking every later run.
+// A lock with no readable owner is reclaimed once it is older than the grace
+// period, which covers a crash between creating the directory and writing the
+// owner. Any other held lock fails closed. The returned function releases the
+// lock and throws LOCK_LOST if the lock is no longer the one it acquired.
 const LOCK_OWNER_FILE = 'owner.json';
 const OWNERLESS_LOCK_GRACE_MS = 60 * 1000;
+// Tokens of the locks this process holds right now. A pid can be reused after a
+// crash, so a lock recorded with this pid is live only while its token is here.
+const heldLockTokens = new Set();
 
 function readLockOwner(lockPath) {
   try { return JSON.parse(fs.readFileSync(path.join(lockPath, LOCK_OWNER_FILE), 'utf8')); }
@@ -175,6 +179,7 @@ function readLockOwner(lockPath) {
 function lockOwnerIsGone(owner) {
   if (!owner || !Number.isSafeInteger(owner.pid)) return false;
   if (owner.host !== undefined && owner.host !== os.hostname()) return false;
+  if (owner.pid === process.pid) return !heldLockTokens.has(owner.token);
   try { process.kill(owner.pid, 0); return false; }
   catch (error) { return error.code === 'ESRCH'; }
 }
@@ -188,14 +193,22 @@ function lockIsAbandoned(lockPath, owner) {
   return owner ? lockOwnerIsGone(owner) : lockAgeMs(lockPath) > OWNERLESS_LOCK_GRACE_MS;
 }
 
+// An owner record is written once and never changed, so the same record means
+// the same acquisition.
 function sameLockOwner(left, right) {
   if (left === null || right === null) return left === right;
-  return left.pid === right.pid && left.host === right.host;
+  return left.pid === right.pid && left.host === right.host && left.token === right.token;
 }
 
-// Moves an abandoned lock aside and discards it. The move is checked after the
-// fact: if what was moved is not the abandoned lock (another process took over
-// in between), it is put back.
+// Moves an abandoned lock aside and discards it. The rename is not conditional,
+// so the owner is read again from the moved directory, and if it is not the
+// abandoned lock it is put back. Residual race: between the rename and the
+// restore the path is empty, so a third process can acquire it. The restore then
+// fails and this call throws, and the displaced holder and the new holder both
+// believe they hold the lock until their critical sections end. Release never
+// removes a lock that it does not own (see releaseDirectoryLock), so the overlap
+// ends without deleting the new holder's lock. Closing it needs a compare-and-swap
+// the filesystem does not offer, or an O_EXCL lock file with fencing.
 function reclaimAbandonedLock(lockPath) {
   const owner = readLockOwner(lockPath);
   if (!lockIsAbandoned(lockPath, owner)) return false;
@@ -210,6 +223,16 @@ function reclaimAbandonedLock(lockPath) {
   return false;
 }
 
+function releaseDirectoryLock(lockPath, token) {
+  heldLockTokens.delete(token);
+  const owner = readLockOwner(lockPath);
+  if (!owner || owner.token !== token) {
+    throw Object.assign(new Error(`lock ${lockPath} was taken over while held; it was not removed`), { code: 'LOCK_LOST' });
+  }
+  fs.rmSync(path.join(lockPath, LOCK_OWNER_FILE), { force: true });
+  fs.rmdirSync(lockPath);
+}
+
 function acquireDirectoryLock(lockPath, heldMessage) {
   for (let attempt = 0; ; attempt++) {
     try { fs.mkdirSync(lockPath, { mode: 0o700 }); break; }
@@ -219,17 +242,17 @@ function acquireDirectoryLock(lockPath, heldMessage) {
       throw Object.assign(new Error(heldMessage), { code: 'LOCK_HELD' });
     }
   }
+  const token = crypto.randomBytes(16).toString('hex');
+  heldLockTokens.add(token);
   try {
     fs.writeFileSync(path.join(lockPath, LOCK_OWNER_FILE),
-      JSON.stringify({ pid: process.pid, host: os.hostname() }), { flag: 'wx', mode: 0o600 });
+      JSON.stringify({ pid: process.pid, host: os.hostname(), token }), { flag: 'wx', mode: 0o600 });
   } catch (error) {
+    heldLockTokens.delete(token);
     fs.rmSync(lockPath, { recursive: true, force: true });
     throw error;
   }
-  return () => {
-    fs.rmSync(path.join(lockPath, LOCK_OWNER_FILE), { force: true });
-    fs.rmdirSync(lockPath);
-  };
+  return () => releaseDirectoryLock(lockPath, token);
 }
 
 // Replaces filePath with text. The new bytes are flushed before the rename and

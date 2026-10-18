@@ -58,11 +58,47 @@ try {
 
   test('a lock held by a live process is never reclaimed', () => {
     const lockPath = path.join(root, 'live.lock');
-    plantLock(lockPath, heldBy({ pid: process.pid }));
+    plantLock(lockPath, heldBy({ pid: process.ppid }));
     ageLock(lockPath);
     let code = null;
     try { acquireDirectoryLock(lockPath, 'held'); } catch (err) { code = err.code; }
     assert(code === 'LOCK_HELD', 'live holder must keep the lock');
+  });
+
+  test('a lock held by a live acquisition in this process is not reclaimed', () => {
+    const lockPath = path.join(root, 'in-process.lock');
+    const release = acquireDirectoryLock(lockPath, 'held');
+    let code = null;
+    try { acquireDirectoryLock(lockPath, 'held'); } catch (err) { code = err.code; }
+    assert(code === 'LOCK_HELD', 'a second acquisition in the same process must be refused');
+    release();
+    assert(!fs.existsSync(lockPath), 'released lock was not removed');
+  });
+
+  test('a lock recorded by this pid with no live acquisition is a dead earlier incarnation and is reclaimed', () => {
+    const lockPath = path.join(root, 'same-pid.lock');
+    plantLock(lockPath, { pid: process.pid, host: os.hostname() });
+    acquireDirectoryLock(lockPath, 'held')();
+    assert(!fs.existsSync(lockPath), 'same-pid lock from an earlier incarnation was not reclaimed');
+  });
+
+  test('a lock recorded by this pid under an unknown token is reclaimed', () => {
+    const lockPath = path.join(root, 'same-pid-token.lock');
+    plantLock(lockPath, { pid: process.pid, host: os.hostname(), token: 'f'.repeat(32) });
+    acquireDirectoryLock(lockPath, 'held')();
+    assert(!fs.existsSync(lockPath), 'same-pid lock with an unknown token was not reclaimed');
+  });
+
+  test('release refuses to remove a lock another holder took over', () => {
+    const lockPath = path.join(root, 'taken-over.lock');
+    const release = acquireDirectoryLock(lockPath, 'held');
+    fs.rmSync(lockPath, { recursive: true, force: true });
+    plantLock(lockPath, heldBy({ pid: process.ppid }));
+    let code = null;
+    try { release(); } catch (err) { code = err.code; }
+    assert(code === 'LOCK_LOST', `release of a lost lock must report LOCK_LOST, got ${code}`);
+    assert(fs.existsSync(lockPath), 'release removed the lock of another holder');
+    fs.rmSync(lockPath, { recursive: true, force: true });
   });
 
   test('an owner-less lock is held during the grace period and reclaimed after it', () => {
@@ -85,7 +121,7 @@ try {
 
   test('the DLC state store reports a held contract lock with its contract id', () => {
     const store = new DlcStateStore(path.join(root, 'state-held'));
-    plantLock(store._lockDirectory('contract-b'), heldBy({ pid: process.pid }));
+    plantLock(store._lockDirectory('contract-b'), heldBy({ pid: process.ppid }));
     let message = null;
     try { store._withLock('contract-b', () => 'ran'); } catch (err) { message = err.message; }
     assert(message === 'DLC state store lock is held for contract-b', `unexpected message: ${message}`);

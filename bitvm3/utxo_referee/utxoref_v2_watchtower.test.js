@@ -489,9 +489,17 @@ test('a state lock left by a process that no longer exists is reclaimed, any oth
     assert(heldCode() === null, 'a lock whose holder exited must be reclaimed');
     assert(!fs.existsSync(lockPath), 'a reclaimed and released lock must leave nothing behind');
 
-    plant({ pid: process.pid, host: os.hostname() });
+    plant({ pid: process.ppid, host: os.hostname() });
     assert(heldCode() === 'LOCK_HELD', 'a lock held by a live process must stay held');
     fs.rmSync(lockPath, { recursive: true });
+
+    const held = acquireDirectoryLock(lockPath, 'held');
+    assert(heldCode() === 'LOCK_HELD', 'a lock held by a live acquisition in this process must stay held');
+    held();
+
+    plant({ pid: process.pid, host: os.hostname() });
+    assert(heldCode() === null, 'a state lock left by a crashed run with this pid must be reclaimed on restart');
+    assert(!fs.existsSync(lockPath), 'the reclaimed state lock must leave nothing behind');
 
     plant({ pid: deadPid, host: 'another-host.invalid' });
     assert(heldCode() === 'LOCK_HELD', 'a lock from another host must stay held');
