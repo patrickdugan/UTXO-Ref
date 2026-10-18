@@ -20,6 +20,7 @@ const {
   verifyTaprootReserveVaultManifest,
   verifyTaprootReserveVaultOnChain,
   buildTaprootReserveVaultSet,
+  buildTaprootReserveVaultSetFromRpc,
   reservedSatsFromTaprootReserveVaultSet,
   buildVaultSpendProposal,
   approveTaprootReserveVaultSpend,
@@ -247,6 +248,18 @@ test('a manifest cannot declare a later anchor than its funding confirmation', (
 
   assert(!result.ok && !result.counted, 'declared anchor must not count');
   assert(/confirmation height/.test(result.reason), result.reason);
+});
+
+test('a manifest written before its funding confirmed counts, with the earlier height as its recovery anchor', () => {
+  // Built at tip 999 before broadcast; the funding confirmed at 1000 (201 confirmations at tip 1200).
+  const early = manifest({ observedAtHeight: 999 });
+  const result = verifyTaprootReserveVaultOnChain(early, {
+    txout: chainTxout(early, { confirmations: 201 }),
+    currentHeight: 1200,
+    network: 'bitcoin-testnet4'
+  });
+  assert(result.ok && result.counted, `pre-broadcast manifest must count: ${result.reason}`);
+  assertEq(result.manifestCheck.recoveryStatus.maturityHeight, 999 + 2016, 'maturity must come from the earlier, conservative anchor');
 });
 
 test('a funding UTXO with no confirmations cannot anchor the recovery window', () => {
@@ -542,9 +555,56 @@ test('guardian approves and signs only the exact policy-matching transaction', (
   assert(!verifyGuardianApproval(tampered, m).ok, 'approval hash binds the exact signature artifact');
 });
 
-if (failed > 0) {
-  console.log(`\nFAIL: ${failed} failed, ${passed} passed\n`);
-  process.exit(1);
+// A fake node whose tip can move between RPC calls. The funding UTXO
+// confirmed at height 1000; gettxout reports the tip it was answered at.
+function movingChainRpc(m, tipMovesAfterInfo) {
+  let tip = 1200;
+  let infoCalls = 0;
+  const hash = (height) => height.toString(16).padStart(64, '0');
+  const rpc = async (method) => {
+    if (method === 'getblockchaininfo') {
+      const info = { blocks: tip, bestblockhash: hash(tip) };
+      infoCalls += 1;
+      if (infoCalls <= tipMovesAfterInfo) tip += 1;
+      return info;
+    }
+    if (method === 'gettxout') return { ...chainTxout(m, { confirmations: tip - 1000 + 1 }), bestblock: hash(tip) };
+    throw new Error(`unexpected ${method}`);
+  };
+  return { rpc, infoCalls: () => infoCalls };
 }
 
-console.log(`\nPASS: ${passed} tests\n`);
+const asyncTests = [
+  ['the RPC reserve snapshot is retaken when a block arrives between the tip and the UTXO', async () => {
+    const m = manifest();
+    const chain = movingChainRpc(m, 1);
+    const set = await buildTaprootReserveVaultSetFromRpc({
+      rpc: chain.rpc, network: 'bitcoin-testnet4', reserveEpochId: 'epoch-77', manifests: [m], currentHeight: 1
+    });
+    assertEq(chain.infoCalls(), 2, 'a moved tip must retake the snapshot');
+    assertEq(set.currentHeight, 1201, 'the set height must be the tip the UTXO was read at, not the caller\'s');
+    assertEq(set.countedVaultCount, 1, `vault must count: ${set.core.vaults[0].verification.reason}`);
+  }],
+  ['the RPC reserve snapshot fails rather than mix tips when the tip keeps moving', async () => {
+    const m = manifest();
+    let error = null;
+    try {
+      await buildTaprootReserveVaultSetFromRpc({
+        rpc: movingChainRpc(m, 99).rpc, network: 'bitcoin-testnet4', reserveEpochId: 'epoch-77', manifests: [m]
+      });
+    } catch (err) { error = err; }
+    assert(error && /tip moved/.test(error.message), `expected a tip-moved failure, got ${error && error.message}`);
+  }]
+];
+
+(async () => {
+  for (const [name, fn] of asyncTests) {
+    try { await fn(); console.log(`  OK  ${name}`); passed++; }
+    catch (err) { console.log(`  FAIL ${name}`); console.log(`       ${err.message}`); failed++; }
+  }
+  if (failed > 0) {
+    console.log(`\nFAIL: ${failed} failed, ${passed} passed\n`);
+    process.exit(1);
+  }
+  console.log(`\nPASS: ${passed} tests\n`);
+})();
