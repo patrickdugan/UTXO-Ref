@@ -222,6 +222,24 @@ async function main() {
   assert.strictEqual((await mint(node.base, unrecordedId)).status, 200, 'a payment LND settled before expiry was refused as expired');
   log('a payment LND settled but the sidecar did not record is minted after the quote expired');
 
+  // A save that fails after LND settles the payment is reported, and the settled request is not lost: it stays paid in
+  // memory, and the next pay saves it to disk.
+  const saveFailId = (await quote(node.base, 63)).json.request.requestId;
+  fs.chmodSync(tokenDir, 0o500);
+  let failedSave;
+  try {
+    failedSave = await pay(node.base, saveFailId);
+  } finally {
+    fs.chmodSync(tokenDir, 0o700);
+  }
+  assert.strictEqual(failedSave.status, 500, 'a failed save after a settled payment was not reported');
+  const retriedSave = await pay(node.base, saveFailId);
+  assert.strictEqual(retriedSave.status, 409, 'a retried pay of a settled request was not answered as already paid');
+  const savedEntry = JSON.parse(fs.readFileSync(storePath, 'utf8')).entries.find((e) => e.request.requestId === saveFailId);
+  assert.strictEqual(savedEntry.state, 'paid', 'the next pay did not save a settled request as paid');
+  assert.strictEqual((await mint(node.base, saveFailId)).status, 200, 'a settled request whose save failed did not mint');
+  log('a failed save after a settled payment is reported, and the next pay saves it as paid');
+
   // A restart keeps the lifecycle: a paid request still mints, a quoted one still pays, a minted one stays refused.
   const paidId = await quotedAndPaid(node.base, 30);
   const quotedId = (await quote(node.base, 31)).json.request.requestId;

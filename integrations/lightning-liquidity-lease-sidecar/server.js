@@ -522,9 +522,10 @@ function rememberIssuedDlcSubswapRequest(request) {
   return 'ok';
 }
 
-// LND settled the payment, which is a fact the sidecar must not forget, so the request stops expiring.
+// LND settled the payment, which is a fact the sidecar must not forget, so the request stops expiring. Memory changes
+// before the save, so a settled request is never pruned or refused as expired even if the save fails. Each save writes
+// the whole table, and every later pay or mint for the request saves again, so a failed save is retried.
 function markPaid(issued) {
-  if (issued.state === 'paid') return;
   issued.state = 'paid';
   issued.expiresAt = null;
   saveIssuedDlcSubswapRequests();
