@@ -275,7 +275,9 @@ test('state replacement flushes the new file before the rename and the directory
     fs.renameSync = renameSync;
     fs.rmSync(directory, { recursive: true, force: true });
   }
-  assert(order.join(',') === 'fsync,rename,fsync', `unexpected durable write order: ${order.join(',')}`);
+  // The directory flush is a no-op on Windows (dlc_durable_json_store flushDirectory).
+  const expected = process.platform === 'win32' ? 'fsync,rename' : 'fsync,rename,fsync';
+  assert(order.join(',') === expected, `unexpected durable write order: ${order.join(',')}`);
 });
 
 test('wrong artifact kind fails closed', () => {
