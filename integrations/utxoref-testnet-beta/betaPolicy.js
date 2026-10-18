@@ -40,6 +40,9 @@ function loadPolicy(env = process.env) {
     guardianRegistryPath,
     guardianReservePath: env.BETA_GUARDIAN_RESERVE_PATH ? path.resolve(env.BETA_GUARDIAN_RESERVE_PATH) : null,
     requireGuardianQuorum,
+    // Only an explicit 1 makes a missing reserve a startup error; the
+    // registry-implied default holds betaReady false instead.
+    guardianQuorumExplicit: env.BETA_REQUIRE_GUARDIAN_QUORUM === '1',
     guardianHeartbeatMaxAgeSeconds: integer(env.BETA_GUARDIAN_HEARTBEAT_MAX_AGE_SECONDS, 180, 30, 3600, 'BETA_GUARDIAN_HEARTBEAT_MAX_AGE_SECONDS'),
     guardianClockSkewSeconds: integer(env.BETA_GUARDIAN_CLOCK_SKEW_SECONDS, 60, 0, 600, 'BETA_GUARDIAN_CLOCK_SKEW_SECONDS'),
     faucetAmountSats: integer(env.BETA_FAUCET_AMOUNT_SATS, 1000, 330, 100000, 'BETA_FAUCET_AMOUNT_SATS'),

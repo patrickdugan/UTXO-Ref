@@ -122,6 +122,8 @@ npm run deploy:guardians -- --registry artifacts/guardian_registry_testnet4.json
 
 Set `BETA_GUARDIAN_RESERVE_PATH` to the resulting public artifact. When guardian quorum is required, readiness fails closed unless the manifest verifies, the exact Taproot outpoint is confirmed and unspent, and the threshold heartbeat quorum is fresh.
 
+The quorum gate is on by default whenever `BETA_GUARDIAN_REGISTRY_PATH` is set; `BETA_REQUIRE_GUARDIAN_QUORUM=0` turns it off. With the default gate and no reserve configured (for example after rotating a guardian key, before funding the new reserve), the service runs and `betaReady` stays false. An explicit `BETA_REQUIRE_GUARDIAN_QUORUM=1` without a reserve is a startup error.
+
 The funding txid is written to `<output>.funding-pending.json` as soon as Core returns it. If the deployment fails after that point, the error names the txid. Resolve it by hand: confirm the txid in the wallet, produce the reserve artifact, then delete the pending file. A new `--broadcast` refuses to run while the pending file exists.
 
 After the funding transaction confirms, bind the manifest's CSV clock to the actual Core funding height:
