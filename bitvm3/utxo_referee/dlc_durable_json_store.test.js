@@ -109,6 +109,45 @@ try {
     assert(!fs.existsSync(lockPath), 'same-pid lock with an unknown token was not reclaimed');
   });
 
+  test('a lock whose recorded pid now belongs to a different process is reclaimed', () => {
+    if (!fs.existsSync('/proc/self/stat')) return;
+    const lockPath = path.join(root, 'pid-reused.lock');
+    plantLock(lockPath, { pid: process.ppid, host: os.hostname(), token: 'e'.repeat(32), startTime: '1' });
+    acquireDirectoryLock(lockPath, 'held')();
+    assert(!fs.existsSync(lockPath), 'a lock whose pid was reused by an unrelated process was not reclaimed');
+  });
+
+  test('a live acquisition in another process is refused by a contender, and records its start time', () => {
+    const libPath = require.resolve('./dlc_durable_json_store');
+    const lockPath = path.join(root, 'live-owner.lock');
+    const script = path.join(root, 'live-owner-holder.js');
+    fs.writeFileSync(script, `const { spawnSync } = require('child_process');
+const fs = require('fs');
+const path = require('path');
+const [libPath, lockPath, role] = process.argv.slice(2);
+const { acquireDirectoryLock } = require(libPath);
+if (role === 'contend') {
+  try { acquireDirectoryLock(lockPath, 'held')(); console.log('ACQUIRED'); }
+  catch (err) { console.log(err.code); }
+} else {
+  const release = acquireDirectoryLock(lockPath, 'held');
+  console.log('OWNER ' + fs.readFileSync(path.join(lockPath, 'owner.json'), 'utf8'));
+  const contender = spawnSync(process.execPath, [__filename, libPath, lockPath, 'contend'], { encoding: 'utf8' });
+  release();
+  console.log('CONTENDER ' + contender.stdout.trim());
+}
+`);
+    const run = spawnSync(process.execPath, [script, libPath, lockPath, 'hold'], { encoding: 'utf8' });
+    const owner = /OWNER (.*)/.exec(run.stdout);
+    const contender = /CONTENDER (.*)/.exec(run.stdout);
+    assert(owner && contender, `holder did not run: ${run.stderr}`);
+    assert(contender[1] === 'LOCK_HELD', `a live holder in another process must be refused, got ${contender[1]}`);
+    if (fs.existsSync('/proc/self/stat')) {
+      assert(typeof JSON.parse(owner[1]).startTime === 'string', 'the owner record must carry the holder start time');
+    }
+    assert(!fs.existsSync(lockPath), 'the holder did not release its lock');
+  });
+
   test('release refuses to remove a lock another holder took over', () => {
     const lockPath = path.join(root, 'taken-over.lock');
     const release = acquireDirectoryLock(lockPath, 'held');

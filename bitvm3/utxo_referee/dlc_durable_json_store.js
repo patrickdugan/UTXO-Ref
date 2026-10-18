@@ -157,9 +157,10 @@ function writeJsonAppendOnce(directory, name, record, { maxBytes, label = 'durab
 }
 
 // Takes an exclusive lock by creating lockPath as a directory, which only one
-// process can do at a time. The holder records its pid, host and a random
-// per-acquisition token in the directory, so a lock left by a process that no
-// longer exists on this host is reclaimed instead of blocking every later run.
+// process can do at a time. The holder records its pid, host, start time and a
+// random per-acquisition token in the directory, so a lock left by a process
+// that no longer exists on this host, or whose pid now belongs to another
+// process, is reclaimed instead of blocking every later run.
 // A lock with no readable owner is reclaimed once it is older than the grace
 // period, which covers a crash between creating the directory and writing the
 // owner. Any other held lock fails closed. The returned function releases the
@@ -180,14 +181,30 @@ function readLockOwner(lockPath) {
   catch (_error) { return null; }
 }
 
+// The start time of a process: field 22 of /proc/<pid>/stat, counted after the
+// parenthesised command name. Platforms without /proc give null, and a lock is
+// then judged by its pid alone.
+function processStartTime(pid) {
+  try {
+    const stat = fs.readFileSync(`/proc/${pid}/stat`, 'utf8');
+    return stat.slice(stat.lastIndexOf(')') + 2).split(' ')[19] ?? null;
+  } catch (_error) { return null; }
+}
+
 // Locks written before the host was recorded carry only a pid. They were
-// written by the same local store, so they are judged on this host.
+// written by the same local store, so they are judged on this host. Locks
+// written before the start time was recorded carry no startTime and are judged
+// by their pid alone.
 function lockOwnerIsGone(owner) {
   if (!owner || !Number.isSafeInteger(owner.pid)) return false;
   if (owner.host !== undefined && owner.host !== os.hostname()) return false;
   if (owner.pid === process.pid) return !heldLockTokens.has(owner.token);
-  try { process.kill(owner.pid, 0); return false; }
+  try { process.kill(owner.pid, 0); }
   catch (error) { return error.code === 'ESRCH'; }
+  // A live pid with another start time is a process that reused the pid.
+  if (typeof owner.startTime !== 'string') return false;
+  const current = processStartTime(owner.pid);
+  return current !== null && current !== owner.startTime;
 }
 
 function lockAgeMs(lockPath) {
@@ -256,7 +273,8 @@ function acquireDirectoryLock(lockPath, heldMessage) {
   heldLockTokens.add(token);
   try {
     fs.writeFileSync(path.join(lockPath, LOCK_OWNER_FILE),
-      JSON.stringify({ pid: process.pid, host: os.hostname(), token }), { flag: 'wx', mode: 0o600 });
+      JSON.stringify({ pid: process.pid, host: os.hostname(), token, startTime: processStartTime(process.pid) }),
+      { flag: 'wx', mode: 0o600 });
   } catch (error) {
     heldLockTokens.delete(token);
     fs.rmSync(lockPath, { recursive: true, force: true });
