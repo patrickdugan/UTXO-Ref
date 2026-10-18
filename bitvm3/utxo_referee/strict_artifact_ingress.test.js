@@ -51,6 +51,15 @@ test('rejects fractional and noncanonical integer strings', () => {
   assert(rejects('{"feeSats":"+1"}', /canonical integer string/));
 });
 
+test('refuses negative zero in every spelling, as a number or an integer string', () => {
+  assert(rejects('{"sats":-0.0}', /negative zero/));
+  assert(rejects('{"sats":-0.00}', /negative zero/));
+  assert(rejects('{"sats":"-0"}', /canonical integer string/));
+  assert(rejects('{"blocks":"-0"}', /canonical integer string/));
+  assert(parseJsonStrict('{"sats":0.0,"version":0,"amountSats":"0"}').sats === 0, 'positive zero must stay accepted');
+  assert(parseJsonStrict('{"sats":"-5"}').sats === '-5', 'negative nonzero integer strings must stay accepted');
+});
+
 test('accepts exact integers larger than the JS safe range as strings', () => {
   const value = parseJsonStrict('{"amountSats":"9007199254740993"}');
   assert(value.amountSats === '9007199254740993');

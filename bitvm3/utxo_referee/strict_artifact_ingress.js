@@ -97,9 +97,9 @@ function parseJsonStrict(text, fieldName = 'JSON artifact', options = {}) {
     const boundary = remaining[raw.length];
     if (boundary && !/[\x20\t\r\n,}\]]/.test(boundary)) fail('invalid character after number');
     if (/[eE]/.test(raw)) fail('exponent-form numbers are forbidden');
-    if (raw === '-0') fail('negative zero is forbidden');
     offset += raw.length;
     const value = Number(raw);
+    if (Object.is(value, -0)) fail('negative zero is forbidden');
     if (!Number.isFinite(value)) fail('number is not finite');
     if (Number.isInteger(value) && !Number.isSafeInteger(value)) {
       fail('integer is outside the safe integer range; encode it as a canonical integer string');
@@ -191,7 +191,7 @@ function validateSemanticEncodings(value, fieldName, policy) {
         if (typeof item === 'number' && !Number.isSafeInteger(item)) {
           throw new Error(`${fieldName} ${path} must be a safe integer or canonical integer string`);
         }
-        if (typeof item === 'string' && !/^-?(?:0|[1-9][0-9]*)$/.test(item)) {
+        if (typeof item === 'string' && !/^(?:0|-?[1-9][0-9]*)$/.test(item)) {
           throw new Error(`${fieldName} ${path} must be a canonical integer string`);
         }
       }
