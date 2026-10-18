@@ -278,8 +278,8 @@ function recoveryStatus(manifest, options = {}) {
   if (currentHeight === undefined || currentHeight === null) {
     return {
       checked: false,
-      countable: true,
-      reason: null,
+      countable: false,
+      reason: 'currentHeight is required to check recovery freshness',
       observedAtHeight: Number(core.observedAtHeight),
       maturityHeight: Number(core.observedAtHeight) + Number(core.recoveryCsvDelay),
       remainingBlocks: null,
