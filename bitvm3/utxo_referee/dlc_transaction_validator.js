@@ -484,6 +484,19 @@ function validateNormalizedDlcTransactionSetCommitments(transactionSet) {
       transactionSet.validationDigest !== validationDigest) {
     throw new Error('validated DLC transaction set commitment mismatch');
   }
+  // One CET per outcome, as validateDlcTransactionSet enforces: a hand-built
+  // set with a second CET for an outcome (another oracle subset) would let
+  // whoever obtains the attestations pick the payout.
+  const outcomes = new Set();
+  for (const cet of transactionSet.cets) {
+    if (!cet || typeof cet.outcomeMessage !== 'string' || !/^[0-9a-f]{64}$/.test(cet.outcomeMessage)) {
+      throw new Error('validated DLC transaction set CET outcome is malformed');
+    }
+    if (outcomes.has(cet.outcomeMessage)) {
+      throw new Error(`DLC transaction set has more than one CET for outcome ${cet.outcomeMessage}`);
+    }
+    outcomes.add(cet.outcomeMessage);
+  }
   // A hand-built set with internally consistent digests must still describe
   // the two-party funding output and a refund that can spend its CSV leaf.
   const output = deriveFundingOutput(transactionSet.funding);

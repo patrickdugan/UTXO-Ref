@@ -49,6 +49,15 @@ for (const invalid of vectors.invalid) {
   });
 }
 
+test('a set with two CETs for one outcome is refused by the commitment check itself', () => {
+  const duplicate = vectors.invalid.find((entry) => entry.name === 'two CETs for one outcome');
+  assert(duplicate, 'duplicate-outcome vector is missing');
+  let error = null;
+  try { normalizeDlcTransactionSet(duplicate.signingContext.transactionSet); } catch (err) { error = err; }
+  assert(error && error.message.includes(duplicate.errorContains),
+    `duplicate-outcome set was not refused for its duplicate: ${error ? error.message : 'accepted'}`);
+});
+
 // A transaction set as a peer could hand it over: every digest recomputed so
 // that only the field under test can make it fail.
 const sha256Hex = (value) => crypto.createHash('sha256').update(value).digest('hex');
