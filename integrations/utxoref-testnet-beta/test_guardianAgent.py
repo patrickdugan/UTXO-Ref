@@ -107,7 +107,7 @@ def lost_response_is_retried(state_dir, args, beta):
         pass
     else:
         raise AssertionError("expected the dropped response to fail the first run")
-    assert read_sequence(state_dir) == 0, "sequence must not advance without an accepted receipt"
+    assert read_sequence(state_dir) == 1, "the sequence is reserved before its envelope is sent"
 
     # The retry resends the same signed envelope, so the service answers with a duplicate.
     receipt = agent.heartbeat_once(args)
@@ -123,8 +123,9 @@ def lost_response_is_retried(state_dir, args, beta):
 
 
 # A refusal that a validating service makes before storing (400, or 409 stale) means the envelope is discarded.
+# Its number stays reserved, so the next observation uses a new number rather than the discarded one.
 def refused_envelope_is_discarded(state_dir, args, beta):
-    for status, error in ((409, "stale_guardian_heartbeat"), (400, "invalid_guardian_observation")):
+    for number, (status, error) in enumerate(((409, "stale_guardian_heartbeat"), (400, "invalid_guardian_observation")), start=1):
         beta.refuse_next = (status, error)
         try:
             agent.heartbeat_once(args)
@@ -133,10 +134,11 @@ def refused_envelope_is_discarded(state_dir, args, beta):
         else:
             raise AssertionError(f"expected {error} to fail the run")
         assert not (state_dir / "pending_heartbeat.json").exists(), f"{error} left the envelope pending"
-        assert read_sequence(state_dir) == 0
+        assert read_sequence(state_dir) == number
     receipt = agent.heartbeat_once(args)
     assert receipt["duplicate"] is False, receipt
-    assert read_sequence(state_dir) == 1
+    assert read_sequence(state_dir) == 3
+    assert beta.received[-1]["core"]["sequence"] == 3
 
 
 # A configuration refusal keeps the signed envelope, so the retry after the operator's fix sends the same bytes.
