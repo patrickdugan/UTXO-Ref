@@ -205,6 +205,22 @@ test('bps, ppm and csv delay fields refuse non-canonical integer spellings in ev
   assertEq(outcome(() => ppm(250)), 'OK');
 });
 
+// The number and string spellings of one decimal amount must produce the same units,
+// or both must fail. A JSON number cannot carry trailing zeros, so the string form
+// is canonicalised the same way.
+test('a decimal amount has one meaning whether it arrives as a number or a string', () => {
+  const money = require('./money');
+  const units = (value, options) => outcome(() => money.decimalToUnits(value, 'f', options));
+  assertEq(units('1.100000000', {}), '110000000');
+  assertEq(units(1.1, {}), '110000000');
+  assertEq(units('5.00000000', { integersAreUnits: true }), '5');
+  assertEq(units(5, { integersAreUnits: true }), '5');
+  assertEq(units(1e20, { integersAreUnits: true }), 'ERR');
+  assertEq(outcome(() => money.toInt(1e20, 'f')), 'ERR');
+  assertEq(units('1.100000001', {}), 'ERR');
+  assertEq(units(1.100000001, {}), 'ERR');
+});
+
 if (failed > 0) {
   console.log(`\nFAIL: ${failed} failed, ${passed} passed\n`);
   process.exit(1);

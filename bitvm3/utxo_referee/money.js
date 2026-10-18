@@ -39,11 +39,15 @@ function toSats(value, field, { signed = false } = {}) {
 
 // A JavaScript number is accepted only when its decimal text, rounded to the
 // scale's places, parses back to the same number; 0.123456789 is refused, not rounded.
+// An integer-valued number follows toInt's rule: it must be a safe integer.
 function decimalText(value, field, decimals) {
   if (typeof value === 'bigint') return value.toString();
   if (typeof value !== 'number') return value;
   if (!Number.isFinite(value)) throw new Error(`${field} must be finite`);
-  if (Number.isInteger(value)) return String(value);
+  if (Number.isInteger(value)) {
+    if (!Number.isSafeInteger(value)) throw new Error(`${field} must be a safe integer`);
+    return String(value);
+  }
   const text = value.toFixed(decimals).replace(/\.?0+$/, '');
   if (Number(text) !== value) throw new Error(`${field} has more than ${decimals} decimal places`);
   return text;
@@ -64,12 +68,13 @@ function decimalToUnits(value, field, { scale = COIN, integersAreUnits = false, 
     throw new Error(`${field} must be a decimal amount`);
   }
   const negative = text.startsWith('-');
-  const [whole, fraction = ''] = (negative ? text.slice(1) : text).split('.');
+  const [whole, rawFraction = ''] = (negative ? text.slice(1) : text).split('.');
+  const fraction = rawFraction.replace(/0+$/, '');
+  if (fraction.length > decimals) throw new Error(`${field} has more than ${decimals} decimal places`);
   let units;
   if (fraction === '' && integersAreUnits) {
     units = BigInt(whole);
   } else {
-    if (fraction.length > decimals) throw new Error(`${field} has more than ${decimals} decimal places`);
     units = BigInt(whole) * scale + BigInt((fraction + '0'.repeat(decimals)).slice(0, decimals));
   }
   return negative ? -units : units;
