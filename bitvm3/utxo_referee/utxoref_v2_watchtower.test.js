@@ -517,6 +517,25 @@ test('a state lock left by a process that no longer exists is reclaimed, any oth
   } finally { fs.rmSync(directory, { recursive: true, force: true }); }
 });
 
+asyncTest('a failed state write under the lock is reported as itself when the lock was taken over during it', async () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'utxoref-v2-watchtower-lost-'));
+  try {
+    const statePath = path.join(directory, 'state.json');
+    const lockPath = `${statePath}.lock`;
+    let err = null;
+    try {
+      await withStateLock(statePath, async () => {
+        fs.rmSync(lockPath, { recursive: true, force: true });
+        fs.mkdirSync(lockPath);
+        fs.writeFileSync(path.join(lockPath, 'owner.json'), JSON.stringify({ pid: process.ppid, host: os.hostname(), token: 'a'.repeat(32) }));
+        throw new Error('tick state write failed');
+      });
+    } catch (caught) { err = caught; }
+    assert(err && err.message === 'tick state write failed', `the caller must see its own failure, got: ${err && err.message}`);
+    assert(err.releaseError && err.releaseError.code === 'LOCK_LOST', 'the release failure must be attached to the error');
+  } finally { fs.rmSync(directory, { recursive: true, force: true }); }
+});
+
 asyncTest('a reorged authorization block does not stop a challenge either', async () => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'utxoref-v2-watchtower-reorg-'));
   try {

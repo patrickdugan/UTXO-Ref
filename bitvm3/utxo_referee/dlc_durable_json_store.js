@@ -162,7 +162,9 @@ function writeJsonAppendOnce(directory, name, record, { maxBytes, label = 'durab
 // A lock with no readable owner is reclaimed once it is older than the grace
 // period, which covers a crash between creating the directory and writing the
 // owner. Any other held lock fails closed. The returned function releases the
-// lock and throws LOCK_LOST if the lock is no longer the one it acquired.
+// lock and throws LOCK_LOST if the lock is no longer the one it acquired. Callers
+// use withDirectoryLock, which keeps that release failure from replacing the
+// error of the critical section.
 const LOCK_OWNER_FILE = 'owner.json';
 const OWNERLESS_LOCK_GRACE_MS = 60 * 1000;
 // Tokens of the locks this process holds right now. A pid can be reused after a
@@ -255,6 +257,34 @@ function acquireDirectoryLock(lockPath, heldMessage) {
   return () => releaseDirectoryLock(lockPath, token);
 }
 
+// The critical section's own error is the one the caller must see. A release
+// that fails after it is attached as releaseError instead of replacing it.
+function releaseAfterFailure(release, failure) {
+  try { release(); }
+  catch (releaseError) {
+    if (failure !== null && typeof failure === 'object') failure.releaseError = releaseError;
+    else process.emitWarning(releaseError.message);
+  }
+}
+
+function withDirectoryLock(lockPath, heldMessage, run) {
+  const release = acquireDirectoryLock(lockPath, heldMessage);
+  let result;
+  try { result = run(); }
+  catch (error) { releaseAfterFailure(release, error); throw error; }
+  release();
+  return result;
+}
+
+async function withDirectoryLockAsync(lockPath, heldMessage, run) {
+  const release = acquireDirectoryLock(lockPath, heldMessage);
+  let result;
+  try { result = await run(); }
+  catch (error) { releaseAfterFailure(release, error); throw error; }
+  release();
+  return result;
+}
+
 // Replaces filePath with text. The new bytes are flushed before the rename and
 // the directory entry is flushed after it, so after a crash or power loss the
 // file holds either the previous content or the complete new content.
@@ -285,6 +315,8 @@ module.exports = {
   createDurableDirectory,
   ensureNonSymlinkDirectory,
   readBoundedJson,
+  withDirectoryLock,
+  withDirectoryLockAsync,
   writeFileAtomic,
   writeJsonAppendOnce
 };

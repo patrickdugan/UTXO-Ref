@@ -6,6 +6,7 @@
  * one crash cannot block a contract, oracle event or nonce journal forever.
  */
 
+const crypto = require('crypto');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -13,6 +14,7 @@ const { acquireDirectoryLock } = require('./dlc_durable_json_store');
 const { DlcStateStore } = require('./dlc_state_store');
 const { DlcOracleEventStore } = require('./dlc_oracle_event_store');
 const { reserveNonceUsage, NonceReuseError } = require('./legacy/tradelayer_nonce_journal');
+const { DlcWatchtowerJournal, contractKey: journalContractKey } = require('./dlc_watchtower_journal');
 
 const DEAD_PID = 2147483646;
 // Well past the grace period, so the test does not depend on its exact edge.
@@ -31,6 +33,23 @@ function heldBy(owner) {
 function plantLock(lockPath, owner) {
   fs.mkdirSync(lockPath, { mode: 0o700 });
   if (owner !== undefined) fs.writeFileSync(path.join(lockPath, 'owner.json'), JSON.stringify(owner));
+}
+// Another holder takes the lock while the critical section runs, so its release
+// reports LOCK_LOST. The failure the critical section raised must still reach the caller.
+function takeOverLock(lockPath) {
+  fs.rmSync(lockPath, { recursive: true, force: true });
+  plantLock(lockPath, heldBy({ pid: process.ppid }));
+}
+function failureAfterTakeover(lockPath, run) {
+  try { run(); }
+  catch (err) { return err; }
+  throw new Error('critical section did not fail');
+}
+function assertOwnFailureKept(err, lockPath, message) {
+  assert(err.message === message, `caller must see its own failure, got: ${err.message}`);
+  assert(err.releaseError && err.releaseError.code === 'LOCK_LOST',
+    `the release failure must be attached to the error, got ${err.releaseError && err.releaseError.code}`);
+  fs.rmSync(lockPath, { recursive: true, force: true });
 }
 function ageLock(lockPath) {
   const past = new Date(Date.now() - OWNERLESS_AGE_MS);
@@ -151,6 +170,62 @@ try {
     try { reserveNonceUsage(secnonce, Buffer.alloc(32, 3), { journalPath }); }
     catch (err) { refused = err instanceof NonceReuseError; }
     assert(refused, 'reuse of a committed nonce was not refused');
+  });
+  test('a failed state write is reported as itself when the lock was taken over during it', () => {
+    const store = new DlcStateStore(path.join(root, 'state-lost'));
+    const lockPath = store._lockDirectory('contract-d');
+    const err = failureAfterTakeover(lockPath, () => store._withLock('contract-d', () => {
+      takeOverLock(lockPath);
+      throw new Error('state write failed');
+    }));
+    assertOwnFailureKept(err, lockPath, 'state write failed');
+  });
+
+  test('a failed oracle write is reported as itself when the lock was taken over during it', () => {
+    const store = new DlcOracleEventStore({
+      baseDirectory: path.join(root, 'oracle-lost'),
+      wrappingKey: Buffer.alloc(32, 7),
+      network: 'bitcoin-regtest'
+    });
+    const lockPath = store._lockDirectory('event-b');
+    const err = failureAfterTakeover(lockPath, () => store._withLock('event-b', () => {
+      takeOverLock(lockPath);
+      throw new Error('oracle write failed');
+    }));
+    assertOwnFailureKept(err, lockPath, 'oracle write failed');
+  });
+
+  test('a failed watchtower journal write is reported as itself when the lock was taken over during it', () => {
+    const keys = crypto.generateKeyPairSync('ed25519');
+    const journal = new DlcWatchtowerJournal(path.join(root, 'journal-lost'), {
+      watchtowerId: 'independent-watchtower-1',
+      publicKey: keys.publicKey,
+      privateKey: keys.privateKey
+    });
+    const lockPath = path.join(root, 'journal-lost', `.${journalContractKey('contract-e')}.lock`);
+    const err = failureAfterTakeover(lockPath, () => journal._withLock('contract-e', () => {
+      takeOverLock(lockPath);
+      throw new Error('journal write failed');
+    }));
+    assertOwnFailureKept(err, lockPath, 'journal write failed');
+  });
+
+  test('a failed nonce journal write is reported as itself when the lock was taken over during it', () => {
+    const journalPath = path.join(root, 'nonce-lost', 'journal.json');
+    fs.mkdirSync(path.dirname(journalPath), { recursive: true });
+    const lockPath = `${journalPath}.lock`;
+    const realRename = fs.renameSync;
+    fs.renameSync = (from, to) => {
+      if (to !== journalPath) return realRename(from, to);
+      takeOverLock(lockPath);
+      throw new Error('nonce journal write failed');
+    };
+    let err;
+    try { reserveNonceUsage(Buffer.alloc(64, 4), Buffer.alloc(32, 5), { journalPath }); }
+    catch (caught) { err = caught; }
+    finally { fs.renameSync = realRename; }
+    assert(err, 'the nonce reservation did not fail');
+    assertOwnFailureKept(err, lockPath, 'nonce journal write failed');
   });
 } finally {
   fs.rmSync(root, { recursive: true, force: true });

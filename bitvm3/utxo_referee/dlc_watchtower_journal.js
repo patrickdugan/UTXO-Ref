@@ -10,11 +10,11 @@ const { evaluateDlcChainSnapshot } = require('./dlc_chain_guard');
 const { captureDlcAnchorRecoverySnapshot } = require('./dlc_bitcoin_core_observer');
 const { evaluateDlcAnchorRecovery } = require('./dlc_anchor_recovery_guard');
 const {
-  acquireDirectoryLock,
   assertNonSymlinkDirectory,
   ensureNonSymlinkDirectory,
   readBoundedJson,
-  writeJsonAppendOnce
+  writeJsonAppendOnce,
+  withDirectoryLock
 } = require('./dlc_durable_json_store');
 const {
   createDlcJournalCheckpoint,
@@ -191,12 +191,11 @@ class DlcWatchtowerJournal {
     return fs.readdirSync(directory).filter((name) => /^observation-[0-9]{12}\.json$/.test(name)).sort();
   }
   _withLock(contractId, run) {
-    const release = acquireDirectoryLock(
+    return withDirectoryLock(
       path.join(this.baseDirectory, `.${contractKey(contractId)}.lock`),
-      `DLC watchtower journal lock is held for ${contractId}`
+      `DLC watchtower journal lock is held for ${contractId}`,
+      run
     );
-    try { return run(); }
-    finally { release(); }
   }
   _write(record) {
     const directory = this._directory(record.contractId);

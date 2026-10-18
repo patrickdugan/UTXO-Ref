@@ -30,7 +30,7 @@
 const fs = require('fs');
 const path = require('path');
 const { sha256Hex } = require('../dlc_canonical_json');
-const { acquireDirectoryLock } = require('../dlc_durable_json_store');
+const { withDirectoryLock } = require('../dlc_durable_json_store');
 
 const DEFAULT_JOURNAL_PATH = path.join(__dirname, '..', 'artifacts', 'live', 'nonce_journal.json');
 
@@ -61,12 +61,11 @@ function saveJournalAtomic(journalPath, journal) {
 // writer is reclaimed rather than blocking the journal.
 function withJournalLock(journalPath, run) {
   fs.mkdirSync(path.dirname(journalPath), { recursive: true });
-  const release = acquireDirectoryLock(
+  return withDirectoryLock(
     `${journalPath}.lock`,
-    `nonce journal is locked by another writer: ${journalPath}.lock`
+    `nonce journal is locked by another writer: ${journalPath}.lock`,
+    run
   );
-  try { return run(); }
-  finally { release(); }
 }
 
 class NonceReuseError extends Error {

@@ -14,11 +14,11 @@ const {
 } = require('./tradelayer_dlc_adaptor_sig');
 const { canonicalize, canonicalJson } = require('./dlc_contract_state');
 const {
-  acquireDirectoryLock,
   assertNonSymlinkDirectory,
   ensureNonSymlinkDirectory,
   readBoundedJson,
-  writeJsonAppendOnce
+  writeJsonAppendOnce,
+  withDirectoryLock
 } = require('./dlc_durable_json_store');
 const {
   createDlcJournalCheckpoint,
@@ -99,12 +99,11 @@ class DlcOracleEventStore {
 
   _withLock(key, run) {
     this._requireOpen();
-    const release = acquireDirectoryLock(
+    return withDirectoryLock(
       this._lockDirectory(key),
-      `oracle event store lock is held for ${key}`
+      `oracle event store lock is held for ${key}`,
+      run
     );
-    try { return run(); }
-    finally { release(); }
   }
 
   _files(key) {

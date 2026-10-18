@@ -19,7 +19,7 @@ const {
 const { txidFromUnsignedHex } = require('./recover_btc_testnet4_reserve_vault');
 const { readJsonStrict } = require('./strict_artifact_ingress');
 const { readJsonStrictProfile } = require('./strict_artifact_profiles');
-const { acquireDirectoryLock, writeFileAtomic } = require('./dlc_durable_json_store');
+const { withDirectoryLockAsync, writeFileAtomic } = require('./dlc_durable_json_store');
 const { statementFromWatchtowerTick, buildWatcherReceipt } = require('./utxoref_v2_watcher_quorum');
 const { verifyUtxorefV2FeeReserve } = require('./utxoref_v2_fee_reserve');
 const { DEFAULT_MAX_STATE_AGE_BLOCKS } = require('./utxoref_v2');
@@ -170,12 +170,11 @@ function loadState(filePath) {
 // lock, so one process never saves a stale copy over another's record.
 async function withStateLock(statePath, run) {
   fs.mkdirSync(path.dirname(statePath), { recursive: true });
-  const release = acquireDirectoryLock(
+  return withDirectoryLockAsync(
     `${statePath}.lock`,
-    `watchtower state is locked (remove ${statePath}.lock if no watchtower or CPFP process is running on any host)`
+    `watchtower state is locked (remove ${statePath}.lock if no watchtower or CPFP process is running on any host)`,
+    run
   );
-  try { return await run(); }
-  finally { release(); }
 }
 
 // One tick is one locked read-modify-write: the state is read as it is on disk

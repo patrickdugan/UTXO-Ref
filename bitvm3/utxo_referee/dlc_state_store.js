@@ -5,11 +5,11 @@ const path = require('path');
 const { normalizeDlcContract, transitionDlcContract } = require('./dlc_contract_state');
 const { sha256Hex } = require('./dlc_canonical_json');
 const {
-  acquireDirectoryLock,
   assertNonSymlinkDirectory,
   ensureNonSymlinkDirectory,
   readBoundedJson,
-  writeJsonAppendOnce
+  writeJsonAppendOnce,
+  withDirectoryLock
 } = require('./dlc_durable_json_store');
 const {
   createDlcJournalCheckpoint,
@@ -48,12 +48,11 @@ class DlcStateStore {
   }
 
   _withLock(contractId, run) {
-    const release = acquireDirectoryLock(
+    return withDirectoryLock(
       this._lockDirectory(contractId),
-      `DLC state store lock is held for ${contractId}`
+      `DLC state store lock is held for ${contractId}`,
+      run
     );
-    try { return run(); }
-    finally { release(); }
   }
 
   _revisionFiles(contractId) {
