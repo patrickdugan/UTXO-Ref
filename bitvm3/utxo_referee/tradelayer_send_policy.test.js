@@ -121,6 +121,34 @@ test('pauses wallet spend on excessive fee', () => {
   assertEq(policy.walletAction, 'pause_spend');
 });
 
+test('a live height or registry height that is not a plain integer is refused, not read as zero', () => {
+  const stateOracle = buildTradeLayerSendStateOracleFromConsensus(CONSENSUS_INPUT, {
+    selectedSendId: 'live-send'
+  });
+  stateOracle.registryHeight = CONSENSUS_INPUT.registryHeight;
+  const refuses = (fn) => {
+    try {
+      fn();
+      return false;
+    } catch (_err) {
+      return true;
+    }
+  };
+  for (const currentHeight of ['', false, '0x10', ' 4696000', 4696000.5]) {
+    assert(
+      refuses(() => buildTradeLayerSendProductionPolicy(stateOracle, { sendId: 'live-send', currentHeight })),
+      `currentHeight ${JSON.stringify(currentHeight)} must be refused`
+    );
+  }
+  for (const registryHeight of ['', '1e7', '0x989680']) {
+    const tampered = { ...stateOracle, registryHeight };
+    assert(
+      refuses(() => buildTradeLayerSendProductionPolicy(tampered, { sendId: 'live-send', currentHeight: 4800000 })),
+      `registryHeight ${JSON.stringify(registryHeight)} must be refused`
+    );
+  }
+});
+
 test('pauses on stale registry height', () => {
   const stateOracle = buildTradeLayerSendStateOracleFromConsensus(CONSENSUS_INPUT, {
     selectedSendId: 'live-send'

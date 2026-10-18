@@ -15,6 +15,16 @@ function shortHash(value) {
   return text.length > 20 ? `${text.slice(0, 10)}...${text.slice(-8)}` : text;
 }
 
+// Only web and relative links may be opened from the dashboard. Anything else, such as javascript: or data:, is "#".
+function safeHref(value) {
+  const text = String(value ?? '').trim();
+  try {
+    return /^https?:$/.test(new URL(text, 'https://relative.invalid/').protocol) ? text : '#';
+  } catch (_err) {
+    return '#';
+  }
+}
+
 function escapeHtml(value) {
   return String(value).replace(/[&<>'"]/g, (character) => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
@@ -69,7 +79,7 @@ function renderReceipts() {
   }
   elements['receipt-rows'].innerHTML = receipts.map((receipt) => {
     const link = receipt.url
-      ? `<a href="${escapeHtml(receipt.url)}" target="_blank" rel="noreferrer">${escapeHtml(shortHash(receipt.receipt))}</a>`
+      ? `<a href="${escapeHtml(safeHref(receipt.url))}" target="_blank" rel="noreferrer">${escapeHtml(shortHash(receipt.receipt))}</a>`
       : escapeHtml(shortHash(receipt.receipt));
     return `<tr><td>${escapeHtml(new Date(receipt.time).toLocaleString())}</td><td>${escapeHtml(receipt.type)}</td><td>${escapeHtml(receipt.result)}</td><td>${link}</td></tr>`;
   }).join('');
@@ -94,7 +104,7 @@ async function refreshStatus() {
     setValue('assertion-state', status.graph.assertionUnspent ? 'Unspent' : status.graph.artifactStatus, true);
     setValue('faucet-available', formatSats(status.faucet.walletAvailableAboveReserveSats), status.faucet.enabled);
     setValue('daily-remaining', formatSats(status.faucet.dailyRemainingSats));
-    elements['assertion-link'].href = status.graph.explorer;
+    elements['assertion-link'].href = safeHref(status.graph.explorer);
     elements['graph-hash'].textContent = `Graph ${status.graph.graphHash} | Assertion ${status.graph.assertionOutpoint}`;
     elements['claim-amount'].textContent = formatSats(status.faucet.amountSats);
     elements['stress-limit'].textContent = `Max ${status.stress.maxIterationsPerRun}`;
@@ -134,7 +144,7 @@ elements['faucet-form'].addEventListener('submit', async (event) => {
       body: JSON.stringify({ inviteToken: inviteToken(), address: elements['faucet-address'].value.trim() })
     });
     const txLink = payload.txid
-      ? `<a href="${escapeHtml(payload.explorer)}" target="_blank" rel="noreferrer">${escapeHtml(payload.txid)}</a>`
+      ? `<a href="${escapeHtml(safeHref(payload.explorer))}" target="_blank" rel="noreferrer">${escapeHtml(payload.txid)}</a>`
       : escapeHtml(payload.claimId);
     showReceipt(elements['claim-receipt'], `${escapeHtml(formatSats(payload.amountSats))} | ${escapeHtml(payload.status)}<br>${txLink}`);
     saveReceipt({ time: new Date().toISOString(), type: 'faucet', result: payload.status, receipt: payload.txid || payload.claimId, url: payload.explorer });

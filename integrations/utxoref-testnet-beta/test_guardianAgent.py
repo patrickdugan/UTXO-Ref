@@ -6,10 +6,15 @@
 import hashlib
 import importlib.util
 import json
+import os
 import pathlib
+import socket
 import socketserver
+import subprocess
+import sys
 import tempfile
 import threading
+from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler
 
 HERE = pathlib.Path(__file__).resolve().parent
@@ -157,10 +162,87 @@ def configuration_refusal_keeps_envelope(state_dir, args, beta):
     assert read_sequence(state_dir) == 1
 
 
+def write_lock_owner(state_dir, pid):
+    owner = {"pid": pid, "host": socket.gethostname(), "createdAt": datetime.now(timezone.utc).isoformat()}
+    (state_dir / agent.LOCK_NAME).write_text(json.dumps(owner) + "\n")
+
+
+def dead_pid():
+    child = subprocess.Popen([sys.executable, "-c", "pass"])
+    child.wait()
+    return child.pid
+
+
+# Two agents on one state directory must not reserve the same sequence. A live owner's lock is never reclaimed.
+def live_owner_refuses_the_run(state_dir, args, beta):
+    write_lock_owner(state_dir, os.getpid())
+    try:
+        agent.heartbeat_once(args)
+    except agent.StateLocked:
+        pass
+    else:
+        raise AssertionError("a run started while another live agent held the state lock")
+    assert read_sequence(state_dir) == 0, "a refused run reserved a sequence"
+    assert not beta.received, "a refused run sent an envelope"
+    assert (state_dir / agent.LOCK_NAME).exists(), "a live owner's lock was reclaimed"
+    (state_dir / agent.LOCK_NAME).unlink()
+    agent.heartbeat_once(args)
+    assert not (state_dir / agent.LOCK_NAME).exists(), "the lock was not released after the run"
+
+
+# A lock whose owner pid is dead on this host is reclaimed, so a crashed agent does not wedge the state.
+def dead_owner_lock_is_reclaimed(state_dir, args, beta):
+    write_lock_owner(state_dir, dead_pid())
+    receipt = agent.heartbeat_once(args)
+    assert receipt["duplicate"] is False, receipt
+    assert read_sequence(state_dir) == 1
+    assert not (state_dir / agent.LOCK_NAME).exists()
+
+
+# When many agents race for a free lock, exactly one acquires it.
+def concurrent_acquire_has_one_winner(state_dir, args, beta):
+    barrier = threading.Barrier(8)
+    winners = []
+    refused = []
+
+    def race():
+        barrier.wait()
+        try:
+            winners.append(agent.acquire_state_lock(state_dir))
+        except agent.StateLocked:
+            refused.append(True)
+
+    threads = [threading.Thread(target=race) for _ in range(8)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+    assert len(winners) == 1, f"{len(winners)} agents acquired one state lock"
+    assert len(refused) == 7
+    agent.release_state_lock(winners[0])
+
+
+# A durable write fsyncs the file before the rename and the directory after it.
+def writes_are_fsynced(state_dir, args, beta):
+    synced = []
+    real_fsync = agent.os.fsync
+    agent.os.fsync = lambda descriptor: (synced.append(descriptor), real_fsync(descriptor))[1]
+    try:
+        agent.write_json(state_dir / "probe.json", {"probe": 1}, private=True)
+    finally:
+        agent.os.fsync = real_fsync
+    assert len(synced) >= 2, f"expected the file and its directory to be fsynced, got {len(synced)} fsyncs"
+
+
 def main():
     beta = FakeBeta()
     run_against(beta, lost_response_is_retried)
     for check in (refused_envelope_is_discarded, configuration_refusal_keeps_envelope):
+        beta = FakeBeta()
+        beta.drop_next_response = False
+        run_against(beta, check)
+    for check in (live_owner_refuses_the_run, dead_owner_lock_is_reclaimed, concurrent_acquire_has_one_winner,
+                  writes_are_fsynced):
         beta = FakeBeta()
         beta.drop_next_response = False
         run_against(beta, check)

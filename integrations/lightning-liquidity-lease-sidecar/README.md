@@ -26,7 +26,7 @@ For local throwaway testing with a trusted node, `LND_REST_INSECURE=1` disables 
 
 The macaroon must allow reading payments (`GET /v1/payments`) as well as sending them. The sidecar treats a request as paid only when LND's payment list shows a `SUCCEEDED` payment for the request's payment hash whose preimage hashes to it. It never trusts its own memory of a payment.
 
-Quoted requests are stored in `SIDECAR_REQUEST_STORE_PATH` (default `runtime/dlc-subswap-requests.json`, written mode 0600). `SIDECAR_MAX_QUOTED_REQUESTS` (default 1000) bounds the store. Entries are never dropped, so when it is full new quotes get a 503 until the cap is raised or the store is cleared.
+Requests are stored in `SIDECAR_REQUEST_STORE_PATH` (default `runtime/dlc-subswap-requests.json`, written mode 0600) and move quoted -> paid -> minted. A quote expires after `SIDECAR_QUOTE_TTL_SECONDS` (default 86400) unless it is paid, and an expired quote can be quoted again. `SIDECAR_MAX_QUOTED_REQUESTS` (default 1000) bounds the open requests, quoted or paid; when it is full new quotes get a 503 until live quotes expire. A minted request is appended by hash to `<store path>.minted`, outside the open table, bounded by `SIDECAR_MAX_MINTED_REQUESTS` (default 100000), and is never quoted, paid or minted again.
 
 ## Endpoint Flow
 
@@ -51,7 +51,7 @@ Quoted requests are stored in `SIDECAR_REQUEST_STORE_PATH` (default `runtime/dlc
 
 3. `POST /v1/dlc-subswap-funding/tlbtc-mint-intent`
 
-   Body: `{"requestId": "...", "recipientAddress": "..."}`. Only a request that LND reports as settled yields a mint intent; a restart does not change that. The grant's `fromAddress` comes from `TL_PROCEDURAL_ADMIN_ADDRESS`, and the DLC state from the `TL_DLC_*` environment. The intent is a TradeLayer call descriptor:
+   Body: `{"requestId": "...", "recipientAddress": "..."}`. Only a request that LND reports as settled yields a mint intent; a restart does not change that. A request yields one intent: a repeat is refused with 409, because the intent is forwarded to TradeLayer and a second one would be a second grant. The grant's `fromAddress` comes from `TL_PROCEDURAL_ADMIN_ADDRESS`, and the DLC state from the `TL_DLC_*` environment. The intent is a TradeLayer call descriptor:
 
    ```json
    {

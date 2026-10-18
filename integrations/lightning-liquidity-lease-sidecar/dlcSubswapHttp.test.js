@@ -169,7 +169,7 @@ async function run(sidecar, base) {
   assert.strictEqual(mint.json.tradeLayer.params.settlementState, 'FUNDED');
   assert.strictEqual(mint.json.tradeLayer.params.amountGranted, '0.00012345');
 
-  // A restarted sidecar still knows the quoted request, and mints from LND's record of the payment.
+  // A restarted sidecar still knows the request was minted, so a repeat mint is refused and not granted again.
   delete require.cache[require.resolve('./server')];
   const restarted = require('./server');
   const restartedServer = http.createServer((req, res) => restarted.handle(req, res));
@@ -179,8 +179,8 @@ async function run(sidecar, base) {
       requestId,
       recipientAddress: RECIPIENT
     });
-    assert.strictEqual(afterRestart.status, 200, 'a restart orphaned a paid request');
-    assert.strictEqual(afterRestart.json.tradeLayer.params.amountGranted, '0.00012345');
+    assert.strictEqual(afterRestart.status, 409, 'a restart forgot that the request was minted');
+    assert.match(afterRestart.json.error, /already minted/);
   } finally {
     await new Promise((resolve) => restartedServer.close(resolve));
   }
@@ -208,14 +208,16 @@ async function run(sidecar, base) {
 
   // The table holds every request this process quoted, so a full table refuses a new quote instead of forgetting
   // an unpaid one. A request already in the table is still quoted, and the paid request still mints.
+  const third = await post(base, quoteRoute, quoteBody(crypto.createHash('sha256').update('third').digest('hex'), 'lntb-third'));
+  assert.strictEqual(third.status, 200, 'the open table refused a quote below its cap');
   const full = await post(base, quoteRoute, quoteBody(crypto.createHash('sha256').update('full').digest('hex'), 'lntb-full'));
   assert.strictEqual(full.status, 503);
   assert.match(full.json.reason, /quote table is full/);
   const requoted = await post(base, quoteRoute, quoteBody(crypto.createHash('sha256').update('failing').digest('hex'), 'lntb-failing'));
   assert.strictEqual(requoted.status, 200, 'a request already in a full table was refused');
   assert.strictEqual(requoted.json.request.requestId, failing.json.request.requestId);
-  const stillPaid = await post(base, mintRoute, { requestId, recipientAddress: RECIPIENT });
-  assert.strictEqual(stillPaid.status, 200, 'a full table dropped a paid request');
+  const stillMinted = await post(base, mintRoute, { requestId, recipientAddress: RECIPIENT });
+  assert.strictEqual(stillMinted.status, 409, 'a full table let a minted request mint again');
   assert.strictEqual(unpaidQuote.status, 200);
 
   // A token file readable by group or others is refused at startup.

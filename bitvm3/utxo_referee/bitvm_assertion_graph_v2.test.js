@@ -352,7 +352,7 @@ test('BVM-1: a circuit over signed-state bits that honestly computes 0 is dispro
 });
 
 test('BVM-3: the challenge window has a policy minimum', () => {
-  for (const challengeCsvBlocks of [0, 5]) {
+  for (const [challengeCsvBlocks, reason] of [[0, /1\.\.65535/], [5, /at least 6/]]) {
     let error = null;
     try {
       const fixture = buildFixture();
@@ -361,7 +361,7 @@ test('BVM-3: the challenge window has a policy minimum', () => {
         challengerXonly: CHALLENGER_XONLY, challengeCsvBlocks, recoveryCsvBlocks: 144
       });
     } catch (err) { error = err.message; }
-    assert(error && /at least 6/.test(error), `challengeCsvBlocks ${challengeCsvBlocks} accepted`);
+    assert(error && reason.test(error), `challengeCsvBlocks ${challengeCsvBlocks} refused as ${error}`);
   }
   const { graph } = buildFixture();
   const raised = verifyBitvmAssertionGraphV2(graph, { ...STATE_VERIFICATION, minimumChallengeCsvBlocks: 144 });

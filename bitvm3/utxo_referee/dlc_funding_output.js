@@ -23,12 +23,11 @@ const ts = require('./tradelayer_taproot_script');
 const { buildTaprootTree, controlBlockWithPath } = require('./tradelayer_taproot_tree');
 const a = require('./tradelayer_dlc_adaptor_sig');
 const { sha256 } = require('./dlc_canonical_json');
+const { pushScriptNum, csvSequence } = require('./csv_delay');
 
 const KIND = 'utxoref_dlc_funding_output_v1';
 const INTERNAL_KEY_POLICY = 'deterministic-nums-no-keypath-v1';
 const NUMS_DOMAIN = 'UTXORef DLC funding NUMS internal key v1';
-const MIN_REFUND_CSV_BLOCKS = 1;
-const MAX_REFUND_CSV_BLOCKS = 0xffff;
 
 const OP_CHECKSEQUENCEVERIFY = 0xb2;
 const OP_DROP = 0x75;
@@ -82,23 +81,6 @@ function sortPartyPubkeyXs(first, second) {
   return normalizePartyPubkeyXs([first, second].sort());
 }
 
-function normalizeRefundCsvBlocks(value) {
-  if (!Number.isSafeInteger(value) || value < MIN_REFUND_CSV_BLOCKS || value > MAX_REFUND_CSV_BLOCKS) {
-    throw new Error(`refundCsvBlocks must be an integer in ${MIN_REFUND_CSV_BLOCKS}..${MAX_REFUND_CSV_BLOCKS}`);
-  }
-  return value;
-}
-
-// Minimal script-number push for a positive block count.
-function pushScriptNum(value) {
-  if (value <= 16) return Buffer.from([0x50 + value]);
-  const bytes = [];
-  let remaining = value;
-  while (remaining > 0) { bytes.push(remaining & 0xff); remaining >>= 8; }
-  if (bytes[bytes.length - 1] & 0x80) bytes.push(0x00);
-  return Buffer.concat([Buffer.from([bytes.length]), Buffer.from(bytes)]);
-}
-
 function twoOfTwo(partyPubkeyXs) {
   return Buffer.concat([
     Buffer.from([OP_PUSH32]), Buffer.from(partyPubkeyXs[0], 'hex'),
@@ -114,7 +96,7 @@ function buildDlcCetLeafScript(partyPubkeyXs) {
 function buildDlcRefundLeafScript(partyPubkeyXs, refundCsvBlocks) {
   const keys = normalizePartyPubkeyXs(partyPubkeyXs);
   return Buffer.concat([
-    pushScriptNum(normalizeRefundCsvBlocks(refundCsvBlocks)),
+    pushScriptNum(csvSequence(refundCsvBlocks, 'refundCsvBlocks')),
     Buffer.from([OP_CHECKSEQUENCEVERIFY, OP_DROP]),
     twoOfTwo(keys)
   ]).toString('hex');
@@ -123,7 +105,7 @@ function buildDlcRefundLeafScript(partyPubkeyXs, refundCsvBlocks) {
 function buildDlcFundingOutput(input) {
   if (!input || typeof input !== 'object') throw new Error('DLC funding output arguments are required');
   const partyPubkeyXs = normalizePartyPubkeyXs(input.partyPubkeyXs);
-  const refundCsvBlocks = normalizeRefundCsvBlocks(input.refundCsvBlocks);
+  const refundCsvBlocks = csvSequence(input.refundCsvBlocks, 'refundCsvBlocks');
   const internalXonly = deriveDlcFundingInternalXonly();
   if (input.internalXonly !== undefined && input.internalXonly !== internalXonly) {
     throw new Error('custom internal key is forbidden; the DLC funding output requires the deterministic NUMS key');
@@ -205,12 +187,9 @@ function buildDlcSettlementWitness({ output, executionType, signatures }) {
 module.exports = {
   KIND,
   INTERNAL_KEY_POLICY,
-  MIN_REFUND_CSV_BLOCKS,
-  MAX_REFUND_CSV_BLOCKS,
   deriveDlcFundingInternalXonly,
   normalizePartyPubkeyXs,
   sortPartyPubkeyXs,
-  normalizeRefundCsvBlocks,
   buildDlcCetLeafScript,
   buildDlcRefundLeafScript,
   buildDlcFundingOutput,

@@ -44,8 +44,8 @@ function buildBitvmLiquidityLease(input = {}) {
     routerNodeId: String(input.routerNodeId || 'router-node'),
     committedUtxo,
     promisedCapacitySats: toSats(input.promisedCapacitySats || committedUtxo.sats, 'promisedCapacitySats').toString(),
-    leaseStartHeight: Number(input.leaseStartHeight || 0),
-    leaseBlocks: Number(input.leaseBlocks || 144),
+    leaseStartHeight: Number(toInt(input.leaseStartHeight ?? 0, 'leaseStartHeight')),
+    leaseBlocks: Number(toInt(input.leaseBlocks ?? 144, 'leaseBlocks')),
     maxFeePpm: Number(toInt(input.maxFeePpm ?? 1000, 'maxFeePpm')),
     maxCltvDelta: Number(toInt(input.maxCltvDelta ?? 40, 'maxCltvDelta')),
     penaltySats: toSats(input.penaltySats || 5000, 'penaltySats').toString()
@@ -55,7 +55,7 @@ function buildBitvmLiquidityLease(input = {}) {
     observedCapacitySats: toSats(input.routeEvidence?.observedCapacitySats ?? terms.promisedCapacitySats, 'routeEvidence.observedCapacitySats').toString(),
     observedFeePpm: Number(toInt(input.routeEvidence?.observedFeePpm ?? terms.maxFeePpm, 'observedFeePpm')),
     observedCltvDelta: Number(toInt(input.routeEvidence?.observedCltvDelta ?? terms.maxCltvDelta, 'observedCltvDelta')),
-    observedAtHeight: Number(input.routeEvidence?.observedAtHeight ?? terms.leaseStartHeight)
+    observedAtHeight: Number(toInt(input.routeEvidence?.observedAtHeight ?? terms.leaseStartHeight, 'observedAtHeight'))
   };
   const routeCheck = evaluateRouteEvidence(terms, routeEvidence);
   const core = {

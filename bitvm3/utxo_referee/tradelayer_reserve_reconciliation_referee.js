@@ -64,7 +64,7 @@ function computeStaleness(observedAtHeight, currentHeight, maxReserveAgeBlocks) 
     || currentHeight === undefined || currentHeight === null) {
     return { checked: false, ageBlocks: null, stale: false };
   }
-  const ageBlocks = Number(currentHeight) - Number(observedAtHeight);
+  const ageBlocks = Number(toInt(currentHeight, 'currentHeight') - toInt(observedAtHeight, 'observedAtHeight'));
   if (!Number.isFinite(ageBlocks) || ageBlocks < 0) {
     // currentHeight before observedAtHeight is nonsensical (reorg, bad input,
     // clock skew) - fail closed rather than silently accepting it.
@@ -177,7 +177,7 @@ function buildTradeLayerReserveReconciliation(input = {}) {
 
   const maxReserveAgeBlocks = reserveAgeWindow(input.maxReserveAgeBlocks);
   const observedAtHeight = input.observedAtHeight !== undefined && input.observedAtHeight !== null
-    ? Number(input.observedAtHeight)
+    ? Number(toInt(input.observedAtHeight, 'observedAtHeight'))
     : null;
   const staleness = computeStaleness(observedAtHeight, input.currentHeight, maxReserveAgeBlocks);
   // Fail-closed: a stale reserve snapshot is never treated as solvent,
