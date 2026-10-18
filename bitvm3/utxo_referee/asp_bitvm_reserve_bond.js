@@ -11,6 +11,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { canonicalStringify, normalizeAmountSats } = require('./m1_spec');
+const { toInt } = require('./money');
 const {
   buildShinigamiVirtualCetBundle,
   verifyShinigamiVirtualCetBundle
@@ -44,11 +45,7 @@ function normalizeString(value, fieldName) {
 }
 
 function normalizeNonNegativeInteger(value, fieldName) {
-  const parsed = Number(value);
-  if (!Number.isInteger(parsed) || parsed < 0) {
-    throw new Error(`${fieldName} must be a non-negative integer`);
-  }
-  return parsed;
+  return Number(toInt(value, fieldName));
 }
 
 function buildAspReserveBond(options = {}) {

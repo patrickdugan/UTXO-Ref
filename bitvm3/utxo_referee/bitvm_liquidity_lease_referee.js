@@ -1,18 +1,9 @@
 const {
   sha256Hex
 } = require('./tradelayer_pnl_route_adapter');
+const { toInt, toSats } = require('./money');
 
 const HEX32_RE = /^[0-9a-f]{64}$/i;
-
-function toSats(value, fieldName) {
-  if (typeof value === 'bigint') return value;
-  if (typeof value === 'number') {
-    if (!Number.isSafeInteger(value)) throw new Error(`${fieldName} must be a safe integer`);
-    return BigInt(value);
-  }
-  if (typeof value === 'string' && /^\d+$/.test(value)) return BigInt(value);
-  throw new Error(`${fieldName} must be an integer sat amount`);
-}
 
 function normalizeOutpoint(value, fieldName) {
   const parts = String(value || '').split(':');
@@ -24,8 +15,8 @@ function normalizeOutpoint(value, fieldName) {
 
 function evaluateRouteEvidence(terms, evidence) {
   const observedCapacitySats = toSats(evidence.observedCapacitySats ?? 0, 'routeEvidence.observedCapacitySats');
-  const observedFeePpm = Number(evidence.observedFeePpm ?? terms.maxFeePpm + 1);
-  const observedCltvDelta = Number(evidence.observedCltvDelta ?? terms.maxCltvDelta + 1);
+  const observedFeePpm = Number(toInt(evidence.observedFeePpm ?? terms.maxFeePpm + 1, 'observedFeePpm'));
+  const observedCltvDelta = Number(toInt(evidence.observedCltvDelta ?? terms.maxCltvDelta + 1, 'observedCltvDelta'));
   const violations = [];
   if (observedCapacitySats < BigInt(terms.promisedCapacitySats)) violations.push('insufficient_capacity');
   if (observedFeePpm > terms.maxFeePpm) violations.push('fee_ppm_above_ceiling');
@@ -55,15 +46,15 @@ function buildBitvmLiquidityLease(input = {}) {
     promisedCapacitySats: toSats(input.promisedCapacitySats || committedUtxo.sats, 'promisedCapacitySats').toString(),
     leaseStartHeight: Number(input.leaseStartHeight || 0),
     leaseBlocks: Number(input.leaseBlocks || 144),
-    maxFeePpm: Number(input.maxFeePpm ?? 1000),
-    maxCltvDelta: Number(input.maxCltvDelta ?? 40),
+    maxFeePpm: Number(toInt(input.maxFeePpm ?? 1000, 'maxFeePpm')),
+    maxCltvDelta: Number(toInt(input.maxCltvDelta ?? 40, 'maxCltvDelta')),
     penaltySats: toSats(input.penaltySats || 5000, 'penaltySats').toString()
   };
   const routeEvidence = {
     channelOutpoint: input.routeEvidence?.channelOutpoint || null,
     observedCapacitySats: toSats(input.routeEvidence?.observedCapacitySats ?? terms.promisedCapacitySats, 'routeEvidence.observedCapacitySats').toString(),
-    observedFeePpm: Number(input.routeEvidence?.observedFeePpm ?? terms.maxFeePpm),
-    observedCltvDelta: Number(input.routeEvidence?.observedCltvDelta ?? terms.maxCltvDelta),
+    observedFeePpm: Number(toInt(input.routeEvidence?.observedFeePpm ?? terms.maxFeePpm, 'observedFeePpm')),
+    observedCltvDelta: Number(toInt(input.routeEvidence?.observedCltvDelta ?? terms.maxCltvDelta, 'observedCltvDelta')),
     observedAtHeight: Number(input.routeEvidence?.observedAtHeight ?? terms.leaseStartHeight)
   };
   const routeCheck = evaluateRouteEvidence(terms, routeEvidence);

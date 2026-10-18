@@ -8,6 +8,7 @@
 
 const crypto = require('crypto');
 const { canonicalStringify, normalizeAmountSats } = require('./m1_spec');
+const { toInt } = require('./money');
 const { buildJurassicMechanismRefs } = require('./jurassic_bitvm_mechanisms');
 const { verifyLiquidityLeaseBundle } = require('./lightning_liquidity_lease');
 const {
@@ -71,8 +72,8 @@ function buildArkTemplateCommitment(options = {}) {
     internalKeyHex,
     taprootOutputKey,
     leafRoles,
-    exitDelayBlocks: Number(options.exitDelayBlocks ?? 144),
-    aspForfeitCsv: Number(options.aspForfeitCsv ?? 2000)
+    exitDelayBlocks: Number(toInt(options.exitDelayBlocks ?? 144, 'exitDelayBlocks')),
+    aspForfeitCsv: Number(toInt(options.aspForfeitCsv ?? 2000, 'aspForfeitCsv'))
   };
 
   return {
@@ -125,8 +126,8 @@ function buildArkLiquidityGraftQuote(options = {}) {
   const vtxo = options.vtxo || buildArkVtxoLiquidityCommitment({ ...options, template });
   const promisedInboundSats = normalizeAmountSats(options.promisedInboundSats || vtxo.vtxoCore.vtxoAmountSats, 'promisedInboundSats');
   const leaseBlocks = Number(options.leaseBlocks || 144);
-  const maxFeePpm = Number(options.maxFeePpm ?? 1000);
-  const maxCltvDelta = Number(options.maxCltvDelta ?? 40);
+  const maxFeePpm = Number(toInt(options.maxFeePpm ?? 1000, 'maxFeePpm'));
+  const maxCltvDelta = Number(toInt(options.maxCltvDelta ?? 40, 'maxCltvDelta'));
   const graftPremiumSats = normalizeAmountSats(options.graftPremiumSats || 750n, 'graftPremiumSats');
   const paymentHashHex = normalizeHex32(options.paymentHashHex || sha256Hex(`ark-graft:${vtxo.vtxoCommitmentId}`), 'paymentHashHex');
   const jurassicMechanisms = buildJurassicMechanismRefs('ark', {
@@ -200,8 +201,8 @@ function buildArkGraftSettlementEvidence(options = {}) {
   const liquidityLease = options.liquidityLease || null;
   const htlcProof = options.htlcProof || {};
   const deliveredInboundSats = normalizeAmountSats(options.deliveredInboundSats || quote.quoteCore.promisedInboundSats, 'deliveredInboundSats');
-  const observedFeePpm = Number(options.observedFeePpm ?? quote.quoteCore.maxFeePpm);
-  const observedCltvDelta = Number(options.observedCltvDelta ?? quote.quoteCore.maxCltvDelta);
+  const observedFeePpm = Number(toInt(options.observedFeePpm ?? quote.quoteCore.maxFeePpm, 'observedFeePpm'));
+  const observedCltvDelta = Number(toInt(options.observedCltvDelta ?? quote.quoteCore.maxCltvDelta, 'observedCltvDelta'));
   const observedBlock = Number(options.observedBlock || 0);
   const paymentHashHex = normalizeHex32(quote.quoteCore.paymentHashHex, 'paymentHashHex');
   const preimageHex = normalizeHex32(
@@ -258,8 +259,8 @@ function buildArkGraftChallengeEvidence(options = {}) {
   const quote = options.quote || buildArkLiquidityGraftQuote(options);
   const taprootProofManifest = options.taprootProofManifest || null;
   const deliveredInboundSats = normalizeAmountSats(options.deliveredInboundSats ?? 0n, 'deliveredInboundSats');
-  const observedFeePpm = Number(options.observedFeePpm ?? quote.quoteCore.maxFeePpm + 1);
-  const observedCltvDelta = Number(options.observedCltvDelta ?? quote.quoteCore.maxCltvDelta + 1);
+  const observedFeePpm = Number(toInt(options.observedFeePpm ?? quote.quoteCore.maxFeePpm + 1, 'observedFeePpm'));
+  const observedCltvDelta = Number(toInt(options.observedCltvDelta ?? quote.quoteCore.maxCltvDelta + 1, 'observedCltvDelta'));
   const missingExitPath = Boolean(options.missingExitPath);
   const missingForfeitPath = Boolean(options.missingForfeitPath);
 
@@ -306,22 +307,22 @@ function satsFromVbytes(feeRateSatVb, vbytes) {
 }
 
 function ppmCost(amountSats, ppm) {
-  return ceilDiv(normalizeAmountSats(amountSats, 'amountSats') * BigInt(Number(ppm)), 1000000n);
+  return ceilDiv(normalizeAmountSats(amountSats, 'amountSats') * BigInt(ppm), 1000000n);
 }
 
 function buildArkGraftCostModel(options = {}) {
   const graftCount = Number(options.graftCount || 24);
   const graftAmountSats = normalizeAmountSats(options.graftAmountSats || options.promisedInboundSats || 50000n, 'graftAmountSats');
   const feeRateSatVb = Number(options.feeRateSatVb ?? 25);
-  const rebalanceFeePpm = Number(options.rebalanceFeePpm ?? 1200);
-  const channelOpenVbytes = Number(options.channelOpenVbytes ?? 154);
-  const channelCloseVbytes = Number(options.channelCloseVbytes ?? 154);
-  const spliceVbytes = Number(options.spliceVbytes ?? 220);
-  const arkRoundVbytes = Number(options.arkRoundVbytes ?? 420);
+  const rebalanceFeePpm = Number(toInt(options.rebalanceFeePpm ?? 1200, 'rebalanceFeePpm'));
+  const channelOpenVbytes = Number(toInt(options.channelOpenVbytes ?? 154, 'channelOpenVbytes'));
+  const channelCloseVbytes = Number(toInt(options.channelCloseVbytes ?? 154, 'channelCloseVbytes'));
+  const spliceVbytes = Number(toInt(options.spliceVbytes ?? 220, 'spliceVbytes'));
+  const arkRoundVbytes = Number(toInt(options.arkRoundVbytes ?? 420, 'arkRoundVbytes'));
   const arkRoundParticipants = Number(options.arkRoundParticipants ?? 24);
-  const arkAspFeePpm = Number(options.arkAspFeePpm ?? 250);
-  const arkExitReserveVbytes = Number(options.arkExitReserveVbytes ?? 180);
-  const arkExitProbabilityBps = Number(options.arkExitProbabilityBps ?? 50);
+  const arkAspFeePpm = Number(toInt(options.arkAspFeePpm ?? 250, 'arkAspFeePpm'));
+  const arkExitReserveVbytes = Number(toInt(options.arkExitReserveVbytes ?? 180, 'arkExitReserveVbytes'));
+  const arkExitProbabilityBps = Number(toInt(options.arkExitProbabilityBps ?? 50, 'arkExitProbabilityBps'));
   const bitvmChallengeReserveSats = normalizeAmountSats(
     options.bitvmChallengeReserveSats ?? 5000n,
     'bitvmChallengeReserveSats'

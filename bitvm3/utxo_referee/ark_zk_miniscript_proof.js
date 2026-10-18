@@ -9,6 +9,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { canonicalStringify, normalizeAmountSats } = require('./m1_spec');
+const { toInt } = require('./money');
 const {
   MAX_TAPROOT_PATH_DEPTH,
   buildArkTaprootMiniscriptProofManifest,
@@ -154,11 +155,8 @@ function resolveExitDelay(manifest, selectedLeaf, override) {
     selectedLeaf.leafCore.relativeTimelockBlocks ??
     manifest.manifestCore.challengeWindowBlocks ??
     1;
-  const value = Number(raw);
-  if (!Number.isFinite(value) || value < 0) {
-    throw new Error('exitDelay must be a non-negative number');
-  }
-  return value > 0 ? value : Number(manifest.manifestCore.challengeWindowBlocks || 1);
+  const value = Number(toInt(raw, 'exitDelay'));
+  return value > 0 ? value : Number(toInt(manifest.manifestCore.challengeWindowBlocks || 1, 'challengeWindowBlocks'));
 }
 
 function computeArkZkMiniscriptBinding(fields) {

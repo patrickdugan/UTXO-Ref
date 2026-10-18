@@ -12,7 +12,7 @@
 const crypto = require('crypto');
 const { stableStringify, sha256Hex, addressToScriptPubKey } = require('./tradelayer_pnl_route_adapter');
 const { verifyTradeLayerWithdrawalQueue } = require('./tradelayer_withdrawal_queue_referee');
-const { toSats, decimalToUnits } = require('./money');
+const { toInt, toSats, decimalToUnits } = require('./money');
 const tr = require('./tradelayer_taproot');
 const ts = require('./tradelayer_taproot_script');
 const { buildTaprootTree, controlBlockWithPath } = require('./tradelayer_taproot_tree');
@@ -58,8 +58,7 @@ function assertXonly(value, fieldName) {
 }
 
 function pushScriptNum(n) {
-  const value = Number(n);
-  if (!Number.isInteger(value) || value < 0) throw new Error('script number must be a non-negative integer');
+  const value = Number(toInt(n, 'script number'));
   if (value === 0) return Buffer.from([0x00]);
   if (value <= 16) return Buffer.from([0x50 + value]);
   const bytes = [];
@@ -73,11 +72,9 @@ function pushScriptNum(n) {
 }
 
 function csvSequence(csvDelay) {
-  const n = Number(csvDelay);
-  if (!Number.isInteger(n) || n < 0 || n > 0xffff) {
-    throw new Error('csv delay must be an integer block delay in 0..65535');
-  }
-  return n;
+  const n = toInt(csvDelay, 'csv delay', { signed: true, noun: 'integer block delay in 0..65535' });
+  if (n < 0n || n > 0xffffn) throw new Error('csv delay must be an integer block delay in 0..65535');
+  return Number(n);
 }
 
 function normalizeFundingOutpoint(outpoint) {
@@ -681,7 +678,7 @@ function guardianPolicyChecks(input, txParsed, manifestCheck, reconciliationChec
   const feeSats = inputSats - outputSats;
   const policy = input.policy || {};
   const maxFeeSats = toSats(policy.maxFeeSats ?? DEFAULT_GUARDIAN_MAX_FEE_SATS.toString(), 'policy.maxFeeSats');
-  const maxFeeBps = Number(policy.maxFeeBpsOfInput ?? DEFAULT_GUARDIAN_MAX_FEE_BPS);
+  const maxFeeBps = Number(toInt(policy.maxFeeBpsOfInput ?? DEFAULT_GUARDIAN_MAX_FEE_BPS, 'maxFeeBpsOfInput'));
   const maxFeeByBps = (inputSats * BigInt(maxFeeBps)) / 10000n;
   const effectiveFeeCap = maxFeeSats < maxFeeByBps ? maxFeeSats : maxFeeByBps;
   const checks = [];

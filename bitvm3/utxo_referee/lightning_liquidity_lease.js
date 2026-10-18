@@ -9,6 +9,7 @@
  */
 
 const crypto = require('crypto');
+const { toInt } = require('./money');
 const { canonicalStringify, normalizeAmountSats } = require('./m1_spec');
 const { buildJurassicMechanismRefs } = require('./jurassic_bitvm_mechanisms');
 
@@ -56,7 +57,7 @@ function buildLiquidityLeaseOffer(options = {}) {
   const clientNodeId = normalizeString(options.clientNodeId || 'client-node-demo', 'clientNodeId');
   const promisedInboundSats = normalizeAmountSats(options.promisedInboundSats || 50000n, 'promisedInboundSats');
   const leaseBlocks = Number(options.leaseBlocks || 144);
-  const maxFeePpm = Number(options.maxFeePpm ?? 1000);
+  const maxFeePpm = Number(toInt(options.maxFeePpm ?? 1000, 'maxFeePpm'));
   const maxCltvDelta = Number(options.maxCltvDelta ?? 40);
   const penaltySats = normalizeAmountSats(options.penaltySats || promisedInboundSats / 10n, 'penaltySats');
   const leasePremiumSats = normalizeAmountSats(options.leasePremiumSats || 1000n, 'leasePremiumSats');
@@ -135,7 +136,7 @@ function buildLeaseSuccessEvidence(options = {}) {
     options.observedInboundSats || offer.terms.promisedInboundSats,
     'observedInboundSats'
   );
-  const observedFeePpm = Number(options.observedFeePpm ?? offer.terms.maxFeePpm);
+  const observedFeePpm = Number(toInt(options.observedFeePpm ?? offer.terms.maxFeePpm, 'observedFeePpm'));
   const observedCltvDelta = Number(options.observedCltvDelta ?? offer.terms.maxCltvDelta);
   const observedAtBlock = Number(options.observedAtBlock || 0);
 
@@ -169,7 +170,7 @@ function buildLeaseSuccessEvidence(options = {}) {
 function buildLeaseChallengeEvidence(options = {}) {
   const offer = options.offer || buildLiquidityLeaseOffer(options);
   const observedInboundSats = normalizeAmountSats(options.observedInboundSats ?? 0n, 'observedInboundSats');
-  const observedFeePpm = Number(options.observedFeePpm ?? offer.terms.maxFeePpm + 1);
+  const observedFeePpm = Number(toInt(options.observedFeePpm ?? offer.terms.maxFeePpm + 1, 'observedFeePpm'));
   const observedCltvDelta = Number(options.observedCltvDelta ?? offer.terms.maxCltvDelta + 1);
   const challengeBlock = Number(options.challengeBlock || offer.terms.refundLocktime || 0);
   const channelOutpoint = options.channelOutpoint

@@ -20,7 +20,7 @@
 const crypto = require('crypto');
 const { computeBoundedSettlementAmounts } = require('./m1_transition');
 const { sha256Hex, stableStringify } = require('./tradelayer_pnl_route_adapter');
-const { toSats } = require('./money');
+const { toSats, toInt } = require('./money');
 
 const DUST_LIMIT_SATS = 546n;
 const OUTCOME_IDS = Object.freeze(['settle-gain', 'settle-loss', 'roll']);
@@ -42,9 +42,9 @@ function sumOutputs(map) {
 function buildDlcSettlementOutcomes(input = {}) {
   const collateralSats = toSats(input.collateralSats, 'collateralSats');
   const minerFeeSats = toSats(input.minerFeeSats ?? 1000, 'minerFeeSats');
-  const bucketCapBps = Number(input.bucketCapBps ?? 500);
-  const realizedPnlBps = Number(input.realizedPnlBps ?? bucketCapBps);
-  const feeBps = Number(input.feeBps ?? 0);
+  const bucketCapBps = Number(toInt(input.bucketCapBps ?? 500, 'bucketCapBps'));
+  const realizedPnlBps = Number(toInt(input.realizedPnlBps ?? bucketCapBps, 'realizedPnlBps'));
+  const feeBps = Number(toInt(input.feeBps ?? 0, 'feeBps'));
   const a = input.addresses || {};
   for (const role of ['alice', 'bob', 'residual']) {
     if (!a[role]) throw new Error(`addresses.${role} is required`);
