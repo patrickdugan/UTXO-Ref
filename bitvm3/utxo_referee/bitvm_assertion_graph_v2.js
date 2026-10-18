@@ -245,8 +245,8 @@ function buildBitvmAssertionTemplateV2(input = {}) {
   const challengerXonly = assertXonly(input.challengerXonly, 'challengerXonly');
   if (operatorXonly === challengerXonly) throw new Error('operator and challenger keys must differ');
   const legacyUnboundPredicate = input.legacyUnboundPredicate === true;
-  const challengeCsvBlocks = csvSequence(input.challengeCsvBlocks ?? DEFAULT_CHALLENGE_CSV_BLOCKS);
-  const recoveryCsvBlocks = csvSequence(input.recoveryCsvBlocks ?? DEFAULT_RECOVERY_CSV_BLOCKS);
+  const challengeCsvBlocks = csvSequence(input.challengeCsvBlocks ?? DEFAULT_CHALLENGE_CSV_BLOCKS, 'challengeCsvBlocks');
+  const recoveryCsvBlocks = csvSequence(input.recoveryCsvBlocks ?? DEFAULT_RECOVERY_CSV_BLOCKS, 'recoveryCsvBlocks');
   if (challengeCsvBlocks < MIN_CHALLENGE_CSV_BLOCKS) {
     throw new Error(`challengeCsvBlocks must be at least ${MIN_CHALLENGE_CSV_BLOCKS}`);
   }

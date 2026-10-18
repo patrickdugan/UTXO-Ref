@@ -13,6 +13,7 @@ const crypto = require('crypto');
 const { stableStringify, sha256Hex, addressToScriptPubKey } = require('./tradelayer_pnl_route_adapter');
 const { verifyTradeLayerWithdrawalQueue } = require('./tradelayer_withdrawal_queue_referee');
 const { toInt, toSats, decimalToUnits } = require('./money');
+const { pushScriptNum, csvSequence } = require('./csv_delay');
 const tr = require('./tradelayer_taproot');
 const ts = require('./tradelayer_taproot_script');
 const { buildTaprootTree, controlBlockWithPath } = require('./tradelayer_taproot_tree');
@@ -55,26 +56,6 @@ function assertXonly(value, fieldName) {
     throw new Error(`${fieldName} is not a valid x-only secp256k1 pubkey: ${err.message}`);
   }
   return text;
-}
-
-function pushScriptNum(n) {
-  const value = Number(toInt(n, 'script number'));
-  if (value === 0) return Buffer.from([0x00]);
-  if (value <= 16) return Buffer.from([0x50 + value]);
-  const bytes = [];
-  let v = value;
-  while (v > 0) {
-    bytes.push(v & 0xff);
-    v >>= 8;
-  }
-  if (bytes[bytes.length - 1] & 0x80) bytes.push(0x00);
-  return Buffer.concat([Buffer.from([bytes.length]), Buffer.from(bytes)]);
-}
-
-function csvSequence(csvDelay) {
-  const n = toInt(csvDelay, 'csv delay', { signed: true, noun: 'integer block delay in 0..65535' });
-  if (n < 0n || n > 0xffffn) throw new Error('csv delay must be an integer block delay in 0..65535');
-  return Number(n);
 }
 
 function normalizeFundingOutpoint(outpoint) {
@@ -162,7 +143,7 @@ function buildTaprootReserveVaultTemplate(input = {}) {
   const guardianXonly = assertXonly(input.guardianXonly, 'guardianXonly');
   const recoveryXonly = assertXonly(input.recoveryXonly || operatorXonly, 'recoveryXonly');
   const bindingHash = input.bindingHash ? assertHex(input.bindingHash, 32, 'bindingHash') : null;
-  const recoveryCsvDelay = csvSequence(input.recoveryCsvDelay ?? DEFAULT_RECOVERY_CSV_DELAY);
+  const recoveryCsvDelay = csvSequence(input.recoveryCsvDelay ?? DEFAULT_RECOVERY_CSV_DELAY, 'recoveryCsvDelay');
   const internalXonly = requireReserveVaultInternalXonly(network, input.internalXonly);
 
   const immediateScript = buildImmediateLeafScript(operatorXonly, guardianXonly, bindingHash);
@@ -214,7 +195,7 @@ function buildTaprootReserveVaultManifest(input = {}) {
   if (!Number.isInteger(observedAtHeight) || observedAtHeight < 0) {
     throw new Error('observedAtHeight must be a non-negative integer');
   }
-  const recoveryCsvDelay = csvSequence(input.recoveryCsvDelay ?? DEFAULT_RECOVERY_CSV_DELAY);
+  const recoveryCsvDelay = csvSequence(input.recoveryCsvDelay ?? DEFAULT_RECOVERY_CSV_DELAY, 'recoveryCsvDelay');
   const operatorXonly = assertXonly(input.operatorXonly, 'operatorXonly');
   const guardianXonly = assertXonly(input.guardianXonly, 'guardianXonly');
   const recoveryXonly = assertXonly(input.recoveryXonly || operatorXonly, 'recoveryXonly');
