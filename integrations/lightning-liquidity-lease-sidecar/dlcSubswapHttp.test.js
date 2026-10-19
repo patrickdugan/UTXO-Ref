@@ -4,6 +4,7 @@ const fs = require('fs');
 const http = require('http');
 const os = require('os');
 const path = require('path');
+const { routeTrackRequest } = require('./lndTrackGateway');
 
 const TOKEN = 'test-sidecar-token-7f3a';
 const ADMIN_ADDRESS = 'tb1qadminplaceholder0000000000000000000000';
@@ -28,8 +29,7 @@ const fakeLnd = http.createServer((req, res) => {
   req.on('end', () => {
     lndCalls.push({ method: req.method, path: req.url, macaroon: req.headers['grpc-metadata-macaroon'] });
     if (req.method === 'GET' && req.url.startsWith(TRACK)) {
-      const hash = Buffer.from(decodeURIComponent(req.url.split('?')[0].slice(TRACK.length)), 'base64').toString('hex');
-      const found = lndPayments.find((p) => p.payment_hash === hash);
+      const found = lndPayments.find((p) => p.payment_hash === routeTrackRequest(req.url));
       if (!found) {
         res.writeHead(404, { 'content-type': 'application/json' });
         res.end(JSON.stringify({ error: "payment isn't initiated", message: "payment isn't initiated", code: 5, details: [] }));

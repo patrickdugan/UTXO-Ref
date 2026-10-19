@@ -6,6 +6,7 @@ const net = require('net');
 const os = require('os');
 const path = require('path');
 const { spawn } = require('child_process');
+const { routeTrackRequest } = require('./lndTrackGateway');
 
 // The sidecar runs as a child process here, so a crash is a real SIGKILL. The payment attempt is saved before LND is
 // asked. A process killed while LND has not answered therefore leaves the request open after a restart: LND decides
@@ -43,8 +44,7 @@ const fakeLnd = http.createServer((req, res) => {
   req.on('data', (chunk) => { raw += chunk; });
   req.on('end', () => {
     if (req.method === 'GET' && req.url.startsWith(TRACK)) {
-      const hash = Buffer.from(decodeURIComponent(req.url.split('?')[0].slice(TRACK.length)), 'base64').toString('hex');
-      const found = lndPayments.find((p) => p.payment_hash === hash);
+      const found = lndPayments.find((p) => p.payment_hash === routeTrackRequest(req.url));
       res.writeHead(found ? 200 : 404, { 'content-type': 'application/json' });
       res.end(JSON.stringify(found ? { result: found } : { error: "payment isn't initiated", code: 5, details: [] }));
       return;

@@ -46,6 +46,26 @@ function paymentHashFromPreimageHex(preimageHex) {
   return crypto.createHash('sha256').update(Buffer.from(preimageHex, 'hex')).digest('hex');
 }
 
+// LND's 2xx body is one JSON value, or the grpc-gateway stream: one JSON value per line, the last of which is the answer.
+// A body that is neither is kept as { raw } so the caller can refuse it.
+function parseLndBody(text) {
+  if (!text) return {};
+  try {
+    return JSON.parse(text);
+  } catch (_err) {
+    // Not one JSON value: read the stream below.
+  }
+  const lines = text.split('\n').map(line => line.trim()).filter(Boolean);
+  for (let i = lines.length - 1; i >= 0; i--) {
+    try {
+      return JSON.parse(lines[i]);
+    } catch (_err) {
+      // Not a JSON line: look at the one before it.
+    }
+  }
+  return { raw: text };
+}
+
 function lndRequest(config, method, pathname, body, timeoutMs = 60000) {
   const url = new URL(pathname, config.restUrl);
   const transport = url.protocol === 'http:' ? http : https;
@@ -73,19 +93,13 @@ function lndRequest(config, method, pathname, body, timeoutMs = 60000) {
       res.on('data', chunk => chunks.push(chunk));
       res.on('end', () => {
         const text = Buffer.concat(chunks).toString('utf8');
-        let json = {};
-        try {
-          json = text ? JSON.parse(text) : {};
-        } catch (_err) {
-          json = { raw: text };
-        }
         if (res.statusCode < 200 || res.statusCode >= 300) {
           const err = new Error(`LND REST ${url.pathname} returned HTTP ${res.statusCode}: ${text}`);
           err.statusCode = res.statusCode;
           reject(err);
           return;
         }
-        resolve(json);
+        resolve(parseLndBody(text));
       });
     });
     req.on('timeout', () => {
@@ -151,14 +165,29 @@ async function payInvoiceViaLndRest({
   };
 }
 
-// LND's record of one payment, found by its payment hash (routerrpc TrackPaymentV2, GET /v2/router/track/{payment_hash},
-// the hash as base64). no_inflight_updates makes LND answer once the payment is final, so one JSON object comes back.
-// LND answers 404 for a hash it never initiated; some versions answer 500 with "payment isn't initiated" or "not found"
-// in the body (the gateway maps a plain error to 500), so both mean unknown. A payment LND is still trying is answered only when it ends, which the
-// timeout bounds. state is 'settled' (with the preimage, which hashes to the payment hash), 'failed', 'unknown' or 'pending'.
+// LND's record of one payment, found by its payment hash (routerrpc TrackPaymentV2, GET /v2/router/track/{payment_hash}).
+// The hash goes in base64url, with its padding: grpc-gateway reads a bytes parameter in standard base64 first, then in
+// base64url, and standard base64 has '/' in about half of hashes, which an encoded slash cannot carry as a route segment.
+// no_inflight_updates makes LND answer once the payment is final. LND answers 404 for a hash it never initiated; some
+// versions answer 500 with "payment isn't initiated" or "not found" in the body, so both mean unknown. A payment LND is
+// still trying is answered only when it ends, which the timeout bounds. state is 'settled' (with the preimage, which
+// hashes to the payment hash), 'failed', 'unknown' or 'pending'.
 function neverInitiated(err) {
   if (err.statusCode === 404) return true;
   return err.statusCode === 500 && /payment (isn'?t|is not|was not) initiated|payment not found|unknown payment/i.test(String(err.message));
+}
+
+// One track answer as LND's gateway sends it: {result: payment} for a payment, {error: {code: 5}} (gRPC NOT_FOUND) for a
+// hash LND never initiated (null here), or a bare payment object. Any other error, or anything else, is not an answer.
+function trackedPaymentOf(answer) {
+  if (!answer || typeof answer !== 'object') throw new Error('unparseable LND answer');
+  if (answer.error !== undefined && answer.error !== null) {
+    if (typeof answer.error === 'object' && answer.error.code === 5) return null;
+    throw new Error(`LND track answer is an error: ${JSON.stringify(answer.error)}`);
+  }
+  if (answer.result && typeof answer.result === 'object') return answer.result;
+  if (typeof answer.payment_hash === 'string') return answer;
+  throw new Error('unparseable LND answer: it holds no payment');
 }
 
 async function lookupPaymentViaLndRest({
@@ -170,15 +199,16 @@ async function lookupPaymentViaLndRest({
   const expected = String(paymentHashHex || '').toLowerCase();
   if (!/^[0-9a-f]{64}$/.test(expected)) throw new Error('paymentHashHex must be 32 bytes of hex');
   const config = requireConfigured(env);
-  const hashPath = encodeURIComponent(Buffer.from(expected, 'hex').toString('base64'));
+  const hashSegment = Buffer.from(expected, 'hex').toString('base64').replace(/\+/g, '-').replace(/\//g, '_');
   let response;
   try {
-    response = await requestImpl(config, 'GET', `/v2/router/track/${hashPath}?no_inflight_updates=true`, undefined, timeoutMs);
+    response = await requestImpl(config, 'GET', `/v2/router/track/${encodeURIComponent(hashSegment)}?no_inflight_updates=true`, undefined, timeoutMs);
   } catch (err) {
     if (neverInitiated(err)) return { state: 'unknown' };
     throw err;
   }
-  const payment = response.result || {};
+  const payment = trackedPaymentOf(response);
+  if (!payment) return { state: 'unknown' };
   if (decodeLndByteString(payment.payment_hash) !== expected) {
     throw new Error('LND answer does not name the requested payment hash');
   }
@@ -194,5 +224,7 @@ module.exports = {
   decodeLndByteString,
   paymentHashFromPreimageHex,
   payInvoiceViaLndRest,
-  lookupPaymentViaLndRest
+  lookupPaymentViaLndRest,
+  parseLndBody,
+  trackedPaymentOf
 };

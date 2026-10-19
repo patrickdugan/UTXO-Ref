@@ -4,6 +4,7 @@ const fs = require('fs');
 const http = require('http');
 const os = require('os');
 const path = require('path');
+const { routeTrackRequest } = require('./lndTrackGateway');
 
 // The open quote table bounds live, unsettled quotes. A quote is quoted -> paid -> minted: a quote expires after
 // SIDECAR_QUOTE_TTL_SECONDS unless it was paid, and a minted request is recorded by hash, outside the open table,
@@ -40,16 +41,13 @@ let lndPayDelayMs = 0;
 // A pay whose connection drops after LND has settled the payment: LND holds the payment, the sidecar sees an error.
 let lndDropAfterSettle = false;
 const TRACK = '/v2/router/track/';
-function trackedHash(url) {
-  return Buffer.from(decodeURIComponent(url.split('?')[0].slice(TRACK.length)), 'base64').toString('hex');
-}
 const fakeLnd = http.createServer((req, res) => {
   let raw = '';
   req.on('data', (chunk) => { raw += chunk; });
   req.on('end', () => {
     lndCalls.push({ method: req.method, path: req.url });
     if (req.method === 'GET' && req.url.startsWith(TRACK)) {
-      const found = lndPayments.find((p) => p.payment_hash === trackedHash(req.url));
+      const found = lndPayments.find((p) => p.payment_hash === routeTrackRequest(req.url));
       if (!found) {
         res.writeHead(404, { 'content-type': 'application/json' });
         res.end(JSON.stringify({ error: "payment isn't initiated", message: "payment isn't initiated", code: 5, details: [] }));
