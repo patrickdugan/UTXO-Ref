@@ -9,7 +9,7 @@
  */
 
 const crypto = require('crypto');
-const { toInt } = require('./money');
+const { toInt, heightOf } = require('./money');
 const { canonicalStringify, normalizeAmountSats } = require('./m1_spec');
 const { buildJurassicMechanismRefs } = require('./jurassic_bitvm_mechanisms');
 
@@ -56,13 +56,13 @@ function buildLiquidityLeaseOffer(options = {}) {
   const lspNodeId = normalizeString(options.lspNodeId || 'lsp-node-demo', 'lspNodeId');
   const clientNodeId = normalizeString(options.clientNodeId || 'client-node-demo', 'clientNodeId');
   const promisedInboundSats = normalizeAmountSats(options.promisedInboundSats || 50000n, 'promisedInboundSats');
-  const leaseBlocks = Number(options.leaseBlocks || 144);
+  const leaseBlocks = heightOf(options.leaseBlocks || 144, 'leaseBlocks');
   const maxFeePpm = Number(toInt(options.maxFeePpm ?? 1000, 'maxFeePpm'));
-  const maxCltvDelta = Number(options.maxCltvDelta ?? 40);
+  const maxCltvDelta = heightOf(options.maxCltvDelta ?? 40, 'maxCltvDelta');
   const penaltySats = normalizeAmountSats(options.penaltySats || promisedInboundSats / 10n, 'penaltySats');
   const leasePremiumSats = normalizeAmountSats(options.leasePremiumSats || 1000n, 'leasePremiumSats');
   const paymentHashHex = normalizeHex32(options.paymentHashHex || sha256Hex(`lease-payment:${leaseId}`), 'paymentHashHex');
-  const refundLocktime = Number(options.refundLocktime || 0);
+  const refundLocktime = heightOf(options.refundLocktime || 0, 'refundLocktime');
   const jurassicMechanisms = buildJurassicMechanismRefs('lightning', {
     contractId: leaseId,
     applicationIntent: 'Lightning liquidity lease proof packages and watchtower handles',
@@ -137,8 +137,8 @@ function buildLeaseSuccessEvidence(options = {}) {
     'observedInboundSats'
   );
   const observedFeePpm = Number(toInt(options.observedFeePpm ?? offer.terms.maxFeePpm, 'observedFeePpm'));
-  const observedCltvDelta = Number(options.observedCltvDelta ?? offer.terms.maxCltvDelta);
-  const observedAtBlock = Number(options.observedAtBlock || 0);
+  const observedCltvDelta = heightOf(options.observedCltvDelta ?? offer.terms.maxCltvDelta, 'observedCltvDelta');
+  const observedAtBlock = heightOf(options.observedAtBlock || 0, 'observedAtBlock');
 
   const evidenceCore = {
     version: 1,
@@ -171,8 +171,8 @@ function buildLeaseChallengeEvidence(options = {}) {
   const offer = options.offer || buildLiquidityLeaseOffer(options);
   const observedInboundSats = normalizeAmountSats(options.observedInboundSats ?? 0n, 'observedInboundSats');
   const observedFeePpm = Number(toInt(options.observedFeePpm ?? offer.terms.maxFeePpm + 1, 'observedFeePpm'));
-  const observedCltvDelta = Number(options.observedCltvDelta ?? offer.terms.maxCltvDelta + 1);
-  const challengeBlock = Number(options.challengeBlock || offer.terms.refundLocktime || 0);
+  const observedCltvDelta = heightOf(options.observedCltvDelta ?? offer.terms.maxCltvDelta + 1, 'observedCltvDelta');
+  const challengeBlock = heightOf(options.challengeBlock || offer.terms.refundLocktime || 0, 'challengeBlock');
   const channelOutpoint = options.channelOutpoint
     ? normalizeOutpoint(options.channelOutpoint, 'channelOutpoint')
     : null;

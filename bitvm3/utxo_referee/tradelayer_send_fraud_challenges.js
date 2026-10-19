@@ -7,7 +7,7 @@ const {
   buildTradeLayerPnlCommitment,
   buildTradeLayerSendRouteTranscript
 } = require('./tradelayer_pnl_route_adapter');
-const { toInt, toSats } = require('./money');
+const { toInt, toSats, heightOf } = require('./money');
 
 const CHALLENGE_TYPES = [
   'invalid_tx_type',
@@ -182,9 +182,9 @@ function buildChallengeEntries(stateOracleBlob, routePlan, binding, options = {}
   const wrongSendSats = (BigInt(sendSats) + 1n).toString();
   const routeTranscript = buildTradeLayerSendRouteTranscript(routePlan);
   // Without a live height the snapshot's age is unknown, so it is not called stale.
-  const currentHeight = Number(toInt(options.currentHeight ?? stateOracleBlob.snapshotHeight ?? 0, 'currentHeight'));
-  const snapshotHeight = Number(toInt(stateOracleBlob.snapshotHeight ?? 0, 'snapshotHeight'));
-  const maxSnapshotAgeBlocks = Number(toInt(options.maxSnapshotAgeBlocks ?? 144, 'maxSnapshotAgeBlocks'));
+  const currentHeight = heightOf(options.currentHeight ?? stateOracleBlob.snapshotHeight ?? 0, 'currentHeight');
+  const snapshotHeight = heightOf(stateOracleBlob.snapshotHeight ?? 0, 'snapshotHeight');
+  const maxSnapshotAgeBlocks = heightOf(options.maxSnapshotAgeBlocks ?? 144, 'maxSnapshotAgeBlocks');
 
   return [
     makeChallenge(

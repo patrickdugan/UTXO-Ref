@@ -9,7 +9,7 @@
 
 const crypto = require('crypto');
 const { canonicalStringify, normalizeAmountSats } = require('./m1_spec');
-const { toInt } = require('./money');
+const { toInt, heightOf } = require('./money');
 const {
   buildTaprootAssetsStablecoinBundle,
   verifyTaprootAssetsStablecoinBundle
@@ -144,7 +144,7 @@ function buildTlUsdLiquidityStake(options = {}) {
     options.routingNotionalSats || conversion.conversionCore.lnbtcSats,
     'routingNotionalSats'
   );
-  const lockBlocks = Number(options.lockBlocks || 1008);
+  const lockBlocks = heightOf(options.lockBlocks || 1008, 'lockBlocks');
   const targetYieldPpm = Number(toInt(options.targetYieldPpm ?? 4200, 'targetYieldPpm'));
   const slashReserveUnits = normalizeUnits(options.slashReserveUnits || stakedTlUsdUnits / 20n, 'slashReserveUnits');
   const stakeCore = {

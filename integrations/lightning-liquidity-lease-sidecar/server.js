@@ -498,11 +498,11 @@ function saveIssuedDlcSubswapRequests() {
   }, null, 2)}\n`);
 }
 
-// Drops quotes that expired unpaid. Paid requests are never dropped here.
+// Drops quotes that expired unpaid and have no payment in flight. Paid requests and requests being paid are kept.
 function pruneExpiredQuotes(now) {
   let dropped = false;
   for (const [requestId, issued] of issuedDlcSubswapRequests) {
-    if (issued.state === 'quoted' && now >= issued.expiresAt) {
+    if (issued.state === 'quoted' && !issued.paying && now >= issued.expiresAt) {
       issuedDlcSubswapRequests.delete(requestId);
       dropped = true;
     }
@@ -522,9 +522,10 @@ function rememberIssuedDlcSubswapRequest(request) {
   return 'ok';
 }
 
-// LND settled the payment, which is a fact the sidecar must not forget, so the request stops expiring.
+// LND settled the payment, which is a fact the sidecar must not forget, so the request stops expiring. Memory changes
+// before the save, so a settled request is never pruned or refused as expired even if the save fails. Each save writes
+// the whole table, and every later pay or mint for the request saves again, so a failed save is retried.
 function markPaid(issued) {
-  if (issued.state === 'paid') return;
   issued.state = 'paid';
   issued.expiresAt = null;
   saveIssuedDlcSubswapRequests();
@@ -576,14 +577,15 @@ async function buildTlbtcMintIntent({ requestId, recipientAddress }) {
   if (!issued) {
     return { ok: false, reason: 'unknown requestId: quote and pay the request first' };
   }
-  if (issued.state === 'quoted' && Date.now() >= issued.expiresAt) throw new HttpError(410, 'quote_expired', QUOTE_EXPIRED);
   const request = issued.request;
   const requestVerification = verifyDlcSubswapFundingRequest(request);
   if (!requestVerification.ok) {
     return { ok: false, reason: requestVerification.reason, requestVerification };
   }
+  // LND is asked before the expiry gate: a payment LND has settled is granted even if the sidecar never recorded it.
   const paymentProof = await settledPaymentProof(request);
   if (!paymentProof) {
+    if (issued.state === 'quoted' && Date.now() >= issued.expiresAt) throw new HttpError(410, 'quote_expired', QUOTE_EXPIRED);
     return { ok: false, reason: 'payment is not settled in LND', requestVerification };
   }
   const paymentVerification = verifyPaymentProofForRequest(request, paymentProof);

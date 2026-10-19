@@ -35,6 +35,8 @@ function payment(i) {
 const knownInvoices = new Map();
 const lndPayments = [];
 const lndCalls = [];
+// How long the fake LND holds a payment before it settles, so a test can keep a payment in flight across the TTL.
+let lndPayDelayMs = 0;
 const fakeLnd = http.createServer((req, res) => {
   let raw = '';
   req.on('data', (chunk) => { raw += chunk; });
@@ -52,12 +54,14 @@ const fakeLnd = http.createServer((req, res) => {
       res.end(JSON.stringify({ error: 'no route to destination' }));
       return;
     }
-    lndPayments.push({ payment_hash: known.paymentHashHex, payment_preimage: known.preimageHex, status: 'SUCCEEDED', value_sat: '12345' });
-    res.end(JSON.stringify({
-      payment_preimage: Buffer.from(known.preimageHex, 'hex').toString('base64'),
-      payment_hash: Buffer.from(known.paymentHashHex, 'hex').toString('base64'),
-      payment_route: {}
-    }));
+    setTimeout(() => {
+      lndPayments.push({ payment_hash: known.paymentHashHex, payment_preimage: known.preimageHex, status: 'SUCCEEDED', value_sat: '12345' });
+      res.end(JSON.stringify({
+        payment_preimage: Buffer.from(known.preimageHex, 'hex').toString('base64'),
+        payment_hash: Buffer.from(known.paymentHashHex, 'hex').toString('base64'),
+        payment_route: {}
+      }));
+    }, lndPayDelayMs);
   });
 });
 
@@ -190,6 +194,51 @@ async function main() {
   const recovered = await quote(node.base, 20);
   assert.strictEqual(recovered.status, 200, 'the table did not recover after its quotes expired');
   log('a full table of live quotes returns 503 and recovers when they expire');
+
+  // A payment that LND is still settling when the TTL passes is not dropped: a quote that arrives meanwhile does not
+  // prune it, the payment settles, and the request mints.
+  const slow = await quote(node.base, 60);
+  assert.strictEqual(slow.status, 200);
+  const slowId = slow.json.request.requestId;
+  lndPayDelayMs = (TTL_SECONDS + 1) * 1000;
+  const slowPay = pay(node.base, slowId);
+  await sleep(TTL_SECONDS * 1000 + 300);
+  const duringPay = await quote(node.base, 61);
+  assert.strictEqual(duringPay.status, 200, 'a quote during a slow pay was refused');
+  const slowPaid = await slowPay;
+  lndPayDelayMs = 0;
+  assert.strictEqual(slowPaid.status, 200, `a slow payment across the TTL was refused: ${JSON.stringify(slowPaid.json)}`);
+  const slowMint = await mint(node.base, slowId);
+  assert.strictEqual(slowMint.status, 200, `a payment that settled after the TTL did not mint: ${JSON.stringify(slowMint.json)}`);
+  log('a payment still in flight across the TTL survives a quote that prunes, and mints');
+
+  // LND settled a payment the sidecar never recorded (the process died before saving paid). Once the quote has
+  // expired, mint still asks LND and grants it: a settled payment is never refused as expired.
+  const unrecorded = payment(62);
+  knownInvoices.set(unrecorded.invoice, unrecorded);
+  const unrecordedId = (await quote(node.base, 62)).json.request.requestId;
+  lndPayments.push({ payment_hash: unrecorded.paymentHashHex, payment_preimage: unrecorded.preimageHex, status: 'SUCCEEDED', value_sat: '12345' });
+  await wait();
+  assert.strictEqual((await mint(node.base, unrecordedId)).status, 200, 'a payment LND settled before expiry was refused as expired');
+  log('a payment LND settled but the sidecar did not record is minted after the quote expired');
+
+  // A save that fails after LND settles the payment is reported, and the settled request is not lost: it stays paid in
+  // memory, and the next pay saves it to disk.
+  const saveFailId = (await quote(node.base, 63)).json.request.requestId;
+  fs.chmodSync(tokenDir, 0o500);
+  let failedSave;
+  try {
+    failedSave = await pay(node.base, saveFailId);
+  } finally {
+    fs.chmodSync(tokenDir, 0o700);
+  }
+  assert.strictEqual(failedSave.status, 500, 'a failed save after a settled payment was not reported');
+  const retriedSave = await pay(node.base, saveFailId);
+  assert.strictEqual(retriedSave.status, 409, 'a retried pay of a settled request was not answered as already paid');
+  const savedEntry = JSON.parse(fs.readFileSync(storePath, 'utf8')).entries.find((e) => e.request.requestId === saveFailId);
+  assert.strictEqual(savedEntry.state, 'paid', 'the next pay did not save a settled request as paid');
+  assert.strictEqual((await mint(node.base, saveFailId)).status, 200, 'a settled request whose save failed did not mint');
+  log('a failed save after a settled payment is reported, and the next pay saves it as paid');
 
   // A restart keeps the lifecycle: a paid request still mints, a quoted one still pays, a minted one stays refused.
   const paidId = await quotedAndPaid(node.base, 30);

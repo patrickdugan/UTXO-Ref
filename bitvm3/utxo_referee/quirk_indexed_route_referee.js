@@ -10,7 +10,7 @@ const {
   stableStringify,
   sha256Hex
 } = require('./tradelayer_pnl_route_adapter');
-const { toInt } = require('./money');
+const { toInt, heightOf } = require('./money');
 
 const CLAIM_KIND = 'quirk_indexed_utxoref_route_claim_v1';
 const CHALLENGE_KIND = 'quirk_indexed_utxoref_route_challenge_v1';
@@ -52,8 +52,8 @@ function normalizeOutpoint(value) {
 }
 
 function normalizeChallengeWindow(value = {}) {
-  const startHeight = Number(toInt(value.startHeight ?? value.start ?? 0, 'challengeWindow.startHeight'));
-  const endHeight = Number(toInt(value.endHeight ?? value.end ?? 0, 'challengeWindow.endHeight'));
+  const startHeight = heightOf(value.startHeight ?? value.start ?? 0, 'challengeWindow.startHeight');
+  const endHeight = heightOf(value.endHeight ?? value.end ?? 0, 'challengeWindow.endHeight');
   if (endHeight <= startHeight) {
     throw new Error('challengeWindow.endHeight must be greater than startHeight');
   }

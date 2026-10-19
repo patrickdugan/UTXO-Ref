@@ -26,6 +26,7 @@ const {
   buildShinigamiProofPublicationBundle,
   verifyShinigamiProofPublicationBundle
 } = require('./shinigami_proof_publication');
+const { heightOf } = require('../money');
 
 const ARTIFACTS_DIR = path.join(__dirname, 'artifacts', 'shinigami_virtual_cet');
 const SUMMARY_PATH = path.join(ARTIFACTS_DIR, 'shinigami_virtual_cet_latest.json');
@@ -175,7 +176,7 @@ function computePayoutRoot(contract, selectedVirtualCet, selectedOutcome) {
 
 function buildShinigamiZkClaim(fields) {
   const maxOracleAgeBlocks = normalizePositiveInteger(fields.maxOracleAgeBlocks ?? 144, 'maxOracleAgeBlocks');
-  const oracleAttestationAgeBlocks = Number(fields.oracleAttestationAgeBlocks ?? 3);
+  const oracleAttestationAgeBlocks = heightOf(fields.oracleAttestationAgeBlocks ?? 3, 'oracleAttestationAgeBlocks');
   if (!Number.isInteger(oracleAttestationAgeBlocks) || oracleAttestationAgeBlocks < 0) {
     throw new Error('oracleAttestationAgeBlocks must be a non-negative integer');
   }
@@ -455,7 +456,7 @@ function buildShinigamiVirtualCetBundle(options = {}) {
   const selectedLeaf = arkLeafLayer.leaves.find(leaf => leaf.leafCore.virtualCetId === selectedVirtualCet.virtualCetId);
   if (!selectedLeaf) throw new Error('selected virtual CET is missing from Ark leaf layer');
 
-  const oracleAttestationAgeBlocks = Number(options.oracleAttestationAgeBlocks ?? 3);
+  const oracleAttestationAgeBlocks = heightOf(options.oracleAttestationAgeBlocks ?? 3, 'oracleAttestationAgeBlocks');
   const maxOracleAgeBlocks = normalizePositiveInteger(options.maxOracleAgeBlocks ?? 144, 'maxOracleAgeBlocks');
   const { payoutRoot, payoutCore } = computePayoutRoot(contract, selectedVirtualCet, selectedOutcome);
   const oracleAttestationHex = settlementEvidence.settlementCore.oracleAttestationHex;
@@ -615,7 +616,7 @@ function verifyShinigamiVirtualCetBundle(bundle) {
   if (payoutRoot !== bundle.payoutRoot || bundle.bundleCore.payoutRoot !== bundle.payoutRoot) {
     return { ok: false, reason: 'payout root mismatch' };
   }
-  if (Number(bundle.oracleAttestationAgeBlocks) > Number(bundle.maxOracleAgeBlocks)) {
+  if (heightOf(bundle.oracleAttestationAgeBlocks, 'oracleAttestationAgeBlocks') > heightOf(bundle.maxOracleAgeBlocks, 'maxOracleAgeBlocks')) {
     return { ok: false, reason: 'oracle attestation is stale' };
   }
   if (bundle.zkClaim.claimId !== hashCanonical(bundle.zkClaim.claimCore)) {

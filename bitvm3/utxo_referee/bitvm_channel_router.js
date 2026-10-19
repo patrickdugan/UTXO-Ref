@@ -1,5 +1,5 @@
 const crypto = require('crypto');
-const { toInt } = require('./money');
+const { toInt, heightOf } = require('./money');
 const { canonicalStringify, normalizeAmountSats } = require('./m1_spec');
 const { verifyLiquidityLeaseBundle } = require('./lightning_liquidity_lease');
 const { verifyArkLiquidityGraftManagerBundle } = require('./ark_liquidity_graft_manager');
@@ -47,7 +47,7 @@ function makeCandidate(core, refs = {}) {
     promisedCapacitySats: satsString(core.promisedCapacitySats || core.availableCapacitySats, 'promisedCapacitySats'),
     availableCapacitySats: satsString(core.availableCapacitySats, 'availableCapacitySats'),
     feePpm: Number(toInt(core.feePpm || 0, 'feePpm')),
-    cltvDelta: Number(core.cltvDelta || 0),
+    cltvDelta: heightOf(core.cltvDelta || 0, 'cltvDelta'),
     priority: Number(core.priority || 0),
     slashable: Boolean(core.slashable)
   };
@@ -245,7 +245,7 @@ function dlcFundingCandidate(bundle) {
         promisedCapacitySats: requestedCollateral.toString(),
         availableCapacitySats: available.toString(),
         feePpm: ppmFromFeeSats(swapFee, requestedCollateral),
-        cltvDelta: Number(core.submarineSwap.refundBlocks || 0),
+        cltvDelta: heightOf(core.submarineSwap.refundBlocks || 0, 'refundBlocks'),
         priority: 5,
         status: verification.ok && proofOk ? 'verified' : 'needs_attention',
         slashable: false,
@@ -318,7 +318,7 @@ function normalizeRouteIntent(intent = {}) {
     destinationNodeId: normalizeString(intent.destinationNodeId || 'ldk-router-destination-regtest', 'destinationNodeId'),
     amountSats,
     maxFeePpm: Number(toInt(intent.maxFeePpm ?? 1200, 'maxFeePpm')),
-    maxCltvDelta: Number(intent.maxCltvDelta ?? 45),
+    maxCltvDelta: heightOf(intent.maxCltvDelta ?? 45, 'maxCltvDelta'),
     allowSplitShards: intent.allowSplitShards !== false,
     assetTicker: intent.assetTicker || null
   };

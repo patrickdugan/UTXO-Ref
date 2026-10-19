@@ -148,9 +148,10 @@ test('token units with eight decimals: integers are units, decimals are scaled',
   assertEq(outcome(() => ex.decimalToUnits('1', 'f', scale)), '1');
   assertEq(outcome(() => ex.decimalToUnits('1.5', 'f', scale)), '150000000');
   assertEq(outcome(() => ex.decimalToUnits('1.00000001', 'f', scale)), '100000001');
-  assertEq(outcome(() => ex.decimalToUnits(-2, 'f', scale)), '-2');
+  assertEq(outcome(() => ex.decimalToUnits('-2', 'f', scale)), '-2');
   assertEq(outcome(() => ex.decimalToUnits('-2.5', 'f', scale)), '-250000000');
-  assertEq(outcome(() => ex.decimalToUnits(1.5, 'f', scale)), '150000000');
+  assertEq(outcome(() => ex.decimalToUnits(-2, 'f', scale)), 'ERR', 'a JSON number is refused as token units');
+  assertEq(outcome(() => ex.decimalToUnits(1.5, 'f', scale)), 'ERR', 'a JSON number is refused as token units');
   for (const value of ['1.000000001', '', null, '1e3', '0x10', ' 1']) {
     assertEq(outcome(() => ex.decimalToUnits(value, 'f', scale)), 'ERR', `units ${JSON.stringify(value)}`);
   }
@@ -214,7 +215,8 @@ test('a decimal amount has one meaning whether it arrives as a number or a strin
   assertEq(units('1.100000000', {}), '110000000');
   assertEq(units(1.1, {}), '110000000');
   assertEq(units('5.00000000', { integersAreUnits: true }), '500000000');
-  assertEq(units(5, { integersAreUnits: true }), '5');
+  assertEq(units(5, { integersAreUnits: true }), 'ERR', 'a JSON number cannot be read as base units');
+  assertEq(units(5n, { integersAreUnits: true }), '5');
   assertEq(units(1e20, { integersAreUnits: true }), 'ERR');
   assertEq(outcome(() => money.toInt(1e20, 'f')), 'ERR');
   assertEq(units('1.100000001', {}), 'ERR');
@@ -222,7 +224,7 @@ test('a decimal amount has one meaning whether it arrives as a number or a strin
 });
 
 // The spelling of an amount fixes its scale. Under integersAreUnits, integer text
-// (and an integer-valued number, whose text is its integer digits) is base units;
+// is base units, and a JSON number is refused because its spelling is gone (5 and 5.0 are one double);
 // any decimal point is a coin amount and is scaled. Trailing zeros never change
 // the spelling. Each row: [value, options, expected].
 test('the amount spelling rule, table-driven, for strings and numbers', () => {
@@ -236,12 +238,13 @@ test('the amount spelling rule, table-driven, for strings and numbers', () => {
     ['5.0', TOKEN, '500000000'],
     ['5.00000000', TOKEN, '500000000'],
     ['2500.00000000', TOKEN, '250000000000'],
-    [5, TOKEN, '5'],
-    [1.1, TOKEN, '110000000'],
+    [5, TOKEN, 'ERR'],
+    [5n, TOKEN, '5'],
+    [1.1, TOKEN, 'ERR'],
     ['1.100000000', TOKEN, '110000000'],
     ['1.100000001', TOKEN, 'ERR'],
     ['1e3', TOKEN, 'ERR'],
-    [1e3, TOKEN, '1000'],
+    [1e3, TOKEN, 'ERR'],
     ['-0', SIGNED_TOKEN, '0'],
     ['-0', TOKEN, 'ERR'],
     ['', TOKEN, 'ERR'],
@@ -257,8 +260,41 @@ test('the amount spelling rule, table-driven, for strings and numbers', () => {
     [' 5', COINS, 'ERR']
   ];
   for (const [value, options, expected] of rows) {
-    assertEq(units(value, options), expected, `${JSON.stringify(value)} ${JSON.stringify(options)}`);
+    assertEq(units(value, options), expected, `${String(value)} ${JSON.stringify(options)}`);
   }
+});
+
+test('heightOf takes one canonical block height and refuses every other spelling', () => {
+  const { heightOf } = require('./money');
+  const ok = [[144, 144], ['144', 144], [0, 0], [0n, 0], ['0', 0], [Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER]];
+  for (const [value, expected] of ok) assertEq(heightOf(value, "h"), expected, `heightOf(${String(value)})`);
+  const bad = [undefined, null, '', 'abc', 'NaN', '1e3', '0x90', ' 144', '144 ', '+144', '-1', -1, 1.5, '1.5',
+    NaN, Infinity, '9007199254740993', 9007199254740992, true];
+  for (const value of bad) {
+    let threw = false;
+    try { heightOf(value, 'h'); } catch (_err) { threw = true; }
+    if (!threw) throw new Error(`heightOf(${String(value)}) must throw`);
+  }
+  assertEq(heightOf(-5, 'h', { signed: true }), -5, 'signed heightOf takes a negative age');
+});
+
+test('a malformed height or CLTV delta in a challenge builder is refused, and a violating value still counts', () => {
+  const lease = require('./lightning_liquidity_lease');
+  const stablecoin = require('./lightning_taproot_assets_stablecoin');
+  const router = require('./bitvm_channel_router');
+  const throwsFor = (fn) => { try { fn(); return false; } catch (_err) { return true; } };
+  if (!(throwsFor(() => lease.buildLeaseChallengeEvidence({ observedCltvDelta: 'abc' })))) throw new Error('lease observedCltvDelta abc was accepted');
+  const leaseProof = { channelOutpoint: `${'11'.repeat(32)}:0`, fundingCommitmentHash: '22'.repeat(32) };
+  if (!(throwsFor(() => lease.buildLeaseSuccessEvidence({ ...leaseProof, observedAtBlock: 'x' })))) throw new Error('lease observedAtBlock x was accepted');
+  if (!(throwsFor(() => lease.buildLeaseSuccessEvidence({ ...leaseProof, observedCltvDelta: 'abc' })))) throw new Error('lease success observedCltvDelta abc was accepted');
+  if (!(throwsFor(() => lease.buildLeaseChallengeEvidence({ challengeBlock: '1e3' })))) throw new Error('lease challengeBlock 1e3 was accepted');
+  const lateLease = lease.buildLeaseChallengeEvidence({ observedCltvDelta: '50' });
+  if (!(lateLease.challengeCore.violations.includes('cltv_delta_above_ceiling'))) throw new Error('lease CLTV 50 over a ceiling of 40 was not a violation');
+  if (!(throwsFor(() => stablecoin.buildStablecoinChallengeEvidence({ observedBlock: 'abc' })))) throw new Error('stablecoin observedBlock abc was accepted');
+  const lateStable = stablecoin.buildStablecoinChallengeEvidence({ observedBlock: '300' });
+  if (!(lateStable.challengeCore.violations.includes('quote_expired_before_settlement'))) throw new Error('stablecoin block 300 past expiry 250 was not a violation');
+  if (!(throwsFor(() => router.buildBitvmChannelRouterBundle({ routeIntent: { maxCltvDelta: 'abc' } })))) throw new Error('router maxCltvDelta abc was accepted');
+  if (!(throwsFor(() => router.buildBitvmChannelRouterBundle({ routeIntent: { maxCltvDelta: 1.5 } })))) throw new Error('router maxCltvDelta 1.5 was accepted');
 });
 
 if (failed > 0) {

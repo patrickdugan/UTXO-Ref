@@ -39,7 +39,7 @@
 const {
   sha256Hex
 } = require('./tradelayer_pnl_route_adapter');
-const { toInt, toSats } = require('./money');
+const { toInt, toSats, heightOf } = require('./money');
 const {
   verifyTradeLayerWithdrawalQueue
 } = require('./tradelayer_withdrawal_queue_referee');
@@ -56,7 +56,7 @@ const { verifyChallengeVerdict } = require('./challenge_verdict');
 const DEFAULT_MAX_RESERVE_AGE_BLOCKS = 6;
 
 function reserveAgeWindow(value) {
-  return value === undefined ? DEFAULT_MAX_RESERVE_AGE_BLOCKS : Number(toInt(value, 'maxReserveAgeBlocks'));
+  return value === undefined ? DEFAULT_MAX_RESERVE_AGE_BLOCKS : heightOf(value, 'maxReserveAgeBlocks');
 }
 
 function computeStaleness(observedAtHeight, currentHeight, maxReserveAgeBlocks) {
@@ -177,7 +177,7 @@ function buildTradeLayerReserveReconciliation(input = {}) {
 
   const maxReserveAgeBlocks = reserveAgeWindow(input.maxReserveAgeBlocks);
   const observedAtHeight = input.observedAtHeight !== undefined && input.observedAtHeight !== null
-    ? Number(toInt(input.observedAtHeight, 'observedAtHeight'))
+    ? heightOf(input.observedAtHeight, 'observedAtHeight')
     : null;
   const staleness = computeStaleness(observedAtHeight, input.currentHeight, maxReserveAgeBlocks);
   // Fail-closed: a stale reserve snapshot is never treated as solvent,

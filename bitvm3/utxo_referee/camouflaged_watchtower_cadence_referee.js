@@ -9,6 +9,7 @@
 const {
   sha256Hex
 } = require('./tradelayer_pnl_route_adapter');
+const { heightOf } = require('./money');
 
 const CLAIM_KIND = 'camouflaged_watchtower_cadence_claim_v1';
 const CHALLENGE_KIND = 'camouflaged_watchtower_cadence_challenge_v1';
@@ -44,15 +45,13 @@ function normalizeOutpoint(value) {
 }
 
 function normalizePositiveInteger(value, fieldName) {
-  const n = Number(value);
-  if (!Number.isInteger(n) || n <= 0) throw new Error(`${fieldName} must be a positive integer`);
+  const n = heightOf(value, fieldName);
+  if (n <= 0) throw new Error(`${fieldName} must be a positive integer`);
   return n;
 }
 
 function normalizeNonNegativeInteger(value, fieldName) {
-  const n = Number(value);
-  if (!Number.isInteger(n) || n < 0) throw new Error(`${fieldName} must be a non-negative integer`);
-  return n;
+  return heightOf(value, fieldName);
 }
 
 function normalizeCarrierProfile(value) {
@@ -163,7 +162,7 @@ function verifyCamouflagedWatchtowerCadenceClaim(claim, context = {}) {
 
   // The height comes from the same live chain snapshot that binds the reserve,
   // never from the caller: a caller-chosen height could make a stale claim fresh.
-  const currentHeight = Number(context.liveImportBundle?.node?.blocks ?? 0);
+  const currentHeight = heightOf(context.liveImportBundle?.node?.blocks ?? 0, 'blocks');
   const ageBlocks = currentHeight - claim.core.publicationHeight;
   add('cadence_freshness', Number.isInteger(currentHeight) && ageBlocks >= 0 && ageBlocks <= claim.core.expectedCadenceBlocks, {
     currentHeight,
