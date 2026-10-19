@@ -3,7 +3,9 @@
  *
  * Accepted forms: a bigint, a safe-integer number, or a canonical decimal string
  * (no whitespace, no hex, no exponent, no empty string). Anything else throws, so a
- * value parsed by one module cannot mean something different in another.
+ * value parsed by one module cannot mean something different in another. The one
+ * exception is a JavaScript number in base units, which decimalToUnits refuses (see
+ * the spelling rule below).
  *
  *   toInt(value, field)                      integer, sign per `signed`
  *   heightOf(value, field)                   block height, age or lock as a safe JavaScript number
@@ -13,11 +15,14 @@
  *
  * Amount spelling rule (decimalToUnits), stated once here:
  *   - The spelling fixes the scale. Text with no decimal point (and no exponent)
- *     is an integer. A number is spelled by its integer digits when it is integer-
- *     valued, and by its shortest decimal text otherwise.
+ *     is an integer. A JavaScript number is spelled by its shortest decimal text
+ *     (1.1 is '1.1', 5 is '5').
  *   - With `integersAreUnits`, an integer spelling is base units ('5' -> 5). Any
  *     decimal point is a coin amount and is scaled ('5.0' and '5.00000000' ->
  *     500000000 at eight places). Without the flag, every amount is scaled.
+ *   - A JavaScript number is refused with `integersAreUnits`. Its spelling is
+ *     gone once it is parsed: 5 and 5.0 are the same double, and they mean 5
+ *     units and 5 coins. Token amounts arrive as strings (or bigints).
  *   - Trailing zeros never change the spelling. They are stripped only to test
  *     whether the fraction has more digits than the scale allows, so
  *     '1.100000000' is accepted at eight places and '1.100000001' is refused.
@@ -82,6 +87,9 @@ function decimalText(value, field, decimals) {
  */
 function decimalToUnits(value, field, { scale = COIN, integersAreUnits = false, signed = false } = {}) {
   if (value === undefined || value === null || value === '') throw new Error(`${field} is required`);
+  if (integersAreUnits && typeof value === 'number') {
+    throw new Error(`${field} must be a string in base units: a JSON number has lost its decimal spelling`);
+  }
   const decimals = scale.toString().length - 1;
   const text = decimalText(value, field, decimals);
   if (typeof text !== 'string' || !(signed ? SIGNED_DECIMAL : UNSIGNED_DECIMAL).test(text)) {
