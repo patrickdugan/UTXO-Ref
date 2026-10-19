@@ -8,6 +8,7 @@ import importlib.util
 import json
 import os
 import pathlib
+import signal
 import socket
 import socketserver
 import subprocess
@@ -97,6 +98,7 @@ def run_against(beta, check):
             "base_url": f"http://127.0.0.1:{server.server_address[1]}",
             "graph_hash": GRAPH,
             "timeout": 5,
+            "interval": 60,
         })
         check(state_dir, args, beta)
     finally:
@@ -162,8 +164,8 @@ def configuration_refusal_keeps_envelope(state_dir, args, beta):
     assert read_sequence(state_dir) == 1
 
 
-def write_lock_owner(state_dir, pid):
-    owner = {"pid": pid, "host": socket.gethostname(), "createdAt": datetime.now(timezone.utc).isoformat()}
+def write_lock_owner(state_dir, pid, **identity):
+    owner = {"pid": pid, "host": socket.gethostname(), "createdAt": datetime.now(timezone.utc).isoformat(), **identity}
     (state_dir / agent.LOCK_NAME).write_text(json.dumps(owner) + "\n")
 
 
@@ -199,6 +201,90 @@ def dead_owner_lock_is_reclaimed(state_dir, args, beta):
     assert not (state_dir / agent.LOCK_NAME).exists()
 
 
+# A live pid that started after the lock was written is a reused pid, so the lock is reclaimed; the process that
+# wrote it keeps it. Windows and Linux record the start; elsewhere there is nothing to compare.
+def reused_pid_lock_is_reclaimed(state_dir, args, beta):
+    started = agent.process_start_time(os.getpid())
+    if started is None:
+        assert os.name != "nt" and not sys.platform.startswith("linux"), "no process start time on this platform"
+        return
+    lock = state_dir / agent.LOCK_NAME
+    write_lock_owner(state_dir, os.getpid(), startTime=started)
+    try:
+        agent.heartbeat_once(args)
+    except agent.StateLocked:
+        pass
+    else:
+        raise AssertionError("a lock whose owner is still running was reclaimed")
+    lock.unlink()
+    write_lock_owner(state_dir, os.getpid(), startTime=str(int(started) - 1))
+    receipt = agent.heartbeat_once(args)
+    assert receipt["duplicate"] is False, receipt
+    assert not lock.exists(), "the reclaimed lock was not released"
+
+
+# No process survives a reboot: a lock written in an earlier boot is reclaimed even if its pid is alive now.
+def earlier_boot_lock_is_reclaimed(state_dir, args, beta):
+    real_boot_id = agent.boot_id
+    agent.boot_id = lambda: "boot-b"
+    try:
+        write_lock_owner(state_dir, os.getpid(), bootId="boot-b")
+        try:
+            agent.heartbeat_once(args)
+        except agent.StateLocked:
+            pass
+        else:
+            raise AssertionError("a live lock from this boot was reclaimed")
+        (state_dir / agent.LOCK_NAME).unlink()
+        write_lock_owner(state_dir, os.getpid(), bootId="boot-a")
+        agent.heartbeat_once(args)
+        assert not (state_dir / agent.LOCK_NAME).exists(), "the earlier boot's lock was not reclaimed"
+    finally:
+        agent.boot_id = real_boot_id
+
+
+# The lock this agent writes carries what the next agent needs to tell it from a reused pid.
+def owner_record_identifies_the_process(state_dir, args, beta):
+    token = agent.acquire_state_lock(state_dir)
+    try:
+        owner = json.loads((state_dir / agent.LOCK_NAME).read_text())
+    finally:
+        agent.release_state_lock(token)
+    assert owner["pid"] == os.getpid() and owner["host"] == socket.gethostname(), owner
+    if os.name == "nt" or sys.platform.startswith("linux"):
+        assert owner.get("startTime") == agent.process_start_time(os.getpid()), owner
+    if sys.platform.startswith("linux"):
+        assert owner.get("bootId") == agent.boot_id(), owner
+
+
+# A stop signal during a heartbeat lets it finish (and release the lock); one while sleeping exits at once.
+def stop_signals_end_the_run_loop(state_dir, args, beta):
+    handlers = {}
+    install = lambda signum, handler: handlers.__setitem__(signum, handler)
+    beats = []
+
+    def beat_then_signal(_args):
+        beats.append(True)
+        handlers[signal.SIGTERM](signal.SIGTERM, None)
+        return {"beat": len(beats)}
+
+    def no_sleep(_seconds):
+        raise AssertionError("the loop slept after a stop request")
+
+    agent.run_forever(args, heartbeat=beat_then_signal, sleep=no_sleep, install_handler=install)
+    assert len(beats) == 1 and signal.SIGINT in handlers, beats
+
+    beats.clear()
+    try:
+        agent.run_forever(args, heartbeat=lambda _args: beats.append(True) or {},
+                          sleep=lambda _seconds: handlers[signal.SIGINT](signal.SIGINT, None), install_handler=install)
+    except SystemExit as stop:
+        assert stop.code == 0, stop.code
+    else:
+        raise AssertionError("a signal while sleeping did not exit")
+    assert len(beats) == 1, beats
+
+
 # When many agents race for a free lock, exactly one acquires it.
 def concurrent_acquire_has_one_winner(state_dir, args, beta):
     barrier = threading.Barrier(8)
@@ -222,7 +308,8 @@ def concurrent_acquire_has_one_winner(state_dir, args, beta):
     agent.release_state_lock(winners[0])
 
 
-# A durable write fsyncs the file before the rename and the directory after it.
+# A durable write fsyncs the file before the rename and the directory after it (fsync_directory is a no-op on
+# Windows, which cannot open a directory for fsync).
 def writes_are_fsynced(state_dir, args, beta):
     synced = []
     real_fsync = agent.os.fsync
@@ -231,7 +318,8 @@ def writes_are_fsynced(state_dir, args, beta):
         agent.write_json(state_dir / "probe.json", {"probe": 1}, private=True)
     finally:
         agent.os.fsync = real_fsync
-    assert len(synced) >= 2, f"expected the file and its directory to be fsynced, got {len(synced)} fsyncs"
+    expected = 1 if os.name == "nt" else 2
+    assert len(synced) >= expected, f"expected the file and its directory to be fsynced, got {len(synced)} fsyncs"
 
 
 def main():
@@ -241,8 +329,9 @@ def main():
         beta = FakeBeta()
         beta.drop_next_response = False
         run_against(beta, check)
-    for check in (live_owner_refuses_the_run, dead_owner_lock_is_reclaimed, concurrent_acquire_has_one_winner,
-                  writes_are_fsynced):
+    for check in (live_owner_refuses_the_run, dead_owner_lock_is_reclaimed, reused_pid_lock_is_reclaimed,
+                  earlier_boot_lock_is_reclaimed, owner_record_identifies_the_process, stop_signals_end_the_run_loop,
+                  concurrent_acquire_has_one_winner, writes_are_fsynced):
         beta = FakeBeta()
         beta.drop_next_response = False
         run_against(beta, check)

@@ -157,10 +157,13 @@ function writeJsonAppendOnce(directory, name, record, { maxBytes, label = 'durab
 }
 
 // Takes an exclusive lock by creating lockPath as a directory, which only one
-// process can do at a time. The holder records its pid, host, start time and a
-// random per-acquisition token in the directory, so a lock left by a process
-// that no longer exists on this host, or whose pid now belongs to another
-// process, is reclaimed instead of blocking every later run.
+// process can do at a time. The holder records its pid, host and a random
+// per-acquisition token in the directory, so a lock left by a process that no
+// longer exists on this host is reclaimed instead of blocking every later run.
+// On Linux it also records the boot id and its process start time, so a lock
+// from an earlier boot, or one whose pid now belongs to another process, is
+// reclaimed too; elsewhere a reused pid keeps the lock held (fail closed).
+// A lock from another host is never judged from here.
 // A lock with no readable owner is reclaimed once it is older than the grace
 // period, which covers a crash between creating the directory and writing the
 // owner. Any other held lock fails closed. The returned function releases the
@@ -176,19 +179,41 @@ const OWNERLESS_LOCK_GRACE_MS = 60 * 1000;
 // acquireDirectoryLock refuses to run off the main thread.
 const heldLockTokens = (globalThis[Symbol.for('utxoref.dlc.heldLockTokens')] ??= new Set());
 
-function readLockOwner(lockPath) {
-  try { return JSON.parse(fs.readFileSync(path.join(lockPath, LOCK_OWNER_FILE), 'utf8')); }
-  catch (_error) { return null; }
+// field 22 of /proc/<pid>/stat, in clock ticks since boot. The command name
+// (field 2) is parenthesised and may contain spaces or ')', so fields are
+// counted from the last ')'.
+function parseProcStatStartTicks(stat) {
+  const close = String(stat).lastIndexOf(')');
+  if (close < 0) return null;
+  const startTicks = String(stat).slice(close + 2).split(' ')[19];
+  return /^[0-9]+$/.test(startTicks || '') ? startTicks : null;
 }
 
-// The start time of a process: field 22 of /proc/<pid>/stat, counted after the
-// parenthesised command name. Platforms without /proc give null, and a lock is
-// then judged by its pid alone.
-function processStartTime(pid) {
-  try {
-    const stat = fs.readFileSync(`/proc/${pid}/stat`, 'utf8');
-    return stat.slice(stat.lastIndexOf(')') + 2).split(' ')[19] ?? null;
-  } catch (_error) { return null; }
+// Overridable in tests; null wherever the platform does not provide it.
+const lockIdentity = {
+  bootId() {
+    if (process.platform !== 'linux') return null;
+    try { return fs.readFileSync('/proc/sys/kernel/random/boot_id', 'utf8').trim() || null; }
+    catch (_error) { return null; }
+  },
+  processStartTicks(pid) {
+    if (process.platform !== 'linux') return null;
+    try { return parseProcStatStartTicks(fs.readFileSync(`/proc/${pid}/stat`, 'utf8')); }
+    catch (_error) { return null; }
+  }
+};
+
+// An owner record that exists but cannot be read now (EBUSY or EPERM from an
+// antivirus or sync client on Windows) is not ownerless: treating it so would
+// reclaim a live lock once the grace period passed.
+const UNREADABLE_OWNER = Object.freeze({ unreadable: true });
+
+function readLockOwner(lockPath) {
+  let text;
+  try { text = fs.readFileSync(path.join(lockPath, LOCK_OWNER_FILE), 'utf8'); }
+  catch (error) { return error.code === 'ENOENT' ? null : UNREADABLE_OWNER; }
+  try { return JSON.parse(text); }
+  catch (_error) { return null; }
 }
 
 // Locks written before the host was recorded carry only a pid. They were
@@ -196,15 +221,22 @@ function processStartTime(pid) {
 // written before the start time was recorded carry no startTime and are judged
 // by their pid alone.
 function lockOwnerIsGone(owner) {
-  if (!owner || !Number.isSafeInteger(owner.pid)) return false;
+  if (!owner || owner === UNREADABLE_OWNER || !Number.isSafeInteger(owner.pid)) return false;
   if (owner.host !== undefined && owner.host !== os.hostname()) return false;
   if (owner.pid === process.pid) return !heldLockTokens.has(owner.token);
+  // No process survives a reboot.
+  if (typeof owner.bootId === 'string') {
+    const bootId = lockIdentity.bootId();
+    if (bootId && bootId !== owner.bootId) return true;
+  }
   try { process.kill(owner.pid, 0); }
   catch (error) { return error.code === 'ESRCH'; }
-  // A live pid with another start time is a process that reused the pid.
-  if (typeof owner.startTime !== 'string') return false;
-  const current = processStartTime(owner.pid);
-  return current !== null && current !== owner.startTime;
+  // The pid is in use: it is the holder only if it started when the holder did.
+  if (typeof owner.startTicks === 'string') {
+    const startTicks = lockIdentity.processStartTicks(owner.pid);
+    if (startTicks && startTicks !== owner.startTicks) return true;
+  }
+  return false;
 }
 
 function lockAgeMs(lockPath) {
@@ -270,18 +302,27 @@ function acquireDirectoryLock(lockPath, heldMessage) {
     catch (error) {
       if (error.code !== 'EEXIST') throw error;
       if (attempt === 0 && reclaimAbandonedLock(lockPath)) continue;
-      throw Object.assign(new Error(heldMessage), { code: 'LOCK_HELD' });
+      const holder = readLockOwner(lockPath);
+      throw Object.assign(new Error(heldMessage), {
+        code: 'LOCK_HELD',
+        holder: holder && holder !== UNREADABLE_OWNER ? { pid: holder.pid, host: holder.host } : null
+      });
     }
   }
   const token = crypto.randomBytes(16).toString('hex');
   heldLockTokens.add(token);
+  const owner = { pid: process.pid, host: os.hostname(), token };
+  const bootId = lockIdentity.bootId();
+  const startTicks = lockIdentity.processStartTicks(process.pid);
+  if (bootId) owner.bootId = bootId;
+  if (startTicks) owner.startTicks = startTicks;
   try {
-    fs.writeFileSync(path.join(lockPath, LOCK_OWNER_FILE),
-      JSON.stringify({ pid: process.pid, host: os.hostname(), token, startTime: processStartTime(process.pid) }),
-      { flag: 'wx', mode: 0o600 });
+    fs.writeFileSync(path.join(lockPath, LOCK_OWNER_FILE), JSON.stringify(owner), { flag: 'wx', mode: 0o600 });
   } catch (error) {
     heldLockTokens.delete(token);
-    fs.rmSync(lockPath, { recursive: true, force: true });
+    // Remove only the directory this call created, and only while it is still
+    // empty: whatever else is there now is not this call's to delete.
+    try { fs.rmdirSync(lockPath); } catch (_cleanupError) {}
     throw error;
   }
   return () => releaseDirectoryLock(lockPath, token);
@@ -341,6 +382,8 @@ function writeFileAtomic(filePath, text) {
 
 module.exports = {
   acquireDirectoryLock,
+  lockIdentity,
+  parseProcStatStartTicks,
   assertNonSymlinkDirectory,
   createDurableDirectory,
   ensureNonSymlinkDirectory,

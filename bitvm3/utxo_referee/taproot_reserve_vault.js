@@ -359,7 +359,8 @@ function normalizeChainTxoutForEvidence(txout) {
 
 // The CSV anchor is the height the funding UTXO confirmed at. The node reports
 // confirmations rather than a height, so the height is the tip minus the depth
-// plus one. A manifest cannot choose this value.
+// plus one. A manifest cannot move it later: its observedAtHeight may not be
+// after this height (see verifyTaprootReserveVaultOnChain).
 function fundingConfirmationHeight(txout, currentHeight) {
   const confirmations = Number(txout.confirmations);
   if (!Number.isInteger(confirmations) || confirmations < 1) return { error: 'vault UTXO is not confirmed' };
@@ -408,11 +409,15 @@ function verifyTaprootReserveVaultOnChain(manifest, options = {}) {
   if (anchor.error) {
     return { ok: false, counted: false, reason: anchor.error, manifestCheck, chainTxout: txout };
   }
-  if (anchor.height !== heightOf(core.observedAtHeight, 'observedAtHeight')) {
+  // Recovery maturity is computed from observedAtHeight. A manifest written
+  // before its funding confirmed names the tip it was built at, an earlier
+  // height, which only brings the computed maturity forward (conservative). A
+  // later height would push it past the real maturity, so it is refused.
+  if (heightOf(core.observedAtHeight, 'observedAtHeight') > anchor.height) {
     return {
       ok: false,
       counted: false,
-      reason: 'observedAtHeight does not match the funding UTXO confirmation height',
+      reason: 'observedAtHeight is after the funding UTXO confirmation height',
       manifestCheck,
       chainTxout: txout,
       confirmationHeight: anchor.height
@@ -517,26 +522,39 @@ function buildTaprootReserveVaultSet(input = {}) {
   };
 }
 
+// The tip height and every confirmation count come from one chain snapshot.
+// Each anchor is tip - confirmations + 1, so a block arriving between reading
+// the tip and reading a UTXO would shift that anchor by one. Every gettxout must
+// report the tip getblockchaininfo named, or the snapshot is taken again. The
+// height is never taken from the caller for the same reason.
+const RESERVE_SNAPSHOT_ATTEMPTS = 3;
+
 async function buildTaprootReserveVaultSetFromRpc(input = {}) {
   if (typeof input.rpc !== 'function') throw new Error('rpc function is required');
   const rpc = input.rpc;
-  const currentHeight = input.currentHeight !== undefined
-    ? heightOf(input.currentHeight, 'currentHeight')
-    : heightOf(await rpc('getblockcount'), 'getblockcount');
-  const chainTxouts = {};
-  for (const manifest of input.manifests || []) {
-    const key = outpointKey(manifest.core.fundingOutpoint);
-    chainTxouts[key] = await rpc('gettxout', [
-      manifest.core.fundingOutpoint.txid,
-      Number(manifest.core.fundingOutpoint.vout),
-      true
-    ]);
+  for (let attempt = 1; ; attempt++) {
+    const chain = await rpc('getblockchaininfo');
+    const currentHeight = input.currentHeight !== undefined
+      ? heightOf(input.currentHeight, 'currentHeight')
+      : heightOf(chain.blocks, 'blocks');
+    const chainTxouts = {};
+    let tipMoved = false;
+    for (const manifest of input.manifests || []) {
+      const txout = await rpc('gettxout', [
+        manifest.core.fundingOutpoint.txid,
+        Number(manifest.core.fundingOutpoint.vout),
+        true
+      ]);
+      if (txout && txout.bestblock !== chain.bestblockhash) { tipMoved = true; break; }
+      chainTxouts[outpointKey(manifest.core.fundingOutpoint)] = txout;
+    }
+    if (!tipMoved) {
+      return buildTaprootReserveVaultSet({ ...input, currentHeight, chainTxouts });
+    }
+    if (attempt >= RESERVE_SNAPSHOT_ATTEMPTS) {
+      throw new Error(`chain tip moved during each of ${RESERVE_SNAPSHOT_ATTEMPTS} reserve snapshot attempts`);
+    }
   }
-  return buildTaprootReserveVaultSet({
-    ...input,
-    currentHeight,
-    chainTxouts
-  });
 }
 
 function reservedSatsFromTaprootReserveVaultSet(vaultSet) {

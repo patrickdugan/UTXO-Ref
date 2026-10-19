@@ -128,7 +128,9 @@ test('a critical alert is sent once, repeats on schedule, and stops when acknowl
     fs.renameSync = (from, to) => { order.push('rename'); return renameSync(from, to); };
     try { acknowledgeAlert(ackPath, state.notifier.lastFingerprint.slice(0, 16)); }
     finally { fs.fsyncSync = fsyncSync; fs.renameSync = renameSync; }
-    assert(order.join(',') === 'fsync,rename,fsync', `unexpected durable write order: ${order.join(',')}`);
+    // The directory flush is a no-op on Windows (dlc_durable_json_store flushDirectory).
+    const expectedOrder = process.platform === 'win32' ? 'fsync,rename' : 'fsync,rename,fsync';
+    assert(order.join(',') === expectedOrder, `unexpected durable write order: ${order.join(',')}`);
     assert(readAcknowledgements(ackPath).length === 1);
     nowMs += 60 * 60 * 1000;
     await notifier.handle({ kind: 'tick', result: tick('recovery_imminent') }, state);

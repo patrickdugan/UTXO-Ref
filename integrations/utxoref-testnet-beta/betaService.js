@@ -281,8 +281,16 @@ function createBetaService(options) {
   const guardianReserve = policy.guardianReservePath
     ? loadGuardianReserve(policy.guardianReservePath, guardianRegistry)
     : null;
-  if (policy.requireGuardianQuorum && (!guardianRegistry || !guardianReserve)) {
+  // The quorum gate defaults on with a registry. Without a reserve it cannot
+  // pass, so betaReady stays false (fail closed) while the service keeps
+  // running, for example between rotating a guardian key and funding the new
+  // reserve. An operator who set BETA_REQUIRE_GUARDIAN_QUORUM=1 explicitly
+  // still gets a startup error for a missing reserve.
+  if (policy.requireGuardianQuorum && (!guardianRegistry || (policy.guardianQuorumExplicit && !guardianReserve))) {
     throw new Error('required guardian quorum must have a registry and funded reserve');
+  }
+  if (policy.requireGuardianQuorum && !guardianReserve) {
+    console.error('[utxoref-beta] guardian quorum gate is on but no reserve is configured: betaReady stays false');
   }
   const initialState = store.read();
   const rateSalt = { privacySalt: initialState.privacySalt };

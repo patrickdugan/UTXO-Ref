@@ -275,7 +275,9 @@ test('state replacement flushes the new file before the rename and the directory
     fs.renameSync = renameSync;
     fs.rmSync(directory, { recursive: true, force: true });
   }
-  assert(order.join(',') === 'fsync,rename,fsync', `unexpected durable write order: ${order.join(',')}`);
+  // The directory flush is a no-op on Windows (dlc_durable_json_store flushDirectory).
+  const expected = process.platform === 'win32' ? 'fsync,rename' : 'fsync,rename,fsync';
+  assert(order.join(',') === expected, `unexpected durable write order: ${order.join(',')}`);
 });
 
 test('wrong artifact kind fails closed', () => {
@@ -719,6 +721,50 @@ asyncTest('WT-2: an iteration notifies, pings the heartbeat only when healthy, a
       'three consecutive failures must raise one critical alert');
     assert(/ECONNREFUSED/.test(alerts()[1].text));
   } finally { fs.rmSync(directory, { recursive: true, force: true }); }
+});
+
+asyncTest('a state lock that stays held raises one alert-file line and a repeating critical alert from the failure threshold on', async () => {
+  const { createLockDeferrals } = require('./utxoref_v2_watchtower');
+  const { createAlertNotifier, notifierConfigFromEnv } = require('./utxoref_v2_alert_notifier');
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'utxoref-v2-watchtower-deferred-'));
+  try {
+    const statePath = path.join(directory, 'state.json');
+    const alertPath = path.join(directory, 'alerts.jsonl');
+    const calls = [];
+    const fetchImpl = async (url, init) => { calls.push(JSON.parse(init.body)); return { ok: true, status: 200 }; };
+    const config = notifierConfigFromEnv({ UTXOREF_WATCHTOWER_ID: 'wt-test', UTXOREF_ALERT_WEBHOOK_URL: 'https://hooks.example.org/alerts' });
+    const notifier = createAlertNotifier(config, { fetchImpl });
+    const deferrals = createLockDeferrals({ alertPath, artifact: path.join(directory, 'artifact.json') }, statePath);
+    const held = Object.assign(new Error('watchtower state is locked'), { code: 'LOCK_HELD', holder: { pid: 4242, host: 'vps' } });
+    const lines = () => (fs.existsSync(alertPath) ? fs.readFileSync(alertPath, 'utf8').trim().split('\n').filter(Boolean) : []);
+    for (let attempt = 1; attempt < config.failureThreshold; attempt++) await deferrals.defer(held, notifier, config.failureThreshold);
+    assert(lines().length === 0 && calls.length === 0, 'deferrals below the failure threshold must stay quiet');
+    const alert = await deferrals.defer(held, notifier, config.failureThreshold);
+    assert(alert.consecutiveFailures === config.failureThreshold && /pid 4242 on vps/.test(alert.message), alert.message);
+    assert(lines().length === 1, 'reaching the threshold must append one alert-file line');
+    assert(calls.length === 1 && calls[0].severity === 'critical' && calls[0].action === 'watchtower_tick_failed',
+      `reaching the threshold must send one critical alert, got ${JSON.stringify(calls.map((call) => call.action))}`);
+    await deferrals.defer(held, notifier, config.failureThreshold);
+    assert(lines().length === 1 && calls.length === 1, 'further deferrals must not re-log or re-send before the repeat interval');
+    assert(deferrals.clear() === config.failureThreshold + 1 && deferrals.consecutive === 0, 'acquiring the lock must reset the count');
+  } finally { fs.rmSync(directory, { recursive: true, force: true }); }
+});
+
+asyncTest('SIGTERM or SIGINT ends the wait between ticks, and a second signal exits at once', async () => {
+  const { createStopSignal } = require('./utxoref_v2_watchtower');
+  const handlers = {};
+  const exits = [];
+  const stop = createStopSignal({ on: (signal, handler) => { handlers[signal] = handler; }, exit: (code) => exits.push(code), log: () => {} });
+  assert(handlers.SIGTERM && handlers.SIGINT, 'both signals must be handled');
+  assert(stop.requested === false);
+  const started = Date.now();
+  const sleeping = stop.sleep(60000);
+  handlers.SIGTERM();
+  await sleeping;
+  assert(Date.now() - started < 5000, 'a signal must end the wait between ticks');
+  assert(stop.requested === true && exits.length === 0, 'the first signal must stop the loop, not exit');
+  handlers.SIGINT();
+  assert(exits.length === 1 && exits[0] === 130, `a second signal must exit at once, got ${JSON.stringify(exits)}`);
 });
 
 asyncTest('WT-2: a refused settlement broadcast is an alert, not a failed tick', async () => {

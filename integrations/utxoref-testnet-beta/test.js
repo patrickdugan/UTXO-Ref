@@ -350,6 +350,8 @@ function testGuardianQuorumGateDefaults() {
   assert.strictEqual(loadPolicy({ BETA_GUARDIAN_REGISTRY_PATH: '/etc/registry.json' }).requireGuardianQuorum, true);
   assert.strictEqual(loadPolicy({ BETA_GUARDIAN_REGISTRY_PATH: '/etc/registry.json', BETA_REQUIRE_GUARDIAN_QUORUM: '1' }).requireGuardianQuorum, true);
   assert.strictEqual(loadPolicy({ BETA_GUARDIAN_REGISTRY_PATH: '/etc/registry.json', BETA_REQUIRE_GUARDIAN_QUORUM: '0' }).requireGuardianQuorum, false);
+  assert.strictEqual(loadPolicy({ BETA_GUARDIAN_REGISTRY_PATH: '/etc/registry.json' }).guardianQuorumExplicit, false);
+  assert.strictEqual(loadPolicy({ BETA_GUARDIAN_REGISTRY_PATH: '/etc/registry.json', BETA_REQUIRE_GUARDIAN_QUORUM: '1' }).guardianQuorumExplicit, true);
 }
 
 function guardianFixture(label) {
@@ -466,6 +468,22 @@ async function testGuardianQuorum(root) {
     store,
     bitcoin
   }), /internal key is not the deterministic NUMS key/);
+
+  // A registry without a reserve: the default gate keeps the service up and
+  // betaReady false; an explicit BETA_REQUIRE_GUARDIAN_QUORUM=1 refuses to start.
+  const unreserved = createBetaService({
+    policy: policyFor(statePath, { guardianRegistryPath: registryPath, requireGuardianQuorum: true, guardianQuorumExplicit: false }),
+    store,
+    bitcoin
+  });
+  const unreservedStatus = await unreserved.betaStatus();
+  assert.equal(unreservedStatus.betaReady, false, 'a quorum gate without a reserve must hold betaReady false');
+  assert.equal(unreservedStatus.guardianReserve.configured, false);
+  assert.throws(() => createBetaService({
+    policy: policyFor(statePath, { guardianRegistryPath: registryPath, requireGuardianQuorum: true, guardianQuorumExplicit: true }),
+    store,
+    bitcoin
+  }), /registry and funded reserve/);
 
   let now = new Date('2026-07-15T12:00:00.000Z');
   const policy = policyFor(statePath, {

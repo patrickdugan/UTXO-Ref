@@ -102,7 +102,8 @@ async function main() {
     fs.renameSync = (from, to) => { order.push('rename'); return renameSync(from, to); };
     try { saveStateAtomic(statePath, { tickCount: 1 }); }
     finally { fs.fsyncSync = fsyncSync; fs.renameSync = renameSync; }
-    assertEq(order.join(','), 'fsync,rename,fsync', 'durable write order');
+    // The directory flush is a no-op on Windows (dlc_durable_json_store flushDirectory).
+    assertEq(order.join(','), process.platform === 'win32' ? 'fsync,rename' : 'fsync,rename,fsync', 'durable write order');
   });
 
   test('state file written by saveStateAtomic is always valid JSON (no half-written file)', () => {

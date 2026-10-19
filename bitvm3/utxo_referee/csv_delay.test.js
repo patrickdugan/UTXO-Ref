@@ -55,13 +55,23 @@ const LEAVES = {
   'taproot vault recovery': (delay) => buildRecoveryLeafScript(PK_A, delay)
 };
 
+// The DLC funding refund delay is a committed JSON field of the funding
+// template: a string spelling would give the same output a second digest,
+// and the Rust signer accepts only numbers. That builder takes numbers only;
+// the others also take the decimal digits.
+const NUMBER_ONLY = new Set(['dlc funding refund']);
+
 console.log('\n=== CSV delay encoding across leaf builders ===\n');
 
-test('every CSV leaf encodes 144 the same way, from a number or its digits', () => {
+test('every CSV leaf encodes 144 the same way; builders of uncommitted delays also take its digits', () => {
   for (const [name, build] of Object.entries(LEAVES)) {
     const script = build(144);
     assert(script.startsWith('029000b275'), `${name}: 144 must push 0x9000 then OP_CSV OP_DROP, got ${script.slice(0, 12)}`);
-    assertEq(build('144'), script, `${name}: '144' must match 144`);
+    if (NUMBER_ONLY.has(name)) {
+      assert(refuses(() => build('144')), `${name}: '144' must be refused (the delay is a committed number)`);
+    } else {
+      assertEq(build('144'), script, `${name}: '144' must match 144`);
+    }
   }
 });
 
