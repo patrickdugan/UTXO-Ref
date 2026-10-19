@@ -1,7 +1,7 @@
 const {
   sha256Hex
 } = require('./tradelayer_pnl_route_adapter');
-const { toInt, toSats, heightOf } = require('./money');
+const { toSats, heightOf } = require('./money');
 
 const HEX32_RE = /^[0-9a-f]{64}$/i;
 
@@ -15,7 +15,7 @@ function normalizeOutpoint(value, fieldName) {
 
 function evaluateRouteEvidence(terms, evidence) {
   const observedCapacitySats = toSats(evidence.observedCapacitySats ?? 0, 'routeEvidence.observedCapacitySats');
-  const observedFeePpm = Number(toInt(evidence.observedFeePpm ?? terms.maxFeePpm + 1, 'observedFeePpm'));
+  const observedFeePpm = heightOf(evidence.observedFeePpm ?? terms.maxFeePpm + 1, 'observedFeePpm');
   const observedCltvDelta = heightOf(evidence.observedCltvDelta ?? terms.maxCltvDelta + 1, 'observedCltvDelta');
   const violations = [];
   if (observedCapacitySats < BigInt(terms.promisedCapacitySats)) violations.push('insufficient_capacity');
@@ -46,14 +46,14 @@ function buildBitvmLiquidityLease(input = {}) {
     promisedCapacitySats: toSats(input.promisedCapacitySats || committedUtxo.sats, 'promisedCapacitySats').toString(),
     leaseStartHeight: heightOf(input.leaseStartHeight ?? 0, 'leaseStartHeight'),
     leaseBlocks: heightOf(input.leaseBlocks ?? 144, 'leaseBlocks'),
-    maxFeePpm: Number(toInt(input.maxFeePpm ?? 1000, 'maxFeePpm')),
+    maxFeePpm: heightOf(input.maxFeePpm ?? 1000, 'maxFeePpm'),
     maxCltvDelta: heightOf(input.maxCltvDelta ?? 40, 'maxCltvDelta'),
     penaltySats: toSats(input.penaltySats || 5000, 'penaltySats').toString()
   };
   const routeEvidence = {
     channelOutpoint: input.routeEvidence?.channelOutpoint || null,
     observedCapacitySats: toSats(input.routeEvidence?.observedCapacitySats ?? terms.promisedCapacitySats, 'routeEvidence.observedCapacitySats').toString(),
-    observedFeePpm: Number(toInt(input.routeEvidence?.observedFeePpm ?? terms.maxFeePpm, 'observedFeePpm')),
+    observedFeePpm: heightOf(input.routeEvidence?.observedFeePpm ?? terms.maxFeePpm, 'observedFeePpm'),
     observedCltvDelta: heightOf(input.routeEvidence?.observedCltvDelta ?? terms.maxCltvDelta, 'observedCltvDelta'),
     observedAtHeight: heightOf(input.routeEvidence?.observedAtHeight ?? terms.leaseStartHeight, 'observedAtHeight')
   };

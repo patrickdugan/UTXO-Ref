@@ -13,7 +13,7 @@ const {
 const {
   verifyTradeLayerReserveReconciliation
 } = require('./tradelayer_reserve_reconciliation_referee');
-const { toSats, toInt, heightOf } = require('./money');
+const { toSats, heightOf } = require('./money');
 
 const DEFAULT_POLICY = {
   challengeWindowBlocks: 144,
@@ -41,7 +41,7 @@ function normalizePolicy(options = {}) {
     minChallengeWindowBlocks: heightOf(policy.minChallengeWindowBlocks, 'minChallengeWindowBlocks'),
     dustLimitSats: toSats(policy.dustLimitSats, 'policy.dustLimitSats').toString(),
     maxFeeSats: toSats(policy.maxFeeSats, 'policy.maxFeeSats').toString(),
-    maxFeeBpsOfInput: Number(toInt(policy.maxFeeBpsOfInput, 'maxFeeBpsOfInput')),
+    maxFeeBpsOfInput: heightOf(policy.maxFeeBpsOfInput, 'maxFeeBpsOfInput'),
     maxRegistryAgeBlocks: heightOf(policy.maxRegistryAgeBlocks, 'maxRegistryAgeBlocks'),
     requireOracleSignature: !!policy.requireOracleSignature,
     allowedOracleAddresses: Array.isArray(policy.allowedOracleAddresses)

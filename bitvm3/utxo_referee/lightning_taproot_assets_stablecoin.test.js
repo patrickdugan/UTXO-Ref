@@ -5,6 +5,7 @@ const {
   buildTaprootAssetDescriptor,
   buildTaprootAssetProofCommitment,
   buildStablecoinRfqQuote,
+  buildStablecoinChallengeEvidence,
   buildTaprootAssetsStablecoinBundle,
   verifyTaprootAssetsStablecoinBundle
 } = require('./lightning_taproot_assets_stablecoin');
@@ -127,5 +128,18 @@ if (failed) {
   console.error(`\nTests: ${passed} passed, ${failed} failed`);
   process.exit(1);
 }
+
+test('a challenge at observed block 0 is judged at block 0, not at the expiry block plus one', () => {
+  const rfqQuote = buildStablecoinRfqQuote({});
+  const challenge = buildStablecoinChallengeEvidence({
+    rfqQuote,
+    deliveredBtcSats: rfqQuote.quoteCore.btcRouteSats,
+    observedSpreadPpm: rfqQuote.quoteCore.maxSpreadPpm,
+    observedRoutingFeePpm: rfqQuote.quoteCore.maxRoutingFeePpm,
+    observedBlock: 0
+  });
+  assert(challenge.challengeCore.observedBlock === 0, 'observed block 0 was replaced');
+  assert(challenge.slashable === false, 'a block-0 observation was judged expired');
+});
 
 console.log(`\nTests: ${passed} passed, ${failed} failed`);

@@ -8,7 +8,7 @@
  */
 
 const crypto = require('crypto');
-const { toInt, heightOf } = require('./money');
+const { heightOf } = require('./money');
 const { canonicalStringify, normalizeAmountSats } = require('./m1_spec');
 const {
   buildArkTemplateCommitment,
@@ -133,11 +133,11 @@ function normalizeRouteIntent(intent, index) {
     edgeNodeId: normalizeString(intent.edgeNodeId || `ldk-edge-${index + 1}`, 'edgeNodeId'),
     counterpartyNodeId: normalizeString(intent.counterpartyNodeId || `ln-peer-${index + 1}`, 'counterpartyNodeId'),
     requestedInboundSats: normalizeAmountSats(intent.requestedInboundSats || intent.amountSats || 50000n, 'requestedInboundSats').toString(),
-    leaseBlocks: heightOf(intent.leaseBlocks || 144, 'leaseBlocks'),
-    maxFeePpm: Number(toInt(intent.maxFeePpm ?? 1000, 'maxFeePpm')),
+    leaseBlocks: heightOf(intent.leaseBlocks ?? 144, 'leaseBlocks'),
+    maxFeePpm: heightOf(intent.maxFeePpm ?? 1000, 'maxFeePpm'),
     maxCltvDelta: heightOf(intent.maxCltvDelta ?? 40, 'maxCltvDelta'),
     priority: Number(intent.priority || 0),
-    requiredByBlock: heightOf(intent.requiredByBlock || 0, 'requiredByBlock'),
+    requiredByBlock: heightOf(intent.requiredByBlock ?? 0, 'requiredByBlock'),
     paymentHashHex,
     preimageHex
   };
@@ -175,8 +175,8 @@ function buildBitvmEnforcementPolicy(options = {}) {
     protocol: 'bitvm_utxoref_ark_liquidity_enforcement_policy',
     managerId,
     governorCircuitId: normalizeString(options.governorCircuitId || 'utxoref-ark-asp-pathing-v1', 'governorCircuitId'),
-    settlementWindowBlocks: heightOf(options.settlementWindowBlocks || 18, 'settlementWindowBlocks'),
-    challengeWindowBlocks: heightOf(options.challengeWindowBlocks || 144, 'challengeWindowBlocks'),
+    settlementWindowBlocks: heightOf(options.settlementWindowBlocks ?? 18, 'settlementWindowBlocks'),
+    challengeWindowBlocks: heightOf(options.challengeWindowBlocks ?? 144, 'challengeWindowBlocks'),
     slashReserveSats: normalizeAmountSats(options.slashReserveSats || 25000n, 'slashReserveSats').toString(),
     maxAspExposureSats: normalizeAmountSats(options.maxAspExposureSats || 500000n, 'maxAspExposureSats').toString(),
     aspBondOutpoint: normalizeOutpoint(
@@ -214,9 +214,9 @@ function buildObservationMap(routeIntents, options = {}) {
             override.deliveredInboundSats !== undefined
               ? normalizeAmountSats(override.deliveredInboundSats, 'deliveredInboundSats')
               : BigInt(route.requestedInboundSats),
-          observedFeePpm: Number(toInt(override.observedFeePpm ?? route.maxFeePpm, 'observedFeePpm')),
+          observedFeePpm: heightOf(override.observedFeePpm ?? route.maxFeePpm, 'observedFeePpm'),
           observedCltvDelta: heightOf(override.observedCltvDelta ?? route.maxCltvDelta, 'observedCltvDelta'),
-          observedBlock: heightOf(override.observedBlock || options.observedBlock || 0, 'observedBlock'),
+          observedBlock: heightOf(override.observedBlock ?? options.observedBlock ?? 0, 'observedBlock'),
           missingExitPath: Boolean(override.missingExitPath),
           missingForfeitPath: Boolean(override.missingForfeitPath),
           preimageHex: normalizeHex32(override.preimageHex || route.preimageHex, 'preimageHex')

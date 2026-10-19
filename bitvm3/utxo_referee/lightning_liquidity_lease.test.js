@@ -162,6 +162,20 @@ test('lease bundle rejects insufficient success evidence', () => {
   assert(String(result.reason).includes('inboundCapacityMet'), 'expected inbound failure');
 });
 
+test('a lease length of zero is zero, not the default', () => {
+  assertEq(buildLiquidityLeaseOffer({ leaseBlocks: 0 }).terms.leaseBlocks, 0, 'a zero lease length became the default');
+});
+
+test('a fee rate above 2^53 is refused, not rounded to a neighbour that can pass the ceiling', () => {
+  let refused = false;
+  try {
+    buildLiquidityLeaseOffer({ maxFeePpm: '9007199254740993' });
+  } catch (err) {
+    refused = /maxFeePpm must be a safe integer/.test(err.message);
+  }
+  assert(refused, 'a fee rate above 2^53 was accepted');
+});
+
 console.log(`\nTests: ${passed} passed, ${failed} failed`);
 if (failed > 0) {
   process.exit(1);

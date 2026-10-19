@@ -12,7 +12,7 @@
 const crypto = require('crypto');
 const { stableStringify, sha256Hex, addressToScriptPubKey } = require('./tradelayer_pnl_route_adapter');
 const { verifyTradeLayerWithdrawalQueue } = require('./tradelayer_withdrawal_queue_referee');
-const { toInt, toSats, decimalToUnits, heightOf } = require('./money');
+const { toSats, decimalToUnits, heightOf } = require('./money');
 const { pushScriptNum, csvSequence } = require('./csv_delay');
 const tr = require('./tradelayer_taproot');
 const ts = require('./tradelayer_taproot_script');
@@ -675,7 +675,7 @@ function guardianPolicyChecks(input, txParsed, manifestCheck, reconciliationChec
   const feeSats = inputSats - outputSats;
   const policy = input.policy || {};
   const maxFeeSats = toSats(policy.maxFeeSats ?? DEFAULT_GUARDIAN_MAX_FEE_SATS.toString(), 'policy.maxFeeSats');
-  const maxFeeBps = Number(toInt(policy.maxFeeBpsOfInput ?? DEFAULT_GUARDIAN_MAX_FEE_BPS, 'maxFeeBpsOfInput'));
+  const maxFeeBps = heightOf(policy.maxFeeBpsOfInput ?? DEFAULT_GUARDIAN_MAX_FEE_BPS, 'maxFeeBpsOfInput');
   const maxFeeByBps = (inputSats * BigInt(maxFeeBps)) / 10000n;
   const effectiveFeeCap = maxFeeSats < maxFeeByBps ? maxFeeSats : maxFeeByBps;
   const checks = [];

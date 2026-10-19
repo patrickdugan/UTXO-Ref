@@ -116,11 +116,11 @@ function buildStablecoinRfqQuote(options = {}) {
   const clientNodeId = normalizeString(options.clientNodeId || 'tap-client-regtest', 'clientNodeId');
   const assetAmountUnits = toInt(options.assetAmountUnits || assetProof.proofCore.amountUnits, 'assetAmountUnits');
   const btcRouteSats = normalizeAmountSats(options.btcRouteSats || 25000n, 'btcRouteSats');
-  const maxSpreadPpm = Number(toInt(options.maxSpreadPpm ?? 5000, 'maxSpreadPpm'));
-  const quotedSpreadPpm = Number(toInt(options.quotedSpreadPpm ?? 3000, 'quotedSpreadPpm'));
-  const maxRoutingFeePpm = Number(toInt(options.maxRoutingFeePpm ?? 1200, 'maxRoutingFeePpm'));
-  const quotedRoutingFeePpm = Number(toInt(options.quotedRoutingFeePpm ?? 900, 'quotedRoutingFeePpm'));
-  const expiryBlock = heightOf(options.expiryBlock || 250, 'expiryBlock');
+  const maxSpreadPpm = heightOf(options.maxSpreadPpm ?? 5000, 'maxSpreadPpm');
+  const quotedSpreadPpm = heightOf(options.quotedSpreadPpm ?? 3000, 'quotedSpreadPpm');
+  const maxRoutingFeePpm = heightOf(options.maxRoutingFeePpm ?? 1200, 'maxRoutingFeePpm');
+  const quotedRoutingFeePpm = heightOf(options.quotedRoutingFeePpm ?? 900, 'quotedRoutingFeePpm');
+  const expiryBlock = heightOf(options.expiryBlock ?? 250, 'expiryBlock');
   const paymentHashHex = normalizeHex32(options.paymentHashHex || sha256Hex(`tap-rfq:${assetProof.proofId}`), 'paymentHashHex');
   const jurassicMechanisms = buildJurassicMechanismRefs('taproot_assets', {
     contractId: assetProof.proofId,
@@ -196,9 +196,9 @@ function buildStablecoinSettlementEvidence(options = {}) {
   const liquidityLease = options.liquidityLease || null;
   const htlcProof = options.htlcProof || {};
   const deliveredBtcSats = normalizeAmountSats(options.deliveredBtcSats || rfqQuote.quoteCore.btcRouteSats, 'deliveredBtcSats');
-  const observedSpreadPpm = Number(toInt(options.observedSpreadPpm ?? rfqQuote.quoteCore.quotedSpreadPpm, 'observedSpreadPpm'));
-  const observedRoutingFeePpm = Number(toInt(options.observedRoutingFeePpm ?? rfqQuote.quoteCore.quotedRoutingFeePpm, 'observedRoutingFeePpm'));
-  const observedBlock = heightOf(options.observedBlock || 0, 'observedBlock');
+  const observedSpreadPpm = heightOf(options.observedSpreadPpm ?? rfqQuote.quoteCore.quotedSpreadPpm, 'observedSpreadPpm');
+  const observedRoutingFeePpm = heightOf(options.observedRoutingFeePpm ?? rfqQuote.quoteCore.quotedRoutingFeePpm, 'observedRoutingFeePpm');
+  const observedBlock = heightOf(options.observedBlock ?? 0, 'observedBlock');
   const preimageHex = normalizeHex32(
     options.preimageHex ||
       (htlcProof.lightning && (htlcProof.lightning.preimageHex || htlcProof.lightning.paymentPreimageHex)) ||
@@ -247,9 +247,9 @@ function buildStablecoinChallengeEvidence(options = {}) {
   const rfqQuote = options.rfqQuote || buildStablecoinRfqQuote(options);
   const observedAssetId = options.observedAssetId || rfqQuote.quoteCore.assetId;
   const deliveredBtcSats = normalizeAmountSats(options.deliveredBtcSats ?? 0n, 'deliveredBtcSats');
-  const observedSpreadPpm = Number(toInt(options.observedSpreadPpm ?? rfqQuote.quoteCore.maxSpreadPpm + 1, 'observedSpreadPpm'));
-  const observedRoutingFeePpm = Number(toInt(options.observedRoutingFeePpm ?? rfqQuote.quoteCore.maxRoutingFeePpm + 1, 'observedRoutingFeePpm'));
-  const observedBlock = heightOf(options.observedBlock || rfqQuote.quoteCore.expiryBlock + 1, 'observedBlock');
+  const observedSpreadPpm = heightOf(options.observedSpreadPpm ?? rfqQuote.quoteCore.maxSpreadPpm + 1, 'observedSpreadPpm');
+  const observedRoutingFeePpm = heightOf(options.observedRoutingFeePpm ?? rfqQuote.quoteCore.maxRoutingFeePpm + 1, 'observedRoutingFeePpm');
+  const observedBlock = heightOf(options.observedBlock ?? rfqQuote.quoteCore.expiryBlock + 1, 'observedBlock');
 
   const violations = stablecoinViolations(rfqQuote.quoteCore, {
     observedAssetId,
