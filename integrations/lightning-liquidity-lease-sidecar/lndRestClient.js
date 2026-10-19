@@ -80,7 +80,9 @@ function lndRequest(config, method, pathname, body, timeoutMs = 60000) {
           json = { raw: text };
         }
         if (res.statusCode < 200 || res.statusCode >= 300) {
-          reject(new Error(`LND REST ${url.pathname} returned HTTP ${res.statusCode}: ${text}`));
+          const err = new Error(`LND REST ${url.pathname} returned HTTP ${res.statusCode}: ${text}`);
+          err.statusCode = res.statusCode;
+          reject(err);
           return;
         }
         resolve(json);
@@ -149,34 +151,36 @@ async function payInvoiceViaLndRest({
   };
 }
 
-// LND's record of a settled payment for one payment hash, newest first. The scan is bounded: at most
-// `maxPages` pages of `pageSize` payments. Returns null when LND has no SUCCEEDED payment for the hash.
-async function findSettledPaymentViaLndRest({
+// LND's record of one payment, found by its payment hash (routerrpc TrackPaymentV2, GET /v2/router/track/{payment_hash},
+// the hash as base64). no_inflight_updates makes LND answer once the payment is final, so one JSON object comes back.
+// LND answers 404 for a hash it never initiated. A payment LND is still trying is answered only when it ends, which the
+// timeout bounds. state is 'settled' (with the preimage, which hashes to the payment hash), 'failed', 'unknown' or 'pending'.
+async function lookupPaymentViaLndRest({
   paymentHashHex,
   env = process.env,
   requestImpl = lndRequest,
-  pageSize = 100,
-  maxPages = 20
+  timeoutMs = 10000
 }) {
   const expected = String(paymentHashHex || '').toLowerCase();
   if (!/^[0-9a-f]{64}$/.test(expected)) throw new Error('paymentHashHex must be 32 bytes of hex');
   const config = requireConfigured(env);
-  let indexOffset = '0';
-  for (let page = 0; page < maxPages; page++) {
-    const query = `include_incomplete=false&reversed=true&max_payments=${pageSize}&index_offset=${indexOffset}`;
-    const response = await requestImpl(config, 'GET', `/v1/payments?${query}`);
-    const payments = Array.isArray(response.payments) ? response.payments : [];
-    const match = payments.find(payment =>
-      String(payment.payment_hash || '').toLowerCase() === expected && payment.status === 'SUCCEEDED');
-    if (match) {
-      const paymentPreimageHex = decodeLndByteString(match.payment_preimage);
-      if (paymentHashFromPreimageHex(paymentPreimageHex) !== expected) return null;
-      return { paymentHashHex: expected, paymentPreimageHex };
-    }
-    if (payments.length < pageSize || response.first_index_offset === undefined) return null;
-    indexOffset = String(response.first_index_offset);
+  const hashPath = encodeURIComponent(Buffer.from(expected, 'hex').toString('base64'));
+  let response;
+  try {
+    response = await requestImpl(config, 'GET', `/v2/router/track/${hashPath}?no_inflight_updates=true`, undefined, timeoutMs);
+  } catch (err) {
+    if (err.statusCode === 404) return { state: 'unknown' };
+    throw err;
   }
-  throw new Error(`LND payment scan for ${expected} exceeded ${maxPages} pages`);
+  const payment = response.result || {};
+  if (decodeLndByteString(payment.payment_hash) !== expected) {
+    throw new Error('LND answer does not name the requested payment hash');
+  }
+  if (payment.status === 'FAILED') return { state: 'failed' };
+  if (payment.status !== 'SUCCEEDED') return { state: 'pending' };
+  const paymentPreimageHex = decodeLndByteString(payment.payment_preimage);
+  if (paymentHashFromPreimageHex(paymentPreimageHex) !== expected) return { state: 'pending' };
+  return { state: 'settled', paymentHashHex: expected, paymentPreimageHex };
 }
 
 module.exports = {
@@ -184,5 +188,5 @@ module.exports = {
   decodeLndByteString,
   paymentHashFromPreimageHex,
   payInvoiceViaLndRest,
-  findSettledPaymentViaLndRest
+  lookupPaymentViaLndRest
 };

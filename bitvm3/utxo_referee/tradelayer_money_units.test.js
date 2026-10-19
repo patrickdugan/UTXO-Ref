@@ -264,6 +264,43 @@ test('the amount spelling rule, table-driven, for strings and numbers', () => {
   }
 });
 
+// A JavaScript number is spelled by its shortest decimal text, exponent written out, so its units are the units of
+// that text. Above about 3.4e7 the double's spacing is wider than a sat, and a rule that rounds the double to eight
+// places reads 77672233.6 as one sat short.
+test('a JavaScript number has the units of its shortest decimal text', () => {
+  const money = require('./money');
+  const units = (value, options = {}) => outcome(() => money.decimalToUnits(value, 'f', options));
+  const rows = [
+    [77672233.6, '7767223360000000'],
+    [34562524.7, '3456252470000000'],
+    [12345678.12345678, '1234567812345678'],
+    [123456.789, '12345678900000'],
+    [1.1, '110000000'],
+    [0.1, '10000000'],
+    [1e-7, '10'],
+    [1.5e-7, '15'],
+    [1e-8, '1'],
+    [-2.5, '-250000000', { signed: true }],
+    [5e-9, 'ERR'],
+    [0.123456789, 'ERR'],
+    [0.1 + 0.2, 'ERR']
+  ];
+  for (const [value, expected, options] of rows) {
+    assertEq(units(value, options), expected, `decimalToUnits(${String(value)})`);
+  }
+  // Seeded numbers from 1e-6 up, where the shortest text has no exponent: the number path must agree with the string
+  // path on the same text, including the refusals.
+  let seed = 20261019;
+  const next = () => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648; };
+  for (let i = 0; i < 5000; i++) {
+    const magnitude = Math.pow(10, -6 + next() * 15);
+    const value = Math.round(magnitude * 1e8) / 1e8;
+    if (value === 0) continue;
+    const text = String(value);
+    assertEq(units(value), units(text), `number ${text} is not its shortest text`);
+  }
+});
+
 test('heightOf takes one canonical block height and refuses every other spelling', () => {
   const { heightOf } = require('./money');
   const ok = [[144, 144], ['144', 144], [0, 0], [0n, 0], ['0', 0], [Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER]];

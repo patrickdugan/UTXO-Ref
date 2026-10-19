@@ -16,26 +16,35 @@ const tokenDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sidecar-token-'));
 const tokenFile = path.join(tokenDir, 'token');
 fs.writeFileSync(tokenFile, `${TOKEN}\n`, { mode: 0o600 });
 
-// A fake LND REST node. Payments it has made are listed on /v1/payments the way LND lists them (hex fields,
-// newest first), so the sidecar can only treat a request as paid when LND itself reports it.
+// A fake LND REST node. Payments it has made are answered the way LND answers them (hex fields): on the track endpoint
+// by hash, 404 for a hash it never initiated, so the sidecar can only treat a request as paid when LND itself reports it.
 const lndCalls = [];
 const lndPayments = [];
 let lndFailNextPayment = false;
+const TRACK = '/v2/router/track/';
 const fakeLnd = http.createServer((req, res) => {
   let raw = '';
   req.on('data', (chunk) => { raw += chunk; });
   req.on('end', () => {
+    lndCalls.push({ method: req.method, path: req.url, macaroon: req.headers['grpc-metadata-macaroon'] });
+    if (req.method === 'GET' && req.url.startsWith(TRACK)) {
+      const hash = Buffer.from(decodeURIComponent(req.url.split('?')[0].slice(TRACK.length)), 'base64').toString('hex');
+      const found = lndPayments.find((p) => p.payment_hash === hash);
+      if (!found) {
+        res.writeHead(404, { 'content-type': 'application/json' });
+        res.end(JSON.stringify({ error: "payment isn't initiated", message: "payment isn't initiated", code: 5, details: [] }));
+        return;
+      }
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ result: found }));
+      return;
+    }
     const body = JSON.parse(raw || '{}');
-    lndCalls.push({ method: req.method, path: req.url, macaroon: req.headers['grpc-metadata-macaroon'], body });
+    lndCalls[lndCalls.length - 1].body = body;
     if (lndFailNextPayment) {
       lndFailNextPayment = false;
       res.writeHead(500, { 'content-type': 'application/json' });
       res.end(JSON.stringify({ error: 'no route to destination' }));
-      return;
-    }
-    res.writeHead(200, { 'content-type': 'application/json' });
-    if (req.method === 'GET' && req.url.startsWith('/v1/payments')) {
-      res.end(JSON.stringify({ payments: [...lndPayments].reverse(), first_index_offset: '0', last_index_offset: '0' }));
       return;
     }
     lndPayments.push({
@@ -44,6 +53,7 @@ const fakeLnd = http.createServer((req, res) => {
       status: 'SUCCEEDED',
       value_sat: '12345'
     });
+    res.writeHead(200, { 'content-type': 'application/json' });
     res.end(JSON.stringify({
       payment_preimage: Buffer.from(paidPreimageHex, 'hex').toString('base64'),
       payment_hash: Buffer.from(paidPaymentHashHex, 'hex').toString('base64'),

@@ -26,8 +26,8 @@ const storePath = path.join(tokenDir, 'requests.json');
 
 const sha256Hex = (data) => crypto.createHash('sha256').update(data).digest('hex');
 
-// Each numbered payment has its own invoice and preimage. The fake LND pays only invoices it knows, and lists
-// settled payments the way LND does (hex fields, newest first).
+// Each numbered payment has its own invoice and preimage. The fake LND pays only invoices it knows, and answers a
+// payment by hash on the track endpoint the way LND does (404 for a hash it never initiated).
 function payment(i) {
   const preimageHex = sha256Hex(`lifecycle-preimage-${i}`);
   return { invoice: `lntb-lifecycle-${i}`, preimageHex, paymentHashHex: sha256Hex(Buffer.from(preimageHex, 'hex')) };
@@ -37,17 +37,29 @@ const lndPayments = [];
 const lndCalls = [];
 // How long the fake LND holds a payment before it settles, so a test can keep a payment in flight across the TTL.
 let lndPayDelayMs = 0;
+// A pay whose connection drops after LND has settled the payment: LND holds the payment, the sidecar sees an error.
+let lndDropAfterSettle = false;
+const TRACK = '/v2/router/track/';
+function trackedHash(url) {
+  return Buffer.from(decodeURIComponent(url.split('?')[0].slice(TRACK.length)), 'base64').toString('hex');
+}
 const fakeLnd = http.createServer((req, res) => {
   let raw = '';
   req.on('data', (chunk) => { raw += chunk; });
   req.on('end', () => {
-    const body = JSON.parse(raw || '{}');
     lndCalls.push({ method: req.method, path: req.url });
-    res.writeHead(200, { 'content-type': 'application/json' });
-    if (req.method === 'GET' && req.url.startsWith('/v1/payments')) {
-      res.end(JSON.stringify({ payments: [...lndPayments].reverse(), first_index_offset: '0', last_index_offset: '0' }));
+    if (req.method === 'GET' && req.url.startsWith(TRACK)) {
+      const found = lndPayments.find((p) => p.payment_hash === trackedHash(req.url));
+      if (!found) {
+        res.writeHead(404, { 'content-type': 'application/json' });
+        res.end(JSON.stringify({ error: "payment isn't initiated", message: "payment isn't initiated", code: 5, details: [] }));
+        return;
+      }
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ result: found }));
       return;
     }
+    const body = JSON.parse(raw || '{}');
     const known = knownInvoices.get(body.payment_request);
     if (!known) {
       res.writeHead(500, { 'content-type': 'application/json' });
@@ -56,6 +68,12 @@ const fakeLnd = http.createServer((req, res) => {
     }
     setTimeout(() => {
       lndPayments.push({ payment_hash: known.paymentHashHex, payment_preimage: known.preimageHex, status: 'SUCCEEDED', value_sat: '12345' });
+      if (lndDropAfterSettle) {
+        lndDropAfterSettle = false;
+        req.socket.destroy();
+        return;
+      }
+      res.writeHead(200, { 'content-type': 'application/json' });
       res.end(JSON.stringify({
         payment_preimage: Buffer.from(known.preimageHex, 'hex').toString('base64'),
         payment_hash: Buffer.from(known.paymentHashHex, 'hex').toString('base64'),
@@ -222,9 +240,37 @@ async function main() {
   assert.strictEqual((await mint(node.base, unrecordedId)).status, 200, 'a payment LND settled before expiry was refused as expired');
   log('a payment LND settled but the sidecar did not record is minted after the quote expired');
 
+  // A pay whose connection drops while LND settles the payment is a 502, but LND holds the payment. The request is not
+  // dropped at its TTL: a quote that arrives after the TTL asks LND, which settled it, and mint then grants it.
+  const dropped = payment(64);
+  knownInvoices.set(dropped.invoice, dropped);
+  const droppedId = (await quote(node.base, 64)).json.request.requestId;
+  lndDropAfterSettle = true;
+  const droppedPay = await pay(node.base, droppedId);
+  assert.strictEqual(droppedPay.status, 502, 'a pay whose connection dropped was not refused');
+  await wait();
+  const quoteAfterDrop = await quote(node.base, 65);
+  assert.strictEqual(quoteAfterDrop.status, 200, 'a quote after the TTL was refused');
+  const droppedMint = await mint(node.base, droppedId);
+  assert.strictEqual(droppedMint.status, 200, `a payment LND settled after a dropped pay did not mint: ${JSON.stringify(droppedMint.json)}`);
+  log('a pay that drops while LND settles survives the TTL and a quote that prunes, and mints');
+
+  // An LND node with more than 5000 payments still mints a request paid before all of them: the payment is found by hash.
+  const oldest = await quotedAndPaid(node.base, 66);
+  for (let i = 0; i < 5001; i++) {
+    const filler = sha256Hex(`lifecycle-filler-${i}`);
+    lndPayments.push({ payment_hash: sha256Hex(Buffer.from(filler, 'hex')), payment_preimage: filler, status: 'SUCCEEDED', value_sat: '1' });
+  }
+  const behindFillers = await mint(node.base, oldest);
+  assert.strictEqual(behindFillers.status, 200, `a payment behind 5000 newer LND payments did not mint: ${JSON.stringify(behindFillers.json)}`);
+  log('a request paid behind more than 5000 newer LND payments mints');
+
   // A save that fails after LND settles the payment is reported, and the settled request is not lost: it stays paid in
-  // memory, and the next pay saves it to disk.
+  // memory, and the next pay saves it to disk. The first pay drops its connection after LND settles, so the attempt is
+  // saved and LND holds the payment; the second pay finds the settlement and cannot save it as paid.
   const saveFailId = (await quote(node.base, 63)).json.request.requestId;
+  lndDropAfterSettle = true;
+  assert.strictEqual((await pay(node.base, saveFailId)).status, 502);
   fs.chmodSync(tokenDir, 0o500);
   let failedSave;
   try {
