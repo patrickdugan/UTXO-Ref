@@ -125,7 +125,7 @@ try {
   test('a lock whose recorded pid now belongs to a different process is reclaimed', () => {
     if (!fs.existsSync('/proc/self/stat')) return;
     const lockPath = path.join(root, 'pid-reused.lock');
-    plantLock(lockPath, { pid: process.ppid, host: os.hostname(), token: 'e'.repeat(32), startTime: '1' });
+    plantLock(lockPath, { pid: process.ppid, host: os.hostname(), token: 'e'.repeat(32), startTicks: '1' });
     acquireDirectoryLock(lockPath, 'held')();
     assert(!fs.existsSync(lockPath), 'a lock whose pid was reused by an unrelated process was not reclaimed');
   });
@@ -156,7 +156,7 @@ if (role === 'contend') {
     assert(owner && contender, `holder did not run: ${run.stderr}`);
     assert(contender[1] === 'LOCK_HELD', `a live holder in another process must be refused, got ${contender[1]}`);
     if (fs.existsSync('/proc/self/stat')) {
-      assert(typeof JSON.parse(owner[1]).startTime === 'string', 'the owner record must carry the holder start time');
+      assert(typeof JSON.parse(owner[1]).startTicks === 'string', 'the owner record must carry the holder start ticks');
     }
     assert(!fs.existsSync(lockPath), 'the holder did not release its lock');
   });

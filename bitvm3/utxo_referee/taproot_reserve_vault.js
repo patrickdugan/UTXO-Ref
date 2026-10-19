@@ -534,9 +534,7 @@ async function buildTaprootReserveVaultSetFromRpc(input = {}) {
   const rpc = input.rpc;
   for (let attempt = 1; ; attempt++) {
     const chain = await rpc('getblockchaininfo');
-    const currentHeight = input.currentHeight !== undefined
-      ? heightOf(input.currentHeight, 'currentHeight')
-      : heightOf(chain.blocks, 'blocks');
+    const currentHeight = heightOf(chain.blocks, 'blocks');
     const chainTxouts = {};
     let tipMoved = false;
     for (const manifest of input.manifests || []) {
