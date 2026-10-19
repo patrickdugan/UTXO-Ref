@@ -7,7 +7,7 @@ const path = require('path');
 const {
   paymentHashFromPreimageHex,
   payInvoiceViaLndRest,
-  findSettledPaymentViaLndRest
+  lookupPaymentViaLndRest
 } = require('./lndRestClient');
 const { buildWalletDemoConfig, verifyWalletDemoConfig } = require('../wallet-demo/walletBackendProfiles');
 const { HttpError, sendJson: sendJsonBody, readJsonBody, boundedInteger, writeAtomicPrivate } = require('../shared/service');
@@ -399,8 +399,11 @@ function compactId(value, prefix, length = 8) {
 }
 
 // The quote lifecycle, one small state machine per request:
-//   quoted  open. It can be paid until expiresAt, and is dropped once it has expired unpaid.
-//   paid    open. It never expires, so a paid request is not dropped before it mints.
+//   quoted     open. It can be paid until expiresAt, and is dropped once it has expired unpaid.
+//   attempted  open. Its payment was saved as attempted before LND was asked, so LND may hold the payment even if the
+//              sidecar never got an answer. It is dropped only when LND reports the payment failed, and it becomes paid
+//              when LND reports the payment settled.
+//   paid       open. It never expires, so a paid request is not dropped before it mints.
 //   minted  a grant intent was issued. Its requestId is appended to the minted log, a set of hashes kept outside the
 //           open table, and it is never quoted, paid or minted again. The intent itself is not kept. The Electrum tab
 //           forwards an intent to TradeLayer, so a repeat intent would be a second grant this process cannot see.
@@ -475,15 +478,16 @@ function loadIssuedDlcSubswapRequests() {
   for (const entry of store.entries) {
     const requestId = entry.request.requestId;
     if (mintedDlcSubswapRequests.has(requestId)) continue;
-    if (entry.state === 'quoted') {
-      if (!Number.isSafeInteger(entry.expiresAt)) throw new Error(`${requestStorePath} has a quote without expiresAt`);
-    } else if (entry.state !== 'paid') {
+    if (entry.state !== 'quoted' && entry.state !== 'attempted' && entry.state !== 'paid') {
       throw new Error(`${requestStorePath} has an unknown request state`);
+    }
+    if (entry.state !== 'paid' && !Number.isSafeInteger(entry.expiresAt)) {
+      throw new Error(`${requestStorePath} has a quote without expiresAt`);
     }
     issuedDlcSubswapRequests.set(requestId, {
       request: entry.request,
       state: entry.state,
-      expiresAt: entry.state === 'quoted' ? entry.expiresAt : null,
+      expiresAt: entry.state === 'paid' ? null : entry.expiresAt,
       paying: false
     });
   }
@@ -500,23 +504,52 @@ function saveIssuedDlcSubswapRequests() {
   }, null, 2)}\n`);
 }
 
-// Drops quotes that expired unpaid and have no payment in flight. Paid requests and requests being paid are kept.
-function pruneExpiredQuotes(now) {
-  let dropped = false;
-  for (const [requestId, issued] of issuedDlcSubswapRequests) {
-    if (issued.state === 'quoted' && !issued.paying && now >= issued.expiresAt) {
+// LND's answer for a request's payment hash. An error from LND is a 502 for the caller.
+async function lookupPaymentState(request) {
+  try {
+    return await lookupPaymentViaLndRest({ paymentHashHex: request.requestCore.submarineSwap.paymentHashHex });
+  } catch (err) {
+    throw new HttpError(502, 'lnd_lookup_failed', `LND payment lookup failed: ${err.message}`);
+  }
+}
+
+// Drops quotes that expired unpaid and have no payment in flight. An attempted quote is decided by LND, by payment hash:
+// LND's settled payment makes the request paid, LND's failed payment drops it, and anything else keeps it, including a
+// lookup that errors. Paid requests and requests being paid are kept.
+async function pruneExpiredQuotes(now) {
+  let changed = false;
+  for (const [requestId, issued] of [...issuedDlcSubswapRequests]) {
+    if (issued.state === 'paid' || issued.paying || now < issued.expiresAt) continue;
+    if (issued.state === 'quoted') {
       issuedDlcSubswapRequests.delete(requestId);
-      dropped = true;
+      changed = true;
+      continue;
+    }
+    let lookup;
+    try {
+      lookup = await lookupPaymentState(issued.request);
+    } catch (_err) {
+      continue;
+    }
+    // A pay that started while LND was asked, or a request dropped meanwhile, is left as it is.
+    if (issued.paying || issuedDlcSubswapRequests.get(requestId) !== issued) continue;
+    if (lookup.state === 'failed') {
+      issuedDlcSubswapRequests.delete(requestId);
+      changed = true;
+    } else if (lookup.state === 'settled') {
+      issued.state = 'paid';
+      issued.expiresAt = null;
+      changed = true;
     }
   }
-  if (dropped) saveIssuedDlcSubswapRequests();
+  if (changed) saveIssuedDlcSubswapRequests();
 }
 
 // Returns 'ok', 'full' when the open table holds its cap, or 'minted' when the request was already granted.
-function rememberIssuedDlcSubswapRequest(request) {
+async function rememberIssuedDlcSubswapRequest(request) {
   const requestId = request.requestId;
+  await pruneExpiredQuotes(Date.now());
   if (mintedDlcSubswapRequests.has(requestId)) return 'minted';
-  pruneExpiredQuotes(Date.now());
   if (issuedDlcSubswapRequests.has(requestId)) return 'ok';
   if (issuedDlcSubswapRequests.size >= MAX_ISSUED_DLC_REQUESTS) return 'full';
   issuedDlcSubswapRequests.set(requestId, { request, state: 'quoted', expiresAt: Date.now() + QUOTE_TTL_MS, paying: false });
@@ -531,6 +564,18 @@ function markPaid(issued) {
   issued.state = 'paid';
   issued.expiresAt = null;
   saveIssuedDlcSubswapRequests();
+}
+
+// The attempt is saved before LND is asked. If the save fails, LND is not asked and the request stays quoted.
+function markAttempted(issued) {
+  if (issued.state !== 'quoted') return;
+  issued.state = 'attempted';
+  try {
+    saveIssuedDlcSubswapRequests();
+  } catch (err) {
+    issued.state = 'quoted';
+    throw err;
+  }
 }
 
 function verifyPaymentProofForRequest(request, paymentProof) {
@@ -556,20 +601,14 @@ function verifyPaymentProofForRequest(request, paymentProof) {
 // The payment proof is what LND reports as settled for the request's payment hash. Errors from LND are a 502:
 // nothing is minted while the record cannot be read.
 async function settledPaymentProof(request) {
-  const paymentHashHex = request.requestCore.submarineSwap.paymentHashHex;
-  let settled;
-  try {
-    settled = await findSettledPaymentViaLndRest({ paymentHashHex });
-  } catch (err) {
-    throw new HttpError(502, 'lnd_lookup_failed', `LND payment lookup failed: ${err.message}`);
-  }
-  if (!settled) return null;
+  const lookup = await lookupPaymentState(request);
+  if (lookup.state !== 'settled') return null;
   return {
     kind: 'utxoref_dlc_subswap_lnd_payment_proof',
     status: 'paid',
-    paymentHashHex: settled.paymentHashHex,
-    paymentPreimageHex: settled.paymentPreimageHex,
-    source: 'lnd-list-payments'
+    paymentHashHex: lookup.paymentHashHex,
+    paymentPreimageHex: lookup.paymentPreimageHex,
+    source: 'lnd-track-payment'
   };
 }
 
@@ -971,7 +1010,7 @@ async function handle(req, res) {
     if (req.method === 'POST' && req.url === '/v1/dlc-subswap-funding/quote') {
       const body = await readJsonBody(req, { requireJson: true });
       const request = latestDlcSubswapFundingRequest(dlcSubswapOverridesFromBody(body));
-      const outcome = rememberIssuedDlcSubswapRequest(request);
+      const outcome = await rememberIssuedDlcSubswapRequest(request);
       if (outcome === 'minted') return sendJson(res, 409, { error: ALREADY_MINTED });
       if (outcome === 'full') {
         return sendJson(res, 503, { ok: false, reason: 'quote table is full: raise SIDECAR_MAX_QUOTED_REQUESTS or wait for live quotes to expire' });
@@ -1008,6 +1047,7 @@ async function handle(req, res) {
           markPaid(issued);
           return sendJson(res, 409, { ok: false, reason: 'request is already paid' });
         }
+        markAttempted(issued);
         try {
           paymentProof = await payInvoiceViaLndRest({
             invoice: core.submarineSwap.invoice,
