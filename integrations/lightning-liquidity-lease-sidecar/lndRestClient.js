@@ -153,8 +153,14 @@ async function payInvoiceViaLndRest({
 
 // LND's record of one payment, found by its payment hash (routerrpc TrackPaymentV2, GET /v2/router/track/{payment_hash},
 // the hash as base64). no_inflight_updates makes LND answer once the payment is final, so one JSON object comes back.
-// LND answers 404 for a hash it never initiated. A payment LND is still trying is answered only when it ends, which the
+// LND answers 404 for a hash it never initiated; some versions answer 500 with "payment isn't initiated" or "not found"
+// in the body (the gateway maps a plain error to 500), so both mean unknown. A payment LND is still trying is answered only when it ends, which the
 // timeout bounds. state is 'settled' (with the preimage, which hashes to the payment hash), 'failed', 'unknown' or 'pending'.
+function neverInitiated(err) {
+  if (err.statusCode === 404) return true;
+  return err.statusCode === 500 && /payment (isn'?t|is not|was not) initiated|payment not found|unknown payment/i.test(String(err.message));
+}
+
 async function lookupPaymentViaLndRest({
   paymentHashHex,
   env = process.env,
@@ -169,7 +175,7 @@ async function lookupPaymentViaLndRest({
   try {
     response = await requestImpl(config, 'GET', `/v2/router/track/${hashPath}?no_inflight_updates=true`, undefined, timeoutMs);
   } catch (err) {
-    if (err.statusCode === 404) return { state: 'unknown' };
+    if (neverInitiated(err)) return { state: 'unknown' };
     throw err;
   }
   const payment = response.result || {};

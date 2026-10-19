@@ -90,6 +90,17 @@ async function run() {
   assert.deepStrictEqual(await lookupPaymentViaLndRest({ paymentHashHex: failedHashHex, env, requestImpl: failedLnd }), { state: 'failed' });
   assert.deepStrictEqual(await lookupPaymentViaLndRest({ paymentHashHex: oldHashHex, env, requestImpl: failedLnd }), { state: 'unknown' },
     'a hash LND never initiated is unknown, not failed');
+  const lndError = (statusCode, text) => async () => {
+    const err = new Error(`LND REST /v2/router/track returned HTTP ${statusCode}: ${text}`);
+    err.statusCode = statusCode;
+    throw err;
+  };
+  assert.deepStrictEqual(await lookupPaymentViaLndRest({ paymentHashHex: oldHashHex, env,
+    requestImpl: lndError(500, '{"code":2,"message":"payment isn\'t initiated"}') }), { state: 'unknown' },
+  'a 500 that says the payment was never initiated is unknown');
+  await assert.rejects(lookupPaymentViaLndRest({ paymentHashHex: oldHashHex, env,
+    requestImpl: lndError(500, '{"code":2,"message":"database is locked"}') }), /HTTP 500/,
+  'any other 500 is an error, not an answer');
   assert.deepStrictEqual(await lookupPaymentViaLndRest({ paymentHashHex: oldHashHex, env, requestImpl: trackLnd([
     { payment_hash: oldHashHex, status: 'IN_FLIGHT', payment_preimage: '' }
   ]) }), { state: 'pending' });
