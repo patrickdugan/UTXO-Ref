@@ -157,19 +157,41 @@ function writeJsonAppendOnce(directory, name, record, { maxBytes, label = 'durab
 }
 
 // Takes an exclusive lock by creating lockPath as a directory, which only one
-// process can do at a time. The holder records its pid, host and a random
-// per-acquisition token in the directory, so a lock left by a process that no
-// longer exists on this host is reclaimed instead of blocking every later run.
-// On Linux it also records the boot id and its process start time, so a lock
-// from an earlier boot, or one whose pid now belongs to another process, is
-// reclaimed too; elsewhere a reused pid keeps the lock held (fail closed).
-// A lock from another host is never judged from here.
-// A lock with no readable owner is reclaimed once it is older than the grace
+// process can do at a time. The holder writes an owner record (owner.json) with
+// its pid, host and a random per-acquisition token. On Linux it also records its
+// boot id, its pid namespace and its process start ticks.
+//
+// A held lock is reclaimed only when one check proves its holder gone. The
+// checks run in this order:
+// - another host: never judged here, the lock is held.
+// - another boot id: the holder ran before a reboot, so it is gone.
+// - another pid namespace: a pid means something only in the namespace that
+//   wrote it. Containers in one pod share a hostname and can reuse pid numbers,
+//   so the lock is held and never judged dead.
+// - this process's own pid: gone unless its token is held by a live acquisition
+//   in this process.
+// - no such pid (ESRCH): gone. EPERM means the pid exists under another user, so
+//   it is judged by its start ticks like any other live pid.
+// - a start-ticks mismatch: the pid was reused, so gone.
+// A check uses an identity field only when the record has it and this process
+// can read it. Anything else keeps the lock held (fail closed).
+//
+// Fallbacks for records from earlier builds. Those records carry fewer fields:
+// `{pid}` alone, which is still read, `{pid, host}` (from d110709),
+// `{pid, host, token}` (from 7b13578), and `{pid, host, token, startTime}` (from
+// 6d7f3a9, where startTime was written but never read). Each is judged by the
+// fields it has. A pid reused after a reboot therefore keeps such a lock held
+// until an operator removes it. Off Linux no identity is recorded, so a reused
+// pid keeps the lock held there too.
+//
+// A lock with no owner record is reclaimed once it is older than the grace
 // period, which covers a crash between creating the directory and writing the
-// owner. Any other held lock fails closed. The returned function releases the
-// lock and throws LOCK_LOST if the lock is no longer the one it acquired. Callers
-// use withDirectoryLock, which keeps that release failure from replacing the
-// error of the critical section.
+// owner. An owner record that exists but cannot be read is never reclaimed
+// automatically; LOCK_HELD names its path so an operator can inspect it.
+//
+// The returned function releases the lock and throws LOCK_LOST if the lock is
+// no longer the one it acquired. Callers use withDirectoryLock, which keeps a
+// release failure from replacing the error or the result of the critical section.
 const LOCK_OWNER_FILE = 'owner.json';
 const OWNERLESS_LOCK_GRACE_MS = 60 * 1000;
 // Tokens of the locks this process holds right now. A pid can be reused after a
@@ -200,6 +222,12 @@ const lockIdentity = {
     if (process.platform !== 'linux') return null;
     try { return parseProcStatStartTicks(fs.readFileSync(`/proc/${pid}/stat`, 'utf8')); }
     catch (_error) { return null; }
+  },
+  // Namespace inode numbers are per kernel, so this compares only within one boot.
+  pidNamespace() {
+    if (process.platform !== 'linux') return null;
+    try { return fs.readlinkSync('/proc/self/ns/pid') || null; }
+    catch (_error) { return null; }
   }
 };
 
@@ -216,21 +244,25 @@ function readLockOwner(lockPath) {
   catch (_error) { return null; }
 }
 
-// Locks written before the host was recorded carry only a pid. They were
-// written by the same local store, so they are judged on this host. Locks
-// written before the start time was recorded carry no startTime and are judged
-// by their pid alone.
+// The checks and their fallbacks are described in the header above.
 function lockOwnerIsGone(owner) {
   if (!owner || owner === UNREADABLE_OWNER || !Number.isSafeInteger(owner.pid)) return false;
   if (owner.host !== undefined && owner.host !== os.hostname()) return false;
-  if (owner.pid === process.pid) return !heldLockTokens.has(owner.token);
   // No process survives a reboot.
   if (typeof owner.bootId === 'string') {
     const bootId = lockIdentity.bootId();
     if (bootId && bootId !== owner.bootId) return true;
   }
+  if (typeof owner.pidNamespace === 'string') {
+    const pidNamespace = lockIdentity.pidNamespace();
+    if (pidNamespace && pidNamespace !== owner.pidNamespace) return false;
+  }
+  if (owner.pid === process.pid) return !heldLockTokens.has(owner.token);
   try { process.kill(owner.pid, 0); }
-  catch (error) { return error.code === 'ESRCH'; }
+  catch (error) {
+    if (error.code === 'ESRCH') return true;
+    if (error.code !== 'EPERM') return false;
+  }
   // The pid is in use: it is the holder only if it started when the holder did.
   if (typeof owner.startTicks === 'string') {
     const startTicks = lockIdentity.processStartTicks(owner.pid);
@@ -303,9 +335,15 @@ function acquireDirectoryLock(lockPath, heldMessage) {
       if (error.code !== 'EEXIST') throw error;
       if (attempt === 0 && reclaimAbandonedLock(lockPath)) continue;
       const holder = readLockOwner(lockPath);
+      if (holder === UNREADABLE_OWNER) {
+        const ownerPath = path.join(lockPath, LOCK_OWNER_FILE);
+        throw Object.assign(new Error(`${heldMessage}; the owner record ${ownerPath} exists but cannot be read, so its holder is unknown. ` +
+          `Inspect that file (permissions, a directory in its place, or an antivirus lock) and whether a process still holds the lock; ` +
+          `remove ${lockPath} only when none does`), { code: 'LOCK_HELD', holder: null, ownerPath });
+      }
       throw Object.assign(new Error(heldMessage), {
         code: 'LOCK_HELD',
-        holder: holder && holder !== UNREADABLE_OWNER ? { pid: holder.pid, host: holder.host } : null
+        holder: holder ? { pid: holder.pid, host: holder.host } : null
       });
     }
   }
@@ -313,8 +351,10 @@ function acquireDirectoryLock(lockPath, heldMessage) {
   heldLockTokens.add(token);
   const owner = { pid: process.pid, host: os.hostname(), token };
   const bootId = lockIdentity.bootId();
+  const pidNamespace = lockIdentity.pidNamespace();
   const startTicks = lockIdentity.processStartTicks(process.pid);
   if (bootId) owner.bootId = bootId;
+  if (pidNamespace) owner.pidNamespace = pidNamespace;
   if (startTicks) owner.startTicks = startTicks;
   try {
     fs.writeFileSync(path.join(lockPath, LOCK_OWNER_FILE), JSON.stringify(owner), { flag: 'wx', mode: 0o600 });
@@ -328,13 +368,34 @@ function acquireDirectoryLock(lockPath, heldMessage) {
   return () => releaseDirectoryLock(lockPath, token);
 }
 
+// The one channel for a release failure that the caller's result or error cannot
+// carry. Overridable in tests, like lockIdentity. The default writes a structured
+// line to stderr. A LOCK_LOST here means another holder overlapped the section.
+const lockReporter = {
+  releaseFailed(releaseError) {
+    console.error(JSON.stringify({
+      level: 'error',
+      event: 'durable_lock_release_failed',
+      code: releaseError.code || null,
+      message: releaseError.message
+    }));
+  }
+};
+
+// A section that succeeded keeps its result. Its writes are already committed,
+// so a release failure is reported rather than thrown.
+function releaseAfterSuccess(release) {
+  try { release(); }
+  catch (releaseError) { lockReporter.releaseFailed(releaseError); }
+}
+
 // The critical section's own error is the one the caller must see. A release
 // that fails after it is attached as releaseError instead of replacing it.
 function releaseAfterFailure(release, failure) {
   try { release(); }
   catch (releaseError) {
     if (failure !== null && typeof failure === 'object') failure.releaseError = releaseError;
-    else process.emitWarning(releaseError.message);
+    else lockReporter.releaseFailed(releaseError);
   }
 }
 
@@ -343,7 +404,7 @@ function withDirectoryLock(lockPath, heldMessage, run) {
   let result;
   try { result = run(); }
   catch (error) { releaseAfterFailure(release, error); throw error; }
-  release();
+  releaseAfterSuccess(release);
   return result;
 }
 
@@ -352,7 +413,7 @@ async function withDirectoryLockAsync(lockPath, heldMessage, run) {
   let result;
   try { result = await run(); }
   catch (error) { releaseAfterFailure(release, error); throw error; }
-  release();
+  releaseAfterSuccess(release);
   return result;
 }
 
@@ -383,6 +444,7 @@ function writeFileAtomic(filePath, text) {
 module.exports = {
   acquireDirectoryLock,
   lockIdentity,
+  lockReporter,
   parseProcStatStartTicks,
   assertNonSymlinkDirectory,
   createDurableDirectory,

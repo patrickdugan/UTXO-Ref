@@ -11,7 +11,7 @@ const { spawnSync } = require('child_process');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { acquireDirectoryLock, lockIdentity, parseProcStatStartTicks } = require('./dlc_durable_json_store');
+const { acquireDirectoryLock, lockIdentity, lockReporter, parseProcStatStartTicks, withDirectoryLock, withDirectoryLockAsync } = require('./dlc_durable_json_store');
 const { DlcStateStore } = require('./dlc_state_store');
 const { DlcOracleEventStore } = require('./dlc_oracle_event_store');
 const { reserveNonceUsage, NonceReuseError } = require('./legacy/tradelayer_nonce_journal');
@@ -59,12 +59,31 @@ function ageLock(lockPath) {
 // The boot id and process start time come from /proc on Linux; here they are
 // replaced so the reclaim decisions run on every platform.
 function withLockIdentity(identity, run) {
-  const original = { bootId: lockIdentity.bootId, processStartTicks: lockIdentity.processStartTicks };
+  const original = { bootId: lockIdentity.bootId, processStartTicks: lockIdentity.processStartTicks, pidNamespace: lockIdentity.pidNamespace };
   lockIdentity.bootId = () => identity.bootId ?? null;
   lockIdentity.processStartTicks = (pid) => (identity.startTicks ? identity.startTicks(pid) : null);
+  lockIdentity.pidNamespace = () => identity.pidNamespace ?? null;
   try { return run(); }
   finally { Object.assign(lockIdentity, original); }
 }
+// Makes kill(pid, 0) fail with EPERM for the listed pids, as it does for a pid
+// that exists under another user.
+function withOtherUserPids(pids, run) {
+  const realKill = process.kill;
+  process.kill = (pid, signal) => {
+    if (pids.includes(pid)) throw Object.assign(new Error(`kill EPERM ${pid}`), { code: 'EPERM' });
+    return realKill(pid, signal);
+  };
+  try { return run(); }
+  finally { process.kill = realKill; }
+}
+// Whether this account can run a child in a new pid namespace here.
+function canUnsharePidNamespace() {
+  const probe = spawnSync('unshare', ['--user', '--map-root-user', '--pid', '--fork', 'true'], { encoding: 'utf8' });
+  return probe.status === 0;
+}
+const asyncTests = [];
+function asyncTest(name, fn) { asyncTests.push({ name, fn }); }
 function lockCode(lockPath) {
   try { acquireDirectoryLock(lockPath, 'held')(); return null; }
   catch (err) { return err.code; }
@@ -251,6 +270,119 @@ if (role === 'contend') {
     fs.rmSync(lockPath, { recursive: true, force: true });
   });
 
+  test('an unreadable owner record is reported as unknown, with the path an operator should inspect', () => {
+    const lockPath = path.join(root, 'unreadable-report.lock');
+    fs.mkdirSync(lockPath);
+    fs.mkdirSync(path.join(lockPath, 'owner.json'));
+    ageLock(lockPath);
+    let err = null;
+    try { acquireDirectoryLock(lockPath, 'held'); } catch (caught) { err = caught; }
+    assert(err && err.code === 'LOCK_HELD', `expected LOCK_HELD, got ${err && err.code}`);
+    assert(err.holder === null, 'an unreadable owner has no holder to show');
+    const ownerPath = path.join(lockPath, 'owner.json');
+    assert(err.ownerPath === ownerPath, `ownerPath ${err.ownerPath}`);
+    assert(err.message.startsWith('held; the owner record ' + ownerPath + ' exists but cannot be read'),
+      `message does not name the unreadable owner record: ${err.message}`);
+    assert(err.message.includes(`remove ${lockPath} only when none does`), 'message does not say when the lock may be removed');
+    fs.rmSync(lockPath, { recursive: true, force: true });
+  });
+
+  test('a pid owned by another user (EPERM) is judged by its start ticks, and reclaimed when they differ', () => {
+    const lockPath = path.join(root, 'eperm-reused.lock');
+    const otherUserPid = 2147483645;
+    withOtherUserPids([otherUserPid], () => {
+      withLockIdentity({ bootId: 'boot-a', startTicks: (pid) => (pid === otherUserPid ? '9000' : null) }, () => {
+        plantLock(lockPath, { ...heldBy({ pid: otherUserPid }), token: 'c'.repeat(32), bootId: 'boot-a', startTicks: '4000' });
+        assert(lockCode(lockPath) === null, 'an EPERM pid whose start ticks differ was not reclaimed');
+        assert(!fs.existsSync(lockPath), 'reclaimed lock was not released');
+      });
+    });
+  });
+
+  test('a pid owned by another user keeps the lock when its start ticks match, or cannot be read', () => {
+    const lockPath = path.join(root, 'eperm-held.lock');
+    const otherUserPid = 2147483645;
+    withOtherUserPids([otherUserPid], () => {
+      withLockIdentity({ bootId: 'boot-a', startTicks: () => '4000' }, () => {
+        plantLock(lockPath, { ...heldBy({ pid: otherUserPid }), token: 'c'.repeat(32), bootId: 'boot-a', startTicks: '4000' });
+        assert(lockCode(lockPath) === 'LOCK_HELD', 'an EPERM holder with matching start ticks must keep the lock');
+        fs.rmSync(lockPath, { recursive: true, force: true });
+      });
+      withLockIdentity({ bootId: 'boot-a', startTicks: () => null }, () => {
+        plantLock(lockPath, { ...heldBy({ pid: otherUserPid }), token: 'c'.repeat(32), bootId: 'boot-a', startTicks: '4000' });
+        assert(lockCode(lockPath) === 'LOCK_HELD', 'an EPERM holder whose start ticks cannot be read must keep the lock');
+        fs.rmSync(lockPath, { recursive: true, force: true });
+      });
+    });
+  });
+
+  test('pid 1, which another user owns, is judged by its start time in the real process table', () => {
+    let eperm = false;
+    try { process.kill(1, 0); } catch (err) { eperm = err.code === 'EPERM'; }
+    if (!eperm || !fs.existsSync('/proc/1/stat')) {
+      console.log('       (skipped: pid 1 is signalable from this account, so the EPERM path cannot be reached)');
+      return;
+    }
+    const lockPath = path.join(root, 'pid-one.lock');
+    plantLock(lockPath, { ...heldBy({ pid: 1 }), token: 'd'.repeat(32), startTicks: '1' });
+    acquireDirectoryLock(lockPath, 'held')();
+    assert(!fs.existsSync(lockPath), 'a lock whose pid 1 start time differs was not reclaimed');
+  });
+
+  test('an acquisition records its pid namespace when the platform provides it', () => {
+    const lockPath = path.join(root, 'namespace.lock');
+    withLockIdentity({ pidNamespace: 'pid:[7]' }, () => {
+      const release = acquireDirectoryLock(lockPath, 'held');
+      const owner = JSON.parse(fs.readFileSync(path.join(lockPath, 'owner.json'), 'utf8'));
+      release();
+      assert(owner.pidNamespace === 'pid:[7]', `owner record ${JSON.stringify(owner)}`);
+    });
+  });
+
+  test('a lock held by a live pid in another pid namespace of this host is held, not judged by its pid', () => {
+    const lockPath = path.join(root, 'other-namespace.lock');
+    withLockIdentity({ pidNamespace: 'pid:[2]' }, () => {
+      plantLock(lockPath, { ...heldBy({ pid: DEAD_PID }), token: 'e'.repeat(32), pidNamespace: 'pid:[1]' });
+      assert(lockCode(lockPath) === 'LOCK_HELD', 'a holder in another pid namespace was judged dead by its pid');
+      assert(fs.existsSync(lockPath), 'a lock from another namespace was removed');
+      fs.rmSync(lockPath, { recursive: true, force: true });
+      plantLock(lockPath, { ...heldBy({ pid: process.pid }), token: 'f'.repeat(32), pidNamespace: 'pid:[1]' });
+      assert(lockCode(lockPath) === 'LOCK_HELD', 'this pid number in another namespace was taken for this process');
+      fs.rmSync(lockPath, { recursive: true, force: true });
+    });
+  });
+
+  test('a pid namespace is not judged when the record has none or this process cannot read its own', () => {
+    const lockPath = path.join(root, 'namespace-unknown.lock');
+    withLockIdentity({ pidNamespace: 'pid:[2]' }, () => {
+      plantLock(lockPath, { ...heldBy({ pid: DEAD_PID }), token: 'e'.repeat(32) });
+      assert(lockCode(lockPath) === null, 'a record without a namespace must keep the pid-based reclaim');
+    });
+    withLockIdentity({}, () => {
+      plantLock(lockPath, { ...heldBy({ pid: DEAD_PID }), token: 'e'.repeat(32), pidNamespace: 'pid:[1]' });
+      assert(lockCode(lockPath) === null, 'an unreadable namespace must keep the pid-based reclaim');
+    });
+  });
+
+  test('a live holder in a new pid namespace of this host keeps its lock against a real contender', () => {
+    if (!canUnsharePidNamespace()) {
+      console.log('       (skipped: unshare cannot create a pid namespace here)');
+      return;
+    }
+    const libPath = require.resolve('./dlc_durable_json_store');
+    const lockPath = path.join(root, 'real-namespace.lock');
+    const contenderPath = path.join(root, 'real-namespace-contender.js');
+    fs.writeFileSync(contenderPath, `const { acquireDirectoryLock } = require(${JSON.stringify(libPath)});
+try { acquireDirectoryLock(${JSON.stringify(lockPath)}, 'held')(); console.log('ACQUIRED'); }
+catch (err) { console.log(err.code); }`);
+    const release = acquireDirectoryLock(lockPath, 'held');
+    const contender = spawnSync('unshare', ['--user', '--map-root-user', '--pid', '--fork', process.execPath, contenderPath],
+      { encoding: 'utf8' });
+    release();
+    assert(contender.stdout.trim() === 'LOCK_HELD', `a contender in another pid namespace must be refused, got ${contender.stdout.trim()} ${contender.stderr}`);
+    assert(!fs.existsSync(lockPath), 'the holder did not release its lock');
+  });
+
   test('a held lock reports its holder', () => {
     const lockPath = path.join(root, 'reported-holder.lock');
     plantLock(lockPath, heldBy({ pid: process.ppid }));
@@ -385,9 +517,89 @@ w.on('error', (e) => { console.log('RESULT ERROR ' + e.message); });`], { encodi
     assert(err, 'the nonce reservation did not fail');
     assertOwnFailureKept(err, lockPath, 'nonce journal write failed');
   });
+
+  test('a successful section keeps its result when its release finds the lock taken over, and reports the lost lock', () => {
+    const lockPath = path.join(root, 'release-lost-success.lock');
+    const reported = [];
+    const realReport = lockReporter.releaseFailed;
+    lockReporter.releaseFailed = (releaseError) => reported.push(releaseError);
+    try {
+      const result = withDirectoryLock(lockPath, 'held', () => {
+        takeOverLock(lockPath);
+        return 'committed-result';
+      });
+      assert(result === 'committed-result', `the committed result was replaced by ${result}`);
+      assert(reported.length === 1 && reported[0].code === 'LOCK_LOST',
+        `the lost lock must be reported once, got ${reported.map((item) => item.code)}`);
+      assert(fs.existsSync(lockPath), 'release removed the lock of another holder');
+    } finally {
+      lockReporter.releaseFailed = realReport;
+      fs.rmSync(lockPath, { recursive: true, force: true });
+    }
+  });
+
+  test('a failed section thrown as a non-object still reports its lost lock instead of losing it', () => {
+    const lockPath = path.join(root, 'release-lost-thrown.lock');
+    const reported = [];
+    const realReport = lockReporter.releaseFailed;
+    lockReporter.releaseFailed = (releaseError) => reported.push(releaseError);
+    let thrown;
+    try {
+      withDirectoryLock(lockPath, 'held', () => {
+        takeOverLock(lockPath);
+        throw 'plain failure';
+      });
+    } catch (caught) { thrown = caught; }
+    finally {
+      lockReporter.releaseFailed = realReport;
+      fs.rmSync(lockPath, { recursive: true, force: true });
+    }
+    assert(thrown === 'plain failure', `the section's own failure must be rethrown, got ${thrown}`);
+    assert(reported.length === 1 && reported[0].code === 'LOCK_LOST', 'the lost lock must be reported');
+  });
 } finally {
   fs.rmSync(root, { recursive: true, force: true });
 }
 
-console.log(`\n${passed} passed, ${failed} failed\n`);
-if (failed > 0) process.exit(1);
+asyncTest('an async section keeps its result when its release finds the lock taken over', async () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'utxoref-durable-lock-async-'));
+  const lockPath = path.join(directory, 'async-release-lost.lock');
+  const reported = [];
+  const realReport = lockReporter.releaseFailed;
+  lockReporter.releaseFailed = (releaseError) => reported.push(releaseError);
+  try {
+    const result = await withDirectoryLockAsync(lockPath, 'held', async () => {
+      await Promise.resolve();
+      takeOverLock(lockPath);
+      return 'committed-result';
+    });
+    assert(result === 'committed-result', `the committed result was replaced by ${result}`);
+    assert(reported.length === 1 && reported[0].code === 'LOCK_LOST', 'the lost lock must be reported once');
+  } finally {
+    lockReporter.releaseFailed = realReport;
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+asyncTest('an async section that fails keeps its own error with the release failure attached', async () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'utxoref-durable-lock-async-fail-'));
+  const lockPath = path.join(directory, 'async-fail-lost.lock');
+  let err = null;
+  try {
+    await withDirectoryLockAsync(lockPath, 'held', async () => {
+      takeOverLock(lockPath);
+      throw new Error('async write failed');
+    });
+  } catch (caught) { err = caught; }
+  finally { fs.rmSync(directory, { recursive: true, force: true }); }
+  assertOwnFailureKept(err, lockPath, 'async write failed');
+});
+
+(async () => {
+  for (const item of asyncTests) {
+    try { await item.fn(); console.log(`  OK  ${item.name}`); passed++; }
+    catch (err) { console.log(`  FAIL ${item.name}`); console.log(`       ${err.message}`); failed++; }
+  }
+  console.log(`\n${passed} passed, ${failed} failed\n`);
+  if (failed > 0) process.exit(1);
+})();
