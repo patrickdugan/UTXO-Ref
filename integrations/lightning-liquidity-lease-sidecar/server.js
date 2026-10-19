@@ -23,6 +23,22 @@ const {
   verifyBitvmChannelRouterBundle,
   verifyBitvmChannelRouterPlan
 } = require('../../bitvm3/utxo_referee/bitvm_channel_router');
+const { heightOf, toSats } = require('../../bitvm3/utxo_referee/money');
+
+// The lease quote echoes the terms a client asked for, so each is read by the strict parser of its kind. A value that is not
+// a whole number, or is above 2^53, is refused with 400 instead of being echoed as a rounded number or as NaN.
+function liquidityLeaseQuoteTerms(body, terms) {
+  try {
+    return {
+      requestedInboundSats: toSats(body.requestedInboundSats ?? terms.promisedInboundSats, 'requestedInboundSats').toString(),
+      leaseBlocks: heightOf(body.leaseBlocks ?? terms.leaseBlocks, 'leaseBlocks'),
+      maxFeePpm: heightOf(body.maxFeePpm ?? terms.maxFeePpm, 'maxFeePpm'),
+      maxCltvDelta: heightOf(body.maxCltvDelta ?? terms.maxCltvDelta, 'maxCltvDelta')
+    };
+  } catch (err) {
+    throw new HttpError(400, 'invalid_request', err.message);
+  }
+}
 
 const repoRoot = path.join(__dirname, '..', '..');
 const artifactDir = path.join(repoRoot, 'bitvm3', 'utxo_referee', 'artifacts');
@@ -1153,10 +1169,7 @@ async function handle(req, res) {
       const lease = readJson(leasePath);
       return sendJson(res, 200, {
         kind: 'liquidity_lease_quote',
-        requestedInboundSats: String(body.requestedInboundSats || lease.offer.terms.promisedInboundSats),
-        leaseBlocks: Number(body.leaseBlocks || lease.offer.terms.leaseBlocks),
-        maxFeePpm: Number(body.maxFeePpm || lease.offer.terms.maxFeePpm),
-        maxCltvDelta: Number(body.maxCltvDelta || lease.offer.terms.maxCltvDelta),
+        ...liquidityLeaseQuoteTerms(body, lease.offer.terms),
         estimatedPremiumSats: lease.offer.terms.leasePremiumSats,
         penaltySats: lease.offer.terms.penaltySats,
         paymentHashHex: lease.offer.terms.paymentHashHex,
