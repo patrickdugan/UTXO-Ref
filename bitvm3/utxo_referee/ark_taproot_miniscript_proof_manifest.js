@@ -10,6 +10,7 @@
 const crypto = require('crypto');
 const { canonicalStringify, normalizeAmountSats } = require('./m1_spec');
 const { csvSequence } = require('./csv_delay');
+const { heightOf } = require('./money');
 
 const HEX_32_RE = /^[0-9a-f]{64}$/i;
 const TAPROOT_PATH_ALGORITHM = 'ark_tapbranch_v1_structural_sha256';
@@ -158,7 +159,7 @@ function buildPolicyLeaf(role, policyExpression, options = {}) {
     scriptFamily: 'taproot_miniscript_policy_shape',
     policyExpression,
     requiredSigners: options.requiredSigners || [],
-    relativeTimelockBlocks: Number(options.relativeTimelockBlocks || 0),
+    relativeTimelockBlocks: heightOf(options.relativeTimelockBlocks || 0, 'relativeTimelockBlocks'),
     stateBindingFields: options.stateBindingFields || [],
     notes: options.notes || ''
   };
@@ -282,7 +283,7 @@ function buildArkTaprootMiniscriptProofManifest(options = {}) {
   const settlementRoot = normalizeOptionalHex32(options.settlementRoot, 'settlementRoot');
   const selectedLeafRole = normalizeString(options.selectedLeafRole || 'cooperative_round', 'selectedLeafRole');
   const amountSats = normalizeAmountSats(options.amountSats || vtxoCore.vtxoAmountSats || 0n, 'amountSats');
-  const challengeWindowBlocks = Number(options.challengeWindowBlocks ?? 144);
+  const challengeWindowBlocks = heightOf(options.challengeWindowBlocks ?? 144, 'challengeWindowBlocks');
   const taprootLeaves = buildArkTaprootLeafSet({
     ...options,
     templateCore,

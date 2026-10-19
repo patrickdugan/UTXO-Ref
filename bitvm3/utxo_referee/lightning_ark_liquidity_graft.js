@@ -8,13 +8,14 @@
 
 const crypto = require('crypto');
 const { canonicalStringify, normalizeAmountSats } = require('./m1_spec');
-const { toInt } = require('./money');
+const { toInt, heightOf } = require('./money');
 const { buildJurassicMechanismRefs } = require('./jurassic_bitvm_mechanisms');
 const { verifyLiquidityLeaseBundle } = require('./lightning_liquidity_lease');
 const {
   buildArkTaprootMiniscriptProofManifest,
   verifyArkTaprootMiniscriptProofManifest
 } = require('./ark_taproot_miniscript_proof_manifest');
+const { csvSequence } = require('./csv_delay');
 
 const HEX_32_RE = /^[0-9a-f]{64}$/i;
 
@@ -72,8 +73,8 @@ function buildArkTemplateCommitment(options = {}) {
     internalKeyHex,
     taprootOutputKey,
     leafRoles,
-    exitDelayBlocks: Number(toInt(options.exitDelayBlocks ?? 144, 'exitDelayBlocks')),
-    aspForfeitCsv: Number(toInt(options.aspForfeitCsv ?? 2000, 'aspForfeitCsv'))
+    exitDelayBlocks: csvSequence(options.exitDelayBlocks ?? 144, 'exitDelayBlocks'),
+    aspForfeitCsv: csvSequence(options.aspForfeitCsv ?? 2000, 'aspForfeitCsv')
   };
 
   return {
@@ -95,7 +96,7 @@ function buildArkVtxoLiquidityCommitment(options = {}) {
   const vtxoId = normalizeHex32(options.vtxoId || sha256Hex(`ark-vtxo:${connectorOutpoint}:${ownerNodeId}`), 'vtxoId');
   const forfeitTxid = normalizeHex32(options.forfeitTxid || sha256Hex(`ark-forfeit:${vtxoId}`), 'forfeitTxid');
   const exitTxid = normalizeHex32(options.exitTxid || sha256Hex(`ark-exit:${vtxoId}`), 'exitTxid');
-  const expiryBlock = Number(options.expiryBlock || 0);
+  const expiryBlock = heightOf(options.expiryBlock || 0, 'expiryBlock');
 
   const vtxoCore = {
     version: 1,
@@ -125,9 +126,9 @@ function buildArkLiquidityGraftQuote(options = {}) {
   const template = options.template || buildArkTemplateCommitment(options);
   const vtxo = options.vtxo || buildArkVtxoLiquidityCommitment({ ...options, template });
   const promisedInboundSats = normalizeAmountSats(options.promisedInboundSats || vtxo.vtxoCore.vtxoAmountSats, 'promisedInboundSats');
-  const leaseBlocks = Number(options.leaseBlocks || 144);
+  const leaseBlocks = heightOf(options.leaseBlocks || 144, 'leaseBlocks');
   const maxFeePpm = Number(toInt(options.maxFeePpm ?? 1000, 'maxFeePpm'));
-  const maxCltvDelta = Number(toInt(options.maxCltvDelta ?? 40, 'maxCltvDelta'));
+  const maxCltvDelta = heightOf(options.maxCltvDelta ?? 40, 'maxCltvDelta');
   const graftPremiumSats = normalizeAmountSats(options.graftPremiumSats || 750n, 'graftPremiumSats');
   const paymentHashHex = normalizeHex32(options.paymentHashHex || sha256Hex(`ark-graft:${vtxo.vtxoCommitmentId}`), 'paymentHashHex');
   const jurassicMechanisms = buildJurassicMechanismRefs('ark', {
@@ -202,8 +203,8 @@ function buildArkGraftSettlementEvidence(options = {}) {
   const htlcProof = options.htlcProof || {};
   const deliveredInboundSats = normalizeAmountSats(options.deliveredInboundSats || quote.quoteCore.promisedInboundSats, 'deliveredInboundSats');
   const observedFeePpm = Number(toInt(options.observedFeePpm ?? quote.quoteCore.maxFeePpm, 'observedFeePpm'));
-  const observedCltvDelta = Number(toInt(options.observedCltvDelta ?? quote.quoteCore.maxCltvDelta, 'observedCltvDelta'));
-  const observedBlock = Number(options.observedBlock || 0);
+  const observedCltvDelta = heightOf(options.observedCltvDelta ?? quote.quoteCore.maxCltvDelta, 'observedCltvDelta');
+  const observedBlock = heightOf(options.observedBlock || 0, 'observedBlock');
   const paymentHashHex = normalizeHex32(quote.quoteCore.paymentHashHex, 'paymentHashHex');
   const preimageHex = normalizeHex32(
     options.preimageHex ||
@@ -260,7 +261,7 @@ function buildArkGraftChallengeEvidence(options = {}) {
   const taprootProofManifest = options.taprootProofManifest || null;
   const deliveredInboundSats = normalizeAmountSats(options.deliveredInboundSats ?? 0n, 'deliveredInboundSats');
   const observedFeePpm = Number(toInt(options.observedFeePpm ?? quote.quoteCore.maxFeePpm + 1, 'observedFeePpm'));
-  const observedCltvDelta = Number(toInt(options.observedCltvDelta ?? quote.quoteCore.maxCltvDelta + 1, 'observedCltvDelta'));
+  const observedCltvDelta = heightOf(options.observedCltvDelta ?? quote.quoteCore.maxCltvDelta + 1, 'observedCltvDelta');
   const missingExitPath = Boolean(options.missingExitPath);
   const missingForfeitPath = Boolean(options.missingForfeitPath);
 

@@ -261,6 +261,39 @@ test('the amount spelling rule, table-driven, for strings and numbers', () => {
   }
 });
 
+test('heightOf takes one canonical block height and refuses every other spelling', () => {
+  const { heightOf } = require('./money');
+  const ok = [[144, 144], ['144', 144], [0, 0], [0n, 0], ['0', 0], [Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER]];
+  for (const [value, expected] of ok) assertEq(heightOf(value, "h"), expected, `heightOf(${String(value)})`);
+  const bad = [undefined, null, '', 'abc', 'NaN', '1e3', '0x90', ' 144', '144 ', '+144', '-1', -1, 1.5, '1.5',
+    NaN, Infinity, '9007199254740993', 9007199254740992, true];
+  for (const value of bad) {
+    let threw = false;
+    try { heightOf(value, 'h'); } catch (_err) { threw = true; }
+    if (!threw) throw new Error(`heightOf(${String(value)}) must throw`);
+  }
+  assertEq(heightOf(-5, 'h', { signed: true }), -5, 'signed heightOf takes a negative age');
+});
+
+test('a malformed height or CLTV delta in a challenge builder is refused, and a violating value still counts', () => {
+  const lease = require('./lightning_liquidity_lease');
+  const stablecoin = require('./lightning_taproot_assets_stablecoin');
+  const router = require('./bitvm_channel_router');
+  const throwsFor = (fn) => { try { fn(); return false; } catch (_err) { return true; } };
+  if (!(throwsFor(() => lease.buildLeaseChallengeEvidence({ observedCltvDelta: 'abc' })))) throw new Error('lease observedCltvDelta abc was accepted');
+  const leaseProof = { channelOutpoint: `${'11'.repeat(32)}:0`, fundingCommitmentHash: '22'.repeat(32) };
+  if (!(throwsFor(() => lease.buildLeaseSuccessEvidence({ ...leaseProof, observedAtBlock: 'x' })))) throw new Error('lease observedAtBlock x was accepted');
+  if (!(throwsFor(() => lease.buildLeaseSuccessEvidence({ ...leaseProof, observedCltvDelta: 'abc' })))) throw new Error('lease success observedCltvDelta abc was accepted');
+  if (!(throwsFor(() => lease.buildLeaseChallengeEvidence({ challengeBlock: '1e3' })))) throw new Error('lease challengeBlock 1e3 was accepted');
+  const lateLease = lease.buildLeaseChallengeEvidence({ observedCltvDelta: '50' });
+  if (!(lateLease.challengeCore.violations.includes('cltv_delta_above_ceiling'))) throw new Error('lease CLTV 50 over a ceiling of 40 was not a violation');
+  if (!(throwsFor(() => stablecoin.buildStablecoinChallengeEvidence({ observedBlock: 'abc' })))) throw new Error('stablecoin observedBlock abc was accepted');
+  const lateStable = stablecoin.buildStablecoinChallengeEvidence({ observedBlock: '300' });
+  if (!(lateStable.challengeCore.violations.includes('quote_expired_before_settlement'))) throw new Error('stablecoin block 300 past expiry 250 was not a violation');
+  if (!(throwsFor(() => router.buildBitvmChannelRouterBundle({ routeIntent: { maxCltvDelta: 'abc' } })))) throw new Error('router maxCltvDelta abc was accepted');
+  if (!(throwsFor(() => router.buildBitvmChannelRouterBundle({ routeIntent: { maxCltvDelta: 1.5 } })))) throw new Error('router maxCltvDelta 1.5 was accepted');
+});
+
 if (failed > 0) {
   console.log(`\nFAIL: ${failed} failed, ${passed} passed\n`);
   process.exit(1);

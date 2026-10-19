@@ -2,7 +2,7 @@ const {
   stableStringify,
   sha256Hex
 } = require('./tradelayer_pnl_route_adapter');
-const { toInt, decimalToUnits: scaledDecimalToUnits } = require('./money');
+const { toInt, decimalToUnits: scaledDecimalToUnits, heightOf } = require('./money');
 
 const DEFAULT_UNIT_SCALE = 100000000n;
 
@@ -174,7 +174,7 @@ function buildTradeLayerSendStateOracleFromConsensus(input, options = {}) {
     kind: 'tradelayer-send-state-oracle-v1',
     chain: options.chain || input.chain || input.network || 'litecoin-testnet',
     epochId: String(options.epochId ?? input.epochId ?? input.snapshotHeight ?? selected.blockHeight ?? 0),
-    snapshotHeight: Number(toInt(options.snapshotHeight ?? input.snapshotHeight ?? input.height ?? selected.blockHeight ?? 0, 'snapshotHeight')),
+    snapshotHeight: heightOf(options.snapshotHeight ?? input.snapshotHeight ?? input.height ?? selected.blockHeight ?? 0, 'snapshotHeight'),
     snapshotTxid: options.snapshotTxid || input.snapshotTxid || input.blockHash || input.bestBlockHash || sourceHash,
     oracleAddress: options.oracleAddress || input.oracleAddress || null,
     selectedSendId,

@@ -26,6 +26,7 @@ const crypto = require('crypto');
 const { computeBoundedSettlementAmounts } = require('./m1_transition');
 const { withCommittedRouting, assertCommittedRouting } = require('./m1_routing_commitments');
 const { resolveChainEnv } = require('./m1_chain_env');
+const { heightOf } = require('./money');
 const DRAFT_PATH = process.env.DLC_DRAFT_PATH ||
   path.join(__dirname, 'artifacts', 'm1_dlc_draft_latest.json');
 
@@ -157,7 +158,7 @@ function readSettlementDraft(draft) {
       feeAddress: draft.roleSet.addresses.operator,
       dustRole: 'alice',
       dustAddress: draft.roleSet.addresses.alice,
-      rollLocktime: Number(draft.contract.refundLocktime || 0),
+      rollLocktime: heightOf(draft.contract.refundLocktime || 0, 'refundLocktime'),
       rolloverCollateralSats: draft.contract.collateralSats || '0',
       dustCarrySats: draft.contract.dustCarrySats || '0'
     }),
@@ -366,8 +367,8 @@ async function buildCetSkeletons(rpc, draft, funding) {
   const fundingTxid = funding.fundingOutpoint.txid;
   const fundingVout = funding.fundingOutpoint.vout;
   const collateralSats = BigInt(funding.effectiveCollateralSats);
-  const maturityHeight = Number(draft.contract.maturityHeight);
-  const refundLocktime = Number(draft.contract.refundLocktime);
+  const maturityHeight = heightOf(draft.contract.maturityHeight, 'maturityHeight');
+  const refundLocktime = heightOf(draft.contract.refundLocktime, 'refundLocktime');
   const settlementDraft = readSettlementDraft(draft);
   const settlement = settlementDraft.model === 'bounded-loss-carry-forward' || settlementDraft.model === 'binary-settlement'
     ? normalizeBoundedSettlement(settlementDraft, collateralSats, refundLocktime, draft.roleSet.addresses)
@@ -429,7 +430,7 @@ async function buildCetSkeletons(rpc, draft, funding) {
     }));
   }
 
-  const rollLocktime = Number(settlement.roll && settlement.roll.rollLocktime ? settlement.roll.rollLocktime : refundLocktime);
+  const rollLocktime = heightOf(settlement.roll && settlement.roll.rollLocktime ? settlement.roll.rollLocktime : refundLocktime, 'rollLocktime');
   const rollDustCarrySats = BigInt(settlement.roll && settlement.roll.dustCarrySats ? settlement.roll.dustCarrySats : settlement.dustCarrySats || '0');
   const rolloverCollateralSats = BigInt(settlement.roll && settlement.roll.rolloverCollateralSats ? settlement.roll.rolloverCollateralSats : collateralSats - rollDustCarrySats);
 

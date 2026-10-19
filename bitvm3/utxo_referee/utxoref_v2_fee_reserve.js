@@ -5,8 +5,9 @@ const {
   verifyTaprootReserveVaultOnChain,
   normalizeChainTxoutForEvidence
 } = require('./taproot_reserve_vault');
-const { toSats } = require('./money');
+const { toSats, heightOf } = require('./money');
 const { sha256Hex } = require('./tradelayer_pnl_route_adapter');
+const { csvSequence } = require('./csv_delay');
 
 const DEFAULT_RECOVERY_SAFETY_BLOCKS = 6;
 
@@ -136,7 +137,7 @@ function verifyUtxorefV2FeeReserve(reserve, options = {}) {
       return { ok: false, counted: false, reason: 'fee reserve funding height does not match Core confirmations' };
     }
     const requiredHorizon = boundedInteger(core.minimumRecoveryHorizon, 'minimumRecoveryHorizon', 1, 65535);
-    const remainingBlocks = fundingHeight + Number(core.vaultManifest.core.recoveryCsvDelay) - currentHeight;
+    const remainingBlocks = fundingHeight + csvSequence(core.vaultManifest.core.recoveryCsvDelay, 'recoveryCsvDelay') - currentHeight;
     if (remainingBlocks <= requiredHorizon) {
       return { ok: false, counted: false, reason: 'fee reserve recovery is inside the challenge horizon', remainingBlocks };
     }
@@ -214,7 +215,7 @@ function buildUtxorefV2FeeReserveRegistry(input = {}) {
 async function buildUtxorefV2FeeReserveRegistryFromRpc(input = {}) {
   if (typeof input.rpc !== 'function') throw new Error('rpc function is required');
   const currentHeight = input.currentHeight === undefined
-    ? Number(await input.rpc('getblockcount'))
+    ? heightOf(await input.rpc('getblockcount'), 'getblockcount')
     : boundedInteger(input.currentHeight, 'currentHeight');
   const chainTxouts = {};
   for (const reserve of input.reserves || []) {

@@ -13,7 +13,7 @@ const {
 const {
   verifyTradeLayerReserveReconciliation
 } = require('./tradelayer_reserve_reconciliation_referee');
-const { toSats, toInt } = require('./money');
+const { toSats, toInt, heightOf } = require('./money');
 
 const DEFAULT_POLICY = {
   challengeWindowBlocks: 144,
@@ -68,14 +68,14 @@ function maxFeeByBps(inputSats, maxFeeBpsOfInput) {
 }
 
 function registryHeight(stateOracleBlob) {
-  return Number(toInt(
+  return heightOf(
     stateOracleBlob.registryHeight
     ?? stateOracleBlob.dlcFunderRegistryHeight
     ?? stateOracleBlob.source?.registryHeight
     ?? stateOracleBlob.snapshotHeight
     ?? 0,
     'registryHeight'
-  ));
+  );
 }
 
 function buildTradeLayerSendProductionPolicy(stateOracleBlob, options = {}) {
@@ -111,7 +111,7 @@ function buildTradeLayerSendProductionPolicy(stateOracleBlob, options = {}) {
   // registry is not shown fresh, rather than measured against the snapshot it came from.
   const currentHeight = options.currentHeight === undefined || options.currentHeight === null
     ? null
-    : Number(toInt(options.currentHeight, 'currentHeight'));
+    : heightOf(options.currentHeight, 'currentHeight');
   const regHeight = registryHeight(stateOracleBlob);
   const registryAgeBlocks = currentHeight === null ? null : Math.max(0, currentHeight - regHeight);
   const oracleAddress = String(stateOracleBlob.oracleAddress || '');

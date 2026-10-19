@@ -11,6 +11,7 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const { heightOf } = require('./money');
 
 const ARTIFACTS_DIR = path.join(__dirname, 'artifacts');
 const DRAFT_PATH = path.join(ARTIFACTS_DIR, 'm1_dlc_draft_latest.json');
@@ -50,7 +51,7 @@ function pickLatestSettlement() {
 
   const epochId = BigInt(draft.canonical.epochId || '1');
   const nextEpochId = epochId + 1n;
-  const rollLocktime = Number(settlement.roll.rollLocktime || draft.contract.refundLocktime || 0);
+  const rollLocktime = heightOf(settlement.roll.rollLocktime || draft.contract.refundLocktime || 0, 'rollLocktime');
   const rollPayouts = settlement.roll.payouts || {};
   const dustCarrySats = BigInt(settlement.dustCarrySats || rollPayouts.dustCarrySats || '0');
   const rolloverCollateralSats = BigInt(rollPayouts.rolloverCollateralSats || '0');

@@ -6,6 +6,7 @@
  * value parsed by one module cannot mean something different in another.
  *
  *   toInt(value, field)                      integer, sign per `signed`
+ *   heightOf(value, field)                   block height, age or lock as a safe JavaScript number
  *   toSats(value, field)                     non-negative integer sat amount
  *   decimalToUnits(value, field, options)    decimal amount scaled to base units
  *   satsToCoinString(sats)                   sats as eight-place coin text
@@ -23,6 +24,7 @@
  */
 
 const COIN = 100000000n;
+const MAX_SAFE_INTEGER = BigInt(Number.MAX_SAFE_INTEGER);
 const UNSIGNED_INTEGER = /^\d+$/;
 const SIGNED_INTEGER = /^-?\d+$/;
 const UNSIGNED_DECIMAL = /^\d+(\.\d+)?$/;
@@ -42,6 +44,14 @@ function toInt(value, field, { signed = false, noun = 'integer' } = {}) {
   }
   if (!signed && out < 0n) throw new Error(`${field} must be non-negative`);
   return out;
+}
+
+// A block height, age, lock or CLTV delta, as a number the comparisons can use. The spelling is toInt's, and the value
+// must be a safe integer, so Number() cannot round it. Relative CSV delays go through csv_delay.js instead.
+function heightOf(value, field, { signed = false } = {}) {
+  const out = toInt(value, field, { signed, noun: 'integer block height' });
+  if (out > MAX_SAFE_INTEGER || out < -MAX_SAFE_INTEGER) throw new Error(`${field} must be a safe integer`);
+  return Number(out);
 }
 
 function toSats(value, field, { signed = false } = {}) {
@@ -102,6 +112,7 @@ function satsToCoinString(value) {
 module.exports = {
   COIN,
   toInt,
+  heightOf,
   toSats,
   decimalToUnits,
   satsToCoinString

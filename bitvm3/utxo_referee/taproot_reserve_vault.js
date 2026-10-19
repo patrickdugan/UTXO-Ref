@@ -12,7 +12,7 @@
 const crypto = require('crypto');
 const { stableStringify, sha256Hex, addressToScriptPubKey } = require('./tradelayer_pnl_route_adapter');
 const { verifyTradeLayerWithdrawalQueue } = require('./tradelayer_withdrawal_queue_referee');
-const { toInt, toSats, decimalToUnits } = require('./money');
+const { toInt, toSats, decimalToUnits, heightOf } = require('./money');
 const { pushScriptNum, csvSequence } = require('./csv_delay');
 const tr = require('./tradelayer_taproot');
 const ts = require('./tradelayer_taproot_script');
@@ -191,7 +191,7 @@ function buildTaprootReserveVaultManifest(input = {}) {
   const fundingOutpoint = normalizeFundingOutpoint(input.fundingOutpoint);
   const amountSats = toSats(input.amountSats, 'amountSats');
   if (amountSats <= 0n) throw new Error('amountSats must be positive');
-  const observedAtHeight = Number(input.observedAtHeight);
+  const observedAtHeight = heightOf(input.observedAtHeight, 'observedAtHeight');
   if (!Number.isInteger(observedAtHeight) || observedAtHeight < 0) {
     throw new Error('observedAtHeight must be a non-negative integer');
   }
@@ -261,16 +261,16 @@ function recoveryStatus(manifest, options = {}) {
       checked: false,
       countable: false,
       reason: 'currentHeight is required to check recovery freshness',
-      observedAtHeight: Number(core.observedAtHeight),
-      maturityHeight: Number(core.observedAtHeight) + Number(core.recoveryCsvDelay),
+      observedAtHeight: heightOf(core.observedAtHeight, 'observedAtHeight'),
+      maturityHeight: heightOf(core.observedAtHeight, 'observedAtHeight') + csvSequence(core.recoveryCsvDelay, 'recoveryCsvDelay'),
       remainingBlocks: null,
-      riskMarginBlocks: Number(options.recoveryRiskMarginBlocks ?? DEFAULT_RECOVERY_RISK_MARGIN_BLOCKS)
+      riskMarginBlocks: heightOf(options.recoveryRiskMarginBlocks ?? DEFAULT_RECOVERY_RISK_MARGIN_BLOCKS, 'recoveryRiskMarginBlocks')
     };
   }
-  const height = Number(currentHeight);
-  const observedAtHeight = Number(core.observedAtHeight);
-  const recoveryCsvDelay = Number(core.recoveryCsvDelay);
-  const riskMarginBlocks = Number(options.recoveryRiskMarginBlocks ?? DEFAULT_RECOVERY_RISK_MARGIN_BLOCKS);
+  const height = heightOf(currentHeight, 'currentHeight');
+  const observedAtHeight = heightOf(core.observedAtHeight, 'observedAtHeight');
+  const recoveryCsvDelay = csvSequence(core.recoveryCsvDelay, 'recoveryCsvDelay');
+  const riskMarginBlocks = heightOf(options.recoveryRiskMarginBlocks ?? DEFAULT_RECOVERY_RISK_MARGIN_BLOCKS, 'recoveryRiskMarginBlocks');
   const maturityHeight = observedAtHeight + recoveryCsvDelay;
   const riskHeight = maturityHeight - riskMarginBlocks;
   const remainingBlocks = maturityHeight - height;
@@ -363,7 +363,7 @@ function normalizeChainTxoutForEvidence(txout) {
 function fundingConfirmationHeight(txout, currentHeight) {
   const confirmations = Number(txout.confirmations);
   if (!Number.isInteger(confirmations) || confirmations < 1) return { error: 'vault UTXO is not confirmed' };
-  const tip = Number(currentHeight);
+  const tip = heightOf(currentHeight, 'currentHeight');
   if (!Number.isInteger(tip) || tip < 0) return { error: 'chain tip height is required to anchor the vault' };
   return { height: tip - confirmations + 1 };
 }
@@ -408,7 +408,7 @@ function verifyTaprootReserveVaultOnChain(manifest, options = {}) {
   if (anchor.error) {
     return { ok: false, counted: false, reason: anchor.error, manifestCheck, chainTxout: txout };
   }
-  if (anchor.height !== Number(core.observedAtHeight)) {
+  if (anchor.height !== heightOf(core.observedAtHeight, 'observedAtHeight')) {
     return {
       ok: false,
       counted: false,
@@ -450,12 +450,12 @@ function buildTaprootReserveVaultSet(input = {}) {
   const manifests = input.manifests || input.vaultManifests || [];
   if (!Array.isArray(manifests)) throw new Error('manifests must be an array');
   const network = normalizeNetwork(input.network || manifests[0]?.core?.network || DEFAULT_NETWORK);
-  const currentHeight = input.currentHeight !== undefined ? Number(input.currentHeight) : null;
+  const currentHeight = input.currentHeight !== undefined ? heightOf(input.currentHeight, 'currentHeight') : null;
   if (!Number.isInteger(currentHeight) || currentHeight < 0) {
     throw new Error('currentHeight is required for taproot reserve vault sets');
   }
   const reserveEpochId = String(input.reserveEpochId ?? manifests[0]?.core?.reserveEpochId ?? '0');
-  const recoveryRiskMarginBlocks = Number(input.recoveryRiskMarginBlocks ?? DEFAULT_RECOVERY_RISK_MARGIN_BLOCKS);
+  const recoveryRiskMarginBlocks = heightOf(input.recoveryRiskMarginBlocks ?? DEFAULT_RECOVERY_RISK_MARGIN_BLOCKS, 'recoveryRiskMarginBlocks');
   let reservedSats = 0n;
   // One funding outpoint backs at most one counted vault. A second manifest naming
   // the same UTXO is kept in the set as rejected, so the reserve is not counted twice.
@@ -521,8 +521,8 @@ async function buildTaprootReserveVaultSetFromRpc(input = {}) {
   if (typeof input.rpc !== 'function') throw new Error('rpc function is required');
   const rpc = input.rpc;
   const currentHeight = input.currentHeight !== undefined
-    ? Number(input.currentHeight)
-    : Number(await rpc('getblockcount'));
+    ? heightOf(input.currentHeight, 'currentHeight')
+    : heightOf(await rpc('getblockcount'), 'getblockcount');
   const chainTxouts = {};
   for (const manifest of input.manifests || []) {
     const key = outpointKey(manifest.core.fundingOutpoint);

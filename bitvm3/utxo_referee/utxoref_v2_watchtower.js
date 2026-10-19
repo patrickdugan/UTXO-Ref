@@ -30,6 +30,8 @@ const {
   acknowledgeAlert,
   pingHeartbeat
 } = require('./utxoref_v2_alert_notifier');
+const { heightOf } = require('./money');
+const { csvSequence } = require('./csv_delay');
 
 const DEFAULT_ARTIFACT = path.join(__dirname, 'artifacts', 'live', 'btc_testnet4_utxoref_v2_latest.json');
 const DEFAULT_TRUST_POLICY = path.join(__dirname, 'artifacts', 'live', 'utxoref_v2_watchtower_trust_policy.json');
@@ -308,8 +310,8 @@ function challengeStateBindsArtifact(artifact, state) {
 // the committed trace, and holds for as long as the assertion output is unspent.
 function authorizationPolicy(inspected, activeBlockHash, state, currentHeight, artifact) {
   const reorged = activeBlockHash !== inspected.authorizationBlockHash;
-  const snapshotHeight = Number(inspected.stateSnapshotHeight);
-  const ageBlocks = Number(currentHeight) - snapshotHeight;
+  const snapshotHeight = heightOf(inspected.stateSnapshotHeight, 'stateSnapshotHeight');
+  const ageBlocks = heightOf(currentHeight, 'currentHeight') - snapshotHeight;
   const stale = !stateAgeIsFresh(ageBlocks);
   const tracked = challengeStateBindsArtifact(artifact, state);
   return {
@@ -342,7 +344,7 @@ function inspectArtifact(artifact, trustPolicy, inspectOptions = {}) {
   const authorization = authorizationReference(artifact);
   const verification = verifyBitvmAssertionGraphV2(artifact.graph, options);
   if (!verification.ok) throw new Error(`public assertion graph failed verification: ${verification.reason}`);
-  const stateSnapshotHeight = Number(artifact.graph.settlement?.stateEnvelope?.body?.snapshotHeight);
+  const stateSnapshotHeight = heightOf(artifact.graph.settlement?.stateEnvelope?.body?.snapshotHeight, 'snapshotHeight');
   const ageAtAuthorization = authorization.height - stateSnapshotHeight;
   const stateFreshAtAuthorization = stateAgeIsFresh(ageAtAuthorization);
   const gateEvidence = findGateDisproveV2(artifact.graph.publicTrace, artifact.graph.template.challengerXonly);
@@ -401,7 +403,7 @@ async function verifyConfiguredFeeReserve(args, inspected, rpc, chain, assertion
   assertRpcSnapshotTip(txout, chain.bestblockhash, 'fee reserve output');
   const verification = verifyUtxorefV2FeeReserve(reserve, {
     graphHash: inspected.graphHash,
-    currentHeight: Number(chain.blocks),
+    currentHeight: heightOf(chain.blocks, 'chain.blocks'),
     minimumFeeReserveSats: policy.minimumFeeReserveSats,
     txout
   });
@@ -554,7 +556,7 @@ function deriveChallengeLifecycle(input = {}) {
     if (confirmations <= 0) {
       return { action: 'challenge_in_mempool', confirmations: 0, confirmation: null, reorgDetected: Boolean(prior) };
     }
-    const height = Number(input.currentHeight) - confirmations + 1;
+    const height = heightOf(input.currentHeight, 'currentHeight') - confirmations + 1;
     const blockHash = String(input.inclusionBlockHash || '');
     if (!Number.isSafeInteger(height) || height < 0 || !/^[0-9a-f]{64}$/.test(blockHash)) {
       throw new Error('confirmed challenge requires a valid inclusion height and block hash');
@@ -659,7 +661,7 @@ async function monitorChallenge(rpc, state, currentHeight, expectedTipHash = nul
   let inclusionBlockHash = null;
   let activeHashAtPriorHeight = null;
   if (txout && Number(txout.confirmations || 0) > 0) {
-    const inclusionHeight = currentHeight - Number(txout.confirmations) + 1;
+    const inclusionHeight = currentHeight - heightOf(txout.confirmations, 'confirmations') + 1;
     inclusionBlockHash = await rpc('getblockhash', [inclusionHeight]);
   } else if (!txout && tracked.confirmation) {
     activeHashAtPriorHeight = await rpc('getblockhash', [tracked.confirmation.height]).catch(() => null);
@@ -826,11 +828,11 @@ async function runTick(args, rpc, state) {
   const chain = await rpc('getblockchaininfo');
   if (chain.chain !== 'testnet4') throw new Error(`wrong chain: ${chain.chain}`);
   const authorizationBlock = await rpc('getblockhash', [inspected.authorizationHeight]).catch(() => null);
-  const authorization = authorizationPolicy(inspected, authorizationBlock, state, Number(chain.blocks), artifact);
+  const authorization = authorizationPolicy(inspected, authorizationBlock, state, heightOf(chain.blocks, 'chain.blocks'), artifact);
   const assertion = inspected.assertionOutpoint;
   const txout = await rpc('gettxout', [assertion.txid, assertion.vout, true]);
   assertRpcSnapshotTip(txout, chain.bestblockhash, 'assertion output');
-  const currentHeight = Number(chain.blocks);
+  const currentHeight = heightOf(chain.blocks, 'chain.blocks');
   const feeReserve = await verifyConfiguredFeeReserve(args, inspected, rpc, chain, Boolean(txout));
   const confirmationCount = Number(txout?.confirmations || 0);
   const result = {
@@ -878,10 +880,10 @@ async function runTick(args, rpc, state) {
   // no key. It is never broadcast for a fraudulent, reorged, stale-at-
   // authorization or monitor-only (predicate-unbound) graph.
   if (txout && !inspected.fraudDetected) {
-    const recoveryInBlocks = Number(inspected.recoveryCsvBlocks) - confirmationCount;
+    const recoveryInBlocks = csvSequence(inspected.recoveryCsvBlocks, 'recoveryCsvBlocks') - confirmationCount;
     result.settlement = {
       txid: txidFromUnsignedHex(artifact.graph.settlement.unsignedTxHex),
-      mature: confirmationCount >= Number(inspected.challengeCsvBlocks),
+      mature: confirmationCount >= csvSequence(inspected.challengeCsvBlocks, 'challengeCsvBlocks'),
       recoveryInBlocks,
       broadcastEligible: inspected.predicateBound === true && !authorization.reorged &&
         inspected.stateFreshAtAuthorization,
