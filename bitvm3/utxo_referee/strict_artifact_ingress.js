@@ -104,6 +104,11 @@ function parseJsonStrict(text, fieldName = 'JSON artifact', options = {}) {
     if (Number.isInteger(value) && !Number.isSafeInteger(value)) {
       fail('integer is outside the safe integer range; encode it as a canonical integer string');
     }
+    // A nonzero fraction that the double rounds to an integer. Checked on the
+    // token text, because the value no longer shows the fraction.
+    if (Number.isInteger(value) && /\.[0-9]*[1-9]/.test(raw)) {
+      fail('fraction is rounded away by the number value; encode it as a canonical integer string');
+    }
     return value;
   }
 
