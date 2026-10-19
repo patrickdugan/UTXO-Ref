@@ -63,10 +63,23 @@ function toSats(value, field, { signed = false } = {}) {
   return toInt(value, field, { signed, noun: 'integer sat amount' });
 }
 
-// A JavaScript number is accepted only when its decimal text, rounded to the
-// scale's places, parses back to the same number; 0.123456789 is refused, not rounded.
-// An integer-valued number follows toInt's rule: it must be a safe integer.
-function decimalText(value, field, decimals) {
+// The shortest decimal text of a finite, non-integer number, with any exponent written out (1e-7 is '0.0000001').
+// Its digits are the amount's digits, so 77672233.6 is '77672233.6' and not the eight-place rounding of the double.
+function shortestDecimalText(value) {
+  const [, sign, digits, exponent = '0'] = /^(-?)(\d+(?:\.\d+)?)(?:e([+-]\d+))?$/.exec(String(value));
+  const [whole, fraction = ''] = digits.split('.');
+  const all = whole + fraction;
+  const point = whole.length + Number(exponent);
+  let plain;
+  if (point <= 0) plain = `0.${'0'.repeat(-point)}${all}`;
+  else if (point >= all.length) plain = all + '0'.repeat(point - all.length);
+  else plain = `${all.slice(0, point)}.${all.slice(point)}`;
+  return sign + plain;
+}
+
+// A JavaScript number is spelled by its shortest decimal text, which parses back to the same number. Digits past the
+// scale are refused by decimalToUnits, not rounded. An integer-valued number follows toInt's rule: a safe integer.
+function decimalText(value, field) {
   if (typeof value === 'bigint') return value.toString();
   if (typeof value !== 'number') return value;
   if (!Number.isFinite(value)) throw new Error(`${field} must be finite`);
@@ -74,9 +87,7 @@ function decimalText(value, field, decimals) {
     if (!Number.isSafeInteger(value)) throw new Error(`${field} must be a safe integer`);
     return String(value);
   }
-  const text = value.toFixed(decimals).replace(/\.?0+$/, '');
-  if (Number(text) !== value) throw new Error(`${field} has more than ${decimals} decimal places`);
-  return text;
+  return shortestDecimalText(value);
 }
 
 /**
@@ -91,7 +102,7 @@ function decimalToUnits(value, field, { scale = COIN, integersAreUnits = false, 
     throw new Error(`${field} must be a string in base units: a JSON number has lost its decimal spelling`);
   }
   const decimals = scale.toString().length - 1;
-  const text = decimalText(value, field, decimals);
+  const text = decimalText(value, field);
   if (typeof text !== 'string' || !(signed ? SIGNED_DECIMAL : UNSIGNED_DECIMAL).test(text)) {
     throw new Error(`${field} must be a decimal amount`);
   }
