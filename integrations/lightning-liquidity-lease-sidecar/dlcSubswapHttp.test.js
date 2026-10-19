@@ -179,8 +179,8 @@ async function run(sidecar, base) {
   assert.strictEqual(mint.json.tradeLayer.params.settlementState, 'FUNDED');
   assert.strictEqual(mint.json.tradeLayer.params.amountGranted, '0.00012345');
 
-  // A restarted sidecar still knows the request was minted: a repeat mint to the same recipient gets the stored intent back,
-  // and another recipient is refused. Neither is granted again.
+  // A restarted sidecar still knows the request was minted: by default a repeat mint is refused, whoever asks, so nothing
+  // is granted again.
   delete require.cache[require.resolve('./server')];
   const restarted = require('./server');
   const restartedServer = http.createServer((req, res) => restarted.handle(req, res));
@@ -190,8 +190,8 @@ async function run(sidecar, base) {
       requestId,
       recipientAddress: RECIPIENT
     });
-    assert.strictEqual(afterRestart.status, 200, 'a restart forgot the intent of the minted request');
-    assert.deepStrictEqual(afterRestart.json, mint.json, 'a restart returned a different intent');
+    assert.strictEqual(afterRestart.status, 409, 'without SIDECAR_REPLAY_MINT_INTENT a repeat mint to the same recipient was answered');
+    assert.match(afterRestart.json.error, /already minted/);
     const otherRecipient = await post(`http://127.0.0.1:${restartedServer.address().port}`, mintRoute, {
       requestId,
       recipientAddress: 'tb1qotherrecipient000000000000000000000000'
@@ -234,8 +234,8 @@ async function run(sidecar, base) {
   assert.strictEqual(requoted.status, 200, 'a request already in a full table was refused');
   assert.strictEqual(requoted.json.request.requestId, failing.json.request.requestId);
   const stillMinted = await post(base, mintRoute, { requestId, recipientAddress: RECIPIENT });
-  assert.strictEqual(stillMinted.status, 200, 'a full table refused the stored intent of a minted request');
-  assert.deepStrictEqual(stillMinted.json, mint.json, 'a full table returned a new intent for a minted request');
+  assert.strictEqual(stillMinted.status, 409, 'a full table answered a repeat mint of a minted request');
+  assert.match(stillMinted.json.error, /already minted/);
   assert.strictEqual(unpaidQuote.status, 200);
 
   // A token file readable by group or others is refused at startup. Windows has no mode bits to check (its ACL

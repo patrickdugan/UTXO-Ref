@@ -665,11 +665,15 @@ async function settledPaymentProof(request) {
   };
 }
 
-// A request yields one intent. A repeat for the same request and recipient gets the stored intent back, which is what a
-// client that lost the first response needs. A different recipient, or a request minted before intents were kept, is refused.
+// A request yields one intent. A repeat is refused (409) unless SIDECAR_REPLAY_MINT_INTENT=1: replaying the stored
+// descriptor recovers a client that lost the first response, but the consumer that submits it must refuse a descriptor it
+// already granted. In tradelayer-core the grant transaction carries no request identifier and nothing dedupes grants, so
+// a descriptor submitted twice grants twice. With the switch on, a repeat for the same request and recipient gets the
+// stored intent back; a different recipient, or a request minted before intents were kept, is refused either way.
 function repeatMintIntent(requestId, recipient) {
   const intent = mintedDlcSubswapRequests.get(requestId);
-  if (intent && recipient && intent.tradeLayer.params.addressToGrantTo === recipient) return intent;
+  if (process.env.SIDECAR_REPLAY_MINT_INTENT === '1' && intent && recipient
+      && intent.tradeLayer.params.addressToGrantTo === recipient) return intent;
   throw new HttpError(409, 'already_minted', ALREADY_MINTED);
 }
 

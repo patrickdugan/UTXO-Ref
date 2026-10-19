@@ -89,6 +89,7 @@ const BASE_ENV = {
   SIDECAR_MAX_QUOTED_REQUESTS: String(OPEN_CAP),
   SIDECAR_MAX_MINTED_REQUESTS: String(LARGE_MINTED_CAP),
   SIDECAR_QUOTE_TTL_SECONDS: String(TTL_SECONDS),
+  SIDECAR_REPLAY_MINT_INTENT: '1',
   TL_PROCEDURAL_ADMIN_ADDRESS: ADMIN_ADDRESS
 };
 
@@ -168,8 +169,8 @@ async function main() {
   }
   log('an honest quote, pay, mint loop three times the open cap succeeds');
 
-  // A minted request is never minted again, never re-quoted. A repeat mint to the same recipient gets the stored intent
-  // back byte for byte; another recipient is refused. Two concurrent mints to the same recipient return the same intent.
+  // A minted request is never minted again, never re-quoted. With SIDECAR_REPLAY_MINT_INTENT=1 a repeat mint to the same
+  // recipient gets the stored intent back byte for byte; another recipient is refused. Two concurrent mints to the same recipient return the same intent.
   const again = await mint(node.base, loop[0]);
   assert.strictEqual(again.status, 200, 'a repeat mint to the same recipient did not return the stored intent');
   assert.strictEqual(again.text, intentText.get(loop[0]), 'a repeat mint returned a different intent');
