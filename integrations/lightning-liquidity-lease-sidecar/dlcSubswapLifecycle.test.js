@@ -122,7 +122,8 @@ async function post(base, route, body) {
     headers: { 'content-type': 'application/json', authorization: `Bearer ${TOKEN}` },
     body: JSON.stringify(body)
   });
-  return { status: response.status, json: await response.json().catch(() => ({})) };
+  const text = await response.text();
+  return { status: response.status, text, json: JSON.parse(text || '{}') };
 }
 
 const quote = (base, i) => {
@@ -131,11 +132,11 @@ const quote = (base, i) => {
   return post(base, QUOTE_ROUTE, quoteBody(p));
 };
 const pay = (base, requestId) => post(base, PAY_ROUTE, { requestId });
-// Counts the grants this test has been given, so the minted cap can be set to the exact number in a restart.
-const grants = { count: 0 };
+// The requests this test has granted, so the minted cap can be set to the exact number in a restart.
+const granted = new Set();
 async function mint(base, requestId, recipientAddress = RECIPIENT) {
   const minted = await post(base, MINT_ROUTE, { requestId, recipientAddress });
-  if (minted.status === 200) grants.count++;
+  if (minted.status === 200) granted.add(requestId);
   return minted;
 }
 const paymentPosts = () => lndCalls.filter((call) => call.method === 'POST').length;
@@ -156,27 +157,35 @@ async function main() {
 
   // An honest loop of three times the open cap: every quote is served because a minted request leaves the table.
   const loop = [];
+  const intentText = new Map();
   for (let i = 0; i < 3 * OPEN_CAP; i++) {
     const requestId = await quotedAndPaid(node.base, i);
     const minted = await mint(node.base, requestId);
     assert.strictEqual(minted.status, 200, `mint ${i} was refused: ${JSON.stringify(minted.json)}`);
     assert.strictEqual(minted.json.tradeLayer.params.amountGranted, '0.00012345');
     loop.push(requestId);
+    intentText.set(requestId, minted.text);
   }
   log('an honest quote, pay, mint loop three times the open cap succeeds');
 
-  // A minted request is never minted again, never re-quoted, and a concurrent pair of mints grants once.
+  // A minted request is never minted again, never re-quoted. A repeat mint to the same recipient gets the stored intent
+  // back byte for byte; another recipient is refused. Two concurrent mints to the same recipient return the same intent.
   const again = await mint(node.base, loop[0]);
-  assert.strictEqual(again.status, 409, 'a second mint of a minted request was not refused');
-  assert.match(again.json.error, /already minted/);
+  assert.strictEqual(again.status, 200, 'a repeat mint to the same recipient did not return the stored intent');
+  assert.strictEqual(again.text, intentText.get(loop[0]), 'a repeat mint returned a different intent');
   const otherRecipient = await mint(node.base, loop[0], 'tb1qotherrecipient000000000000000000000000');
   assert.strictEqual(otherRecipient.status, 409, 'a mint to another recipient was not refused');
+  assert.match(otherRecipient.json.error, /already minted/);
   const requoted = await quote(node.base, 0);
   assert.strictEqual(requoted.status, 409, 'a minted request was quoted again');
   const racing = await quotedAndPaid(node.base, 9);
   const pair = await Promise.all([mint(node.base, racing), mint(node.base, racing)]);
-  assert.deepStrictEqual(pair.map((r) => r.status).sort(), [200, 409], 'two concurrent mints did not grant exactly once');
-  log('a minted request is refused on a second mint, another recipient and a re-quote; concurrent mints grant once');
+  assert.deepStrictEqual(pair.map((r) => r.status), [200, 200], 'two concurrent mints to one recipient were not both answered');
+  assert.strictEqual(pair[0].text, pair[1].text, 'two concurrent mints returned different intents');
+  const racingOther = await quotedAndPaid(node.base, 90);
+  const splitPair = await Promise.all([mint(node.base, racingOther), mint(node.base, racingOther, 'tb1qotherrecipient000000000000000000000000')]);
+  assert.deepStrictEqual(splitPair.map((r) => r.status).sort(), [200, 409], 'two concurrent mints to two recipients did not grant exactly once');
+  log('a repeat mint returns the stored intent; another recipient is refused; concurrent mints grant one intent');
 
   // An expired quote cannot be paid. It is refused without calling LND, and a fresh quote after expiry works.
   const expiredId = (await quote(node.base, 10)).json.request.requestId;
@@ -289,19 +298,23 @@ async function main() {
   const quotedId = (await quote(node.base, 31)).json.request.requestId;
   await node.close();
   node = await boot();
-  assert.strictEqual((await mint(node.base, paidId)).status, 200, 'a restart orphaned a paid request');
+  const paidMint = await mint(node.base, paidId);
+  assert.strictEqual(paidMint.status, 200, 'a restart orphaned a paid request');
   assert.strictEqual((await pay(node.base, quotedId)).status, 200, 'a restart lost a live quote');
   assert.strictEqual((await mint(node.base, quotedId)).status, 200);
   await node.close();
   node = await boot();
   const afterRestart = await mint(node.base, paidId);
-  assert.strictEqual(afterRestart.status, 409, 'a restart forgot that a request was minted');
+  assert.strictEqual(afterRestart.status, 200, 'a restart lost the intent of a minted request');
+  assert.strictEqual(afterRestart.text, paidMint.text, 'a restart returned a different intent');
+  assert.strictEqual((await mint(node.base, paidId, 'tb1qotherrecipient000000000000000000000000')).status, 409,
+    'a restart granted a minted request to another recipient');
   assert.strictEqual((await quote(node.base, 30)).status, 409, 'a restart let a minted request be quoted again');
   log('a restart mid-lifecycle keeps quoted, paid and minted state');
 
   // The minted record has its own cap. At the cap a mint is refused, the paid request stays open, and raising the
   // cap lets it mint.
-  const mintedNow = grants.count;
+  const mintedNow = granted.size;
   await node.close();
   node = await boot({ SIDECAR_MAX_MINTED_REQUESTS: String(mintedNow) });
   const capId = await quotedAndPaid(node.base, 40);
@@ -322,6 +335,54 @@ async function main() {
   assert.strictEqual((await mint(node.base, legacy.requestId)).status, 409, 'a version 1 request was granted again after upgrade');
   assert.strictEqual((await quote(node.base, 50)).status, 409, 'a version 1 request was quoted again after upgrade');
   log('a version 1 store is upgraded with its requests recorded as minted');
+
+  // An attempt LND never initiated (the invoice is one LND does not know, so its pay is refused) stays open, but a quote
+  // request looks up at most five attempted quotes, oldest first, and an unknown one is dropped only once an hour (the
+  // attempt window, which is longer than the quote TTL) has passed since its attempt. The clock is moved forward to get
+  // past the TTL and the window. An attempt LND settles later is paid when a quote finds it, even after its window.
+  const realNow = Date.now;
+  let skewMs = 0;
+  Date.now = () => realNow() + skewMs;
+  try {
+    await node.close();
+    node = await boot({ SIDECAR_MAX_QUOTED_REQUESTS: '20' });
+    const attempt = async (i) => {
+      const quoted = await post(node.base, QUOTE_ROUTE, quoteBody(payment(i)));
+      assert.strictEqual(quoted.status, 200, `quote ${i} was refused`);
+      const refused = await pay(node.base, quoted.json.request.requestId);
+      assert.strictEqual(refused.status, 502, `pay ${i} of an invoice LND does not know was not refused`);
+      return quoted.json.request.requestId;
+    };
+    const trackCalls = () => lndCalls.filter((call) => call.method === 'GET' && call.path.startsWith(TRACK)).length;
+    const storedIds = () => new Set(JSON.parse(fs.readFileSync(storePath, 'utf8')).entries.map((e) => e.request.requestId));
+    const settledLater = payment(130);
+    const late = await attempt(130);
+    lndPayments.push({ payment_hash: settledLater.paymentHashHex, payment_preimage: settledLater.preimageHex, status: 'SUCCEEDED' });
+    const stale = [];
+    for (let i = 100; i < 108; i++) stale.push(await attempt(i));
+    const lookupsIn = async (fn) => {
+      const before = trackCalls();
+      await fn();
+      return trackCalls() - before;
+    };
+
+    skewMs = (TTL_SECONDS + 1) * 1000;
+    assert.strictEqual(await lookupsIn(() => quote(node.base, 120)), 5, 'a quote request did not look up exactly five attempts');
+    assert(storedIds().has(stale[0]), 'an unknown attempt was dropped before its window');
+    assert.strictEqual(JSON.parse(fs.readFileSync(storePath, 'utf8')).entries.find((e) => e.request.requestId === late).state, 'paid',
+      'an attempt LND settled was not recorded as paid');
+
+    skewMs = 60 * 60 * 1000 + 5000;
+    assert.strictEqual(await lookupsIn(() => quote(node.base, 121)), 5, 'the second quote request did not look up five attempts');
+    assert(!storedIds().has(stale[0]) && !storedIds().has(stale[4]), 'unknown attempts past their window were kept');
+    assert(storedIds().has(stale[5]), 'an unknown attempt past the window was dropped before the bound let it be looked up');
+    assert.strictEqual((await mint(node.base, late)).status, 200, 'an attempt LND settled after its window did not mint');
+    assert.strictEqual(await lookupsIn(() => quote(node.base, 122)), 3, 'the remaining attempts were not looked up');
+    assert(!storedIds().has(stale[5]) && !storedIds().has(stale[7]), 'the remaining unknown attempts past their window were kept');
+    log('an attempt LND never initiated is looked up five at a time and dropped after its window; a settled one still mints');
+  } finally {
+    Date.now = realNow;
+  }
 
   await node.close();
   fs.rmSync(tokenDir, { recursive: true, force: true });

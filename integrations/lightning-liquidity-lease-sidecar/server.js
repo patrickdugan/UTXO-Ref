@@ -400,13 +400,16 @@ function compactId(value, prefix, length = 8) {
 
 // The quote lifecycle, one small state machine per request:
 //   quoted     open. It can be paid until expiresAt, and is dropped once it has expired unpaid.
-//   attempted  open. Its payment was saved as attempted before LND was asked, so LND may hold the payment even if the
-//              sidecar never got an answer. It is dropped only when LND reports the payment failed, and it becomes paid
-//              when LND reports the payment settled.
+//   attempted  open. Its payment was saved as attempted (with attemptedAt) before LND was asked, so LND may hold the
+//              payment even if the sidecar never got an answer. It is dropped when LND reports the payment failed, or
+//              when LND has no record of it and max(quote TTL, 1 hour) has passed since the attempt. It becomes paid when
+//              LND reports the payment settled.
 //   paid       open. It never expires, so a paid request is not dropped before it mints.
-//   minted  a grant intent was issued. Its requestId is appended to the minted log, a set of hashes kept outside the
-//           open table, and it is never quoted, paid or minted again. The intent itself is not kept. The Electrum tab
-//           forwards an intent to TradeLayer, so a repeat intent would be a second grant this process cannot see.
+//   minted  a grant intent was issued. Its requestId and the intent are appended to the minted log, a record kept outside
+//           the open table, and it is never quoted, paid or minted again. The Electrum tab forwards an intent to
+//           TradeLayer, so a second distinct intent would be a second grant this process cannot see. A repeat request
+//           for the same requestId and recipient gets the stored intent back, byte for byte, so a lost response is
+//           recoverable; a different recipient is refused.
 // Only open requests count toward SIDECAR_MAX_QUOTED_REQUESTS. Minted requests count toward SIDECAR_MAX_MINTED_REQUESTS.
 const STORE_KIND = 'utxoref_dlc_subswap_request_store';
 const ALREADY_MINTED = 'already minted: this request already has a grant intent and cannot be granted again';
@@ -422,9 +425,13 @@ const QUOTE_TTL_SECONDS = boundedInteger(process.env.SIDECAR_QUOTE_TTL_SECONDS |
 if (QUOTE_TTL_SECONDS === null) throw new Error('SIDECAR_QUOTE_TTL_SECONDS must be an integer in 1..31536000');
 const QUOTE_TTL_MS = QUOTE_TTL_SECONDS * 1000;
 
-const issuedDlcSubswapRequests = new Map(); // requestId -> { request, state, expiresAt, paying }
-const mintedDlcSubswapRequests = new Set(); // requestIds with a grant intent issued
+const issuedDlcSubswapRequests = new Map(); // requestId -> { request, state, expiresAt, attemptedAt, paying }
+const mintedDlcSubswapRequests = new Map(); // requestId -> the grant intent issued for it (null for a request minted before intents were kept)
+const ATTEMPT_WINDOW_MS = Math.max(QUOTE_TTL_MS, 60 * 60 * 1000);
+const PRUNE_LOOKUP_LIMIT = 5;
+const PRUNE_LOOKUP_BUDGET_MS = 10000;
 
+// One line per mint: {"requestId", "intent"}. A line that is only a request hash is a request minted before intents were kept.
 function loadMintedDlcSubswapRequests() {
   if (!fs.existsSync(mintedLogPath)) {
     writeAtomicPrivate(mintedLogPath, '');
@@ -435,18 +442,23 @@ function loadMintedDlcSubswapRequests() {
   // A last line without its newline was never returned to a caller: an intent is returned only after its line is fsynced.
   if (complete.length < text.length) fs.truncateSync(mintedLogPath, Buffer.byteLength(complete));
   for (const line of complete.split('\n').filter(Boolean)) {
-    if (!/^[0-9a-f]{64}$/.test(line)) throw new Error(`${mintedLogPath} holds a line that is not a request hash`);
-    mintedDlcSubswapRequests.add(line);
+    if (/^[0-9a-f]{64}$/.test(line)) {
+      mintedDlcSubswapRequests.set(line, null);
+      continue;
+    }
+    const record = JSON.parse(line);
+    if (!/^[0-9a-f]{64}$/.test(record.requestId)) throw new Error(`${mintedLogPath} holds a line that is not a minted record`);
+    mintedDlcSubswapRequests.set(record.requestId, record.intent || null);
   }
 }
 
-// Appends one requestId and fsyncs it before the caller returns an intent. A failed append is cut back to its start.
-function recordMinted(requestId) {
+// Appends one minted record and fsyncs it before the caller returns the intent. A failed append is cut back to its start.
+function recordMinted(requestId, intent) {
   const descriptor = fs.openSync(mintedLogPath, 'a', 0o600);
   try {
     const size = fs.fstatSync(descriptor).size;
     try {
-      fs.writeSync(descriptor, `${requestId}\n`);
+      fs.writeSync(descriptor, `${JSON.stringify({ requestId, intent })}\n`);
       fs.fsyncSync(descriptor);
     } catch (err) {
       fs.ftruncateSync(descriptor, size);
@@ -455,7 +467,7 @@ function recordMinted(requestId) {
   } finally {
     fs.closeSync(descriptor);
   }
-  mintedDlcSubswapRequests.add(requestId);
+  mintedDlcSubswapRequests.set(requestId, intent);
 }
 
 function loadIssuedDlcSubswapRequests() {
@@ -469,12 +481,13 @@ function loadIssuedDlcSubswapRequests() {
     // Version 1 never recorded a mint, so any of its requests may already have been granted. Each is recorded as
     // minted, so none is granted again. A paid version 1 request has to be checked on TradeLayer by an operator.
     for (const entry of store.entries) {
-      if (!mintedDlcSubswapRequests.has(entry.request.requestId)) recordMinted(entry.request.requestId);
+      if (!mintedDlcSubswapRequests.has(entry.request.requestId)) recordMinted(entry.request.requestId, null);
     }
     saveIssuedDlcSubswapRequests();
     return;
   }
   if (store.version !== 2) throw new Error(`${requestStorePath} has an unknown store version`);
+  let migrated = false;
   for (const entry of store.entries) {
     const requestId = entry.request.requestId;
     if (mintedDlcSubswapRequests.has(requestId)) continue;
@@ -484,19 +497,32 @@ function loadIssuedDlcSubswapRequests() {
     if (entry.state !== 'paid' && !Number.isSafeInteger(entry.expiresAt)) {
       throw new Error(`${requestStorePath} has a quote without expiresAt`);
     }
+    // An attempt saved before attemptedAt was kept is dated from this load, so its window is not already spent.
+    let attemptedAt = null;
+    if (entry.state === 'attempted') {
+      attemptedAt = Number.isSafeInteger(entry.attemptedAt) ? entry.attemptedAt : Date.now();
+      migrated = migrated || !Number.isSafeInteger(entry.attemptedAt);
+    }
     issuedDlcSubswapRequests.set(requestId, {
       request: entry.request,
       state: entry.state,
       expiresAt: entry.state === 'paid' ? null : entry.expiresAt,
+      attemptedAt,
       paying: false
     });
   }
+  if (migrated) saveIssuedDlcSubswapRequests();
 }
 
 loadIssuedDlcSubswapRequests();
 
 function saveIssuedDlcSubswapRequests() {
-  const entries = [...issuedDlcSubswapRequests.values()].map(({ request, state, expiresAt }) => ({ request, state, expiresAt }));
+  const entries = [...issuedDlcSubswapRequests.values()].map(({ request, state, expiresAt, attemptedAt }) => ({
+    request,
+    state,
+    expiresAt,
+    attemptedAt: state === 'attempted' ? attemptedAt : null
+  }));
   writeAtomicPrivate(requestStorePath, `${JSON.stringify({
     kind: STORE_KIND,
     version: 2,
@@ -514,17 +540,25 @@ async function lookupPaymentState(request) {
 }
 
 // Drops quotes that expired unpaid and have no payment in flight. An attempted quote is decided by LND, by payment hash:
-// LND's settled payment makes the request paid, LND's failed payment drops it, and anything else keeps it, including a
-// lookup that errors. Paid requests and requests being paid are kept.
+// LND's settled payment makes the request paid, LND's failed payment drops it, and LND's unknown answer drops it once
+// ATTEMPT_WINDOW_MS has passed since the attempt (LND never initiated it). A pending payment and a lookup that errors keep
+// it. Each call looks up at most PRUNE_LOOKUP_LIMIT attempted quotes, oldest first, within PRUNE_LOOKUP_BUDGET_MS, so a
+// quote request never waits on a long list of LND lookups. Paid requests and requests being paid are kept.
 async function pruneExpiredQuotes(now) {
   let changed = false;
   for (const [requestId, issued] of [...issuedDlcSubswapRequests]) {
-    if (issued.state === 'paid' || issued.paying || now < issued.expiresAt) continue;
-    if (issued.state === 'quoted') {
-      issuedDlcSubswapRequests.delete(requestId);
-      changed = true;
-      continue;
-    }
+    if (issued.state !== 'quoted' || issued.paying || now < issued.expiresAt) continue;
+    issuedDlcSubswapRequests.delete(requestId);
+    changed = true;
+  }
+  const due = [...issuedDlcSubswapRequests]
+    .filter(([, issued]) => issued.state === 'attempted' && !issued.paying && now >= issued.expiresAt)
+    .sort(([, a], [, b]) => a.attemptedAt - b.attemptedAt);
+  const started = Date.now();
+  let lookups = 0;
+  for (const [requestId, issued] of due) {
+    if (lookups === PRUNE_LOOKUP_LIMIT || Date.now() - started >= PRUNE_LOOKUP_BUDGET_MS) break;
+    lookups++;
     let lookup;
     try {
       lookup = await lookupPaymentState(issued.request);
@@ -533,7 +567,8 @@ async function pruneExpiredQuotes(now) {
     }
     // A pay that started while LND was asked, or a request dropped meanwhile, is left as it is.
     if (issued.paying || issuedDlcSubswapRequests.get(requestId) !== issued) continue;
-    if (lookup.state === 'failed') {
+    const unknownPastWindow = lookup.state === 'unknown' && Date.now() >= issued.attemptedAt + ATTEMPT_WINDOW_MS;
+    if (lookup.state === 'failed' || unknownPastWindow) {
       issuedDlcSubswapRequests.delete(requestId);
       changed = true;
     } else if (lookup.state === 'settled') {
@@ -566,14 +601,16 @@ function markPaid(issued) {
   saveIssuedDlcSubswapRequests();
 }
 
-// The attempt is saved before LND is asked. If the save fails, LND is not asked and the request stays quoted.
+// The attempt is saved, with its time, before LND is asked. If the save fails, LND is not asked and the request stays quoted.
 function markAttempted(issued) {
   if (issued.state !== 'quoted') return;
   issued.state = 'attempted';
+  issued.attemptedAt = Date.now();
   try {
     saveIssuedDlcSubswapRequests();
   } catch (err) {
     issued.state = 'quoted';
+    issued.attemptedAt = null;
     throw err;
   }
 }
@@ -612,8 +649,16 @@ async function settledPaymentProof(request) {
   };
 }
 
+// A request yields one intent. A repeat for the same request and recipient gets the stored intent back, which is what a
+// client that lost the first response needs. A different recipient, or a request minted before intents were kept, is refused.
+function repeatMintIntent(requestId, recipient) {
+  const intent = mintedDlcSubswapRequests.get(requestId);
+  if (intent && recipient && intent.tradeLayer.params.addressToGrantTo === recipient) return intent;
+  throw new HttpError(409, 'already_minted', ALREADY_MINTED);
+}
+
 async function buildTlbtcMintIntent({ requestId, recipientAddress }) {
-  if (mintedDlcSubswapRequests.has(requestId)) throw new HttpError(409, 'already_minted', ALREADY_MINTED);
+  if (mintedDlcSubswapRequests.has(requestId)) return repeatMintIntent(requestId, String(recipientAddress || '').trim());
   const issued = issuedDlcSubswapRequests.get(requestId);
   if (!issued) {
     return { ok: false, reason: 'unknown requestId: quote and pay the request first' };
@@ -667,15 +712,11 @@ async function buildTlbtcMintIntent({ requestId, recipientAddress }) {
   };
 
   // Nothing above awaits, so this is the one commit point: a concurrent mint for this request is seen here.
-  if (mintedDlcSubswapRequests.has(requestId)) throw new HttpError(409, 'already_minted', ALREADY_MINTED);
+  if (mintedDlcSubswapRequests.has(requestId)) return repeatMintIntent(requestId, recipient);
   if (mintedDlcSubswapRequests.size >= MAX_MINTED_DLC_REQUESTS) {
     throw new HttpError(503, 'minted_record_full', 'minted record is full: raise SIDECAR_MAX_MINTED_REQUESTS');
   }
-  recordMinted(requestId);
-  issuedDlcSubswapRequests.delete(requestId);
-  saveIssuedDlcSubswapRequests();
-
-  return {
+  const intent = {
     kind: 'tradelayer_tlbtc_mint_intent',
     ok: true,
     requestId: request.requestId,
@@ -687,6 +728,10 @@ async function buildTlbtcMintIntent({ requestId, recipientAddress }) {
       params
     }
   };
+  recordMinted(requestId, intent);
+  issuedDlcSubswapRequests.delete(requestId);
+  saveIssuedDlcSubswapRequests();
+  return intent;
 }
 
 function latestBitvmChannelRouterBundle(overrides = {}) {

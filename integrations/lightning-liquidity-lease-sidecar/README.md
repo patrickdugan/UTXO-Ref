@@ -26,7 +26,7 @@ For local throwaway testing with a trusted node, `LND_REST_INSECURE=1` disables 
 
 The macaroon must allow tracking payments (`GET /v2/router/track/{payment_hash}`, the router RPC) as well as sending them. The sidecar treats a request as paid only when LND reports a `SUCCEEDED` payment for the request's payment hash whose preimage hashes to it. It never trusts its own memory of a payment.
 
-Requests are stored in `SIDECAR_REQUEST_STORE_PATH` (default `runtime/dlc-subswap-requests.json`, written mode 0600) and move quoted -> paid -> minted. A quote expires after `SIDECAR_QUOTE_TTL_SECONDS` (default 86400) unless it is paid, and an expired quote can be quoted again. A pay saves the attempt before LND is asked, so an attempted request does not expire: it is dropped only when LND reports its payment failed, and it becomes paid when LND reports the payment settled. `SIDECAR_MAX_QUOTED_REQUESTS` (default 1000) bounds the open requests, quoted or paid; when it is full new quotes get a 503 until live quotes expire. A minted request is appended by hash to `<store path>.minted`, outside the open table, bounded by `SIDECAR_MAX_MINTED_REQUESTS` (default 100000), and is never quoted, paid or minted again.
+Requests are stored in `SIDECAR_REQUEST_STORE_PATH` (default `runtime/dlc-subswap-requests.json`, written mode 0600) and move quoted -> paid -> minted. A quote expires after `SIDECAR_QUOTE_TTL_SECONDS` (default 86400) unless it is paid, and an expired quote can be quoted again. A pay saves the attempt before LND is asked, so an attempted request does not expire: it is dropped only when LND reports its payment failed, and it becomes paid when LND reports the payment settled. `SIDECAR_MAX_QUOTED_REQUESTS` (default 1000) bounds the open requests, quoted or paid; when it is full new quotes get a 503 until live quotes expire. A minted request is appended to `<store path>.minted` with its intent, outside the open table, bounded by `SIDECAR_MAX_MINTED_REQUESTS` (default 100000), and is never quoted or paid again. An attempted request that LND reports unknown is dropped once max(`SIDECAR_QUOTE_TTL_SECONDS`, 1 hour) has passed since its attempt; a quote request looks up at most five attempted requests.
 
 ## Endpoint Flow
 
@@ -51,7 +51,7 @@ Requests are stored in `SIDECAR_REQUEST_STORE_PATH` (default `runtime/dlc-subswa
 
 3. `POST /v1/dlc-subswap-funding/tlbtc-mint-intent`
 
-   Body: `{"requestId": "...", "recipientAddress": "..."}`. Only a request that LND reports as settled yields a mint intent; a restart does not change that. A request yields one intent: a repeat is refused with 409, because the intent is forwarded to TradeLayer and a second one would be a second grant. The grant's `fromAddress` comes from `TL_PROCEDURAL_ADMIN_ADDRESS`, and the DLC state from the `TL_DLC_*` environment. The intent is a TradeLayer call descriptor:
+   Body: `{"requestId": "...", "recipientAddress": "..."}`. Only a request that LND reports as settled yields a mint intent; a restart does not change that. A request yields one intent: the intent is stored with its minted record, fsynced before it is returned, and a repeat for the same request and recipient gets that stored intent back byte for byte (so a lost response can be retried). Another recipient is refused with 409, because the intent is forwarded to TradeLayer and a second distinct one would be a second grant. The grant's `fromAddress` comes from `TL_PROCEDURAL_ADMIN_ADDRESS`, and the DLC state from the `TL_DLC_*` environment. The intent is a TradeLayer call descriptor:
 
    ```json
    {
