@@ -748,7 +748,9 @@ function verifyBitvmAssertionGraphV2(graph, options = {}) {
       allowLegacyUnboundPredicate: legacyAllowed
     });
     if (!templateCheck.ok) return { ok: false, reason: `template verification failed: ${templateCheck.reason}` };
-    const minimumChallengeCsvBlocks = Math.max(MIN_CHALLENGE_CSV_BLOCKS, Number(options.minimumChallengeCsvBlocks) || 0);
+    const minimumChallengeCsvBlocks = Math.max(MIN_CHALLENGE_CSV_BLOCKS, options.minimumChallengeCsvBlocks === undefined
+      ? 0
+      : csvSequence(options.minimumChallengeCsvBlocks, 'minimumChallengeCsvBlocks'));
     if (graph.template.challengeCsvBlocks < minimumChallengeCsvBlocks) {
       return { ok: false, reason: `challenge window is below the ${minimumChallengeCsvBlocks}-block policy minimum` };
     }

@@ -368,6 +368,14 @@ test('BVM-3: the challenge window has a policy minimum', () => {
   assert(!raised.ok && /below the 144-block policy minimum/.test(raised.reason), raised.reason);
 });
 
+test('a malformed minimum challenge window is refused, not read as no minimum', () => {
+  const { graph } = buildFixture();
+  for (const bad of ['abc', '1e3', 'NaN', '0x90']) {
+    const refused = verifyBitvmAssertionGraphV2(graph, { ...STATE_VERIFICATION, minimumChallengeCsvBlocks: bad });
+    assert(!refused.ok && /minimumChallengeCsvBlocks/.test(refused.reason), `minimumChallengeCsvBlocks ${bad} was not refused: ${JSON.stringify(refused)}`);
+  }
+});
+
 test('BVM-1: the funded pre-policy testnet4 graph verifies only when pinned as monitor-only', () => {
   // The checked-in testnet4 artifact was funded before the bound-predicate
   // policy: its expected inputs are template constants and it has no

@@ -37,12 +37,12 @@ function normalizePolicy(options = {}) {
   }
 
   return {
-    challengeWindowBlocks: Number(toInt(policy.challengeWindowBlocks, 'challengeWindowBlocks')),
-    minChallengeWindowBlocks: Number(toInt(policy.minChallengeWindowBlocks, 'minChallengeWindowBlocks')),
+    challengeWindowBlocks: heightOf(policy.challengeWindowBlocks, 'challengeWindowBlocks'),
+    minChallengeWindowBlocks: heightOf(policy.minChallengeWindowBlocks, 'minChallengeWindowBlocks'),
     dustLimitSats: toSats(policy.dustLimitSats, 'policy.dustLimitSats').toString(),
     maxFeeSats: toSats(policy.maxFeeSats, 'policy.maxFeeSats').toString(),
     maxFeeBpsOfInput: Number(toInt(policy.maxFeeBpsOfInput, 'maxFeeBpsOfInput')),
-    maxRegistryAgeBlocks: Number(toInt(policy.maxRegistryAgeBlocks, 'maxRegistryAgeBlocks')),
+    maxRegistryAgeBlocks: heightOf(policy.maxRegistryAgeBlocks, 'maxRegistryAgeBlocks'),
     requireOracleSignature: !!policy.requireOracleSignature,
     allowedOracleAddresses: Array.isArray(policy.allowedOracleAddresses)
       ? policy.allowedOracleAddresses.map(String)
