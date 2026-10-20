@@ -427,9 +427,17 @@ function compactId(value, prefix, length = 8) {
 //           for the same requestId and recipient gets the stored intent back, byte for byte, so a lost response is
 //           recoverable; a different recipient is refused.
 // Only open requests count toward SIDECAR_MAX_QUOTED_REQUESTS. Minted requests count toward SIDECAR_MAX_MINTED_REQUESTS.
+//
+// One payment backs one request. The requestId hashes the whole request body, so a second body with another refund
+// address or epoch is another requestId with the same payment hash; without this rule one settled payment could mint
+// once per body. A quote is refused while another open or minted request holds its payment hash, and a mint is refused
+// when the hash already backed another request's mint. A mint also requires that LND paid exactly the request's
+// invoiceAmountSats for that hash. Minted records written before intents were kept carry no hash and bind nothing.
 const STORE_KIND = 'utxoref_dlc_subswap_request_store';
 const ALREADY_MINTED = 'already minted: this request already has a grant intent and cannot be granted again';
 const QUOTE_EXPIRED = 'quote expired: quote the request again';
+const PAYMENT_HASH_IN_USE = 'payment hash in use: another request is bound to this payment; pay and mint that request';
+const PAYMENT_ALREADY_MINTED = 'payment already minted: this payment hash backed another request\'s grant intent';
 const requestStorePath = path.resolve(process.env.SIDECAR_REQUEST_STORE_PATH ||
   path.join(__dirname, 'runtime', 'dlc-subswap-requests.json'));
 const mintedLogPath = `${requestStorePath}.minted`;
@@ -443,9 +451,29 @@ const QUOTE_TTL_MS = QUOTE_TTL_SECONDS * 1000;
 
 const issuedDlcSubswapRequests = new Map(); // requestId -> { request, state, expiresAt, attemptedAt, paying }
 const mintedDlcSubswapRequests = new Map(); // requestId -> the grant intent issued for it (null for a request minted before intents were kept)
+const mintedPaymentHashes = new Map(); // payment hash -> requestId of the minted request that payment backed
 const ATTEMPT_WINDOW_MS = Math.max(QUOTE_TTL_MS, 60 * 60 * 1000);
 const PRUNE_LOOKUP_LIMIT = 5;
 const PRUNE_LOOKUP_BUDGET_MS = 10000;
+
+function paymentHashOfRequest(request) {
+  return String(request.requestCore.submarineSwap.paymentHashHex || '').toLowerCase();
+}
+
+function paymentHashOfIntent(intent) {
+  const hash = String(intent && intent.tradeLayer && intent.tradeLayer.params && intent.tradeLayer.params.paymentHashHex || '');
+  return /^[0-9a-f]{64}$/i.test(hash) ? hash.toLowerCase() : null;
+}
+
+// The request other than requestId that a payment hash already backs: a minted one first, then an open one.
+function otherRequestForPaymentHash(hash, requestId) {
+  const minted = mintedPaymentHashes.get(hash);
+  if (minted && minted !== requestId) return minted;
+  for (const [otherId, issued] of issuedDlcSubswapRequests) {
+    if (otherId !== requestId && paymentHashOfRequest(issued.request) === hash) return otherId;
+  }
+  return null;
+}
 
 // One line per mint: {"requestId", "intent"}. A line that is only a request hash is a request minted before intents were kept.
 function loadMintedDlcSubswapRequests() {
@@ -465,6 +493,8 @@ function loadMintedDlcSubswapRequests() {
     const record = JSON.parse(line);
     if (!/^[0-9a-f]{64}$/.test(record.requestId)) throw new Error(`${mintedLogPath} holds a line that is not a minted record`);
     mintedDlcSubswapRequests.set(record.requestId, record.intent || null);
+    const hash = paymentHashOfIntent(record.intent);
+    if (hash) mintedPaymentHashes.set(hash, record.requestId);
   }
 }
 
@@ -484,6 +514,8 @@ function recordMinted(requestId, intent) {
     fs.closeSync(descriptor);
   }
   mintedDlcSubswapRequests.set(requestId, intent);
+  const hash = paymentHashOfIntent(intent);
+  if (hash) mintedPaymentHashes.set(hash, requestId);
 }
 
 function loadIssuedDlcSubswapRequests() {
@@ -596,12 +628,14 @@ async function pruneExpiredQuotes(now) {
   if (changed) saveIssuedDlcSubswapRequests();
 }
 
-// Returns 'ok', 'full' when the open table holds its cap, or 'minted' when the request was already granted.
+// Returns 'ok', 'full' when the open table holds its cap, 'minted' when the request was already granted, or
+// 'hash_in_use' when another open or minted request holds its payment hash.
 async function rememberIssuedDlcSubswapRequest(request) {
   const requestId = request.requestId;
   await pruneExpiredQuotes(Date.now());
   if (mintedDlcSubswapRequests.has(requestId)) return 'minted';
   if (issuedDlcSubswapRequests.has(requestId)) return 'ok';
+  if (otherRequestForPaymentHash(paymentHashOfRequest(request), requestId)) return 'hash_in_use';
   if (issuedDlcSubswapRequests.size >= MAX_ISSUED_DLC_REQUESTS) return 'full';
   issuedDlcSubswapRequests.set(requestId, { request, state: 'quoted', expiresAt: Date.now() + QUOTE_TTL_MS, paying: false });
   saveIssuedDlcSubswapRequests();
@@ -661,8 +695,18 @@ async function settledPaymentProof(request) {
     status: 'paid',
     paymentHashHex: lookup.paymentHashHex,
     paymentPreimageHex: lookup.paymentPreimageHex,
+    valueMsat: lookup.valueMsat ?? null,
     source: 'lnd-track-payment'
   };
+}
+
+// LND's record of what it paid for the hash decides the amount, not the request body: a payment for less than the
+// invoice amount (or of an amount LND does not report) backs no mint.
+function settledAmountMismatch(request, paymentProof) {
+  const expectedMsat = BigInt(request.requestCore.submarineSwap.invoiceAmountSats) * 1000n;
+  if (paymentProof.valueMsat !== null && BigInt(paymentProof.valueMsat) === expectedMsat) return null;
+  const paid = paymentProof.valueMsat === null ? 'an amount it did not report' : `${paymentProof.valueMsat} msat`;
+  return `LND paid ${paid} for this payment hash, not the invoice amount of ${expectedMsat} msat`;
 }
 
 // A request yields one intent. A repeat is refused (409) unless SIDECAR_REPLAY_MINT_INTENT=1: replaying the stored
@@ -684,6 +728,9 @@ async function buildTlbtcMintIntent({ requestId, recipientAddress }) {
     return { ok: false, reason: 'unknown requestId: quote and pay the request first' };
   }
   const request = issued.request;
+  const paymentHashHex = paymentHashOfRequest(request);
+  // This request is not minted (that returned above), so a minted record for its hash is another request's.
+  if (mintedPaymentHashes.has(paymentHashHex)) throw new HttpError(409, 'payment_already_minted', PAYMENT_ALREADY_MINTED);
   const requestVerification = verifyDlcSubswapFundingRequest(request);
   if (!requestVerification.ok) {
     return { ok: false, reason: requestVerification.reason, requestVerification };
@@ -698,6 +745,8 @@ async function buildTlbtcMintIntent({ requestId, recipientAddress }) {
   if (!paymentVerification.ok) {
     return { ok: false, reason: paymentVerification.reason, requestVerification, paymentVerification };
   }
+  const amountMismatch = settledAmountMismatch(request, paymentProof);
+  if (amountMismatch) return { ok: false, reason: amountMismatch, requestVerification, paymentVerification };
   markPaid(issued);
   const grantFromAddress = String(process.env.TL_PROCEDURAL_ADMIN_ADDRESS || '').trim();
   if (!grantFromAddress) {
@@ -731,8 +780,10 @@ async function buildTlbtcMintIntent({ requestId, recipientAddress }) {
     paymentHashHex: paymentVerification.paymentHashHex
   };
 
-  // Nothing above awaits, so this is the one commit point: a concurrent mint for this request is seen here.
+  // Nothing above awaits, so this is the one commit point: a concurrent mint for this request, or for another request
+  // with the same payment hash, is seen here.
   if (mintedDlcSubswapRequests.has(requestId)) return repeatMintIntent(requestId, recipient);
+  if (mintedPaymentHashes.has(paymentHashHex)) throw new HttpError(409, 'payment_already_minted', PAYMENT_ALREADY_MINTED);
   if (mintedDlcSubswapRequests.size >= MAX_MINTED_DLC_REQUESTS) {
     throw new HttpError(503, 'minted_record_full', 'minted record is full: raise SIDECAR_MAX_MINTED_REQUESTS');
   }
@@ -1077,6 +1128,7 @@ async function handle(req, res) {
       const request = latestDlcSubswapFundingRequest(dlcSubswapOverridesFromBody(body));
       const outcome = await rememberIssuedDlcSubswapRequest(request);
       if (outcome === 'minted') return sendJson(res, 409, { error: ALREADY_MINTED });
+      if (outcome === 'hash_in_use') return sendJson(res, 409, { ok: false, reason: PAYMENT_HASH_IN_USE });
       if (outcome === 'full') {
         return sendJson(res, 503, { ok: false, reason: 'quote table is full: raise SIDECAR_MAX_QUOTED_REQUESTS or wait for live quotes to expire' });
       }
@@ -1100,6 +1152,12 @@ async function handle(req, res) {
       if (issued.paying) {
         return sendJson(res, 409, { ok: false, reason: 'a payment for this request is in flight' });
       }
+      // A request the sidecar saw settled is never paid again, whatever LND answers now (its record deleted, another
+      // node at LND_REST_URL, a proxy's 404). The save is retried here, as markPaid promises.
+      if (issued.state === 'paid') {
+        markPaid(issued);
+        return sendJson(res, 409, { ok: false, reason: 'request is already paid' });
+      }
       const verification = verifyDlcSubswapFundingRequest(issued.request);
       if (!verification.ok) {
         return sendJson(res, 400, { ok: false, reason: verification.reason, verification });
@@ -1108,9 +1166,15 @@ async function handle(req, res) {
       let paymentProof;
       issued.paying = true;
       try {
-        if (await settledPaymentProof(issued.request)) {
+        // Only LND's answer that it never initiated the payment (or that it failed) lets the sidecar pay. A settled
+        // payment is recorded, and one LND is still trying is in flight: paying again could pay twice.
+        const lookup = await lookupPaymentState(issued.request);
+        if (lookup.state === 'settled') {
           markPaid(issued);
           return sendJson(res, 409, { ok: false, reason: 'request is already paid' });
+        }
+        if (lookup.state === 'pending') {
+          return sendJson(res, 409, { ok: false, reason: 'LND reports a payment for this request in flight' });
         }
         markAttempted(issued);
         try {

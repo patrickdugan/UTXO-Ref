@@ -5,6 +5,8 @@ const http = require('http');
 const os = require('os');
 const path = require('path');
 const { routeTrackRequest } = require('./lndTrackGateway');
+// What LND records as paid for a settled payment: the invoice amount, collateral 12345 plus fee 321.
+const INVOICE_AMOUNT_SATS = '12666';
 
 const TOKEN = 'test-sidecar-token-7f3a';
 const ADMIN_ADDRESS = 'tb1qadminplaceholder0000000000000000000000';
@@ -51,7 +53,7 @@ const fakeLnd = http.createServer((req, res) => {
       payment_hash: paidPaymentHashHex,
       payment_preimage: paidPreimageHex,
       status: 'SUCCEEDED',
-      value_sat: '12345'
+      value_sat: INVOICE_AMOUNT_SATS
     });
     res.writeHead(200, { 'content-type': 'application/json' });
     res.end(JSON.stringify({

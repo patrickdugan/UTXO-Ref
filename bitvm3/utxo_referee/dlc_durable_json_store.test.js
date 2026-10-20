@@ -352,7 +352,7 @@ if (role === 'contend') {
     });
   });
 
-  test('a pid namespace is not judged when the record has none; one this process cannot compare against is held', () => {
+  test('a pid namespace is not judged when the record has none or this process cannot read its own', () => {
     const lockPath = path.join(root, 'namespace-unknown.lock');
     withLockIdentity({ pidNamespace: 'pid:[2]' }, () => {
       plantLock(lockPath, { ...heldBy({ pid: DEAD_PID }), token: 'e'.repeat(32) });
@@ -519,18 +519,45 @@ w.on('error', (e) => { console.log('RESULT ERROR ' + e.message); });`], { encodi
     assertOwnFailureKept(err, lockPath, 'nonce journal write failed');
   });
 
-  test('a successful section whose release finds the lock taken over fails by default: another holder overlapped it', () => {
-    const lockPath = path.join(root, 'release-lost-success-default.lock');
+  test('a successful section whose lock was taken over fails with LOCK_LOST and carries its result', () => {
+    const lockPath = path.join(root, 'release-lost-success-throw.lock');
+    let err = null;
     try {
-      let err;
-      try { withDirectoryLock(lockPath, 'held', () => { takeOverLock(lockPath); return 'committed-result'; }); }
-      catch (caught) { err = caught; }
-      assert(err && err.code === 'LOCK_LOST', `a lost lock after success must be thrown by default, got ${err && err.code}`);
+      withDirectoryLock(lockPath, 'held', () => {
+        takeOverLock(lockPath);
+        return 'overlapped-result';
+      });
+    } catch (caught) { err = caught; }
+    try {
+      assert(err && err.code === 'LOCK_LOST', `an overlapped section must fail with LOCK_LOST, got ${err && (err.code || err.message)}`);
+      assert(err.result === 'overlapped-result', `the section's result must be attached, got ${err.result}`);
       assert(fs.existsSync(lockPath), 'release removed the lock of another holder');
-    } finally { fs.rmSync(lockPath, { recursive: true, force: true }); }
+    } finally {
+      fs.rmSync(lockPath, { recursive: true, force: true });
+    }
   });
 
-  test("with lostLock 'report' a successful section keeps its result and the lost lock is reported", () => {
+  test('a nonce reservation whose lock was taken over fails, so the caller does not sign', () => {
+    const journalPath = path.join(root, 'nonce-overlap', 'journal.json');
+    fs.mkdirSync(path.dirname(journalPath), { recursive: true });
+    const lockPath = `${journalPath}.lock`;
+    const realRename = fs.renameSync;
+    fs.renameSync = (from, to) => {
+      if (to === journalPath) takeOverLock(lockPath);
+      return realRename(from, to);
+    };
+    let err = null;
+    try { reserveNonceUsage(Buffer.alloc(64, 6), Buffer.alloc(32, 7), { journalPath }); }
+    catch (caught) { err = caught; }
+    finally {
+      fs.renameSync = realRename;
+      fs.rmSync(lockPath, { recursive: true, force: true });
+    }
+    assert(err && err.code === 'LOCK_LOST',
+      `an overlapped nonce reservation must not report success, got ${err ? err.code || err.message : 'success'}`);
+  });
+
+  test("an append-once store's successful section keeps its result when its lock was taken over, and reports it", () => {
     const lockPath = path.join(root, 'release-lost-success.lock');
     const reported = [];
     const realReport = lockReporter.releaseFailed;
@@ -550,23 +577,12 @@ w.on('error', (e) => { console.log('RESULT ERROR ' + e.message); });`], { encodi
     }
   });
 
-  test('a nonce reservation whose lock was taken over during the section fails, so the nonce is not signed with', () => {
-    const journalPath = path.join(root, 'nonce-journal-lost', 'journal.json');
-    fs.mkdirSync(path.dirname(journalPath), { recursive: true });
-    const lockPath = `${journalPath}.lock`;
-    const realRename = fs.renameSync;
-    let tookOver = false;
-    fs.renameSync = (from, to) => {
-      const out = realRename(from, to);
-      if (to === journalPath && !tookOver) { tookOver = true; takeOverLock(lockPath); }
-      return out;
-    };
-    let err;
-    try { reserveNonceUsage(Buffer.alloc(64, 6), Buffer.alloc(32, 7), { journalPath }); }
-    catch (caught) { err = caught; }
-    finally { fs.renameSync = realRename; fs.rmSync(lockPath, { recursive: true, force: true }); }
-    assert(tookOver, 'the takeover did not happen');
-    assert(err && err.code === 'LOCK_LOST', `a reservation that lost its lock returned instead of failing: ${err && err.code}`);
+  test('an unknown lostLock option is refused before the lock is taken', () => {
+    const lockPath = path.join(root, 'bad-option.lock');
+    let message = null;
+    try { withDirectoryLock(lockPath, 'held', () => 'ran', { lostLock: 'ignore' }); } catch (err) { message = err.message; }
+    assert(message && /lostLock/.test(message), `an unknown option must be refused, got ${message}`);
+    assert(!fs.existsSync(lockPath), 'a refused call must not take the lock');
   });
 
   test('a recorded identity this process cannot read keeps the lock held instead of judging it by pid', () => {
@@ -621,13 +637,25 @@ w.on('error', (e) => { console.log('RESULT ERROR ' + e.message); });`], { encodi
   fs.rmSync(root, { recursive: true, force: true });
 }
 
-asyncTest("an async section with lostLock 'report' keeps its result when its release finds the lock taken over, and fails by default", async () => {
+asyncTest('an async section whose lock was taken over fails with LOCK_LOST unless it opts into reporting', async () => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'utxoref-durable-lock-async-'));
   const lockPath = path.join(directory, 'async-release-lost.lock');
   const reported = [];
   const realReport = lockReporter.releaseFailed;
   lockReporter.releaseFailed = (releaseError) => reported.push(releaseError);
   try {
+    let err = null;
+    try {
+      await withDirectoryLockAsync(lockPath, 'held', async () => {
+        await Promise.resolve();
+        takeOverLock(lockPath);
+        return 'overlapped-result';
+      });
+    } catch (caught) { err = caught; }
+    assert(err && err.code === 'LOCK_LOST' && err.result === 'overlapped-result',
+      `an overlapped async section must fail with LOCK_LOST and its result, got ${err && (err.code || err.message)}`);
+    assert(reported.length === 0, 'a thrown lost lock must not also be reported');
+    fs.rmSync(lockPath, { recursive: true, force: true });
     const result = await withDirectoryLockAsync(lockPath, 'held', async () => {
       await Promise.resolve();
       takeOverLock(lockPath);
@@ -635,12 +663,6 @@ asyncTest("an async section with lostLock 'report' keeps its result when its rel
     }, { lostLock: 'report' });
     assert(result === 'committed-result', `the committed result was replaced by ${result}`);
     assert(reported.length === 1 && reported[0].code === 'LOCK_LOST', 'the lost lock must be reported once');
-    fs.rmSync(lockPath, { recursive: true, force: true });
-    let err;
-    try {
-      await withDirectoryLockAsync(lockPath, 'held', async () => { await Promise.resolve(); takeOverLock(lockPath); return 'x'; });
-    } catch (caught) { err = caught; }
-    assert(err && err.code === 'LOCK_LOST', `an async section that lost its lock returned instead of failing: ${err && err.code}`);
   } finally {
     lockReporter.releaseFailed = realReport;
     fs.rmSync(directory, { recursive: true, force: true });

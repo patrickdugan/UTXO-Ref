@@ -102,7 +102,9 @@ class DlcOracleEventStore {
     return withDirectoryLock(
       this._lockDirectory(key),
       `oracle event store lock is held for ${key}`,
-      run
+      run,
+      // Records are published append-once (link), so an overlapped write fails with EEXIST instead of being lost.
+      { lostLock: 'report' }
     );
   }
 

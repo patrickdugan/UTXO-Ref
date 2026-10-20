@@ -51,7 +51,9 @@ class DlcStateStore {
     return withDirectoryLock(
       this._lockDirectory(contractId),
       `DLC state store lock is held for ${contractId}`,
-      run
+      run,
+      // Revisions are published append-once (link), so an overlapped write fails with EEXIST instead of being lost.
+      { lostLock: 'report' }
     );
   }
 

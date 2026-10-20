@@ -195,7 +195,7 @@ class DlcWatchtowerJournal {
       path.join(this.baseDirectory, `.${contractKey(contractId)}.lock`),
       `DLC watchtower journal lock is held for ${contractId}`,
       run,
-      // Observations are append-once O_EXCL records: a lost lock cannot make two writers share a record.
+      // Entries are published append-once (link), so an overlapped write fails with EEXIST instead of being lost.
       { lostLock: 'report' }
     );
   }

@@ -7,6 +7,8 @@ const os = require('os');
 const path = require('path');
 const { spawn } = require('child_process');
 const { routeTrackRequest } = require('./lndTrackGateway');
+// What LND records as paid for a settled payment: the invoice amount, collateral 12345 plus fee 321.
+const INVOICE_AMOUNT_SATS = '12666';
 
 // The sidecar runs as a child process here, so a crash is a real SIGKILL. The payment attempt is saved before LND is
 // asked. A process killed while LND has not answered therefore leaves the request open after a restart: LND decides
@@ -52,7 +54,7 @@ const fakeLnd = http.createServer((req, res) => {
     const known = knownInvoices.get(JSON.parse(raw || '{}').payment_request);
     lndPaymentCalls.push(known ? known.invoice : null);
     if (hold) return;
-    lndPayments.push({ payment_hash: known.paymentHashHex, payment_preimage: known.preimageHex, status: 'SUCCEEDED', value_sat: '12345' });
+    lndPayments.push({ payment_hash: known.paymentHashHex, payment_preimage: known.preimageHex, status: 'SUCCEEDED', value_sat: INVOICE_AMOUNT_SATS });
     res.writeHead(200, { 'content-type': 'application/json' });
     res.end(JSON.stringify({
       payment_preimage: Buffer.from(known.preimageHex, 'hex').toString('base64'),
@@ -194,7 +196,7 @@ async function main() {
   // LND's settlement makes it paid, so it mints without a second payment.
   const settledBefore = await crashWhileLndPending(72);
   const callsBeforeMint = lndPaymentCalls.length;
-  lndPayments.push({ payment_hash: settledBefore.paymentHashHex, payment_preimage: payment(72).preimageHex, status: 'SUCCEEDED', value_sat: '12345' });
+  lndPayments.push({ payment_hash: settledBefore.paymentHashHex, payment_preimage: payment(72).preimageHex, status: 'SUCCEEDED', value_sat: INVOICE_AMOUNT_SATS });
   const restartedB = await startSidecar();
   await sleep(TTL_SECONDS * 1000 + 300);
   knownInvoices.set(payment(73).invoice, payment(73));

@@ -191,7 +191,9 @@ function writeJsonAppendOnce(directory, name, record, { maxBytes, label = 'durab
 //
 // The returned function releases the lock and throws LOCK_LOST if the lock is
 // no longer the one it acquired. Callers use withDirectoryLock, which keeps a
-// release failure from replacing the error or the result of the critical section.
+// release failure from replacing the error of a failed critical section, and
+// fails a successful one whose lock was taken over unless the caller's writes
+// cannot be lost in an overlap (see releaseAfterSuccess).
 const LOCK_OWNER_FILE = 'owner.json';
 const OWNERLESS_LOCK_GRACE_MS = 60 * 1000;
 // Tokens of the locks this process holds right now. A pid can be reused after a
@@ -387,18 +389,31 @@ const lockReporter = {
   }
 };
 
-// A section that succeeded has committed its writes. What a release failure means then depends on the section:
-//   'throw' (the default) - LOCK_LOST means another holder overlapped the section, so a read-modify-write of shared
-//     state, or a nonce reservation followed by a signature, may have raced; the caller must see the failure.
-//   'report' - the section is idempotent or append-once (an O_EXCL record, a claim that a retry repeats safely),
-//     so its result is kept and the lost lock is reported through lockReporter.
-// A release failure that leaves the lock released (the moved copy could not be removed) is only reported either way.
-function releaseAfterSuccess(release, lostLock) {
+// LOCK_LOST at the release of a section that succeeded means another holder
+// overlapped it. For a caller that rewrites a whole file the last save won, so
+// this section's write may be gone while it believes it committed: two
+// processes can both reserve one nonce (and then sign with it), or a faucet
+// claim can be sent and then erased. By default the section therefore fails:
+// LOCK_LOST is thrown with its result attached as .result. A caller whose
+// writes cannot be lost in an overlap (append-once files published with
+// link(), where an overlapped writer gets EEXIST) passes { lostLock: 'report' }
+// to keep its result and only report the lost lock. Any other release failure
+// is reported: the lock was still this section's when it ended.
+function releaseAfterSuccess(release, result, options) {
   try { release(); }
   catch (releaseError) {
-    if (lostLock !== 'report' && (releaseError.code === 'LOCK_LOST' || releaseError.code === 'LOCK_OWNER_UNREADABLE')) throw releaseError;
+    if ((releaseError.code === 'LOCK_LOST' || releaseError.code === 'LOCK_OWNER_UNREADABLE') && options.lostLock !== 'report') {
+      releaseError.result = result;
+      throw releaseError;
+    }
     lockReporter.releaseFailed(releaseError);
   }
+}
+
+function lockOptions(options) {
+  const lostLock = options.lostLock ?? 'throw';
+  if (lostLock !== 'throw' && lostLock !== 'report') throw new Error(`lostLock must be 'throw' or 'report', got ${lostLock}`);
+  return { lostLock };
 }
 
 // The critical section's own error is the one the caller must see. A release
@@ -411,29 +426,23 @@ function releaseAfterFailure(release, failure) {
   }
 }
 
-function lostLockPolicy(options) {
-  const lostLock = options && options.lostLock !== undefined ? options.lostLock : 'throw';
-  if (lostLock !== 'throw' && lostLock !== 'report') throw new Error("withDirectoryLock option lostLock must be 'throw' or 'report'");
-  return lostLock;
-}
-
-function withDirectoryLock(lockPath, heldMessage, run, options) {
-  const lostLock = lostLockPolicy(options);
+function withDirectoryLock(lockPath, heldMessage, run, options = {}) {
+  const checked = lockOptions(options);
   const release = acquireDirectoryLock(lockPath, heldMessage);
   let result;
   try { result = run(); }
   catch (error) { releaseAfterFailure(release, error); throw error; }
-  releaseAfterSuccess(release, lostLock);
+  releaseAfterSuccess(release, result, checked);
   return result;
 }
 
-async function withDirectoryLockAsync(lockPath, heldMessage, run, options) {
-  const lostLock = lostLockPolicy(options);
+async function withDirectoryLockAsync(lockPath, heldMessage, run, options = {}) {
+  const checked = lockOptions(options);
   const release = acquireDirectoryLock(lockPath, heldMessage);
   let result;
   try { result = await run(); }
   catch (error) { releaseAfterFailure(release, error); throw error; }
-  releaseAfterSuccess(release, lostLock);
+  releaseAfterSuccess(release, result, checked);
   return result;
 }
 

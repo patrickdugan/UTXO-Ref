@@ -96,6 +96,7 @@ function lndRequest(config, method, pathname, body, timeoutMs = 60000) {
         if (res.statusCode < 200 || res.statusCode >= 300) {
           const err = new Error(`LND REST ${url.pathname} returned HTTP ${res.statusCode}: ${text}`);
           err.statusCode = res.statusCode;
+          err.body = text;
           reject(err);
           return;
         }
@@ -172,9 +173,34 @@ async function payInvoiceViaLndRest({
 // versions answer 500 with "payment isn't initiated" or "not found" in the body, so both mean unknown. A payment LND is
 // still trying is answered only when it ends, which the timeout bounds. state is 'settled' (with the preimage, which
 // hashes to the payment hash), 'failed', 'unknown' or 'pending'.
+// A 404 alone is not that answer: a proxy, a wrong path or an unmatched route also answers 404, and reading it as
+// unknown would let a request be paid again. A 404 is unknown only when its body is the gateway's gRPC NOT_FOUND
+// ({code: 5}) or says the payment was never initiated.
+const NOT_INITIATED = /payment (isn'?t|is not|was not) initiated|payment not found|unknown payment/i;
+
+function errorBodyOf(err) {
+  if (typeof err.body === 'string') return err.body;
+  return String(err.message).replace(/^LND REST \S+ returned HTTP \d+: /, '');
+}
+
 function neverInitiated(err) {
-  if (err.statusCode === 404) return true;
-  return err.statusCode === 500 && /payment (isn'?t|is not|was not) initiated|payment not found|unknown payment/i.test(String(err.message));
+  const body = errorBodyOf(err);
+  if (err.statusCode === 404) {
+    let parsed = null;
+    try { parsed = JSON.parse(body); } catch (_err) { /* not the gateway's JSON error */ }
+    return Boolean(parsed && typeof parsed === 'object' && parsed.code === 5) || NOT_INITIATED.test(body);
+  }
+  return err.statusCode === 500 && NOT_INITIATED.test(body);
+}
+
+// What LND paid the destination for this payment, in msat (fees excluded), or null when LND does not say.
+// The gateway sends int64 fields as decimal strings.
+function paymentValueMsat(payment) {
+  const msat = String(payment.value_msat ?? '');
+  if (/^(0|[1-9][0-9]*)$/.test(msat)) return msat;
+  const sat = String(payment.value_sat ?? '');
+  if (/^(0|[1-9][0-9]*)$/.test(sat)) return (BigInt(sat) * 1000n).toString();
+  return null;
 }
 
 // One track answer as LND's gateway sends it: {result: payment} for a payment, {error: {code: 5}} (gRPC NOT_FOUND) for a
@@ -216,7 +242,7 @@ async function lookupPaymentViaLndRest({
   if (payment.status !== 'SUCCEEDED') return { state: 'pending' };
   const paymentPreimageHex = decodeLndByteString(payment.payment_preimage);
   if (paymentHashFromPreimageHex(paymentPreimageHex) !== expected) return { state: 'pending' };
-  return { state: 'settled', paymentHashHex: expected, paymentPreimageHex };
+  return { state: 'settled', paymentHashHex: expected, paymentPreimageHex, valueMsat: paymentValueMsat(payment) };
 }
 
 module.exports = {

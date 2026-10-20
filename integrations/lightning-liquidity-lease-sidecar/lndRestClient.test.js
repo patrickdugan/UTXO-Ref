@@ -87,7 +87,7 @@ async function run() {
     paymentHashHex: oldHashHex,
     env,
     requestImpl: trackLnd(payments, calls)
-  }), { state: 'settled', paymentHashHex: oldHashHex, paymentPreimageHex: oldPreimageHex },
+  }), { state: 'settled', paymentHashHex: oldHashHex, paymentPreimageHex: oldPreimageHex, valueMsat: null },
   'a payment behind 5000 newer ones was not found');
   assert.strictEqual(calls.length, 1, 'the lookup asked LND more than once');
   assert.strictEqual(calls[0].pathname, `/v2/router/track/${encodeURIComponent(urlBase64(oldHashHex))}?no_inflight_updates=true`);
@@ -160,7 +160,7 @@ async function run() {
   // A stream answer read through the lookup: the in-flight line is not the answer, the settled line is.
   const stream = `${JSON.stringify({ result: inFlight })}\n${JSON.stringify({ result: one })}\n`;
   assert.deepStrictEqual(await lookupPaymentViaLndRest({ paymentHashHex: oldHashHex, env, requestImpl: async () => parseLndBody(stream) }),
-    { state: 'settled', paymentHashHex: oldHashHex, paymentPreimageHex: oldPreimageHex });
+    { state: 'settled', paymentHashHex: oldHashHex, paymentPreimageHex: oldPreimageHex, valueMsat: null });
 
   // The real request path, to a loopback LND that routes the way the gateway does. Over many hashes, about half have
   // '/' in their standard base64 and some have '+': each must reach its payment. The answers are a single object, a
@@ -201,7 +201,7 @@ async function run() {
       loopbackPayments.set(hashHex, { payment_hash: stdBase64(hashHex), status: 'SUCCEEDED', payment_preimage: stdBase64(preimageHex) });
       if (i % 3 === 1) streamed.add(hashHex);
       assert.deepStrictEqual(await lookupPaymentViaLndRest({ paymentHashHex: hashHex, env: loopbackEnv }),
-        { state: 'settled', paymentHashHex: hashHex, paymentPreimageHex: preimageHex }, `hash ${i} (${std}) was not found`);
+        { state: 'settled', paymentHashHex: hashHex, paymentPreimageHex: preimageHex, valueMsat: null }, `hash ${i} (${std}) was not found`);
     }
     assert(withSlash > 100, 'the sample has too few hashes with a slash in standard base64');
     assert(withPlus > 0, 'the sample has no hash with a plus in standard base64');

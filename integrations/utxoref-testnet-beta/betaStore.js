@@ -64,8 +64,7 @@ async function withStateFileLock(filePath, run) {
       return await withDirectoryLockAsync(`${filePath}.lock`, 'beta state is locked by another writer', async () => {
         entered = true;
         return run();
-        // A claim is idempotent, so a retry after a reported lost lock is safe and the broadcast result is kept.
-      }, { lostLock: 'report' });
+      });
     } catch (err) {
       if (entered || err.code !== 'LOCK_HELD') throw err;
       if (Date.now() - startedAt >= STATE_LOCK_WAIT_MS) throw new Error('timed out acquiring beta state lock');
