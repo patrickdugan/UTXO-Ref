@@ -79,10 +79,19 @@ function buildTimeline(seed, totals) {
   }).reverse();
 }
 
-function buildStressDashboard({ patch, config, botCount = 96, ltcUsdPriceMicros = 85000000n } = {}) {
+const MAX_BOT_COUNT = 5000;
+
+function boundedBotCount(value) {
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) return 96;
+  return Math.min(parsed, MAX_BOT_COUNT);
+}
+
+function buildStressDashboard({ patch, config, botCount: requestedBotCount = 96, ltcUsdPriceMicros = 85000000n } = {}) {
   if (!patch || patch.kind !== 'lnbtc_tlusd_liquidity_patch_bundle') {
     throw new Error('patch must be an lnbtc_tlusd_liquidity_patch_bundle');
   }
+  const botCount = boundedBotCount(requestedBotCount);
   const activeProfileId = config && config.activeProfileId ? config.activeProfileId : 'litecoin-testnet-local';
   const seed = `${patch.bundleId}:${activeProfileId}:${botCount}:${ltcUsdPriceMicros}`;
   const bots = Array.from({ length: botCount }, (_, index) => buildBot(seed, index, patch, ltcUsdPriceMicros));

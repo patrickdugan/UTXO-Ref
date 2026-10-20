@@ -16,8 +16,8 @@ const {
 } = require('./types');
 const { buildTreeWithProofs } = require('./merkle');
 const { verifySweep } = require('./verify');
+const { toInt, toSats, decimalToUnits } = require('./money');
 
-const COIN = 100000000n;
 const BECH32_CHARSET = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
 const BECH32_CONST = 1;
 const BECH32M_CONST = 0x2bc830a3;
@@ -50,32 +50,10 @@ function stableStringify(value) {
   return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${stableStringify(value[key])}`).join(',')}}`;
 }
 
-function toSats(value, fieldName) {
-  if (typeof value === 'bigint') return value;
-  if (typeof value === 'number') {
-    if (!Number.isSafeInteger(value)) throw new Error(`${fieldName} must be a safe integer sat amount`);
-    return BigInt(value);
-  }
-  if (typeof value === 'string') {
-    if (!/^-?\d+$/.test(value)) throw new Error(`${fieldName} must be an integer sat amount`);
-    return BigInt(value);
-  }
-  throw new Error(`${fieldName} must be an integer sat amount`);
-}
-
-function ltcToSats(value, fieldName) {
-  const text = String(value);
-  if (!/^\d+(\.\d{1,8})?$/.test(text)) throw new Error(`${fieldName} must be a decimal coin amount`);
-  const [whole, fraction = ''] = text.split('.');
-  return BigInt(whole) * COIN + BigInt((fraction + '00000000').slice(0, 8));
-}
-
 function validateBps(value, fieldName) {
-  const n = Number(value);
-  if (!Number.isInteger(n) || n < 0 || n > 10000) {
-    throw new Error(`${fieldName} must be an integer in 0..10000`);
-  }
-  return n;
+  const n = toInt(value, fieldName, { signed: true, noun: 'integer in 0..10000' });
+  if (n < 0n || n > 10000n) throw new Error(`${fieldName} must be an integer in 0..10000`);
+  return Number(n);
 }
 
 function bech32Polymod(values) {
@@ -199,12 +177,22 @@ function addressToScriptPubKey(address, network = 'litecoin-testnet') {
   return Buffer.concat([Buffer.from([versionOpcode, program.length]), program]);
 }
 
+function hexBytes(text, fieldName) {
+  if (typeof text !== 'string' || !/^([0-9a-fA-F]{2})+$/.test(text)) throw new Error(`${fieldName} must be hex`);
+  return Buffer.from(text, 'hex');
+}
+
+// When an output names both an address and a script, the script is what is paid, so
+// the two must describe the same output.
 function scriptPubKeyForOutput(output, network) {
   if (output.scriptPubKey) {
     const script = Buffer.isBuffer(output.scriptPubKey)
       ? output.scriptPubKey
-      : Buffer.from(String(output.scriptPubKey), 'hex');
+      : hexBytes(output.scriptPubKey, 'scriptPubKey');
     if (!script.length) throw new Error('scriptPubKey cannot be empty');
+    if (output.address && !addressToScriptPubKey(output.address, network).equals(script)) {
+      throw new Error('output address and scriptPubKey disagree');
+    }
     return script;
   }
   if (!output.address) throw new Error('output must include address or scriptPubKey');
@@ -219,7 +207,7 @@ function normalizeOutputPlan(outputPlan) {
   return outputPlan.map((output, index) => {
     const sats = output.sats !== undefined
       ? toSats(output.sats, `outputPlan[${index}].sats`)
-      : ltcToSats(output.amount, `outputPlan[${index}].amount`);
+      : decimalToUnits(output.amount, `outputPlan[${index}].amount`);
     if (sats <= 0n) throw new Error(`outputPlan[${index}] must be positive`);
     return { ...output, sats };
   });
@@ -231,13 +219,19 @@ function deriveEpochId(routePlan) {
   return crypto.createHash('sha256').update(String(seed), 'utf8').digest().readBigUInt64LE(0);
 }
 
+// Every value that moves sats is committed here: the funding amount, the miner fee
+// and the network, not only the payout vector.
 function computeTradeLayerPlanHash(routePlan) {
+  const optionalString = (value) => (value === undefined || value === null ? null : String(value));
   return sha256Hex({
     revealTxid: routePlan.revealTxid,
     payloadHash: routePlan.payloadHash,
     dlcRef: routePlan.envelope?.dlcRef,
     grantTxid: routePlan.dlcInput?.txid,
     grantVout: routePlan.dlcInput?.vout,
+    grantSats: optionalString(routePlan.dlcInput?.sats),
+    network: optionalString(routePlan.network),
+    feeSats: optionalString(routePlan.feeSats),
     outputPlan: routePlan.outputPlan
   });
 }
@@ -479,6 +473,8 @@ function buildTradeLayerSendOracleSigningPayload(stateOracleBlob, options = {}) 
   };
 }
 
+// The oracle key is the verifier's pin. A key carried in the blob or its signature
+// envelope would let whoever built the blob choose the key that checks it.
 function readOracleSignatureEnvelope(stateOracleBlob, options = {}) {
   const source = options.oracleSignature
     || stateOracleBlob.oracleSignature
@@ -490,22 +486,21 @@ function readOracleSignatureEnvelope(stateOracleBlob, options = {}) {
     return {
       algorithm: options.oracleSignatureAlgorithm || 'ed25519',
       signatureHex: source,
-      publicKeyPem: options.oraclePublicKeyPem || stateOracleBlob.oraclePublicKeyPem,
-      keyId: options.oracleKeyId || stateOracleBlob.oracleKeyId || null
+      payloadHash: null
     };
   }
 
   return {
     algorithm: source.algorithm || options.oracleSignatureAlgorithm || 'ed25519',
     signatureHex: source.signatureHex || source.signature || source.hex,
-    publicKeyPem: source.publicKeyPem || options.oraclePublicKeyPem || stateOracleBlob.oraclePublicKeyPem,
-    keyId: source.keyId || options.oracleKeyId || stateOracleBlob.oracleKeyId || null,
     payloadHash: source.payloadHash || null
   };
 }
 
 function verifyTradeLayerSendOracleSignature(stateOracleBlob, options = {}) {
   const envelope = readOracleSignatureEnvelope(stateOracleBlob, options);
+  const pinnedPem = options.oraclePublicKeyPem || null;
+  const keyId = options.oracleKeyId || null;
   const signing = buildTradeLayerSendOracleSigningPayload(stateOracleBlob, options);
   const signingSummary = {
     payloadHash: signing.payloadHash,
@@ -513,12 +508,13 @@ function verifyTradeLayerSendOracleSignature(stateOracleBlob, options = {}) {
     sendRecordHash: signing.sendRecordHash,
     dlcFunderRegistryHash: signing.dlcFunderRegistryHash
   };
+  const required = !!options.requireOracleSignature;
 
   if (!envelope) {
     return {
       ok: false,
       reason: 'missing oracle signature',
-      required: !!options.requireOracleSignature,
+      required,
       algorithm: 'ed25519',
       ...signingSummary
     };
@@ -528,7 +524,7 @@ function verifyTradeLayerSendOracleSignature(stateOracleBlob, options = {}) {
     return {
       ok: false,
       reason: `unsupported oracle signature algorithm: ${envelope.algorithm}`,
-      required: !!options.requireOracleSignature,
+      required,
       ...signingSummary
     };
   }
@@ -536,15 +532,15 @@ function verifyTradeLayerSendOracleSignature(stateOracleBlob, options = {}) {
     return {
       ok: false,
       reason: 'oracle signature must be hex',
-      required: !!options.requireOracleSignature,
+      required,
       ...signingSummary
     };
   }
-  if (!envelope.publicKeyPem) {
+  if (!pinnedPem) {
     return {
       ok: false,
-      reason: 'missing oracle public key PEM',
-      required: !!options.requireOracleSignature,
+      reason: 'missing pinned oracle public key PEM',
+      required,
       ...signingSummary
     };
   }
@@ -552,9 +548,9 @@ function verifyTradeLayerSendOracleSignature(stateOracleBlob, options = {}) {
     return {
       ok: false,
       reason: `oracle signature payload hash mismatch: expected ${envelope.payloadHash}, recomputed ${signing.payloadHash}`,
-      required: !!options.requireOracleSignature,
+      required,
       ...signingSummary,
-      keyId: envelope.keyId
+      keyId
     };
   }
 
@@ -563,25 +559,25 @@ function verifyTradeLayerSendOracleSignature(stateOracleBlob, options = {}) {
     verified = crypto.verify(
       null,
       Buffer.from(signing.payload, 'utf8'),
-      envelope.publicKeyPem,
+      pinnedPem,
       Buffer.from(envelope.signatureHex, 'hex')
     );
   } catch (err) {
     return {
       ok: false,
       reason: `oracle signature verification failed: ${err.message}`,
-      required: !!options.requireOracleSignature,
+      required,
       ...signingSummary,
-      keyId: envelope.keyId
+      keyId
     };
   }
 
   return {
     ok: verified,
     reason: verified ? null : 'invalid oracle signature',
-    required: !!options.requireOracleSignature,
+    required,
     algorithm: 'ed25519',
-    keyId: envelope.keyId,
+    keyId,
     payloadHash: signing.payloadHash,
     oracleBlobHash: signing.oracleBlobHash,
     sendRecordHash: signing.sendRecordHash,
@@ -773,14 +769,15 @@ function outputPlanHasAddress(outputPlan, address) {
   return outputPlan.some((output) => output.address === address);
 }
 
-function leafKey(leaf) {
-  return `${leaf.recipientScriptPubKey.toString('hex')}:${leaf.amountSats.toString()}`;
+// The identity of a payout for duplicate and sweep matching: the script and the amount.
+function payoutKey(recipientScriptPubKey, amountSats) {
+  return `${recipientScriptPubKey.toString('hex')}:${amountSats.toString()}`;
 }
 
 function buildSweepOutputs(observedOutputs, committed, network) {
   const remaining = new Map();
   committed.leaves.forEach((leaf, index) => {
-    const key = leafKey(leaf);
+    const key = payoutKey(leaf.recipientScriptPubKey, leaf.amountSats);
     const indexes = remaining.get(key) || [];
     indexes.push(index);
     remaining.set(key, indexes);
@@ -788,7 +785,7 @@ function buildSweepOutputs(observedOutputs, committed, network) {
 
   return normalizeOutputPlan(observedOutputs).map((output, index) => {
     const recipientScriptPubKey = scriptPubKeyForOutput(output, network);
-    const key = `${recipientScriptPubKey.toString('hex')}:${output.sats.toString()}`;
+    const key = payoutKey(recipientScriptPubKey, output.sats);
     const indexes = remaining.get(key) || [];
     const leafIndex = indexes.length ? indexes.shift() : Math.min(index, committed.proofs.length - 1);
     if (indexes.length) remaining.set(key, indexes);
@@ -873,11 +870,12 @@ function verifyTradeLayerPnlRoutePlan(routePlan, options = {}) {
   }
 
   const observedPayoutTotalSats = bundle.sweep.totalPayoutSats();
-  const inputSats = routePlan.dlcInput?.sats !== undefined
-    ? toSats(routePlan.dlcInput.sats, 'routePlan.dlcInput.sats')
-    : null;
+  if (routePlan.dlcInput?.sats === undefined) {
+    return { ok: false, reason: 'route plan dlcInput.sats is required', recomputedPlanHash };
+  }
+  const inputSats = toSats(routePlan.dlcInput.sats, 'routePlan.dlcInput.sats');
   const feeSats = routePlan.feeSats !== undefined ? toSats(routePlan.feeSats, 'routePlan.feeSats') : 0n;
-  if (inputSats !== null && observedPayoutTotalSats + feeSats !== inputSats) {
+  if (observedPayoutTotalSats + feeSats !== inputSats) {
     return {
       ok: false,
       reason: `route accounting mismatch: payouts ${observedPayoutTotalSats} + fee ${feeSats} != input ${inputSats}`,
@@ -925,7 +923,10 @@ function verifyTradeLayerSendRoutePlan(sendIntent, options = {}) {
 function verifyTradeLayerSendStateOracleRoute(stateOracleBlob, options = {}) {
   const oracleCommitment = buildTradeLayerSendOracleCommitment(stateOracleBlob, options);
   const oracleSignature = verifyTradeLayerSendOracleSignature(stateOracleBlob, options);
-  if ((options.requireOracleSignature || stateOracleBlob.oracleSignature || stateOracleBlob.signature) && !oracleSignature.ok) {
+  // A pinned oracle key is a claim that the blob is signed, so an unsigned blob fails against it.
+  const signatureDemanded = !!(options.requireOracleSignature || options.oraclePublicKeyPem)
+    || !!(stateOracleBlob.oracleSignature || stateOracleBlob.signature);
+  if (signatureDemanded && !oracleSignature.ok) {
     return {
       ok: false,
       reason: oracleSignature.reason,
@@ -967,6 +968,7 @@ module.exports = {
   stableStringify,
   sha256Hex,
   addressToScriptPubKey,
+  scriptPubKeyForOutput,
   computeTradeLayerPlanHash,
   buildTradeLayerSendRouteTranscript,
   verifyTradeLayerSendRouteTranscript,

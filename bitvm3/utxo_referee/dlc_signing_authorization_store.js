@@ -1,15 +1,11 @@
 'use strict';
 
-const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
-const {
-  snapshotOwnDataArguments,
-  canonicalize,
-  canonicalJson
-} = require('./dlc_canonical_json');
+const { snapshotOwnDataArguments, canonicalize, canonicalJson, sha256Hex, requireHash } = require('./dlc_canonical_json');
 const {
   assertNonSymlinkDirectory,
+  createDurableDirectory,
   ensureNonSymlinkDirectory,
   readBoundedJson,
   writeJsonAppendOnce
@@ -24,17 +20,6 @@ const {
 const KIND = 'utxoref_dlc_signing_authorization_consumption_v1';
 const MAX_RECORD_BYTES = 32768;
 const LIVE_AUTHORIZATION_STORES = new WeakSet();
-
-function sha256Hex(value) {
-  return crypto.createHash('sha256').update(value).digest('hex');
-}
-
-function requireHash(value, fieldName) {
-  if (typeof value !== 'string' || !/^[0-9a-f]{64}$/.test(value)) {
-    throw new Error(`${fieldName} must be lowercase 32-byte hex`);
-  }
-  return value;
-}
 
 function requireId(value, fieldName) {
   if (typeof value !== 'string' || !/^[A-Za-z0-9._:-]{1,128}$/.test(value)) {
@@ -124,7 +109,7 @@ class DlcSigningAuthorizationStore {
     requireHash(providerIdentity, 'providerIdentity');
     const directory = this._directory(contractId, authorizationId);
     try {
-      fs.mkdirSync(directory, { mode: 0o700 });
+      createDurableDirectory(directory);
     } catch (error) {
       if (error.code !== 'EEXIST') throw error;
       const existing = this._readDirectory(directory);

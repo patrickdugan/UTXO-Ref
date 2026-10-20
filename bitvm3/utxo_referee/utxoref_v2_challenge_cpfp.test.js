@@ -12,6 +12,7 @@ const { txidFromUnsignedHex } = require('./recover_btc_testnet4_reserve_vault');
 const tests = [];
 function test(name, fn) { tests.push({ name, fn }); }
 function assert(condition, message) { if (!condition) throw new Error(message || 'assertion failed'); }
+function throwsOn(fn) { try { fn(); return false; } catch (_err) { return true; } }
 
 function fixture() {
   const artifact = {
@@ -52,6 +53,10 @@ test('CPFP plan spends only the tracked output and preserves its script', () => 
 
 test('CPFP plan enforces integer amounts, native SegWit, and dust', () => {
   assert(btcToSats('0.00005000') === 5000n);
+  assert(btcToSats(1e-7) === 10n, 'a Core amount printed in exponent form is still exact');
+  assert(btcToSats(0.00005) === 5000n);
+  assert(throwsOn(() => btcToSats(0.1234567891)), 'a sub-satoshi amount must be refused, not rounded');
+  assert(throwsOn(() => btcToSats('-1')) && throwsOn(() => btcToSats('1.000000001')));
   for (const mutate of [
     (state) => { state.challenge.outputSats = '5.5'; },
     (state) => { state.challenge.challengeScriptPubKeyHex = '76a914' + '22'.repeat(20) + '88ac'; }

@@ -51,9 +51,52 @@ test('rejects fractional and noncanonical integer strings', () => {
   assert(rejects('{"feeSats":"+1"}', /canonical integer string/));
 });
 
+test('refuses negative zero in every spelling, as a number or an integer string', () => {
+  assert(rejects('{"sats":-0.0}', /negative zero/));
+  assert(rejects('{"sats":-0.00}', /negative zero/));
+  assert(rejects('{"sats":"-0"}', /canonical integer string/));
+  assert(rejects('{"blocks":"-0"}', /canonical integer string/));
+  assert(parseJsonStrict('{"sats":0.0,"version":0,"amountSats":"0"}').sats === 0, 'positive zero must stay accepted');
+  assert(parseJsonStrict('{"sats":"-5"}').sats === '-5', 'negative nonzero integer strings must stay accepted');
+});
+
+test('refuses a nonzero fraction that the double rounds to an integer', () => {
+  assert(rejects('{"sats":9007199254740991.0000000000000001}', /fraction is rounded away/));
+  assert(rejects('{"amount":9007199254740991.0000000000000001}', /fraction is rounded away/));
+  assert(rejects('[1.0000000000000000000000001]', /fraction is rounded away/));
+  assert(rejects('{"note":[3.9999999999999999999]}', /fraction is rounded away/));
+});
+
+test('keeps accepting zero fractions and fractions the double does not round to an integer', () => {
+  assert(parseJsonStrict('{"sats":1.00}').sats === 1, 'a zero fraction on an integer must stay accepted');
+  assert(parseJsonStrict('[1.5]')[0] === 1.5, 'a fraction the value keeps must stay accepted');
+  assert(parseJsonStrict('[0.0000000000000000000000001]')[0] === 1e-25, 'a tiny fraction must stay accepted');
+});
+
+test('refuses a hostile 1 MiB unterminated string or fraction in linear time', () => {
+  const size = 1024 * 1024;
+  const unterminated = '"' + '\\"'.repeat(Math.floor((size - 1) / 2));
+  const fraction = '[1.' + '0'.repeat(size - 4) + '1]';
+  const started = process.hrtime.bigint();
+  assert(rejects(unterminated, /unterminated string/), 'a 1 MiB unterminated string must be refused');
+  assert(rejects(fraction, /fraction is rounded away/), 'a 1 MiB fraction that rounds to 1 must be refused');
+  const elapsedMs = Number(process.hrtime.bigint() - started) / 1e6;
+  assert(elapsedMs < 1000, `hostile 1 MiB inputs took ${elapsedMs.toFixed(1)} ms`);
+});
+
 test('accepts exact integers larger than the JS safe range as strings', () => {
   const value = parseJsonStrict('{"amountSats":"9007199254740993"}');
   assert(value.amountSats === '9007199254740993');
+});
+
+test('rejects unsafe JSON integers under any key, including inside arrays', () => {
+  assert(rejects('{"amount":9007199254740993}', /safe integer/));
+  assert(rejects('{"amountsSats":[9007199254740993]}', /safe integer/));
+  assert(rejects('{"amountsSats":[1.5]}', /safe integer/));
+});
+
+test('applies identifier checks to array items under plural identifier keys', () => {
+  assert(rejects('{"txids":["\\u00e9"]}', /identifier must be printable ASCII/));
 });
 
 test('rejects Unicode schema keys and identifier values', () => {

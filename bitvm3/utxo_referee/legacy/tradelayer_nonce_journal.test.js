@@ -188,5 +188,21 @@ test('partialSignGuarded refuses a session whose challenge does not commit to th
   assert(!fs.existsSync(journalPath), 'journal was written for a refused session');
 });
 
+test('reservation refuses to run while another writer holds the journal', () => {
+  const journalPath = freshJournalPath('concurrent-writer');
+  const lockPath = `${journalPath}.lock`;
+  fs.mkdirSync(lockPath);
+  let threw = null;
+  try {
+    reserveNonceUsage(crypto.randomBytes(64), crypto.randomBytes(32), { journalPath });
+  } catch (err) {
+    threw = err;
+  } finally {
+    fs.rmdirSync(lockPath);
+  }
+  assert(threw && /locked by another writer/.test(threw.message), 'reservation ran while the journal was locked');
+  assert(!fs.existsSync(journalPath), 'journal was written while another writer held it');
+});
+
 console.log(`\nPASS: ${passed} tests${failed ? `, FAIL: ${failed}` : ''}`);
 if (failed > 0) process.exit(1);

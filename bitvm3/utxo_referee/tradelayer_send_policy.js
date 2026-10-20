@@ -13,6 +13,7 @@ const {
 const {
   verifyTradeLayerReserveReconciliation
 } = require('./tradelayer_reserve_reconciliation_referee');
+const { toSats, heightOf } = require('./money');
 
 const DEFAULT_POLICY = {
   challengeWindowBlocks: 144,
@@ -27,16 +28,6 @@ const DEFAULT_POLICY = {
   pauseOnFailure: true
 };
 
-function toSats(value, fieldName) {
-  if (typeof value === 'bigint') return value;
-  if (typeof value === 'number') {
-    if (!Number.isSafeInteger(value)) throw new Error(`${fieldName} must be a safe integer`);
-    return BigInt(value);
-  }
-  if (typeof value === 'string' && /^-?\d+$/.test(value)) return BigInt(value);
-  throw new Error(`${fieldName} must be an integer sat amount`);
-}
-
 function normalizePolicy(options = {}) {
   const source = options.policy || {};
   const policy = { ...DEFAULT_POLICY };
@@ -46,12 +37,12 @@ function normalizePolicy(options = {}) {
   }
 
   return {
-    challengeWindowBlocks: Number(policy.challengeWindowBlocks),
-    minChallengeWindowBlocks: Number(policy.minChallengeWindowBlocks),
+    challengeWindowBlocks: heightOf(policy.challengeWindowBlocks, 'challengeWindowBlocks'),
+    minChallengeWindowBlocks: heightOf(policy.minChallengeWindowBlocks, 'minChallengeWindowBlocks'),
     dustLimitSats: toSats(policy.dustLimitSats, 'policy.dustLimitSats').toString(),
     maxFeeSats: toSats(policy.maxFeeSats, 'policy.maxFeeSats').toString(),
-    maxFeeBpsOfInput: Number(policy.maxFeeBpsOfInput),
-    maxRegistryAgeBlocks: Number(policy.maxRegistryAgeBlocks),
+    maxFeeBpsOfInput: heightOf(policy.maxFeeBpsOfInput, 'maxFeeBpsOfInput'),
+    maxRegistryAgeBlocks: heightOf(policy.maxRegistryAgeBlocks, 'maxRegistryAgeBlocks'),
     requireOracleSignature: !!policy.requireOracleSignature,
     allowedOracleAddresses: Array.isArray(policy.allowedOracleAddresses)
       ? policy.allowedOracleAddresses.map(String)
@@ -77,12 +68,13 @@ function maxFeeByBps(inputSats, maxFeeBpsOfInput) {
 }
 
 function registryHeight(stateOracleBlob) {
-  return Number(
+  return heightOf(
     stateOracleBlob.registryHeight
     ?? stateOracleBlob.dlcFunderRegistryHeight
     ?? stateOracleBlob.source?.registryHeight
     ?? stateOracleBlob.snapshotHeight
-    ?? 0
+    ?? 0,
+    'registryHeight'
   );
 }
 
@@ -96,7 +88,9 @@ function buildTradeLayerSendProductionPolicy(stateOracleBlob, options = {}) {
     sendId: options.sendId,
     sendTxid: options.sendTxid,
     sendIndex: options.sendIndex,
-    requireOracleSignature: policy.requireOracleSignature
+    requireOracleSignature: policy.requireOracleSignature,
+    oraclePublicKeyPem: options.oraclePublicKeyPem,
+    oracleKeyId: options.oracleKeyId
   };
   Object.keys(selectOptions).forEach((key) => selectOptions[key] === undefined && delete selectOptions[key]);
 
@@ -113,11 +107,15 @@ function buildTradeLayerSendProductionPolicy(stateOracleBlob, options = {}) {
   const maxByBps = maxFeeByBps(inputSats, policy.maxFeeBpsOfInput);
   const effectiveFeeCap = maxFeeSats < maxByBps ? maxFeeSats : maxByBps;
   const dustLimitSats = toSats(policy.dustLimitSats, 'policy.dustLimitSats');
-  const currentHeight = Number(options.currentHeight ?? stateOracleBlob.snapshotHeight ?? 0);
+  // Freshness is judged against the live height the caller supplies. Without one the
+  // registry is not shown fresh, rather than measured against the snapshot it came from.
+  const currentHeight = options.currentHeight === undefined || options.currentHeight === null
+    ? null
+    : heightOf(options.currentHeight, 'currentHeight');
   const regHeight = registryHeight(stateOracleBlob);
-  const registryAgeBlocks = Math.max(0, currentHeight - regHeight);
+  const registryAgeBlocks = currentHeight === null ? null : Math.max(0, currentHeight - regHeight);
   const oracleAddress = String(stateOracleBlob.oracleAddress || '');
-  const oracleKeyId = oracleSignature.keyId || stateOracleBlob.oracleKeyId || null;
+  const oracleKeyId = oracleSignature.keyId || null;
   const outputs = routePlan.outputPlan || [];
 
   const checks = [
@@ -139,7 +137,7 @@ function buildTradeLayerSendProductionPolicy(stateOracleBlob, options = {}) {
         sats: String(output.sats)
       }))
     }),
-    check('registry_freshness', registryAgeBlocks <= policy.maxRegistryAgeBlocks, {
+    check('registry_freshness', registryAgeBlocks !== null && registryAgeBlocks <= policy.maxRegistryAgeBlocks, {
       currentHeight,
       registryHeight: regHeight,
       registryAgeBlocks,
@@ -180,11 +178,12 @@ function buildTradeLayerSendProductionPolicy(stateOracleBlob, options = {}) {
     const reconciliation = options.reserveReconciliation;
     const reconciliationVerification = verifyTradeLayerReserveReconciliation(
       reconciliation,
-      options.withdrawalQueue
+      options.withdrawalQueue,
+      { currentHeight, reserve: options.reserveEvidence }
     );
-    checks.push(check('reserve_solvency', reconciliationVerification.ok && reconciliation.solvent === true, {
+    checks.push(check('reserve_solvency', reconciliationVerification.ok && reconciliationVerification.solvent === true, {
       reason: reconciliationVerification.ok ? null : reconciliationVerification.reason,
-      solvent: reconciliation.solvent === true,
+      solvent: reconciliationVerification.solvent === true,
       reconciliationHash: reconciliation.reconciliationHash || null,
       capSats: reconciliation.core?.capSats || null,
       reservedSats: reconciliation.core?.reservedSats || null,
@@ -221,7 +220,9 @@ function buildTradeLayerSendProductionPolicy(stateOracleBlob, options = {}) {
   };
 }
 
-function verifyTradeLayerSendProductionPolicy(policyResult) {
+// walletAction and the check results are functions of the state oracle and the
+// verifier's own options, so the result is rebuilt rather than trusted.
+function verifyTradeLayerSendProductionPolicy(policyResult, options = {}) {
   if (!policyResult || typeof policyResult !== 'object') {
     return { ok: false, reason: 'policy result must be an object' };
   }
@@ -257,12 +258,25 @@ function verifyTradeLayerSendProductionPolicy(policyResult) {
   if (policyResult.policyHash !== policyHash) {
     return { ok: false, reason: 'policy hash mismatch', policyHash };
   }
+  if (!options.stateOracleBlob) {
+    return { ok: false, reason: 'state oracle blob required to verify production policy' };
+  }
+
+  let rebuilt;
+  try {
+    rebuilt = buildTradeLayerSendProductionPolicy(options.stateOracleBlob, options);
+  } catch (err) {
+    return { ok: false, reason: `state oracle does not rebuild a production policy: ${err.message}` };
+  }
+  if (rebuilt.policyHash !== policyHash) {
+    return { ok: false, reason: 'policy does not match the state oracle and verifier options', rebuiltPolicyHash: rebuilt.policyHash };
+  }
 
   return {
     ok: true,
     policyHash,
-    walletAction: policyResult.walletAction,
-    failedChecks
+    walletAction: rebuilt.walletAction,
+    failedChecks: rebuilt.failedChecks
   };
 }
 

@@ -28,7 +28,7 @@ Per-finding status, commits and tests are in
 | 7 | Bond economics / windows | A 6-block minimum challenge window is enforced (BVM-3); sizing to value at risk is open. |
 | 8 | Single oracle | 2-of-3 threshold oracles in the DLC path; oracles are still operator-run in tests. |
 | 9 | Refund path | The CSV refund leaf now sits on the DLC funding output itself, with a NUMS internal key (DLC-6, MAIN-1). Not yet run on-chain in that form. |
-| 10 | Fee bumping / reorgs | CPFP and TRUC/P2A paths, reorg-aware challenge lifecycle and drills exist; see `CLAIMS_MATRIX.md`. |
+| 10 | Fee bumping / reorgs | CPFP (BIP125 RBF) paths on the V2 challenge path, reorg-aware challenge lifecycle and drills exist; see `CLAIMS_MATRIX.md`. |
 | 11 | Audit surface | `docs/PILOT_SURFACE.md` rewritten for the merged branch; CI runs every suite and both evals. |
 
 New items from the assessment that remain open are listed in
@@ -200,6 +200,19 @@ produced a nonsense multi-million-block "age." Fixed by having
 `tradelayer_live_reserve_demo.js` fetch the real tip via `getblockcount`
 up front and pass it in explicitly, so all height math in that path is now
 on one consistent absolute scale.
+
+**Status (2026-10-14, review D): recovery window anchored on chain, spend outputs bound to the queue.** The
+vault CSV maturity is computed from the funding UTXO confirmation height
+(tip minus confirmations plus one), not from the operator-declared
+`observedAtHeight`. A manifest whose declared anchor differs is not counted,
+and the guardian's vault check uses the same chain evidence. The guardian now
+requires the spend outputs to equal the verified withdrawal queue's payable
+entries exactly (script and amount) and refuses a proposal whose output hash
+does not match its transaction. The guardian still needs the queue itself to
+be the committed payout set, which depends on the queue builder and on
+guardian independence (blocker #3).
+
+Reserve verdicts are now derived, not read back. `verifyTradeLayerReserveReconciliation` reports solvent only when the caller supplies the reserve evidence that resolves to the committed source hash and reservedSats, and when it has a live height for an observed reserve; the verifier's own staleness window applies. The guardian, the send policy and the stack builder pass their evidence. The watchtower daemon and the BTC testnet4 demo still read the artifact's solvent flag and hold no evidence; that is open.
 
 **Required before pilot:** Use the BTC testnet4 vault evidence path for any
 claim that reserves are encumbered. The legacy snapshot mode must remain

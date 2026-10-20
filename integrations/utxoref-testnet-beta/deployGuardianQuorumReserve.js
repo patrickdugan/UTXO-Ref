@@ -65,8 +65,9 @@ async function deploy(options, env = process.env) {
   if (!options.registryPath || !options.outputPath || !options.secretDir) {
     throw new Error('--registry, --output, and --secret-dir are required');
   }
-  if (options.broadcast && fs.existsSync(options.outputPath)) {
-    throw new Error('output already exists; refusing to fund another quorum reserve implicitly');
+  const pendingPath = `${options.outputPath}.funding-pending.json`;
+  if (options.broadcast && (fs.existsSync(options.outputPath) || fs.existsSync(pendingPath))) {
+    throw new Error('output or a pending funding record already exists; refusing to fund another quorum reserve implicitly');
   }
   const registry = JSON.parse(fs.readFileSync(options.registryPath, 'utf8'));
   if (registry?.kind !== 'utxoref_beta_guardian_registry' || registry.version !== 1 ||
@@ -127,6 +128,30 @@ async function deploy(options, env = process.env) {
     6,
     'economical'
   ], policy.wallet);
+  // The wallet has spent the funds from here on. The txid is recorded before anything else can fail, so a retry
+  // cannot fund a second reserve that nothing on disk knows about.
+  saveJson(pendingPath, {
+    kind: 'utxoref_beta_guardian_quorum_reserve_pending',
+    version: 1,
+    txid,
+    amountSats: String(options.amountSats),
+    p2trAddress: decoded.address,
+    graphHash: registry.graphHash,
+    createdAt: new Date().toISOString()
+  });
+  let artifact;
+  try {
+    artifact = await recordFundedReserve({ rpc, txid, template, registry, guardianXonlys, operatorXonly, recoveryXonly, options, preview });
+  } catch (err) {
+    err.message = `${err.message}; funding ${txid} is recorded in ${pendingPath} and must be resolved before another broadcast`;
+    throw err;
+  }
+  saveJson(options.outputPath, artifact);
+  fs.rmSync(pendingPath, { force: true });
+  return artifact;
+}
+
+async function recordFundedReserve({ rpc, txid, template, registry, guardianXonlys, operatorXonly, recoveryXonly, options, preview }) {
   const transaction = await rpc('getrawtransaction', [txid, true]);
   const vout = transaction.vout.find((output) => output.scriptPubKey?.hex === template.p2trScriptPubKey);
   if (!vout) throw new Error('funding transaction does not contain the guardian quorum script');
@@ -148,7 +173,7 @@ async function deploy(options, env = process.env) {
   const verification = verifyGuardianQuorumVaultManifest(manifest, { currentHeight: Number(chain.blocks) });
   if (!verification.ok) throw new Error(`generated quorum manifest failed verification: ${verification.reason}`);
   const chainTxout = await rpc('gettxout', [txid, vout.n, true]);
-  const artifact = {
+  return {
     ...preview,
     broadcast: true,
     funding: {
@@ -162,8 +187,6 @@ async function deploy(options, env = process.env) {
     manifest,
     verification
   };
-  saveJson(options.outputPath, artifact);
-  return artifact;
 }
 
 async function reconcile(options, registry, env = process.env) {

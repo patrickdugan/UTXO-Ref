@@ -9,6 +9,7 @@
  * commitment.
  */
 
+const { verifyChallengeVerdict } = require('./challenge_verdict');
 const {
   stableStringify,
   sha256Hex,
@@ -16,6 +17,7 @@ const {
   buildTradeLayerPnlCommitment,
   verifyTradeLayerPnlRoutePlan
 } = require('./tradelayer_pnl_route_adapter');
+const { toInt, toSats } = require('./money');
 
 const CHALLENGE_TYPES = [
   'omitted_pnl_row',
@@ -26,25 +28,9 @@ const CHALLENGE_TYPES = [
   'wrong_state_oracle_hash'
 ];
 
-function toInt(value, fieldName) {
-  if (typeof value === 'bigint') return value;
-  if (typeof value === 'number') {
-    if (!Number.isSafeInteger(value)) throw new Error(`${fieldName} must be a safe integer`);
-    return BigInt(value);
-  }
-  if (typeof value === 'string' && /^-?\d+$/.test(value)) return BigInt(value);
-  throw new Error(`${fieldName} must be an integer`);
-}
-
 function optionalInt(value, fieldName) {
   if (value === undefined || value === null || value === '') return null;
-  return toInt(value, fieldName);
-}
-
-function toSats(value, fieldName) {
-  const sats = toInt(value, fieldName);
-  if (sats < 0n) throw new Error(`${fieldName} must be non-negative`);
-  return sats;
+  return toInt(value, fieldName, { signed: true });
 }
 
 function abs(value) {
@@ -53,6 +39,11 @@ function abs(value) {
 
 function minBigInt(a, b) {
   return a < b ? a : b;
+}
+
+// Code-unit order: localeCompare can rank distinct Unicode addresses as equal.
+function compareIds(left, right) {
+  return left < right ? -1 : left > right ? 1 : 0;
 }
 
 function normalizeObjectList(value, fieldName) {
@@ -172,11 +163,11 @@ function deriveBilateralPnlRow(rawRow, stateOracleBlob = {}, options = {}, index
   const positionId = String(row.positionId ?? row.id ?? rowId);
   const parties = normalizePartyModel(row);
 
-  const entryPrice = toInt(row.entryPrice ?? row.openPrice, `pnlRows[${index}].entryPrice`);
-  const closePrice = toInt(priceFromMarkSource(row, stateOracleBlob, options, contractId), `pnlRows[${index}].closePrice`);
-  const quantityUnits = toInt(row.quantityUnits ?? row.quantity ?? row.size ?? 1, `pnlRows[${index}].quantityUnits`);
+  const entryPrice = toInt(row.entryPrice ?? row.openPrice, `pnlRows[${index}].entryPrice`, { signed: true });
+  const closePrice = toInt(priceFromMarkSource(row, stateOracleBlob, options, contractId), `pnlRows[${index}].closePrice`, { signed: true });
+  const quantityUnits = toInt(row.quantityUnits ?? row.quantity ?? row.size ?? 1, `pnlRows[${index}].quantityUnits`, { signed: true });
   if (quantityUnits <= 0n) throw new Error(`pnlRows[${index}].quantityUnits must be positive`);
-  const priceScale = toInt(row.priceScale ?? stateOracleBlob.priceScale ?? options.priceScale ?? 1, `pnlRows[${index}].priceScale`);
+  const priceScale = toInt(row.priceScale ?? stateOracleBlob.priceScale ?? options.priceScale ?? 1, `pnlRows[${index}].priceScale`, { signed: true });
   if (priceScale <= 0n) throw new Error(`pnlRows[${index}].priceScale must be positive`);
   const collateralSats = toSats(
     row.collateralSats ?? row.lossCapSats ?? row.maxTransferSats ?? options.defaultCollateralSats,
@@ -267,7 +258,7 @@ function computeNetBalances(edges) {
 
   return [...map.entries()]
     .filter(([, netSats]) => netSats !== 0n)
-    .sort(([a], [b]) => a.localeCompare(b))
+    .sort(([a], [b]) => compareIds(a, b))
     .map(([address, netSats]) => ({
       address,
       netSats: netSats.toString(),
@@ -279,11 +270,11 @@ function foldPnlNettingGraph(netBalances) {
   const payers = netBalances
     .filter((row) => BigInt(row.netSats) < 0n)
     .map((row) => ({ address: row.address, remaining: -BigInt(row.netSats) }))
-    .sort((a, b) => a.address.localeCompare(b.address));
+    .sort((a, b) => compareIds(a.address, b.address));
   const receivers = netBalances
     .filter((row) => BigInt(row.netSats) > 0n)
     .map((row) => ({ address: row.address, remaining: BigInt(row.netSats) }))
-    .sort((a, b) => a.address.localeCompare(b.address));
+    .sort((a, b) => compareIds(a.address, b.address));
 
   const foldedEdges = [];
   let payerIndex = 0;
@@ -463,33 +454,8 @@ function buildTradeLayerPnlNettingSettlement(stateOracleBlob, options = {}) {
   };
 }
 
-function verifyPositiveNetOutputs(netBalances, outputPlan) {
-  const positives = netBalances
-    .filter((row) => BigInt(row.netSats) > 0n)
-    .map((row) => ({ address: row.address, sats: BigInt(row.netSats).toString() }))
-    .sort((a, b) => a.address.localeCompare(b.address));
-  const outputs = outputPlan
-    .map((output) => ({
-      accountAddress: output.accountAddress || output.address,
-      sats: String(output.sats)
-    }))
-    .sort((a, b) => a.accountAddress.localeCompare(b.accountAddress));
-
-  if (positives.length !== outputs.length) {
-    return { ok: false, reason: `positive PNL output count mismatch: expected ${positives.length}, got ${outputs.length}` };
-  }
-  for (let i = 0; i < positives.length; i++) {
-    if (positives[i].address !== outputs[i].accountAddress || positives[i].sats !== outputs[i].sats) {
-      return {
-        ok: false,
-        reason: 'positive PNL output mismatch',
-        expected: positives[i],
-        actual: outputs[i]
-      };
-    }
-  }
-  return { ok: true };
-}
+const SETTLEMENT_FIELDS = ['core', 'rows', 'grossEdges', 'netBalances', 'foldedEdges', 'routePlan'];
+const PAYOUT_FIELDS = ['withdrawalRootHex', 'commitmentHashHex', 'totalSats'];
 
 function verifyTradeLayerPnlNettingSettlement(settlement, options = {}) {
   if (!settlement || settlement.kind !== 'tradelayer_pnl_netting_settlement') {
@@ -503,37 +469,22 @@ function verifyTradeLayerPnlNettingSettlement(settlement, options = {}) {
   if (settlementHash !== settlement.settlementHash) {
     return { ok: false, reason: 'settlement hash mismatch', settlementHash };
   }
-  if (options.expectedStateOracleHash && options.expectedStateOracleHash !== settlement.core.stateOracleHash) {
-    return { ok: false, reason: 'state oracle hash mismatch', expectedStateOracleHash: options.expectedStateOracleHash };
+  if (!options.stateOracleBlob) {
+    return { ok: false, reason: 'state oracle blob required to verify settlement' };
   }
 
-  const checks = [
-    ['pnlRowRoot', rootHex(settlement.rows || [])],
-    ['grossEdgeRoot', rootHex(settlement.grossEdges || [])],
-    ['netBalanceRoot', rootHex(settlement.netBalances || [])],
-    ['foldedEdgeRoot', rootHex(settlement.foldedEdges || [])]
-  ];
-  for (const [field, recomputed] of checks) {
-    if (settlement.core[field] !== recomputed) {
-      return { ok: false, reason: `${field} mismatch`, recomputed };
-    }
+  // Internal hashes only show that the settlement agrees with itself. The rows, edges,
+  // roots and payouts must be the deterministic output of the committed oracle blob.
+  let rebuilt;
+  try {
+    rebuilt = buildTradeLayerPnlNettingSettlement(options.stateOracleBlob, options);
+  } catch (err) {
+    return { ok: false, reason: `state oracle does not rebuild a settlement: ${err.message}` };
   }
-
-  const recomputedNet = computeNetBalances(settlement.grossEdges || []);
-  if (rootHex(recomputedNet) !== settlement.core.netBalanceRoot) {
-    return { ok: false, reason: 'gross edge graph does not recompute the committed net balance root' };
-  }
-  const recomputedFolded = foldPnlNettingGraph(settlement.netBalances || []);
-  if (rootHex(recomputedFolded) !== settlement.core.foldedEdgeRoot) {
-    return { ok: false, reason: 'folded graph does not recompute from net balances' };
-  }
-
-  const outputCheck = verifyPositiveNetOutputs(settlement.netBalances || [], settlement.routePlan?.outputPlan || []);
-  if (!outputCheck.ok) return outputCheck;
-
-  const routePlanHash = computeTradeLayerPlanHash(settlement.routePlan);
-  if (settlement.core.routePlanHash !== routePlanHash || settlement.routePlan.planHash !== routePlanHash) {
-    return { ok: false, reason: 'route plan hash mismatch', routePlanHash };
+  const mismatch = SETTLEMENT_FIELDS.find((field) => stableStringify(settlement[field]) !== stableStringify(rebuilt[field]));
+  if (mismatch) return { ok: false, reason: `${mismatch} does not match the state oracle` };
+  if (PAYOUT_FIELDS.some((field) => settlement.payout?.[field] !== rebuilt.payout[field])) {
+    return { ok: false, reason: 'payout does not match the state oracle' };
   }
 
   const routeResult = verifyTradeLayerPnlRoutePlan(settlement.routePlan, {
@@ -542,21 +493,19 @@ function verifyTradeLayerPnlNettingSettlement(settlement, options = {}) {
   });
   if (!routeResult.ok) return { ok: false, reason: `route plan failed: ${routeResult.reason}`, routeResult };
 
-  if (settlement.core.withdrawalRootHex !== routeResult.withdrawalRootHex) {
-    return { ok: false, reason: 'withdrawal root mismatch', withdrawalRootHex: routeResult.withdrawalRootHex };
-  }
-  if (settlement.core.commitmentHashHex !== routeResult.commitmentHashHex) {
-    return { ok: false, reason: 'commitment hash mismatch', commitmentHashHex: routeResult.commitmentHashHex };
-  }
-
   return {
     ok: true,
     settlementHash,
     stateOracleHash: settlement.core.stateOracleHash,
     rowCount: settlement.core.rowCount,
     totalPositiveNetSats: settlement.core.totalPositiveNetSats,
-    routePlanHash
+    routePlanHash: settlement.core.routePlanHash
   };
+}
+
+// A netting claim is disputed in BitVM against the committed roots, not decided here.
+function nettingChallengeable() {
+  return true;
 }
 
 function buildTradeLayerPnlNettingChallenge(settlement, options = {}) {
@@ -587,7 +536,7 @@ function buildTradeLayerPnlNettingChallenge(settlement, options = {}) {
   return {
     kind: 'tradelayer_pnl_netting_challenge',
     challengeType,
-    challengeable: true,
+    challengeable: nettingChallengeable(core),
     challengeHash: sha256Hex(core),
     core
   };
@@ -629,20 +578,23 @@ function verifyTradeLayerPnlNettingChallenge(challenge, settlement) {
   if (!challenge || challenge.kind !== 'tradelayer_pnl_netting_challenge') {
     return { ok: false, reason: 'wrong challenge kind' };
   }
-  if (!CHALLENGE_TYPES.includes(challenge.challengeType)) {
-    return { ok: false, reason: `unknown challenge type: ${challenge.challengeType}` };
-  }
-  const challengeHash = sha256Hex(challenge.core);
-  if (challengeHash !== challenge.challengeHash) {
-    return { ok: false, reason: 'challenge hash mismatch', challengeHash };
+  if (!CHALLENGE_TYPES.includes(challenge.core?.challengeType)) {
+    return { ok: false, reason: `unknown challenge type: ${challenge.core?.challengeType}` };
   }
   if (settlement && challenge.core?.settlementHash !== settlement.settlementHash) {
     return { ok: false, reason: 'settlement hash mismatch' };
   }
+  const verdict = verifyChallengeVerdict(challenge, {
+    kind: 'tradelayer_pnl_netting_challenge',
+    coreKind: 'tradelayer_pnl_netting_challenge_v1',
+    labelField: 'challengeType',
+    verdict: nettingChallengeable
+  });
+  if (!verdict.ok) return verdict;
   return {
     ok: true,
-    challengeHash,
-    challengeable: challenge.challengeable,
+    challengeHash: verdict.challengeHash,
+    challengeable: verdict.challengeable,
     challengeType: challenge.challengeType
   };
 }

@@ -1,18 +1,9 @@
 const {
   sha256Hex
 } = require('./tradelayer_pnl_route_adapter');
+const { toSats, heightOf } = require('./money');
 
 const HEX32_RE = /^[0-9a-f]{64}$/i;
-
-function toSats(value, fieldName) {
-  if (typeof value === 'bigint') return value;
-  if (typeof value === 'number') {
-    if (!Number.isSafeInteger(value)) throw new Error(`${fieldName} must be a safe integer`);
-    return BigInt(value);
-  }
-  if (typeof value === 'string' && /^\d+$/.test(value)) return BigInt(value);
-  throw new Error(`${fieldName} must be an integer sat amount`);
-}
 
 function normalizeOutpoint(value, fieldName) {
   const parts = String(value || '').split(':');
@@ -24,8 +15,8 @@ function normalizeOutpoint(value, fieldName) {
 
 function evaluateRouteEvidence(terms, evidence) {
   const observedCapacitySats = toSats(evidence.observedCapacitySats ?? 0, 'routeEvidence.observedCapacitySats');
-  const observedFeePpm = Number(evidence.observedFeePpm ?? terms.maxFeePpm + 1);
-  const observedCltvDelta = Number(evidence.observedCltvDelta ?? terms.maxCltvDelta + 1);
+  const observedFeePpm = heightOf(evidence.observedFeePpm ?? terms.maxFeePpm + 1, 'observedFeePpm');
+  const observedCltvDelta = heightOf(evidence.observedCltvDelta ?? terms.maxCltvDelta + 1, 'observedCltvDelta');
   const violations = [];
   if (observedCapacitySats < BigInt(terms.promisedCapacitySats)) violations.push('insufficient_capacity');
   if (observedFeePpm > terms.maxFeePpm) violations.push('fee_ppm_above_ceiling');
@@ -53,18 +44,18 @@ function buildBitvmLiquidityLease(input = {}) {
     routerNodeId: String(input.routerNodeId || 'router-node'),
     committedUtxo,
     promisedCapacitySats: toSats(input.promisedCapacitySats || committedUtxo.sats, 'promisedCapacitySats').toString(),
-    leaseStartHeight: Number(input.leaseStartHeight || 0),
-    leaseBlocks: Number(input.leaseBlocks || 144),
-    maxFeePpm: Number(input.maxFeePpm ?? 1000),
-    maxCltvDelta: Number(input.maxCltvDelta ?? 40),
+    leaseStartHeight: heightOf(input.leaseStartHeight ?? 0, 'leaseStartHeight'),
+    leaseBlocks: heightOf(input.leaseBlocks ?? 144, 'leaseBlocks'),
+    maxFeePpm: heightOf(input.maxFeePpm ?? 1000, 'maxFeePpm'),
+    maxCltvDelta: heightOf(input.maxCltvDelta ?? 40, 'maxCltvDelta'),
     penaltySats: toSats(input.penaltySats || 5000, 'penaltySats').toString()
   };
   const routeEvidence = {
     channelOutpoint: input.routeEvidence?.channelOutpoint || null,
     observedCapacitySats: toSats(input.routeEvidence?.observedCapacitySats ?? terms.promisedCapacitySats, 'routeEvidence.observedCapacitySats').toString(),
-    observedFeePpm: Number(input.routeEvidence?.observedFeePpm ?? terms.maxFeePpm),
-    observedCltvDelta: Number(input.routeEvidence?.observedCltvDelta ?? terms.maxCltvDelta),
-    observedAtHeight: Number(input.routeEvidence?.observedAtHeight ?? terms.leaseStartHeight)
+    observedFeePpm: heightOf(input.routeEvidence?.observedFeePpm ?? terms.maxFeePpm, 'observedFeePpm'),
+    observedCltvDelta: heightOf(input.routeEvidence?.observedCltvDelta ?? terms.maxCltvDelta, 'observedCltvDelta'),
+    observedAtHeight: heightOf(input.routeEvidence?.observedAtHeight ?? terms.leaseStartHeight, 'observedAtHeight')
   };
   const routeCheck = evaluateRouteEvidence(terms, routeEvidence);
   const core = {

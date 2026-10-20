@@ -69,7 +69,7 @@ is fixed and covered in-repo.
 | DLC-1 | Fixed on `main` before the merge | `a64a1b4` (inherited) | `tradelayer_dlc_adaptor_sig.test.js`; poc1 exits 2. |
 | DLC-2 | Fixed | `15f1b42` | Journal bound to the whole MuSig2 session; MuSig2 moved to `legacy/` (not on the pilot path). `legacy/tradelayer_nonce_journal.test.js`. |
 | DLC-3 | Fixed | `bd3d5c4` | `adaptorVerifyForPoint`; the provider checks the derived oracle point. `dlc_infra_hardening.test.js` DLC-3 test and wrong-point signer case. |
-| DLC-4 | Fixed | `0cf4c3a` | No MuSig2 shares: each party's full adaptor signature is verified under its own key before funding. `dlc_infra_hardening.test.js` signature test. |
+| DLC-4 | Open (review A-3) | `0cf4c3a` | No MuSig2 shares. `dlc_infra_hardening.test.js` tests the verifier `validateCetAdaptorSignatures` directly, but the production transition to `COUNTERPARTY_SIGNATURES_VERIFIED` never calls it: the stage advances on a validator-signed receipt whose digest is not recomputed from the counterparty's signatures. Funding broadcast is disabled, so this is latent. |
 | DLC-5 | Fixed | `fe76905` | Bindings required; attestation signs `outcomesHash`. `tradelayer_dlc_cet_oracle_selection.test.js`. |
 | DLC-6 | Fixed | `c995b05` | Refund leaf on the NUMS-keyed DLC output; demo rebuilt on it. `dlc_infra_hardening.test.js` NUMS test. See poc5 above. |
 | DLC-7 | Fixed on `main` before the merge | `a64a1b4` (inherited) | Funding broadcast disabled and gated by the state machine; eval "funding broadcast request fails before artifacts or RPC" and "funding finalizer contains no transaction broadcast RPC". The old M1 CET skeleton artifacts (zero miner fee, single wallet) belong to `m1_dlc_psbt_cet.js`, which is no longer on the pilot surface. |

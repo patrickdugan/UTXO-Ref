@@ -11,9 +11,9 @@ const DEFAULT_POLICY = Object.freeze({
   maxIdentifierBytes: 512
 });
 
-const IDENTIFIER_KEY_RE = /(?:^|_)(?:id|label|role|kind|network|address|txid|hash|xonly|outpoint|circuit|epoch|scriptpubkeyhex)$/i;
-const CAMEL_IDENTIFIER_KEY_RE = /(?:Id|Label|Role|Kind|Network|Address|Txid|Hash|Xonly|Outpoint|CircuitId|EpochId|ScriptPubKeyHex)$/;
-const INTEGER_KEY_RE = /(?:Sats|Blocks|Height|Vout|Sequence|Version|Index|Count)$/i;
+const IDENTIFIER_KEY_RE = /(?:^|_)(?:id|label|role|kind|network|address|txid|hash|xonly|outpoint|circuit|epoch|scriptpubkeyhex)s?$/i;
+const CAMEL_IDENTIFIER_KEY_RE = /(?:Id|Label|Role|Kind|Network|Address|Txid|Hash|Xonly|Outpoint|CircuitId|EpochId|ScriptPubKeyHex)s?$/;
+const INTEGER_KEY_RE = /(?:Sats|Blocks|Height|Vout|Sequence|Version|Index|Count)s?$/i;
 
 function mergePolicy(options = {}) {
   const policy = { ...DEFAULT_POLICY, ...options };
@@ -97,10 +97,18 @@ function parseJsonStrict(text, fieldName = 'JSON artifact', options = {}) {
     const boundary = remaining[raw.length];
     if (boundary && !/[\x20\t\r\n,}\]]/.test(boundary)) fail('invalid character after number');
     if (/[eE]/.test(raw)) fail('exponent-form numbers are forbidden');
-    if (raw === '-0') fail('negative zero is forbidden');
     offset += raw.length;
     const value = Number(raw);
+    if (Object.is(value, -0)) fail('negative zero is forbidden');
     if (!Number.isFinite(value)) fail('number is not finite');
+    if (Number.isInteger(value) && !Number.isSafeInteger(value)) {
+      fail('integer is outside the safe integer range; encode it as a canonical integer string');
+    }
+    // A nonzero fraction that the double rounds to an integer. Checked on the
+    // token text, because the value no longer shows the fraction.
+    if (Number.isInteger(value) && /\.[0-9]*[1-9]/.test(raw)) {
+      fail('fraction is rounded away by the number value; encode it as a canonical integer string');
+    }
     return value;
   }
 
@@ -174,7 +182,7 @@ function parseJsonStrict(text, fieldName = 'JSON artifact', options = {}) {
 function validateSemanticEncodings(value, fieldName, policy) {
   function visit(item, key, path) {
     if (Array.isArray(item)) {
-      for (let index = 0; index < item.length; index++) visit(item[index], String(index), `${path}[${index}]`);
+      for (let index = 0; index < item.length; index++) visit(item[index], key, `${path}[${index}]`);
       return;
     }
     if (!item || typeof item !== 'object') {
@@ -188,7 +196,7 @@ function validateSemanticEncodings(value, fieldName, policy) {
         if (typeof item === 'number' && !Number.isSafeInteger(item)) {
           throw new Error(`${fieldName} ${path} must be a safe integer or canonical integer string`);
         }
-        if (typeof item === 'string' && !/^-?(?:0|[1-9][0-9]*)$/.test(item)) {
+        if (typeof item === 'string' && !/^(?:0|-?[1-9][0-9]*)$/.test(item)) {
           throw new Error(`${fieldName} ${path} must be a canonical integer string`);
         }
       }

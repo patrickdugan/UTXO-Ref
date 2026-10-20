@@ -224,7 +224,7 @@ function buildDlcTokenizerSecurityComparison(options = {}) {
     throw new Error(`Shinigami virtual-CET bundle failed: ${bundleVerification.reason}`);
   }
   const reserveBundle = options.reserveBundle || buildAspBitvmReserveBundle({ ...options, shinigamiBundle: bundle });
-  const reserveVerification = verifyAspBitvmReserveBundle(reserveBundle);
+  const reserveVerification = verifyAspBitvmReserveBundle(reserveBundle, { aspPublicKeyPem: reserveBundle.obligationSet.aspPublicKeyPem });
   if (!reserveVerification.ok) {
     throw new Error(`ASP reserve bundle failed: ${reserveVerification.reason}`);
   }

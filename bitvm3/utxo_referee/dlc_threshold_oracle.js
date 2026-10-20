@@ -10,6 +10,7 @@ const {
   verifyDlcAttestation,
   dlcOutcomePoint
 } = require('./tradelayer_dlc_adaptor_sig');
+const { compareCodeUnits } = require('./dlc_canonical_json');
 
 function combinations(values, size) {
   const result = [];
@@ -73,7 +74,7 @@ function buildThresholdOutcomeSets({ announcements, threshold, pinnedPubkeys, ou
       !policy.outcomeMessages.includes(outcomeMsg32.toString('hex'))) {
     throw new Error('outcome message is not committed by the oracle set');
   }
-  const ordered = [...announcements].sort((left, right) => left.px.localeCompare(right.px));
+  const ordered = [...announcements].sort((left, right) => compareCodeUnits(left.px, right.px));
   return combinations(ordered, threshold).map((subset) => Object.freeze({
     oraclePubkeys: Object.freeze(subset.map((announcement) => announcement.px)),
     outcomePoint: Object.freeze(addPoints(subset.map((announcement) => dlcOutcomePoint(announcement, outcomeMsg32))))

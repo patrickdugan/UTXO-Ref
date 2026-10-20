@@ -1,14 +1,15 @@
 'use strict';
 
-const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const { normalizeDlcContract, transitionDlcContract } = require('./dlc_contract_state');
+const { sha256Hex } = require('./dlc_canonical_json');
 const {
   assertNonSymlinkDirectory,
   ensureNonSymlinkDirectory,
   readBoundedJson,
-  writeJsonAppendOnce
+  writeJsonAppendOnce,
+  withDirectoryLock
 } = require('./dlc_durable_json_store');
 const {
   createDlcJournalCheckpoint,
@@ -28,7 +29,7 @@ function requireContractId(value) {
 }
 
 function contractKey(contractId) {
-  return crypto.createHash('sha256').update(Buffer.from(requireContractId(contractId), 'utf8')).digest('hex');
+  return sha256Hex(Buffer.from(requireContractId(contractId), 'utf8'));
 }
 
 class DlcStateStore {
@@ -47,26 +48,13 @@ class DlcStateStore {
   }
 
   _withLock(contractId, run) {
-    const lockDirectory = this._lockDirectory(contractId);
-    const ownerPath = path.join(lockDirectory, 'owner.json');
-    try {
-      fs.mkdirSync(lockDirectory, { mode: 0o700 });
-    } catch (error) {
-      if (error.code === 'EEXIST') throw new Error(`DLC state store lock is held for ${contractId}`);
-      throw error;
-    }
-    try {
-      fs.writeFileSync(ownerPath, JSON.stringify({ pid: process.pid }), { mode: 0o600, flag: 'wx' });
-    } catch (error) {
-      try { fs.unlinkSync(ownerPath); } catch (_cleanupError) {}
-      try { fs.rmdirSync(lockDirectory); } catch (_cleanupError) {}
-      throw error;
-    }
-    try {
-      return run();
-    } finally {
-      try { fs.unlinkSync(ownerPath); } finally { fs.rmdirSync(lockDirectory); }
-    }
+    return withDirectoryLock(
+      this._lockDirectory(contractId),
+      `DLC state store lock is held for ${contractId}`,
+      run,
+      // Revisions are published append-once (link), so an overlapped write fails with EEXIST instead of being lost.
+      { lostLock: 'report' }
+    );
   }
 
   _revisionFiles(contractId) {

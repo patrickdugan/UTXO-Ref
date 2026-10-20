@@ -4,6 +4,9 @@ const path = require('path');
 const {
   parseArgs,
   inspectArtifact,
+  inspectChallengePath,
+  withStateLock,
+  runLockedIteration,
   authorizationPolicy,
   challengeStateBindsArtifact,
   deterministicChallengeAux,
@@ -15,6 +18,7 @@ const {
   assertChallengeTransactionBinding,
   assertRpcSnapshotTip,
   deriveChallengeLifecycle,
+  monitorChallenge,
   saveJsonAtomic,
   loadState
 } = require('./utxoref_v2_watchtower');
@@ -258,6 +262,24 @@ test('state is written atomically and resumes after a restart', () => {
   assert(state.restarts === 1);
 });
 
+test('state replacement flushes the new file before the rename and the directory after', () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'utxoref-v2-watchtower-durable-'));
+  const statePath = path.join(directory, 'state.json');
+  const { fsyncSync, renameSync } = fs;
+  const order = [];
+  fs.fsyncSync = (fd) => { order.push('fsync'); return fsyncSync(fd); };
+  fs.renameSync = (from, to) => { order.push('rename'); return renameSync(from, to); };
+  try { saveJsonAtomic(statePath, { kind: 'utxoref_v2_watchtower_state', tickCount: 1 }); }
+  finally {
+    fs.fsyncSync = fsyncSync;
+    fs.renameSync = renameSync;
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+  // The directory flush is a no-op on Windows (dlc_durable_json_store flushDirectory).
+  const expected = process.platform === 'win32' ? 'fsync,rename' : 'fsync,rename,fsync';
+  assert(order.join(',') === expected, `unexpected durable write order: ${order.join(',')}`);
+});
+
 test('wrong artifact kind fails closed', () => {
   let rejected = false;
   try { inspectArtifact({ kind: 'wrong', version: 2 }); }
@@ -363,6 +385,156 @@ asyncTest('a fraudulent assertion is still challengeable after the state checkpo
       assert(fs.existsSync(alertPath), `height ${height}: the challenge request must be alerted`);
       if (height > snapshot + 6) assert(tick.authorization.stale === true, 'staleness must still be reported');
     }
+  } finally { fs.rmSync(directory, { recursive: true, force: true }); }
+});
+
+asyncTest('fee-bump tools inspect a graph whose checkpoint went stale before authorization on the challenge path', async () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'utxoref-v2-watchtower-cpfp-stale-'));
+  try {
+    const snapshot = 150000;
+    const { artifactPath, trustPolicyPath } = fraudFixture(directory, snapshot);
+    const artifact = JSON.parse(fs.readFileSync(artifactPath, 'utf8'));
+    const trustPolicy = JSON.parse(fs.readFileSync(trustPolicyPath, 'utf8'));
+    artifact.verificationAtBroadcast.height = snapshot + 7;
+    let authorizationRejected = false;
+    try { inspectArtifact(artifact, trustPolicy); }
+    catch (err) { authorizationRejected = /state checkpoint is stale/.test(err.message); }
+    assert(authorizationRejected, 'the authorization view must still reject the stale checkpoint');
+    const view = inspectChallengePath(artifact, trustPolicy);
+    assert(view.fraudDetected === true && view.predicateBound === true, 'the challenge path must still see the fraud');
+    assert(view.stateFreshAtAuthorization === false, 'staleness must still be reported as data');
+  } finally { fs.rmSync(directory, { recursive: true, force: true }); }
+});
+
+asyncTest('a tick keeps a CPFP child that another process recorded after the watchtower started', async () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'utxoref-v2-watchtower-shared-state-'));
+  try {
+    const snapshot = 150000;
+    const { artifactPath, trustPolicyPath, rpcAt, graph } = fraudFixture(directory, snapshot);
+    const statePath = path.join(directory, 'state.json');
+    const args = { artifact: artifactPath, trustPolicy: trustPolicyPath, alertPath: path.join(directory, 'alerts.jsonl'), statePath };
+    saveJsonAtomic(statePath, {
+      kind: 'utxoref_v2_watchtower_state', tickCount: 0,
+      challenge: { graphHash: graph.graphHash, txid: 'cd'.repeat(32), vout: 0, outputSats: '99000', feeSats: '1000', confirmation: null, replacements: [] }
+    });
+    const cpfp = { txid: 'ef'.repeat(32), feeSats: '2000', outputSats: '98000', parentTxid: 'cd'.repeat(32) };
+    // The CPFP CLI records its child while the watchtower is running.
+    await withStateLock(statePath, async () => {
+      const cli = loadState(statePath);
+      cli.challenge.cpfp = cpfp;
+      saveJsonAtomic(statePath, cli);
+    });
+    const { iteration } = await runLockedIteration(args, rpcAt(snapshot + 6, 0), statePath, {});
+    assert(iteration.ok === true, 'the tick must run');
+    const onDisk = JSON.parse(fs.readFileSync(statePath, 'utf8'));
+    assert(onDisk.tickCount === 1, 'the tick must be saved');
+    assert(onDisk.challenge.cpfp && onDisk.challenge.cpfp.txid === cpfp.txid, 'the tick overwrote the CPFP child');
+  } finally { fs.rmSync(directory, { recursive: true, force: true }); }
+});
+
+asyncTest('an evicted CPFP child falls back to the parent challenge output', async () => {
+  const parentTxid = 'cd'.repeat(32);
+  const childTxid = 'ef'.repeat(32);
+  const script = `0014${'44'.repeat(20)}`;
+  const state = { challenge: {
+    graphHash: 'aa'.repeat(32), txid: parentTxid, vout: 0, outputSats: '99000', feeSats: '1000',
+    challengeScriptPubKeyHex: script, confirmation: null, replacements: [],
+    cpfp: { txid: childTxid, vout: 0, feeSats: '2000', outputSats: '98000', parentTxid, scriptPubKeyHex: script, confirmation: null, replacements: [] }
+  } };
+  const parentOut = { value: 0.00099, scriptPubKey: { hex: script }, confirmations: 0 };
+  const rpc = async (method, params) => {
+    if (method === 'gettxout') return params[0] === parentTxid ? parentOut : null;
+    throw new Error(`unexpected ${method}`);
+  };
+  const result = await monitorChallenge(rpc, state, 100, null);
+  assert(result.txid === parentTxid && result.role === 'challenge', `expected the parent, got ${result.txid} ${result.role}`);
+  assert(result.action === 'challenge_in_mempool', `expected challenge_in_mempool, got ${result.action}`);
+  assert(state.challenge.cpfp === undefined, 'the evicted child must not stay tracked');
+  assert(state.challenge.conflicts.length === 1 && state.challenge.conflicts[0].txid === childTxid, 'the evicted child must be recorded');
+});
+
+asyncTest('a tick is deferred without reading the chain while another process holds the state lock', async () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'utxoref-v2-watchtower-locked-state-'));
+  try {
+    const snapshot = 150000;
+    const { artifactPath, trustPolicyPath, rpcAt } = fraudFixture(directory, snapshot);
+    const statePath = path.join(directory, 'state.json');
+    const args = { artifact: artifactPath, trustPolicy: trustPolicyPath, alertPath: path.join(directory, 'alerts.jsonl'), statePath };
+    saveJsonAtomic(statePath, { kind: 'utxoref_v2_watchtower_state', tickCount: 0 });
+    let rpcCalls = 0;
+    const rpc = async (method, params) => { rpcCalls += 1; return rpcAt(snapshot + 6, 0)(method, params); };
+    let code = null;
+    await withStateLock(statePath, async () => {
+      try { await runLockedIteration(args, rpc, statePath, {}); }
+      catch (err) { code = err.code; }
+    });
+    assert(code === 'LOCK_HELD', `a held state lock must defer the tick, got ${code}`);
+    assert(rpcCalls === 0, 'a deferred tick must not read the chain');
+    assert(JSON.parse(fs.readFileSync(statePath, 'utf8')).tickCount === 0, 'a deferred tick must not write state');
+  } finally { fs.rmSync(directory, { recursive: true, force: true }); }
+});
+
+test('a state lock left by a process that no longer exists is reclaimed, any other held lock is not', () => {
+  const { acquireDirectoryLock } = require('./dlc_durable_json_store');
+  const { spawnSync } = require('child_process');
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'utxoref-v2-lock-'));
+  try {
+    const lockPath = path.join(directory, 'state.json.lock');
+    const plant = (owner) => {
+      fs.mkdirSync(lockPath);
+      if (owner) fs.writeFileSync(path.join(lockPath, 'owner.json'), JSON.stringify(owner));
+    };
+    const heldCode = () => { try { acquireDirectoryLock(lockPath, 'held')(); return null; } catch (error) { return error.code; } };
+    const deadPid = spawnSync(process.execPath, ['-e', '']).pid;
+
+    plant({ pid: deadPid, host: os.hostname() });
+    assert(heldCode() === null, 'a lock whose holder exited must be reclaimed');
+    assert(!fs.existsSync(lockPath), 'a reclaimed and released lock must leave nothing behind');
+
+    plant({ pid: process.ppid, host: os.hostname() });
+    assert(heldCode() === 'LOCK_HELD', 'a lock held by a live process must stay held');
+    fs.rmSync(lockPath, { recursive: true });
+
+    const held = acquireDirectoryLock(lockPath, 'held');
+    assert(heldCode() === 'LOCK_HELD', 'a lock held by a live acquisition in this process must stay held');
+    held();
+
+    plant({ pid: process.pid, host: os.hostname() });
+    assert(heldCode() === null, 'a state lock left by a crashed run with this pid must be reclaimed on restart');
+    assert(!fs.existsSync(lockPath), 'the reclaimed state lock must leave nothing behind');
+
+    plant({ pid: deadPid, host: 'another-host.invalid' });
+    assert(heldCode() === 'LOCK_HELD', 'a lock from another host must stay held');
+    fs.rmSync(lockPath, { recursive: true });
+
+    plant(null);
+    assert(heldCode() === 'LOCK_HELD', 'a lock without an owner record must stay held while it is fresh');
+    fs.rmSync(lockPath, { recursive: true });
+
+    plant(null);
+    const sixMinutesAgo = new Date(Date.now() - 360000);
+    fs.utimesSync(lockPath, sixMinutesAgo, sixMinutesAgo);
+    assert(heldCode() === null, 'a lock abandoned before its owner record was written must be reclaimed');
+    assert(!fs.existsSync(lockPath), 'the abandoned lock must leave nothing behind');
+  } finally { fs.rmSync(directory, { recursive: true, force: true }); }
+});
+
+asyncTest('a failed state write under the lock is reported as itself when the lock was taken over during it', async () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'utxoref-v2-watchtower-lost-'));
+  try {
+    const statePath = path.join(directory, 'state.json');
+    const lockPath = `${statePath}.lock`;
+    let err = null;
+    try {
+      await withStateLock(statePath, async () => {
+        fs.rmSync(lockPath, { recursive: true, force: true });
+        fs.mkdirSync(lockPath);
+        fs.writeFileSync(path.join(lockPath, 'owner.json'), JSON.stringify({ pid: process.ppid, host: os.hostname(), token: 'a'.repeat(32) }));
+        throw new Error('tick state write failed');
+      });
+    } catch (caught) { err = caught; }
+    assert(err && err.message === 'tick state write failed', `the caller must see its own failure, got: ${err && err.message}`);
+    assert(err.releaseError && err.releaseError.code === 'LOCK_LOST', 'the release failure must be attached to the error');
   } finally { fs.rmSync(directory, { recursive: true, force: true }); }
 });
 
@@ -551,6 +723,50 @@ asyncTest('WT-2: an iteration notifies, pings the heartbeat only when healthy, a
   } finally { fs.rmSync(directory, { recursive: true, force: true }); }
 });
 
+asyncTest('a state lock that stays held raises one alert-file line and a repeating critical alert from the failure threshold on', async () => {
+  const { createLockDeferrals } = require('./utxoref_v2_watchtower');
+  const { createAlertNotifier, notifierConfigFromEnv } = require('./utxoref_v2_alert_notifier');
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'utxoref-v2-watchtower-deferred-'));
+  try {
+    const statePath = path.join(directory, 'state.json');
+    const alertPath = path.join(directory, 'alerts.jsonl');
+    const calls = [];
+    const fetchImpl = async (url, init) => { calls.push(JSON.parse(init.body)); return { ok: true, status: 200 }; };
+    const config = notifierConfigFromEnv({ UTXOREF_WATCHTOWER_ID: 'wt-test', UTXOREF_ALERT_WEBHOOK_URL: 'https://hooks.example.org/alerts' });
+    const notifier = createAlertNotifier(config, { fetchImpl });
+    const deferrals = createLockDeferrals({ alertPath, artifact: path.join(directory, 'artifact.json') }, statePath);
+    const held = Object.assign(new Error('watchtower state is locked'), { code: 'LOCK_HELD', holder: { pid: 4242, host: 'vps' } });
+    const lines = () => (fs.existsSync(alertPath) ? fs.readFileSync(alertPath, 'utf8').trim().split('\n').filter(Boolean) : []);
+    for (let attempt = 1; attempt < config.failureThreshold; attempt++) await deferrals.defer(held, notifier, config.failureThreshold);
+    assert(lines().length === 0 && calls.length === 0, 'deferrals below the failure threshold must stay quiet');
+    const alert = await deferrals.defer(held, notifier, config.failureThreshold);
+    assert(alert.consecutiveFailures === config.failureThreshold && /pid 4242 on vps/.test(alert.message), alert.message);
+    assert(lines().length === 1, 'reaching the threshold must append one alert-file line');
+    assert(calls.length === 1 && calls[0].severity === 'critical' && calls[0].action === 'watchtower_tick_failed',
+      `reaching the threshold must send one critical alert, got ${JSON.stringify(calls.map((call) => call.action))}`);
+    await deferrals.defer(held, notifier, config.failureThreshold);
+    assert(lines().length === 1 && calls.length === 1, 'further deferrals must not re-log or re-send before the repeat interval');
+    assert(deferrals.clear() === config.failureThreshold + 1 && deferrals.consecutive === 0, 'acquiring the lock must reset the count');
+  } finally { fs.rmSync(directory, { recursive: true, force: true }); }
+});
+
+asyncTest('SIGTERM or SIGINT ends the wait between ticks, and a second signal exits at once', async () => {
+  const { createStopSignal } = require('./utxoref_v2_watchtower');
+  const handlers = {};
+  const exits = [];
+  const stop = createStopSignal({ on: (signal, handler) => { handlers[signal] = handler; }, exit: (code) => exits.push(code), log: () => {} });
+  assert(handlers.SIGTERM && handlers.SIGINT, 'both signals must be handled');
+  assert(stop.requested === false);
+  const started = Date.now();
+  const sleeping = stop.sleep(60000);
+  handlers.SIGTERM();
+  await sleeping;
+  assert(Date.now() - started < 5000, 'a signal must end the wait between ticks');
+  assert(stop.requested === true && exits.length === 0, 'the first signal must stop the loop, not exit');
+  handlers.SIGINT();
+  assert(exits.length === 1 && exits[0] === 130, `a second signal must exit at once, got ${JSON.stringify(exits)}`);
+});
+
 asyncTest('WT-2: a refused settlement broadcast is an alert, not a failed tick', async () => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'utxoref-v2-watchtower-send-fail-'));
   try {
@@ -573,7 +789,7 @@ asyncTest('WT-2: a refused settlement broadcast is an alert, not a failed tick',
 
 asyncTest('WT-2: the deployed proxy relays only the pinned settlement it derives itself', async () => {
   const http = require('http');
-  const { createSettlementBroadcastPolicy, createProxy, validateRpcPayload } = require('./utxoref_v2_rpc_proxy');
+  const { createSettlementBroadcastPolicy, createProxy, validateRpcRequest } = require('./utxoref_v2_rpc_proxy');
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'utxoref-v2-proxy-settle-'));
   const servers = [];
   try {
@@ -596,11 +812,11 @@ asyncTest('WT-2: the deployed proxy relays only the pinned settlement it derives
     assert(policy().size === 1 && policy().has(honestTxid), 'only the honest settlement may be relayed');
     assert(policy.describe().refused.some((entry) => /contains fraud/.test(entry.reason)));
     const send = (hex) => ({ jsonrpc: '2.0', id: 1, method: 'sendrawtransaction', params: [hex] });
-    assert(validateRpcPayload(send(honest.graph.settlementPath.witnessTxHex), { broadcastTxids: policy }).ok === true);
-    assert(validateRpcPayload(send(fraud.graph.settlementPath.witnessTxHex), { broadcastTxids: policy }).statusCode === 403);
-    assert(validateRpcPayload(send(honest.graph.recoveryPath.witnessTxHex), { broadcastTxids: policy }).statusCode === 403);
-    assert(validateRpcPayload(send('00'), { broadcastTxids: policy }).statusCode === 400);
-    assert(validateRpcPayload(send(honest.graph.settlementPath.witnessTxHex)).statusCode === 403,
+    assert(validateRpcRequest(send(honest.graph.settlementPath.witnessTxHex), { broadcastTxids: policy }).ok === true);
+    assert(validateRpcRequest(send(fraud.graph.settlementPath.witnessTxHex), { broadcastTxids: policy }).code === -32602);
+    assert(validateRpcRequest(send(honest.graph.recoveryPath.witnessTxHex), { broadcastTxids: policy }).code === -32602);
+    assert(validateRpcRequest(send('00'), { broadcastTxids: policy }).code === -32602);
+    assert(validateRpcRequest(send(honest.graph.settlementPath.witnessTxHex)).code === -32601,
       'without a settlement policy the proxy must not relay anything');
 
     // End to end through the proxy to a stand-in Core.
@@ -637,7 +853,7 @@ asyncTest('WT-2: the deployed proxy relays only the pinned settlement it derives
     const sent = await post(send(honest.graph.settlementPath.witnessTxHex));
     assert(sent.status === 200 && sent.body.result === honestTxid, `relay failed: ${JSON.stringify(sent)}`);
     const refused = await post(send(fraud.graph.settlementPath.witnessTxHex));
-    assert(refused.status === 403);
+    assert(refused.status === 400);
     assert(relayed.length === 1 && relayed[0].method === 'sendrawtransaction', 'the fraudulent settlement reached Core');
     const health = await (await fetch(`http://127.0.0.1:${proxy.address().port}/health`)).json();
     assert(health.broadcast === 'pinned-settlements-only');

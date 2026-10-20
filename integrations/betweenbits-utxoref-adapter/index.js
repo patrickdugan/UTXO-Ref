@@ -11,6 +11,7 @@ const path = require('path');
 const { createHash } = require('crypto');
 
 const { stableStringify, sha256Hex } = require('../../bitvm3/utxo_referee/tradelayer_pnl_route_adapter');
+const { boundedInteger } = require('../shared/service');
 
 const BETA_GATE_KIND = 'tradelayer_real_money_beta_gate_package_v1';
 const BETWEENBITS_STATUS_KIND = 'betweenbits_utxoref_beta_status_v1';
@@ -344,13 +345,10 @@ function hashOutputs(outputs) {
   return createHash('sha256').update(stableStringify(outputs || [])).digest('hex');
 }
 
-function bigintOrNull(value) {
-  if (value === null || value === undefined || value === '') return null;
-  try {
-    return BigInt(value);
-  } catch {
-    return null;
-  }
+// A whole, non-negative satoshi amount as a JSON number or a plain decimal string; anything else is null.
+function satsOrNull(value) {
+  const sats = boundedInteger(value, 0, Number.MAX_SAFE_INTEGER);
+  return sats === null ? null : BigInt(sats);
 }
 
 function evaluateSpendProposal(input = {}) {
@@ -372,27 +370,42 @@ function evaluateSpendProposal(input = {}) {
     errors.push('reserve is not unspent');
   }
 
-  const feeSats = bigintOrNull(proposal.feeSats);
-  const maxFeeSats = bigintOrNull(policy.maxFeeSats);
-  if (maxFeeSats !== null && (feeSats === null || feeSats > maxFeeSats)) {
-    errors.push('proposal fee exceeds policy');
+  // The outputs are what the guardian signs, so they are the only source of the output hash and of the amounts
+  // compared with the caps. A proposal's own outputHash is a claim that must match them.
+  const outputs = Array.isArray(proposal.outputs) ? proposal.outputs : [];
+  const outputSats = outputs.map((output) => satsOrNull(output?.sats));
+  const outputsWellFormed = outputs.length > 0 && outputSats.every((sats) => sats !== null);
+  if (!outputsWellFormed) errors.push('proposal needs at least one output with a whole-satoshi amount');
+  const totalOutputSats = outputsWellFormed ? outputSats.reduce((total, sats) => total + sats, 0n) : null;
+  const proposalOutputHash = hashOutputs(outputs);
+  if (proposal.outputHash !== undefined && proposal.outputHash !== proposalOutputHash) {
+    errors.push('proposal outputHash does not match its outputs');
   }
 
-  const amountSats = bigintOrNull(proposal.amountSats);
-  const maxPerContractSats = bigintOrNull(policy.maxPerContractSats);
-  if (maxPerContractSats !== null && (amountSats === null || amountSats > maxPerContractSats)) {
+  // Caps and output pins are required, not optional: a policy without them would approve any fee, amount, and
+  // destination once the real-money gate is open.
+  const feeSats = satsOrNull(proposal.feeSats);
+  const maxFeeSats = satsOrNull(policy.maxFeeSats);
+  if (maxFeeSats === null) errors.push('policy must set maxFeeSats');
+  else if (feeSats === null || feeSats > maxFeeSats) errors.push('proposal fee exceeds policy');
+
+  const amountSats = satsOrNull(proposal.amountSats);
+  const maxPerContractSats = satsOrNull(policy.maxPerContractSats);
+  if (maxPerContractSats === null) errors.push('policy must set maxPerContractSats');
+  else if (amountSats === null || amountSats > maxPerContractSats ||
+      (totalOutputSats !== null && totalOutputSats > maxPerContractSats)) {
     errors.push('proposal amount exceeds per-contract cap');
   }
 
-  const proposalOutputHash = proposal.outputHash || hashOutputs(proposal.outputs || []);
+  const allowedAddresses = Array.isArray(policy.allowedAddresses) ? policy.allowedAddresses : [];
+  const pinsOutputs = Boolean(policy.requiredOutputHash) || allowedAddresses.length > 0;
+  if (!pinsOutputs) errors.push('policy must pin outputs with requiredOutputHash or allowedAddresses');
   if (policy.requiredOutputHash && proposalOutputHash !== policy.requiredOutputHash) {
     errors.push('proposal outputs do not match required output hash');
   }
-  if (Array.isArray(policy.allowedAddresses) && policy.allowedAddresses.length > 0) {
-    for (const output of proposal.outputs || []) {
-      if (!policy.allowedAddresses.includes(output.address)) {
-        errors.push(`output address not allowed: ${output.address || '<missing>'}`);
-      }
+  for (const output of outputs) {
+    if (allowedAddresses.length > 0 && !allowedAddresses.includes(output?.address)) {
+      errors.push(`output address not allowed: ${output?.address || '<missing>'}`);
     }
   }
   if (!proposal.unsignedTxHash && !proposal.psbtHash) {

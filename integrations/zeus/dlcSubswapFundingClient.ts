@@ -1,3 +1,5 @@
+import { callSidecar, normalizeSidecarBaseUrl } from './sidecarClient';
+
 export type DlcSubswapFundingWalletView = {
   kind: 'wallet_dlc_subswap_funding_view';
   status: 'verified' | 'needs_attention';
@@ -29,15 +31,15 @@ export type DlcSubswapFundingQuote = {
 
 export class DlcSubswapFundingClient {
   baseUrl: string;
+  token?: string;
 
-  constructor(baseUrl = 'http://127.0.0.1:8787') {
-    this.baseUrl = baseUrl.replace(/\/$/, '');
+  constructor(baseUrl = 'http://127.0.0.1:8787', token?: string) {
+    this.baseUrl = normalizeSidecarBaseUrl(baseUrl);
+    this.token = token;
   }
 
   async getWalletView(): Promise<DlcSubswapFundingWalletView> {
-    const response = await fetch(`${this.baseUrl}/v1/dlc-subswap-funding/wallet-view`);
-    if (!response.ok) throw new Error(`DLC subswap funding view failed: ${response.status}`);
-    return response.json();
+    return callSidecar(this, 'DLC subswap funding view', '/v1/dlc-subswap-funding/wallet-view');
   }
 
   async quote(body: {
@@ -46,22 +48,13 @@ export class DlcSubswapFundingClient {
     swapFeeSats?: string;
     refundBlocks?: number;
   } = {}): Promise<DlcSubswapFundingQuote> {
-    const response = await fetch(`${this.baseUrl}/v1/dlc-subswap-funding/quote`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(body)
-    });
-    if (!response.ok) throw new Error(`DLC subswap funding quote failed: ${response.status}`);
-    return response.json();
+    return callSidecar(this, 'DLC subswap funding quote', '/v1/dlc-subswap-funding/quote', { method: 'POST', body });
   }
 
   async verify(request?: unknown): Promise<{ ok: boolean; reason?: string }> {
-    const response = await fetch(`${this.baseUrl}/v1/dlc-subswap-funding/verify`, {
+    return callSidecar(this, 'DLC subswap funding verify', '/v1/dlc-subswap-funding/verify', {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: request ? JSON.stringify({ request }) : '{}'
+      body: request ? { request } : {}
     });
-    if (!response.ok) throw new Error(`DLC subswap funding verify failed: ${response.status}`);
-    return response.json();
   }
 }

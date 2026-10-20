@@ -2,15 +2,16 @@ const { sha256Hex, stableStringify } = require('./tradelayer_pnl_route_adapter')
 const ts = require('./tradelayer_taproot_script');
 const a = require('./tradelayer_dlc_adaptor_sig');
 const { buildTaprootTree, controlBlockWithPath } = require('./tradelayer_taproot_tree');
+const { toSats } = require('./money');
 const {
   normalizeNetwork,
-  toSats,
   outpointKey,
   requireReserveVaultInternalXonly,
   buildRecoveryLeafScript,
   recoveryStatus,
   normalizeChainTxoutForEvidence
 } = require('./taproot_reserve_vault');
+const { csvSequence } = require('./csv_delay');
 
 const OP_DROP = 0x75;
 const OP_CHECKSIGVERIFY = 0xad;
@@ -394,7 +395,7 @@ function verifyGuardianQuorumFeeReserve(reserve, options = {}) {
     if (txout.scriptPubKey !== manifest.core.p2trScriptPubKey) {
       return { ok: false, counted: false, reason: 'vault UTXO scriptPubKey mismatch', manifestCheck, chainTxout: txout };
     }
-    const remainingBlocks = fundingHeight + Number(manifest.core.recoveryCsvDelay) - currentHeight;
+    const remainingBlocks = fundingHeight + csvSequence(manifest.core.recoveryCsvDelay, 'recoveryCsvDelay') - currentHeight;
     return {
       ok: true,
       counted: true,

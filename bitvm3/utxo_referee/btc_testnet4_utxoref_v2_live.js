@@ -7,7 +7,7 @@ const { readJsonStrict } = require('./strict_artifact_ingress');
 const crypto = require('crypto');
 const { rpcFactory } = require('./tradelayer_send_rpc_sweep');
 const { addressToScriptPubKey } = require('./tradelayer_pnl_route_adapter');
-const { coinValueToSats } = require('./taproot_reserve_vault');
+const { decimalToUnits } = require('./money');
 const a = require('./tradelayer_dlc_adaptor_sig');
 const tr = require('./tradelayer_taproot');
 const {
@@ -256,7 +256,7 @@ function toSafeInteger(value, fieldName) {
 function pickFundingUtxo(unspent, requiredSats) {
   return unspent
     .filter((item) => item.spendable !== false && item.safe !== false)
-    .map((item) => ({ ...item, amountSats: coinValueToSats(item.amount, 'utxo.amount') }))
+    .map((item) => ({ ...item, amountSats: decimalToUnits(item.amount, 'utxo.amount') }))
     .filter((item) => item.amountSats >= requiredSats)
     .sort((left, right) => left.amountSats < right.amountSats ? -1 : left.amountSats > right.amountSats ? 1 : 0)[0] || null;
 }
@@ -372,7 +372,7 @@ function verifyFundingDecode(artifact, decoded) {
   if (decoded.txid !== artifact.funding.txid) throw new Error('decoded funding txid mismatch');
   if (!Array.isArray(decoded.vout) || !decoded.vout[0]) throw new Error('funding assertion output is absent');
   const output = decoded.vout[0];
-  const valueSats = coinValueToSats(output.value, 'funding output value').toString();
+  const valueSats = decimalToUnits(output.value, 'funding output value').toString();
   if (valueSats !== artifact.funding.assertionAmountSats) throw new Error('funding assertion amount mismatch');
   if (output.scriptPubKey?.hex !== artifact.graph.template.p2trScriptPubKey) {
     throw new Error('funding assertion script mismatch');
@@ -783,7 +783,7 @@ async function status(runtime, args = {}) {
     fundingKnown: fundingStatus.known,
     fundingConfirmations: confirmations,
     assertionUnspent: Boolean(txout),
-    assertionAmountSats: txout ? coinValueToSats(txout.value, 'assertion value').toString() : null,
+    assertionAmountSats: txout ? decimalToUnits(txout.value, 'assertion value').toString() : null,
     challengeCsvBlocks,
     settlementMature: Boolean(txout) && confirmations >= challengeCsvBlocks,
     settlementMempoolAccept: settlementMempoolAccept?.allowed ?? null,

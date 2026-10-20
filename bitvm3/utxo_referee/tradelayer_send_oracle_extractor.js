@@ -2,6 +2,7 @@ const {
   stableStringify,
   sha256Hex
 } = require('./tradelayer_pnl_route_adapter');
+const { toInt, decimalToUnits: scaledDecimalToUnits, heightOf } = require('./money');
 
 const DEFAULT_UNIT_SCALE = 100000000n;
 
@@ -20,36 +21,15 @@ function pick(value, ...keys) {
 }
 
 function parseIntegerLike(value, fieldName) {
-  if (typeof value === 'bigint') return value.toString();
-  if (typeof value === 'number') {
-    if (!Number.isSafeInteger(value)) throw new Error(`${fieldName} must be a safe integer`);
-    return String(value);
-  }
-  const text = String(value);
-  if (!/^-?\d+$/.test(text)) throw new Error(`${fieldName} must be an integer`);
-  return text;
+  return toInt(value, fieldName, { signed: true }).toString();
 }
 
 function decimalToUnits(value, fieldName, unitScale = DEFAULT_UNIT_SCALE) {
-  if (value === undefined || value === null || value === '') {
-    throw new Error(`${fieldName} is required`);
-  }
-  if (typeof value === 'bigint') return value.toString();
-  if (typeof value === 'number' && Number.isInteger(value)) return String(value);
-
-  const text = String(value);
-  if (/^-?\d+$/.test(text)) return text;
-  if (!/^-?\d+(\.\d+)?$/.test(text)) throw new Error(`${fieldName} must be numeric`);
-
-  const negative = text.startsWith('-');
-  const clean = negative ? text.slice(1) : text;
-  const [whole, fraction = ''] = clean.split('.');
-  const scaleDigits = unitScale.toString().length - 1;
-  if (fraction.length > scaleDigits) {
-    throw new Error(`${fieldName} has more than ${scaleDigits} decimal places`);
-  }
-  const units = BigInt(whole) * unitScale + BigInt((fraction + '0'.repeat(scaleDigits)).slice(0, scaleDigits));
-  return `${negative ? '-' : ''}${units.toString()}`;
+  return scaledDecimalToUnits(value, fieldName, {
+    scale: unitScale,
+    integersAreUnits: true,
+    signed: true
+  }).toString();
 }
 
 function normalizeTxType(row) {
@@ -59,11 +39,11 @@ function normalizeTxType(row) {
   return Number.isFinite(n) ? n : null;
 }
 
+// A send is consensus-valid only when its row says so. An absent flag is not evidence.
 function isConsensusValid(row) {
   if (row.valid === false || row.consensusValid === false || row.isValid === false) return false;
   if (typeof row.status === 'string' && /invalid|rejected|failed/i.test(row.status)) return false;
-  if (row.reason && row.valid === false) return false;
-  return true;
+  return row.valid === true || row.consensusValid === true || row.isValid === true;
 }
 
 function isSendCandidate(row) {
@@ -194,7 +174,7 @@ function buildTradeLayerSendStateOracleFromConsensus(input, options = {}) {
     kind: 'tradelayer-send-state-oracle-v1',
     chain: options.chain || input.chain || input.network || 'litecoin-testnet',
     epochId: String(options.epochId ?? input.epochId ?? input.snapshotHeight ?? selected.blockHeight ?? 0),
-    snapshotHeight: Number(options.snapshotHeight ?? input.snapshotHeight ?? input.height ?? selected.blockHeight ?? 0),
+    snapshotHeight: heightOf(options.snapshotHeight ?? input.snapshotHeight ?? input.height ?? selected.blockHeight ?? 0, 'snapshotHeight'),
     snapshotTxid: options.snapshotTxid || input.snapshotTxid || input.blockHash || input.bestBlockHash || sourceHash,
     oracleAddress: options.oracleAddress || input.oracleAddress || null,
     selectedSendId,

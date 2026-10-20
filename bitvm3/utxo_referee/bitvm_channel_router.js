@@ -1,4 +1,5 @@
 const crypto = require('crypto');
+const { heightOf } = require('./money');
 const { canonicalStringify, normalizeAmountSats } = require('./m1_spec');
 const { verifyLiquidityLeaseBundle } = require('./lightning_liquidity_lease');
 const { verifyArkLiquidityGraftManagerBundle } = require('./ark_liquidity_graft_manager');
@@ -45,8 +46,8 @@ function makeCandidate(core, refs = {}) {
     ...core,
     promisedCapacitySats: satsString(core.promisedCapacitySats || core.availableCapacitySats, 'promisedCapacitySats'),
     availableCapacitySats: satsString(core.availableCapacitySats, 'availableCapacitySats'),
-    feePpm: Number(core.feePpm || 0),
-    cltvDelta: Number(core.cltvDelta || 0),
+    feePpm: heightOf(core.feePpm || 0, 'feePpm'),
+    cltvDelta: heightOf(core.cltvDelta || 0, 'cltvDelta'),
     priority: Number(core.priority || 0),
     slashable: Boolean(core.slashable)
   };
@@ -68,7 +69,7 @@ function makeCandidate(core, refs = {}) {
 
 function leaseCandidate(leaseBundle) {
   if (!leaseBundle || leaseBundle.kind !== 'bitvm_lightning_liquidity_lease_bundle') return [];
-  const verification = leaseBundle.verification || verifyLiquidityLeaseBundle(leaseBundle);
+  const verification = verifyLiquidityLeaseBundle(leaseBundle);
   const terms = leaseBundle.offer.terms;
   const evidence = leaseBundle.successEvidence.evidenceCore;
   const jurassicMechanisms = terms.jurassicMechanisms || {};
@@ -201,7 +202,7 @@ function arkAssignmentCandidate(assignment, managerBundle, sourceType, extra = {
 
 function arkManagerCandidates(managerBundle) {
   if (!managerBundle || managerBundle.kind !== 'ark_ln_bitvm_liquidity_graft_manager_bundle') return [];
-  const verification = managerBundle.verification || verifyArkLiquidityGraftManagerBundle(managerBundle);
+  const verification = verifyArkLiquidityGraftManagerBundle(managerBundle);
   if (!verification.ok) return [];
   return managerBundle.allocation.assignments.map(assignment =>
     arkAssignmentCandidate(assignment, managerBundle, 'ark_graft_manager')
@@ -210,7 +211,7 @@ function arkManagerCandidates(managerBundle) {
 
 function tlusdPatchCandidates(patchBundle) {
   if (!patchBundle || patchBundle.kind !== 'lnbtc_tlusd_liquidity_patch_bundle') return [];
-  const verification = patchBundle.verification || verifyLnBtcTlUsdLiquidityPatchBundle(patchBundle);
+  const verification = verifyLnBtcTlUsdLiquidityPatchBundle(patchBundle);
   if (!verification.ok) return [];
   const manager = patchBundle.mandate.manager;
   return manager.allocation.assignments.map(assignment =>
@@ -225,7 +226,7 @@ function dlcFundingCandidate(bundle) {
   if (!bundle) return [];
   const request = bundle.kind === 'utxoref_dlc_subswap_funding_request' ? bundle : bundle.request;
   if (!request || request.kind !== 'utxoref_dlc_subswap_funding_request') return [];
-  const verification = bundle.verification || verifyDlcSubswapFundingRequest(request);
+  const verification = verifyDlcSubswapFundingRequest(request);
   const core = request.requestCore;
   const requestedCollateral = BigInt(core.submarineSwap.requestedCollateralSats);
   const swapFee = BigInt(core.submarineSwap.swapFeeSats);
@@ -244,7 +245,7 @@ function dlcFundingCandidate(bundle) {
         promisedCapacitySats: requestedCollateral.toString(),
         availableCapacitySats: available.toString(),
         feePpm: ppmFromFeeSats(swapFee, requestedCollateral),
-        cltvDelta: Number(core.submarineSwap.refundBlocks || 0),
+        cltvDelta: heightOf(core.submarineSwap.refundBlocks || 0, 'refundBlocks'),
         priority: 5,
         status: verification.ok && proofOk ? 'verified' : 'needs_attention',
         slashable: false,
@@ -316,8 +317,8 @@ function normalizeRouteIntent(intent = {}) {
     useCase: normalizeString(intent.useCase || 'route_liquidity', 'useCase'),
     destinationNodeId: normalizeString(intent.destinationNodeId || 'ldk-router-destination-regtest', 'destinationNodeId'),
     amountSats,
-    maxFeePpm: Number(intent.maxFeePpm ?? 1200),
-    maxCltvDelta: Number(intent.maxCltvDelta ?? 45),
+    maxFeePpm: heightOf(intent.maxFeePpm ?? 1200, 'maxFeePpm'),
+    maxCltvDelta: heightOf(intent.maxCltvDelta ?? 45, 'maxCltvDelta'),
     allowSplitShards: intent.allowSplitShards !== false,
     assetTicker: intent.assetTicker || null
   };

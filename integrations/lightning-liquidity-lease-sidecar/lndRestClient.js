@@ -2,11 +2,7 @@ const fs = require('fs');
 const http = require('http');
 const https = require('https');
 const crypto = require('crypto');
-
-function envValue(env, name, fallback = '') {
-  const value = env[name];
-  return value === undefined || value === null || value === '' ? fallback : String(value);
-}
+const { envValue } = require('../shared/service');
 
 function fileHex(filePath) {
   return fs.readFileSync(filePath).toString('hex');
@@ -50,12 +46,32 @@ function paymentHashFromPreimageHex(preimageHex) {
   return crypto.createHash('sha256').update(Buffer.from(preimageHex, 'hex')).digest('hex');
 }
 
-function postJson(config, pathname, body, timeoutMs = 60000) {
+// LND's 2xx body is one JSON value, or the grpc-gateway stream: one JSON value per line, the last of which is the answer.
+// A body that is neither is kept as { raw } so the caller can refuse it.
+function parseLndBody(text) {
+  if (!text) return {};
+  try {
+    return JSON.parse(text);
+  } catch (_err) {
+    // Not one JSON value: read the stream below.
+  }
+  const lines = text.split('\n').map(line => line.trim()).filter(Boolean);
+  for (let i = lines.length - 1; i >= 0; i--) {
+    try {
+      return JSON.parse(lines[i]);
+    } catch (_err) {
+      // Not a JSON line: look at the one before it.
+    }
+  }
+  return { raw: text };
+}
+
+function lndRequest(config, method, pathname, body, timeoutMs = 60000) {
   const url = new URL(pathname, config.restUrl);
   const transport = url.protocol === 'http:' ? http : https;
-  const payload = JSON.stringify(body || {});
+  const payload = body === undefined ? '' : JSON.stringify(body);
   const options = {
-    method: 'POST',
+    method,
     hostname: url.hostname,
     port: url.port || (url.protocol === 'http:' ? 80 : 443),
     path: `${url.pathname}${url.search}`,
@@ -77,17 +93,14 @@ function postJson(config, pathname, body, timeoutMs = 60000) {
       res.on('data', chunk => chunks.push(chunk));
       res.on('end', () => {
         const text = Buffer.concat(chunks).toString('utf8');
-        let json = {};
-        try {
-          json = text ? JSON.parse(text) : {};
-        } catch (_err) {
-          json = { raw: text };
-        }
         if (res.statusCode < 200 || res.statusCode >= 300) {
-          reject(new Error(`LND REST ${url.pathname} returned HTTP ${res.statusCode}: ${text}`));
+          const err = new Error(`LND REST ${url.pathname} returned HTTP ${res.statusCode}: ${text}`);
+          err.statusCode = res.statusCode;
+          err.body = text;
+          reject(err);
           return;
         }
-        resolve(json);
+        resolve(parseLndBody(text));
       });
     });
     req.on('timeout', () => {
@@ -99,21 +112,26 @@ function postJson(config, pathname, body, timeoutMs = 60000) {
   });
 }
 
+function requireConfigured(env) {
+  const config = buildLndRestConfig(env);
+  if (!config.configured) {
+    throw new Error(`LND REST not configured: missing ${config.missing.join(', ')}`);
+  }
+  return config;
+}
+
 async function payInvoiceViaLndRest({
   invoice,
   feeLimitSats = 1000,
   timeoutSeconds = 60,
   paymentHashHex = '',
   env = process.env,
-  requestImpl = postJson
+  requestImpl = lndRequest
 }) {
   if (!invoice || typeof invoice !== 'string') throw new Error('invoice is required');
-  const config = buildLndRestConfig(env);
-  if (!config.configured) {
-    throw new Error(`LND REST not configured: missing ${config.missing.join(', ')}`);
-  }
+  const config = requireConfigured(env);
 
-  const response = await requestImpl(config, '/v1/channels/transactions', {
+  const response = await requestImpl(config, 'POST', '/v1/channels/transactions', {
     payment_request: invoice,
     fee_limit: { fixed: String(Math.max(0, Number(feeLimitSats || 0))) },
     timeout_seconds: Number(timeoutSeconds || 60)
@@ -148,9 +166,91 @@ async function payInvoiceViaLndRest({
   };
 }
 
+// LND's record of one payment, found by its payment hash (routerrpc TrackPaymentV2, GET /v2/router/track/{payment_hash}).
+// The hash goes in base64url, with its padding: grpc-gateway reads a bytes parameter in standard base64 first, then in
+// base64url, and standard base64 has '/' in about half of hashes, which an encoded slash cannot carry as a route segment.
+// no_inflight_updates makes LND answer once the payment is final. LND answers 404 for a hash it never initiated; some
+// versions answer 500 with "payment isn't initiated" or "not found" in the body, so both mean unknown. A payment LND is
+// still trying is answered only when it ends, which the timeout bounds. state is 'settled' (with the preimage, which
+// hashes to the payment hash), 'failed', 'unknown' or 'pending'.
+// A 404 alone is not that answer: a proxy, a wrong path or an unmatched route also answers 404, and reading it as
+// unknown would let a request be paid again. A 404 is unknown only when its body is the gateway's gRPC NOT_FOUND
+// ({code: 5}) or says the payment was never initiated.
+const NOT_INITIATED = /payment (isn'?t|is not|was not) initiated|payment not found|unknown payment/i;
+
+function errorBodyOf(err) {
+  if (typeof err.body === 'string') return err.body;
+  return String(err.message).replace(/^LND REST \S+ returned HTTP \d+: /, '');
+}
+
+function neverInitiated(err) {
+  const body = errorBodyOf(err);
+  if (err.statusCode === 404) {
+    let parsed = null;
+    try { parsed = JSON.parse(body); } catch (_err) { /* not the gateway's JSON error */ }
+    return Boolean(parsed && typeof parsed === 'object' && parsed.code === 5) || NOT_INITIATED.test(body);
+  }
+  return err.statusCode === 500 && NOT_INITIATED.test(body);
+}
+
+// What LND paid the destination for this payment, in msat (fees excluded), or null when LND does not say.
+// The gateway sends int64 fields as decimal strings.
+function paymentValueMsat(payment) {
+  const msat = String(payment.value_msat ?? '');
+  if (/^(0|[1-9][0-9]*)$/.test(msat)) return msat;
+  const sat = String(payment.value_sat ?? '');
+  if (/^(0|[1-9][0-9]*)$/.test(sat)) return (BigInt(sat) * 1000n).toString();
+  return null;
+}
+
+// One track answer as LND's gateway sends it: {result: payment} for a payment, {error: {code: 5}} (gRPC NOT_FOUND) for a
+// hash LND never initiated (null here), or a bare payment object. Any other error, or anything else, is not an answer.
+function trackedPaymentOf(answer) {
+  if (!answer || typeof answer !== 'object') throw new Error('unparseable LND answer');
+  if (answer.error !== undefined && answer.error !== null) {
+    if (typeof answer.error === 'object' && answer.error.code === 5) return null;
+    throw new Error(`LND track answer is an error: ${JSON.stringify(answer.error)}`);
+  }
+  if (answer.result && typeof answer.result === 'object') return answer.result;
+  if (typeof answer.payment_hash === 'string') return answer;
+  throw new Error('unparseable LND answer: it holds no payment');
+}
+
+async function lookupPaymentViaLndRest({
+  paymentHashHex,
+  env = process.env,
+  requestImpl = lndRequest,
+  timeoutMs = 10000
+}) {
+  const expected = String(paymentHashHex || '').toLowerCase();
+  if (!/^[0-9a-f]{64}$/.test(expected)) throw new Error('paymentHashHex must be 32 bytes of hex');
+  const config = requireConfigured(env);
+  const hashSegment = Buffer.from(expected, 'hex').toString('base64').replace(/\+/g, '-').replace(/\//g, '_');
+  let response;
+  try {
+    response = await requestImpl(config, 'GET', `/v2/router/track/${encodeURIComponent(hashSegment)}?no_inflight_updates=true`, undefined, timeoutMs);
+  } catch (err) {
+    if (neverInitiated(err)) return { state: 'unknown' };
+    throw err;
+  }
+  const payment = trackedPaymentOf(response);
+  if (!payment) return { state: 'unknown' };
+  if (decodeLndByteString(payment.payment_hash) !== expected) {
+    throw new Error('LND answer does not name the requested payment hash');
+  }
+  if (payment.status === 'FAILED') return { state: 'failed' };
+  if (payment.status !== 'SUCCEEDED') return { state: 'pending' };
+  const paymentPreimageHex = decodeLndByteString(payment.payment_preimage);
+  if (paymentHashFromPreimageHex(paymentPreimageHex) !== expected) return { state: 'pending' };
+  return { state: 'settled', paymentHashHex: expected, paymentPreimageHex, valueMsat: paymentValueMsat(payment) };
+}
+
 module.exports = {
   buildLndRestConfig,
   decodeLndByteString,
   paymentHashFromPreimageHex,
-  payInvoiceViaLndRest
+  payInvoiceViaLndRest,
+  lookupPaymentViaLndRest,
+  parseLndBody,
+  trackedPaymentOf
 };

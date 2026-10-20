@@ -94,6 +94,18 @@ async function main() {
     assertEq(state.restarts, 2);
   });
 
+  test('saveStateAtomic flushes the new file before the rename and the directory after', () => {
+    const statePath = tmpPath('durable');
+    const { fsyncSync, renameSync } = fs;
+    const order = [];
+    fs.fsyncSync = (fd) => { order.push('fsync'); return fsyncSync(fd); };
+    fs.renameSync = (from, to) => { order.push('rename'); return renameSync(from, to); };
+    try { saveStateAtomic(statePath, { tickCount: 1 }); }
+    finally { fs.fsyncSync = fsyncSync; fs.renameSync = renameSync; }
+    // The directory flush is a no-op on Windows (dlc_durable_json_store flushDirectory).
+    assertEq(order.join(','), process.platform === 'win32' ? 'fsync,rename' : 'fsync,rename,fsync', 'durable write order');
+  });
+
   test('state file written by saveStateAtomic is always valid JSON (no half-written file)', () => {
     const statePath = tmpPath('atomic');
     saveStateAtomic(statePath, { tickCount: 1 });

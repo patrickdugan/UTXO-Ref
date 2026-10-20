@@ -66,6 +66,21 @@ test('JS binding matches the Cairo sample claim', () => {
   assertEq(`0x${binding.toString(16)}`, '0x5b8d2b2be', 'sample binding mismatch');
 });
 
+test('exit delay override accepts only one canonical integer spelling', () => {
+  const role = 'dlc_virtual_cet_settlement';
+  const withDelay = (exitDelay) => buildArkZkMiniscriptClaimCorpus({ roles: [role], exitDelayByRole: { [role]: exitDelay } });
+  for (const value of ['0x3f0', ' 1008', '1e3', '1008.0', 1008.5, -1]) {
+    let threw = false;
+    try {
+      withDelay(value);
+    } catch (err) {
+      threw = /exitDelay/.test(err.message);
+    }
+    assert(threw, `exitDelay ${JSON.stringify(value)} should be refused`);
+  }
+  assert(withDelay('1008').claims.length === 1, 'canonical exitDelay should build a claim');
+});
+
 test('claim corpus emits one Cairo input per Ark role', () => {
   const corpus = buildArkZkMiniscriptClaimCorpus();
   assertEq(corpus.claims.length, ROLE_ORDER.length, 'claim count mismatch');

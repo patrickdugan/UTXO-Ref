@@ -1,7 +1,7 @@
 const {
   sha256Hex,
   stableStringify,
-  addressToScriptPubKey,
+  scriptPubKeyForOutput,
   buildTradeLayerSendRouteTranscript
 } = require('./tradelayer_pnl_route_adapter');
 const {
@@ -13,20 +13,10 @@ const {
   buildTradeLayerBitvmStackBundle,
   verifyTradeLayerBitvmStackBundle
 } = require('./tradelayer_bitvm_stack');
+const { decimalToUnits } = require('./money');
 
 function coinStringToNumber(value) {
   return Number(value);
-}
-
-function coinValueToSatsText(value, fieldName = 'coin value') {
-  if (typeof value === 'number') {
-    if (!Number.isFinite(value)) throw new Error(`${fieldName} must be finite`);
-    return BigInt(Math.round(value * 100000000)).toString();
-  }
-  const text = String(value);
-  if (!/^\d+(\.\d{1,8})?$/.test(text)) throw new Error(`${fieldName} must be a coin amount`);
-  const [whole, fraction = ''] = text.split('.');
-  return (BigInt(whole) * 100000000n + BigInt((fraction + '00000000').slice(0, 8))).toString();
 }
 
 function scriptType(scriptHex) {
@@ -88,8 +78,7 @@ function buildDecodedFinalTxFromSweepPlan(sweepPlan, options = {}) {
       }
     ],
     vout: outputs.map((output, index) => {
-      const scriptHex = output.scriptPubKey
-        || addressToScriptPubKey(output.address, network).toString('hex');
+      const scriptHex = scriptPubKeyForOutput(output, network).toString('hex');
       return {
         n: index,
         value: coinStringToNumber(output.coinAmount),
@@ -108,8 +97,7 @@ function buildDecodedFinalTxFromSweepPlan(sweepPlan, options = {}) {
 function expectedOutputsFromSweepPlan(sweepPlan) {
   const network = sweepPlan.network || 'litecoin-testnet';
   return (sweepPlan.outputs || []).map((output, index) => {
-    const scriptPubKeyHex = output.scriptPubKey
-      || addressToScriptPubKey(output.address, network).toString('hex');
+    const scriptPubKeyHex = scriptPubKeyForOutput(output, network).toString('hex');
     return {
       n: index,
       role: output.role || null,
@@ -124,7 +112,7 @@ function observedOutputsFromDecodedTx(decodedTx) {
   return (decodedTx?.vout || []).map((output, index) => ({
     n: output.n ?? index,
     address: output.scriptPubKey?.address || null,
-    sats: coinValueToSatsText(output.value ?? 0, `decodedTx.vout[${index}].value`),
+    sats: decimalToUnits(output.value ?? 0, `decodedTx.vout[${index}].value`).toString(),
     scriptPubKeyHex: output.scriptPubKey?.hex || null,
     type: output.scriptPubKey?.type || null
   }));
@@ -485,7 +473,6 @@ function verifyUtxoRefLivePathEvidence(evidence) {
 }
 
 module.exports = {
-  coinValueToSatsText,
   loadDecodedFinalTxFromRpc,
   buildDecodedFinalTxFromSweepPlan,
   buildFinalOutputReview,

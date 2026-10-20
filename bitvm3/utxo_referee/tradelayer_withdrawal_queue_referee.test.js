@@ -2,6 +2,7 @@
  * Run: node bitvm3/utxo_referee/tradelayer_withdrawal_queue_referee.test.js
  */
 
+const { sha256Hex } = require('./tradelayer_pnl_route_adapter');
 const {
   buildTradeLayerWithdrawalQueue,
   verifyTradeLayerWithdrawalQueue,
@@ -78,9 +79,28 @@ test('rejects queue total tampering', () => {
   assert(String(result.reason).includes('queue hash mismatch') || String(result.reason).includes('queue total mismatch'), 'expected queue mismatch');
 });
 
+test('rejects a queue whose withdrawal root is not the root of its payable entries', () => {
+  const honest = buildTradeLayerWithdrawalQueue({ requests: REQUESTS });
+  // Root of a tree paying 1 BTC to an attacker, substituted in both places and rehashed.
+  const attacker = buildTradeLayerWithdrawalQueue({
+    requests: [{ id: 'wd-attacker', txid: 'cc'.repeat(32), address: 'tltc1qkz0vft2fc4nk0u9fx4k9yk4th7zherna3zxh22', sats: 100000000 }]
+  });
+  const forged = clone(honest);
+  forged.queueCore.withdrawalRootHex = attacker.queueCore.withdrawalRootHex;
+  forged.commitment.withdrawalRootHex = attacker.queueCore.withdrawalRootHex;
+  forged.queueHash = sha256Hex(forged.queueCore);
+  const result = verifyTradeLayerWithdrawalQueue(forged);
+
+  assert(!result.ok, 'forged withdrawal root must not verify');
+  assertEq(result.reason, 'withdrawal root mismatch');
+});
+
 test('builds challengeable omission and amount mismatch proofs', () => {
   const queue = buildTradeLayerWithdrawalQueue({ requests: REQUESTS });
-  const omission = buildTradeLayerWithdrawalQueueChallenge(queue, {
+  // An omission is a payable request missing from the committed queue. wd-1 is in
+  // the full queue, so the omission is claimed against the queue without it.
+  const withheld = buildTradeLayerWithdrawalQueue({ requests: REQUESTS.slice(1) });
+  const omission = buildTradeLayerWithdrawalQueueChallenge(withheld, {
     challengeType: 'omitted_withdrawal',
     request: REQUESTS[0]
   });
@@ -89,7 +109,7 @@ test('builds challengeable omission and amount mismatch proofs', () => {
     request: REQUESTS[1]
   });
 
-  assert(verifyTradeLayerWithdrawalQueueChallenge(omission, queue).ok, 'omission proof should verify');
+  assert(verifyTradeLayerWithdrawalQueueChallenge(omission, withheld).ok, 'omission proof should verify');
   assert(verifyTradeLayerWithdrawalQueueChallenge(amount, queue).ok, 'amount proof should verify');
   assert(omission.challengeable, 'omission should be challengeable');
   assert(amount.challengeable, 'amount mismatch should be challengeable');
@@ -124,6 +144,36 @@ test('rejects two ids producing the identical payout leaf (double-pay guard)', (
     threw = /duplicate withdrawal payout/.test(err.message);
   }
   assert(threw, 'identical payout leaf across distinct ids must be rejected');
+});
+
+test('rejects the same withdrawal repeated with an uppercase address', () => {
+  let threw = false;
+  try {
+    buildTradeLayerWithdrawalQueue({
+      requests: [
+        { id: 'wd-a', txid: 'ab'.repeat(32), address: REQUESTS[0].address, sats: 25000, propertyId: 0 },
+        { id: 'wd-b', txid: 'ab'.repeat(32), address: REQUESTS[0].address.toUpperCase(), sats: 25000, propertyId: 0 }
+      ]
+    });
+  } catch (err) {
+    threw = /duplicate withdrawal payout/.test(err.message);
+  }
+  assert(threw, 'bech32 case must not create a second payout for one withdrawal');
+});
+
+test('rejects a withdrawal entry that omits its origin txid', () => {
+  let threw = false;
+  try {
+    buildTradeLayerWithdrawalQueue({
+      requests: [
+        { id: 'wd-a', txid: 'ab'.repeat(32), address: REQUESTS[0].address, sats: 25000, propertyId: 0 },
+        { id: 'wd-b', address: REQUESTS[0].address, sats: 25000, propertyId: 0 }
+      ]
+    });
+  } catch (err) {
+    threw = /requires txid/.test(err.message);
+  }
+  assert(threw, 'an entry without its origin txid must be rejected');
 });
 
 test('allows one send txid to fan out to distinct recipients', () => {

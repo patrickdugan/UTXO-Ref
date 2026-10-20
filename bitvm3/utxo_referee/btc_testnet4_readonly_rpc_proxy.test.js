@@ -535,3 +535,46 @@ test('WT-2: proxy with an allowlist file relays the settlement and nothing else'
     fs.rmSync(temporary, { recursive: true, force: true });
   }
 });
+
+test('the method policy is an own-key lookup: prototype names are not methods', () => {
+  for (const method of ['constructor', 'toString', '__proto__', 'hasOwnProperty']) {
+    const result = validateRpcRequest({ jsonrpc: '2.0', id: 1, method, params: [] });
+    assert.equal(result.ok, false, method);
+    assert.equal(result.code, -32601, method);
+  }
+});
+
+test('proxy relays the Core error text of a refused broadcast, so fee escalation can tell a fee reject apart', async () => {
+  const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'utxoref-rpc-proxy-error-'));
+  const cookiePath = path.join(temporary, '.cookie');
+  fs.writeFileSync(cookiePath, '__cookie__:test-only-secret\n', { encoding: 'utf8', flag: 'wx' });
+  const upstream = http.createServer((request, response) => {
+    const chunks = [];
+    request.on('data', chunk => chunks.push(chunk));
+    request.on('end', () => {
+      const incoming = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+      const body = Buffer.from(JSON.stringify({
+        result: null, error: { code: -26, message: 'mempool min fee not met' }, id: incoming.id
+      }), 'utf8');
+      response.writeHead(500, { 'Content-Type': 'application/json', 'Content-Length': body.length });
+      response.end(body);
+    });
+  });
+  const token = 'ab'.repeat(32);
+  const servers = [upstream];
+  try {
+    const rpcPort = await listen(upstream);
+    const proxy = createReadonlyRpcProxy({
+      cookiePath, token, rpcPort, broadcastAllowlistProvider: () => new Set([settlementTxid])
+    });
+    servers.push(proxy.server);
+    const proxyPort = await listen(proxy.server);
+    const reply = await post(proxyPort, token, { jsonrpc: '2.0', id: 5, method: 'sendrawtransaction', params: [settlementHex] });
+    assert.equal(reply.status, 200);
+    assert.equal(reply.value.error.code, -26);
+    assert.equal(reply.value.error.message, 'mempool min fee not met');
+  } finally {
+    for (const server of servers.reverse()) if (server.listening) await close(server);
+    fs.rmSync(temporary, { recursive: true, force: true });
+  }
+});

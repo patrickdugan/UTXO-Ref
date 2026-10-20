@@ -1,3 +1,5 @@
+import { callSidecar, normalizeSidecarBaseUrl } from './sidecarClient';
+
 export type LiquidityLeaseWalletView = {
   kind: 'wallet_liquidity_lease_view';
   status: 'verified' | 'needs_attention';
@@ -22,34 +24,22 @@ export type LiquidityLeaseWalletView = {
 
 export class LiquidityLeaseClient {
   baseUrl: string;
+  token?: string;
 
-  constructor(baseUrl = 'http://127.0.0.1:8787') {
-    this.baseUrl = baseUrl.replace(/\/$/, '');
+  constructor(baseUrl = 'http://127.0.0.1:8787', token?: string) {
+    this.baseUrl = normalizeSidecarBaseUrl(baseUrl);
+    this.token = token;
   }
 
   async getWalletView(): Promise<LiquidityLeaseWalletView> {
-    const response = await fetch(`${this.baseUrl}/v1/liquidity-lease/wallet-view`);
-    if (!response.ok) throw new Error(`liquidity lease view failed: ${response.status}`);
-    return response.json();
+    return callSidecar(this, 'liquidity lease view', '/v1/liquidity-lease/wallet-view');
   }
 
   async verifyLease(): Promise<{ ok: boolean; reason?: string; successEvidenceId: string }> {
-    const response = await fetch(`${this.baseUrl}/v1/liquidity-lease/verify`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: '{}'
-    });
-    if (!response.ok) throw new Error(`liquidity lease verify failed: ${response.status}`);
-    return response.json();
+    return callSidecar(this, 'liquidity lease verify', '/v1/liquidity-lease/verify', { method: 'POST' });
   }
 
   async prepareChallenge(): Promise<{ slashable: boolean; challengeId: string; violations: string[] }> {
-    const response = await fetch(`${this.baseUrl}/v1/liquidity-lease/challenge`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: '{}'
-    });
-    if (!response.ok) throw new Error(`liquidity lease challenge failed: ${response.status}`);
-    return response.json();
+    return callSidecar(this, 'liquidity lease challenge', '/v1/liquidity-lease/challenge', { method: 'POST' });
   }
 }

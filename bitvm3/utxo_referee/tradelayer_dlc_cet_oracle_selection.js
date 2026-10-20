@@ -20,19 +20,10 @@
 const crypto = require('crypto');
 const { computeBoundedSettlementAmounts } = require('./m1_transition');
 const { sha256Hex, stableStringify } = require('./tradelayer_pnl_route_adapter');
+const { toSats, heightOf } = require('./money');
 
 const DUST_LIMIT_SATS = 546n;
 const OUTCOME_IDS = Object.freeze(['settle-gain', 'settle-loss', 'roll']);
-
-function toSats(value, field) {
-  if (typeof value === 'bigint') return value;
-  if (typeof value === 'number') {
-    if (!Number.isSafeInteger(value) || value < 0) throw new Error(`${field} must be a non-negative safe integer`);
-    return BigInt(value);
-  }
-  if (typeof value === 'string' && /^\d+$/.test(value)) return BigInt(value);
-  throw new Error(`${field} must be an integer sat amount`);
-}
 
 function addOutput(map, address, sats) {
   if (!address || sats <= 0n) return;
@@ -51,9 +42,9 @@ function sumOutputs(map) {
 function buildDlcSettlementOutcomes(input = {}) {
   const collateralSats = toSats(input.collateralSats, 'collateralSats');
   const minerFeeSats = toSats(input.minerFeeSats ?? 1000, 'minerFeeSats');
-  const bucketCapBps = Number(input.bucketCapBps ?? 500);
-  const realizedPnlBps = Number(input.realizedPnlBps ?? bucketCapBps);
-  const feeBps = Number(input.feeBps ?? 0);
+  const bucketCapBps = heightOf(input.bucketCapBps ?? 500, 'bucketCapBps');
+  const realizedPnlBps = heightOf(input.realizedPnlBps ?? bucketCapBps, 'realizedPnlBps');
+  const feeBps = heightOf(input.feeBps ?? 0, 'feeBps');
   const a = input.addresses || {};
   for (const role of ['alice', 'bob', 'residual']) {
     if (!a[role]) throw new Error(`addresses.${role} is required`);

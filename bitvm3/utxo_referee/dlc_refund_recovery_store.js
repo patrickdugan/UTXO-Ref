@@ -1,6 +1,6 @@
 'use strict';
 
-const crypto = require('crypto');
+const { sha256Hex, requireHash } = require('./dlc_canonical_json');
 const fs = require('fs');
 const path = require('path');
 const { canonicalize, canonicalJson, normalizeDlcContract } = require('./dlc_contract_state');
@@ -20,15 +20,6 @@ const {
 
 const KIND = 'utxoref_dlc_refund_recovery_record_v1';
 const MAX_RECORD_BYTES = 131072;
-
-function sha256Hex(value) { return crypto.createHash('sha256').update(value).digest('hex'); }
-
-function requireHash(value, fieldName) {
-  if (typeof value !== 'string' || !/^[0-9a-f]{64}$/.test(value)) {
-    throw new Error(`${fieldName} must be lowercase 32-byte hex`);
-  }
-  return value;
-}
 
 function requireId(value, fieldName) {
   if (typeof value !== 'string' || !/^[A-Za-z0-9._:-]{1,128}$/.test(value)) {

@@ -19,8 +19,10 @@ const {
 const { txidFromUnsignedHex } = require('./recover_btc_testnet4_reserve_vault');
 const { readJsonStrict } = require('./strict_artifact_ingress');
 const { readJsonStrictProfile } = require('./strict_artifact_profiles');
+const { withDirectoryLockAsync, writeFileAtomic } = require('./dlc_durable_json_store');
 const { statementFromWatchtowerTick, buildWatcherReceipt } = require('./utxoref_v2_watcher_quorum');
 const { verifyUtxorefV2FeeReserve } = require('./utxoref_v2_fee_reserve');
+const { DEFAULT_MAX_STATE_AGE_BLOCKS } = require('./utxoref_v2');
 const { BROADCAST_ALLOWLIST_KIND } = require('./btc_testnet4_readonly_rpc_proxy');
 const {
   notifierConfigFromEnv,
@@ -28,6 +30,8 @@ const {
   acknowledgeAlert,
   pingHeartbeat
 } = require('./utxoref_v2_alert_notifier');
+const { heightOf } = require('./money');
+const { csvSequence } = require('./csv_delay');
 
 const DEFAULT_ARTIFACT = path.join(__dirname, 'artifacts', 'live', 'btc_testnet4_utxoref_v2_latest.json');
 const DEFAULT_TRUST_POLICY = path.join(__dirname, 'artifacts', 'live', 'utxoref_v2_watchtower_trust_policy.json');
@@ -112,17 +116,14 @@ function readJson(filePath, fieldName, profileName = null) {
 }
 
 function saveJsonAtomic(filePath, value) {
-  fs.mkdirSync(path.dirname(filePath), { recursive: true });
-  const temporary = `${filePath}.tmp-${process.pid}-${Date.now()}`;
-  fs.writeFileSync(temporary, JSON.stringify(value, null, 2) + '\n');
-  fs.renameSync(temporary, filePath);
+  writeFileAtomic(filePath, JSON.stringify(value, null, 2) + '\n');
 }
 
 // WT-2: the RPC proxy relays only allowlisted txids. This adds the committed
 // settlement of one graph, after the same verification a tick performs, and
 // refuses graphs whose settlement the watchtower would not broadcast.
 function settlementAllowlist(artifact, trustPolicy, existing = null) {
-  const inspected = inspectArtifact(artifact, trustPolicy, { requireFreshState: false });
+  const inspected = inspectChallengePath(artifact, trustPolicy);
   if (inspected.fraudDetected) throw new Error('refusing to allowlist the settlement of a graph whose trace contains fraud');
   if (inspected.predicateBound !== true) throw new Error('refusing to allowlist the settlement of a monitor-only graph');
   if (!inspected.stateFreshAtAuthorization) throw new Error('refusing to allowlist a graph whose state was stale at authorization');
@@ -143,19 +144,50 @@ function appendJsonLine(filePath, value) {
   fs.appendFileSync(filePath, JSON.stringify(value) + '\n');
 }
 
+function newState() {
+  return {
+    kind: 'utxoref_v2_watchtower_state',
+    startedAt: new Date().toISOString(),
+    tickCount: 0,
+    alertCount: 0,
+    lastAlertFingerprint: null,
+    lastStatus: null
+  };
+}
+
+function readState(filePath) {
+  return fs.existsSync(filePath) ? readJson(filePath, 'watchtower state', 'utxoref-v2-watchtower-state') : newState();
+}
+
+// Loading counts a restart. The watchtower loads once at startup and each tick
+// reads the file with readState instead.
 function loadState(filePath) {
-  if (!fs.existsSync(filePath)) {
-    return {
-      kind: 'utxoref_v2_watchtower_state',
-      startedAt: new Date().toISOString(),
-      tickCount: 0,
-      alertCount: 0,
-      lastAlertFingerprint: null,
-      lastStatus: null
-    };
-  }
-  const existing = readJson(filePath, 'watchtower state', 'utxoref-v2-watchtower-state');
+  if (!fs.existsSync(filePath)) return newState();
+  const existing = readState(filePath);
   return { ...existing, resumedAt: new Date().toISOString(), restarts: Number(existing.restarts || 0) + 1 };
+}
+
+// The state file has one writer at a time. Every read-modify-write of it (a
+// watchtower tick, a CPFP broadcast, a reserve CPFP broadcast) runs under this
+// lock, so one process never saves a stale copy over another's record.
+async function withStateLock(statePath, run) {
+  fs.mkdirSync(path.dirname(statePath), { recursive: true });
+  return withDirectoryLockAsync(
+    `${statePath}.lock`,
+    `watchtower state is locked (remove ${statePath}.lock if no watchtower or CPFP process is running on any host)`,
+    run
+  );
+}
+
+// One tick is one locked read-modify-write: the state is read as it is on disk
+// now, not as it was when the watchtower started.
+async function runLockedIteration(args, rpc, statePath, deps = {}) {
+  return withStateLock(statePath, async () => {
+    const state = readState(statePath);
+    const iteration = await runWatchtowerIteration(args, rpc, state, deps);
+    saveJsonAtomic(statePath, state);
+    return { iteration, state };
+  });
 }
 
 function parseSecretFile(filePath) {
@@ -224,7 +256,11 @@ function trustBindingForArtifact(artifact, trustPolicy) {
   };
 }
 
-const MAX_STATE_AGE_AT_AUTHORIZATION_BLOCKS = 6;
+// The one freshness rule for an authorization: a checkpoint is fresh when its
+// age in blocks is a non-negative integer no greater than the state limit.
+function stateAgeIsFresh(ageBlocks) {
+  return Number.isSafeInteger(ageBlocks) && ageBlocks >= 0 && ageBlocks <= DEFAULT_MAX_STATE_AGE_BLOCKS;
+}
 
 // State freshness limits what a checkpoint may newly AUTHORIZE (a payout). It
 // must never limit a challenge: a disprove only punishes fraud that is provable
@@ -243,7 +279,7 @@ function verificationOptions(artifact, trustPolicy, options = {}) {
   return {
     ...base,
     currentHeight: authorization.height,
-    maxAgeBlocks: MAX_STATE_AGE_AT_AUTHORIZATION_BLOCKS
+    maxAgeBlocks: DEFAULT_MAX_STATE_AGE_BLOCKS
   };
 }
 
@@ -274,10 +310,9 @@ function challengeStateBindsArtifact(artifact, state) {
 // the committed trace, and holds for as long as the assertion output is unspent.
 function authorizationPolicy(inspected, activeBlockHash, state, currentHeight, artifact) {
   const reorged = activeBlockHash !== inspected.authorizationBlockHash;
-  const snapshotHeight = Number(inspected.stateSnapshotHeight);
-  const ageBlocks = Number(currentHeight) - snapshotHeight;
-  const stale = !Number.isSafeInteger(ageBlocks) || ageBlocks < 0 ||
-    ageBlocks > MAX_STATE_AGE_AT_AUTHORIZATION_BLOCKS;
+  const snapshotHeight = heightOf(inspected.stateSnapshotHeight, 'stateSnapshotHeight');
+  const ageBlocks = heightOf(currentHeight, 'currentHeight') - snapshotHeight;
+  const stale = !stateAgeIsFresh(ageBlocks);
   const tracked = challengeStateBindsArtifact(artifact, state);
   return {
     reorged,
@@ -287,6 +322,12 @@ function authorizationPolicy(inspected, activeBlockHash, state, currentHeight, a
     settlementAuthorityFresh: !reorged && !stale,
     authorizedForNewChallenge: true
   };
+}
+
+// The challenge-path view that the watchtower and every fee-bump tool share.
+// Freshness at authorization is returned as data and never refuses a challenge.
+function inspectChallengePath(artifact, trustPolicy) {
+  return inspectArtifact(artifact, trustPolicy, { requireFreshState: false });
 }
 
 // `requireFreshState: false` is the watchtower's challenge-path view: the graph
@@ -303,10 +344,9 @@ function inspectArtifact(artifact, trustPolicy, inspectOptions = {}) {
   const authorization = authorizationReference(artifact);
   const verification = verifyBitvmAssertionGraphV2(artifact.graph, options);
   if (!verification.ok) throw new Error(`public assertion graph failed verification: ${verification.reason}`);
-  const stateSnapshotHeight = Number(artifact.graph.settlement?.stateEnvelope?.body?.snapshotHeight);
+  const stateSnapshotHeight = heightOf(artifact.graph.settlement?.stateEnvelope?.body?.snapshotHeight, 'snapshotHeight');
   const ageAtAuthorization = authorization.height - stateSnapshotHeight;
-  const stateFreshAtAuthorization = Number.isSafeInteger(ageAtAuthorization) && ageAtAuthorization >= 0 &&
-    ageAtAuthorization <= MAX_STATE_AGE_AT_AUTHORIZATION_BLOCKS;
+  const stateFreshAtAuthorization = stateAgeIsFresh(ageAtAuthorization);
   const gateEvidence = findGateDisproveV2(artifact.graph.publicTrace, artifact.graph.template.challengerXonly);
   const inputEvidence = findInputBindingDisproveV2(
     artifact.graph.publicTrace,
@@ -363,7 +403,7 @@ async function verifyConfiguredFeeReserve(args, inspected, rpc, chain, assertion
   assertRpcSnapshotTip(txout, chain.bestblockhash, 'fee reserve output');
   const verification = verifyUtxorefV2FeeReserve(reserve, {
     graphHash: inspected.graphHash,
-    currentHeight: Number(chain.blocks),
+    currentHeight: heightOf(chain.blocks, 'chain.blocks'),
     minimumFeeReserveSats: policy.minimumFeeReserveSats,
     txout
   });
@@ -457,17 +497,26 @@ function replacementFeeCandidates(args, assertionAmountSats, currentFeeSats) {
   return feeCandidates(args, assertionAmountSats).filter((candidate) => Number(candidate) > current);
 }
 
-function coreValueToSats(value) {
-  const text = Number(value).toFixed(8);
-  if (!/^[0-9]+\.[0-9]{8}$/.test(text)) throw new Error('Core returned an invalid BTC amount');
-  const [whole, fraction] = text.split('.');
-  return BigInt(whole) * 100000000n + BigInt(fraction);
+// Core reports BTC with at most eight decimals. A value that is not a whole
+// number of satoshis is refused, never rounded: every amount check in the
+// watcher and the CPFP tools goes through this one parser.
+function btcToSats(value) {
+  if (typeof value === 'string' && /^(0|[1-9][0-9]*)(\.[0-9]{1,8})?$/.test(value)) {
+    const [whole, fraction = ''] = value.split('.');
+    return BigInt(whole) * 100000000n + BigInt(fraction.padEnd(8, '0'));
+  }
+  if (typeof value === 'number' && Number.isFinite(value) && value >= 0) {
+    const scaled = value * 100000000;
+    const sats = Math.round(scaled);
+    if (Number.isSafeInteger(sats) && Math.abs(scaled - sats) <= 0.001) return BigInt(sats);
+  }
+  throw new Error('Core returned an invalid BTC amount');
 }
 
 function assertTrackedOutputBinding(challenge, tracked, txout) {
   const expectedScript = String(tracked.scriptPubKeyHex || challenge.challengeScriptPubKeyHex || '').toLowerCase();
   if (!expectedScript) throw new Error('tracked challenge output has no bound scriptPubKey');
-  if (coreValueToSats(txout.value) !== BigInt(tracked.outputSats)) {
+  if (btcToSats(txout.value) !== BigInt(tracked.outputSats)) {
     throw new Error('tracked challenge output amount does not match Core');
   }
   if (String(txout.scriptPubKey?.hex || '').toLowerCase() !== expectedScript) {
@@ -486,7 +535,7 @@ function assertChallengeTransactionBinding(artifact, tracked, decoded) {
   if (Number(input.sequence) !== 0xfffffffd) throw new Error('tracked challenge sequence is not BIP125 replaceable');
   if (!Array.isArray(decoded.vout) || decoded.vout.length !== 1) throw new Error('tracked challenge must have exactly one output');
   const output = decoded.vout[0];
-  if (coreValueToSats(output.value) !== BigInt(tracked.outputSats)) throw new Error('tracked challenge decoded amount mismatch');
+  if (btcToSats(output.value) !== BigInt(tracked.outputSats)) throw new Error('tracked challenge decoded amount mismatch');
   if (String(output.scriptPubKey?.hex || '').toLowerCase() !== String(tracked.challengeScriptPubKeyHex || '').toLowerCase()) {
     throw new Error('tracked challenge decoded script mismatch');
   }
@@ -507,7 +556,7 @@ function deriveChallengeLifecycle(input = {}) {
     if (confirmations <= 0) {
       return { action: 'challenge_in_mempool', confirmations: 0, confirmation: null, reorgDetected: Boolean(prior) };
     }
-    const height = Number(input.currentHeight) - confirmations + 1;
+    const height = heightOf(input.currentHeight, 'currentHeight') - confirmations + 1;
     const blockHash = String(input.inclusionBlockHash || '');
     if (!Number.isSafeInteger(height) || height < 0 || !/^[0-9a-f]{64}$/.test(blockHash)) {
       throw new Error('confirmed challenge requires a valid inclusion height and block hash');
@@ -581,13 +630,38 @@ async function monitorChallenge(rpc, state, currentHeight, expectedTipHash = nul
       txout = candidate;
       break;
     }
+    // No replaced child is live either: the parent challenge output may still
+    // be, so the child is dropped and the parent is monitored again.
+    if (!txout) {
+      const parent = await rpc('gettxout', [challenge.txid, 0, true]);
+      if (parent) {
+        challenge.conflicts = [
+          ...(challenge.conflicts || []),
+          {
+            txid: tracked.txid,
+            feeSats: String(tracked.feeSats),
+            outputSats: String(tracked.outputSats),
+            lostAt: new Date().toISOString(),
+            reason: 'cpfp-evicted-parent-unspent'
+          }
+        ];
+        delete challenge.cpfp;
+        if (challenge.feeReserveLifecycle) {
+          challenge.feeReserveLifecycle.activeCpfpTxid = null;
+          challenge.feeReserveLifecycle.status = 'cpfp_evicted';
+        }
+        tracked = challenge;
+        role = 'challenge';
+        txout = parent;
+      }
+    }
   }
   if (txout) assertTrackedOutputBinding(challenge, tracked, txout);
   assertRpcSnapshotTip(txout, expectedTipHash, 'challenge output');
   let inclusionBlockHash = null;
   let activeHashAtPriorHeight = null;
   if (txout && Number(txout.confirmations || 0) > 0) {
-    const inclusionHeight = currentHeight - Number(txout.confirmations) + 1;
+    const inclusionHeight = currentHeight - heightOf(txout.confirmations, 'confirmations') + 1;
     inclusionBlockHash = await rpc('getblockhash', [inclusionHeight]);
   } else if (!txout && tracked.confirmation) {
     activeHashAtPriorHeight = await rpc('getblockhash', [tracked.confirmation.height]).catch(() => null);
@@ -750,15 +824,15 @@ async function runTick(args, rpc, state) {
   const trustPolicy = readJson(trustPolicyPath, 'watchtower trust policy', 'utxoref-v2-trust-policy');
   // Challenge-path inspection: state age and the authorization block are
   // reported below but never stop the watchtower from watching or challenging.
-  const inspected = inspectArtifact(artifact, trustPolicy, { requireFreshState: false });
+  const inspected = inspectChallengePath(artifact, trustPolicy);
   const chain = await rpc('getblockchaininfo');
   if (chain.chain !== 'testnet4') throw new Error(`wrong chain: ${chain.chain}`);
   const authorizationBlock = await rpc('getblockhash', [inspected.authorizationHeight]).catch(() => null);
-  const authorization = authorizationPolicy(inspected, authorizationBlock, state, Number(chain.blocks), artifact);
+  const authorization = authorizationPolicy(inspected, authorizationBlock, state, heightOf(chain.blocks, 'chain.blocks'), artifact);
   const assertion = inspected.assertionOutpoint;
   const txout = await rpc('gettxout', [assertion.txid, assertion.vout, true]);
   assertRpcSnapshotTip(txout, chain.bestblockhash, 'assertion output');
-  const currentHeight = Number(chain.blocks);
+  const currentHeight = heightOf(chain.blocks, 'chain.blocks');
   const feeReserve = await verifyConfiguredFeeReserve(args, inspected, rpc, chain, Boolean(txout));
   const confirmationCount = Number(txout?.confirmations || 0);
   const result = {
@@ -806,10 +880,10 @@ async function runTick(args, rpc, state) {
   // no key. It is never broadcast for a fraudulent, reorged, stale-at-
   // authorization or monitor-only (predicate-unbound) graph.
   if (txout && !inspected.fraudDetected) {
-    const recoveryInBlocks = Number(inspected.recoveryCsvBlocks) - confirmationCount;
+    const recoveryInBlocks = csvSequence(inspected.recoveryCsvBlocks, 'recoveryCsvBlocks') - confirmationCount;
     result.settlement = {
       txid: txidFromUnsignedHex(artifact.graph.settlement.unsignedTxHex),
-      mature: confirmationCount >= Number(inspected.challengeCsvBlocks),
+      mature: confirmationCount >= csvSequence(inspected.challengeCsvBlocks, 'challengeCsvBlocks'),
       recoveryInBlocks,
       broadcastEligible: inspected.predicateBound === true && !authorization.reorged &&
         inspected.stateFreshAtAuthorization,
@@ -978,6 +1052,71 @@ function recordTickSuccess(state) {
   state.consecutiveFailures = 0;
 }
 
+// A tick that cannot take the state lock is deferred, not failed: a CPFP tool
+// holds it briefly. A lock that stays held (its holder hung, or it was left on
+// another host or by a reused pid where that cannot be told apart) means the
+// watchtower is not watching, so the deferrals are counted here, in memory,
+// since the state file cannot be written without the lock. From the alert
+// failure threshold on, they reach the alert file once and the notifier as a
+// critical tick failure that repeats until acknowledged.
+function createLockDeferrals(args, statePath) {
+  const deferrals = { consecutive: 0, logged: false, notifierState: {} };
+  return {
+    get consecutive() { return deferrals.consecutive; },
+    async defer(err, notifier, threshold, at = new Date().toISOString()) {
+      deferrals.consecutive += 1;
+      const holder = err.holder ? ` (holder pid ${err.holder.pid} on ${err.holder.host || 'an unrecorded host'})` : '';
+      const alert = {
+        kind: 'utxoref_v2_watchtower_tick_failure',
+        at,
+        action: 'watchtower_tick_failed',
+        message: `ticks deferred, state lock held${holder}: ${err.message}`,
+        artifact: path.resolve(args.artifact || DEFAULT_ARTIFACT),
+        consecutiveFailures: deferrals.consecutive
+      };
+      if (deferrals.consecutive >= threshold && !deferrals.logged) {
+        deferrals.logged = true;
+        appendJsonLine(args.alertPath || DEFAULT_ALERT_PATH, alert);
+      }
+      if (notifier) await notifier.handle({ kind: 'failure', alert }, deferrals.notifierState);
+      return alert;
+    },
+    clear() {
+      const cleared = deferrals.consecutive;
+      deferrals.consecutive = 0;
+      deferrals.logged = false;
+      deferrals.notifierState = {};
+      return cleared;
+    }
+  };
+}
+
+// SIGTERM (systemd stop) and SIGINT (Ctrl-C) end the loop between ticks, so an
+// orderly stop never leaves the state lock behind. A second signal exits at
+// once; the lock it may leave names a dead process and is reclaimed.
+function createStopSignal({ on = (signal, handler) => process.on(signal, handler), exit = (code) => process.exit(code), log = console.error } = {}) {
+  let requested = false;
+  let wake = null;
+  const handler = (signal) => {
+    if (requested) exit(signal === 'SIGINT' ? 130 : 143);
+    requested = true;
+    log(`[utxoref-v2-watchtower] ${signal}: stopping after the current tick`);
+    if (wake) wake();
+  };
+  on('SIGTERM', () => handler('SIGTERM'));
+  on('SIGINT', () => handler('SIGINT'));
+  return {
+    get requested() { return requested; },
+    sleep(ms) {
+      return new Promise((resolve) => {
+        const done = () => { clearTimeout(timer); wake = null; resolve(); };
+        const timer = setTimeout(done, ms);
+        wake = done;
+      });
+    }
+  };
+}
+
 function ackPathFor(statePath) {
   return statePath.endsWith('.json') ? `${statePath.slice(0, -5)}.acks.json` : `${statePath}.acks.json`;
 }
@@ -1035,7 +1174,6 @@ async function main() {
   const statePath = path.resolve(args.statePath || DEFAULT_STATE_PATH);
   const intervalMs = Number(args.pollIntervalMs || DEFAULT_POLL_INTERVAL_MS);
   if (!Number.isSafeInteger(intervalMs) || intervalMs < 1000) throw new Error('poll interval must be at least 1000 ms');
-  const state = loadState(statePath);
   const notifierConfig = notifierConfigFromEnv(process.env);
   const notifier = createAlertNotifier(notifierConfig, {
     ackPath: path.resolve(args.ackPath || ackPathFor(statePath)),
@@ -1044,15 +1182,33 @@ async function main() {
   const heartbeatUrl = args.heartbeatUrl || notifierConfig.heartbeatUrl;
   console.error(`[utxoref-v2-watchtower] alerts: ${notifier.enabled ? notifier.channels.join(', ') : 'alert file only'}; ` +
     `heartbeat: ${heartbeatUrl ? 'on' : 'off'}; settlement broadcast: ${args.broadcastSettlement ? 'on' : 'off'}`);
+  const deferrals = createLockDeferrals(args, statePath);
+  const stop = createStopSignal();
+  // Startup records the restart under the lock like any tick, and a held lock
+  // is retried each interval instead of exiting into a restart loop.
+  let started = false;
   do {
-    const iteration = await runWatchtowerIteration(args, rpc, state, { notifier, heartbeatUrl });
-    if (iteration.ok) console.log(JSON.stringify(iteration.result));
-    else console.error(`[utxoref-v2-watchtower] tick failed: ${iteration.error.message}`);
-    if (state.notifier?.lastError) console.error(`[utxoref-v2-watchtower] alert delivery: ${state.notifier.lastError.message}`);
-    saveJsonAtomic(statePath, state);
-    if (args.once) break;
-    await new Promise((resolve) => setTimeout(resolve, intervalMs));
-  } while (true);
+    let tick = null;
+    try {
+      if (!started) {
+        await withStateLock(statePath, async () => saveJsonAtomic(statePath, loadState(statePath)));
+        started = true;
+      }
+      tick = await runLockedIteration(args, rpc, statePath, { notifier, heartbeatUrl });
+      const cleared = deferrals.clear();
+      if (cleared) console.error(`[utxoref-v2-watchtower] state lock acquired after ${cleared} deferred tick(s)`);
+    } catch (err) {
+      // --once is a single attempt: a held lock is its failure, as before.
+      if (err.code !== 'LOCK_HELD' || args.once) throw err;
+      const alert = await deferrals.defer(err, notifier, notifierConfig.failureThreshold);
+      console.error(`[utxoref-v2-watchtower] ${alert.message} (${alert.consecutiveFailures} in a row)`);
+    }
+    if (tick?.iteration.ok) console.log(JSON.stringify(tick.iteration.result));
+    else if (tick) console.error(`[utxoref-v2-watchtower] tick failed: ${tick.iteration.error.message}`);
+    if (tick?.state.notifier?.lastError) console.error(`[utxoref-v2-watchtower] alert delivery: ${tick.state.notifier.lastError.message}`);
+    if (args.once || stop.requested) break;
+    await stop.sleep(intervalMs);
+  } while (!stop.requested);
 }
 
 if (require.main === module) {
@@ -1071,6 +1227,7 @@ module.exports = {
   verificationOptions,
   authorizationPolicy,
   inspectArtifact,
+  inspectChallengePath,
   settlementAllowlist,
   verifyConfiguredFeeReserve,
   deterministicChallengeAux,
@@ -1078,7 +1235,7 @@ module.exports = {
   isFeePolicyReject,
   isFeePolicyError,
   replacementFeeCandidates,
-  coreValueToSats,
+  btcToSats,
   assertTrackedOutputBinding,
   assertChallengeTransactionBinding,
   assertRpcSnapshotTip,
@@ -1090,8 +1247,12 @@ module.exports = {
   runTick,
   runWatchtowerIteration,
   ackPathFor,
+  createLockDeferrals,
+  createStopSignal,
   recordTickFailure,
   recordTickSuccess,
   saveJsonAtomic,
-  loadState
+  loadState,
+  withStateLock,
+  runLockedIteration
 };

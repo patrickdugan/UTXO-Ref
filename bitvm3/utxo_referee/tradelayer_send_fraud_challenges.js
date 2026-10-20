@@ -7,6 +7,7 @@ const {
   buildTradeLayerPnlCommitment,
   buildTradeLayerSendRouteTranscript
 } = require('./tradelayer_pnl_route_adapter');
+const { toInt, toSats, heightOf } = require('./money');
 
 const CHALLENGE_TYPES = [
   'invalid_tx_type',
@@ -28,16 +29,6 @@ function cloneJson(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
-function toSatsText(value, fieldName) {
-  if (typeof value === 'bigint') return value.toString();
-  if (typeof value === 'number') {
-    if (!Number.isSafeInteger(value)) throw new Error(`${fieldName} must be a safe integer`);
-    return String(value);
-  }
-  if (typeof value === 'string' && /^-?\d+$/.test(value)) return value;
-  throw new Error(`${fieldName} must be an integer sat amount`);
-}
-
 function findOutput(routePlan, role) {
   return (routePlan.outputPlan || []).find((output) => output.role === role) || null;
 }
@@ -47,7 +38,7 @@ function outputSummary(output) {
   return {
     role: output.role || null,
     address: output.address || null,
-    sats: toSatsText(output.sats, 'output.sats'),
+    sats: toSats(output.sats, 'output.sats', { signed: true }).toString(),
     amountBps: output.amountBps ?? null,
     oracleAddress: output.oracleAddress || null,
     matchedDlcRef: output.matchedDlcRef || null
@@ -103,7 +94,7 @@ function evaluateChallengeCore(core) {
     case 'malformed_payload':
       return claimed.payloadValid === false || Boolean(claimed.parseError);
     case 'wrong_sender_balance':
-      return BigInt(toSatsText(claimed.requiredUnits, 'claimed.requiredUnits')) > BigInt(toSatsText(claimed.availableUnits, 'claimed.availableUnits'));
+      return toSats(claimed.requiredUnits, 'claimed.requiredUnits', { signed: true }) > toSats(claimed.availableUnits, 'claimed.availableUnits', { signed: true });
     case 'bad_send_inclusion':
       return claimed.sourceValid === false || Boolean(claimed.consensusRejectReason);
     case 'invalid_send_omission':
@@ -115,26 +106,26 @@ function evaluateChallengeCore(core) {
         && claimed.resolvedDestinationAddress !== expected.resolvedDestinationAddress;
     case 'bad_ratio_arithmetic':
       return String(claimed.sendBps) !== String(expected.sendBps)
-        || toSatsText(claimed.sendSats, 'claimed.sendSats') !== toSatsText(expected.sendSats, 'expected.sendSats');
+        || toSats(claimed.sendSats, 'claimed.sendSats', { signed: true }).toString() !== toSats(expected.sendSats, 'expected.sendSats', { signed: true }).toString();
     case 'wrong_utxoref_output':
       return claimed.inputHash !== expected.inputHash
         || claimed.routeTranscriptHash !== expected.routeTranscriptHash
         || claimed.outputPlanHash !== expected.outputPlanHash;
     case 'wrong_destination':
       return claimed.output?.address !== expected.output?.address
-        || toSatsText(claimed.output?.sats, 'claimed.output.sats') !== toSatsText(expected.output?.sats, 'expected.output.sats');
+        || toSats(claimed.output?.sats, 'claimed.output.sats', { signed: true }).toString() !== toSats(expected.output?.sats, 'expected.output.sats', { signed: true }).toString();
     case 'wrong_fee':
-      return toSatsText(claimed.feeSats, 'claimed.feeSats') !== toSatsText(expected.feeSats, 'expected.feeSats');
+      return toSats(claimed.feeSats, 'claimed.feeSats', { signed: true }).toString() !== toSats(expected.feeSats, 'expected.feeSats', { signed: true }).toString();
     case 'wrong_refund_remainder':
       return !expected.output
         ? claimed.output !== null
         : (
           !claimed.output
           || claimed.output.address !== expected.output.address
-          || toSatsText(claimed.output.sats, 'claimed.output.sats') !== toSatsText(expected.output.sats, 'expected.output.sats')
+          || toSats(claimed.output.sats, 'claimed.output.sats', { signed: true }).toString() !== toSats(expected.output.sats, 'expected.output.sats', { signed: true }).toString()
         );
     case 'stale_oracle_snapshot':
-      return Number(claimed.snapshotAgeBlocks) > Number(expected.maxSnapshotAgeBlocks);
+      return toInt(claimed.snapshotAgeBlocks, 'claimed.snapshotAgeBlocks') > toInt(expected.maxSnapshotAgeBlocks, 'expected.maxSnapshotAgeBlocks');
     case 'wrong_payout_root':
       return claimed.withdrawalRootHex !== expected.withdrawalRootHex
         || claimed.commitmentHashHex !== expected.commitmentHashHex;
@@ -181,18 +172,19 @@ function buildChallengeEntries(stateOracleBlob, routePlan, binding, options = {}
   const invalidType = resolveSkippedByReason(stateOracleBlob, /not tx type|wrong tx type|invalid tx type/i);
   const malformed = resolveSkippedByReason(stateOracleBlob, /not an object|missing|malformed|parse/i);
   const wrongDestination = wrongDestinationFor(routePlan);
-  const sendSats = toSatsText(routePlan.sendSats, 'routePlan.sendSats');
-  const feeSats = toSatsText(routePlan.feeSats || 0, 'routePlan.feeSats');
-  const residualSats = toSatsText(routePlan.residualSats || 0, 'routePlan.residualSats');
-  const depositSats = toSatsText(routePlan.dlcInput.sats, 'routePlan.dlcInput.sats');
+  const sendSats = toSats(routePlan.sendSats, 'routePlan.sendSats', { signed: true }).toString();
+  const feeSats = toSats(routePlan.feeSats || 0, 'routePlan.feeSats', { signed: true }).toString();
+  const residualSats = toSats(routePlan.residualSats || 0, 'routePlan.residualSats', { signed: true }).toString();
+  const depositSats = toSats(routePlan.dlcInput.sats, 'routePlan.dlcInput.sats', { signed: true }).toString();
   const wrongFeeSats = (BigInt(feeSats) + 1n).toString();
   const wrongRefundSats = refundOutput ? (BigInt(refundOutput.sats) + 1n).toString() : '1';
   const wrongSendBps = routePlan.sendBps === 10000 ? 9999 : routePlan.sendBps + 1;
   const wrongSendSats = (BigInt(sendSats) + 1n).toString();
   const routeTranscript = buildTradeLayerSendRouteTranscript(routePlan);
-  const currentHeight = Number(options.currentHeight ?? (Number(stateOracleBlob.snapshotHeight || 0) + Number(options.maxSnapshotAgeBlocks || 144) + 1));
-  const snapshotHeight = Number(stateOracleBlob.snapshotHeight || 0);
-  const maxSnapshotAgeBlocks = Number(options.maxSnapshotAgeBlocks || 144);
+  // Without a live height the snapshot's age is unknown, so it is not called stale.
+  const currentHeight = heightOf(options.currentHeight ?? stateOracleBlob.snapshotHeight ?? 0, 'currentHeight');
+  const snapshotHeight = heightOf(stateOracleBlob.snapshotHeight ?? 0, 'snapshotHeight');
+  const maxSnapshotAgeBlocks = heightOf(options.maxSnapshotAgeBlocks ?? 144, 'maxSnapshotAgeBlocks');
 
   return [
     makeChallenge(
@@ -301,14 +293,14 @@ function buildChallengeEntries(stateOracleBlob, routePlan, binding, options = {}
       'bad_ratio_arithmetic',
       binding,
       {
-        depositSats: toSatsText(routePlan.dlcInput.sats, 'routePlan.dlcInput.sats'),
+        depositSats: toSats(routePlan.dlcInput.sats, 'routePlan.dlcInput.sats', { signed: true }).toString(),
         sendBps: routePlan.sendBps,
         sendSats,
         residualSats,
         feeSats
       },
       {
-        depositSats: toSatsText(routePlan.dlcInput.sats, 'routePlan.dlcInput.sats'),
+        depositSats: toSats(routePlan.dlcInput.sats, 'routePlan.dlcInput.sats', { signed: true }).toString(),
         sendBps: wrongSendBps,
         sendSats: wrongSendSats,
         residualSats,
@@ -362,13 +354,13 @@ function buildChallengeEntries(stateOracleBlob, routePlan, binding, options = {}
       'wrong_fee',
       binding,
       {
-        inputSats: toSatsText(routePlan.dlcInput.sats, 'routePlan.dlcInput.sats'),
-        payoutTotalSats: (BigInt(toSatsText(routePlan.dlcInput.sats, 'routePlan.dlcInput.sats')) - BigInt(feeSats)).toString(),
+        inputSats: toSats(routePlan.dlcInput.sats, 'routePlan.dlcInput.sats', { signed: true }).toString(),
+        payoutTotalSats: (toSats(routePlan.dlcInput.sats, 'routePlan.dlcInput.sats', { signed: true }) - BigInt(feeSats)).toString(),
         feeSats
       },
       {
-        inputSats: toSatsText(routePlan.dlcInput.sats, 'routePlan.dlcInput.sats'),
-        payoutTotalSats: (BigInt(toSatsText(routePlan.dlcInput.sats, 'routePlan.dlcInput.sats')) - BigInt(wrongFeeSats)).toString(),
+        inputSats: toSats(routePlan.dlcInput.sats, 'routePlan.dlcInput.sats', { signed: true }).toString(),
+        payoutTotalSats: (toSats(routePlan.dlcInput.sats, 'routePlan.dlcInput.sats', { signed: true }) - BigInt(wrongFeeSats)).toString(),
         feeSats: wrongFeeSats
       },
       {

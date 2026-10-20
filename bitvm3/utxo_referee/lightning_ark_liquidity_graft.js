@@ -8,11 +8,14 @@
 
 const crypto = require('crypto');
 const { canonicalStringify, normalizeAmountSats } = require('./m1_spec');
+const { toInt, heightOf } = require('./money');
 const { buildJurassicMechanismRefs } = require('./jurassic_bitvm_mechanisms');
+const { verifyLiquidityLeaseBundle } = require('./lightning_liquidity_lease');
 const {
   buildArkTaprootMiniscriptProofManifest,
   verifyArkTaprootMiniscriptProofManifest
 } = require('./ark_taproot_miniscript_proof_manifest');
+const { csvSequence } = require('./csv_delay');
 
 const HEX_32_RE = /^[0-9a-f]{64}$/i;
 
@@ -70,8 +73,8 @@ function buildArkTemplateCommitment(options = {}) {
     internalKeyHex,
     taprootOutputKey,
     leafRoles,
-    exitDelayBlocks: Number(options.exitDelayBlocks ?? 144),
-    aspForfeitCsv: Number(options.aspForfeitCsv ?? 2000)
+    exitDelayBlocks: csvSequence(options.exitDelayBlocks ?? 144, 'exitDelayBlocks'),
+    aspForfeitCsv: csvSequence(options.aspForfeitCsv ?? 2000, 'aspForfeitCsv')
   };
 
   return {
@@ -93,7 +96,7 @@ function buildArkVtxoLiquidityCommitment(options = {}) {
   const vtxoId = normalizeHex32(options.vtxoId || sha256Hex(`ark-vtxo:${connectorOutpoint}:${ownerNodeId}`), 'vtxoId');
   const forfeitTxid = normalizeHex32(options.forfeitTxid || sha256Hex(`ark-forfeit:${vtxoId}`), 'forfeitTxid');
   const exitTxid = normalizeHex32(options.exitTxid || sha256Hex(`ark-exit:${vtxoId}`), 'exitTxid');
-  const expiryBlock = Number(options.expiryBlock || 0);
+  const expiryBlock = heightOf(options.expiryBlock ?? 0, 'expiryBlock');
 
   const vtxoCore = {
     version: 1,
@@ -123,9 +126,9 @@ function buildArkLiquidityGraftQuote(options = {}) {
   const template = options.template || buildArkTemplateCommitment(options);
   const vtxo = options.vtxo || buildArkVtxoLiquidityCommitment({ ...options, template });
   const promisedInboundSats = normalizeAmountSats(options.promisedInboundSats || vtxo.vtxoCore.vtxoAmountSats, 'promisedInboundSats');
-  const leaseBlocks = Number(options.leaseBlocks || 144);
-  const maxFeePpm = Number(options.maxFeePpm ?? 1000);
-  const maxCltvDelta = Number(options.maxCltvDelta ?? 40);
+  const leaseBlocks = heightOf(options.leaseBlocks ?? 144, 'leaseBlocks');
+  const maxFeePpm = heightOf(options.maxFeePpm ?? 1000, 'maxFeePpm');
+  const maxCltvDelta = heightOf(options.maxCltvDelta ?? 40, 'maxCltvDelta');
   const graftPremiumSats = normalizeAmountSats(options.graftPremiumSats || 750n, 'graftPremiumSats');
   const paymentHashHex = normalizeHex32(options.paymentHashHex || sha256Hex(`ark-graft:${vtxo.vtxoCommitmentId}`), 'paymentHashHex');
   const jurassicMechanisms = buildJurassicMechanismRefs('ark', {
@@ -164,6 +167,33 @@ function buildArkLiquidityGraftQuote(options = {}) {
   };
 }
 
+// The settlement checks the template, VTXO, quote and settlement core determine. The lease
+// check is passed in: only a caller holding the lease bundle can state it.
+function arkGraftSettlementChecks({ template, vtxo, quote, core, leaseVerified }) {
+  return {
+    templateBindsVtxo: vtxo.vtxoCore.templateCommitmentId === template.templateCommitmentId,
+    vtxoCoversPromisedInbound: BigInt(vtxo.vtxoCore.vtxoAmountSats) >= BigInt(quote.quoteCore.promisedInboundSats),
+    deliveredInboundMet: BigInt(core.deliveredInboundSats) >= BigInt(quote.quoteCore.promisedInboundSats),
+    feeCeilingMet: core.observedFeePpm <= quote.quoteCore.maxFeePpm,
+    cltvCeilingMet: core.observedCltvDelta <= quote.quoteCore.maxCltvDelta,
+    paymentHashMatched: core.preimageHashHex === core.paymentHashHex,
+    arkExitPathPresent: Boolean(vtxo.vtxoCore.exitTxid),
+    arkForfeitPathPresent: Boolean(vtxo.vtxoCore.forfeitTxid),
+    bitvmLeaseVerified: leaseVerified
+  };
+}
+
+// The violations a challenge core shows against the quote. Builder and verifier both call this.
+function arkGraftViolations(quoteCore, core) {
+  const violations = [];
+  if (BigInt(core.deliveredInboundSats) < BigInt(quoteCore.promisedInboundSats)) violations.push('insufficient_ark_grafted_liquidity');
+  if (core.observedFeePpm > quoteCore.maxFeePpm) violations.push('fee_ppm_above_graft_quote');
+  if (core.observedCltvDelta > quoteCore.maxCltvDelta) violations.push('cltv_delta_above_graft_quote');
+  if (core.missingExitPath) violations.push('missing_ark_exit_path');
+  if (core.missingForfeitPath) violations.push('missing_ark_forfeit_path');
+  return violations;
+}
+
 function buildArkGraftSettlementEvidence(options = {}) {
   const template = options.template || buildArkTemplateCommitment(options);
   const vtxo = options.vtxo || buildArkVtxoLiquidityCommitment({ ...options, template });
@@ -172,9 +202,9 @@ function buildArkGraftSettlementEvidence(options = {}) {
   const liquidityLease = options.liquidityLease || null;
   const htlcProof = options.htlcProof || {};
   const deliveredInboundSats = normalizeAmountSats(options.deliveredInboundSats || quote.quoteCore.promisedInboundSats, 'deliveredInboundSats');
-  const observedFeePpm = Number(options.observedFeePpm ?? quote.quoteCore.maxFeePpm);
-  const observedCltvDelta = Number(options.observedCltvDelta ?? quote.quoteCore.maxCltvDelta);
-  const observedBlock = Number(options.observedBlock || 0);
+  const observedFeePpm = heightOf(options.observedFeePpm ?? quote.quoteCore.maxFeePpm, 'observedFeePpm');
+  const observedCltvDelta = heightOf(options.observedCltvDelta ?? quote.quoteCore.maxCltvDelta, 'observedCltvDelta');
+  const observedBlock = heightOf(options.observedBlock ?? 0, 'observedBlock');
   const paymentHashHex = normalizeHex32(quote.quoteCore.paymentHashHex, 'paymentHashHex');
   const preimageHex = normalizeHex32(
     options.preimageHex ||
@@ -216,17 +246,13 @@ function buildArkGraftSettlementEvidence(options = {}) {
     kind: 'ark_ln_liquidity_graft_settlement_evidence',
     settlementId: hashCanonical(settlementCore),
     settlementCore,
-    checks: {
-      templateBindsVtxo: vtxo.vtxoCore.templateCommitmentId === template.templateCommitmentId,
-      vtxoCoversPromisedInbound: BigInt(vtxo.vtxoCore.vtxoAmountSats) >= BigInt(quote.quoteCore.promisedInboundSats),
-      deliveredInboundMet: deliveredInboundSats >= BigInt(quote.quoteCore.promisedInboundSats),
-      feeCeilingMet: observedFeePpm <= quote.quoteCore.maxFeePpm,
-      cltvCeilingMet: observedCltvDelta <= quote.quoteCore.maxCltvDelta,
-      paymentHashMatched: observedPaymentHashHex === paymentHashHex,
-      arkExitPathPresent: Boolean(vtxo.vtxoCore.exitTxid),
-      arkForfeitPathPresent: Boolean(vtxo.vtxoCore.forfeitTxid),
-      bitvmLeaseVerified: Boolean(liquidityLease && liquidityLease.verification && liquidityLease.verification.ok)
-    }
+    checks: arkGraftSettlementChecks({
+      template,
+      vtxo,
+      quote,
+      core: settlementCore,
+      leaseVerified: Boolean(liquidityLease && verifyLiquidityLeaseBundle(liquidityLease).ok)
+    })
   };
 }
 
@@ -234,17 +260,18 @@ function buildArkGraftChallengeEvidence(options = {}) {
   const quote = options.quote || buildArkLiquidityGraftQuote(options);
   const taprootProofManifest = options.taprootProofManifest || null;
   const deliveredInboundSats = normalizeAmountSats(options.deliveredInboundSats ?? 0n, 'deliveredInboundSats');
-  const observedFeePpm = Number(options.observedFeePpm ?? quote.quoteCore.maxFeePpm + 1);
-  const observedCltvDelta = Number(options.observedCltvDelta ?? quote.quoteCore.maxCltvDelta + 1);
+  const observedFeePpm = heightOf(options.observedFeePpm ?? quote.quoteCore.maxFeePpm + 1, 'observedFeePpm');
+  const observedCltvDelta = heightOf(options.observedCltvDelta ?? quote.quoteCore.maxCltvDelta + 1, 'observedCltvDelta');
   const missingExitPath = Boolean(options.missingExitPath);
   const missingForfeitPath = Boolean(options.missingForfeitPath);
 
-  const violations = [];
-  if (deliveredInboundSats < BigInt(quote.quoteCore.promisedInboundSats)) violations.push('insufficient_ark_grafted_liquidity');
-  if (observedFeePpm > quote.quoteCore.maxFeePpm) violations.push('fee_ppm_above_graft_quote');
-  if (observedCltvDelta > quote.quoteCore.maxCltvDelta) violations.push('cltv_delta_above_graft_quote');
-  if (missingExitPath) violations.push('missing_ark_exit_path');
-  if (missingForfeitPath) violations.push('missing_ark_forfeit_path');
+  const violations = arkGraftViolations(quote.quoteCore, {
+    deliveredInboundSats: deliveredInboundSats.toString(),
+    observedFeePpm,
+    observedCltvDelta,
+    missingExitPath,
+    missingForfeitPath
+  });
 
   const challengeCore = {
     version: 1,
@@ -281,22 +308,22 @@ function satsFromVbytes(feeRateSatVb, vbytes) {
 }
 
 function ppmCost(amountSats, ppm) {
-  return ceilDiv(normalizeAmountSats(amountSats, 'amountSats') * BigInt(Number(ppm)), 1000000n);
+  return ceilDiv(normalizeAmountSats(amountSats, 'amountSats') * BigInt(ppm), 1000000n);
 }
 
 function buildArkGraftCostModel(options = {}) {
   const graftCount = Number(options.graftCount || 24);
   const graftAmountSats = normalizeAmountSats(options.graftAmountSats || options.promisedInboundSats || 50000n, 'graftAmountSats');
   const feeRateSatVb = Number(options.feeRateSatVb ?? 25);
-  const rebalanceFeePpm = Number(options.rebalanceFeePpm ?? 1200);
-  const channelOpenVbytes = Number(options.channelOpenVbytes ?? 154);
-  const channelCloseVbytes = Number(options.channelCloseVbytes ?? 154);
-  const spliceVbytes = Number(options.spliceVbytes ?? 220);
-  const arkRoundVbytes = Number(options.arkRoundVbytes ?? 420);
+  const rebalanceFeePpm = heightOf(options.rebalanceFeePpm ?? 1200, 'rebalanceFeePpm');
+  const channelOpenVbytes = Number(toInt(options.channelOpenVbytes ?? 154, 'channelOpenVbytes'));
+  const channelCloseVbytes = Number(toInt(options.channelCloseVbytes ?? 154, 'channelCloseVbytes'));
+  const spliceVbytes = Number(toInt(options.spliceVbytes ?? 220, 'spliceVbytes'));
+  const arkRoundVbytes = Number(toInt(options.arkRoundVbytes ?? 420, 'arkRoundVbytes'));
   const arkRoundParticipants = Number(options.arkRoundParticipants ?? 24);
-  const arkAspFeePpm = Number(options.arkAspFeePpm ?? 250);
-  const arkExitReserveVbytes = Number(options.arkExitReserveVbytes ?? 180);
-  const arkExitProbabilityBps = Number(options.arkExitProbabilityBps ?? 50);
+  const arkAspFeePpm = heightOf(options.arkAspFeePpm ?? 250, 'arkAspFeePpm');
+  const arkExitReserveVbytes = Number(toInt(options.arkExitReserveVbytes ?? 180, 'arkExitReserveVbytes'));
+  const arkExitProbabilityBps = heightOf(options.arkExitProbabilityBps ?? 50, 'arkExitProbabilityBps');
   const bitvmChallengeReserveSats = normalizeAmountSats(
     options.bitvmChallengeReserveSats ?? 5000n,
     'bitvmChallengeReserveSats'
@@ -429,6 +456,7 @@ function buildArkLiquidityGraftBundle(options = {}) {
     taprootProofManifest,
     settlementEvidence,
     challengeEvidence,
+    liquidityLease: options.liquidityLease || null,
     costModel,
     thesis:
       'Use Ark VTXOs as fast temporary liquidity grafts for LN edge routes, reducing fee volatility while BitVM/DLC commitments enforce the liquidity lease if the ASP/LSP fails.',
@@ -465,10 +493,35 @@ function verifyArkLiquidityGraftBundle(bundle) {
   if (bundle.taprootProofManifest.manifestCore.vtxoCommitmentId !== bundle.vtxo.vtxoCommitmentId) {
     return { ok: false, reason: 'taproot proof manifest does not bind VTXO commitment' };
   }
-  for (const [name, passed] of Object.entries(bundle.settlementEvidence.checks || {})) {
-    if (!passed) return { ok: false, reason: `settlement evidence failed: ${name}` };
+  const { template, vtxo, quote, liquidityLease, settlementEvidence: evidence, challengeEvidence: challenge } = bundle;
+  if (evidence.settlementId !== hashCanonical(evidence.settlementCore)) {
+    return { ok: false, reason: 'settlement id mismatch' };
   }
-  if (!bundle.challengeEvidence.slashable) {
+  if (bundle.bundleCore.settlementId !== evidence.settlementId) {
+    return { ok: false, reason: 'bundle does not bind settlement' };
+  }
+  const leaseVerified = Boolean(liquidityLease)
+    && verifyLiquidityLeaseBundle(liquidityLease).ok
+    && liquidityLease.bundleId === evidence.settlementCore.liquidityLeaseBundleId;
+  const derived = arkGraftSettlementChecks({ template, vtxo, quote, core: evidence.settlementCore, leaseVerified });
+  for (const [name, passed] of Object.entries(derived)) {
+    if (!passed) return { ok: false, reason: `settlement evidence failed: ${name}` };
+    if ((evidence.checks || {})[name] !== passed) return { ok: false, reason: `settlement check does not follow: ${name}` };
+  }
+  if (challenge.challengeId !== hashCanonical(challenge.challengeCore)) {
+    return { ok: false, reason: 'challenge id mismatch' };
+  }
+  if (bundle.bundleCore.challengeId !== challenge.challengeId) {
+    return { ok: false, reason: 'bundle does not bind the challenge' };
+  }
+  const violations = arkGraftViolations(quote.quoteCore, challenge.challengeCore);
+  if (hashCanonical(violations) !== hashCanonical(challenge.challengeCore.violations)) {
+    return { ok: false, reason: 'challenge violations do not follow from its core' };
+  }
+  if (challenge.slashable !== (violations.length > 0)) {
+    return { ok: false, reason: 'challenge slashable flag does not follow from its violations' };
+  }
+  if (!challenge.slashable) {
     return { ok: false, reason: 'challenge should be slashable in demo bundle' };
   }
   if (!bundle.costModel || bundle.costModel.modelId !== hashCanonical(bundle.costModel.modelCore)) {

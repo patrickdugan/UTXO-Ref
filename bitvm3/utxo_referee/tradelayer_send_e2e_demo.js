@@ -6,12 +6,13 @@ const { resolveChainEnv } = require('./m1_chain_env');
 const {
   stableStringify,
   sha256Hex,
-  addressToScriptPubKey,
+  scriptPubKeyForOutput,
   buildTradeLayerSendOracleCommitment,
   verifyTradeLayerSendOracleSignature,
   buildTradeLayerSendIntentFromStateOracle,
   buildTradeLayerSendRoutePlan,
   buildTradeLayerPnlCommitment,
+  buildTradeLayerSendRouteTranscript,
   verifyTradeLayerSendStateOracleRoute
 } = require('./tradelayer_pnl_route_adapter');
 const {
@@ -102,6 +103,9 @@ function usage() {
     '  --rpc-pass <pass>    Override BITVM/LTC/BTC RPC password for --rpc-sweep.',
     '  --rpc-wallet <name>  Override BITVM/LTC/BTC wallet for --rpc-sweep.',
     '  --require-oracle-signature  Require a valid Ed25519 oracle signature.',
+    '  --oracle-public-key <pem>  Pinned oracle public key (PEM file). A signature must verify under it.',
+    '  --oracle-key-id <id>  Key id of the pinned oracle key, checked against the policy allow-list.',
+    '  --current-height <n>  Live chain height. Without it the registry is not shown fresh and the watchtower pauses.',
     '  --help              Show this help.'
   ].join('\n');
 }
@@ -164,7 +168,7 @@ function outputWithScript(output, network) {
   return {
     role: output.role || null,
     address: output.address || null,
-    scriptPubKey: output.scriptPubKey || addressToScriptPubKey(output.address, network).toString('hex'),
+    scriptPubKey: scriptPubKeyForOutput(output, network).toString('hex'),
     sats: String(output.sats),
     amountBps: output.amountBps ?? null,
     oracleAddress: output.oracleAddress || null,
@@ -177,7 +181,10 @@ function selectOptionsFromCli(cliArgs) {
     sendId: cliArgs.sendId,
     sendTxid: cliArgs.sendTxid,
     sendIndex: cliArgs.sendIndex,
-    requireOracleSignature: cliArgs.requireOracleSignature
+    requireOracleSignature: cliArgs.requireOracleSignature,
+    oraclePublicKeyPem: cliArgs.oraclePublicKey ? fs.readFileSync(cliArgs.oraclePublicKey, 'utf8') : undefined,
+    oracleKeyId: cliArgs.oracleKeyId,
+    currentHeight: cliArgs.currentHeight
   };
   Object.keys(options).forEach((key) => options[key] === undefined && delete options[key]);
   return options;
@@ -271,20 +278,29 @@ function buildArtifact(stateOracleBlob, cliArgs) {
     observedSweep
   });
   const walletFlowVerification = verifyTradeLayerSendWalletFlow(walletFlow);
-  const productionPolicy = buildTradeLayerSendProductionPolicy(stateOracleBlob, {
+  const productionPolicyInputs = {
     ...options,
+    requireOracleSignature: cliArgs.requireOracleSignature
+  };
+  const productionPolicy = buildTradeLayerSendProductionPolicy(stateOracleBlob, {
+    ...productionPolicyInputs,
+    routePlan,
+    observedOutputs: routePlan.outputPlan
+  });
+  const productionPolicyVerification = verifyTradeLayerSendProductionPolicy(productionPolicy, {
+    ...productionPolicyInputs,
     routePlan,
     observedOutputs: routePlan.outputPlan,
-    requireOracleSignature: cliArgs.requireOracleSignature
+    stateOracleBlob
   });
-  const productionPolicyVerification = verifyTradeLayerSendProductionPolicy(productionPolicy);
   const watchtowerReport = buildTradeLayerSendWatchtowerReport({
     stateOracleBlob,
     routePlan,
     sweepPlan: sweepTx,
     fraudChallenges,
     walletFlow,
-    productionPolicy
+    productionPolicy,
+    productionPolicyInputs
   }, options);
   const watchtowerVerification = verifyTradeLayerSendWatchtowerReport(watchtowerReport);
 
@@ -326,6 +342,7 @@ function buildArtifact(stateOracleBlob, cliArgs) {
     walletFlow,
     walletFlowVerification,
     productionPolicy,
+    productionPolicyInputs,
     productionPolicyVerification,
     watchtowerReport,
     watchtowerVerification,
@@ -351,7 +368,10 @@ function rpcSweepOptionsFromCli(cliArgs) {
 async function attachRpcSweepIfRequested(artifact, stateOracleBlob, cliArgs) {
   if (!cliArgs.rpcSweep) return artifact;
 
-  const rpcOptions = rpcSweepOptionsFromCli(cliArgs);
+  const rpcOptions = {
+    ...rpcSweepOptionsFromCli(cliArgs),
+    expectedRouteTranscriptHash: buildTradeLayerSendRouteTranscript(artifact.routePlan).hash
+  };
   const rpcSweep = await executeTradeLayerSendRpcSweep(artifact.sweepTx, rpcOptions);
   artifact.rpcSweep = {
     ...rpcSweep,
@@ -378,7 +398,8 @@ async function attachRpcSweepIfRequested(artifact, stateOracleBlob, cliArgs) {
     sweepPlan: artifact.sweepTx,
     fraudChallenges: artifact.fraudChallenges,
     walletFlow: artifact.walletFlow,
-    productionPolicy: artifact.productionPolicy
+    productionPolicy: artifact.productionPolicy,
+    productionPolicyInputs: artifact.productionPolicyInputs
   }, options);
   artifact.watchtowerVerification = verifyTradeLayerSendWatchtowerReport(artifact.watchtowerReport);
 

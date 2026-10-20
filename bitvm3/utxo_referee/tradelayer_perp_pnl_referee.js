@@ -6,19 +6,12 @@ const {
   buildTreeWithProofs
 } = require('./merkle');
 const {
+  stableStringify,
   sha256Hex,
   addressToScriptPubKey
 } = require('./tradelayer_pnl_route_adapter');
-
-function toInt(value, fieldName) {
-  if (typeof value === 'bigint') return value;
-  if (typeof value === 'number') {
-    if (!Number.isSafeInteger(value)) throw new Error(`${fieldName} must be a safe integer`);
-    return BigInt(value);
-  }
-  if (typeof value === 'string' && /^-?\d+$/.test(value)) return BigInt(value);
-  throw new Error(`${fieldName} must be an integer`);
-}
+const { toInt } = require('./money');
+const { verifyChallengeVerdict } = require('./challenge_verdict');
 
 function boundedAbs(value, cap) {
   const abs = value < 0n ? -value : value;
@@ -49,29 +42,22 @@ function buildPayoutCommitment(outputs, options = {}) {
   };
 }
 
-function buildTradeLayerPerpPnlSettlement(input = {}) {
-  const position = input.position || {};
-  const close = input.close || {};
-  const side = String(position.side || 'long').toLowerCase();
+// The only place that turns position terms into outputs. Build and verify both use it,
+// so a settlement is valid only if its outputs are the function of its committed terms.
+function derivePerpSettlement(terms) {
+  const side = String(terms.side || '').toLowerCase();
   if (side !== 'long' && side !== 'short') throw new Error('position.side must be long or short');
-
-  const entryPrice = toInt(position.entryPrice, 'position.entryPrice');
-  const closePrice = toInt(close.price ?? close.closePrice, 'close.price');
-  const quantityUnits = toInt(position.quantityUnits || 1, 'position.quantityUnits');
-  const priceScale = toInt(input.priceScale || position.priceScale || 1, 'priceScale');
-  if (priceScale <= 0n) throw new Error('priceScale must be positive');
-  const collateralSats = toInt(position.collateralSats || input.collateralSats, 'position.collateralSats');
-  if (collateralSats <= 0n) throw new Error('position.collateralSats must be positive');
+  if (terms.quantityUnits <= 0n) throw new Error('position.quantityUnits must be positive');
+  if (terms.priceScale <= 0n) throw new Error('priceScale must be positive');
+  if (terms.collateralSats <= 0n) throw new Error('position.collateralSats must be positive');
+  if (!terms.traderAddress || !terms.counterpartyAddress) throw new Error('position requires traderAddress and counterpartyAddress');
 
   const direction = side === 'long' ? 1n : -1n;
-  const rawPnlSats = ((closePrice - entryPrice) * quantityUnits * direction) / priceScale;
-  const transferSats = boundedAbs(rawPnlSats, collateralSats);
-  const traderAddress = position.traderAddress || input.traderAddress;
-  const counterpartyAddress = position.counterpartyAddress || input.counterpartyAddress;
-  if (!traderAddress || !counterpartyAddress) throw new Error('position requires traderAddress and counterpartyAddress');
-  const winnerAddress = rawPnlSats >= 0n ? traderAddress : counterpartyAddress;
-  const loserAddress = rawPnlSats >= 0n ? counterpartyAddress : traderAddress;
-  const refundSats = collateralSats - transferSats;
+  const rawPnlSats = ((terms.closePrice - terms.entryPrice) * terms.quantityUnits * direction) / terms.priceScale;
+  const transferSats = boundedAbs(rawPnlSats, terms.collateralSats);
+  const winnerAddress = rawPnlSats >= 0n ? terms.traderAddress : terms.counterpartyAddress;
+  const loserAddress = rawPnlSats >= 0n ? terms.counterpartyAddress : terms.traderAddress;
+  const refundSats = terms.collateralSats - transferSats;
   const outputs = [
     {
       role: 'pnl-winner',
@@ -87,13 +73,48 @@ function buildTradeLayerPerpPnlSettlement(input = {}) {
     });
   }
   const payout = buildPayoutCommitment(outputs, {
-    network: input.network || 'litecoin-testnet',
-    epochId: input.epochId
+    network: terms.network,
+    epochId: terms.epochId
+  });
+  return {
+    rawPnlSats,
+    transferSats,
+    winnerAddress,
+    loserAddress,
+    outputs,
+    payout
+  };
+}
+
+function buildTradeLayerPerpPnlSettlement(input = {}) {
+  const position = input.position || {};
+  const close = input.close || {};
+  const network = input.network || 'litecoin-testnet';
+  const epochId = String(input.epochId ?? 0);
+  const side = String(position.side || 'long').toLowerCase();
+  const entryPrice = toInt(position.entryPrice, 'position.entryPrice', { signed: true });
+  const closePrice = toInt(close.price ?? close.closePrice, 'close.price', { signed: true });
+  const quantityUnits = toInt(position.quantityUnits ?? 1, 'position.quantityUnits', { signed: true });
+  const priceScale = toInt(input.priceScale ?? position.priceScale ?? 1, 'priceScale', { signed: true });
+  const collateralSats = toInt(position.collateralSats ?? input.collateralSats, 'position.collateralSats', { signed: true });
+  const traderAddress = position.traderAddress || input.traderAddress;
+  const counterpartyAddress = position.counterpartyAddress || input.counterpartyAddress;
+  const derived = derivePerpSettlement({
+    network,
+    epochId,
+    side,
+    entryPrice,
+    closePrice,
+    quantityUnits,
+    priceScale,
+    collateralSats,
+    traderAddress,
+    counterpartyAddress
   });
   const settlementCore = {
     kind: 'tradelayer_perp_pnl_settlement_v1',
-    network: input.network || 'litecoin-testnet',
-    epochId: String(input.epochId ?? 0),
+    network,
+    epochId,
     contractId: String(position.contractId || 'perp-demo'),
     positionHash: sha256Hex(position),
     closeHash: sha256Hex(close),
@@ -103,24 +124,27 @@ function buildTradeLayerPerpPnlSettlement(input = {}) {
     closePrice: closePrice.toString(),
     quantityUnits: quantityUnits.toString(),
     priceScale: priceScale.toString(),
-    rawPnlSats: rawPnlSats.toString(),
-    transferSats: transferSats.toString(),
+    collateralSats: collateralSats.toString(),
+    traderAddress,
+    counterpartyAddress,
+    rawPnlSats: derived.rawPnlSats.toString(),
+    transferSats: derived.transferSats.toString(),
     tokenDelta: {
-      winnerAddress,
-      loserAddress,
-      quoteUnits: transferSats.toString(),
-      traderDeltaSats: rawPnlSats.toString()
+      winnerAddress: derived.winnerAddress,
+      loserAddress: derived.loserAddress,
+      quoteUnits: derived.transferSats.toString(),
+      traderDeltaSats: derived.rawPnlSats.toString()
     },
-    outputs,
-    withdrawalRootHex: payout.withdrawalRootHex,
-    commitmentHashHex: payout.commitmentHashHex
+    outputs: derived.outputs,
+    withdrawalRootHex: derived.payout.withdrawalRootHex,
+    commitmentHashHex: derived.payout.commitmentHashHex
   };
 
   return {
     kind: 'tradelayer_perp_pnl_settlement',
     settlementHash: sha256Hex(settlementCore),
     settlementCore,
-    payout
+    payout: derived.payout
   };
 }
 
@@ -131,21 +155,70 @@ function verifyTradeLayerPerpPnlSettlement(settlement) {
   if (!settlement.settlementCore || typeof settlement.settlementCore !== 'object') {
     return { ok: false, reason: 'settlement core missing' };
   }
-  const settlementHash = sha256Hex(settlement.settlementCore);
+  const core = settlement.settlementCore;
+  const settlementHash = sha256Hex(core);
   if (settlement.settlementHash !== settlementHash) return { ok: false, reason: 'settlement hash mismatch', settlementHash };
-  const outputTotal = (settlement.settlementCore.outputs || []).reduce((sum, output) => sum + BigInt(output.sats), 0n);
-  const transferSats = BigInt(settlement.settlementCore.transferSats);
-  if (transferSats < 0n) return { ok: false, reason: 'transfer sats cannot be negative' };
-  if (outputTotal.toString() !== settlement.payout.totalSats) return { ok: false, reason: 'payout total mismatch' };
-  if (settlement.payout.withdrawalRootHex !== settlement.settlementCore.withdrawalRootHex) {
+
+  let derived;
+  try {
+    derived = derivePerpSettlement({
+      network: core.network,
+      epochId: core.epochId,
+      side: core.side,
+      entryPrice: toInt(core.entryPrice, 'settlementCore.entryPrice', { signed: true }),
+      closePrice: toInt(core.closePrice, 'settlementCore.closePrice', { signed: true }),
+      quantityUnits: toInt(core.quantityUnits, 'settlementCore.quantityUnits', { signed: true }),
+      priceScale: toInt(core.priceScale, 'settlementCore.priceScale', { signed: true }),
+      collateralSats: toInt(core.collateralSats, 'settlementCore.collateralSats', { signed: true }),
+      traderAddress: core.traderAddress,
+      counterpartyAddress: core.counterpartyAddress
+    });
+  } catch (err) {
+    return { ok: false, reason: `settlement terms do not derive: ${err.message}` };
+  }
+  const expected = {
+    rawPnlSats: derived.rawPnlSats.toString(),
+    transferSats: derived.transferSats.toString(),
+    tokenDelta: {
+      winnerAddress: derived.winnerAddress,
+      loserAddress: derived.loserAddress,
+      quoteUnits: derived.transferSats.toString(),
+      traderDeltaSats: derived.rawPnlSats.toString()
+    },
+    outputs: derived.outputs,
+    withdrawalRootHex: derived.payout.withdrawalRootHex,
+    commitmentHashHex: derived.payout.commitmentHashHex
+  };
+  const mismatch = Object.keys(expected).find((field) => stableStringify(core[field]) !== stableStringify(expected[field]));
+  if (mismatch) return { ok: false, reason: `${mismatch} does not follow from the settlement terms` };
+  if (settlement.payout?.totalSats !== derived.payout.totalSats) return { ok: false, reason: 'payout total mismatch' };
+  if (settlement.payout?.withdrawalRootHex !== derived.payout.withdrawalRootHex) {
     return { ok: false, reason: 'withdrawal root mismatch' };
   }
   return {
     ok: true,
     settlementHash,
-    transferSats: settlement.settlementCore.transferSats,
-    winnerAddress: settlement.settlementCore.tokenDelta.winnerAddress
+    transferSats: core.transferSats,
+    winnerAddress: core.tokenDelta.winnerAddress
   };
+}
+
+// The terms a claim is compared against, as the settlement states them.
+function perpExpected(settlement) {
+  return {
+    transferSats: settlement.settlementCore.transferSats,
+    winnerAddress: settlement.settlementCore.tokenDelta.winnerAddress,
+    withdrawalRootHex: settlement.settlementCore.withdrawalRootHex
+  };
+}
+
+// The claim is challengeable when it differs from what the settlement terms derive.
+function perpChallengeable(core) {
+  const claimed = core.claimed || {};
+  const expected = core.expected || {};
+  return core.challengeType === 'wrong_destination'
+    ? claimed.winnerAddress !== expected.winnerAddress
+    : claimed.transferSats !== expected.transferSats;
 }
 
 function buildTradeLayerPerpPnlChallenge(settlement, options = {}) {
@@ -163,32 +236,34 @@ function buildTradeLayerPerpPnlChallenge(settlement, options = {}) {
     kind: 'tradelayer_perp_pnl_challenge_v1',
     challengeType,
     settlementHash: settlement.settlementHash,
-    expected: {
-      transferSats: settlement.settlementCore.transferSats,
-      winnerAddress: settlement.settlementCore.tokenDelta.winnerAddress,
-      withdrawalRootHex: settlement.settlementCore.withdrawalRootHex
-    },
+    expected: perpExpected(settlement),
     claimed
   };
   return {
     kind: 'tradelayer_perp_pnl_challenge',
     challengeType,
     challengeHash: sha256Hex(core),
-    challengeable: true,
+    challengeable: perpChallengeable(core),
     core
   };
 }
 
 function verifyTradeLayerPerpPnlChallenge(challenge, settlement) {
-  if (!challenge || challenge.kind !== 'tradelayer_perp_pnl_challenge') {
-    return { ok: false, reason: 'wrong challenge kind' };
-  }
-  if (settlement && challenge.core?.settlementHash !== settlement.settlementHash) {
+  if (!settlement) return { ok: false, reason: 'settlement required to judge a perp challenge' };
+  const settled = verifyTradeLayerPerpPnlSettlement(settlement);
+  if (!settled.ok) return { ok: false, reason: `invalid settlement: ${settled.reason}` };
+  if (challenge?.core?.settlementHash !== settlement.settlementHash) {
     return { ok: false, reason: 'settlement hash mismatch' };
   }
-  const challengeHash = sha256Hex(challenge.core);
-  if (challenge.challengeHash !== challengeHash) return { ok: false, reason: 'challenge hash mismatch', challengeHash };
-  return { ok: true, challengeHash, challengeable: challenge.challengeable };
+  if (stableStringify(challenge.core.expected) !== stableStringify(perpExpected(settlement))) {
+    return { ok: false, reason: 'expected terms do not follow from the settlement' };
+  }
+  return verifyChallengeVerdict(challenge, {
+    kind: 'tradelayer_perp_pnl_challenge',
+    coreKind: 'tradelayer_perp_pnl_challenge_v1',
+    labelField: 'challengeType',
+    verdict: perpChallengeable
+  });
 }
 
 module.exports = {

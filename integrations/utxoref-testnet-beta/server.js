@@ -63,15 +63,19 @@ async function assertRestrictedRpc(rpc) {
   throw new Error('the configured RPC user is not restricted by rpcwhitelist (uptime was allowed); refusing to start');
 }
 
-function recoverInterruptedRuns(state, recoveredAt = new Date().toISOString()) {
+// Work that was in flight when the process died has an unknown outcome. A stress run is failed. A faucet claim
+// still in `sending` may or may not have reached Bitcoin Core, so it becomes broadcast_unknown: it keeps counting
+// against the limits and is settled by reconcile.js, never re-sent automatically.
+function recoverInterruptedWork(state, recoveredAt = new Date().toISOString()) {
   let count = 0;
-  for (const run of Object.values(state.stressRuns)) {
-    if (run.status !== 'running') continue;
-    run.status = 'failed';
-    run.errorCode = 'service_restarted';
-    run.updatedAt = recoveredAt;
+  const interrupt = (record, status) => {
+    record.status = status;
+    record.errorCode = 'service_restarted';
+    record.updatedAt = recoveredAt;
     count += 1;
-  }
+  };
+  for (const run of Object.values(state.stressRuns)) if (run.status === 'running') interrupt(run, 'failed');
+  for (const claim of Object.values(state.claims)) if (claim.status === 'sending') interrupt(claim, 'broadcast_unknown');
   return count;
 }
 
@@ -81,7 +85,7 @@ async function start(env = process.env) {
     throw new Error('remote binding requires BETA_PUBLIC_ORIGIN and a TLS reverse proxy');
   }
   const store = new StateStore(policy.statePath);
-  await store.transact((state) => recoverInterruptedRuns(state));
+  await store.transact((state) => recoverInterruptedWork(state));
   const rpc = resolveRpc(env);
   if (resolveRpcCredentials(env).source === 'rpcauth') await assertRestrictedRpc(rpc);
   const bitcoin = new BitcoinBackend(rpc, policy.wallet);
@@ -123,6 +127,6 @@ module.exports = {
   resolveRpcCredentials,
   resolveRpc,
   assertRestrictedRpc,
-  recoverInterruptedRuns,
+  recoverInterruptedWork,
   start
 };

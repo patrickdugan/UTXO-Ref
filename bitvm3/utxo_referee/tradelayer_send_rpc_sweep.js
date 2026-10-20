@@ -6,6 +6,7 @@ const {
   sha256Hex,
   verifyTradeLayerSendRouteTranscript
 } = require('./tradelayer_pnl_route_adapter');
+const { decimalToUnits, satsToCoinString, toSats } = require('./money');
 
 function encodeBasicAuth(user, pass) {
   return `Basic ${Buffer.from(`${user}:${pass}`).toString('base64')}`;
@@ -114,7 +115,45 @@ function commandParams(sweepPlan, commandName) {
   return command.slice(1);
 }
 
+// The funding input and payout set the broadcast must carry are the ones the route
+// transcript commits to. The sweep plan's createpsbt command is only a copy of them.
+function sweepLayoutMismatch(sweepPlan) {
+  const input = sweepPlan.input || {};
+  const core = sweepPlan.routeTranscript?.core;
+  if (!core || !Array.isArray(core.outputs) || !core.outputs.length) return 'route transcript has no outputs';
+
+  const fundingInputHash = sha256Hex({
+    txid: input.txid || null,
+    vout: input.vout ?? null,
+    address: input.address || null,
+    sats: input.sats !== undefined ? String(input.sats) : null
+  });
+  if (fundingInputHash !== core.fundingInputHash) return 'sweep input is not the committed funding input';
+
+  let inputs;
+  let outputs;
+  try {
+    const command = commandParams(sweepPlan, 'createPsbt');
+    inputs = parseCommandJson(command[0], 'createpsbt inputs');
+    outputs = parseCommandJson(command[1], 'createpsbt outputs');
+  } catch (err) {
+    return err.message;
+  }
+  if (!Array.isArray(inputs) || inputs.length !== 1 || inputs[0].txid !== input.txid || inputs[0].vout !== Number(input.vout)) {
+    return 'createpsbt inputs differ from the committed funding input';
+  }
+  const committedOutputs = core.outputs.map((output) => ({
+    [output.address]: satsToCoinString(BigInt(output.sats))
+  }));
+  if (stableStringify(outputs) !== stableStringify(committedOutputs)) {
+    return 'createpsbt outputs differ from the route transcript';
+  }
+  return null;
+}
+
 function createPsbtParams(sweepPlan) {
+  const mismatch = sweepLayoutMismatch(sweepPlan);
+  if (mismatch) throw new Error(mismatch);
   const params = commandParams(sweepPlan, 'createPsbt');
   return [
     parseCommandJson(params[0], 'createpsbt inputs'),
@@ -122,6 +161,43 @@ function createPsbtParams(sweepPlan) {
     Number(params[2] || 0),
     String(params[3]).toLowerCase() === 'true'
   ];
+}
+
+// The signed transaction must spend exactly the committed input and pay exactly the
+// committed outputs, in order, before it is broadcast.
+function decodedTxMismatch(sweepPlan, decodedTx) {
+  const input = sweepPlan.input || {};
+  const committed = sweepPlan.routeTranscript.core.outputs;
+  const vin = Array.isArray(decodedTx?.vin) ? decodedTx.vin : [];
+  if (vin.length !== 1 || vin[0].txid !== input.txid || vin[0].vout !== Number(input.vout)) {
+    return 'transaction inputs differ from the committed funding input';
+  }
+  const vout = Array.isArray(decodedTx?.vout) ? decodedTx.vout : [];
+  if (vout.length !== committed.length) return 'transaction output count differs from the route transcript';
+  for (let i = 0; i < committed.length; i++) {
+    const sats = decimalToUnits(vout[i].value, 'decoded output value');
+    if (vout[i].scriptPubKey?.address !== committed[i].address || sats !== BigInt(committed[i].sats)) {
+      return 'transaction outputs differ from the route transcript';
+    }
+  }
+  return null;
+}
+
+// The operator must pin the transcript hash it verified. A hash taken from the sweep
+// plan itself is not an anchor, and an embedded transcript must agree with it.
+function routeTranscriptBound(sweepPlan, rpcOptions) {
+  const declaredRouteTranscriptHash = sweepPlan.routeTranscriptHash || sweepPlan.routeTranscript?.hash || null;
+  const embeddedRouteTranscriptHash = sweepPlan.routeTranscript?.hash || null;
+  const embeddedCheck = sweepPlan.routeTranscript
+    ? verifyTradeLayerSendRouteTranscript(sweepPlan.routeTranscript)
+    : { ok: false, reason: 'route transcript missing' };
+  const bound = Boolean(
+    rpcOptions.expectedRouteTranscriptHash
+    && declaredRouteTranscriptHash === rpcOptions.expectedRouteTranscriptHash
+    && (!embeddedRouteTranscriptHash || embeddedRouteTranscriptHash === declaredRouteTranscriptHash)
+    && embeddedCheck.ok
+  );
+  return { bound, declaredRouteTranscriptHash, embeddedRouteTranscriptHash, embeddedCheck };
 }
 
 function normalizeRpcOptions(options = {}) {
@@ -137,28 +213,6 @@ function normalizeRpcOptions(options = {}) {
     requireRouteTranscript: options.requireRouteTranscript !== false,
     expectedRouteTranscriptHash: options.expectedRouteTranscriptHash || options.routeTranscriptHash || null
   };
-}
-
-function coinValueToSats(value, fieldName) {
-  if (typeof value === 'number') {
-    if (!Number.isFinite(value)) throw new Error(`${fieldName} must be finite`);
-    return BigInt(Math.round(value * 100000000));
-  }
-  const text = String(value);
-  if (!/^\d+(\.\d{1,8})?$/.test(text)) throw new Error(`${fieldName} must be a coin amount`);
-  const [whole, fraction = ''] = text.split('.');
-  return BigInt(whole) * 100000000n + BigInt((fraction + '00000000').slice(0, 8));
-}
-
-function inputSatsFromSweepPlan(sweepPlan) {
-  const value = sweepPlan?.input?.sats;
-  if (typeof value === 'bigint') return value;
-  if (typeof value === 'number') {
-    if (!Number.isSafeInteger(value)) throw new Error('sweepPlan.input.sats must be a safe integer');
-    return BigInt(value);
-  }
-  if (typeof value === 'string' && /^\d+$/.test(value)) return BigInt(value);
-  throw new Error('sweepPlan.input.sats must be an integer sat amount');
 }
 
 function normalizeDecodedTxOutputs(decodedTx) {
@@ -230,30 +284,20 @@ async function preflightTradeLayerSendRpcSweep(sweepPlan, options = {}) {
     };
   }
 
-  const declaredRouteTranscriptHash = sweepPlan.routeTranscriptHash || sweepPlan.routeTranscript?.hash || null;
-  const embeddedRouteTranscriptHash = sweepPlan.routeTranscript?.hash || null;
-  const embeddedRouteTranscriptCheck = sweepPlan.routeTranscript
-    ? verifyTradeLayerSendRouteTranscript(sweepPlan.routeTranscript)
-    : { ok: true };
-  const expectedRouteTranscriptHash = rpcOptions.expectedRouteTranscriptHash || declaredRouteTranscriptHash;
-  const routeTranscriptBound = Boolean(
-    expectedRouteTranscriptHash
-    && declaredRouteTranscriptHash
-    && declaredRouteTranscriptHash === expectedRouteTranscriptHash
-    && (!embeddedRouteTranscriptHash || embeddedRouteTranscriptHash === declaredRouteTranscriptHash)
-    && embeddedRouteTranscriptCheck.ok
-  );
-  addCheck('route_transcript_bound', !rpcOptions.requireRouteTranscript || routeTranscriptBound, {
-    expectedRouteTranscriptHash,
-    declaredRouteTranscriptHash,
-    embeddedRouteTranscriptHash,
-    embeddedRouteTranscriptOk: embeddedRouteTranscriptCheck.ok,
-    embeddedRouteTranscriptReason: embeddedRouteTranscriptCheck.reason || null,
+  const transcript = routeTranscriptBound(sweepPlan, rpcOptions);
+  addCheck('route_transcript_bound', !rpcOptions.requireRouteTranscript || transcript.bound, {
+    expectedRouteTranscriptHash: rpcOptions.expectedRouteTranscriptHash,
+    declaredRouteTranscriptHash: transcript.declaredRouteTranscriptHash,
+    embeddedRouteTranscriptHash: transcript.embeddedRouteTranscriptHash,
+    embeddedRouteTranscriptOk: transcript.embeddedCheck.ok,
+    embeddedRouteTranscriptReason: transcript.embeddedCheck.reason || null,
     required: rpcOptions.requireRouteTranscript
   });
+  const layoutMismatch = sweepLayoutMismatch(sweepPlan);
+  addCheck('sweep_matches_route_transcript', !layoutMismatch, { reason: layoutMismatch });
 
   const input = sweepPlan.input || {};
-  const expectedSats = inputSatsFromSweepPlan(sweepPlan);
+  const expectedSats = toSats(sweepPlan.input?.sats, 'sweepPlan.input.sats');
   let txout = null;
   try {
     txout = await rpc('gettxout', [input.txid, Number(input.vout), true]);
@@ -270,7 +314,7 @@ async function preflightTradeLayerSendRpcSweep(sweepPlan, options = {}) {
   }
 
   if (txout) {
-    const actualSats = coinValueToSats(txout.value, 'gettxout.value');
+    const actualSats = decimalToUnits(txout.value, 'gettxout.value');
     addCheck('input_value_matches_commitment', actualSats === expectedSats, {
       expectedSats: expectedSats.toString(),
       actualSats: actualSats.toString()
@@ -378,6 +422,8 @@ async function executeTradeLayerSendRpcSweep(sweepPlan, options = {}) {
           error: `sweep preflight failed: ${preflight.failedChecks.join(', ')}`
         };
       }
+    } else if (rpcOptions.requireRouteTranscript && !routeTranscriptBound(sweepPlan, rpcOptions).bound) {
+      throw new Error('sweep plan is not bound to the expected route transcript');
     }
 
     const psbtParams = createPsbtParams(sweepPlan);
@@ -421,6 +467,8 @@ async function executeTradeLayerSendRpcSweep(sweepPlan, options = {}) {
     }
 
     const decodedTx = await rpc('decoderawtransaction', [finalized.hex]);
+    const outputMismatch = decodedTxMismatch(sweepPlan, decodedTx);
+    if (outputMismatch) throw new Error(outputMismatch);
     const finalSpendBinding = buildFinalSpendBinding(sweepPlan, decodedTx);
     recordStep('decoderawtransaction', ['<final-hex>'], {
       txid: decodedTx.txid || null,

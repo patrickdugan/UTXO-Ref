@@ -3,8 +3,10 @@
 const assert = require('assert');
 const crypto = require('crypto');
 const fs = require('fs');
+const http = require('http');
 const os = require('os');
 const path = require('path');
+const { execFile, spawn, spawnSync } = require('child_process');
 const { loadPolicy } = require('./betaPolicy');
 const { StateStore, createInvitations, privateHash } = require('./betaStore');
 const { rateLimitPathFor } = require('./rateLimiter');
@@ -13,7 +15,7 @@ const { BitcoinBackend } = require('./bitcoinBackend');
 const {
   SERVICE_RPC_METHODS,
   assertRestrictedRpc,
-  recoverInterruptedRuns,
+  recoverInterruptedWork,
   resolveRpcCredentials
 } = require('./server');
 const { stableStringify, sha256Hex } = require('../../bitvm3/utxo_referee/tradelayer_pnl_route_adapter');
@@ -21,6 +23,8 @@ const taprootScript = require('../../bitvm3/utxo_referee/tradelayer_taproot_scri
 const { buildGuardianQuorumVaultManifest } = require('../../bitvm3/utxo_referee/utxoref_v2_guardian_quorum_reserve');
 
 const TEST_TXID = 'ab'.repeat(32);
+const AGENT_SCRIPT = path.join(__dirname, 'guardianAgent.py');
+const GRAPH_HASH = '34dfe4a3d05264fa54cd6d99e9a07ac784c22f3011b7704847337a0543d02eee';
 const TEST_ADDRESS = `tb1q${'a'.repeat(38)}`;
 
 function policyFor(statePath, overrides = {}) {
@@ -247,6 +251,10 @@ async function testPersistentRateLimits(root) {
   assert.ok(!rateDisk.includes('127.0.0.1'), 'rate-limit file must not retain plaintext requester IPs');
   assert.equal(requestIp({ headers: { 'x-forwarded-for': 'attacker-controlled' }, socket: { remoteAddress: '127.0.0.1' } }, { trustProxy: true }), '127.0.0.1');
   assert.equal(requestIp({ headers: { 'x-forwarded-for': '203.0.113.8' }, socket: { remoteAddress: '127.0.0.1' } }, { trustProxy: true }), '203.0.113.8');
+  // A client can prepend entries; the trusted proxy appends the address it received from, which is the last one.
+  assert.equal(requestIp({ headers: { 'x-forwarded-for': '198.51.100.9, 203.0.113.8' }, socket: { remoteAddress: '127.0.0.1' } }, { trustProxy: true }), '203.0.113.8');
+  assert.throws(() => loadPolicy({ BETA_PUBLIC_ORIGIN: 'https://beta.example.org' }), /BETA_TRUST_PROXY must be set/);
+  assert.equal(loadPolicy({ BETA_PUBLIC_ORIGIN: 'https://beta.example.org', BETA_TRUST_PROXY: '0' }).trustProxy, false);
 }
 
 // BETA-1 (port of readiness-assessment poc6): a flood of unauthenticated POSTs
@@ -334,6 +342,16 @@ async function testRestrictedRpcCredentials(root) {
   assert.equal(await assertRestrictedRpc(restricted), true);
   await assert.rejects(assertRestrictedRpc(async () => 12345), /not restricted by rpcwhitelist/);
   await assert.rejects(assertRestrictedRpc(async () => { throw new Error('connect ECONNREFUSED'); }), /could not confirm/);
+}
+
+// The quorum gate is on whenever a guardian registry is configured, unless the operator turns it off explicitly.
+function testGuardianQuorumGateDefaults() {
+  assert.strictEqual(loadPolicy({}).requireGuardianQuorum, false);
+  assert.strictEqual(loadPolicy({ BETA_GUARDIAN_REGISTRY_PATH: '/etc/registry.json' }).requireGuardianQuorum, true);
+  assert.strictEqual(loadPolicy({ BETA_GUARDIAN_REGISTRY_PATH: '/etc/registry.json', BETA_REQUIRE_GUARDIAN_QUORUM: '1' }).requireGuardianQuorum, true);
+  assert.strictEqual(loadPolicy({ BETA_GUARDIAN_REGISTRY_PATH: '/etc/registry.json', BETA_REQUIRE_GUARDIAN_QUORUM: '0' }).requireGuardianQuorum, false);
+  assert.strictEqual(loadPolicy({ BETA_GUARDIAN_REGISTRY_PATH: '/etc/registry.json' }).guardianQuorumExplicit, false);
+  assert.strictEqual(loadPolicy({ BETA_GUARDIAN_REGISTRY_PATH: '/etc/registry.json', BETA_REQUIRE_GUARDIAN_QUORUM: '1' }).guardianQuorumExplicit, true);
 }
 
 function guardianFixture(label) {
@@ -451,6 +469,22 @@ async function testGuardianQuorum(root) {
     bitcoin
   }), /internal key is not the deterministic NUMS key/);
 
+  // A registry without a reserve: the default gate keeps the service up and
+  // betaReady false; an explicit BETA_REQUIRE_GUARDIAN_QUORUM=1 refuses to start.
+  const unreserved = createBetaService({
+    policy: policyFor(statePath, { guardianRegistryPath: registryPath, requireGuardianQuorum: true, guardianQuorumExplicit: false }),
+    store,
+    bitcoin
+  });
+  const unreservedStatus = await unreserved.betaStatus();
+  assert.equal(unreservedStatus.betaReady, false, 'a quorum gate without a reserve must hold betaReady false');
+  assert.equal(unreservedStatus.guardianReserve.configured, false);
+  assert.throws(() => createBetaService({
+    policy: policyFor(statePath, { guardianRegistryPath: registryPath, requireGuardianQuorum: true, guardianQuorumExplicit: true }),
+    store,
+    bitcoin
+  }), /registry and funded reserve/);
+
   let now = new Date('2026-07-15T12:00:00.000Z');
   const policy = policyFor(statePath, {
     guardianRegistryPath: registryPath,
@@ -500,6 +534,105 @@ async function testGuardianQuorum(root) {
   } finally { await live.close(); }
 }
 
+// The guardian agent is Python and needs its cryptography module. The lost-response case runs the real agent
+// CLI against the real service over loopback; a proxy drops the first response after the service committed it.
+function guardianAgentPython() {
+  const python = process.env.GUARDIAN_AGENT_PYTHON || 'python3';
+  return spawnSync(python, ['-c', 'import cryptography'], { stdio: 'ignore' }).status === 0 ? python : null;
+}
+
+function runGuardianAgent(python, stateDir, baseUrl) {
+  return new Promise((resolve) => {
+    execFile(python, [AGENT_SCRIPT, 'once', '--state-dir', stateDir, '--base-url', baseUrl, '--graph-hash', GRAPH_HASH, '--timeout', '5'],
+      (error, stdout, stderr) => resolve({ ok: !error, stdout, stderr }));
+  });
+}
+
+function dropFirstHeartbeatResponse(upstreamBaseUrl) {
+  let dropNext = true;
+  return http.createServer((req, res) => {
+    const chunks = [];
+    req.on('data', (chunk) => chunks.push(chunk));
+    req.on('end', () => {
+      const upstream = http.request(`${upstreamBaseUrl}${req.url}`, { method: req.method, headers: req.headers }, (upRes) => {
+        const parts = [];
+        upRes.on('data', (chunk) => parts.push(chunk));
+        upRes.on('end', () => {
+          if (dropNext && req.method === 'POST' && req.url === '/v1/guardians/heartbeat') {
+            dropNext = false;
+            req.socket.destroy();
+            return;
+          }
+          res.writeHead(upRes.statusCode, upRes.headers);
+          res.end(Buffer.concat(parts));
+        });
+      });
+      upstream.on('error', () => res.destroy());
+      upstream.end(Buffer.concat(chunks));
+    });
+  });
+}
+
+async function testGuardianAgentLostResponseRecovery(root) {
+  const python = guardianAgentPython();
+  if (!python) {
+    console.log('SKIP guardian agent lost-response recovery: cryptography is not installed for GUARDIAN_AGENT_PYTHON or python3');
+    return;
+  }
+  const agentUnits = spawnSync(python, [path.join(__dirname, 'test_guardianAgent.py')], { encoding: 'utf8' });
+  assert.equal(agentUnits.status, 0, agentUnits.stdout + agentUnits.stderr);
+  const stateDir = path.join(root, 'guardian-agent');
+  const init = spawnSync(python, [AGENT_SCRIPT, 'init', '--state-dir', stateDir, '--label', 'agent-guardian'], { encoding: 'utf8' });
+  assert.equal(init.status, 0, init.stderr);
+  const identity = JSON.parse(fs.readFileSync(path.join(stateDir, 'identity.json'), 'utf8'));
+  const peer = guardianFixture('peer-guardian');
+  const registryPath = path.join(root, 'agent-registry.json');
+  const registry = {
+    kind: 'utxoref_beta_guardian_registry',
+    version: 1,
+    graphHash: GRAPH_HASH,
+    quorum: 2,
+    guardians: [identity, peer].map((guardian) => ({
+      guardianId: guardian.guardianId,
+      label: guardian.label,
+      guardianXonly: guardian.guardianXonly,
+      heartbeatPublicKeyPem: guardian.heartbeatPublicKeyPem
+    }))
+  };
+  fs.writeFileSync(registryPath, `${JSON.stringify(registry, null, 2)}\n`);
+
+  // The agent stamps observations with its own wall clock, so the heartbeat window is kept short and real time passes.
+  const store = new StateStore(path.join(root, 'agent-state.json'));
+  const policy = policyFor(store.filePath, {
+    guardianRegistryPath: registryPath,
+    guardianHeartbeatMaxAgeSeconds: 2,
+    guardianClockSkewSeconds: 0
+  });
+  const live = await listen(createBetaService({ policy, store, bitcoin: fakeBitcoin(store) }));
+  const proxy = dropFirstHeartbeatResponse(live.baseUrl);
+  await new Promise((resolve) => proxy.listen(0, '127.0.0.1', resolve));
+  const agentUrl = `http://127.0.0.1:${proxy.address().port}`;
+  try {
+    const lost = await runGuardianAgent(python, stateDir, agentUrl);
+    assert.equal(lost.ok, false, 'the dropped response must fail the first run');
+    assert.ok(fs.existsSync(path.join(stateDir, 'pending_heartbeat.json')), 'the committed envelope stays pending');
+
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+    const stale = await runGuardianAgent(python, stateDir, agentUrl);
+    assert.equal(stale.ok, false, 'a retry past the heartbeat window is refused');
+    assert.match(stale.stderr, /stale_guardian_heartbeat/);
+
+    const next = await runGuardianAgent(python, stateDir, agentUrl);
+    assert.equal(next.ok, true, `the agent must recover after a stale drop: ${next.stderr}`);
+    const receipt = JSON.parse(fs.readFileSync(path.join(stateDir, 'latest_receipt.json'), 'utf8'));
+    assert.equal(receipt.sequence, 2, 'sequence 1 was committed, so the recovered heartbeat is sequence 2');
+    assert.equal(fs.existsSync(path.join(stateDir, 'pending_heartbeat.json')), false);
+  } finally {
+    proxy.close();
+    await live.close();
+  }
+}
+
 async function testCrossProcessLock(root) {
   const statePath = path.join(root, 'lock.json');
   const first = new StateStore(statePath);
@@ -514,6 +647,66 @@ async function testCrossProcessLock(root) {
   const state = first.read();
   assert.ok(state.stressRuns.a);
   assert.ok(state.stressRuns.b);
+}
+
+// A live writer's lock is never broken by age. The holder is a real process that
+// took the lock through the shared directory lock, so the lock is the directory
+// with a live owner that the beta store writes.
+async function testLiveWriterLockIsNotBrokenByAge(root) {
+  const statePath = path.join(root, 'live-holder.json');
+  const lockPath = `${statePath}.lock`;
+  const libPath = path.join(__dirname, '../../bitvm3/utxo_referee/dlc_durable_json_store.js');
+  const holder = spawn(process.execPath, ['-e', `
+    const { acquireDirectoryLock } = require(${JSON.stringify(libPath)});
+    acquireDirectoryLock(${JSON.stringify(lockPath)}, 'held');
+    console.log('LOCKED');
+    setInterval(() => {}, 1000);
+  `], { stdio: ['ignore', 'pipe', 'inherit'] });
+  try {
+    await new Promise((resolve, reject) => {
+      holder.stdout.on('data', (chunk) => { if (String(chunk).includes('LOCKED')) resolve(); });
+      holder.on('exit', (code) => reject(new Error(`lock holder exited with ${code}`)));
+    });
+    const past = new Date(Date.now() - 40000);
+    fs.utimesSync(lockPath, past, past);
+    let ran = false;
+    await assert.rejects(new StateStore(statePath).transact(() => { ran = true; }), (err) => {
+      return err.message === 'timed out acquiring beta state lock';
+    });
+    assert.equal(ran, false, 'a writer entered while a live writer held the state lock');
+    const owner = JSON.parse(fs.readFileSync(path.join(lockPath, 'owner.json'), 'utf8'));
+    assert.equal(owner.pid, holder.pid, 'the live writer lost its lock');
+  } finally {
+    holder.kill();
+  }
+}
+
+// A transact callback that starts another transact on the same state file would
+// wait for the transaction that is waiting for it. It must fail at once instead.
+async function testNestedTransactIsRefused(root) {
+  const statePath = path.join(root, 'nested.json');
+  const store = new StateStore(statePath);
+  const nested = store.transact(() => store.transact(() => 'inner'));
+  const outcome = await Promise.race([
+    nested.then(() => 'resolved', (err) => err.message),
+    new Promise((resolve) => setTimeout(resolve, 2000)).then(() => 'still pending')
+  ]);
+  assert.match(outcome, /nested transact/, `nested transact on the same instance must fail, got: ${outcome}`);
+  const otherInstance = store.transact(() => new StateStore(statePath).transact(() => 'inner'));
+  await assert.rejects(otherInstance, /nested transact/);
+  assert.equal(await store.transact(() => 'after'), 'after', 'the store must keep working after a refused nested call');
+}
+
+// A writer that died holding the state lock must not block the next start.
+async function testDeadWriterLockIsReclaimed(root) {
+  const statePath = path.join(root, 'dead-holder.json');
+  const lockPath = `${statePath}.lock`;
+  fs.mkdirSync(lockPath);
+  const deadPid = spawnSync(process.execPath, ['-e', '']).pid;
+  fs.writeFileSync(path.join(lockPath, 'owner.json'), JSON.stringify({ pid: deadPid, host: os.hostname(), token: 'c'.repeat(32) }));
+  await new StateStore(statePath).transact((state) => { state.stressRuns.restart = { status: 'complete' }; });
+  assert.ok(new StateStore(statePath).read().stressRuns.restart, 'the restarted writer did not commit');
+  assert.ok(!fs.existsSync(lockPath), 'the reclaimed state lock was not released');
 }
 
 async function testBitcoinBackendCompatibility() {
@@ -532,15 +725,68 @@ async function testBitcoinBackendCompatibility() {
   assert.equal(await backend.findFaucetTransaction('aabbccddeeff001122334455'), TEST_TXID);
 }
 
-function testInterruptedRunRecovery() {
-  const state = { stressRuns: {
-    running: { status: 'running' },
-    complete: { status: 'complete' }
-  } };
-  assert.equal(recoverInterruptedRuns(state, '2026-07-14T00:00:00.000Z'), 1);
+// A restart leaves in-flight work with an unknown outcome: stress runs fail, and a claim still in `sending` becomes
+// broadcast_unknown so it stays counted and waits for reconcile.js instead of being re-sent.
+function testInterruptedWorkRecovery() {
+  const state = {
+    stressRuns: {
+      running: { status: 'running' },
+      complete: { status: 'complete' }
+    },
+    claims: {
+      sending: { status: 'sending', txid: null },
+      broadcast: { status: 'broadcast', txid: TEST_TXID }
+    }
+  };
+  assert.equal(recoverInterruptedWork(state, '2026-07-14T00:00:00.000Z'), 2);
   assert.equal(state.stressRuns.running.status, 'failed');
   assert.equal(state.stressRuns.running.errorCode, 'service_restarted');
   assert.equal(state.stressRuns.complete.status, 'complete');
+  assert.equal(state.claims.sending.status, 'broadcast_unknown');
+  assert.equal(state.claims.sending.errorCode, 'service_restarted');
+  assert.equal(state.claims.broadcast.status, 'broadcast');
+}
+
+// Several claims arrive together, and the wallet can afford only two of them above the reserve floor. The balance
+// each claim checks must include the claims before it, so exactly two broadcast.
+async function testConcurrentClaimsRespectReserveFloor(root) {
+  const statePath = path.join(root, 'reserve-floor.json');
+  const store = new StateStore(statePath);
+  let balanceSats = 254000;
+  const sends = [];
+  const bitcoin = {
+    async status() {
+      return {
+        chain: 'testnet4', blocks: 150000, headers: 150000,
+        initialBlockDownload: false, verificationProgress: 1, pruned: true,
+        walletTrustedSats: String(balanceSats), walletPendingSats: '0'
+      };
+    },
+    async validateDestination(address) {
+      return { address, scriptPubKey: `0014${'00'.repeat(20)}` };
+    },
+    async sendFaucet(_address, amountSats, claimId) {
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      balanceSats -= amountSats + 1000;
+      sends.push(claimId);
+      return TEST_TXID;
+    },
+    async getTxout() { return null; }
+  };
+  const policy = policyFor(statePath, { ipClaimsPerDay: 10, postRequestsPerMinute: 100, postRequestsPerHour: 100 });
+  const service = createBetaService({ policy, store, bitcoin });
+  const tokens = [];
+  for (let index = 0; index < 5; index++) tokens.push(await createInvite(store));
+  const claimWith = (token, index) => service.claimFaucet({
+    inviteToken: token,
+    address: `tb1q${String(index).padStart(38, 'a')}`
+  }, { headers: { 'idempotency-key': `reserve-floor-claim-${index}` }, socket: { remoteAddress: '127.0.0.1' } })
+    .then(() => 'broadcast', (err) => err.code || err.message);
+  const outcomes = await Promise.all(tokens.map(claimWith));
+  assert.equal(sends.length, 2, `expected two claims above the floor, got ${sends.length}: ${outcomes.join(',')}`);
+  assert.deepStrictEqual(outcomes.filter((outcome) => outcome === 'broadcast').length, 2);
+  assert.ok(outcomes.includes('faucet_reserve_floor'));
+  assert.ok(balanceSats >= 250000, 'the reserve floor was breached');
 }
 
 async function main() {
@@ -554,10 +800,16 @@ async function main() {
     await testLegacyRateLimitsCarryOver(root);
     await testRestrictedRpcCredentials(root);
     await testGuardianQuorum(root);
+    await testGuardianAgentLostResponseRecovery(root);
     await testCrossProcessLock(root);
+    await testLiveWriterLockIsNotBrokenByAge(root);
+    await testNestedTransactIsRefused(root);
+    await testDeadWriterLockIsReclaimed(root);
     await testBitcoinBackendCompatibility();
-    testInterruptedRunRecovery();
-    console.log(JSON.stringify({ ok: true, suite: 'utxoref-testnet-beta', tests: 9 }));
+    await testConcurrentClaimsRespectReserveFloor(root);
+    testInterruptedWorkRecovery();
+    testGuardianQuorumGateDefaults();
+    console.log(JSON.stringify({ ok: true, suite: 'utxoref-testnet-beta', tests: 17 }));
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

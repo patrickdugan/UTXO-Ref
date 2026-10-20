@@ -2,27 +2,7 @@ const {
   buildTradeLayerSendRouteTranscript,
   verifyTradeLayerPnlRoutePlan
 } = require('./tradelayer_pnl_route_adapter');
-
-const COIN = 100000000n;
-
-function toSats(value, fieldName) {
-  if (typeof value === 'bigint') return value;
-  if (typeof value === 'number') {
-    if (!Number.isSafeInteger(value)) throw new Error(`${fieldName} must be a safe integer`);
-    return BigInt(value);
-  }
-  if (typeof value === 'string' && /^-?\d+$/.test(value)) return BigInt(value);
-  throw new Error(`${fieldName} must be an integer sat amount`);
-}
-
-function satsToCoinString(value) {
-  const sats = toSats(value, 'sats');
-  const sign = sats < 0n ? '-' : '';
-  const abs = sats < 0n ? -sats : sats;
-  const whole = abs / COIN;
-  const fraction = (abs % COIN).toString().padStart(8, '0');
-  return `${sign}${whole}.${fraction}`;
-}
+const { toSats, satsToCoinString } = require('./money');
 
 function normalizeSweepOutput(output, index) {
   if (!output || typeof output !== 'object') throw new Error(`outputPlan[${index}] must be an object`);

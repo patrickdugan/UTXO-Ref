@@ -7,7 +7,9 @@ const {
   snapshotPlainData,
   snapshotOwnDataArguments,
   canonicalize,
-  canonicalJson
+  canonicalJson,
+  requireHex,
+  sha256Hex
 } = require('./dlc_canonical_json');
 const {
   isDlcSigningAuthorizationStore
@@ -82,20 +84,13 @@ function normalizeAuthorizationStore(store) {
 }
 
 function providerIdentity(provider) {
-  return crypto.createHash('sha256').update(Buffer.from(canonicalJson({
+  return sha256Hex(Buffer.from(canonicalJson({
     kind: provider.kind,
     mode: provider.mode,
     network: provider.network,
     securityLevel: provider.securityLevel,
     capabilities: provider.capabilities
-  }), 'utf8')).digest('hex');
-}
-
-function requireLowerHex(value, bytes, fieldName) {
-  if (typeof value !== 'string' || !new RegExp(`^[0-9a-f]{${bytes * 2}}$`).test(value)) {
-    throw new Error(`${fieldName} must be lowercase ${bytes}-byte hex`);
-  }
-  return value;
+  }), 'utf8'));
 }
 
 function requireAuthorizationId(value) {
@@ -154,7 +149,7 @@ function cetSetDigest(contract) {
   const transition = contract.history.find((entry) => entry.to === 'CANONICAL_CETS_AND_REFUND');
   const receipt = transition && transition.evidence.find((entry) => entry.kind === 'cet_set');
   if (!receipt) throw new Error('DLC contract has no authenticated CET set commitment');
-  return requireLowerHex(receipt.digest, 32, 'cetSetDigest');
+  return requireHex(receipt.digest, 32, 'cetSetDigest');
 }
 
 function normalizeAdaptorPoint(point) {
@@ -167,8 +162,8 @@ function normalizeAdaptorPoint(point) {
     });
   }
   return Object.freeze({
-    x: requireLowerHex(point.x, 32, 'adaptorPoint.x'),
-    y: requireLowerHex(point.y, 32, 'adaptorPoint.y')
+    x: requireHex(point.x, 32, 'adaptorPoint.x'),
+    y: requireHex(point.y, 32, 'adaptorPoint.y')
   });
 }
 
@@ -189,7 +184,7 @@ function adaptorSigningAuthorizationPayload(input) {
   const window = authorizationWindow(issuedAtUnixSeconds, expiresAtUnixSeconds);
   const target = deriveCetSigningTarget({
     contract,
-    signerPubkeyX: requireLowerHex(signerPubkeyX, 32, 'signerPubkeyX'),
+    signerPubkeyX: requireHex(signerPubkeyX, 32, 'signerPubkeyX'),
     signingContext
   });
   if (target.cetSetDigest !== cetSetDigest(contract)) {
@@ -249,7 +244,7 @@ function createDlcAdaptorSignAuthorization(input) {
   const publicKey = crypto.createPublicKey(privateKey);
   if (publicKey.asymmetricKeyType !== 'ed25519') throw new Error('DLC signing authorization key must be Ed25519');
   const publicKeyDer = publicKey.export({ format: 'der', type: 'spki' });
-  const validatorKeyId = crypto.createHash('sha256').update(publicKeyDer).digest('hex');
+  const validatorKeyId = sha256Hex(publicKeyDer);
   if (contract.validatorPolicy.local_cet_signatures.keyId !== validatorKeyId) {
     throw new Error('DLC signing authorization key is not the pinned local CET validator');
   }
@@ -359,8 +354,7 @@ function authorizeDlcAdaptorSign(provider, input = {}) {
         throw new Error('native isolated adaptor signing accepts no host-supplied secret or key handle');
       }
       executed = true;
-      const authorizationDigest = crypto.createHash('sha256')
-        .update(Buffer.from(canonicalJson(authorization), 'utf8')).digest('hex');
+      const authorizationDigest = sha256Hex(Buffer.from(canonicalJson(authorization), 'utf8'));
       authorizationStore.consume({
         network: contract.network,
         contractId: contract.contractId,
@@ -485,7 +479,7 @@ function trustedAuditKeyMap(trustedAuditKeys) {
     try { publicKey = crypto.createPublicKey({ key: der, format: 'der', type: 'spki' }); }
     catch (_error) { throw new Error(`trusted audit key ${index} is invalid`); }
     if (publicKey.asymmetricKeyType !== 'ed25519' ||
-        crypto.createHash('sha256').update(der).digest('hex') !== entry.keyId || keys.has(entry.keyId)) {
+        sha256Hex(der) !== entry.keyId || keys.has(entry.keyId)) {
       throw new Error(`trusted audit key ${index} identity is invalid or duplicated`);
     }
     keys.set(entry.keyId, publicKey);

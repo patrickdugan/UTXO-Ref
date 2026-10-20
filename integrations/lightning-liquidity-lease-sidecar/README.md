@@ -8,6 +8,10 @@ This sidecar exposes the wallet-facing flow for funding a UTXORef DLC/BitVM temp
 - TradeLayer listener: `http://127.0.0.1:3000`
 - WebRTC RPC route, when running: `http://127.0.0.1:18878/rpc/route`
 
+## Authentication
+
+Every `POST` route requires `Authorization: Bearer <token>`, where the token is the single line in the file named by `SIDECAR_API_TOKEN_FILE`. The sidecar refuses to start if that file is readable by group or others (use mode 0600). Windows files have ACLs instead of mode bits, so there the check is skipped: keep the token file under the operator's own profile. With no token file configured, every `POST` is refused. Bodies must be `application/json` and at most 16 KiB.
+
 ## LND REST Environment
 
 The pay endpoint uses LND REST and reads credentials from environment variables:
@@ -19,6 +23,10 @@ $env:LND_TLS_CERT_PATH = "C:\path\to\tls.cert"
 ```
 
 For local throwaway testing with a trusted node, `LND_REST_INSECURE=1` disables TLS verification.
+
+The macaroon must allow tracking payments (`GET /v2/router/track/{payment_hash}`, the router RPC) as well as sending them. The sidecar treats a request as paid only when LND reports a `SUCCEEDED` payment for the request's payment hash whose preimage hashes to it, and mints only when LND's `value_msat` (or `value_sat`) for that payment equals the request's `invoiceAmountSats`. Its own record of a settled payment is used the other way only: a request it saw settled is never paid again, whatever LND answers later. A track answer of 404 means "never initiated" only when its body is the gateway's gRPC NOT_FOUND (`code` 5) or says the payment was not initiated; any other 404 is an LND error. A payment LND reports in flight is not paid again (409).
+
+Requests are stored in `SIDECAR_REQUEST_STORE_PATH` (default `runtime/dlc-subswap-requests.json`, written mode 0600) and move quoted -> paid -> minted. A quote expires after `SIDECAR_QUOTE_TTL_SECONDS` (default 86400) unless it is paid, and an expired quote can be quoted again. A pay saves the attempt before LND is asked, so an attempted request does not expire: it is dropped only when LND reports its payment failed, and it becomes paid when LND reports the payment settled. `SIDECAR_MAX_QUOTED_REQUESTS` (default 1000) bounds the open requests, quoted or paid; when it is full new quotes get a 503 until live quotes expire. A minted request is appended to `<store path>.minted` with its intent, outside the open table, bounded by `SIDECAR_MAX_MINTED_REQUESTS` (default 100000), and is never quoted or paid again. An attempted request that LND reports unknown is dropped once max(`SIDECAR_QUOTE_TTL_SECONDS`, 1 hour) has passed since its attempt; a quote request looks up at most five attempted requests. One payment backs one request: a quote is refused (409) while another open or minted request holds its payment hash, and a mint is refused when the hash already backed another request's grant.
 
 ## Endpoint Flow
 
@@ -39,11 +47,11 @@ For local throwaway testing with a trusted node, `LND_REST_INSECURE=1` disables 
 
 2. `POST /v1/dlc-subswap-funding/pay`
 
-   Pays `request.requestCore.submarineSwap.invoice` via LND REST and returns the payment preimage proof.
+   Body: `{"requestId": "..."}`. Pays the invoice of a request this process quoted, via LND REST, and returns the payment preimage proof. Each quoted request can be paid once; the fee limit comes from `UTXOREF_LND_MAX_FEE_SATS` or the quoted swap fee.
 
 3. `POST /v1/dlc-subswap-funding/tlbtc-mint-intent`
 
-   Verifies the preimage against the request payment hash and returns a TradeLayer call descriptor:
+   Body: `{"requestId": "...", "recipientAddress": "..."}`. Only a request that LND reports as settled yields a mint intent; a restart does not change that. A request yields one intent: the intent is stored with its minted record and fsynced before it is returned. A repeat is refused with 409; with `SIDECAR_REPLAY_MINT_INTENT=1`, a repeat for the same request and recipient gets that stored intent back byte for byte (so a lost response can be retried), which is safe only if the consumer refuses a descriptor it already granted. Another recipient is refused with 409 either way, because the intent is forwarded to TradeLayer and a second distinct one would be a second grant. The grant's `fromAddress` comes from `TL_PROCEDURAL_ADMIN_ADDRESS`, and the DLC state from the `TL_DLC_*` environment. The intent is a TradeLayer call descriptor:
 
    ```json
    {

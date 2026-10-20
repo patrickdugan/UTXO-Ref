@@ -163,6 +163,14 @@ test('verify settlement routing enforces dust output when committed', () => {
 
 console.log('\n-----------------------------------');
 console.log(`Results: ${passed} passed, ${failed} failed`);
+test('a negative fee or dust carry is refused, not derived as a conserving split', () => {
+  let refused = false;
+  try {
+    deriveSettlementRouting({ route: 'settle-gain', collateralSats: 10000n, feeSats: -1000n, actualPayoutSats: 3000n });
+  } catch (e) { refused = /cannot be negative/.test(e.message); }
+  assert(refused, 'a negative fee must be refused');
+});
+
 console.log('-----------------------------------\n');
 
 if (failed > 0) {

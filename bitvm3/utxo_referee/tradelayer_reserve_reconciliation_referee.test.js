@@ -2,6 +2,7 @@
  * Run: node bitvm3/utxo_referee/tradelayer_reserve_reconciliation_referee.test.js
  */
 
+const { sha256Hex } = require('./tradelayer_pnl_route_adapter');
 const {
   buildTradeLayerWithdrawalQueue
 } = require('./tradelayer_withdrawal_queue_referee');
@@ -140,7 +141,7 @@ test('builds and verifies a challengeable insolvency proof', () => {
   const challenge = buildTradeLayerReserveInsolvencyChallenge(insolvent);
   assert(challenge.challengeable, 'shortfall should be challengeable');
   assertEq(challenge.core.shortfallSats, '49000');
-  assert(verifyTradeLayerReserveInsolvencyChallenge(challenge, insolvent).ok, 'challenge should verify');
+  assert(verifyTradeLayerReserveInsolvencyChallenge(challenge, insolvent, queue, { reserve: 50000 }).ok, 'challenge should verify');
 
   const solvent = buildTradeLayerReserveReconciliation({ queue, reserve: 100000 });
   const noChallenge = buildTradeLayerReserveInsolvencyChallenge(solvent);
@@ -185,14 +186,106 @@ test('a reconciliation that was fresh at build time is caught stale at verify ti
   assert(rec.solvent, 'fresh at build time');
 
   // Time passes; re-verify with a much later live height.
-  const freshCheck = verifyTradeLayerReserveReconciliation(rec, queue, { currentHeight: 1002 });
+  const freshCheck = verifyTradeLayerReserveReconciliation(rec, queue, { currentHeight: 1002, reserve: 100000 });
   assert(freshCheck.ok && freshCheck.solvent, 'still fresh a moment later');
 
-  const staleCheck = verifyTradeLayerReserveReconciliation(rec, queue, { currentHeight: 1050 });
+  const staleCheck = verifyTradeLayerReserveReconciliation(rec, queue, { currentHeight: 1050, reserve: 100000 });
   assert(staleCheck.ok, staleCheck.reason);
   assert(!staleCheck.solvent, 'live re-check at height 1050 (age 50 > window 6) must force insolvent');
   assert(staleCheck.staleNow === true, 'staleNow must reflect the live re-check');
   assertEq(staleCheck.mathSolvent, true, 'the math itself is unchanged - only the freshness policy blocks it');
+});
+
+test('rejects a reconciliation whose reservedSats is not the reserve evidence', () => {
+  const queue = buildQueue();
+  const honest = buildTradeLayerReserveReconciliation({ queue, reserve: 1000 });
+  assert(!honest.solvent, 'honest reserve of 1000 is insolvent against a 99000 cap');
+  const forged = clone(honest);
+  forged.core.reservedSats = '999999999';
+  forged.core.marginSats = (999999999n - 99000n).toString();
+  forged.core.mathSolvent = true;
+  forged.core.solvent = true;
+  forged.solvent = true;
+  forged.reconciliationHash = sha256Hex(forged.core);
+  const result = verifyTradeLayerReserveReconciliation(forged, queue, { currentHeight: 5, reserve: 1000 });
+
+  assert(!result.ok, 'inflated reservedSats must not verify against the reserve evidence');
+  assert(String(result.reason).includes('does not match reserve evidence'), result.reason);
+});
+
+test('verification without reserve evidence is not solvent', () => {
+  const queue = buildQueue();
+  const rec = buildTradeLayerReserveReconciliation({ queue, reserve: 999999 });
+  assert(rec.solvent, 'built solvent');
+  const result = verifyTradeLayerReserveReconciliation(rec, queue);
+
+  assert(result.ok, result.reason);
+  assert(!result.solvent, 'solvency cannot be established without the reserve evidence');
+});
+
+test('the verifier policy sets the staleness window, not the artifact', () => {
+  const queue = buildQueue();
+  const rec = buildTradeLayerReserveReconciliation({
+    queue, reserve: 100000, observedAtHeight: 1000, currentHeight: 1000, maxReserveAgeBlocks: 6
+  });
+  const forged = clone(rec);
+  forged.core.maxReserveAgeBlocks = 1000000;
+  forged.reconciliationHash = sha256Hex(forged.core);
+  const result = verifyTradeLayerReserveReconciliation(forged, queue, { currentHeight: 1100, reserve: 100000 });
+
+  assert(result.ok, result.reason);
+  assert(!result.solvent, 'age 100 exceeds the verifier window of 6 regardless of the artifact');
+});
+
+test('an observed reserve is not solvent when verified without currentHeight', () => {
+  const queue = buildQueue();
+  const rec = buildTradeLayerReserveReconciliation({
+    queue, reserve: 100000, observedAtHeight: 1000, currentHeight: 1002, maxReserveAgeBlocks: 6
+  });
+  const result = verifyTradeLayerReserveReconciliation(rec, queue, { reserve: 100000 });
+
+  assert(result.ok, result.reason);
+  assert(!result.solvent, 'freshness cannot be established without currentHeight');
+});
+
+test('rejects a deposit snapshot that lists one credited deposit twice', () => {
+  const queue = buildQueue();
+  const deposit = { depositId: 'd1', status: 'credited', amountSats: 5000, txid: 'aa'.repeat(32), vout: 0 };
+  let threw = false;
+  try {
+    buildTradeLayerReserveReconciliation({ queue, reserve: { kind: 'receipt-deposit-indexer', deposits: [deposit, { ...deposit }] } });
+  } catch (err) {
+    threw = /duplicate credited deposit/.test(err.message);
+  }
+  assert(threw, 'a repeated credited deposit must not be counted twice');
+});
+
+test('distinct credited deposits without an outpoint are each counted', () => {
+  const queue = buildQueue();
+  const reserve = {
+    kind: 'receipt-deposit-indexer',
+    deposits: [
+      { depositId: 'd1', status: 'credited', amountSats: 5000 },
+      { depositId: 'd2', status: 'credited', amountSats: 7000 }
+    ]
+  };
+  assertEq(reservedSatsFromDepositSnapshot(reserve).toString(), '12000');
+  assert(buildTradeLayerReserveReconciliation({ queue, reserve }), 'both deposits should build');
+});
+
+test('rejects two deposit ids that spend the same outpoint', () => {
+  const queue = buildQueue();
+  const outpoint = { status: 'credited', amountSats: 5000, txid: 'aa'.repeat(32), vout: 0 };
+  let threw = false;
+  try {
+    buildTradeLayerReserveReconciliation({
+      queue,
+      reserve: { kind: 'receipt-deposit-indexer', deposits: [{ ...outpoint, depositId: 'd1' }, { ...outpoint, depositId: 'd2' }] }
+    });
+  } catch (err) {
+    threw = /duplicate credited deposit/.test(err.message);
+  }
+  assert(threw, 'one outpoint must not be credited under two deposit ids');
 });
 
 test('currentHeight before observedAtHeight (reorg/bad input) fails closed, not silently accepted', () => {

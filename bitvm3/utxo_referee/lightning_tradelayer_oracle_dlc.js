@@ -9,6 +9,7 @@
 
 const crypto = require('crypto');
 const { canonicalStringify, normalizeAmountSats } = require('./m1_spec');
+const { toInt, heightOf } = require('./money');
 const {
   derivePreimageHex,
   derivePaymentHashHex,
@@ -56,7 +57,7 @@ function normalizePositiveInteger(value, fieldName) {
 function normalizePositiveBigInt(value, fieldName) {
   let bigint;
   try {
-    bigint = BigInt(value);
+    bigint = toInt(value, fieldName);
   } catch (_err) {
     throw new Error(`${fieldName} must be a positive integer`);
   }
@@ -200,7 +201,7 @@ function buildTradeLayerVwapStateOracle(options = {}) {
   );
   const vwapScaledPrice = computeVwapScaledPrice(validTrades).toString();
   const lastAcceptedScaledPrice = priceToScaledInt(options.lastAcceptedPrice ?? '64000').toString();
-  const maxDeviationBps = Number(options.maxDeviationBps ?? DEFAULT_MAX_PRICE_DEVIATION_BPS);
+  const maxDeviationBps = heightOf(options.maxDeviationBps ?? DEFAULT_MAX_PRICE_DEVIATION_BPS, 'maxDeviationBps');
   if (!Number.isSafeInteger(maxDeviationBps) || maxDeviationBps <= 0) {
     throw new Error('maxDeviationBps must be a positive safe integer');
   }
@@ -313,6 +314,18 @@ function verifyTradeLayerVwapStateOracle(vwapStateOracle, oraclePolicy = null) {
   if (computeVwapScaledPrice(vwapStateOracle.validTrades).toString() !== vwapStateOracle.summaryCore.vwapScaledPrice) {
     return { ok: false, reason: 'VWAP arithmetic mismatch' };
   }
+  let recomputedDeviationBps;
+  try {
+    recomputedDeviationBps = priceDeviationBps(
+      vwapStateOracle.summaryCore.lastAcceptedScaledPrice,
+      vwapStateOracle.summaryCore.vwapScaledPrice
+    );
+  } catch (err) {
+    return { ok: false, reason: err.message };
+  }
+  if (recomputedDeviationBps !== vwapStateOracle.summaryCore.priceDeviationBps) {
+    return { ok: false, reason: 'VWAP price deviation mismatch' };
+  }
   if (sha256Hex(vwapStateOracle.payloadText) !== vwapStateOracle.payloadHash) {
     return { ok: false, reason: 'VWAP payload hash mismatch' };
   }
@@ -325,16 +338,16 @@ function verifyTradeLayerVwapStateOracle(vwapStateOracle, oraclePolicy = null) {
   ) {
     return { ok: false, reason: 'VWAP publisher proof mismatch' };
   }
-  if (oraclePolicy) {
-    if (vwapStateOracle.publisherAddress !== oraclePolicy.designatedOracleAddress) {
-      return { ok: false, reason: 'VWAP designated oracle address mismatch' };
-    }
-    if (vwapStateOracle.summaryCore.lastAcceptedScaledPrice !== oraclePolicy.lastAcceptedScaledPrice) {
-      return { ok: false, reason: 'VWAP previous mark mismatch' };
-    }
-    if (vwapStateOracle.summaryCore.priceDeviationBps > oraclePolicy.maxDeviationBps) {
-      return { ok: false, reason: 'VWAP price outside 5pct solvency band' };
-    }
+  // A mark is settlement input only inside the policy band, so the policy is required.
+  if (!oraclePolicy) return { ok: false, reason: 'VWAP oracle policy required to settle on a VWAP mark' };
+  if (vwapStateOracle.publisherAddress !== oraclePolicy.designatedOracleAddress) {
+    return { ok: false, reason: 'VWAP designated oracle address mismatch' };
+  }
+  if (vwapStateOracle.summaryCore.lastAcceptedScaledPrice !== oraclePolicy.lastAcceptedScaledPrice) {
+    return { ok: false, reason: 'VWAP previous mark mismatch' };
+  }
+  if (vwapStateOracle.summaryCore.priceDeviationBps > oraclePolicy.maxDeviationBps) {
+    return { ok: false, reason: 'VWAP price outside 5pct solvency band' };
   }
   return { ok: true };
 }
@@ -350,7 +363,7 @@ function buildTradeLayerVwapStateOracleChallenge(vwapStateOracle, options = {}) 
     options.claimedPublisherAddress || vwapStateOracle.publisherAddress,
     'claimedPublisherAddress'
   );
-  const claimedDeviationBps = Number(options.claimedDeviationBps ?? vwapStateOracle.summaryCore.priceDeviationBps);
+  const claimedDeviationBps = heightOf(options.claimedDeviationBps ?? vwapStateOracle.summaryCore.priceDeviationBps, 'claimedDeviationBps');
   const violations = [];
   if (claimedSummaryCommitmentId !== vwapStateOracle.summaryCommitmentId) {
     violations.push('vwap_summary_commitment_mismatch');
@@ -495,7 +508,7 @@ function buildTradeLayerPricePublishTrigger(options = {}) {
     'publisherAddress'
   );
   const lastAcceptedScaledPrice = priceToScaledInt(options.lastAcceptedPrice ?? '64000').toString();
-  const maxDeviationBps = Number(options.maxDeviationBps ?? DEFAULT_MAX_PRICE_DEVIATION_BPS);
+  const maxDeviationBps = heightOf(options.maxDeviationBps ?? DEFAULT_MAX_PRICE_DEVIATION_BPS, 'maxDeviationBps');
   if (!Number.isSafeInteger(maxDeviationBps) || maxDeviationBps <= 0) {
     throw new Error('maxDeviationBps must be a positive safe integer');
   }
@@ -676,7 +689,7 @@ function buildBilateralLnDlcContract(options = {}) {
   const entryPrice = options.entryPrice ?? '65000';
   const entryPriceScaled = priceToScaledInt(entryPrice);
   const lastAcceptedScaledPrice = priceToScaledInt(options.lastAcceptedPrice ?? '64000');
-  const maxDeviationBps = Number(options.maxDeviationBps ?? DEFAULT_MAX_PRICE_DEVIATION_BPS);
+  const maxDeviationBps = heightOf(options.maxDeviationBps ?? DEFAULT_MAX_PRICE_DEVIATION_BPS, 'maxDeviationBps');
   if (!Number.isSafeInteger(maxDeviationBps) || maxDeviationBps <= 0) {
     throw new Error('maxDeviationBps must be a positive safe integer');
   }
@@ -877,7 +890,7 @@ function buildBitvmDlcChallenge(contract, trigger, settlement, options = {}) {
     options.claimedPublisherAddress || trigger.publisherAddress,
     'claimedPublisherAddress'
   );
-  const claimedDeviationBps = Number(options.claimedDeviationBps ?? trigger.priceDeviationBps);
+  const claimedDeviationBps = heightOf(options.claimedDeviationBps ?? trigger.priceDeviationBps, 'claimedDeviationBps');
   const policy = contract.contractCore.oraclePolicy;
   const violations = [];
   if (claimedPayloadHash !== trigger.payloadHash) violations.push('wrong_tradelayer_payload_hash');

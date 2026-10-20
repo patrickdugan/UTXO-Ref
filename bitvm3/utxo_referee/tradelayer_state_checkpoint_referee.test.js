@@ -2,6 +2,7 @@
  * Run: node bitvm3/utxo_referee/tradelayer_state_checkpoint_referee.test.js
  */
 
+const { sha256Hex } = require('./tradelayer_pnl_route_adapter');
 const {
   buildTradeLayerStateCheckpoint,
   verifyTradeLayerStateCheckpoint,
@@ -63,6 +64,30 @@ test('rejects checkpoint root tampering', () => {
 
   assert(!result.ok, 'tampered checkpoint should fail');
   assert(String(result.reason).includes('accepted tx root mismatch'), 'expected accepted root mismatch');
+});
+
+test('rejects a checkpoint that lists one txid as both accepted and rejected', () => {
+  const txid = '11'.repeat(32);
+  const honest = buildTradeLayerStateCheckpoint({ acceptedTxids: [txid] });
+  const forged = clone(honest);
+  forged.core.rejectedTxids = [txid];
+  forged.core.rejectedTxRoot = sha256Hex(forged.core.rejectedTxids);
+  forged.checkpointHash = sha256Hex(forged.core);
+  const result = verifyTradeLayerStateCheckpoint(forged);
+
+  assert(!result.ok, 'a txid cannot be both accepted and rejected');
+  assert(/overlap/.test(result.reason), result.reason);
+});
+
+test('fraud proof verification requires the checkpoint it proves against', () => {
+  const checkpoint = buildTradeLayerStateCheckpoint({ acceptedTxids: ['11'.repeat(32)] });
+  const proof = buildTradeLayerCheckpointFraudProof(checkpoint, {
+    proofType: 'invalid_accepted_tx',
+    txid: '11'.repeat(32)
+  });
+  const result = verifyTradeLayerCheckpointFraudProof(proof);
+
+  assert(!result.ok, 'a proof verified without its checkpoint must not pass');
 });
 
 test('builds a challengeable invalid accepted tx proof', () => {
