@@ -5,6 +5,8 @@ const http = require('http');
 const os = require('os');
 const path = require('path');
 const { routeTrackRequest } = require('./lndTrackGateway');
+// What LND records as paid for a settled payment: the invoice amount, collateral 12345 plus fee 321.
+const INVOICE_AMOUNT_SATS = '12666';
 
 // The open quote table bounds live, unsettled quotes. A quote is quoted -> paid -> minted: a quote expires after
 // SIDECAR_QUOTE_TTL_SECONDS unless it was paid, and a minted request is recorded by hash, outside the open table,
@@ -65,7 +67,7 @@ const fakeLnd = http.createServer((req, res) => {
       return;
     }
     setTimeout(() => {
-      lndPayments.push({ payment_hash: known.paymentHashHex, payment_preimage: known.preimageHex, status: 'SUCCEEDED', value_sat: '12345' });
+      lndPayments.push({ payment_hash: known.paymentHashHex, payment_preimage: known.preimageHex, status: 'SUCCEEDED', value_sat: INVOICE_AMOUNT_SATS });
       if (lndDropAfterSettle) {
         lndDropAfterSettle = false;
         req.socket.destroy();
@@ -243,7 +245,7 @@ async function main() {
   const unrecorded = payment(62);
   knownInvoices.set(unrecorded.invoice, unrecorded);
   const unrecordedId = (await quote(node.base, 62)).json.request.requestId;
-  lndPayments.push({ payment_hash: unrecorded.paymentHashHex, payment_preimage: unrecorded.preimageHex, status: 'SUCCEEDED', value_sat: '12345' });
+  lndPayments.push({ payment_hash: unrecorded.paymentHashHex, payment_preimage: unrecorded.preimageHex, status: 'SUCCEEDED', value_sat: INVOICE_AMOUNT_SATS });
   await wait();
   assert.strictEqual((await mint(node.base, unrecordedId)).status, 200, 'a payment LND settled before expiry was refused as expired');
   log('a payment LND settled but the sidecar did not record is minted after the quote expired');
@@ -366,7 +368,7 @@ async function main() {
     const storedIds = () => new Set(JSON.parse(fs.readFileSync(storePath, 'utf8')).entries.map((e) => e.request.requestId));
     const settledLater = payment(130);
     const late = await attempt(130);
-    lndPayments.push({ payment_hash: settledLater.paymentHashHex, payment_preimage: settledLater.preimageHex, status: 'SUCCEEDED' });
+    lndPayments.push({ payment_hash: settledLater.paymentHashHex, payment_preimage: settledLater.preimageHex, status: 'SUCCEEDED', value_sat: INVOICE_AMOUNT_SATS });
     const stale = [];
     for (let i = 100; i < 108; i++) stale.push(await attempt(i));
     const lookupsIn = async (fn) => {
