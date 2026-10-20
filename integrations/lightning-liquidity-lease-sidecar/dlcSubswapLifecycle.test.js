@@ -279,12 +279,20 @@ async function main() {
   const saveFailId = (await quote(node.base, 63)).json.request.requestId;
   lndDropAfterSettle = true;
   assert.strictEqual((await pay(node.base, saveFailId)).status, 502);
-  fs.chmodSync(tokenDir, 0o500);
+  // Creating the store's temporary file fails during this pay, as it would in a read-only directory. A stub rather than
+  // chmod 0o500: on Windows a directory's mode bits do not stop writes, so the save would succeed there.
+  const realOpenSync = fs.openSync;
+  fs.openSync = (file, ...rest) => {
+    if (String(file).startsWith(`${storePath}.`) && String(file).endsWith('.tmp')) {
+      throw Object.assign(new Error(`EACCES: permission denied, open '${file}'`), { code: 'EACCES' });
+    }
+    return realOpenSync(file, ...rest);
+  };
   let failedSave;
   try {
     failedSave = await pay(node.base, saveFailId);
   } finally {
-    fs.chmodSync(tokenDir, 0o700);
+    fs.openSync = realOpenSync;
   }
   assert.strictEqual(failedSave.status, 500, 'a failed save after a settled payment was not reported');
   const retriedSave = await pay(node.base, saveFailId);
