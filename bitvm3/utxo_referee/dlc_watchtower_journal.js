@@ -194,7 +194,9 @@ class DlcWatchtowerJournal {
     return withDirectoryLock(
       path.join(this.baseDirectory, `.${contractKey(contractId)}.lock`),
       `DLC watchtower journal lock is held for ${contractId}`,
-      run
+      run,
+      // Entries are published append-once (link), so an overlapped write fails with EEXIST instead of being lost.
+      { lostLock: 'report' }
     );
   }
   _write(record) {
