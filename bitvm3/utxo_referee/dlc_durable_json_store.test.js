@@ -352,7 +352,7 @@ if (role === 'contend') {
     });
   });
 
-  test('a pid namespace is not judged when the record has none or this process cannot read its own', () => {
+  test('a pid namespace is not judged when the record has none; one this process cannot compare against is held', () => {
     const lockPath = path.join(root, 'namespace-unknown.lock');
     withLockIdentity({ pidNamespace: 'pid:[2]' }, () => {
       plantLock(lockPath, { ...heldBy({ pid: DEAD_PID }), token: 'e'.repeat(32) });
@@ -360,7 +360,8 @@ if (role === 'contend') {
     });
     withLockIdentity({}, () => {
       plantLock(lockPath, { ...heldBy({ pid: DEAD_PID }), token: 'e'.repeat(32), pidNamespace: 'pid:[1]' });
-      assert(lockCode(lockPath) === null, 'an unreadable namespace must keep the pid-based reclaim');
+      assert(lockCode(lockPath) === 'LOCK_HELD', 'a recorded namespace this process cannot read must keep the lock held');
+      fs.rmSync(lockPath, { recursive: true, force: true });
     });
   });
 
@@ -518,7 +519,18 @@ w.on('error', (e) => { console.log('RESULT ERROR ' + e.message); });`], { encodi
     assertOwnFailureKept(err, lockPath, 'nonce journal write failed');
   });
 
-  test('a successful section keeps its result when its release finds the lock taken over, and reports the lost lock', () => {
+  test('a successful section whose release finds the lock taken over fails by default: another holder overlapped it', () => {
+    const lockPath = path.join(root, 'release-lost-success-default.lock');
+    try {
+      let err;
+      try { withDirectoryLock(lockPath, 'held', () => { takeOverLock(lockPath); return 'committed-result'; }); }
+      catch (caught) { err = caught; }
+      assert(err && err.code === 'LOCK_LOST', `a lost lock after success must be thrown by default, got ${err && err.code}`);
+      assert(fs.existsSync(lockPath), 'release removed the lock of another holder');
+    } finally { fs.rmSync(lockPath, { recursive: true, force: true }); }
+  });
+
+  test("with lostLock 'report' a successful section keeps its result and the lost lock is reported", () => {
     const lockPath = path.join(root, 'release-lost-success.lock');
     const reported = [];
     const realReport = lockReporter.releaseFailed;
@@ -527,7 +539,7 @@ w.on('error', (e) => { console.log('RESULT ERROR ' + e.message); });`], { encodi
       const result = withDirectoryLock(lockPath, 'held', () => {
         takeOverLock(lockPath);
         return 'committed-result';
-      });
+      }, { lostLock: 'report' });
       assert(result === 'committed-result', `the committed result was replaced by ${result}`);
       assert(reported.length === 1 && reported[0].code === 'LOCK_LOST',
         `the lost lock must be reported once, got ${reported.map((item) => item.code)}`);
@@ -536,6 +548,54 @@ w.on('error', (e) => { console.log('RESULT ERROR ' + e.message); });`], { encodi
       lockReporter.releaseFailed = realReport;
       fs.rmSync(lockPath, { recursive: true, force: true });
     }
+  });
+
+  test('a nonce reservation whose lock was taken over during the section fails, so the nonce is not signed with', () => {
+    const journalPath = path.join(root, 'nonce-journal-lost', 'journal.json');
+    fs.mkdirSync(path.dirname(journalPath), { recursive: true });
+    const lockPath = `${journalPath}.lock`;
+    const realRename = fs.renameSync;
+    let tookOver = false;
+    fs.renameSync = (from, to) => {
+      const out = realRename(from, to);
+      if (to === journalPath && !tookOver) { tookOver = true; takeOverLock(lockPath); }
+      return out;
+    };
+    let err;
+    try { reserveNonceUsage(Buffer.alloc(64, 6), Buffer.alloc(32, 7), { journalPath }); }
+    catch (caught) { err = caught; }
+    finally { fs.renameSync = realRename; fs.rmSync(lockPath, { recursive: true, force: true }); }
+    assert(tookOver, 'the takeover did not happen');
+    assert(err && err.code === 'LOCK_LOST', `a reservation that lost its lock returned instead of failing: ${err && err.code}`);
+  });
+
+  test('a recorded identity this process cannot read keeps the lock held instead of judging it by pid', () => {
+    const lockPath = path.join(root, 'unreadable-identity.lock');
+    withLockIdentity({}, () => {
+      plantLock(lockPath, { ...heldBy({ pid: DEAD_PID }), token: 'd'.repeat(32), pidNamespace: 'pid:[1]' });
+      assert(lockCode(lockPath) === 'LOCK_HELD', 'a lock with a recorded pid namespace was reclaimed although this process cannot read its own');
+      fs.rmSync(lockPath, { recursive: true, force: true });
+      plantLock(lockPath, { ...heldBy({ pid: DEAD_PID }), token: 'd'.repeat(32), bootId: 'boot-x' });
+      assert(lockCode(lockPath) === 'LOCK_HELD', 'a lock with a recorded boot id was reclaimed although this process cannot read its own');
+      fs.rmSync(lockPath, { recursive: true, force: true });
+    });
+  });
+
+  test('releasing a lock whose owner record cannot be read says so and names the path, and keeps the lock', () => {
+    const lockPath = path.join(root, 'unreadable-owner-release.lock');
+    const release = acquireDirectoryLock(lockPath, 'held');
+    const ownerPath = path.join(lockPath, 'owner.json');
+    const realRead = fs.readFileSync;
+    fs.readFileSync = (file, ...rest) => {
+      if (file === ownerPath) throw Object.assign(new Error('EBUSY'), { code: 'EBUSY' });
+      return realRead(file, ...rest);
+    };
+    let err;
+    try { release(); } catch (caught) { err = caught; } finally { fs.readFileSync = realRead; }
+    assert(err && err.code === 'LOCK_OWNER_UNREADABLE', `got ${err && err.code}`);
+    assert(String(err.message).includes(ownerPath), 'the message does not name the owner record');
+    assert(fs.existsSync(lockPath), 'a lock whose owner cannot be read was removed');
+    fs.rmSync(lockPath, { recursive: true, force: true });
   });
 
   test('a failed section thrown as a non-object still reports its lost lock instead of losing it', () => {
@@ -561,7 +621,7 @@ w.on('error', (e) => { console.log('RESULT ERROR ' + e.message); });`], { encodi
   fs.rmSync(root, { recursive: true, force: true });
 }
 
-asyncTest('an async section keeps its result when its release finds the lock taken over', async () => {
+asyncTest("an async section with lostLock 'report' keeps its result when its release finds the lock taken over, and fails by default", async () => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'utxoref-durable-lock-async-'));
   const lockPath = path.join(directory, 'async-release-lost.lock');
   const reported = [];
@@ -572,9 +632,15 @@ asyncTest('an async section keeps its result when its release finds the lock tak
       await Promise.resolve();
       takeOverLock(lockPath);
       return 'committed-result';
-    });
+    }, { lostLock: 'report' });
     assert(result === 'committed-result', `the committed result was replaced by ${result}`);
     assert(reported.length === 1 && reported[0].code === 'LOCK_LOST', 'the lost lock must be reported once');
+    fs.rmSync(lockPath, { recursive: true, force: true });
+    let err;
+    try {
+      await withDirectoryLockAsync(lockPath, 'held', async () => { await Promise.resolve(); takeOverLock(lockPath); return 'x'; });
+    } catch (caught) { err = caught; }
+    assert(err && err.code === 'LOCK_LOST', `an async section that lost its lock returned instead of failing: ${err && err.code}`);
   } finally {
     lockReporter.releaseFailed = realReport;
     fs.rmSync(directory, { recursive: true, force: true });

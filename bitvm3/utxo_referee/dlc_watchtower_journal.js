@@ -194,7 +194,9 @@ class DlcWatchtowerJournal {
     return withDirectoryLock(
       path.join(this.baseDirectory, `.${contractKey(contractId)}.lock`),
       `DLC watchtower journal lock is held for ${contractId}`,
-      run
+      run,
+      // Observations are append-once O_EXCL records: a lost lock cannot make two writers share a record.
+      { lostLock: 'report' }
     );
   }
   _write(record) {

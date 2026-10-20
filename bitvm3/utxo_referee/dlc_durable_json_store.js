@@ -251,11 +251,13 @@ function lockOwnerIsGone(owner) {
   // No process survives a reboot.
   if (typeof owner.bootId === 'string') {
     const bootId = lockIdentity.bootId();
-    if (bootId && bootId !== owner.bootId) return true;
+    if (!bootId) return false;
+    if (bootId !== owner.bootId) return true;
   }
+  // A recorded namespace this process cannot compare against its own is not a match: held, not reclaimed.
   if (typeof owner.pidNamespace === 'string') {
     const pidNamespace = lockIdentity.pidNamespace();
-    if (pidNamespace && pidNamespace !== owner.pidNamespace) return false;
+    if (!pidNamespace || pidNamespace !== owner.pidNamespace) return false;
   }
   if (owner.pid === process.pid) return !heldLockTokens.has(owner.token);
   try { process.kill(owner.pid, 0); }
@@ -316,6 +318,9 @@ function reclaimAbandonedLock(lockPath) {
 function releaseDirectoryLock(lockPath, token) {
   heldLockTokens.delete(token);
   const owner = readLockOwner(lockPath);
+  if (owner === UNREADABLE_OWNER) {
+    throw Object.assign(new Error(`the owner record of lock ${lockPath} cannot be read, so the lock was not removed; inspect ${path.join(lockPath, LOCK_OWNER_FILE)} and remove the directory when no process holds it`), { code: 'LOCK_OWNER_UNREADABLE' });
+  }
   if (!owner || owner.token !== token) {
     throw Object.assign(new Error(`lock ${lockPath} was taken over while held; it was not removed`), { code: 'LOCK_LOST' });
   }
@@ -382,11 +387,18 @@ const lockReporter = {
   }
 };
 
-// A section that succeeded keeps its result. Its writes are already committed,
-// so a release failure is reported rather than thrown.
-function releaseAfterSuccess(release) {
+// A section that succeeded has committed its writes. What a release failure means then depends on the section:
+//   'throw' (the default) - LOCK_LOST means another holder overlapped the section, so a read-modify-write of shared
+//     state, or a nonce reservation followed by a signature, may have raced; the caller must see the failure.
+//   'report' - the section is idempotent or append-once (an O_EXCL record, a claim that a retry repeats safely),
+//     so its result is kept and the lost lock is reported through lockReporter.
+// A release failure that leaves the lock released (the moved copy could not be removed) is only reported either way.
+function releaseAfterSuccess(release, lostLock) {
   try { release(); }
-  catch (releaseError) { lockReporter.releaseFailed(releaseError); }
+  catch (releaseError) {
+    if (lostLock !== 'report' && (releaseError.code === 'LOCK_LOST' || releaseError.code === 'LOCK_OWNER_UNREADABLE')) throw releaseError;
+    lockReporter.releaseFailed(releaseError);
+  }
 }
 
 // The critical section's own error is the one the caller must see. A release
@@ -399,21 +411,29 @@ function releaseAfterFailure(release, failure) {
   }
 }
 
-function withDirectoryLock(lockPath, heldMessage, run) {
+function lostLockPolicy(options) {
+  const lostLock = options && options.lostLock !== undefined ? options.lostLock : 'throw';
+  if (lostLock !== 'throw' && lostLock !== 'report') throw new Error("withDirectoryLock option lostLock must be 'throw' or 'report'");
+  return lostLock;
+}
+
+function withDirectoryLock(lockPath, heldMessage, run, options) {
+  const lostLock = lostLockPolicy(options);
   const release = acquireDirectoryLock(lockPath, heldMessage);
   let result;
   try { result = run(); }
   catch (error) { releaseAfterFailure(release, error); throw error; }
-  releaseAfterSuccess(release);
+  releaseAfterSuccess(release, lostLock);
   return result;
 }
 
-async function withDirectoryLockAsync(lockPath, heldMessage, run) {
+async function withDirectoryLockAsync(lockPath, heldMessage, run, options) {
+  const lostLock = lostLockPolicy(options);
   const release = acquireDirectoryLock(lockPath, heldMessage);
   let result;
   try { result = await run(); }
   catch (error) { releaseAfterFailure(release, error); throw error; }
-  releaseAfterSuccess(release);
+  releaseAfterSuccess(release, lostLock);
   return result;
 }
 
