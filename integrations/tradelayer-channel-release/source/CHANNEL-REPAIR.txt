@@ -1,0 +1,40 @@
+Isolated Bitcoin channel consensus repair
+
+This repository was imported locally from frozen scratch commit 99ba2e79933747492168af5a72bed8a89125e057.
+Its dependency junction reuses the existing installation without downloads.
+The previously broadcast code hash remains e38f55e9e2306f0c05fd8fb03507798fd8db471c195a6e3d03eddf54983646db.
+
+This is an unactivated repair candidate, not the deployed consensus source.
+Never start it against the canonical deployment state or broadcast activations
+without a separate source-bound gate and explicit version/code-hash rollout plan.
+Native index/clearing rehearsals must use a distinct random-admin profile namespace.
+
+The type-3 regressions cover missing output propagation, satoshi/native-unit
+confusion, invalid trades being re-enabled, output-index ambiguity, silently
+switching channel columns, and duplicated token fees. Deterministic adapters
+exercise real module bodies; they do not establish live settlement.
+
+The unsigned full-block rehearsal now passes actual indexing, activation of all
+36 types, a fresh channel commit, a one-token native trade and post-block clearing.
+It transfers 10 genesis tokens from the sponsor to its random fixture admin as
+declared test setup; total ledger value is conserved. The trade leaves 9 tokens
+in the channel, delivers 0.99995 tokens and allocates a 0.00005-token fee for a
+1,000,000-satoshi payment. No fixture is signed or broadcast; Bitcoin signature
+validity is outside this rehearsal's scope. All state is in the copy's separate
+random-admin database namespace, never the canonical deployment namespace.
+
+Validation:
+  node --test tests/utxoChannel.node.test.js tests/activation-transaction.test.cjs tests/bitcoin-block-data.test.cjs tests/bitcoin-testnet4-deployment.test.cjs
+  node node_modules/jest/bin/jest.js tests/txIndexRegression.test.js --runInBand --no-cache --cacheDirectory=../jest-bitcoin-channel --transform '{}'
+  node scripts/check-bitcoin-testnet4-channel.cjs <existing-observer-datadir> <public-report.json>
+
+Type 3 now takes an optional ninth field, the expiry block (base36). A trade
+confirming after it is refused. The listener column endpoint loads the channel
+record, and /tl_getProtocolCapabilities lets wallets refuse an older listener
+before funding. The frozen deployed decoder does not check the part count: it
+reads a nine-part trade and drops the expiry, so the expiry binds only after this
+candidate is activated.
+
+Release work remains: a tested code-hash/version rollout plan covering the new
+type-3 field. The deployed source stays frozen and this candidate must not be
+treated as active.

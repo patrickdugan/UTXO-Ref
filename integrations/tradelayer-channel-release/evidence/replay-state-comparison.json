@@ -1,0 +1,231 @@
+{
+  "dirA": "<local-path>",
+  "dirB": "<local-path>",
+  "files": {
+    "activations.db": {
+      "docsA": 1,
+      "docsB": 1,
+      "differing": 0,
+      "examples": [],
+      "digestA": "289b8fbc8cbf7208"
+    },
+    "ammRegistry.db": {
+      "docsA": 0,
+      "docsB": 0,
+      "differing": 0,
+      "examples": [],
+      "digestA": "4f53cda18c2baa0c"
+    },
+    "ammState.db": {
+      "docsA": 0,
+      "docsB": 0,
+      "differing": 0,
+      "examples": [],
+      "digestA": "4f53cda18c2baa0c"
+    },
+    "attestations.db": {
+      "docsA": 0,
+      "docsB": 0,
+      "differing": 0,
+      "examples": [],
+      "digestA": "4f53cda18c2baa0c"
+    },
+    "channelDelta.db": {
+      "docsA": 0,
+      "docsB": 0,
+      "differing": 0,
+      "examples": [],
+      "digestA": "4f53cda18c2baa0c"
+    },
+    "channels.db": {
+      "docsA": 0,
+      "docsB": 0,
+      "differing": 0,
+      "examples": [],
+      "digestA": "4f53cda18c2baa0c"
+    },
+    "clearing.db": {
+      "docsA": 0,
+      "docsB": 0,
+      "differing": 0,
+      "examples": [],
+      "digestA": "4f53cda18c2baa0c"
+    },
+    "clearlists.db": {
+      "docsA": 3,
+      "docsB": 3,
+      "differing": 0,
+      "examples": [],
+      "digestA": "79a7b12142b6389b"
+    },
+    "consensus.db": {
+      "docsA": 7,
+      "docsB": 7,
+      "differing": 0,
+      "examples": [],
+      "digestA": "82e5b9a01acfa1b8"
+    },
+    "contractList.db": {
+      "docsA": 1,
+      "docsB": 1,
+      "differing": 0,
+      "examples": [],
+      "digestA": "a85483c052e14f7b"
+    },
+    "feeCache.db": {
+      "docsA": 0,
+      "docsB": 0,
+      "differing": 0,
+      "examples": [],
+      "digestA": "4f53cda18c2baa0c"
+    },
+    "fundingEvents.db": {
+      "docsA": 0,
+      "docsB": 0,
+      "differing": 0,
+      "examples": [],
+      "digestA": "4f53cda18c2baa0c"
+    },
+    "insurance.db": {
+      "docsA": 2,
+      "docsB": 2,
+      "differing": 0,
+      "examples": [],
+      "digestA": "31a85c8a6b35647d"
+    },
+    "iou.db": {
+      "docsA": 0,
+      "docsB": 0,
+      "differing": 0,
+      "examples": [],
+      "digestA": "4f53cda18c2baa0c"
+    },
+    "liquidations.db": {
+      "docsA": 0,
+      "docsB": 0,
+      "differing": 0,
+      "examples": [],
+      "digestA": "4f53cda18c2baa0c"
+    },
+    "marginMapDelta.db": {
+      "docsA": 0,
+      "docsB": 0,
+      "differing": 0,
+      "examples": [],
+      "digestA": "4f53cda18c2baa0c"
+    },
+    "marginMaps.db": {
+      "docsA": 0,
+      "docsB": 0,
+      "differing": 0,
+      "examples": [],
+      "digestA": "4f53cda18c2baa0c"
+    },
+    "oracleData.db": {
+      "docsA": 0,
+      "docsB": 0,
+      "differing": 0,
+      "examples": [],
+      "digestA": "4f53cda18c2baa0c"
+    },
+    "oracleList.db": {
+      "docsA": 0,
+      "docsB": 0,
+      "differing": 0,
+      "examples": [],
+      "digestA": "4f53cda18c2baa0c"
+    },
+    "orderBooks.db": {
+      "docsA": 0,
+      "docsB": 0,
+      "differing": 0,
+      "examples": [],
+      "digestA": "4f53cda18c2baa0c"
+    },
+    "persistence.db": {
+      "docsA": 0,
+      "docsB": 0,
+      "differing": 0,
+      "examples": [],
+      "digestA": "4f53cda18c2baa0c"
+    },
+    "procedural.db": {
+      "docsA": 0,
+      "docsB": 0,
+      "differing": 0,
+      "examples": [],
+      "digestA": "4f53cda18c2baa0c"
+    },
+    "propertyList.db": {
+      "docsA": 1,
+      "docsB": 1,
+      "differing": 0,
+      "examples": [],
+      "digestA": "0fc3465c4fcf57a8"
+    },
+    "scaling.db": {
+      "docsA": 0,
+      "docsB": 0,
+      "differing": 0,
+      "examples": [],
+      "digestA": "4f53cda18c2baa0c"
+    },
+    "syntheticTokens.db": {
+      "docsA": 0,
+      "docsB": 0,
+      "differing": 0,
+      "examples": [],
+      "digestA": "4f53cda18c2baa0c"
+    },
+    "tallyMap.db": {
+      "docsA": 2,
+      "docsB": 2,
+      "differing": 0,
+      "examples": [],
+      "digestA": "559886a90a65047a"
+    },
+    "tallyMapDelta.db": {
+      "docsA": 4,
+      "docsB": 4,
+      "differing": 0,
+      "examples": [],
+      "digestA": "11342ab9df0b0437"
+    },
+    "tradeHistory.db": {
+      "docsA": 0,
+      "docsB": 0,
+      "differing": 0,
+      "examples": [],
+      "digestA": "4f53cda18c2baa0c"
+    },
+    "txIndex.db": {
+      "docsA": 9,
+      "docsB": 9,
+      "differing": 0,
+      "examples": [],
+      "digestA": "81b82268d5a51aa7"
+    },
+    "vaults.db": {
+      "docsA": 0,
+      "docsB": 0,
+      "differing": 0,
+      "examples": [],
+      "digestA": "4f53cda18c2baa0c"
+    },
+    "volumeIndex.db": {
+      "docsA": 0,
+      "docsB": 0,
+      "differing": 0,
+      "examples": [],
+      "digestA": "4f53cda18c2baa0c"
+    },
+    "withdrawQueue.db": {
+      "docsA": 0,
+      "docsB": 0,
+      "differing": 0,
+      "examples": [],
+      "digestA": "4f53cda18c2baa0c"
+    }
+  },
+  "identical": true
+}

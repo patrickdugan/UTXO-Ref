@@ -1,0 +1,24 @@
+{
+  "release": "TradeLayer channel-repair candidate",
+  "commit": "76db3a73dc8c338461f31c4e102984fd766002bb",
+  "codeHash": "e89d270e01ef1ff5e594f1ab8ab96dab2c601bc6008fe3faf4bcc8a10d1a2e84",
+  "codeHashBase36": "5spr604fsnmwpozm3jtblop0b7eqomfqrq76lqxcgnndhapwg4",
+  "codeHashDefinition": "SHA256 of the versioned sorted LF-normalized source-file digest manifest (src/releaseIdentity.js)",
+  "cutoverPayload": "tl03;4,5spr604fsnmwpozm3jtblop0b7eqomfqrq76lqxcgnndhapwg4",
+  "cutoverPayloadBytes": 57,
+  "gatedTypes": [
+    3,
+    4
+  ],
+  "replacesCodeHash": "e38f55e9e2306f0c05fd8fb03507798fd8db471c195a6e3d03eddf54983646db",
+  "evidence": [
+    "bitcoin-release-rehearsal-crlf.json",
+    "bitcoin-release-rehearsal-lf.json",
+    "replay-state-comparison.json",
+    "release-listener-capabilities.txt",
+    "bitcoin-payload-bridge-report.json"
+  ],
+  "transactionsSigned": 0,
+  "transactionsBroadcast": 0,
+  "writtenAt": "2026-10-23T02:28:05.838Z"
+}

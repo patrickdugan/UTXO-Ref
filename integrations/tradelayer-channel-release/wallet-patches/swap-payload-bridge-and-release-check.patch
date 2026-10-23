@@ -1,0 +1,903 @@
+From db1b3dc8cef4e6f7e6fff8e419d1b24f9617b029 Mon Sep 17 00:00:00 2001
+From: Patrick Dugan <patrick.buchanan.dugan@gmail.com>
+Date: Fri, 23 Oct 2026 10:02:32 +0800
+Subject: [PATCH 1/2] Swap payload bridge: positional fields, data envelope,
+ expiry and listener capability
+
+- rpc-proxy builds tl4 commits from [propertyId, amount, channelAddress, ...] and
+  tl3 trades from [propertyId, tokens, native, expiryBlock, columnA, tokenOutput,
+  payToAddress] as nine parts, returns { data }, and errors on any missing field
+  instead of defaulting (the legacy four-argument trade call is refused).
+- The seller passes the negotiated channel address; both sides take the column
+  from the listener; the trade pins token delivery to output 0 and payment to
+  output 1, and the PSBT guard refuses those outputs elsewhere.
+- Each side checks tl_getProtocolCapabilities first: the seller before its
+  commit, the buyer before building the trade.
+- The bridge probe now decodes through the candidate decoder and exits 0.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ packages/shared/wallet-access-policy.ts       |   2 +-
+ .../wallet-fe/src/app/utils/swapper/buyer.ts  |   6 +-
+ .../src/app/utils/swapper/psbt-guard.ts       |   4 +
+ .../wallet-fe/src/app/utils/swapper/seller.ts |  14 ++-
+ .../src/app/utils/swapper/trade-payload.ts    |  38 ++++++
+ .../src/services/rpc-proxy.service.ts         |  73 +++++++++--
+ .../bitcoin-payload-bridge-probe.cjs          |  43 ++++---
+ tests/server/tl-payload-bridge.test.js        | 115 ++++++++++++++++++
+ tests/support/listener-stub.js                |  13 ++
+ tests/swapper/buyer-channel.test.js           |  38 +++++-
+ tests/swapper/finalized-identity.test.js      |   2 +
+ tests/swapper/ltc-property-id.test.js         |   2 +
+ tests/swapper/order-binding.test.js           |   6 +
+ tests/swapper/protocol-v2.test.js             |   2 +
+ tests/swapper/seller-commit-recovery.test.js  |   2 +
+ tests/swapper/seller-guard.test.js            |  68 ++++++++++-
+ tests/ui/seller-key-privacy.test.js           |   2 +
+ 17 files changed, 395 insertions(+), 35 deletions(-)
+ create mode 100644 packages/wallet-fe/src/app/utils/swapper/trade-payload.ts
+ create mode 100644 tests/server/tl-payload-bridge.test.js
+ create mode 100644 tests/support/listener-stub.js
+
+diff --git a/packages/shared/wallet-access-policy.ts b/packages/shared/wallet-access-policy.ts
+index 6ba7926..5f97672 100644
+--- a/packages/shared/wallet-access-policy.ts
++++ b/packages/shared/wallet-access-policy.ts
+@@ -6,7 +6,7 @@ const READ_ONLY = new Set([
+     'listwallets', 'listwalletdir', 'getwalletinfo', 'getaddressesbylabel', 'listlabels', 'listunspent',
+     'getbalances', 'getbalance', 'getunconfirmedbalance', 'getreceivedbylabel', 'getreceivedbyaddress',
+     'getaddressinfo', 'gettransaction', 'listtransactions', 'listsinceblock', 'listreceivedbyaddress', 'listreceivedbylabel',
+-    'tl_getstatesnapshot', 'tl_getsyncstatus', 'tl_getallbalancesforaddress', 'tl_getchannel', 'tl_getchannelcolumn',
++    'tl_getstatesnapshot', 'tl_getsyncstatus', 'tl_getallbalancesforaddress', 'tl_getchannel', 'tl_getchannelcolumn', 'tl_getprotocolcapabilities',
+     'tl_getcontractinfo', 'tl_getattestations', 'tl_gettransaction', 'tl_getclearlistbyid', 'tl_listcontractseries',
+     'tl_getinitmargin', 'tl_channelbalanceforcommiter', 'tl_getmaxsynth', 'tl_contractposition',
+     'tl_tokentradehistoryforaddress', 'tl_contracttradehistoryforaddress', 'tl_totaltradehistoryforaddress',
+diff --git a/packages/wallet-fe/src/app/utils/swapper/buyer.ts b/packages/wallet-fe/src/app/utils/swapper/buyer.ts
+index e2bd7a2..fca7a98 100644
+--- a/packages/wallet-fe/src/app/utils/swapper/buyer.ts
++++ b/packages/wallet-fe/src/app/utils/swapper/buyer.ts
+@@ -8,6 +8,7 @@ import { satsToLtc, unitsToDecimal } from "../units";
+ import { RecoveryWriter } from '../../../../../shared/swap-recovery';
+ import { TransactionIdentity } from '../../../../../shared/transaction-identity';
+ import { identityForPsbt, finalTransactionId } from './transaction-identity';
++import { assertListenerSupportsTrade, sellerColumnA, tradePayloadParams } from './trade-payload';
+ 
+ export class BuySwapper extends Swap {
+     // The final txid includes deterministic scriptSig pushes for wrapped funding.
+@@ -115,7 +116,10 @@ export class BuySwapper extends Swap {
+             const tlgiRes = await this.client('tl_getinfo');
+             if (tlgiRes.error || !tlgiRes.data?.block) throw new Error(`tl_getinfo: ${tlgiRes.error}`);
+             const bbData = tlgiRes.data.block + TRADE_EXPIRY_BLOCKS;
+-            const cpitLTCOptions = [ propIdDesired, unitsToDecimal(amountDesired), unitsToDecimal(amountForSale), bbData ];
++            // The payment is only safe if the listener enforces the expiry this payload carries.
++            await assertListenerSupportsTrade(this.client);
++            const columnA = await sellerColumnA(this.client, this.multySigChannelData.address, this.cpInfo.keypair.address, this.myInfo.keypair.address);
++            const cpitLTCOptions = tradePayloadParams(propIdDesired, amountDesired, amountForSale, bbData, columnA);
+             const cpitRes = await this.client('tl_createpayload_instant_ltc_trade', cpitLTCOptions);
+             if (cpitRes.error || !cpitRes.data) throw new Error(`tl_createpayload_instant_ltc_trade: ${cpitRes.error}`);
+             const buildOptions: IBuildLTCITTxConfig = {
+diff --git a/packages/wallet-fe/src/app/utils/swapper/psbt-guard.ts b/packages/wallet-fe/src/app/utils/swapper/psbt-guard.ts
+index 6036cf0..6c9aa6c 100644
+--- a/packages/wallet-fe/src/app/utils/swapper/psbt-guard.ts
++++ b/packages/wallet-fe/src/app/utils/swapper/psbt-guard.ts
+@@ -16,6 +16,7 @@
+ import { enc, RIPEMD160, SHA256 } from 'crypto-js';
+ import { nativeSwapFeePolicy } from '../../../../../shared/swap-policy';
+ import { ltcToSats as toSats } from '../units';
++import { TRADE_PAYMENT_OUTPUT, TRADE_TOKEN_OUTPUT } from './trade-payload';
+ 
+ // Construction and signing must agree independently of ordinary transfer fees.
+ export { LTC_SWAP_FEE_SATS_PER_INPUT as LTC_FEE_SATS_PER_INPUT, MAX_LTC_SWAP_FEE_SATS as MAX_TRADE_FEE_SATS } from '../../../../../shared/swap-policy';
+@@ -247,9 +248,12 @@ export const assertPsbtMatchesTrade = (decoded: unknown, expected: IPsbtExpectat
+         outSats += sats;
+         if (scriptHex === sellerScript) {
+             sellerOuts++;
++            // The payload names the payment and token-delivery outputs by index.
++            if (i !== TRADE_PAYMENT_OUTPUT) refuse(`seller output is output ${i}, the payload pays output ${TRADE_PAYMENT_OUTPUT}`);
+             if (sats !== expected.sellerSats) refuse(`seller output is ${sats} sat, agreed ${expected.sellerSats}`);
+         } else if (scriptHex === buyerScript) {
+             buyerOuts++;
++            if (i !== TRADE_TOKEN_OUTPUT) refuse(`buyer output is output ${i}, the payload delivers tokens to output ${TRADE_TOKEN_OUTPUT}`);
+             if (sats !== buyerSats) refuse(`buyer output is ${sats} sat, expected ${buyerSats}`);
+         } else if (opReturns.has(scriptHex)) {
+             dataOuts++;
+diff --git a/packages/wallet-fe/src/app/utils/swapper/seller.ts b/packages/wallet-fe/src/app/utils/swapper/seller.ts
+index d4dbc86..552571d 100644
+--- a/packages/wallet-fe/src/app/utils/swapper/seller.ts
++++ b/packages/wallet-fe/src/app/utils/swapper/seller.ts
+@@ -7,6 +7,7 @@ import { ICommitUtxo, ISwapRelay, TSwapEventData } from "./protocol";
+ import { ltcToSats, unitsToDecimal } from "../units";
+ import { RecoveryWriter } from '../../../../../shared/swap-recovery';
+ import { identityForPsbt } from './transaction-identity';
++import { assertListenerSupportsTrade, sellerColumnA, tradePayloadParams } from './trade-payload';
+ 
+ export class SellSwapper extends Swap {
+     // The seller's own commit output, set in onStep2. The only input the seller signs for.
+@@ -86,6 +87,8 @@ export class SellSwapper extends Swap {
+             // Refuse an unmodelled trade before the commit is broadcast: a commit that is never
+             // traded leaves the seller's output in the channel.
+             if (!this.isModelledTrade()) throw new Error(`trade not modelled: refusing before commit`);
++            // A listener that ignores the trade's expiry would let a late trade settle: refuse before funding.
++            await assertListenerSupportsTrade(this.client);
+ 
+             const fromKeyPair = { address: this.myInfo.keypair.address };
+             const toKeyPair = { address: this.multySigChannelData.address };
+@@ -94,10 +97,10 @@ export class SellSwapper extends Swap {
+             const ctcpParams = [];
+             if (this.typeTrade === ETradeType.SPOT && 'propIdDesired' in this.tradeInfo) {
+                 const { propIdDesired, amountDesired } = this.tradeInfo;
+-                ctcpParams.push(propIdDesired, unitsToDecimal(amountDesired));
++                ctcpParams.push(propIdDesired, unitsToDecimal(amountDesired), this.multySigChannelData.address);
+             } else if (this.typeTrade === ETradeType.FUTURES && 'contract_id' in this.tradeInfo) {
+                 const { amount, collateral } = this.tradeInfo;
+-                ctcpParams.push(collateral, unitsToDecimal(amount));
++                ctcpParams.push(collateral, unitsToDecimal(amount), this.multySigChannelData.address);
+             } else {
+                 throw new Error(`Unrecognized Trade Type: ${this.typeTrade}`);
+             }
+@@ -210,8 +213,9 @@ export class SellSwapper extends Swap {
+         for (let d = -TRADE_EXPIRY_TOLERANCE_BLOCKS; d <= TRADE_EXPIRY_TOLERANCE_BLOCKS; d++) {
+             expiries.push(tip + TRADE_EXPIRY_BLOCKS + d);
+         }
++        const columnA = await sellerColumnA(this.client, this.multySigChannelData!.address, sellerAddress, buyerAddress);
+         const opReturnScriptHexes = await Promise.all(
+-            expiries.map((expiry) => this.opReturnScriptFor(propIdDesired, amountDesired, amountForSale, expiry)),
++            expiries.map((expiry) => this.opReturnScriptFor(propIdDesired, amountDesired, amountForSale, expiry, columnA)),
+         );
+ 
+         return {
+@@ -235,8 +239,8 @@ export class SellSwapper extends Swap {
+ 
+     // OP_RETURN scriptPubKey the TL payload for these parameters produces, as the relayer
+     // builds it (tl_createpayload_instant_ltc_trade, then tl_createrawtx_opreturn).
+-    private async opReturnScriptFor(propId: number | string, amountDesired: number, amountForSale: number, expiry: number): Promise<string> {
+-        const payloadRes = await this.client('tl_createpayload_instant_ltc_trade', [propId, unitsToDecimal(amountDesired), unitsToDecimal(amountForSale), expiry]);
++    private async opReturnScriptFor(propId: number | string, amountDesired: number, amountForSale: number, expiry: number, columnA: boolean): Promise<string> {
++        const payloadRes = await this.client('tl_createpayload_instant_ltc_trade', tradePayloadParams(propId, amountDesired, amountForSale, expiry, columnA));
+         if (payloadRes.error || !payloadRes.data) throw new Error(`tl_createpayload_instant_ltc_trade: ${payloadRes.error}`);
+         const rawRes = await this.client('tl_createrawtx_opreturn', ['', payloadRes.data]);
+         if (rawRes.error || !rawRes.data) throw new Error(`tl_createrawtx_opreturn: ${rawRes.error}`);
+diff --git a/packages/wallet-fe/src/app/utils/swapper/trade-payload.ts b/packages/wallet-fe/src/app/utils/swapper/trade-payload.ts
+new file mode 100644
+index 0000000..866b73f
+--- /dev/null
++++ b/packages/wallet-fe/src/app/utils/swapper/trade-payload.ts
+@@ -0,0 +1,38 @@
++// What both sides put in the trade's TradeLayer payload besides the agreed amounts: the
++// channel column that holds the seller's tokens, the output indices, and the expiry block.
++// Buyer and seller each derive these and the seller compares the payload byte for byte.
++
++import { TClient } from './common';
++import { unitsToDecimal } from '../units';
++
++// Output layout of the trade transaction (wallet-server tx-builder.service.ts buildLTCInstatTx):
++// the buyer's change output receives the tokens, the seller's output is the payment, and the
++// OP_RETURN comes last. The payload commits to these indices; the PSBT guard pins the order.
++export const TRADE_TOKEN_OUTPUT = 0;
++export const TRADE_PAYMENT_OUTPUT = 1;
++
++// The payload carries the expiry as a ninth field. A listener without this capability does not
++// enforce it, so each side refuses before anything is committed, signed or paid.
++export const assertListenerSupportsTrade = async (client: TClient): Promise<void> => {
++    const res = await client('tl_getProtocolCapabilities', []);
++    const trade = res.data?.tradeTokenForUTXO;
++    const column = res.data?.channelColumn;
++    if (res.error || trade?.expiryBlock !== true || !(Number(trade?.maxParts) >= 9) || !(Number(column?.version) >= 2)) {
++        throw new Error(`listener does not enforce trade expiry: ${res.error || 'capability missing'}`);
++    }
++};
++
++// Column of the channel that holds the seller's committed tokens, as the listener's consensus
++// code assigns it from the channel record.
++export const sellerColumnA = async (client: TClient, channelAddress: string, sellerAddress: string, buyerAddress: string): Promise<boolean> => {
++    const res = await client('tl_getChannelColumn', [channelAddress, sellerAddress, buyerAddress]);
++    const column = res.data?.column;
++    if (res.error || (column !== 'A' && column !== 'B') || res.data?.columnA !== (column === 'A')) {
++        throw new Error(`tl_getChannelColumn: ${res.error || 'no column'}`);
++    }
++    return column === 'A';
++};
++
++// Positional parameters of tl_createpayload_instant_ltc_trade (rpc-proxy.service.ts).
++export const tradePayloadParams = (propId: number | string, amountDesired: number, amountForSale: number, expiry: number, columnA: boolean) =>
++    [propId, unitsToDecimal(amountDesired), unitsToDecimal(amountForSale), expiry, columnA, TRADE_TOKEN_OUTPUT, TRADE_PAYMENT_OUTPUT];
+diff --git a/packages/wallet-server/src/services/rpc-proxy.service.ts b/packages/wallet-server/src/services/rpc-proxy.service.ts
+index 73f2640..2accd8d 100644
+--- a/packages/wallet-server/src/services/rpc-proxy.service.ts
++++ b/packages/wallet-server/src/services/rpc-proxy.service.ts
+@@ -85,6 +85,34 @@ function encodeBoolean(value: any) {
+     return value === true || value === 1 || value === '1' ? '1' : '0';
+ }
+ 
++// The channel commit and the native trade move tokens, so their fields are required and
++// checked rather than defaulted: a zero or missing field would still build a valid-looking
++// payload that consensus later refuses after the counterparty has paid or committed.
++function requirePropertyId(value: any) {
++    const n = Number(value);
++    if (!Number.isSafeInteger(n) || n <= 0) throw new Error('Invalid property id');
++    return n;
++}
++
++function requirePositiveAmount(value: any, what: string) {
++    const n = Number(value);
++    const units = Math.round(n * 1e8);
++    if (!Number.isFinite(n) || n <= 0 || !Number.isSafeInteger(units) || units <= 0) throw new Error(`Invalid ${what}`);
++    return n;
++}
++
++function requireOutputIndex(value: any, what: string) {
++    const n = Number(value);
++    if (value === '' || value === null || value === undefined || !Number.isSafeInteger(n) || n < 0) throw new Error(`Invalid ${what} output index`);
++    return n;
++}
++
++function requireColumnA(value: any) {
++    if (value === true || value === 1 || value === '1') return '1';
++    if (value === false || value === 0 || value === '0') return '0';
++    throw new Error('Channel column is required');
++}
++
+ function normalizeParams(body: any): any[] {
+     return Array.isArray(body?.params)
+         ? body.params
+@@ -114,6 +142,14 @@ function buildTradeLayerPayload(method: string, body: any) {
+     }
+ 
+     if (normalized === 'tl_createpayload_commit_tochannel') {
++        // Positional: [propertyId, amount, channelAddress, payEnabled, clearLists, isColoredOutput, commitClearlistId]
++        if (params.length > 1 || (params.length === 1 && typeof params[0] !== 'object')) {
++            const [propertyId, amount, channelAddress, payEnabled, clearLists, isColoredOutput, commitClearlistId] = params;
++            return buildTradeLayerPayload(method, { propertyId, amount, channelAddress, payEnabled, clearLists, isColoredOutput, commitClearlistId });
++        }
++        requirePropertyId(source.propertyId);
++        requirePositiveAmount(source.amount, 'commit amount');
++        if (typeof source.channelAddress !== 'string' || !source.channelAddress) throw new Error('Channel address is required');
+         const channelAddress = String(source.channelAddress || '');
+         const clearLists = Array.isArray(source.clearLists)
+             ? `[${source.clearLists.map((item: any) => encodeBase36(item)).join(',')}]`
+@@ -156,14 +192,27 @@ function buildTradeLayerPayload(method: string, body: any) {
+     }
+ 
+     if (normalized === 'tl_createpayload_instant_trade' || normalized === 'tl_createpayload_instant_ltc_trade') {
++        // Positional: [propertyId, amount (tokens), satsExpected (native coin), expiryBlock, columnA, tokenOutput, payToAddress]
++        const named = params.length > 1 || (params.length === 1 && typeof params[0] !== 'object')
++            ? { propertyId: params[0], amount: params[1], satsExpected: params[2], expiryBlock: params[3],
++                columnA: params[4], tokenOutput: params[5], payToAddress: params[6] }
++            : source;
++        const tokenOutput = requireOutputIndex(named.tokenOutput, 'token delivery');
++        const payToAddress = requireOutputIndex(named.payToAddress, 'payment');
++        if (tokenOutput === payToAddress) throw new Error('Payment and token delivery outputs must differ');
++        const expiryBlock = Number(named.expiryBlock);
++        if (!Number.isSafeInteger(expiryBlock) || expiryBlock <= 0) throw new Error('Expiry block is required');
++        // Nine parts: the eighth (withdrawal tag) stays empty, the ninth commits the expiry.
+         return `tl3${[
+-            encodeInteger(source.propertyId ?? source.propertyIdForSale ?? source.propertyIdOffered),
+-            encodeAmount(source.amount ?? source.amountForSale ?? source.amountOffered),
+-            source.columnA ?? source.column ?? '',
+-            encodeAmount(source.satsExpected ?? source.amountDesired ?? source.expectedSats),
+-            source.tokenOutput ?? source.output ?? '',
+-            source.payToAddress ?? source.toAddress ?? '',
+-            encodeBoolean(source.isColoredOutput),
++            encodeInteger(requirePropertyId(named.propertyId)),
++            encodeAmount(requirePositiveAmount(named.amount, 'token amount')),
++            requireColumnA(named.columnA),
++            encodeAmount(requirePositiveAmount(named.satsExpected, 'expected payment')),
++            tokenOutput,
++            payToAddress,
++            encodeBoolean(named.isColoredOutput),
++            '',
++            expiryBlock.toString(36),
+         ].join(',')}`;
+     }
+ 
+@@ -224,13 +273,19 @@ export async function proxyWalletMethod(method: string, body: any = {}, bound?:
+     }
+ 
+     if (normalizedMethod.startsWith('tl_')) {
+-        const localPayload = buildTradeLayerPayload(normalizedMethod, body);
++        let localPayload: string | null;
++        try {
++            localPayload = buildTradeLayerPayload(normalizedMethod, body);
++        } catch (error: any) {
++            return { error: error?.message || 'Invalid payload parameters' };
++        }
+         if (localPayload !== null) {
+             console.log('[rpc-proxy] local tl payload build', {
+               method: normalizedMethod,
+               paramsLength: Array.isArray(body?.params) ? body.params.length : undefined,
+             });
+-            return localPayload;
++            // Callers read { data }, the shape a listener-built payload has.
++            return { data: localPayload };
+         }
+ 
+         const listenerUrl = bound?.listenerUrl || getListenerUrl();
+diff --git a/tests/integration/bitcoin-payload-bridge-probe.cjs b/tests/integration/bitcoin-payload-bridge-probe.cjs
+index b3b77ee..f2508ff 100644
+--- a/tests/integration/bitcoin-payload-bridge-probe.cjs
++++ b/tests/integration/bitcoin-payload-bridge-probe.cjs
+@@ -1,26 +1,39 @@
+ 'use strict';
+-// Diagnostic for the unresolved legacy-argument/JavaScript-protocol bridge.
+-// It intentionally exits nonzero while these release blockers are present.
++// Checks the swappers' payload bridge against both consensus decoders. It exits nonzero if the
++// bridge output does not decode to the agreed fields under the unactivated candidate.
+ // No node, signing, key files, HTTP request or broadcast is used.
+ const fs=require('node:fs'),path=require('node:path');
+ const {loadTs,REPO}=require('../support/ts-loader');
+ const {proxyWalletMethod}=loadTs(path.join(REPO,'packages/wallet-server/src/services/rpc-proxy.service.ts'),{
+  '../index':{fasitfyServer:{}},'./node.service':{},
+ }).exports;
+-const decoder=require(path.resolve(REPO,'../redteam-tradelayer-testnet4/src/txDecoder'));
++const candidate=require(path.resolve(REPO,'../redteam-tradelayer-channel/src/txDecoder'));
++const frozen=require(path.resolve(REPO,'../redteam-tradelayer-testnet4/src/txDecoder'));
+ const output=path.resolve(process.argv[2]);
++const CHANNEL='tb1q'+'q'.repeat(58);
++const pick=(o,keys)=>Object.fromEntries(keys.map(k=>[k,o[k]]));
+ (async()=>{
+- const commit=await proxyWalletMethod('tl_createpayload_commit_tochannel',{params:[1,'1']});
+- const trade=await proxyWalletMethod('tl_createpayload_instant_ltc_trade',{params:[1,'1','0.01',200000]});
+- const report={checkedAt:new Date().toISOString(),outcome:'failed-known-bridge-blockers',transactionsSigned:0,transactionsBroadcast:0,
+-  cases:[{name:'seller commit',actualRpcResponse:commit,decoded:decoder.decodeCommitToken(commit.slice(3)),
+-   expected:{propertyId:1,amount:1,channelAddress:'negotiated P2WSH channel'},
+-   failures:['Missing RPC data envelope','Positional property/amount are ignored','Negotiated channel address is not supplied']},
+-   {name:'native/token trade',actualRpcResponse:trade,decoded:decoder.decodeTradeTokenForUTXO(trade.slice(3)),
+-    expected:{propertyId:1,amount:1,satsExpected:1000000,tokenOutput:0,payToAddress:1,expiryHeight:200000},
+-    failures:['Missing RPC data envelope','Positional trade fields are ignored','Legacy expiry has no JavaScript protocol commitment']}],
+-  releaseGate:'Do not enable live channel funding until the structured payload, response envelope, column selection, expiry and protocol capability checks pass together.'};
++ const commit=await proxyWalletMethod('tl_createpayload_commit_tochannel',{params:[1,'1',CHANNEL]});
++ const trade=await proxyWalletMethod('tl_createpayload_instant_ltc_trade',{params:[1,'1','0.01',200000,true,0,1]});
++ const legacy=await proxyWalletMethod('tl_createpayload_instant_ltc_trade',{params:[1,'1','0.01',200000]});
++ const tradeKeys=['propertyId','amount','columnA','satsExpected','tokenOutput','payToAddress','expiryBlock'];
++ const expectedTrade={propertyId:1,amount:1,columnA:true,satsExpected:1000000,tokenOutput:0,payToAddress:1,expiryBlock:200000};
++ const cases=[];
++ const check=(name,ok,detail)=>cases.push({name,ok,...detail});
++ const c=commit.data?candidate.decodeCommitToken(commit.data.slice(3)):null;
++ check('seller commit: envelope, property, amount, channel output reference',
++  !!c&&c.propertyId===1&&c.amount===1&&String(c.ref)==='0',{actualRpcResponse:commit,decoded:c});
++ const t=trade.data?candidate.decodeTradeTokenForUTXO(trade.data.slice(3)):null;
++ check('native trade under the candidate decoder: every agreed field, including expiry',
++  !!t&&!t.invalidEncoding&&JSON.stringify(pick(t,tradeKeys))===JSON.stringify(expectedTrade),{actualRpcResponse:trade,decoded:t&&pick(t,tradeKeys),expected:expectedTrade});
++ check('legacy four-argument trade call is refused, not defaulted',!!legacy.error&&legacy.data===undefined,{actualRpcResponse:legacy});
++ const f=trade.data?frozen.decodeTradeTokenForUTXO(trade.data.slice(3)):null;
++ const report={checkedAt:new Date().toISOString(),transactionsSigned:0,transactionsBroadcast:0,
++  outcome:cases.every(row=>row.ok)?'bridge-ok-under-candidate':'bridge-failed',cases,
++  frozenDeployedDecoder:{decoded:f,expiryEnforced:f?.expiryBlock!==undefined,
++   note:'The deployed decoder does not check the part count: it reads the nine-part trade and drops the expiry. Expiry is only enforced once the candidate is activated by a coordinated version/code-hash rollout.'},
++  releaseGate:'Do not enable live channel funding until the candidate (expiry, column endpoint, capability route) is activated and the wallet points at a listener that reports tl_getProtocolCapabilities.'};
+  fs.writeFileSync(output,JSON.stringify(report,null,2)+'\n');
+- console.log(JSON.stringify({outcome:report.outcome,cases:report.cases.map(row=>({name:row.name,decoded:row.decoded,failures:row.failures}))}));
+- process.exitCode=1;
++ console.log(JSON.stringify({outcome:report.outcome,cases:cases.map(row=>({name:row.name,ok:row.ok})),frozenExpiryEnforced:report.frozenDeployedDecoder.expiryEnforced}));
++ process.exitCode=cases.every(row=>row.ok)?0:1;
+ })().catch(error=>{console.error(error.message);process.exitCode=1;});
+diff --git a/tests/server/tl-payload-bridge.test.js b/tests/server/tl-payload-bridge.test.js
+new file mode 100644
+index 0000000..9d3e03b
+--- /dev/null
++++ b/tests/server/tl-payload-bridge.test.js
+@@ -0,0 +1,115 @@
++'use strict';
++
++// The local TradeLayer payload bridge (rpc-proxy.service.ts) and the swapper's trade-payload
++// helpers. The swappers call the bridge with positional parameters and read { data }. The
++// channel-commit and native-trade payloads must carry every field consensus checks; a missing
++// field is an error, never a default. Nothing here signs, broadcasts or calls a node.
++const fs = require('fs');
++const path = require('path');
++const assert = require('node:assert/strict');
++const { test } = require('node:test');
++const { loadTs, REPO } = require('../support/ts-loader');
++const { CAPABILITIES } = require('../support/listener-stub');
++
++const proxy = () => loadTs(path.join(REPO, 'packages/wallet-server/src/services/rpc-proxy.service.ts'), {
++    '../index': { fasitfyServer: {} }, './node.service': {},
++}).exports;
++const tradePayload = () => loadTs(path.join(REPO, 'packages/wallet-fe/src/app/utils/swapper/trade-payload.ts')).exports;
++
++// A P2WSH channel address is longer than 42 characters, so the commit names it as output 0 (ref:0).
++const CHANNEL = 'tb1q' + 'q'.repeat(58);
++const units = (n) => Math.round(n * 1e8).toString(36);
++// The candidate consensus decoder, when the sibling checkout is present.
++const CANDIDATE = path.resolve(REPO, '../redteam-tradelayer-channel/src/txDecoder.js');
++
++test('channel commit: positional property, amount and the negotiated channel address, in a data envelope', async () => {
++    const { proxyWalletMethod } = proxy();
++    assert.deepEqual(await proxyWalletMethod('tl_createpayload_commit_tochannel', { params: [1, '1', CHANNEL] }),
++        { data: `tl41,${units(1)},ref:0,0,,0` });
++    assert.deepEqual(await proxyWalletMethod('tl_createpayload_commit_tochannel', { params: [5, 0.5, 'shortaddr'] }),
++        { data: `tl45,${units(0.5)},shortaddr,0,,0` });
++});
++
++test('channel commit without a channel address, property or amount is an error', async () => {
++    const { proxyWalletMethod } = proxy();
++    for (const params of [[1, '1'], [0, '1', CHANNEL], [1, 0, CHANNEL], [1, 'x', CHANNEL]]) {
++        const res = await proxyWalletMethod('tl_createpayload_commit_tochannel', { params });
++        assert.ok(res.error && res.data === undefined, JSON.stringify(params));
++    }
++});
++
++test('native trade: positional fields become the nine-part payload with column, output indices and expiry', async () => {
++    const { proxyWalletMethod } = proxy();
++    const res = await proxyWalletMethod('tl_createpayload_instant_ltc_trade', { params: [1, '1', '0.01', 200000, true, 0, 1] });
++    assert.deepEqual(res, { data: `tl31,${units(1)},1,${units(0.01)},0,1,0,,${(200000).toString(36)}` });
++    const columnB = await proxyWalletMethod('tl_createpayload_instant_ltc_trade', { params: [1, '1', '0.01', 200000, false, 0, 1] });
++    assert.equal(columnB.data.split(',')[2], '0');
++});
++
++test('native trade refuses the legacy four-argument call and any missing or conflicting field', async () => {
++    const { proxyWalletMethod } = proxy();
++    for (const params of [
++        [1, '1', '0.01', 200000], // legacy: no column or output indices
++        [1, '1', '0.01', 0, true, 0, 1], // no expiry
++        [1, '1', '0.01', 200000, true, 1, 1], // payment and delivery are the same output
++        [1, '1', '0.01', 200000, 'A', 0, 1], // column must be boolean-like
++        [1, '1', 0, 200000, true, 0, 1], // nothing paid
++        [1, 0, '0.01', 200000, true, 0, 1], // no tokens
++        [0, '1', '0.01', 200000, true, 0, 1], // no property
++        [1, '1', '0.01', 200000, true, -1, 1], // negative output index
++    ]) {
++        const res = await proxyWalletMethod('tl_createpayload_instant_ltc_trade', { params });
++        assert.ok(res.error && res.data === undefined, JSON.stringify(params));
++    }
++});
++
++test('other locally built payloads are returned in the same data envelope', async () => {
++    const { proxyWalletMethod } = proxy();
++    const res = await proxyWalletMethod('tl_createpayload_attestation', { params: [0, 1, 'addr', 'meta'] });
++    assert.deepEqual(res, { data: 'tl9,0,1,addr,meta' });
++});
++
++test('the candidate consensus decoder reads back exactly what the bridge built', { skip: !fs.existsSync(CANDIDATE) && 'candidate checkout not present' }, async () => {
++    const decoder = require(CANDIDATE);
++    const { proxyWalletMethod } = proxy();
++    const commit = (await proxyWalletMethod('tl_createpayload_commit_tochannel', { params: [1, '1', CHANNEL] })).data;
++    const c = decoder.decodeCommitToken(commit.slice(3));
++    assert.equal(c.propertyId, 1); assert.equal(c.amount, 1); assert.equal(c.ref, '0');
++    const trade = (await proxyWalletMethod('tl_createpayload_instant_ltc_trade', { params: [1, '1', '0.01', 200000, true, 0, 1] })).data;
++    const t = decoder.decodeTradeTokenForUTXO(trade.slice(3));
++    assert.equal(t.invalidEncoding, undefined);
++    assert.deepEqual({ propertyId: t.propertyId, amount: t.amount, columnA: t.columnA, satsExpected: t.satsExpected,
++        tokenOutput: t.tokenOutput, payToAddress: t.payToAddress, tagWithdraw: t.tagWithdraw, expiryBlock: t.expiryBlock },
++    { propertyId: 1, amount: 1, columnA: true, satsExpected: 1000000, tokenOutput: 0, payToAddress: 1, tagWithdraw: null, expiryBlock: 200000 });
++});
++
++test('swapper payload parameters name the trade transaction outputs the guard pins', () => {
++    const { tradePayloadParams, TRADE_TOKEN_OUTPUT, TRADE_PAYMENT_OUTPUT } = tradePayload();
++    assert.equal(TRADE_TOKEN_OUTPUT, 0); assert.equal(TRADE_PAYMENT_OUTPUT, 1);
++    assert.deepEqual(tradePayloadParams(1, 100000000, 1000000, 200000, false), [1, '1', '0.01', 200000, false, 0, 1]);
++});
++
++test('a listener without the expiry capability is refused before anything is committed or paid', async () => {
++    const { assertListenerSupportsTrade } = tradePayload();
++    await assertListenerSupportsTrade(async () => ({ data: CAPABILITIES }));
++    for (const reply of [
++        { error: 'Cannot POST /tl_getProtocolCapabilities' },
++        { data: {} },
++        { data: { ...CAPABILITIES, tradeTokenForUTXO: { maxParts: 8, expiryBlock: true } } },
++        { data: { ...CAPABILITIES, tradeTokenForUTXO: { maxParts: 9, expiryBlock: 'yes' } } },
++        { data: { ...CAPABILITIES, channelColumn: { version: 1 } } },
++    ]) {
++        await assert.rejects(assertListenerSupportsTrade(async () => reply), /does not enforce trade expiry/, JSON.stringify(reply));
++    }
++});
++
++test('the channel column comes from the listener and an inconsistent answer is refused', async () => {
++    const { sellerColumnA } = tradePayload();
++    const calls = [];
++    const client = async (method, params) => { calls.push([method, params]); return { data: { column: 'B', columnA: false } }; };
++    assert.equal(await sellerColumnA(client, 'channel', 'seller', 'buyer'), false);
++    assert.deepEqual(calls, [['tl_getChannelColumn', ['channel', 'seller', 'buyer']]]);
++    for (const reply of [{ data: 'A' }, { data: { column: 'A', columnA: false } }, { data: { column: 'C', columnA: false } }, { error: 'down' }]) {
++        await assert.rejects(sellerColumnA(async () => reply, 'channel', 'seller', 'buyer'), /tl_getChannelColumn/, JSON.stringify(reply));
++    }
++});
+diff --git a/tests/support/listener-stub.js b/tests/support/listener-stub.js
+new file mode 100644
+index 0000000..7d1701e
+--- /dev/null
++++ b/tests/support/listener-stub.js
+@@ -0,0 +1,13 @@
++'use strict';
++
++// Listener answers for the protocol checks the swappers make before a commit or a payment
++// (wallet-fe utils/swapper/trade-payload.ts): the trade-expiry capability and the channel column.
++const CAPABILITIES = { tradeTokenForUTXO: { maxParts: 9, expiryBlock: true }, channelColumn: { version: 2 } };
++
++const listenerReply = (method) => {
++    if (method === 'tl_getProtocolCapabilities') return { data: CAPABILITIES };
++    if (method === 'tl_getChannelColumn') return { data: { column: 'A', columnA: true } };
++    return null;
++};
++
++module.exports = { CAPABILITIES, listenerReply };
+diff --git a/tests/swapper/buyer-channel.test.js b/tests/swapper/buyer-channel.test.js
+index d7ac860..4237aa7 100644
+--- a/tests/swapper/buyer-channel.test.js
++++ b/tests/swapper/buyer-channel.test.js
+@@ -1,4 +1,5 @@
+ 'use strict';
++const { listenerReply } = require('../support/listener-stub');
+ 
+ // Buyer side of the swap, driven through the real BuySwapper class. The socket is an
+ // in-process fake and the RPC and tx services are stubs, so no node or network is needed.
+@@ -67,7 +68,8 @@ const SCRIPT_OF = {
+     'MS-OTHER': fx.p2wshOf('5151'), // a different witness script
+ };
+ 
+-const nodeStub = () => async (method, params = []) => {
++const nodeStub = (over = {}) => async (method, params = []) => {
++    if (over[method]) return over[method](params);
+     switch (method) {
+         case 'createmultisig':
+             assert.deepEqual(params, [2, [fx.SELLER_PUB, fx.BUYER_PUB], 'bech32']);
+@@ -76,6 +78,7 @@ const nodeStub = () => async (method, params = []) => {
+             ? { data: { isvalid: true, scriptPubKey: SCRIPT_OF[params[0]] } }
+             : { data: { isvalid: false } };
+         case 'tl_getinfo': return { data: { block: fx.TIP } };
++        case 'tl_getProtocolCapabilities': case 'tl_getChannelColumn': return listenerReply(method);
+         case 'tl_createpayload_commit_tochannel': return { data: 'PAY-COMMIT' };
+         case 'tl_createpayload_instant_ltc_trade': return { data: 'PAY-LTC' };
+         case 'decoderawtransaction': return { data: { vout: [{ value: 2, n: 0, scriptPubKey: { addresses: ['MS-ADDR'], hex: fx.SPK.MS } }] } };
+@@ -103,12 +106,12 @@ const txsStub = (state) => ({
+     },
+ });
+ 
+-const startBuyer = (trade = ltcTrade) => {
++const startBuyer = (trade = ltcTrade, over = {}) => {
+     const { BuySwapper } = freshRequire('swapper/index.js');
+     const { ETradeType } = freshRequire('swapper/common.js');
+     const sock = new FakeSocket();
+     const state = makeState();
+-    const sw = new BuySwapper(SID, ETradeType.SPOT, trade, buyerParty, sellerParty, nodeStub(), sock, txsStub(state), async () => {});
++    const sw = new BuySwapper(SID, ETradeType.SPOT, trade, buyerParty, sellerParty, nodeStub(over), sock, txsStub(state), async () => {});
+     return { sw, sock, state };
+ };
+ 
+@@ -231,3 +234,32 @@ test('REGRESSION: a SELLER:STEP3 for a futures trade is refused before any commi
+     assert.equal(state.broadcasts, 0);
+     assert.match(String((await sw.ready).reason), /^Step 3: trade not modelled/);
+ });
++
++test('a listener that does not enforce trade expiry is refused before the buyer builds or pays the trade', async () => {
++    const b = startBuyer(ltcTrade, { tl_getProtocolCapabilities: () => ({ error: 'Cannot POST /tl_getProtocolCapabilities' }) });
++    b.sock.deliver('SELLER:STEP1', { address: 'MS-ADDR', redeemScript: fx.REDEEM, scriptPubKey: fx.SPK.MS });
++    await waitFor(() => sentNames(b.sock).includes('BUYER:STEP2'), { message: 'BUYER:STEP2' });
++    b.sock.deliver('SELLER:STEP3', commitUtxo);
++    const res = await b.sw.ready;
++    assert.match(String(res.reason), /^Step 3: listener does not enforce trade expiry/);
++    assert.deepStrictEqual(b.state.trade, [], 'the trade transaction was built');
++    assert.ok(!sentNames(b.sock).includes('BUYER:STEP4'));
++    assert.equal(b.state.broadcasts, 0);
++});
++
++test('the buyer trade payload carries the listener column, the output indices and its expiry', async () => {
++    const calls = [];
++    const b = startBuyer(ltcTrade, {
++        tl_getChannelColumn: (p) => { calls.push(['column', p]); return { data: { column: 'B', columnA: false } }; },
++        tl_createpayload_instant_ltc_trade: (p) => { calls.push(['trade', p]); return { data: 'PAY-LTC' }; },
++    });
++    b.sock.deliver('SELLER:STEP1', { address: 'MS-ADDR', redeemScript: fx.REDEEM, scriptPubKey: fx.SPK.MS });
++    await waitFor(() => sentNames(b.sock).includes('BUYER:STEP2'), { message: 'BUYER:STEP2' });
++    b.sock.deliver('SELLER:STEP3', commitUtxo);
++    await waitFor(() => sentNames(b.sock).includes('BUYER:STEP4'), { message: 'BUYER:STEP4' });
++    assert.deepStrictEqual(calls[0], ['column', ['MS-ADDR', sellerParty.keypair.address, buyerParty.keypair.address]]);
++    const params = calls.find((c) => c[0] === 'trade')[1];
++    assert.equal(params.length, 7);
++    assert.equal(params[3], fx.TIP + 100);
++    assert.deepStrictEqual(params.slice(4), [false, 0, 1]);
++});
+diff --git a/tests/swapper/finalized-identity.test.js b/tests/swapper/finalized-identity.test.js
+index 75d1f5b..8628f77 100644
+--- a/tests/swapper/finalized-identity.test.js
++++ b/tests/swapper/finalized-identity.test.js
+@@ -1,4 +1,5 @@
+ 'use strict';
++const { listenerReply } = require('../support/listener-stub');
+ // Real swapper callbacks, PSBTs, keys and signatures. Node responses are local
+ // fixtures; no funding, broadcast or external node is used.
+ const assert = require('node:assert/strict');
+@@ -37,6 +38,7 @@ const setup = async (t, kind, mode = 'normal', asynchronousKeys = false) => {
+             return { data: { isvalid: true, scriptPubKey: script.toString('hex') } };
+         }
+         if (method === 'decodepsbt') return { data: fx.decodeLikeCore(Buffer.from(params[0], 'base64').toString('hex')) };
++        if (listenerReply(method)) return listenerReply(method);
+         if (method === 'tl_getinfo') return { data: { block: 1000 } };
+         if (method === 'tl_createrawtx_reference') return { data: rawOutput(fx.sellerAddress.output, 3600) };
+         if (method === 'decoderawtransaction') return { data: decodeRaw(params[0]) };
+diff --git a/tests/swapper/ltc-property-id.test.js b/tests/swapper/ltc-property-id.test.js
+index 07300c9..f217028 100644
+--- a/tests/swapper/ltc-property-id.test.js
++++ b/tests/swapper/ltc-property-id.test.js
+@@ -1,4 +1,5 @@
+ 'use strict';
++const { listenerReply } = require('../support/listener-stub');
+ 
+ // LTC is property id 0: the orderbook's markets list, and the TradeLayer consensus id (Cardinal LTC = 0).
+ // The wallet used -1 for LTC in its own checks, so a trade the book sent with propIdForSale 0 was routed
+@@ -56,6 +57,7 @@ const nodeStub = (calls) => async (method, params = []) => {
+             : { data: { isvalid: false } };
+         case 'tl_getinfo': return { data: { block: fx.TIP } };
+         case 'tl_createpayload_instant_ltc_trade': return { data: 'PAY-LTC' };
++        case 'tl_getProtocolCapabilities': case 'tl_getChannelColumn': return listenerReply(method);
+         case 'tl_createpayload_commit_tochannel': return { data: 'PAY-COMMIT' };
+         case 'decoderawtransaction': return { data: { txid: fx.COMMIT_TXID, vout: [{ value: 2, n: 0, scriptPubKey: { addresses: ['MS-ADDR'], hex: fx.SPK.MS } }] } };
+         case 'decodepsbt': return fx.hexOfNodeArg(params[0]) === PSBT1 ? { data: { tx: { txid: fx.TXID } } } : { error: 'TX decode failed' };
+diff --git a/tests/swapper/order-binding.test.js b/tests/swapper/order-binding.test.js
+index 12cc280..a098e7b 100644
+--- a/tests/swapper/order-binding.test.js
++++ b/tests/swapper/order-binding.test.js
+@@ -1,4 +1,5 @@
+ 'use strict';
++const { listenerReply } = require('../support/listener-stub');
+ 
+ /*
+  * A swap starts only for a trade that fits an open order this wallet placed. The orderbook's new-channel
+@@ -186,6 +187,7 @@ test('lifecycle: cancel after seller submission preserves durable recovery and b
+             switch (method) {
+                 case 'createmultisig': return { data: { address: 'MS-ADDR', redeemScript: fx.REDEEM } };
+                 case 'validateaddress': return { data: { scriptPubKey: fx.SPK.MS } };
++                case 'tl_getProtocolCapabilities': case 'tl_getChannelColumn': return listenerReply(method);
+                 case 'tl_createpayload_commit_tochannel': return { data: 'PAYLOAD' };
+                 case 'decoderawtransaction': return { data: { txid: fx.COMMIT_TXID, vout: [
+                     { n: 0, value: 2, scriptPubKey: { hex: fx.SPK.MS, addresses: ['MS-ADDR'] } },
+@@ -314,6 +316,7 @@ test('SwapService retains the reservation after uncertain broadcast and refuses
+             switch (method) {
+                 case 'createmultisig': return { data: { address: 'MS-ADDR', redeemScript: fx.REDEEM } };
+                 case 'validateaddress': return { data: { scriptPubKey: fx.SPK.MS } };
++                case 'tl_getProtocolCapabilities': case 'tl_getChannelColumn': return listenerReply(method);
+                 case 'tl_getinfo': return { data: { block: fx.TIP } };
+                 case 'tl_createpayload_instant_ltc_trade': return { data: 'PAYLOAD' };
+                 case 'decodepsbt': return { data: fx.decodedFrom(fx.honestSpec({ fundSats: 3 * fx.LTC })) };
+@@ -363,6 +366,7 @@ test('SwapService retains seller reservations and shows the commit outpoint afte
+                 switch (method) {
+                     case 'createmultisig': return { data: { address: 'MS-ADDR', redeemScript: fx.REDEEM } };
+                     case 'validateaddress': return { data: { scriptPubKey: fx.SPK.MS } };
++                    case 'tl_getProtocolCapabilities': case 'tl_getChannelColumn': return listenerReply(method);
+                     case 'tl_createpayload_commit_tochannel': return { data: 'PAYLOAD' };
+                     case 'decoderawtransaction': return { data: { txid: fx.COMMIT_TXID, vout: [
+                         { n: 0, value: 2, scriptPubKey: { hex: fx.SPK.MS, addresses: ['MS-ADDR'] } },
+@@ -512,6 +516,7 @@ for (const kind of ['network', 'network-round-trip', 'api-provider', 'orderbook'
+                 switch (method) {
+                     case 'createmultisig': return { data: { address: 'MS-ADDR', redeemScript: fx.REDEEM } };
+                     case 'validateaddress': return { data: { scriptPubKey: fx.SPK.MS } };
++                    case 'tl_getProtocolCapabilities': case 'tl_getChannelColumn': return listenerReply(method);
+                     case 'tl_getinfo': return { data: { block: fx.TIP } };
+                     case 'tl_createpayload_instant_ltc_trade': return { data: 'PAYLOAD' };
+                     case 'decodepsbt': return { data: fx.decodedFrom(fx.honestSpec({ fundSats: 3 * fx.LTC })) };
+@@ -636,6 +641,7 @@ for (const kind of ['network-round-trip', 'api-provider', 'local-disconnect', 'o
+                 switch (method) {
+                     case 'createmultisig': return { data: { address: 'MS-ADDR', redeemScript: fx.REDEEM } };
+                     case 'validateaddress': return { data: { scriptPubKey: fx.SPK.MS } };
++                    case 'tl_getProtocolCapabilities': case 'tl_getChannelColumn': return listenerReply(method);
+                     case 'tl_createpayload_commit_tochannel': return { data: 'PAYLOAD' };
+                     case 'decoderawtransaction': return { data: { txid: fx.COMMIT_TXID, vout: [
+                         { n: 0, value: 2, scriptPubKey: { hex: fx.SPK.MS, addresses: ['MS-ADDR'] } },
+diff --git a/tests/swapper/protocol-v2.test.js b/tests/swapper/protocol-v2.test.js
+index 8c5c7c3..daadd2a 100644
+--- a/tests/swapper/protocol-v2.test.js
++++ b/tests/swapper/protocol-v2.test.js
+@@ -1,4 +1,5 @@
+ 'use strict';
++const { listenerReply } = require('../support/listener-stub');
+ 
+ // Protocol v2 on the wallet (rounds/r12/protocol-v2.md): every inbound message is checked once at the
+ // boundary (protocol.ts), and the swap has three outcomes, a point of no return and bounded timers.
+@@ -127,6 +128,7 @@ const makeBuyerDeps = (opts = {}) => {
+             case 'createmultisig': return { data: { address: 'MS-ADDR', redeemScript: fx.REDEEM } };
+             case 'validateaddress': return { data: { isvalid: true, scriptPubKey: fx.SPK.MS } };
+             case 'tl_getinfo': return { data: { block: fx.TIP } };
++            case 'tl_getProtocolCapabilities': case 'tl_getChannelColumn': return listenerReply(method);
+             case 'tl_createpayload_commit_tochannel': return { data: 'PAY-COMMIT' };
+             case 'tl_createpayload_instant_ltc_trade': return { data: 'PAY-TRADE' };
+             case 'decoderawtransaction': return { data: { vout: [{ value: 2, n: 0, scriptPubKey: { addresses: ['MS-ADDR'], hex: fx.SPK.MS } }] } };
+diff --git a/tests/swapper/seller-commit-recovery.test.js b/tests/swapper/seller-commit-recovery.test.js
+index 8a182ba..a6b63b1 100644
+--- a/tests/swapper/seller-commit-recovery.test.js
++++ b/tests/swapper/seller-commit-recovery.test.js
+@@ -1,4 +1,5 @@
+ 'use strict';
++const { listenerReply } = require('../support/listener-stub');
+ 
+ const assert = require('node:assert/strict');
+ const { test } = require('node:test');
+@@ -57,6 +58,7 @@ const start = async (options = {}) => {
+         switch (method) {
+             case 'createmultisig': return { data: { address: 'MS-ADDR', redeemScript: options.channelRedeem || fx.REDEEM } };
+             case 'validateaddress': return { data: { scriptPubKey: options.channelScript || fx.SPK.MS } };
++            case 'tl_getProtocolCapabilities': case 'tl_getChannelColumn': return listenerReply(method);
+             case 'tl_createpayload_commit_tochannel': return { data: 'COMMIT-PAYLOAD' };
+             case 'decoderawtransaction': {
+                 calls.decoded.push(params[0]);
+diff --git a/tests/swapper/seller-guard.test.js b/tests/swapper/seller-guard.test.js
+index f804923..61c7b05 100644
+--- a/tests/swapper/seller-guard.test.js
++++ b/tests/swapper/seller-guard.test.js
+@@ -1,4 +1,5 @@
+ 'use strict';
++const { listenerReply } = require('../support/listener-stub');
+ 
+ /*
+  * Round-6 suite: the round-5 coverage (fixtures now use real BIP49 keys and the relayer's
+@@ -68,6 +69,7 @@ const nodeStub = (state) => async (method, params = []) => {
+             return script ? { data: { isvalid: true, scriptPubKey: script } } : { data: { isvalid: false } };
+         }
+         case 'tl_getinfo': return { data: { block: fx.TIP } };
++        case 'tl_getProtocolCapabilities': case 'tl_getChannelColumn': return listenerReply(method);
+         case 'tl_createpayload_commit_tochannel': return { data: 'PAY-COMMIT' };
+         case 'tl_createpayload_instant_ltc_trade': {
+             const [prop, amountDesired, price, expiry] = params;
+@@ -756,7 +758,12 @@ matrix('buyer change one sat less (fee one sat above the agreed fee)', (d) => {
+ matrix('single buyer output (change omitted), value to the seller', (d) => {
+     d.tx.vout.splice(0, 1);
+     d.tx.vout.forEach((o, n) => { o.n = n; });
+-}, /output set differs|not one of|output 0 is not/);
++}, /output set differs|not one of|output 0 is not|the payload pays output/);
++matrix('buyer and seller outputs swapped (the payload names token output 0, payment output 1)', (d) => {
++    const [buyer, seller] = d.tx.vout;
++    d.tx.vout.splice(0, 2, seller, buyer);
++    d.tx.vout.forEach((o, n) => { o.n = n; });
++}, /the payload pays output 1|the payload delivers tokens to output 0/);
+ matrix('seller key equals buyer key', () => {}, /seller and buyer keys are the same/, {
+     expectation: () => ({ ...fx.expectation(), buyerPubkeyHex: fx.SELLER_PUB }),
+ });
+@@ -929,3 +936,62 @@ test('seller never shares a trade signature without its durable checkpoint', asy
+     assert.deepEqual(stages, ['seller-commit', 'seller-signature']);
+     assert.ok(!sentNames(sock).includes('SELLER:STEP5'));
+ });
++
++test('a listener that does not enforce trade expiry is refused before the seller builds or broadcasts its commit', async () => {
++    const S = '41'.repeat(32);
++    const { SellSwapper } = freshRequire('swapper/index.js');
++    const { ETradeType } = freshRequire('swapper/common.js');
++    const sock = new FakeSocket();
++    let commitPayloads = 0;
++    const state = {
++        psbts: {},
++        over: {
++            tl_getProtocolCapabilities: () => ({ data: { tradeTokenForUTXO: { maxParts: 8, expiryBlock: false }, channelColumn: { version: 1 } } }),
++            tl_createpayload_commit_tochannel: () => { commitPayloads++; return { data: 'PAY-COMMIT' }; },
++        },
++        calls: { sign: [], buildCommit: 0, broadcast: 0 },
++    };
++    const sw = new SellSwapper(S, ETradeType.SPOT, spotProps, sellerParty, buyerParty, nodeStub(state), sock, makeTxs(state), async () => {});
++    await waitFor(() => sentNames(sock).includes('SELLER:STEP1'), { message: 'SELLER:STEP1' });
++    inbound(sock, S, 'BUYER:STEP2');
++    const res = await settle(sw);
++    assert.match(String(res.reason), /^Step 2: listener does not enforce trade expiry/);
++    assert.equal(commitPayloads, 0);
++    assert.equal(state.calls.buildCommit, 0);
++    assert.equal(state.calls.broadcast, 0);
++    assert.ok(!sentNames(sock).includes('SELLER:STEP3'));
++});
++
++test('the seller commit payload names the negotiated channel address', async () => {
++    const seen = [];
++    const { sw } = await sellerAtStep3('42'.repeat(32), {
++        over: { tl_createpayload_commit_tochannel: (p) => { seen.push(p); return { data: 'PAY-COMMIT' }; } },
++    });
++    assert.equal(seen.length, 1);
++    assert.equal(seen[0][2], 'MS-ADDR');
++    sw.terminateTrade('test over');
++});
++
++test('the seller rebuilds every accepted trade payload with the listener column and the pinned output indices', async () => {
++    const calls = [];
++    const over = {
++        tl_getChannelColumn: (p) => { calls.push(['column', p]); return { data: { column: 'B', columnA: false } }; },
++        tl_createpayload_instant_ltc_trade: (p) => {
++            calls.push(['trade', p]);
++            const [prop, amountDesired, price, expiry] = p;
++            return { data: fx.payloadFor(expiry, { prop, amountDesired, price }) };
++        },
++    };
++    const S = '43'.repeat(32);
++    const { sw, sock, state } = await sellerAtStep3(S, { over });
++    const psbtHex = hx('P7-43434343');
++    state.psbts[psbtHex] = honestFundedDecoded();
++    inbound(sock, S, 'BUYER:STEP4', psbtHex);
++    await waitFor(() => sentNames(sock).includes('SELLER:STEP5'), { message: 'SELLER:STEP5' });
++    inbound(sock, S, 'SERVER:STATE', { state: 'expired-unverified', txid: null }, null);
++    await sw.ready;
++    assert.deepStrictEqual(calls[0], ['column', ['MS-ADDR', sellerParty.keypair.address, buyerParty.keypair.address]]);
++    const trades = calls.filter((c) => c[0] === 'trade').map((c) => c[1]);
++    assert.ok(trades.length > 0);
++    for (const p of trades) assert.deepStrictEqual(p.slice(4), [false, 0, 1]);
++});
+diff --git a/tests/ui/seller-key-privacy.test.js b/tests/ui/seller-key-privacy.test.js
+index 1c35632..7e25d8d 100644
+--- a/tests/ui/seller-key-privacy.test.js
++++ b/tests/ui/seller-key-privacy.test.js
+@@ -1,4 +1,5 @@
+ 'use strict';
++const { listenerReply } = require('../support/listener-stub');
+ const path = require('path');
+ const assert = require('node:assert/strict');
+ const { test } = require('node:test');
+@@ -24,6 +25,7 @@ test('a successfully guarded seller signature never logs its retrieved WIF or tr
+         if (method === 'validateaddress') return { data: { isvalid: true, scriptPubKey: (params[0] === f.funding.address ? f.funding.output
+             : params[0] === fx.sellerAddress.address ? fx.sellerAddress.output : fx.channel.output).toString('hex') } };
+         if (method === 'decodepsbt') return { data: fx.decodeLikeCore(Buffer.from(params[0], 'base64').toString('hex')) };
++        if (listenerReply(method)) return listenerReply(method);
+         if (method === 'tl_getinfo') return { data: { block: 1000 } };
+         if (method === 'tl_createrawtx_reference') return { data: raw(fx.sellerAddress.output, 3600) };
+         if (method === 'tl_createpayload_instant_ltc_trade') return { data: fx.payloadFor(params[3]) };
+-- 
+2.55.0.windows.5
+
+
+From 30c0a93c0dba6e738d6fc8941902861d86357e8c Mon Sep 17 00:00:00 2001
+From: Patrick Dugan <patrick.buchanan.dugan@gmail.com>
+Date: Fri, 23 Oct 2026 10:28:05 +0800
+Subject: [PATCH 2/2] Require the listener's release to be the one activated
+ for channel trades
+
+assertListenerSupportsTrade also checks that the listener reports a code hash and
+that types 3 and 4 are recorded on chain for that hash with their rules active.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ .../src/app/utils/swapper/trade-payload.ts          |  5 +++++
+ tests/server/tl-payload-bridge.test.js              | 13 +++++++++++++
+ tests/support/listener-stub.js                      |  5 ++++-
+ 3 files changed, 22 insertions(+), 1 deletion(-)
+
+diff --git a/packages/wallet-fe/src/app/utils/swapper/trade-payload.ts b/packages/wallet-fe/src/app/utils/swapper/trade-payload.ts
+index 866b73f..b4ed23e 100644
+--- a/packages/wallet-fe/src/app/utils/swapper/trade-payload.ts
++++ b/packages/wallet-fe/src/app/utils/swapper/trade-payload.ts
+@@ -20,6 +20,11 @@ export const assertListenerSupportsTrade = async (client: TClient): Promise<void
+     if (res.error || trade?.expiryBlock !== true || !(Number(trade?.maxParts) >= 9) || !(Number(column?.version) >= 2)) {
+         throw new Error(`listener does not enforce trade expiry: ${res.error || 'capability missing'}`);
+     }
++    // The listener's channel rules count only when the chain activated them for its own release.
++    const codeHash = res.data?.codeHash;
++    const ok = typeof codeHash === 'string' && /^[0-9a-f]{64}$/.test(codeHash)
++        && [3, 4].every((type) => res.data?.recorded?.[type]?.rulesActive === true && res.data.recorded[type].codeHash === codeHash);
++    if (!ok) throw new Error(`listener release is not the one activated for channel trades`);
+ };
+ 
+ // Column of the channel that holds the seller's committed tokens, as the listener's consensus
+diff --git a/tests/server/tl-payload-bridge.test.js b/tests/server/tl-payload-bridge.test.js
+index 9d3e03b..ef1297b 100644
+--- a/tests/server/tl-payload-bridge.test.js
++++ b/tests/server/tl-payload-bridge.test.js
+@@ -103,6 +103,19 @@ test('a listener without the expiry capability is refused before anything is com
+     }
+ });
+ 
++test('a listener whose release the chain has not activated for channel trades is refused', async () => {
++    const { assertListenerSupportsTrade } = tradePayload();
++    const other = 'cd'.repeat(32);
++    for (const data of [
++        { ...CAPABILITIES, codeHash: undefined },
++        { ...CAPABILITIES, codeHash: other },
++        { ...CAPABILITIES, recorded: { ...CAPABILITIES.recorded, 4: { ...CAPABILITIES.recorded[4], rulesActive: false } } },
++        { ...CAPABILITIES, recorded: { 3: CAPABILITIES.recorded[3] } },
++    ]) {
++        await assert.rejects(assertListenerSupportsTrade(async () => ({ data })), /not the one activated/, JSON.stringify(data));
++    }
++});
++
+ test('the channel column comes from the listener and an inconsistent answer is refused', async () => {
+     const { sellerColumnA } = tradePayload();
+     const calls = [];
+diff --git a/tests/support/listener-stub.js b/tests/support/listener-stub.js
+index 7d1701e..69ec2eb 100644
+--- a/tests/support/listener-stub.js
++++ b/tests/support/listener-stub.js
+@@ -2,7 +2,10 @@
+ 
+ // Listener answers for the protocol checks the swappers make before a commit or a payment
+ // (wallet-fe utils/swapper/trade-payload.ts): the trade-expiry capability and the channel column.
+-const CAPABILITIES = { tradeTokenForUTXO: { maxParts: 9, expiryBlock: true }, channelColumn: { version: 2 } };
++const RELEASE = 'ab'.repeat(32);
++const recordedFor = (codeHash) => ({ active: true, activationBlock: 157400, codeHash, rulesActive: true });
++const CAPABILITIES = { tradeTokenForUTXO: { maxParts: 9, expiryBlock: true }, channelColumn: { version: 2 },
++    codeHash: RELEASE, recorded: { 3: recordedFor(RELEASE), 4: recordedFor(RELEASE) } };
+ 
+ const listenerReply = (method) => {
+     if (method === 'tl_getProtocolCapabilities') return { data: CAPABILITIES };
+-- 
+2.55.0.windows.5
+

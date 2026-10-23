@@ -1,0 +1,229 @@
+{
+  "checkedAt": "2026-10-23T02:24:39.362Z",
+  "outcome": "passed",
+  "transactionsSigned": 0,
+  "transactionsBroadcast": 0,
+  "chain": "BTC",
+  "genesisBlock": 157135,
+  "indexedHeight": 157334,
+  "adminAddress": "tb1q504z7g9twgpjv49zjktrs963gwwf7qqxz6ekhy",
+  "statePath": "<local-path>",
+  "activations": {
+    "0": {
+      "name": "Activate TradeLayer",
+      "active": true,
+      "activationBlock": 157248,
+      "codeHash": "5o6i5hbfrkde156pa8t06nr1d512tnyrs0xrzefg72teesuaxn"
+    },
+    "1": {
+      "name": "Token Issue",
+      "active": true,
+      "activationBlock": 157248,
+      "codeHash": "5o6i5hbfrkde156pa8t06nr1d512tnyrs0xrzefg72teesuaxn"
+    },
+    "2": {
+      "name": "Send",
+      "active": true,
+      "activationBlock": 157248,
+      "codeHash": "5o6i5hbfrkde156pa8t06nr1d512tnyrs0xrzefg72teesuaxn"
+    },
+    "3": {
+      "name": "Trade Token for UTXO",
+      "active": true,
+      "activationBlock": 157248,
+      "codeHash": "5o6i5hbfrkde156pa8t06nr1d512tnyrs0xrzefg72teesuaxn"
+    },
+    "4": {
+      "name": "Commit Token",
+      "active": true,
+      "activationBlock": 157248,
+      "codeHash": "5o6i5hbfrkde156pa8t06nr1d512tnyrs0xrzefg72teesuaxn"
+    },
+    "5": {
+      "name": "On-chain Token for Token",
+      "active": true,
+      "activationBlock": 157248,
+      "codeHash": "5o6i5hbfrkde156pa8t06nr1d512tnyrs0xrzefg72teesuaxn"
+    },
+    "6": {
+      "name": "cancelOrder",
+      "active": true,
+      "activationBlock": 157248,
+      "codeHash": "5o6i5hbfrkde156pa8t06nr1d512tnyrs0xrzefg72teesuaxn"
+    },
+    "7": {
+      "name": "Create Whitelist",
+      "active": true,
+      "activationBlock": 157248,
+      "codeHash": "5o6i5hbfrkde156pa8t06nr1d512tnyrs0xrzefg72teesuaxn"
+    },
+    "8": {
+      "name": "Update Admin",
+      "active": true,
+      "activationBlock": 157248,
+      "codeHash": "5o6i5hbfrkde156pa8t06nr1d512tnyrs0xrzefg72teesuaxn"
+    },
+    "9": {
+      "name": "Issue or Revoke Attestation",
+      "active": true,
+      "activationBlock": 157248,
+      "codeHash": "5o6i5hbfrkde156pa8t06nr1d512tnyrs0xrzefg72teesuaxn"
+    },
+    "10": {
+      "name": "AMM",
+      "active": true,
+      "activationBlock": 157248,
+      "codeHash": "5o6i5hbfrkde156pa8t06nr1d512tnyrs0xrzefg72teesuaxn"
+    },
+    "11": {
+      "name": "Grant Managed Token",
+      "active": true,
+      "activationBlock": 157248,
+      "codeHash": "5o6i5hbfrkde156pa8t06nr1d512tnyrs0xrzefg72teesuaxn"
+    },
+    "12": {
+      "name": "Redeem Managed Token",
+      "active": true,
+      "activationBlock": 157248,
+      "codeHash": "5o6i5hbfrkde156pa8t06nr1d512tnyrs0xrzefg72teesuaxn"
+    },
+    "13": {
+      "name": "Create Oracle",
+      "active": true,
+      "activationBlock": 157248,
+      "codeHash": "5o6i5hbfrkde156pa8t06nr1d512tnyrs0xrzefg72teesuaxn"
+    },
+    "14": {
+      "name": "Publish Oracle Data",
+      "active": true,
+      "activationBlock": 157248,
+      "codeHash": "5o6i5hbfrkde156pa8t06nr1d512tnyrs0xrzefg72teesuaxn"
+    },
+    "15": {
+      "name": "Close Oracle",
+      "active": true,
+      "activationBlock": 157248,
+      "codeHash": "5o6i5hbfrkde156pa8t06nr1d512tnyrs0xrzefg72teesuaxn"
+    },
+    "16": {
+      "name": "Create Future Contract Series",
+      "active": true,
+      "activationBlock": 157248,
+      "codeHash": "5o6i5hbfrkde156pa8t06nr1d512tnyrs0xrzefg72teesuaxn"
+    },
+    "17": {
+      "name": "Exercise Derivative",
+      "active": true,
+      "activationBlock": 157248,
+      "codeHash": "5o6i5hbfrkde156pa8t06nr1d512tnyrs0xrzefg72teesuaxn"
+    },
+    "18": {
+      "name": "Trade Contract On-chain",
+      "active": true,
+      "activationBlock": 157248,
+      "codeHash": "5o6i5hbfrkde156pa8t06nr1d512tnyrs0xrzefg72teesuaxn"
+    },
+    "19": {
+      "name": "Trade Contract Channel",
+      "active": true,
+      "activationBlock": 157248,
+      "codeHash": "5o6i5hbfrkde156pa8t06nr1d512tnyrs0xrzefg72teesuaxn"
+    },
+    "20": {
+      "name": "Trade Tokens Channel",
+      "active": true,
+      "activationBlock": 157248,
+      "codeHash": "5o6i5hbfrkde156pa8t06nr1d512tnyrs0xrzefg72teesuaxn"
+    },
+    "21": {
+      "name": "Withdrawal",
+      "active": true,
+      "activationBlock": 157248,
+      "codeHash": "5o6i5hbfrkde156pa8t06nr1d512tnyrs0xrzefg72teesuaxn"
+    },
+    "22": {
+      "name": "Transfer",
+      "active": true,
+      "activationBlock": 157248,
+      "codeHash": "5o6i5hbfrkde156pa8t06nr1d512tnyrs0xrzefg72teesuaxn"
+    },
+    "23": {
+      "name": "Settle Channel PNL",
+      "active": true,
+      "activationBlock": 157248,
+      "codeHash": "5o6i5hbfrkde156pa8t06nr1d512tnyrs0xrzefg72teesuaxn"
+    },
+    "24": {
+      "name": "Mint Synthetic",
+      "active": true,
+      "activationBlock": 157248,
+      "codeHash": "5o6i5hbfrkde156pa8t06nr1d512tnyrs0xrzefg72teesuaxn"
+    },
+    "25": {
+      "name": "Redeem Synthetic",
+      "active": true,
+      "activationBlock": 157248,
+      "codeHash": "5o6i5hbfrkde156pa8t06nr1d512tnyrs0xrzefg72teesuaxn"
+    },
+    "26": {
+      "name": "Pay to Tokens",
+      "active": true,
+      "activationBlock": 157248,
+      "codeHash": "5o6i5hbfrkde156pa8t06nr1d512tnyrs0xrzefg72teesuaxn"
+    },
+    "27": {
+      "name": "Create Option Chain",
+      "active": true,
+      "activationBlock": 157248,
+      "codeHash": "5o6i5hbfrkde156pa8t06nr1d512tnyrs0xrzefg72teesuaxn"
+    },
+    "28": {
+      "name": "Trade Bai Urbun",
+      "active": true,
+      "activationBlock": 157248,
+      "codeHash": "5o6i5hbfrkde156pa8t06nr1d512tnyrs0xrzefg72teesuaxn"
+    },
+    "29": {
+      "name": "Trade Murabaha",
+      "active": true,
+      "activationBlock": 157248,
+      "codeHash": "5o6i5hbfrkde156pa8t06nr1d512tnyrs0xrzefg72teesuaxn"
+    },
+    "30": {
+      "name": "Oracle Stake/Fraud/Relay",
+      "active": true,
+      "activationBlock": 157248,
+      "codeHash": "5o6i5hbfrkde156pa8t06nr1d512tnyrs0xrzefg72teesuaxn"
+    },
+    "31": {
+      "name": "Batch Move Zk Rollup",
+      "active": true,
+      "activationBlock": 157248,
+      "codeHash": "5o6i5hbfrkde156pa8t06nr1d512tnyrs0xrzefg72teesuaxn"
+    },
+    "32": {
+      "name": "Publish New Tx",
+      "active": true,
+      "activationBlock": 157248,
+      "codeHash": "5o6i5hbfrkde156pa8t06nr1d512tnyrs0xrzefg72teesuaxn"
+    },
+    "33": {
+      "name": "Colored Coin",
+      "active": true,
+      "activationBlock": 157248,
+      "codeHash": "5o6i5hbfrkde156pa8t06nr1d512tnyrs0xrzefg72teesuaxn"
+    },
+    "34": {
+      "name": "Cross Layer Bridge",
+      "active": true,
+      "activationBlock": 157248,
+      "codeHash": "5o6i5hbfrkde156pa8t06nr1d512tnyrs0xrzefg72teesuaxn"
+    },
+    "35": {
+      "name": "Smart Contract Bind",
+      "active": true,
+      "activationBlock": 157248,
+      "codeHash": "5o6i5hbfrkde156pa8t06nr1d512tnyrs0xrzefg72teesuaxn"
+    }
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "network": "bitcoin-testnet4",
+  "adminAddress": "tb1q504z7g9twgpjv49zjktrs963gwwf7qqxz6ekhy",
+  "genesisBlock": 157135,
+  "genesisBlockHash": "0000000000bee715627a2cc6124c1ed9872799c2ddde1759a6aa34b57f3afd2d"
+}

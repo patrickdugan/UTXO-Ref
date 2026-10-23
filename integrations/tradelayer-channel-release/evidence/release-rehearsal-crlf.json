@@ -1,0 +1,342 @@
+{
+  "checkedAt": "2026-10-23T02:23:39.802Z",
+  "outcome": "passed",
+  "rehearsalOnly": true,
+  "transactionsSigned": 0,
+  "transactionsBroadcast": 0,
+  "seed": "tradelayer release rehearsal v1",
+  "stages": [
+    {
+      "block": 157300,
+      "txids": [
+        "270e05b287aadd35b689be023c5409c0b6507d7954bb56c0d5dc6b0b15ec4393",
+        "48e8cf49a5eb892e69d5436c6448d2aca98194c6f130af0175920fcfa53b480a",
+        "c1bc52ce257f6897e2cda1adbc3d995958ac4edc15200da00827efb7ad22210f",
+        "b259f12240c971460e86c38f2ceb097874266651d9e0e932d1c5849510da7ee7",
+        "0ac1c7c108be870df310c87feae5dc6dbcc385ae314e7699314528e34c131abd",
+        "6ffd4c7234c1d5c5d14e7a23956ad5b61e4d9edb3b5c213c74a0d28202042353",
+        "935168eec6c3c767d8dc5014af8fe2cf2b95be98210e28e0e34828af00d09db4",
+        "a2bb374d0ba9d459b2df17f456eee6c7a9428ca7985239b0972c39e5b56bcc1b",
+        "050f804e8b683ba1ebc060e70af08d943e6187ab2ddd9ceb527f73c4c7d4c02b",
+        "a6e97ca5b68febc5885f24afd859b1ead9a71c05a977e00c255f19daa4719442",
+        "b683ebff4e37e978f9b8ad30f6581c4a055786ae9ffe391301b44ab2b3faee20",
+        "23743c8207361ef0385c87eacbbf135dc531a624bad10868c0d1cadeaf5f0064",
+        "415dc5038271eb5bc8cf5208482aca13e08fba18f6bd4d167b64b46e6940e551",
+        "389116d3faf9c703a07a84897d2e430627339841a8185141df9ec58bf0a04426",
+        "4de7114ea7fc9737420e8c6d34fc56b6e76bd5a68732784d283e6bc542e75283",
+        "b5eaba3e27a93471f602097c9218f8b5c4635669d739977b89c929d1c6be0a0e",
+        "a52c8ef720904204f098a1b6aebc5ccb6d0ec309c2702b10d064c2895cbecaf2",
+        "e2bb10e35a764628a02b5e967994b1109d45d72b30fc3800e417f71b7305815c",
+        "e30b889b9c863dad9fe3c84bf8d1922f4df1caba78223d0e196c5704959d7c9f",
+        "1f77c71b28e203208af9c20f4873919296d526ef3fee463465ad217ab0c7a394",
+        "8348e2e0e2c7434554e99db629048377d150807f3c9b3d2a9d780323e1b75fd5",
+        "25676e41da3de705a768ab98049108ed4d290686e33e64c7291771dc230c2ab4",
+        "c6b9b0e0599e2003d8bdd66077b59f5efeafd42693210d94bb369ad448306713",
+        "4ac1a8fbd3d205fd0a760c3897886c7665a2e5eea65abdb1b150778ea73a66ac",
+        "4dd2d4060013af951bf2daa6d032e766987ea212416ec1bd554303074b0a67eb",
+        "db8a8e857bbd1bfc8a87e6ba6185b51f23b09995d44f0a0a1fa2348a273fdc6b",
+        "d37f205817276bb7ad5669e1ab9388d88ae868bc31987d359ffa691596dcb736",
+        "e7c841d916a756b4b5056d2382dd0b905bc75017625dd16a48083810c1adcbfc",
+        "25b439f9dfb4a2323d5fe8a864343b20d04522b1177b321c5bcc3d9d2aa46224",
+        "9b344b00abf34b947204c5b505e7375dc71b04687c1b3f469ca3aed99713c8ee",
+        "28acee96e15eb7e9911c0b91b76cb71c465e93e15c184ec7db0d326a62555703",
+        "5f3c7fcccd5f3c26888024bea9cd7c5991668bce0d78a187a7e0cc8884b42093",
+        "f2aa5add20ecb9195f39f925ad8704074f468269bd39a26dc8d0e9e44823482c",
+        "25d1c9a615ed4fbdd00f2799a8e3473c351f4962923ede78cf4ee2afe2ff9a73",
+        "54725bb955ceef662734f8709a9d7933d45e9b7b08deeabc3f5fa23b0699cc48",
+        "6e78fc62b02e90c06da69888c5a246fe3e79221d6b9a8f55ebf5da3197bf418a"
+      ],
+      "valid": true,
+      "reasons": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "block": 157301,
+      "txids": [
+        "9cb5f7bb2ad3f11aede71fb8c4ff56753add74a5a4df86d761f150b14bf8a626"
+      ],
+      "valid": false,
+      "reasons": [
+        "Channel rules not activated for this release"
+      ]
+    },
+    {
+      "block": 157302,
+      "txids": [
+        "8584673180917381bb60f0428a570dfa10592a1e53d423f445defe050578a73d"
+      ],
+      "valid": true,
+      "reasons": [
+        ""
+      ]
+    },
+    {
+      "block": 157303,
+      "txids": [
+        "a9b0f908d7c5812747cb1514520f2078e40bf7c1d17f069fa6f7ea11eef3562f"
+      ],
+      "valid": true,
+      "reasons": [
+        ""
+      ]
+    },
+    {
+      "block": 157304,
+      "txids": [
+        "ac1684600627ffb625533bed09f16f1d81b4ade82a372850a825b089892de355"
+      ],
+      "valid": true,
+      "reasons": [
+        ""
+      ]
+    },
+    {
+      "block": 157305,
+      "txids": [
+        "335e5b857246601e9d9cd419bf24778495c0e2b000ec8a87e121be7561913fb4"
+      ],
+      "valid": false,
+      "reasons": [
+        "Trade expired"
+      ]
+    }
+  ],
+  "releaseCodeHash": "e89d270e01ef1ff5e594f1ab8ab96dab2c601bc6008fe3faf4bcc8a10d1a2e84",
+  "stateDigest": "c5686a532a9b50dc683d4f349cfebc50c0463c61dbdc34ca4074305799bc85e9",
+  "state": {
+    "channel": {
+      "A": {
+        "1": 9
+      },
+      "B": {},
+      "participants": {
+        "A": "tb1qj8e2eqj8pgn8xm86yp8m2ahjzm7ep26mucxql3",
+        "B": ""
+      }
+    },
+    "registry": {
+      "3": {
+        "activationBlock": 157302,
+        "active": true,
+        "codeHash": "5spr604fsnmwpozm3jtblop0b7eqomfqrq76lqxcgnndhapwg4"
+      },
+      "4": {
+        "activationBlock": 157302,
+        "active": true,
+        "codeHash": "5spr604fsnmwpozm3jtblop0b7eqomfqrq76lqxcgnndhapwg4"
+      }
+    },
+    "stages": [
+      {
+        "block": 157300,
+        "reasons": [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        "txids": [
+          "270e05b287aadd35b689be023c5409c0b6507d7954bb56c0d5dc6b0b15ec4393",
+          "48e8cf49a5eb892e69d5436c6448d2aca98194c6f130af0175920fcfa53b480a",
+          "c1bc52ce257f6897e2cda1adbc3d995958ac4edc15200da00827efb7ad22210f",
+          "b259f12240c971460e86c38f2ceb097874266651d9e0e932d1c5849510da7ee7",
+          "0ac1c7c108be870df310c87feae5dc6dbcc385ae314e7699314528e34c131abd",
+          "6ffd4c7234c1d5c5d14e7a23956ad5b61e4d9edb3b5c213c74a0d28202042353",
+          "935168eec6c3c767d8dc5014af8fe2cf2b95be98210e28e0e34828af00d09db4",
+          "a2bb374d0ba9d459b2df17f456eee6c7a9428ca7985239b0972c39e5b56bcc1b",
+          "050f804e8b683ba1ebc060e70af08d943e6187ab2ddd9ceb527f73c4c7d4c02b",
+          "a6e97ca5b68febc5885f24afd859b1ead9a71c05a977e00c255f19daa4719442",
+          "b683ebff4e37e978f9b8ad30f6581c4a055786ae9ffe391301b44ab2b3faee20",
+          "23743c8207361ef0385c87eacbbf135dc531a624bad10868c0d1cadeaf5f0064",
+          "415dc5038271eb5bc8cf5208482aca13e08fba18f6bd4d167b64b46e6940e551",
+          "389116d3faf9c703a07a84897d2e430627339841a8185141df9ec58bf0a04426",
+          "4de7114ea7fc9737420e8c6d34fc56b6e76bd5a68732784d283e6bc542e75283",
+          "b5eaba3e27a93471f602097c9218f8b5c4635669d739977b89c929d1c6be0a0e",
+          "a52c8ef720904204f098a1b6aebc5ccb6d0ec309c2702b10d064c2895cbecaf2",
+          "e2bb10e35a764628a02b5e967994b1109d45d72b30fc3800e417f71b7305815c",
+          "e30b889b9c863dad9fe3c84bf8d1922f4df1caba78223d0e196c5704959d7c9f",
+          "1f77c71b28e203208af9c20f4873919296d526ef3fee463465ad217ab0c7a394",
+          "8348e2e0e2c7434554e99db629048377d150807f3c9b3d2a9d780323e1b75fd5",
+          "25676e41da3de705a768ab98049108ed4d290686e33e64c7291771dc230c2ab4",
+          "c6b9b0e0599e2003d8bdd66077b59f5efeafd42693210d94bb369ad448306713",
+          "4ac1a8fbd3d205fd0a760c3897886c7665a2e5eea65abdb1b150778ea73a66ac",
+          "4dd2d4060013af951bf2daa6d032e766987ea212416ec1bd554303074b0a67eb",
+          "db8a8e857bbd1bfc8a87e6ba6185b51f23b09995d44f0a0a1fa2348a273fdc6b",
+          "d37f205817276bb7ad5669e1ab9388d88ae868bc31987d359ffa691596dcb736",
+          "e7c841d916a756b4b5056d2382dd0b905bc75017625dd16a48083810c1adcbfc",
+          "25b439f9dfb4a2323d5fe8a864343b20d04522b1177b321c5bcc3d9d2aa46224",
+          "9b344b00abf34b947204c5b505e7375dc71b04687c1b3f469ca3aed99713c8ee",
+          "28acee96e15eb7e9911c0b91b76cb71c465e93e15c184ec7db0d326a62555703",
+          "5f3c7fcccd5f3c26888024bea9cd7c5991668bce0d78a187a7e0cc8884b42093",
+          "f2aa5add20ecb9195f39f925ad8704074f468269bd39a26dc8d0e9e44823482c",
+          "25d1c9a615ed4fbdd00f2799a8e3473c351f4962923ede78cf4ee2afe2ff9a73",
+          "54725bb955ceef662734f8709a9d7933d45e9b7b08deeabc3f5fa23b0699cc48",
+          "6e78fc62b02e90c06da69888c5a246fe3e79221d6b9a8f55ebf5da3197bf418a"
+        ],
+        "valid": true
+      },
+      {
+        "block": 157301,
+        "reasons": [
+          "Channel rules not activated for this release"
+        ],
+        "txids": [
+          "9cb5f7bb2ad3f11aede71fb8c4ff56753add74a5a4df86d761f150b14bf8a626"
+        ],
+        "valid": false
+      },
+      {
+        "block": 157302,
+        "reasons": [
+          ""
+        ],
+        "txids": [
+          "8584673180917381bb60f0428a570dfa10592a1e53d423f445defe050578a73d"
+        ],
+        "valid": true
+      },
+      {
+        "block": 157303,
+        "reasons": [
+          ""
+        ],
+        "txids": [
+          "a9b0f908d7c5812747cb1514520f2078e40bf7c1d17f069fa6f7ea11eef3562f"
+        ],
+        "valid": true
+      },
+      {
+        "block": 157304,
+        "reasons": [
+          ""
+        ],
+        "txids": [
+          "ac1684600627ffb625533bed09f16f1d81b4ade82a372850a825b089892de355"
+        ],
+        "valid": true
+      },
+      {
+        "block": 157305,
+        "reasons": [
+          "Trade expired"
+        ],
+        "txids": [
+          "335e5b857246601e9d9cd419bf24778495c0e2b000ec8a87e121be7561913fb4"
+        ],
+        "valid": false
+      }
+    ],
+    "tallies": {
+      "tb1qhc2cj60auf67e0pa3dfd46cvg0fehchx7uha56": {
+        "amount": 24990,
+        "available": 24990,
+        "channel": 0,
+        "margin": 0,
+        "reserved": 0,
+        "vesting": 0
+      },
+      "tb1qj8e2eqj8pgn8xm86yp8m2ahjzm7ep26mucxql3": {
+        "amount": 0,
+        "available": 0,
+        "channel": 0,
+        "margin": 0,
+        "reserved": 0,
+        "vesting": 0
+      },
+      "tb1qqacgx55ml5st688kw0d6793ml0azk5hjy7ag9z": {
+        "amount": 0.99995,
+        "available": 0.99995,
+        "channel": 0,
+        "margin": 0,
+        "reserved": 0,
+        "vesting": 0
+      },
+      "tb1qtgjccx6wfa5j05rhzu3z0hvsw84yz7qxmm2e6j8yq7hca69vmgvs48eeag": {
+        "amount": 9,
+        "available": 0,
+        "channel": 9,
+        "margin": 0,
+        "reserved": 0,
+        "vesting": 0
+      }
+    }
+  },
+  "supersededHalt": {
+    "block": 157306,
+    "recordedUnchanged": true
+  },
+  "statePath": "<local-path>",
+  "fixtureAdmin": "tb1qj8e2eqj8pgn8xm86yp8m2ahjzm7ep26mucxql3",
+  "channelAddress": "tb1qtgjccx6wfa5j05rhzu3z0hvsw84yz7qxmm2e6j8yq7hca69vmgvs48eeag",
+  "column": "A",
+  "height": 157300,
+  "genesisBlock": 157137
+}

@@ -1,0 +1,72 @@
+{
+  "checkedAt": "2026-10-23T02:27:14.072Z",
+  "transactionsSigned": 0,
+  "transactionsBroadcast": 0,
+  "outcome": "bridge-ok-under-candidate",
+  "cases": [
+    {
+      "name": "seller commit: envelope, property, amount, channel output reference",
+      "ok": true,
+      "actualRpcResponse": {
+        "data": "tl41,1njchs,ref:0,0,,0"
+      },
+      "decoded": {
+        "propertyId": 1,
+        "amount": 1,
+        "channelAddress": "",
+        "ref": "0",
+        "payEnabled": false,
+        "clearLists": [],
+        "isColoredOutput": false,
+        "commitClearlistId": null
+      }
+    },
+    {
+      "name": "native trade under the candidate decoder: every agreed field, including expiry",
+      "ok": true,
+      "actualRpcResponse": {
+        "data": "tl31,1njchs,1,lfls,0,1,0,,4abk"
+      },
+      "decoded": {
+        "propertyId": 1,
+        "amount": 1,
+        "columnA": true,
+        "satsExpected": 1000000,
+        "tokenOutput": 0,
+        "payToAddress": 1,
+        "expiryBlock": 200000
+      },
+      "expected": {
+        "propertyId": 1,
+        "amount": 1,
+        "columnA": true,
+        "satsExpected": 1000000,
+        "tokenOutput": 0,
+        "payToAddress": 1,
+        "expiryBlock": 200000
+      }
+    },
+    {
+      "name": "legacy four-argument trade call is refused, not defaulted",
+      "ok": true,
+      "actualRpcResponse": {
+        "error": "Invalid token delivery output index"
+      }
+    }
+  ],
+  "frozenDeployedDecoder": {
+    "decoded": {
+      "propertyId": 1,
+      "amount": 1,
+      "columnA": true,
+      "satsExpected": 1000000,
+      "tokenOutput": 0,
+      "payToAddress": 1,
+      "isColoredOutput": false,
+      "tagWithdraw": null
+    },
+    "expiryEnforced": false,
+    "note": "The deployed decoder does not check the part count: it reads the nine-part trade and drops the expiry. Expiry is only enforced once the candidate is activated by a coordinated version/code-hash rollout."
+  },
+  "releaseGate": "Do not enable live channel funding until the candidate (expiry, column endpoint, capability route) is activated and the wallet points at a listener that reports tl_getProtocolCapabilities."
+}
