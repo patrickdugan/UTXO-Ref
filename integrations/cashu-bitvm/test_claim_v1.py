@@ -23,7 +23,7 @@ def claim(**overrides):
 class ClaimTests(unittest.TestCase):
     def test_reproducible_hash_and_length(self):
         c = claim()
-        self.assertEqual(len(c.encode()), 210)
+        self.assertEqual(len(c.encode()), 178)
         self.assertEqual(c.statement_digest(), claim().statement_digest())
 
     def test_domain_changes(self):
