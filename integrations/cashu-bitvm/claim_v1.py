@@ -4,7 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from hashlib import sha256
 
-_DOMAIN = b"UTXOREF-CASHU-BITVM-CLAIM-V1\\x00"
+_DOMAIN = b"UTXOREF-CASHU-BITVM-CLAIM-V1\x00"
 _NETWORK = {"mainnet": 0, "testnet4": 1, "signet": 2, "regtest": 3}
 _PROOF_SYSTEMS = {"groth16-bn254", "sp1-stark", "sp1-groth16-wrapper"}
 
@@ -82,13 +82,13 @@ class UnverifiedProofReceiptV1:
     def receipt_digest(self) -> str:
         self.validate()
         payload = (
-            b"UTXOREF-CASHU-BITVM-RECEIPT-V1\\x00"
+            b"UTXOREF-CASHU-BITVM-RECEIPT-V1\x00"
             + bytes.fromhex(self.claim.statement_digest())
             + bytes([len(self.proof_system)])
             + self.proof_system.encode("ascii")
             + bytes.fromhex(self.proof_sha256)
             + bytes.fromhex(self.verifier_key_sha256)
             + bytes.fromhex(self.program_sha256)
-            + b"\\x00"
+            + b"\x00"
         )
         return sha256(payload).hexdigest()
