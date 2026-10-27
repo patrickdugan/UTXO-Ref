@@ -4,7 +4,7 @@
 
 A `PaymentClaimV1` contains: version, Bitcoin network, bytes32 contract ID, bytes32 unique claim ID, bytes32 recipient commitment, positive amount in sats, bytes32 authenticated-block reference (header hash), minimum confirmations, expiry height and bytes32 payment policy digest.
 
-The statement hash is `SHA256("UTXOREF-CASHU-BITVM-CLAIM-V1\\0" || canonical binary encoding)`. All integer values are unsigned big-endian with explicit widths; hashes are bytes32 hex (lowercase, no prefix). `mainnet`, `testnet4`, `signet` and `regtest` have distinct discriminants. **Note:** the hash commits to claimed fields; it does not authenticate the block or prove payment.
+The statement hash is `SHA256("UTXOREF-CASHU-BITVM-CLAIM-V1\0" || canonical binary encoding)`. All integer values are unsigned big-endian with explicit widths; hashes are bytes32 hex (lowercase, no prefix). `mainnet`, `testnet4`, `signet` and `regtest` have distinct discriminants. **Note:** the hash commits to claimed fields; it does not authenticate the block or prove payment.
 
 A Stage 0 `ProofReceiptV1` binds that statement to a proof artifact digest, proof-system identifier, verifier-key digest and program/circuit digest, and explicitly reports `unverified`. Later adapters must issue a separately versioned verified receipt only after cryptographic verification and public-input matching; the Stage 0 receipt type deliberately forbids `verified`.
 
