@@ -18,6 +18,7 @@ const tr = require('../../bitvm3/utxo_referee/tradelayer_taproot');
 const fund = require('../../bitvm3/utxo_referee/dlc_funding_output');
 const validator = require('../../bitvm3/utxo_referee/dlc_transaction_validator');
 const sig = require('../../bitvm3/utxo_referee/dlc_signature_validator');
+const { canonicalJson } = require('../../bitvm3/utxo_referee/dlc_contract_state');
 const proto = require('./index');
 const barrier = require('./barrier_adaptor');
 
@@ -266,7 +267,7 @@ function verifyPinnedTemplate(template, pinnedTemplateHash) {
   },m,anchor,approved.anchorScriptPubKeyHex);
   function exactOutputs(expected,found,label) {
     const normalized=expected.map(x=>({valueSats:x.valueSats.toString(),scriptPubKeyHex:x.scriptPubKeyHex}));
-    if (proto.canonical(normalized)!==proto.canonical(found)) {
+    if (canonicalJson(normalized)!==canonicalJson(found)) {
       throw new Error(label + ' outputs diverge from precommitted option economics');
     }
   }
