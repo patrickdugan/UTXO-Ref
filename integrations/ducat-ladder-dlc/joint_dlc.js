@@ -53,7 +53,6 @@ function safeU32(value, field) {
 function pointFromBinding(binding) {
   const x = BigInt('0x' + requireHex32(binding.pointX, 'pointX'));
   const y = BigInt('0x' + requireHex32(binding.pointY, 'pointY'));
-  const p = ad.pointMul(ad.G, 1n); // reuse the existing curve's canonical field constants via liftX
   const even = ad.liftX(x);
   const prime = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2Fn;
   if (y !== even.y && y !== prime - even.y) throw new Error('invalid adaptor point');
@@ -89,6 +88,7 @@ function makeApprovalCore({manifest, pinnedManifestHash, binding, selectedRowHas
   }
   return {
     kind: 'ducat-joint-dlc-secondary-oracle-approval-v1',
+    network: m.spec.network,
     manifestHash: m.manifestHash,
     selectedRowHash,
     bindingHash: proto.hash(binding),
@@ -111,9 +111,6 @@ function outputsFor(row, m, anchorSats, anchorScriptPubKeyHex) {
     [sat(row.writerSats, 'writerSats'), m.spec.writerScriptPubKeyHex],
     [anchorSats, anchorScriptPubKeyHex]
   ];
-  if (pay.some(([value]) => value < 546n) && anchorSats !== 330n) {
-    throw new Error('payout is below standard conservative dust floor');
-  }
   if (pay.slice(0, 2).some(([value]) => value < 546n)) throw new Error('CET party payout is dust');
   return pay.map(([valueSats, scriptPubKeyHex]) => ({valueSats, scriptPubKeyHex}));
 }
@@ -197,6 +194,7 @@ function verifyPinnedTemplate(template, pinnedTemplateHash) {
   }
   const {templateHash, ...core} = template;
   if (proto.hash(core) !== templateHash) throw new Error('joint template changed after pinning');
+  testNetwork(template.approval.network);
   const txset = validator.normalizeDlcTransactionSet(template.transactionSet);
   if (txset.cets.length !== 1 || txset.cets[0].txid !== template.canonicalCetTxid) {
     throw new Error('exactly one pinned barrier CET required');
@@ -231,7 +229,7 @@ function verifyPinnedTemplate(template, pinnedTemplateHash) {
 function researchSignJointOffer({template, pinnedTemplateHash, signerSecret, testOnly}) {
   if (testOnly !== true) throw new Error('private signing is permitted only in explicit testOnly fixtures');
   const txset = verifyPinnedTemplate(template,pinnedTemplateHash);
-  testNetwork(template.approval.primaryOracleXonly && 'testnet4'); // mainnet never authorized by this fixture
+  testNetwork(template.approval.network);
   if (typeof signerSecret !== 'bigint') throw new Error('signerSecret must be a test-only bigint');
   const signerPubkeyX = ad.xOnlyPubkey(signerSecret).toString('hex');
   if (!txset.funding.partyPubkeyXs.includes(signerPubkeyX)) throw new Error('signer is not a funding party');
