@@ -181,7 +181,7 @@ function buildJointTemplate({snapshot, binding, manifest, pinnedManifestHash, se
   });
   const core = {
     kind: KIND, approval, secondaryOracleSignatureHex, binding,
-    manifestHash: m.manifestHash, selectedRowHash,
+    manifestHash: m.manifestHash, manifest: m, selectedRowHash,
     transactionSet, minerFeeSats: minerFee.toString(),
     feeBudgetSats: feeBudget.toString(),
     canonicalCetTxid: transactionSet.cets[0].txid
@@ -223,6 +223,75 @@ function verifyPinnedTemplate(template, pinnedTemplateHash) {
   const a = sat(template.feeBudgetSats, 'feeBudgetSats');
   if (a !== sat(template.minerFeeSats,'minerFeeSats') + sat(template.approval.anchorSats,'anchorSats')) {
     throw new Error('fee budget accounting mismatch');
+  }
+  // Every party replays the approved *financial* terms, even when an attacker
+  // supplies a self-consistent transaction-set digest and a newly pinned hash.
+  // This is required before either party signs and is intentionally offline so
+  // the signed refund stays usable after the oracle snapshot expires.
+  const m = proto.verifyManifest(template.manifest, template.manifestHash);
+  const approved = makeApprovalCore({
+    manifest: m, pinnedManifestHash: m.manifestHash, binding: template.binding,
+    selectedRowHash: template.selectedRowHash,
+    partyPubkeyXs: template.approval.partyPubkeyXs,
+    secondaryOracleXonly: template.approval.secondaryOracleXonly,
+    refundCsvBlocks: template.approval.refundCsvBlocks,
+    cetLocktime: template.approval.cetLocktime,
+    refundLocktime: template.approval.refundLocktime,
+    anchorSats: template.approval.anchorSats,
+    anchorScriptPubKeyHex: template.approval.anchorScriptPubKeyHex
+  });
+  if (proto.hash(approved) !== proto.hash(template.approval)) {
+    throw new Error('co-oracle approval does not match independently reconstructed financial policy');
+  }
+  if (!HEX64.test(template.binding.signatureHex) ||
+      !ad.schnorrVerify(Buffer.from(m.spec.oracleXonly,'hex'),
+        barrier.bindMessage(template.binding),Buffer.from(template.binding.signatureHex,'hex'))) {
+    throw new Error('offline oracle point-binding signature invalid');
+  }
+  if (m.spec.riskBarrierCommitHash !== template.binding.commitHash ||
+      txset.funding.txid !== m.spec.funding.txid ||
+      txset.funding.vout !== m.spec.funding.vout ||
+      txset.funding.valueSats !== m.spec.funding.amountSats ||
+      txset.funding.scriptPubKeyHex !== m.spec.funding.scriptPubKeyHex) {
+    throw new Error('funding or risk commitment differs from the verified option manifest');
+  }
+  const row=m.rows.find(x=>x.rowHash===template.selectedRowHash);
+  if (!row) throw new Error('selected barrier payout is outside the verified option grid');
+  const anchor=sat(approved.anchorSats,'anchorSats');
+  const expectedCet=outputsFor(row,m,anchor,approved.anchorScriptPubKeyHex);
+  const expectedRefund=outputsFor({
+    holderSats:m.spec.baseHolderSats,
+    writerSats:(BigInt(m.spec.funding.amountSats)-
+      BigInt(m.spec.feeSats)-BigInt(m.spec.baseHolderSats)).toString()
+  },m,anchor,approved.anchorScriptPubKeyHex);
+  function exactOutputs(expected,found,label) {
+    const normalized=expected.map(x=>({valueSats:x.valueSats.toString(),scriptPubKeyHex:x.scriptPubKeyHex}));
+    if (proto.canonical(normalized)!==proto.canonical(found)) {
+      throw new Error(label + ' outputs diverge from precommitted option economics');
+    }
+  }
+  exactOutputs(expectedCet,txset.cets[0].outputs,'CET');
+  exactOutputs(expectedRefund,txset.refund.outputs,'refund');
+  const expectedOutcome=proto.hash({
+    kind:'ducat-joint-barrier-outcome-v1',
+    manifestHash:m.manifestHash,selectedRowHash:template.selectedRowHash,
+    bindingHash:proto.hash(template.binding)
+  });
+  if (txset.cets[0].outcomeMessage!==expectedOutcome) throw new Error('barrier outcome identity changed');
+  const actualFee=sat(m.spec.feeSats,'feeSats')-anchor;
+  if (actualFee<500n ||
+      actualFee!==sat(template.minerFeeSats,'minerFeeSats') ||
+      txset.cets[0].feeSats!==actualFee.toString() ||
+      txset.refund.feeSats!==actualFee.toString()) {
+    throw new Error('CET or refund fee diverges from approved budget');
+  }
+  if (txset.feePolicy.strategy!=='cpfp-anchor-v1' ||
+      txset.feePolicy.anchorAmountSats!==anchor.toString() ||
+      txset.feePolicy.anchorScriptPubKeyHex!==approved.anchorScriptPubKeyHex ||
+      txset.feePolicy.maxRecoveryFeeSats!=='150000' ||
+      txset.feePolicy.maxRecoveryFeerateSatPerVb!==500 ||
+      txset.feePolicy.minRelayPeers!==2) {
+    throw new Error('funding fee policy is outside approved research profile');
   }
   return txset;
 }
