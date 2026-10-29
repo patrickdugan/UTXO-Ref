@@ -192,5 +192,5 @@ function completeBarrierCET({snapshot,binding,breach,manifest,pinnedManifestHash
     fundingOutpoint:offer.fundingOutpoint,txid,signatureHex,signedTxHex,
     unsignedTxHex:tx.unsignedTxHex,sighashHex:offer.sighashHex};
 }
-module.exports={announceThresholdPoint,verifyThresholdPoint,prepareBarrierCET,verifyOffer,
+module.exports={bindMessage,announceThresholdPoint,verifyThresholdPoint,prepareBarrierCET,verifyOffer,
   completeBarrierCET,secretScalar,buildUnsignedCET};
