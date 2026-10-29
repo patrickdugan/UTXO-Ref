@@ -229,3 +229,59 @@ test('network and refund gates refuse mainnet, unsigned control and invalid matu
     pinnedManifestHash:mainnetManifest.manifestHash
   }),/regtest\/testnet4\/mutinynet/);
 });
+
+test('a freshly rehashed, validator-consistent malicious refund or CET cannot change the approved payoff',()=>{
+  const tr=require('../../bitvm3/utxo_referee/tradelayer_taproot');
+  const original=f.template.transactionSet;
+  const funding=original.funding;
+  const feePolicy=original.feePolicy;
+  const copiedFunding={
+    txid:funding.txid,vout:funding.vout,valueSats:BigInt(funding.valueSats),
+    scriptPubKeyHex:funding.scriptPubKeyHex,
+    partyPubkeyXs:[...funding.partyPubkeyXs],refundCsvBlocks:funding.refundCsvBlocks
+  };
+  const policy={
+    strategy:feePolicy.strategy,anchorAmountSats:BigInt(feePolicy.anchorAmountSats),
+    anchorScriptPubKeyHex:feePolicy.anchorScriptPubKeyHex,
+    maxRecoveryFeeSats:BigInt(feePolicy.maxRecoveryFeeSats),
+    maxRecoveryFeerateSatPerVb:feePolicy.maxRecoveryFeerateSatPerVb,
+    minRelayPeers:feePolicy.minRelayPeers
+  };
+  function rebuild(changeRefund) {
+    const cet=original.cets[0],refund=original.refund;
+    const cetOutputs=cet.outputs.map(x=>({valueSats:BigInt(x.valueSats),scriptPubKeyHex:x.scriptPubKeyHex}));
+    const refundOutputs=refund.outputs.map(x=>({valueSats:BigInt(x.valueSats),scriptPubKeyHex:x.scriptPubKeyHex}));
+    const outputs=changeRefund?refundOutputs:cetOutputs;
+    outputs[0].valueSats+=1000n;
+    outputs[1].valueSats-=1000n;
+    const raw=(values,locktime,sequence)=>tr.serializeUnsignedTx(2,
+      [{outpoint:tr.outpoint(funding.txid,funding.vout),sequence}],
+      values.map(x=>({valueSats:x.valueSats,script:x.scriptPubKeyHex})),locktime);
+    const forgedSet=txval.validateDlcTransactionSet({
+      funding:copiedFunding,feePolicy:policy,
+      minFeeSats:670n,maxFeeSats:670n,
+      cets:[{
+        outcomeMessage:cet.outcomeMessage,oraclePubkeys:cet.oraclePubkeys,
+        rawTxHex:changeRefund?cet.rawTxHex:raw(cetOutputs,cet.locktime,0xfffffffe),
+        expectedOutputs:cetOutputs,locktime:cet.locktime
+      }],
+      refund:{
+        rawTxHex:changeRefund?raw(refundOutputs,refund.locktime,144):refund.rawTxHex,
+        expectedOutputs:refundOutputs,locktime:refund.locktime
+      }
+    });
+    const forged=structuredClone(f.template);
+    forged.transactionSet=forgedSet;
+    forged.canonicalCetTxid=forgedSet.cets[0].txid;
+    const {templateHash,...core}=forged;
+    forged.templateHash=p.hash(core);
+    assert.notEqual(forged.templateHash,f.pinnedTemplateHash);
+    return forged;
+  }
+  const badRefund=rebuild(true);
+  assert.throws(()=>joint.verifyPinnedTemplate(badRefund,badRefund.templateHash),
+    /refund outputs diverge/);
+  const badCet=rebuild(false);
+  assert.throws(()=>joint.verifyPinnedTemplate(badCet,badCet.templateHash),
+    /CET outputs diverge/);
+});
