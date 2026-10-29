@@ -285,3 +285,38 @@ test('a freshly rehashed, validator-consistent malicious refund or CET cannot ch
   assert.throws(()=>joint.verifyPinnedTemplate(badCet,badCet.templateHash),
     /CET outputs diverge/);
 });
+
+test('one threshold release completes two distinct jointly controlled DLC funding outpoints',()=>{
+  const first=completed();
+  const manifest=p.compileManifest({
+    ...f.manifest.spec,contractId:'bb'.repeat(32),
+    funding:{...f.manifest.spec.funding,txid:'ef'.repeat(32),vout:1}
+  });
+  const args={
+    ...f.policyArgs,manifest,pinnedManifestHash:manifest.manifestHash,
+    selectedRowHash:manifest.rows.find(x=>x.priceUsd===60000).rowHash
+  };
+  const approval=joint.makeApprovalCore(args);
+  const secondaryOracleSignatureHex=ad.schnorrSign(f.secondOracleSecret,
+    joint.approvalMessage(approval)).toString('hex');
+  const template=joint.buildJointTemplate({
+    ...args,secondaryOracleSignatureHex,
+    snapshot:f.snapshot,pinnedSnapshotPubkey:f.ed.publicKey,now:1030
+  });
+  const offers=[f.aSecret,f.bSecret].map(signerSecret=>joint.researchSignJointOffer({
+    template,pinnedTemplateHash:template.templateHash,signerSecret,testOnly:true
+  }));
+  const second=joint.completeJointBarrierCET({
+    template,pinnedTemplateHash:template.templateHash,offers,
+    snapshot:f.snapshot,breach:f.breach,pinnedSnapshotPubkey:f.ed.publicKey,now:1030
+  });
+  assert.notEqual(first.txid,second.txid);
+  assert.equal(first.barrierCommitHash,second.barrierCommitHash);
+  assert.equal(sigval.verifySettlementWitness({
+    transactionSet:template.transactionSet,executionType:'cet',
+    cetTxid:second.txid,signedTxHex:second.signedTxHex
+  }).txid,second.txid);
+  const inFirst=txval.parseCanonicalUnsignedTransaction(f.template.transactionSet.cets[0].rawTxHex).inputs[0];
+  const inSecond=txval.parseCanonicalUnsignedTransaction(template.transactionSet.cets[0].rawTxHex).inputs[0];
+  assert.notDeepEqual([inFirst.txid,inFirst.vout],[inSecond.txid,inSecond.vout]);
+});
