@@ -32,7 +32,8 @@ a single committed CPFP anchor output.
    The hash preimage `t` remains private until a threshold breach.
 3. A distinct, pinned BIP340 **co-approval oracle** signs a message binding the
    manifest hash, option row hash, funding outpoint, pair of public keys,
-   threshold point binding, CET/refund locktimes, refund CSV delay, and anchor
+   threshold point binding, CET/refund locktimes, a pinned externally checked
+   construction tip height, refund CSV delay, and anchor
    policy. This is pre-funding authorization, *not* a second adaptor scalar.
 4. `buildJointTemplate` creates exactly one CET transaction and one refund.
    It calls `validateDlcTransactionSet`, producing canonical funding/CET/refund
@@ -55,7 +56,7 @@ a single committed CPFP anchor output.
    One published preimage can complete CETs for distinct UTXOs that chose
    the same barrier, while each UTXO has **one** fixed payout.
 8. If no CET settles, the pre-signed refund is available after its
-   **relative CSV delay** and absolute height locktime. The
+   **relative CSV delay** and transaction-level absolute height nLockTime. The
    `refundMaturity` helper computes conservative block-height eligibility
    from externally supplied trusted confirmation and candidate block heights.
    Refund assembly and signature validation work without contacting the
@@ -106,6 +107,10 @@ fails if its refund or CET amounts differ from the agreed manifest.
   deterministic hash-to-curve construction having no known discrete log. The
   test suite does not replace independent audit of Bitcoin Script and the
   original UTXORef primitives.
+- The signed construction tip height must precede the refund's absolute
+  locktime by at least the relative CSV delay. The fixture uses height 100;
+  a live implementation must anchor this to the independently checked chain
+  tip immediately before all parties sign.
 - Height arithmetic comes from caller-supplied values. Live deployments
   require independently verified funding confirmations, chain-tip freshness,
   sequence locks, mempool acceptance, fee bump policy and reorg monitoring.

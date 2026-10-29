@@ -42,6 +42,7 @@ const contracts=[1,2].map(id=>{
     selectedRowHash:manifest.rows.find(row=>row.priceUsd===60000).rowHash,
     partyPubkeyXs,secondaryOracleXonly,
     refundCsvBlocks:144,cetLocktime:200,refundLocktime:400,
+    constructionTipHeight:100,
     anchorSats:'330',anchorScriptPubKeyHex:'0014'+'ee'.repeat(20)
   };
   const approval=joint.makeApprovalCore(params);

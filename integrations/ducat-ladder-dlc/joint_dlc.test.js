@@ -48,6 +48,7 @@ function setup() {
     manifest,pinnedManifestHash:manifest.manifestHash,binding,
     selectedRowHash:row.rowHash,partyPubkeyXs,
     secondaryOracleXonly,refundCsvBlocks:144,cetLocktime:200,refundLocktime:400,
+    constructionTipHeight:100,
     anchorSats:'330',anchorScriptPubKeyHex:'0014'+'ee'.repeat(20)
   };
   const approval=joint.makeApprovalCore(policyArgs);
@@ -159,7 +160,7 @@ test('one party cannot authorize either CET or refund without the other',()=>{
   }),/signature is required/);
 });
 
-test('refund remains an offline signed spend, with conservative CSV+CLTV maturity',()=>{
+test('refund remains an offline signed spend, with conservative CSV+nLockTime maturity',()=>{
   const ready=joint.refundMaturity({template:f.template,pinnedTemplateHash:f.pinnedTemplateHash,
     fundingConfirmedHeight:1000,nextBlockHeight:1143});
   assert.equal(ready.eligible,false);
@@ -219,6 +220,12 @@ test('network and refund gates refuse mainnet, unsigned control and invalid matu
     fundingConfirmedHeight:0,nextBlockHeight:1000
   }),/funding must be confirmed/);
   assert.throws(()=>joint.makeApprovalCore({...f.policyArgs,refundLocktime:199}),/refund height/);
+  assert.throws(()=>joint.makeApprovalCore({...f.policyArgs,constructionTipHeight:1000}),
+    /future-dated/);
+  assert.throws(()=>joint.refundMaturity({
+    template:f.template,pinnedTemplateHash:f.pinnedTemplateHash,
+    fundingConfirmedHeight:50,nextBlockHeight:1144
+  }),/cannot predate/);
   assert.throws(()=>joint.makeApprovalCore({...f.policyArgs,anchorSats:'200'}),/CPFP anchor/);
 
   const forged=structuredClone(f.manifest);

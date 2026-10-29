@@ -73,7 +73,9 @@ Before funding, both parties must provide normal Schnorr signatures on
 the refund. The assembled signed refund stays valid without further
 oracle communication. Its earliest candidate block height is checked using
 both the input sequence's relative CSV delay and the transaction's
-absolute height locktime. This checker trusts an external source for
+absolute height nLockTime. The co-approval signature also pins the
+externally checked construction tip height so a past-height refund
+cannot masquerade as a future-dated timeout. This checker trusts an external source for
 funding confirmation height and prospective chain height.
 
 The adapter also requires a separate BIP340 oracle authorization over

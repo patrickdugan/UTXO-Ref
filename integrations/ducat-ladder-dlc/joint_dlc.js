@@ -61,7 +61,7 @@ function pointFromBinding(binding) {
 }
 function makeApprovalCore({manifest, pinnedManifestHash, binding, selectedRowHash, partyPubkeyXs,
   secondaryOracleXonly, refundCsvBlocks = REFUND_CSV_DEFAULT, cetLocktime = 200,
-  refundLocktime = 400, anchorSats = '330', anchorScriptPubKeyHex = '0014' + 'ee'.repeat(20)}) {
+  refundLocktime = 400, constructionTipHeight, anchorSats = '330', anchorScriptPubKeyHex = '0014' + 'ee'.repeat(20)}) {
   const m = proto.verifyManifest(manifest, pinnedManifestHash);
   testNetwork(m.spec.network);
   if (m.spec.riskBarrierCommitHash !== binding.commitHash) throw new Error('oracle barrier differs from manifest');
@@ -75,8 +75,12 @@ function makeApprovalCore({manifest, pinnedManifestHash, binding, selectedRowHas
   if (secondaryOracleXonly === m.spec.oracleXonly) throw new Error('second oracle must be independent');
   ad.liftX(BigInt('0x' + secondaryOracleXonly));
   safeU32(cetLocktime, 'cetLocktime'); safeU32(refundLocktime, 'refundLocktime');
+  safeU32(constructionTipHeight, 'constructionTipHeight');
   if (cetLocktime === 0 || refundLocktime <= cetLocktime || refundLocktime >= 500000000) {
     throw new Error('refund height must follow CET height and use block-height nLockTime');
+  }
+  if (refundLocktime < constructionTipHeight + refundCsvBlocks) {
+    throw new Error('refund nLockTime must be future-dated beyond the signed construction tip and CSV window');
   }
   const anchor = sat(anchorSats, 'anchorSats');
   if (anchor < 330n || anchor > 10000n) throw new Error('CPFP anchor must be 330..10000 sats');
@@ -99,7 +103,7 @@ function makeApprovalCore({manifest, pinnedManifestHash, binding, selectedRowHas
     secondaryOracleXonly,
     partyPubkeyXs: [...parties],
     refundCsvBlocks: output.refundCsvBlocks,
-    cetLocktime, refundLocktime,
+    cetLocktime, refundLocktime, constructionTipHeight,
     anchorSats: anchor.toString(), anchorScriptPubKeyHex
   };
 }
@@ -118,7 +122,7 @@ function outputsFor(row, m, anchorSats, anchorScriptPubKeyHex) {
 function buildJointTemplate({snapshot, binding, manifest, pinnedManifestHash, selectedRowHash,
   pinnedSnapshotPubkey, now, secondaryOracleXonly, secondaryOracleSignatureHex,
   partyPubkeyXs, refundCsvBlocks = REFUND_CSV_DEFAULT, cetLocktime = 200, refundLocktime = 400,
-  anchorSats = '330', anchorScriptPubKeyHex = '0014' + 'ee'.repeat(20)}) {
+  constructionTipHeight, anchorSats = '330', anchorScriptPubKeyHex = '0014' + 'ee'.repeat(20)}) {
   barrier.verifyThresholdPoint({snapshot, binding, pinnedSnapshotPubkey, now});
   const m = proto.verifyManifest(manifest, pinnedManifestHash);
   if (m.spec.network !== snapshot.payload.network || m.spec.oracleXonly !== snapshot.payload.oracleXonly) {
@@ -127,7 +131,7 @@ function buildJointTemplate({snapshot, binding, manifest, pinnedManifestHash, se
   const approval = makeApprovalCore({
     manifest, pinnedManifestHash, binding, selectedRowHash, partyPubkeyXs,
     secondaryOracleXonly, refundCsvBlocks, cetLocktime, refundLocktime,
-    anchorSats, anchorScriptPubKeyHex
+    constructionTipHeight, anchorSats, anchorScriptPubKeyHex
   });
   if (typeof secondaryOracleSignatureHex !== 'string' || !HEX64.test(secondaryOracleSignatureHex) ||
       !ad.schnorrVerify(Buffer.from(secondaryOracleXonly, 'hex'), approvalMessage(approval),
@@ -238,6 +242,7 @@ function verifyPinnedTemplate(template, pinnedTemplateHash) {
     refundCsvBlocks: template.approval.refundCsvBlocks,
     cetLocktime: template.approval.cetLocktime,
     refundLocktime: template.approval.refundLocktime,
+    constructionTipHeight: template.approval.constructionTipHeight,
     anchorSats: template.approval.anchorSats,
     anchorScriptPubKeyHex: template.approval.anchorScriptPubKeyHex
   });
@@ -381,6 +386,9 @@ function refundMaturity({template,pinnedTemplateHash,fundingConfirmedHeight,next
   safeU32(fundingConfirmedHeight,'fundingConfirmedHeight');
   safeU32(nextBlockHeight,'nextBlockHeight');
   if (fundingConfirmedHeight===0) throw new Error('funding must be confirmed before refund maturity');
+  if (fundingConfirmedHeight < template.approval.constructionTipHeight) {
+    throw new Error('funding cannot predate the signed construction tip height');
+  }
   const csv=txset.funding.refundCsvBlocks,lock=txset.refund.locktime;
   const earliest=Math.max(fundingConfirmedHeight+csv,lock+1);
   return {eligible: nextBlockHeight>=earliest,
