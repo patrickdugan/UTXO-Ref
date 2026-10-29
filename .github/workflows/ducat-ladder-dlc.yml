@@ -27,3 +27,5 @@ jobs:
         run: node --test integrations/ducat-ladder-dlc/*.test.js
       - name: Deterministic research demo
         run: node integrations/ducat-ladder-dlc/demo.js
+      - name: Two-party NUMS Taproot DLC and pre-signed refund demo
+        run: node integrations/ducat-ladder-dlc/joint_dlc_demo.js
