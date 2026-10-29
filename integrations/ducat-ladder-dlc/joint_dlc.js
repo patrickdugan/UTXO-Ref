@@ -243,7 +243,7 @@ function researchSignJointOffer({template, pinnedTemplateHash, signerSecret, tes
   const presignature = ad.adaptorSign(signerSecret,cetSighash,point);
   const refundSignatureHex = ad.schnorrSign(signerSecret,refundSighash).toString('hex');
   const core = {
-    kind: OFFER_KIND, templateHash, signerPubkeyX,
+    kind: OFFER_KIND, templateHash: pinnedTemplateHash, signerPubkeyX,
     cetTxid: template.canonicalCetTxid,
     cetSighashHex: cetSighash.toString('hex'),
     refundTxid: txset.refund.txid,
