@@ -95,3 +95,25 @@ test('completed signature is invalid for a substituted output or funding signer'
     [{amountSats:f.a.manifest.spec.funding.amountSats,scriptPubKey:f.a.manifest.spec.funding.scriptPubKeyHex}],0);
   assert.equal(ad.schnorrVerify(Buffer.from(o.spendPubkeyX,'hex'),msg,Buffer.from(tx.signatureHex,'hex')),false);
 });
+test('signed off-curve adaptor points and mainnet signing attempts fail closed',()=>{
+  const f=fixture();
+  const malformed=structuredClone(f.binding);
+  malformed.pointY='00'.repeat(32);
+  const msg=ad.taggedHash('UTXOREF_DUCAT_THRESHOLD_ADAPTOR_V1',
+    Buffer.from(malformed.snapshotId,'hex'),Buffer.from(malformed.commitHash,'hex'),
+    Buffer.from(malformed.secretHash160,'hex'),Buffer.from(malformed.pointX,'hex'),
+    Buffer.from(malformed.pointY,'hex'));
+  malformed.signatureHex=ad.schnorrSign(f.oracleSecret,msg).toString('hex');
+  assert.throws(()=>bridge.verifyThresholdPoint({...f,binding:malformed}),/not on the secp256k1 curve/);
+
+  const signer=crypto.generateKeyPairSync('ed25519');
+  const {snapshot,secrets}=p.issueTestLadder({
+    oracleXonly:ad.xOnlyPubkey(f.oracleSecret).toString('hex'),
+    network:'bitcoin-mainnet',basePriceUsd:100000,baseStamp:1000
+  },signer.privateKey,Buffer.alloc(32,0x92));
+  const entry=snapshot.payload.entries[0];
+  assert.throws(()=>bridge.announceThresholdPoint({
+    snapshot,commitHash:entry.commitHash,secretHex:secrets.get(entry.commitHash),
+    oracleSecret:f.oracleSecret,pinnedSnapshotPubkey:signer.publicKey,now:1030
+  }),/testnet-only/);
+});
