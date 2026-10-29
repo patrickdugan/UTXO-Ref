@@ -1,0 +1,11 @@
+{
+  "name": "utxoref-ducat-ladder-dlc-prototype",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Research-only deterministic oracle ladder to DLC + UTXORef V2 settlement adapter",
+  "scripts": {
+    "test": "node --test *.test.js",
+    "demo": "node demo.js"
+  },
+  "engines": { "node": ">=22" }
+}

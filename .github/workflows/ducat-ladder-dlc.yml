@@ -1,0 +1,31 @@
+name: DUCAT ladder DLC prototype
+
+on:
+  pull_request:
+    paths:
+      - 'integrations/ducat-ladder-dlc/**'
+      - '.github/workflows/ducat-ladder-dlc.yml'
+  push:
+    paths:
+      - 'integrations/ducat-ladder-dlc/**'
+      - '.github/workflows/ducat-ladder-dlc.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  unit-prototype:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify oracle evidence, reserve invariants and real UTXORef V2 integration
+        run: node --test integrations/ducat-ladder-dlc/*.test.js
+      - name: Deterministic research demo
+        run: node integrations/ducat-ladder-dlc/demo.js
+      - name: Two-party NUMS Taproot DLC and pre-signed refund demo
+        run: node integrations/ducat-ladder-dlc/joint_dlc_demo.js
