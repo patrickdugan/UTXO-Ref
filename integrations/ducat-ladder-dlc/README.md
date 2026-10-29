@@ -3,7 +3,7 @@
 Research-only deterministic Node.js experiment. Separate from the existing DLC security, TradeLayer PnL, and UTXORef V2 code.
 
 ```sh
-node --test integrations/ducat-ladder-dlc/index.test.js
+node --test integrations/ducat-ladder-dlc/*.test.js
 node integrations/ducat-ladder-dlc/demo.js
 ```
 
@@ -28,15 +28,32 @@ This is a bounded, strike-converted satoshi quanto for prototype accounting. The
 
 ## Security boundaries
 
-- Signatures in this harness use ephemeral test-only Ed25519 keys. They are **not** Chainlink CRE attestations, Nostr Schnorr signatures, DLC adaptor scalars, or Bitcoin transaction signatures.
-- The 32-byte oracle identity is a tagged-hash fixture identifier. The test secret seed is generated only in-memory. No production signing secrets, chain RPC connections, broadcasts, or mainnet funds are involved.
+- The original snapshot, breach, and expiry-price simulator uses test-only Ed25519 signatures. The separate `barrier_adaptor.js` slice uses actual secp256k1/BIP340 Schnorr point bindings, adaptor pre-signatures, and completed Bitcoin key-path CET signatures over real BIP341 sighashes. These prove a cryptographic mechanism in synthetic transactions, not a deployed authenticated oracle or bilateral DLC.
+- The 32-byte oracle identity in the original fixture is a tagged-hash identifier. In the adaptor bridge, the x-only identity is an actual Schnorr oracle pubkey and its point-binding signature is checked. All private scalars and price data are test fixtures; no RPC connections, broadcast, or mainnet funds are used. The bridge rejects non-test networks.
 - The expiry attestation is a separate oracle statement. A correct DUCAT threshold preimage establishes that the oracle revealed an agreed secret, while price-feed integrity depends on oracle trust.
 - UTXORef remains responsible for the authenticated state checkpoint, complete reserve UTXO evidence, global double-spend history, script execution, and independently operated challengers.
 - A candidate epoch can only be checked against an independently recomputed trusted epoch. The mismatch witness is a **description for an off-chain challenger**; it is not a Bitcoin-enforceable BitVM fraud proof.
-- The CET manifest is a payment template. Real funding/adaptor signatures, a complete outcome grid and expiry refunds, Bitcoin Core transaction preflight, chain monitoring, and a full BitVM challenge circuit remain integration gates.
+- The expiry CET manifest and UTXORef handoff are payment templates. The new barrier bridge generates a real Schnorr signature and serialized SegWit transaction for a **single-signer P2TR keypath fixture**. That key holder can bypass the oracle and spend independently. A production DLC needs jointly enforced control of the funding UTXO, all committed CET outcomes, and a pre-signed recovery/refund path. Bitcoin Core preflight, chain monitoring, and a full BitVM challenge circuit remain integration gates.
 
 ## Review points
 
 The existing UTXORef V2 signed state and exact funding/output commitments are reused in the handoff. This subfolder leaves the active `security-review-fixes` PR alone, and does not change wallet, signer, challenge, or watchtower implementation.
 
-Tests include 865 commitments, cross-contract barrier fanout, oracle tampering and staleness, signature mismatch, incorrect preimages, unauthorized option rows, exact satoshi conservation, undercollateralization/dust, replayed outpoints, duplicate funding UTXOs, exit collisions, and an injected V2 input-shape checker.
+Tests cover 865 ladder entries, shared barrier fanout, oracle tampering/staleness, unauthorized rows, satoshi conservation, replayed and overlapping UTXOs, the real V2 commitment builder, BIP340 point announcement authentication, real BIP341 CET adaptor signing and completion for two distinct contracts, transaction substitution, off-curve points, and rejection of mainnet signing.
+
+## Stage 1: DUCAT preimage to DLC adaptor signature
+
+This experiment uses the oracle's 32-byte HMAC-derived threshold secret `t` as a secp256k1 scalar. Before funding, the oracle signs a point announcement `T = t*G` under the **same BIP340 x-only key named in the signed ladder**. The signed message commits to the ladder snapshot ID, the exact threshold commit hash, `HASH160(t)`, and both coordinates of `T`.
+
+A contract party then prepares an adaptor pre-signature on a specific BIP341 SIGHASH_DEFAULT for an unsigned Bitcoin CET. That CET spends the contract's committed outpoint and pays the selected, independently pinned manifest row. Before reveal, the pre-signature cannot be used as a BIP340 spend signature. After a valid signed breach event reveals `t`, `adaptorComplete` yields a valid Schnorr signature for **that one CET**. Each independently funded contract can bind its own pre-signature to the same `T` and be unlocked by one reveal. The bridge tests this with two separate synthetic Bitcoin funding outpoints.
+
+The bridge's `prepareBarrierCET` requires an explicit, precommitted `rowHash` for a **fixed barrier-triggered payout**. It does **not** exercise the continuous expiry-value put/collar automatically. Spot-dependent expiry settlement continues to require separately authenticated expiry-price outcomes and a properly constructed multi-outcome DLC.
+
+The test transaction uses a bare single-signer Taproot keypath. The private-key owner has an unconditional bypass. **Never fund these generated transactions.** A real contract must bind the complete transaction set, both parties' signing receipts, oracle point, unilateral/refund paths, and BitVM reserve/challenge policy before locking collateral. The signed point announcement also needs an externally witnessed pre-funding publication timestamp; a signature alone establishes identity and bytes, not publication chronology.
+
+To exercise the integration:
+
+```sh
+node --test integrations/ducat-ladder-dlc/barrier_adaptor.test.js
+node --test integrations/ducat-ladder-dlc/index.integration.test.js
+```
