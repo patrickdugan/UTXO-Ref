@@ -5,6 +5,7 @@ Research-only deterministic Node.js experiment. Separate from the existing DLC s
 ```sh
 node --test integrations/ducat-ladder-dlc/*.test.js
 node integrations/ducat-ladder-dlc/demo.js
+node integrations/ducat-ladder-dlc/joint_dlc_demo.js
 ```
 
 ## Flow
@@ -57,3 +58,39 @@ To exercise the integration:
 node --test integrations/ducat-ladder-dlc/barrier_adaptor.test.js
 node --test integrations/ducat-ladder-dlc/index.integration.test.js
 ```
+
+## Stage 2: two-party NUMS Taproot funding and pre-signed refund
+
+The next isolated adapter, `joint_dlc.js`, uses the existing UTXORef
+`dlc_funding_output`, `dlc_transaction_validator` and
+`dlc_signature_validator` modules. Its funding output has a deterministic
+NUMS internal key, a **two-party CET tapscript leaf**, and a **two-party
+CSV refund tapscript leaf**. The test-only code produces two independently
+validated presignatures, one from each party. A single DUCAT secret can
+complete a CET for each *distinct* funding outpoint.
+
+Before funding, both parties must provide normal Schnorr signatures on
+the refund. The assembled signed refund stays valid without further
+oracle communication. Its earliest candidate block height is checked using
+both the input sequence's relative CSV delay and the transaction's
+absolute height locktime. This checker trusts an external source for
+funding confirmation height and prospective chain height.
+
+The adapter also requires a separate BIP340 oracle authorization over
+the funding/option/fee/refund agreement. That second key approves the
+contract **before funding**; it does not supply a second adaptor scalar.
+The current UTXORef native signer requires authenticated threshold-oracle
+nonce/outcome announcements, so Stage 2 is a separate research pathway
+and **must not be used as a production native-signer policy**.
+
+The signing gate recomputes the original precommitted option economics
+and compares every CET/refund output even when the supplied transaction
+set contains internally consistent cryptographic hashes. Every
+contract has exactly one barrier-exercisable payout; the continuous
+put/call expiry grid still needs an independent oracle outcome protocol.
+
+See **[JOINT_DLC_STAGE2.md](JOINT_DLC_STAGE2.md)** for all trust
+boundaries, numeric satoshi examples, signing steps, refund timing,
+and outstanding regtest / Bitcoin Core / BitVM acceptance gates.
+The generated funding outpoints are **synthetic** and no test or
+demo broadcasts Bitcoin transactions.
