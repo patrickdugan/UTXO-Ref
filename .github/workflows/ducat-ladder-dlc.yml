@@ -23,7 +23,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Verify signed events, CET grid and reserve invariants
-        run: node --test integrations/ducat-ladder-dlc/index.test.js
+      - name: Verify oracle evidence, reserve invariants and real UTXORef V2 integration
+        run: node --test integrations/ducat-ladder-dlc/*.test.js
       - name: Deterministic research demo
         run: node integrations/ducat-ladder-dlc/demo.js
