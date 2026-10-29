@@ -15,6 +15,12 @@ const ad = require('../../bitvm3/utxo_referee/tradelayer_dlc_adaptor_sig');
 
 const TAG = 'UTXOREF_DUCAT_THRESHOLD_ADAPTOR_V1';
 const SEQUENCE = 0xfffffffd;
+const CURVE_P = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2Fn;
+function researchNetwork(network) {
+  if (!['mutinynet','testnet4','regtest'].includes(network)) {
+    throw new Error('single-signer adaptor research fixture is testnet-only');
+  }
+}
 function requireHex(value, bytes, name) {
   if (typeof value !== 'string' || !new RegExp(`^[0-9a-f]{${bytes * 2}}$`).test(value)) {
     throw new Error(`${name} must be ${bytes}-byte lowercase hex`);
@@ -40,8 +46,15 @@ function bindMessage(binding) {
     Buffer.from(requireHex(binding.pointY,32,'pointY'),'hex'));
 }
 function pointOf(binding) {
-  return { x: BigInt(`0x${requireHex(binding.pointX,32,'pointX')}`),
-           y: BigInt(`0x${requireHex(binding.pointY,32,'pointY')}`) };
+  const x=BigInt(`0x${requireHex(binding.pointX,32,'pointX')}`);
+  const y=BigInt(`0x${requireHex(binding.pointY,32,'pointY')}`);
+  try {
+    const even=ad.liftX(x);
+    if (y!==even.y && y!==CURVE_P-even.y) throw new Error('bad point');
+  } catch (_err) {
+    throw new Error('adaptor point is not on the secp256k1 curve');
+  }
+  return {x,y};
 }
 function lookupEntry(snapshotPayload, commitHash) {
   const entry = snapshotPayload.entries.find(x=>x.commitHash === commitHash);
@@ -53,6 +66,7 @@ function lookupEntry(snapshotPayload, commitHash) {
 // Ed25519 today; a production adapter must verify actual signed Nostr events.
 function announceThresholdPoint({snapshot, commitHash, secretHex, oracleSecret, pinnedSnapshotPubkey, now}) {
   const s = proto.verifyLadder(snapshot, pinnedSnapshotPubkey, now);
+  researchNetwork(s.network);
   const entry = lookupEntry(s, commitHash);
   if (hash160(secretHex) !== entry.secretHash160) throw new Error('secret does not match the DUCAT HASH160 commitment');
   if (ad.xOnlyPubkey(oracleSecret).toString('hex') !== s.oracleXonly) throw new Error('BIP340 signer is not the signed ladder oracle');
@@ -65,6 +79,7 @@ function announceThresholdPoint({snapshot, commitHash, secretHex, oracleSecret, 
 }
 function verifyThresholdPoint({snapshot, binding, pinnedSnapshotPubkey, now}) {
   const s = proto.verifyLadder(snapshot, pinnedSnapshotPubkey, now);
+  researchNetwork(s.network);
   if (!binding || binding.kind !== 'ducat-adaptor-point-v1' || binding.snapshotId !== s.snapshotId) {
     throw new Error('point binding snapshot mismatch');
   }
@@ -113,6 +128,7 @@ function prepareBarrierCET({snapshot,binding,manifest,pinnedManifestHash,selecte
                             fundingInternalSecret,pinnedSnapshotPubkey,now}) {
   const point=verifyThresholdPoint({snapshot,binding,pinnedSnapshotPubkey,now});
   const {m,row}=selectionFromManifest(manifest,pinnedManifestHash,selectedRowHash);
+  researchNetwork(m.spec.network);
   if (m.spec.riskBarrierCommitHash!==binding.commitHash || m.spec.oracleXonly!==snapshot.payload.oracleXonly ||
       m.spec.network!==snapshot.payload.network) throw new Error('barrier binding differs from contract');
   const expectedFunding=tr.taprootScriptPubKey(ad.xOnlyPubkey(fundingInternalSecret)).toString('hex');
