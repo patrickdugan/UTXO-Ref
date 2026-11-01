@@ -62,9 +62,14 @@ async function runIsolated(){
 
     function makeSigner(name){
       rpc('createwallet',[name,false,false,'',false,true]);
-      const derived=wallet(name,'derivehdkey',['m/44h/1h/0h']);
-      if(typeof derived.origin!=='string'||typeof derived.xpub!=='string')throw new Error('Core derivehdkey did not return origin and xpub');
-      return {name,xpub:derived.origin+derived.xpub};
+      // Core 31 exposes the HD key origin in active wallet descriptors.
+      const descriptors=wallet(name,'listdescriptors').descriptors||[];
+      for(const d of descriptors){
+        if(!d.active || !d.desc.startsWith('wpkh('))continue;
+        const match=d.desc.match(/\[([^\]]+)\]([A-Za-z0-9]+)/);
+        if(match)return {name,xpub:'['+match[1]+']'+match[2]};
+      }
+      throw new Error('Core signer wallet has no active origin-tagged wpkh descriptor');
     }
     function makeVault(name,signers){
       rpc('createwallet',[name,true,true,'',false,true]);
