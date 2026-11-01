@@ -17,8 +17,9 @@ risk estimates. An isolated regtest cannot prove independent administration.
     node key-agent-net/simulate.cjs --json
 
 The Bitcoin Core regtest drill is explicitly opt-in. It requires bitcoind and
-bitcoin-cli; Core 31 is the reference version, but has not been run locally
-in the current work environment.
+bitcoin-cli. The Bitcoin Core 31.0 SHA-pinned harness ran successfully in
+[GitHub Actions #41281816903](https://github.com/patrickdugan/UTXO-Ref/actions/runs/41281816903).
+Local execution remains optional.
 
     node key-agent-net/regtest.cjs --help
     node key-agent-net/regtest.cjs --run-isolated
@@ -90,9 +91,9 @@ individually generated signer HD keys. A watch-only vault constructs PSBTs.
 Every spend goes through Bitcoin Core PSBT finalization and mempool
 preflight. The runner fails if descriptor import, signatures, acceptance
 or recovery receipt fail. All signer wallets live in one disposable Core
-instance; this does not test signer-host independence. The actual Core
-regtest has not been executed in the present work environment because
-the required binaries are absent.
+instance; this does not test signer-host independence. All four Core regtest assertions passed in [the CI run](https://github.com/patrickdugan/UTXO-Ref/actions/runs/41281816903),
+which recorded three confirmed spending transactions and a 0.75-regtest-BTC
+replacement vault receipt. The runner still uses a single local Core process.
 
 Upstream Core references:
 [Multisig tutorial](https://github.com/bitcoin/bitcoin/blob/master/doc/multisig-tutorial.md),
