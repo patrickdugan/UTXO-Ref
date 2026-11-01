@@ -16,7 +16,16 @@ Cashu work remain unchanged.
   and a nonempty non-dominated frontier.
 - These invariants were executed as standalone JS checks in preparation.
   GitHub CI is the next independently executed Node test.
-- Bitcoin Core binaries were absent, so the live regtest remains unexecuted.
+- Bitcoin Core 31.0 was downloaded and verified by two signer-agreed
+  SHA256SUMS in a GitHub Actions job; the actual regtest exercise passed.
+  [Verified run 41281816903](https://github.com/patrickdugan/UTXO-Ref/actions/runs/41281816903),
+  core-regtest job. Bitcoin Core reported version 310000.
+- Confirmed spending TXIDs in the isolated, ephemeral regtest datadir:
+  - client + agent A: `c47b113939c4587081697bd86cf833e42a001b61ad4c91f58fff8d7a4190bab4`
+  - external A + B without client: `eaf8066aa63737c2faa28be3089c72e8906892c9a7b7bf9ac1a07a2a81fdb482`
+  - rekey sweep client + B: `0bc4b8bca3afbb378afefbabd8616dcc96fcc2b98b68f0aa1dec26d153ed8b8c`
+  - confirmed successor vault balance: 0.75 regtest BTC.
+- All 14 offline Node tests and four Core regtest checks passed in CI.
 
 ## Operator commands
 
