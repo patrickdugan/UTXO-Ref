@@ -7,6 +7,7 @@ const {
   buildLnBtcTlUsdLiquidityPatchBundle,
   verifyLnBtcTlUsdLiquidityPatchBundle
 } = require('./lnbtc_tlusd_liquidity_patch');
+const { buildLiquidityLeaseBundle } = require('./lightning_liquidity_lease');
 
 let passed = 0;
 let failed = 0;
@@ -27,15 +28,13 @@ function assert(condition, message) {
   if (!condition) throw new Error(message);
 }
 
-const lease = {
-  bundleId: 'lease-demo',
-  verification: { ok: true },
-  successEvidence: {
-    evidenceCore: {
-      channelOutpoint: `${'44'.repeat(32)}:0`
-    }
+const lease = buildLiquidityLeaseBundle({
+  htlcProof: {
+    lightning: { paymentHashHex: 'aa'.repeat(32) },
+    swap: { fundingTxid: 'bb'.repeat(32), refundLocktime: 10 },
+    dlcFunding: { claimTxid: 'cc'.repeat(32), outputVout: 1, commitmentHash: 'dd'.repeat(32), outputAmountSats: '10000' }
   }
-};
+});
 
 console.log('\n=== LN-BTC tlUSD Liquidity Patch Tests ===\n');
 

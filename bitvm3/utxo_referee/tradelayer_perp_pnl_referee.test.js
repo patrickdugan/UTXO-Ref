@@ -2,6 +2,7 @@
  * Run: node bitvm3/utxo_referee/tradelayer_perp_pnl_referee.test.js
  */
 
+const { sha256Hex } = require('./tradelayer_pnl_route_adapter');
 const {
   buildTradeLayerPerpPnlSettlement,
   verifyTradeLayerPerpPnlSettlement,
@@ -77,6 +78,34 @@ test('rejects settlement hash tampering', () => {
 
   assert(!result.ok, 'tampered settlement should fail');
   assert(String(result.reason).includes('settlement hash mismatch'), 'expected hash mismatch');
+});
+
+test('rejects outputs that do not follow from the committed position and close', () => {
+  const honest = buildTradeLayerPerpPnlSettlement({ position: POSITION, close: { price: 2100 } });
+  // A larger honest settlement whose winner payout is 1 BTC; its outputs and root are internally consistent.
+  const large = buildTradeLayerPerpPnlSettlement({
+    position: { ...POSITION, collateralSats: 100000000 },
+    close: { price: 2200 - 1000000 }
+  });
+  const forged = clone(honest);
+  forged.settlementCore.outputs = large.settlementCore.outputs;
+  forged.settlementCore.withdrawalRootHex = large.settlementCore.withdrawalRootHex;
+  forged.settlementCore.commitmentHashHex = large.settlementCore.commitmentHashHex;
+  forged.payout = large.payout;
+  forged.settlementHash = sha256Hex(forged.settlementCore);
+  const result = verifyTradeLayerPerpPnlSettlement(forged);
+
+  assert(!result.ok, 'outputs inconsistent with the committed PNL must not verify');
+});
+
+test('refuses a zero quantity instead of defaulting it to one', () => {
+  let threw = false;
+  try {
+    buildTradeLayerPerpPnlSettlement({ position: { ...POSITION, quantityUnits: 0 }, close: { price: 2100 } });
+  } catch (err) {
+    threw = String(err.message).includes('quantityUnits must be positive');
+  }
+  assert(threw, 'quantityUnits 0 must be rejected');
 });
 
 test('builds challengeable wrong-pnl and wrong-destination proofs', () => {

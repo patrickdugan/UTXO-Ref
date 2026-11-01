@@ -17,7 +17,8 @@ const path = require('path');
 
 const referee = path.join(__dirname, '..', '..', '..', 'bitvm3', 'utxo_referee');
 const dlc = require(path.join(referee, 'tradelayer_dlc_adaptor_sig'));
-const { canonicalJson } = require(path.join(referee, 'dlc_canonical_json'));
+const { canonicalJson, compareCodeUnits } = require(path.join(referee, 'dlc_canonical_json'));
+const { outcomeKey } = require(path.join(referee, 'dlc_transaction_validator'));
 const { deriveDlcFundingInternalXonly } = require(path.join(referee, 'dlc_funding_output'));
 const { buildDlcSigningFixture } = require(path.join(referee, 'dlc_signing_fixture'));
 const { deriveSigningContextTarget } = require(path.join(referee, 'dlc_signing_target'));
@@ -61,6 +62,25 @@ const redigestCets = (context) => { context.transactionSet.cetSetDigest = digest
 const namedCet = (context) => context.transactionSet.cets.find((cet) => cet.txid === context.cetTxid);
 const txidOf = (rawTxHex) => Buffer.from(sha256(sha256(Buffer.from(rawTxHex, 'hex')))).reverse().toString('hex');
 
+// A second CET for the named CET's outcome under the other oracle subset,
+// with every transaction-set digest recomputed so only the duplicate is wrong.
+function duplicateOutcomeCet(context) {
+  const set = context.transactionSet;
+  const cet = namedCet(context);
+  const keys = context.oracleAnnouncements.map((announcement) => announcement.px).sort();
+  const subset = keys.filter((key) => key !== cet.oraclePubkeys[0]).slice(0, 2);
+  const rawTxHex = `${cet.rawTxHex.slice(0, -8)}01000000`;
+  set.cets.push({ ...cet, oraclePubkeys: subset, rawTxHex, txid: txidOf(rawTxHex) });
+  set.cets.sort((left, right) => compareCodeUnits(outcomeKey(left), outcomeKey(right)));
+  set.cetSetDigest = digestJson(set.cets);
+  set.validationDigest = digestJson({
+    fundingTemplateDigest: set.fundingTemplateDigest,
+    cetSetDigest: set.cetSetDigest,
+    refundTransactionDigest: set.refundTransactionDigest,
+    feePolicyDigest: set.feePolicyDigest
+  });
+}
+
 const invalid = [];
 function invalidCase(name, errorContains, mutate) {
   const context = clone();
@@ -102,6 +122,10 @@ invalidCase('CET oracle outside the announcement set', 'not in the announcement 
   const cet = namedCet(context);
   cet.oraclePubkeys = [cet.oraclePubkeys[0], 'ff'.repeat(31) + 'fe'].sort();
   redigestCets(context);
+});
+
+invalidCase('two CETs for one outcome', 'more than one CET for outcome', (context) => {
+  duplicateOutcomeCet(context);
 });
 
 const vectors = {

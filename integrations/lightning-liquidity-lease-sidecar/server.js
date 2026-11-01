@@ -1,13 +1,16 @@
 #!/usr/bin/env node
 
+const crypto = require('crypto');
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const {
   paymentHashFromPreimageHex,
-  payInvoiceViaLndRest
+  payInvoiceViaLndRest,
+  lookupPaymentViaLndRest
 } = require('./lndRestClient');
 const { buildWalletDemoConfig, verifyWalletDemoConfig } = require('../wallet-demo/walletBackendProfiles');
+const { HttpError, sendJson: sendJsonBody, readJsonBody, boundedInteger, writeAtomicPrivate } = require('../shared/service');
 const { buildStressDashboard, verifyStressDashboard } = require('../wallet-demo/stressDashboard');
 const { buildAdapterFeed } = require('../wallet-dashboard-vercel/api/adapterFeed');
 const {
@@ -20,6 +23,22 @@ const {
   verifyBitvmChannelRouterBundle,
   verifyBitvmChannelRouterPlan
 } = require('../../bitvm3/utxo_referee/bitvm_channel_router');
+const { heightOf, toSats } = require('../../bitvm3/utxo_referee/money');
+
+// The lease quote echoes the terms a client asked for, so each is read by the strict parser of its kind. A value that is not
+// a whole number, or is above 2^53, is refused with 400 instead of being echoed as a rounded number or as NaN.
+function liquidityLeaseQuoteTerms(body, terms) {
+  try {
+    return {
+      requestedInboundSats: toSats(body.requestedInboundSats ?? terms.promisedInboundSats, 'requestedInboundSats').toString(),
+      leaseBlocks: heightOf(body.leaseBlocks ?? terms.leaseBlocks, 'leaseBlocks'),
+      maxFeePpm: heightOf(body.maxFeePpm ?? terms.maxFeePpm, 'maxFeePpm'),
+      maxCltvDelta: heightOf(body.maxCltvDelta ?? terms.maxCltvDelta, 'maxCltvDelta')
+    };
+  } catch (err) {
+    throw new HttpError(400, 'invalid_request', err.message);
+  }
+}
 
 const repoRoot = path.join(__dirname, '..', '..');
 const artifactDir = path.join(repoRoot, 'bitvm3', 'utxo_referee', 'artifacts');
@@ -126,16 +145,30 @@ function walletDemoStatus() {
   };
 }
 
+// The bearer token gates every POST route. It is read once from a file that must not be group or world accessible.
+// Windows has no mode bits (stat reports 0o666 for any writable file whatever its ACL), so there the check is
+// skipped and the file's ACL is what protects it: keep it under the operator's own profile.
+function loadSidecarApiToken(env = process.env) {
+  if (!env.SIDECAR_API_TOKEN_FILE) return '';
+  if (process.platform !== 'win32' && (fs.statSync(env.SIDECAR_API_TOKEN_FILE).mode & 0o077)) {
+    throw new Error(`${env.SIDECAR_API_TOKEN_FILE} must not be group or world accessible (use mode 0600)`);
+  }
+  return fs.readFileSync(env.SIDECAR_API_TOKEN_FILE, 'utf8').trim();
+}
+
+const sidecarApiToken = loadSidecarApiToken();
+
+function postAuthorized(req) {
+  if (!sidecarApiToken) return false;
+  const expected = Buffer.from(`Bearer ${sidecarApiToken}`);
+  const given = Buffer.from(String(req.headers.authorization || ''));
+  return given.length === expected.length && crypto.timingSafeEqual(given, expected);
+}
+
+// Only read-only GETs are readable cross-origin; the preflight for writes gets no CORS grant.
 function sendJson(res, status, payload) {
-  const body = `${JSON.stringify(payload, null, 2)}\n`;
-  res.writeHead(status, {
-    'content-type': 'application/json',
-    'cache-control': 'no-store',
-    'access-control-allow-origin': '*',
-    'access-control-allow-methods': 'GET,POST,OPTIONS',
-    'access-control-allow-headers': 'content-type'
-  });
-  res.end(body);
+  const cors = res.req && res.req.method === 'GET' ? { 'access-control-allow-origin': '*' } : {};
+  sendJsonBody(res, status, payload, cors);
 }
 
 function sendFile(res, filePath, contentType) {
@@ -146,23 +179,6 @@ function sendFile(res, filePath, contentType) {
     'access-control-allow-origin': '*'
   });
   res.end(body);
-}
-
-function readBody(req) {
-  return new Promise((resolve, reject) => {
-    const chunks = [];
-    req.on('data', chunk => chunks.push(chunk));
-    req.on('end', () => {
-      const raw = Buffer.concat(chunks).toString('utf8');
-      if (!raw) return resolve({});
-      try {
-        resolve(JSON.parse(raw));
-      } catch (err) {
-        reject(err);
-      }
-    });
-    req.on('error', reject);
-  });
 }
 
 function walletView(lease, subswap) {
@@ -398,16 +414,255 @@ function compactId(value, prefix, length = 8) {
   return `${prefix}${cleaned.slice(0, length) || '0'}`;
 }
 
-function paymentProofFromExecution(request) {
-  const proof = request && request.executionProof;
-  if (!proof || !proof.paymentPreimageHex) return null;
-  return {
-    kind: 'utxoref_dlc_subswap_lnd_payment_proof',
-    status: 'paid',
-    paymentHashHex: proof.paymentHashHex,
-    paymentPreimageHex: proof.paymentPreimageHex,
-    source: 'executionProof'
-  };
+// The quote lifecycle, one small state machine per request:
+//   quoted     open. It can be paid until expiresAt, and is dropped once it has expired unpaid.
+//   attempted  open. Its payment was saved as attempted (with attemptedAt) before LND was asked, so LND may hold the
+//              payment even if the sidecar never got an answer. It is dropped when LND reports the payment failed, or
+//              when LND has no record of it and max(quote TTL, 1 hour) has passed since the attempt. It becomes paid when
+//              LND reports the payment settled.
+//   paid       open. It never expires, so a paid request is not dropped before it mints.
+//   minted  a grant intent was issued. Its requestId and the intent are appended to the minted log, a record kept outside
+//           the open table, and it is never quoted, paid or minted again. The Electrum tab forwards an intent to
+//           TradeLayer, so a second distinct intent would be a second grant this process cannot see. A repeat request
+//           for the same requestId and recipient gets the stored intent back, byte for byte, so a lost response is
+//           recoverable; a different recipient is refused.
+// Only open requests count toward SIDECAR_MAX_QUOTED_REQUESTS. Minted requests count toward SIDECAR_MAX_MINTED_REQUESTS.
+//
+// One payment backs one request. The requestId hashes the whole request body, so a second body with another refund
+// address or epoch is another requestId with the same payment hash; without this rule one settled payment could mint
+// once per body. A quote is refused while another open or minted request holds its payment hash, and a mint is refused
+// when the hash already backed another request's mint. A mint also requires that LND paid exactly the request's
+// invoiceAmountSats for that hash. Minted records written before intents were kept carry no hash and bind nothing.
+const STORE_KIND = 'utxoref_dlc_subswap_request_store';
+const ALREADY_MINTED = 'already minted: this request already has a grant intent and cannot be granted again';
+const QUOTE_EXPIRED = 'quote expired: quote the request again';
+const PAYMENT_HASH_IN_USE = 'payment hash in use: another request is bound to this payment; pay and mint that request';
+const PAYMENT_ALREADY_MINTED = 'payment already minted: this payment hash backed another request\'s grant intent';
+const requestStorePath = path.resolve(process.env.SIDECAR_REQUEST_STORE_PATH ||
+  path.join(__dirname, 'runtime', 'dlc-subswap-requests.json'));
+const mintedLogPath = `${requestStorePath}.minted`;
+const MAX_ISSUED_DLC_REQUESTS = boundedInteger(process.env.SIDECAR_MAX_QUOTED_REQUESTS || 1000, 2, 100000);
+if (MAX_ISSUED_DLC_REQUESTS === null) throw new Error('SIDECAR_MAX_QUOTED_REQUESTS must be an integer in 2..100000');
+const MAX_MINTED_DLC_REQUESTS = boundedInteger(process.env.SIDECAR_MAX_MINTED_REQUESTS || 100000, 1, 10000000);
+if (MAX_MINTED_DLC_REQUESTS === null) throw new Error('SIDECAR_MAX_MINTED_REQUESTS must be an integer in 1..10000000');
+const QUOTE_TTL_SECONDS = boundedInteger(process.env.SIDECAR_QUOTE_TTL_SECONDS || 86400, 1, 31536000);
+if (QUOTE_TTL_SECONDS === null) throw new Error('SIDECAR_QUOTE_TTL_SECONDS must be an integer in 1..31536000');
+const QUOTE_TTL_MS = QUOTE_TTL_SECONDS * 1000;
+
+const issuedDlcSubswapRequests = new Map(); // requestId -> { request, state, expiresAt, attemptedAt, paying }
+const mintedDlcSubswapRequests = new Map(); // requestId -> the grant intent issued for it (null for a request minted before intents were kept)
+const mintedPaymentHashes = new Map(); // payment hash -> requestId of the minted request that payment backed
+const ATTEMPT_WINDOW_MS = Math.max(QUOTE_TTL_MS, 60 * 60 * 1000);
+const PRUNE_LOOKUP_LIMIT = 5;
+const PRUNE_LOOKUP_BUDGET_MS = 10000;
+
+function paymentHashOfRequest(request) {
+  return String(request.requestCore.submarineSwap.paymentHashHex || '').toLowerCase();
+}
+
+function paymentHashOfIntent(intent) {
+  const hash = String(intent && intent.tradeLayer && intent.tradeLayer.params && intent.tradeLayer.params.paymentHashHex || '');
+  return /^[0-9a-f]{64}$/i.test(hash) ? hash.toLowerCase() : null;
+}
+
+// The request other than requestId that a payment hash already backs: a minted one first, then an open one.
+function otherRequestForPaymentHash(hash, requestId) {
+  const minted = mintedPaymentHashes.get(hash);
+  if (minted && minted !== requestId) return minted;
+  for (const [otherId, issued] of issuedDlcSubswapRequests) {
+    if (otherId !== requestId && paymentHashOfRequest(issued.request) === hash) return otherId;
+  }
+  return null;
+}
+
+// One line per mint: {"requestId", "intent"}. A line that is only a request hash is a request minted before intents were kept.
+function loadMintedDlcSubswapRequests() {
+  if (!fs.existsSync(mintedLogPath)) {
+    writeAtomicPrivate(mintedLogPath, '');
+    return;
+  }
+  const text = fs.readFileSync(mintedLogPath, 'utf8');
+  const complete = text.slice(0, text.lastIndexOf('\n') + 1);
+  // A last line without its newline was never returned to a caller: an intent is returned only after its line is fsynced.
+  if (complete.length < text.length) fs.truncateSync(mintedLogPath, Buffer.byteLength(complete));
+  for (const line of complete.split('\n').filter(Boolean)) {
+    if (/^[0-9a-f]{64}$/.test(line)) {
+      mintedDlcSubswapRequests.set(line, null);
+      continue;
+    }
+    const record = JSON.parse(line);
+    if (!/^[0-9a-f]{64}$/.test(record.requestId)) throw new Error(`${mintedLogPath} holds a line that is not a minted record`);
+    mintedDlcSubswapRequests.set(record.requestId, record.intent || null);
+    const hash = paymentHashOfIntent(record.intent);
+    if (hash) mintedPaymentHashes.set(hash, record.requestId);
+  }
+}
+
+// Appends one minted record and fsyncs it before the caller returns the intent. A failed append is cut back to its start.
+function recordMinted(requestId, intent) {
+  const descriptor = fs.openSync(mintedLogPath, 'a', 0o600);
+  try {
+    const size = fs.fstatSync(descriptor).size;
+    try {
+      fs.writeSync(descriptor, `${JSON.stringify({ requestId, intent })}\n`);
+      fs.fsyncSync(descriptor);
+    } catch (err) {
+      fs.ftruncateSync(descriptor, size);
+      throw err;
+    }
+  } finally {
+    fs.closeSync(descriptor);
+  }
+  mintedDlcSubswapRequests.set(requestId, intent);
+  const hash = paymentHashOfIntent(intent);
+  if (hash) mintedPaymentHashes.set(hash, requestId);
+}
+
+function loadIssuedDlcSubswapRequests() {
+  loadMintedDlcSubswapRequests();
+  if (!fs.existsSync(requestStorePath)) return;
+  const store = readJson(requestStorePath);
+  if (!store || store.kind !== STORE_KIND || !Array.isArray(store.entries)) {
+    throw new Error(`${requestStorePath} is not a sidecar DLC request store`);
+  }
+  if (store.version === 1) {
+    // Version 1 never recorded a mint, so any of its requests may already have been granted. Each is recorded as
+    // minted, so none is granted again. A paid version 1 request has to be checked on TradeLayer by an operator.
+    for (const entry of store.entries) {
+      if (!mintedDlcSubswapRequests.has(entry.request.requestId)) recordMinted(entry.request.requestId, null);
+    }
+    saveIssuedDlcSubswapRequests();
+    return;
+  }
+  if (store.version !== 2) throw new Error(`${requestStorePath} has an unknown store version`);
+  let migrated = false;
+  for (const entry of store.entries) {
+    const requestId = entry.request.requestId;
+    if (mintedDlcSubswapRequests.has(requestId)) continue;
+    if (entry.state !== 'quoted' && entry.state !== 'attempted' && entry.state !== 'paid') {
+      throw new Error(`${requestStorePath} has an unknown request state`);
+    }
+    if (entry.state !== 'paid' && !Number.isSafeInteger(entry.expiresAt)) {
+      throw new Error(`${requestStorePath} has a quote without expiresAt`);
+    }
+    // An attempt saved before attemptedAt was kept is dated from this load, so its window is not already spent.
+    let attemptedAt = null;
+    if (entry.state === 'attempted') {
+      attemptedAt = Number.isSafeInteger(entry.attemptedAt) ? entry.attemptedAt : Date.now();
+      migrated = migrated || !Number.isSafeInteger(entry.attemptedAt);
+    }
+    issuedDlcSubswapRequests.set(requestId, {
+      request: entry.request,
+      state: entry.state,
+      expiresAt: entry.state === 'paid' ? null : entry.expiresAt,
+      attemptedAt,
+      paying: false
+    });
+  }
+  if (migrated) saveIssuedDlcSubswapRequests();
+}
+
+loadIssuedDlcSubswapRequests();
+
+function saveIssuedDlcSubswapRequests() {
+  const entries = [...issuedDlcSubswapRequests.values()].map(({ request, state, expiresAt, attemptedAt }) => ({
+    request,
+    state,
+    expiresAt,
+    attemptedAt: state === 'attempted' ? attemptedAt : null
+  }));
+  writeAtomicPrivate(requestStorePath, `${JSON.stringify({
+    kind: STORE_KIND,
+    version: 2,
+    entries
+  }, null, 2)}\n`);
+}
+
+// LND's answer for a request's payment hash. An error from LND is a 502 for the caller.
+async function lookupPaymentState(request) {
+  try {
+    return await lookupPaymentViaLndRest({ paymentHashHex: request.requestCore.submarineSwap.paymentHashHex });
+  } catch (err) {
+    throw new HttpError(502, 'lnd_lookup_failed', `LND payment lookup failed: ${err.message}`);
+  }
+}
+
+// Drops quotes that expired unpaid and have no payment in flight. An attempted quote is decided by LND, by payment hash:
+// LND's settled payment makes the request paid, LND's failed payment drops it, and LND's unknown answer drops it once
+// ATTEMPT_WINDOW_MS has passed since the attempt (LND never initiated it). A pending payment and a lookup that errors keep
+// it. Each call looks up at most PRUNE_LOOKUP_LIMIT attempted quotes, oldest first, within PRUNE_LOOKUP_BUDGET_MS, so a
+// quote request never waits on a long list of LND lookups. Paid requests and requests being paid are kept.
+async function pruneExpiredQuotes(now) {
+  let changed = false;
+  for (const [requestId, issued] of [...issuedDlcSubswapRequests]) {
+    if (issued.state !== 'quoted' || issued.paying || now < issued.expiresAt) continue;
+    issuedDlcSubswapRequests.delete(requestId);
+    changed = true;
+  }
+  const due = [...issuedDlcSubswapRequests]
+    .filter(([, issued]) => issued.state === 'attempted' && !issued.paying && now >= issued.expiresAt)
+    .sort(([, a], [, b]) => a.attemptedAt - b.attemptedAt);
+  const started = Date.now();
+  let lookups = 0;
+  for (const [requestId, issued] of due) {
+    if (lookups === PRUNE_LOOKUP_LIMIT || Date.now() - started >= PRUNE_LOOKUP_BUDGET_MS) break;
+    lookups++;
+    let lookup;
+    try {
+      lookup = await lookupPaymentState(issued.request);
+    } catch (_err) {
+      continue;
+    }
+    // A pay that started while LND was asked, or a request dropped meanwhile, is left as it is.
+    if (issued.paying || issuedDlcSubswapRequests.get(requestId) !== issued) continue;
+    const unknownPastWindow = lookup.state === 'unknown' && Date.now() >= issued.attemptedAt + ATTEMPT_WINDOW_MS;
+    if (lookup.state === 'failed' || unknownPastWindow) {
+      issuedDlcSubswapRequests.delete(requestId);
+      changed = true;
+    } else if (lookup.state === 'settled') {
+      issued.state = 'paid';
+      issued.expiresAt = null;
+      changed = true;
+    }
+  }
+  if (changed) saveIssuedDlcSubswapRequests();
+}
+
+// Returns 'ok', 'full' when the open table holds its cap, 'minted' when the request was already granted, or
+// 'hash_in_use' when another open or minted request holds its payment hash.
+async function rememberIssuedDlcSubswapRequest(request) {
+  const requestId = request.requestId;
+  await pruneExpiredQuotes(Date.now());
+  if (mintedDlcSubswapRequests.has(requestId)) return 'minted';
+  if (issuedDlcSubswapRequests.has(requestId)) return 'ok';
+  if (otherRequestForPaymentHash(paymentHashOfRequest(request), requestId)) return 'hash_in_use';
+  if (issuedDlcSubswapRequests.size >= MAX_ISSUED_DLC_REQUESTS) return 'full';
+  issuedDlcSubswapRequests.set(requestId, { request, state: 'quoted', expiresAt: Date.now() + QUOTE_TTL_MS, paying: false });
+  saveIssuedDlcSubswapRequests();
+  return 'ok';
+}
+
+// LND settled the payment, which is a fact the sidecar must not forget, so the request stops expiring. Memory changes
+// before the save, so a settled request is never pruned or refused as expired even if the save fails. Each save writes
+// the whole table, and every later pay or mint for the request saves again, so a failed save is retried.
+function markPaid(issued) {
+  issued.state = 'paid';
+  issued.expiresAt = null;
+  saveIssuedDlcSubswapRequests();
+}
+
+// The attempt is saved, with its time, before LND is asked. If the save fails, LND is not asked and the request stays quoted.
+function markAttempted(issued) {
+  if (issued.state !== 'quoted') return;
+  issued.state = 'attempted';
+  issued.attemptedAt = Date.now();
+  try {
+    saveIssuedDlcSubswapRequests();
+  } catch (err) {
+    issued.state = 'quoted';
+    issued.attemptedAt = null;
+    throw err;
+  }
 }
 
 function verifyPaymentProofForRequest(request, paymentProof) {
@@ -430,31 +685,86 @@ function verifyPaymentProofForRequest(request, paymentProof) {
   return { ok: true, paymentHashHex: expectedHash };
 }
 
-function buildTlbtcMintIntent({ request, paymentProof, recipientAddress, fromAddress, overrides = {} }) {
+// The payment proof is what LND reports as settled for the request's payment hash. Errors from LND are a 502:
+// nothing is minted while the record cannot be read.
+async function settledPaymentProof(request) {
+  const lookup = await lookupPaymentState(request);
+  if (lookup.state !== 'settled') return null;
+  return {
+    kind: 'utxoref_dlc_subswap_lnd_payment_proof',
+    status: 'paid',
+    paymentHashHex: lookup.paymentHashHex,
+    paymentPreimageHex: lookup.paymentPreimageHex,
+    valueMsat: lookup.valueMsat ?? null,
+    source: 'lnd-track-payment'
+  };
+}
+
+// LND's record of what it paid for the hash decides the amount, not the request body: a payment for less than the
+// invoice amount (or of an amount LND does not report) backs no mint.
+function settledAmountMismatch(request, paymentProof) {
+  const expectedMsat = BigInt(request.requestCore.submarineSwap.invoiceAmountSats) * 1000n;
+  if (paymentProof.valueMsat !== null && BigInt(paymentProof.valueMsat) === expectedMsat) return null;
+  const paid = paymentProof.valueMsat === null ? 'an amount it did not report' : `${paymentProof.valueMsat} msat`;
+  return `LND paid ${paid} for this payment hash, not the invoice amount of ${expectedMsat} msat`;
+}
+
+// A request yields one intent. A repeat is refused (409) unless SIDECAR_REPLAY_MINT_INTENT=1: replaying the stored
+// descriptor recovers a client that lost the first response, but the consumer that submits it must refuse a descriptor it
+// already granted. In tradelayer-core the grant transaction carries no request identifier and nothing dedupes grants, so
+// a descriptor submitted twice grants twice. With the switch on, a repeat for the same request and recipient gets the
+// stored intent back; a different recipient, or a request minted before intents were kept, is refused either way.
+function repeatMintIntent(requestId, recipient) {
+  const intent = mintedDlcSubswapRequests.get(requestId);
+  if (process.env.SIDECAR_REPLAY_MINT_INTENT === '1' && intent && recipient
+      && intent.tradeLayer.params.addressToGrantTo === recipient) return intent;
+  throw new HttpError(409, 'already_minted', ALREADY_MINTED);
+}
+
+async function buildTlbtcMintIntent({ requestId, recipientAddress }) {
+  if (mintedDlcSubswapRequests.has(requestId)) return repeatMintIntent(requestId, String(recipientAddress || '').trim());
+  const issued = issuedDlcSubswapRequests.get(requestId);
+  if (!issued) {
+    return { ok: false, reason: 'unknown requestId: quote and pay the request first' };
+  }
+  const request = issued.request;
+  const paymentHashHex = paymentHashOfRequest(request);
+  // This request is not minted (that returned above), so a minted record for its hash is another request's.
+  if (mintedPaymentHashes.has(paymentHashHex)) throw new HttpError(409, 'payment_already_minted', PAYMENT_ALREADY_MINTED);
   const requestVerification = verifyDlcSubswapFundingRequest(request);
   if (!requestVerification.ok) {
     return { ok: false, reason: requestVerification.reason, requestVerification };
   }
-  const effectivePaymentProof = paymentProof || paymentProofFromExecution(request);
-  const paymentVerification = verifyPaymentProofForRequest(request, effectivePaymentProof);
+  // LND is asked before the expiry gate: a payment LND has settled is granted even if the sidecar never recorded it.
+  const paymentProof = await settledPaymentProof(request);
+  if (!paymentProof) {
+    if (issued.state === 'quoted' && Date.now() >= issued.expiresAt) throw new HttpError(410, 'quote_expired', QUOTE_EXPIRED);
+    return { ok: false, reason: 'payment is not settled in LND', requestVerification };
+  }
+  const paymentVerification = verifyPaymentProofForRequest(request, paymentProof);
   if (!paymentVerification.ok) {
     return { ok: false, reason: paymentVerification.reason, requestVerification, paymentVerification };
   }
+  const amountMismatch = settledAmountMismatch(request, paymentProof);
+  if (amountMismatch) return { ok: false, reason: amountMismatch, requestVerification, paymentVerification };
+  markPaid(issued);
+  const grantFromAddress = String(process.env.TL_PROCEDURAL_ADMIN_ADDRESS || '').trim();
+  if (!grantFromAddress) {
+    return { ok: false, reason: 'TL_PROCEDURAL_ADMIN_ADDRESS is not configured' };
+  }
   const core = request.requestCore;
   const recipient = String(recipientAddress || '').trim();
-  if (!recipient) throw new Error('recipientAddress is required for tlBTC mint intent');
+  if (!recipient) throw new HttpError(400, 'invalid_request', 'recipientAddress is required for tlBTC mint intent');
   const requestedCollateralSats = core.submarineSwap.requestedCollateralSats;
   const amountGranted = satsToBtcString(requestedCollateralSats);
-  const propertyId = Number(overrides.propertyId || process.env.TL_TLBTC_PROPERTY_ID || 1);
+  const propertyId = Number(process.env.TL_TLBTC_PROPERTY_ID || 1);
   const dlcTemplateId = String(
-    overrides.dlcTemplateId ||
-      process.env.TL_DLC_TEMPLATE_ID ||
+    process.env.TL_DLC_TEMPLATE_ID ||
       compactId(core.targetDlc.contractCommitmentId || core.targetBindingHash, 'tpl')
   );
-  const dlcContractId = String(overrides.dlcContractId || process.env.TL_DLC_CONTRACT_ID || '');
-  const settlementState = String(overrides.settlementState || process.env.TL_DLC_SETTLEMENT_STATE || 'FUNDED').toUpperCase();
-  const dlcHash = String(overrides.dlcHash || process.env.TL_DLC_HASH || core.targetBindingHash);
-  const grantFromAddress = String(fromAddress || process.env.TL_PROCEDURAL_ADMIN_ADDRESS || recipient);
+  const dlcContractId = String(process.env.TL_DLC_CONTRACT_ID || '');
+  const settlementState = String(process.env.TL_DLC_SETTLEMENT_STATE || 'FUNDED').toUpperCase();
+  const dlcHash = String(process.env.TL_DLC_HASH || core.targetBindingHash);
   const params = {
     fromAddress: grantFromAddress,
     propertyId,
@@ -470,7 +780,14 @@ function buildTlbtcMintIntent({ request, paymentProof, recipientAddress, fromAdd
     paymentHashHex: paymentVerification.paymentHashHex
   };
 
-  return {
+  // Nothing above awaits, so this is the one commit point: a concurrent mint for this request, or for another request
+  // with the same payment hash, is seen here.
+  if (mintedDlcSubswapRequests.has(requestId)) return repeatMintIntent(requestId, recipient);
+  if (mintedPaymentHashes.has(paymentHashHex)) throw new HttpError(409, 'payment_already_minted', PAYMENT_ALREADY_MINTED);
+  if (mintedDlcSubswapRequests.size >= MAX_MINTED_DLC_REQUESTS) {
+    throw new HttpError(503, 'minted_record_full', 'minted record is full: raise SIDECAR_MAX_MINTED_REQUESTS');
+  }
+  const intent = {
     kind: 'tradelayer_tlbtc_mint_intent',
     ok: true,
     requestId: request.requestId,
@@ -482,6 +799,10 @@ function buildTlbtcMintIntent({ request, paymentProof, recipientAddress, fromAdd
       params
     }
   };
+  recordMinted(requestId, intent);
+  issuedDlcSubswapRequests.delete(requestId);
+  saveIssuedDlcSubswapRequests();
+  return intent;
 }
 
 function latestBitvmChannelRouterBundle(overrides = {}) {
@@ -670,6 +991,9 @@ function lnbtcTlusdLiquidityPatchWalletView(patch) {
 
 async function handle(req, res) {
   if (req.method === 'OPTIONS') return sendJson(res, 204, {});
+  if (req.method === 'POST' && !postAuthorized(req)) {
+    return sendJson(res, 401, { ok: false, reason: 'missing or invalid bearer token' });
+  }
 
   try {
     if (req.method === 'GET' && req.url === '/health') {
@@ -800,8 +1124,14 @@ async function handle(req, res) {
     }
 
     if (req.method === 'POST' && req.url === '/v1/dlc-subswap-funding/quote') {
-      const body = await readBody(req);
+      const body = await readJsonBody(req, { requireJson: true });
       const request = latestDlcSubswapFundingRequest(dlcSubswapOverridesFromBody(body));
+      const outcome = await rememberIssuedDlcSubswapRequest(request);
+      if (outcome === 'minted') return sendJson(res, 409, { error: ALREADY_MINTED });
+      if (outcome === 'hash_in_use') return sendJson(res, 409, { ok: false, reason: PAYMENT_HASH_IN_USE });
+      if (outcome === 'full') {
+        return sendJson(res, 503, { ok: false, reason: 'quote table is full: raise SIDECAR_MAX_QUOTED_REQUESTS or wait for live quotes to expire' });
+      }
       return sendJson(res, 200, {
         request,
         walletView: buildDlcSubswapFundingWalletView(request)
@@ -809,53 +1139,82 @@ async function handle(req, res) {
     }
 
     if (req.method === 'POST' && req.url === '/v1/dlc-subswap-funding/pay') {
-      const body = await readBody(req);
-      const request = body.request || latestDlcSubswapFundingRequest(dlcSubswapOverridesFromBody(body));
-      const verification = verifyDlcSubswapFundingRequest(request);
+      const body = await readJsonBody(req, { requireJson: true });
+      const requestId = String(body.requestId || '');
+      const issued = issuedDlcSubswapRequests.get(requestId);
+      if (!issued) {
+        if (mintedDlcSubswapRequests.has(requestId)) return sendJson(res, 409, { error: ALREADY_MINTED });
+        return sendJson(res, 404, { ok: false, reason: 'unknown requestId: quote the request first' });
+      }
+      if (issued.state === 'quoted' && Date.now() >= issued.expiresAt) {
+        return sendJson(res, 410, { ok: false, reason: QUOTE_EXPIRED });
+      }
+      if (issued.paying) {
+        return sendJson(res, 409, { ok: false, reason: 'a payment for this request is in flight' });
+      }
+      // A request the sidecar saw settled is never paid again, whatever LND answers now (its record deleted, another
+      // node at LND_REST_URL, a proxy's 404). The save is retried here, as markPaid promises.
+      if (issued.state === 'paid') {
+        markPaid(issued);
+        return sendJson(res, 409, { ok: false, reason: 'request is already paid' });
+      }
+      const verification = verifyDlcSubswapFundingRequest(issued.request);
       if (!verification.ok) {
         return sendJson(res, 400, { ok: false, reason: verification.reason, verification });
       }
-      const core = request.requestCore;
-      const paymentProof = await payInvoiceViaLndRest({
-        invoice: core.submarineSwap.invoice,
-        feeLimitSats: body.feeLimitSats || body.maxFeeSats || process.env.UTXOREF_LND_MAX_FEE_SATS || core.submarineSwap.swapFeeSats,
-        timeoutSeconds: body.timeoutSeconds || 60,
-        paymentHashHex: core.submarineSwap.paymentHashHex
-      });
-      const paymentVerification = verifyPaymentProofForRequest(request, paymentProof);
+      const core = issued.request.requestCore;
+      let paymentProof;
+      issued.paying = true;
+      try {
+        // Only LND's answer that it never initiated the payment (or that it failed) lets the sidecar pay. A settled
+        // payment is recorded, and one LND is still trying is in flight: paying again could pay twice.
+        const lookup = await lookupPaymentState(issued.request);
+        if (lookup.state === 'settled') {
+          markPaid(issued);
+          return sendJson(res, 409, { ok: false, reason: 'request is already paid' });
+        }
+        if (lookup.state === 'pending') {
+          return sendJson(res, 409, { ok: false, reason: 'LND reports a payment for this request in flight' });
+        }
+        markAttempted(issued);
+        try {
+          paymentProof = await payInvoiceViaLndRest({
+            invoice: core.submarineSwap.invoice,
+            feeLimitSats: process.env.UTXOREF_LND_MAX_FEE_SATS || core.submarineSwap.swapFeeSats,
+            timeoutSeconds: 60,
+            paymentHashHex: core.submarineSwap.paymentHashHex
+          });
+        } catch (err) {
+          throw new HttpError(502, 'lnd_payment_failed', err.message);
+        }
+        markPaid(issued);
+      } finally {
+        issued.paying = false;
+      }
+      const paymentVerification = verifyPaymentProofForRequest(issued.request, paymentProof);
       return sendJson(res, paymentVerification.ok ? 200 : 502, {
         ok: paymentVerification.ok,
-        request,
+        request: issued.request,
         paymentProof: {
           ...paymentProof,
-          requestId: request.requestId
+          requestId: issued.request.requestId
         },
         paymentVerification,
-        walletView: buildDlcSubswapFundingWalletView(request)
+        walletView: buildDlcSubswapFundingWalletView(issued.request)
       });
     }
 
     if (req.method === 'POST' && req.url === '/v1/dlc-subswap-funding/tlbtc-mint-intent') {
-      const body = await readBody(req);
-      const request = body.request || latestDlcSubswapFundingRequest();
-      const intent = buildTlbtcMintIntent({
-        request,
-        paymentProof: body.paymentProof,
-        recipientAddress: body.recipientAddress || body.address || body.redeemAddress,
-        fromAddress: body.fromAddress || body.adminAddress,
-        overrides: {
-          propertyId: body.propertyId,
-          dlcTemplateId: body.dlcTemplateId,
-          dlcContractId: body.dlcContractId,
-          settlementState: body.settlementState,
-          dlcHash: body.dlcHash
-        }
+      const body = await readJsonBody(req, { requireJson: true });
+      const intent = await buildTlbtcMintIntent({
+        requestId: String(body.requestId || ''),
+        recipientAddress: body.recipientAddress || body.address || body.redeemAddress
       });
       return sendJson(res, intent.ok ? 200 : 400, intent);
     }
 
     if (req.method === 'POST' && req.url === '/v1/bitvm-channel-router/quote') {
-      const body = await readBody(req);
+      const body = await readJsonBody(req, { requireJson: true });
       const bundle = latestBitvmChannelRouterBundle({
         routeIntent: body.routeIntent || {
           intentId: body.intentId,
@@ -874,14 +1233,11 @@ async function handle(req, res) {
     }
 
     if (req.method === 'POST' && req.url === '/v1/liquidity-lease/quote') {
-      const body = await readBody(req);
+      const body = await readJsonBody(req, { requireJson: true });
       const lease = readJson(leasePath);
       return sendJson(res, 200, {
         kind: 'liquidity_lease_quote',
-        requestedInboundSats: String(body.requestedInboundSats || lease.offer.terms.promisedInboundSats),
-        leaseBlocks: Number(body.leaseBlocks || lease.offer.terms.leaseBlocks),
-        maxFeePpm: Number(body.maxFeePpm || lease.offer.terms.maxFeePpm),
-        maxCltvDelta: Number(body.maxCltvDelta || lease.offer.terms.maxCltvDelta),
+        ...liquidityLeaseQuoteTerms(body, lease.offer.terms),
         estimatedPremiumSats: lease.offer.terms.leasePremiumSats,
         penaltySats: lease.offer.terms.penaltySats,
         paymentHashHex: lease.offer.terms.paymentHashHex,
@@ -1023,7 +1379,7 @@ async function handle(req, res) {
     }
 
     if (req.method === 'POST' && req.url === '/v1/bitvm-channel-router/verify') {
-      const body = await readBody(req);
+      const body = await readJsonBody(req, { requireJson: true });
       if (body.plan) {
         return sendJson(res, 200, verifyBitvmChannelRouterPlan(body.plan));
       }
@@ -1031,7 +1387,7 @@ async function handle(req, res) {
     }
 
     if (req.method === 'POST' && req.url === '/v1/dlc-subswap-funding/verify') {
-      const body = await readBody(req);
+      const body = await readJsonBody(req, { requireJson: true });
       const request = body.request || latestDlcSubswapFundingRequest();
       return sendJson(res, 200, verifyDlcSubswapFundingRequest(request));
     }
@@ -1048,7 +1404,8 @@ async function handle(req, res) {
 
     return sendJson(res, 404, { error: 'not found' });
   } catch (err) {
-    return sendJson(res, 500, { error: err.message });
+    if (err instanceof HttpError) return sendJson(res, err.statusCode, { error: err.message });
+    return sendJson(res, 500, { error: 'internal server error' });
   }
 }
 
@@ -1073,6 +1430,7 @@ module.exports = {
   latestDlcSubswapFundingRequest,
   latestBitvmChannelRouterBundle,
   buildTlbtcMintIntent,
+  loadSidecarApiToken,
   verifyPaymentProofForRequest,
   walletDemoStatus,
   handle,

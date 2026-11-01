@@ -47,7 +47,7 @@ function renderHero(proof) {
   $('shinigamiHero').innerHTML = [
     metric('Virtual CETs', summary.virtualCetCount.toLocaleString(), 'committed Ark leaves'),
     metric('Materialized CETs', summary.materializedCetCount.toLocaleString(), 'happy path broadcasts none'),
-    metric('Selected outcome', summary.selectedOutcomeId, 'oracle-bound virtual leaf'),
+    metric('Selected outcome', escapeHtml(summary.selectedOutcomeId), 'oracle-bound virtual leaf'),
     metric('Amount', sats(statement.amountSats), `${statement.exitDelayBlocks} block exit delay`)
   ].join('');
 }
@@ -62,7 +62,7 @@ function renderFlow(projection) {
   const nodes = projection.flow.map((item, index) => {
     const [x, y] = points[index];
     return `
-      <g class="shinigami-svg-node ${item.id}" transform="translate(${x} ${y})">
+      <g class="shinigami-svg-node ${escapeHtml(item.id)}" transform="translate(${x} ${y})">
         <rect width="180" height="112" rx="8"></rect>
         <text x="16" y="30">${escapeHtml(item.label)}</text>
         <text x="16" y="58">${escapeHtml(short(item.commitment))}</text>
@@ -119,8 +119,8 @@ function renderCompression(projection) {
     metric('Ark leaves', c.arkLeafCount.toLocaleString(), 'VTXO leaf layer'),
     metric('On-chain CET txids', c.onchainCetTxidsPublished.toLocaleString(), 'none in happy path'),
     metric('Avoided fanout', c.avoidedOnchainCetTxids.toLocaleString(), 'kept virtual'),
-    metric('Selected outcome', c.selectedOutcomeId, 'single leaf proved'),
-    metric('Receipt', c.proofReceiptStatus, 'deterministic scaffold')
+    metric('Selected outcome', escapeHtml(c.selectedOutcomeId), 'single leaf proved'),
+    metric('Receipt', escapeHtml(c.proofReceiptStatus), 'deterministic scaffold')
   ].join('');
 }
 
@@ -171,10 +171,10 @@ function renderAspReserve(projection) {
   $('aspReserveBond').innerHTML = `
     <div class="shinigami-hero-grid">
       ${[
-        metric('Reserve', sats(summary.reserveAmountSats), escapeHtml(short(summary.reserveOutpoint))),
-        metric('Obligations', summary.obligationCount.toLocaleString(), escapeHtml(short(summary.obligationRoot))),
-        metric('Slash claim', sats(summary.claimedSlashSats), escapeHtml(summary.selectedViolation)),
-        metric('Challenge', summary.slashable ? 'slashable' : 'watch', escapeHtml(short(summary.challengeId)))
+        metric('Reserve', sats(summary.reserveAmountSats), short(summary.reserveOutpoint)),
+        metric('Obligations', summary.obligationCount.toLocaleString(), short(summary.obligationRoot)),
+        metric('Slash claim', sats(summary.claimedSlashSats), summary.selectedViolation),
+        metric('Challenge', summary.slashable ? 'slashable' : 'watch', short(summary.challengeId))
       ].join('')}
     </div>
     <div class="reserve-flow">${flowCards}</div>

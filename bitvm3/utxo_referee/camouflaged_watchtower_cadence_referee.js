@@ -9,6 +9,7 @@
 const {
   sha256Hex
 } = require('./tradelayer_pnl_route_adapter');
+const { heightOf } = require('./money');
 
 const CLAIM_KIND = 'camouflaged_watchtower_cadence_claim_v1';
 const CHALLENGE_KIND = 'camouflaged_watchtower_cadence_challenge_v1';
@@ -44,15 +45,13 @@ function normalizeOutpoint(value) {
 }
 
 function normalizePositiveInteger(value, fieldName) {
-  const n = Number(value);
-  if (!Number.isInteger(n) || n <= 0) throw new Error(`${fieldName} must be a positive integer`);
+  const n = heightOf(value, fieldName);
+  if (n <= 0) throw new Error(`${fieldName} must be a positive integer`);
   return n;
 }
 
 function normalizeNonNegativeInteger(value, fieldName) {
-  const n = Number(value);
-  if (!Number.isInteger(n) || n < 0) throw new Error(`${fieldName} must be a non-negative integer`);
-  return n;
+  return heightOf(value, fieldName);
 }
 
 function normalizeCarrierProfile(value) {
@@ -101,6 +100,10 @@ function claimHashOk(claim) {
   const claimHash = sha256Hex(claim.core);
   if (claim.claimHash !== claimHash) return { ok: false, reason: 'claim hash mismatch', claimHash };
   return { ok: true, claimHash };
+}
+
+function sameOutpoint(value, expected) {
+  try { return normalizeOutpoint(value) === expected; } catch (_err) { return false; }
 }
 
 function importsByKind(liveImportBundle = {}) {
@@ -157,7 +160,9 @@ function verifyCamouflagedWatchtowerCadenceClaim(claim, context = {}) {
   }
   add('claim_hash', true, { claimHash: base.claimHash });
 
-  const currentHeight = Number(context.currentHeight ?? context.liveImportBundle?.node?.blocks ?? 0);
+  // The height comes from the same live chain snapshot that binds the reserve,
+  // never from the caller: a caller-chosen height could make a stale claim fresh.
+  const currentHeight = heightOf(context.liveImportBundle?.node?.blocks ?? 0, 'blocks');
   const ageBlocks = currentHeight - claim.core.publicationHeight;
   add('cadence_freshness', Number.isInteger(currentHeight) && ageBlocks >= 0 && ageBlocks <= claim.core.expectedCadenceBlocks, {
     currentHeight,
@@ -190,7 +195,7 @@ function verifyCamouflagedWatchtowerCadenceClaim(claim, context = {}) {
   add('live_reserve_status', vault?.bindings?.bindingStatus === 'live_unspent_reserve_countable', {
     bindingStatus: vault?.bindings?.bindingStatus || null
   });
-  add('reserve_outpoint', vault?.chain_ref?.outpoint === claim.core.reserveOutpoint, {
+  add('reserve_outpoint', sameOutpoint(vault?.chain_ref?.outpoint, claim.core.reserveOutpoint), {
     expected: vault?.chain_ref?.outpoint || null,
     actual: claim.core.reserveOutpoint
   });

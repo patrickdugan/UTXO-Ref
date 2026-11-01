@@ -23,6 +23,9 @@ jobs:
       ALERT_TITLE: "[monitor] UTXORef beta outage"
       GH_TOKEN: ${{ github.token }}
     steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - name: Probe public beta
         id: probe
         shell: bash
@@ -46,24 +49,7 @@ jobs:
           if [[ $status_curl -ne 0 || "$status_code" != "200" ]]; then
             healthy=false
             reasons+=("status curl=$status_curl http=$status_code")
-          elif ! jq -e --arg graph "$EXPECTED_GRAPH_HASH" '
-            .betaReady == true and
-            .chain.network == "testnet4" and
-            .chain.initialBlockDownload == false and
-            .chain.lagBlocks <= 12 and
-            .graph.verified == true and
-            .graph.graphHash == $graph and
-            .guardians.configured >= 2 and
-            .guardians.fresh >= .guardians.quorum and
-            .guardians.quorumHealthy == true and
-            .guardianReserve.configured == true and
-            .guardianReserve.healthy == true and
-            .guardianReserve.unspent == true and
-            .guardianReserve.manifestVerified == true and
-            .guardianReserve.fundingHeightMatches == true and
-            .faucet.enabled == true and
-            ((.faucet.dailyRemainingSats | tonumber) >= (.faucet.amountSats | tonumber))
-          ' "$status_file" >/dev/null 2>&1; then
+          elif ! jq -e --arg graph "$EXPECTED_GRAPH_HASH" -f integrations/utxoref-testnet-beta/deploy/beta-status-invariant.jq "$status_file" >/dev/null 2>&1; then
             healthy=false
             reasons+=("status invariant rejected")
           fi

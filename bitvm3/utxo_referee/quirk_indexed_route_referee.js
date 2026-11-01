@@ -10,6 +10,7 @@ const {
   stableStringify,
   sha256Hex
 } = require('./tradelayer_pnl_route_adapter');
+const { toInt, heightOf } = require('./money');
 
 const CLAIM_KIND = 'quirk_indexed_utxoref_route_claim_v1';
 const CHALLENGE_KIND = 'quirk_indexed_utxoref_route_challenge_v1';
@@ -51,12 +52,9 @@ function normalizeOutpoint(value) {
 }
 
 function normalizeChallengeWindow(value = {}) {
-  const startHeight = Number(value.startHeight ?? value.start ?? 0);
-  const endHeight = Number(value.endHeight ?? value.end ?? 0);
-  if (!Number.isInteger(startHeight) || startHeight < 0) {
-    throw new Error('challengeWindow.startHeight must be a non-negative integer');
-  }
-  if (!Number.isInteger(endHeight) || endHeight <= startHeight) {
+  const startHeight = heightOf(value.startHeight ?? value.start ?? 0, 'challengeWindow.startHeight');
+  const endHeight = heightOf(value.endHeight ?? value.end ?? 0, 'challengeWindow.endHeight');
+  if (endHeight <= startHeight) {
     throw new Error('challengeWindow.endHeight must be greater than startHeight');
   }
   return { startHeight, endHeight };

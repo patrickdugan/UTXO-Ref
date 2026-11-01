@@ -39,6 +39,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { canonicalStringify } = require('./m1_spec');
+const { toInt } = require('./money');
 
 const DEFAULT_TRACE_DIR = path.join(__dirname, 'artifacts', 'live', 'traces');
 
@@ -117,8 +118,8 @@ function checkPublicationFault({ traceHash, retrievalPath, bondedAtHeight, curre
   if (bondedAtHeight === undefined || bondedAtHeight === null || currentHeight === undefined || currentHeight === null) {
     throw new Error('checkPublicationFault requires both bondedAtHeight and currentHeight');
   }
-  const ageBlocks = Number(currentHeight) - Number(bondedAtHeight);
-  const withinSla = ageBlocks <= Number(slaBlocks);
+  const ageBlocks = Number(toInt(currentHeight, 'currentHeight') - toInt(bondedAtHeight, 'bondedAtHeight'));
+  const withinSla = ageBlocks <= Number(toInt(slaBlocks, 'slaBlocks'));
 
   let retrievable = false;
   let retrievalError = null;

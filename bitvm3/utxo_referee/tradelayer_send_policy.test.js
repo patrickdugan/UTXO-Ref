@@ -9,6 +9,11 @@ const {
   buildTradeLayerSendProductionPolicy,
   verifyTradeLayerSendProductionPolicy
 } = require('./tradelayer_send_policy');
+const { buildTradeLayerWithdrawalQueue } = require('./tradelayer_withdrawal_queue_referee');
+const {
+  buildTradeLayerReserveReconciliation
+} = require('./tradelayer_reserve_reconciliation_referee');
+const { sha256Hex } = require('./tradelayer_pnl_route_adapter');
 
 let passed = 0;
 let failed = 0;
@@ -82,13 +87,14 @@ test('allows a route that satisfies production policy gates', () => {
     selectedSendId: 'live-send'
   });
   stateOracle.registryHeight = CONSENSUS_INPUT.registryHeight;
-
-  const policy = buildTradeLayerSendProductionPolicy(stateOracle, {
+  const options = {
     sendId: 'live-send',
     currentHeight: 4696000,
     allowedOracleAddresses: [CONSENSUS_INPUT.oracleAddress]
-  });
-  const result = verifyTradeLayerSendProductionPolicy(policy);
+  };
+
+  const policy = buildTradeLayerSendProductionPolicy(stateOracle, options);
+  const result = verifyTradeLayerSendProductionPolicy(policy, { ...options, stateOracleBlob: stateOracle });
 
   assert(result.ok, result.reason);
   assert(policy.ok, 'policy should pass');
@@ -113,6 +119,34 @@ test('pauses wallet spend on excessive fee', () => {
   assert(!policy.ok, 'policy should fail');
   assert(policy.failedChecks.includes('fee_cap'), 'fee cap should fail');
   assertEq(policy.walletAction, 'pause_spend');
+});
+
+test('a live height or registry height that is not a plain integer is refused, not read as zero', () => {
+  const stateOracle = buildTradeLayerSendStateOracleFromConsensus(CONSENSUS_INPUT, {
+    selectedSendId: 'live-send'
+  });
+  stateOracle.registryHeight = CONSENSUS_INPUT.registryHeight;
+  const refuses = (fn) => {
+    try {
+      fn();
+      return false;
+    } catch (_err) {
+      return true;
+    }
+  };
+  for (const currentHeight of ['', false, '0x10', ' 4696000', 4696000.5]) {
+    assert(
+      refuses(() => buildTradeLayerSendProductionPolicy(stateOracle, { sendId: 'live-send', currentHeight })),
+      `currentHeight ${JSON.stringify(currentHeight)} must be refused`
+    );
+  }
+  for (const registryHeight of ['', '1e7', '0x989680']) {
+    const tampered = { ...stateOracle, registryHeight };
+    assert(
+      refuses(() => buildTradeLayerSendProductionPolicy(tampered, { sendId: 'live-send', currentHeight: 4800000 })),
+      `registryHeight ${JSON.stringify(registryHeight)} must be refused`
+    );
+  }
 });
 
 test('pauses on stale registry height', () => {
@@ -144,6 +178,73 @@ test('rejects an unapproved oracle address', () => {
   assert(policy.failedChecks.includes('oracle_address_allowed'), 'oracle address allow list should fail');
 });
 
+test('reserve_solvency follows the verified reserve, not the reconciliation flag', () => {
+  const stateOracle = buildTradeLayerSendStateOracleFromConsensus(CONSENSUS_INPUT, {
+    selectedSendId: 'live-send'
+  });
+  stateOracle.registryHeight = CONSENSUS_INPUT.registryHeight;
+  const queue = buildTradeLayerWithdrawalQueue({
+    requests: [{ id: 'w1', txid: '11'.repeat(32), address: 'tltc1qldtqy3y0rasay8dqz6kc2nxx6zfs9e9j4veqcz', sats: 5000, propertyId: 380 }]
+  });
+  const honest = buildTradeLayerReserveReconciliation({ queue, reserve: 1000 });
+  const forged = clone(honest);
+  forged.core.reservedSats = '999999';
+  forged.core.marginSats = '994999';
+  forged.core.mathSolvent = true;
+  forged.core.solvent = true;
+  forged.solvent = true;
+  forged.reconciliationHash = sha256Hex(forged.core);
+
+  const policy = buildTradeLayerSendProductionPolicy(stateOracle, {
+    sendId: 'live-send',
+    currentHeight: 4696000,
+    allowedOracleAddresses: [CONSENSUS_INPUT.oracleAddress],
+    reserveReconciliation: forged,
+    withdrawalQueue: queue,
+    reserveEvidence: 1000
+  });
+
+  assert(!policy.ok, 'a reserve that does not match its evidence must block the sweep');
+  assert(policy.failedChecks.includes('reserve_solvency'), 'reserve_solvency should fail');
+});
+
+test('rejects a blocked policy result rewritten to allow the sweep', () => {
+  const badInput = clone(CONSENSUS_INPUT);
+  badInput.feeSats = 6000;
+  badInput.dlcInputs['live-send'].sats = 100000;
+  const stateOracle = buildTradeLayerSendStateOracleFromConsensus(badInput, {
+    selectedSendId: 'live-send'
+  });
+  const options = { sendId: 'live-send', maxFeeSats: '5000', maxFeeBpsOfInput: 500 };
+  const policy = buildTradeLayerSendProductionPolicy(stateOracle, options);
+  assertEq(policy.walletAction, 'pause_spend', 'honest result must pause');
+
+  const forged = clone(policy);
+  forged.checks = forged.checks.map((check) => (check.name === 'fee_cap' ? { ...check, ok: true } : check));
+  forged.ok = true;
+  forged.failedChecks = [];
+  forged.walletAction = 'allow_sweep';
+  forged.policyHash = sha256Hex({
+    kind: 'tradelayer_send_production_policy_v1',
+    policy: forged.policy,
+    binding: forged.binding,
+    checks: forged.checks
+  });
+  const result = verifyTradeLayerSendProductionPolicy(forged, { ...options, stateOracleBlob: stateOracle });
+
+  assert(!result.ok, 'a flipped check must not verify against the state oracle');
+});
+
+test('requires the state oracle to verify a production policy', () => {
+  const stateOracle = buildTradeLayerSendStateOracleFromConsensus(CONSENSUS_INPUT, {
+    selectedSendId: 'live-send'
+  });
+  const policy = buildTradeLayerSendProductionPolicy(stateOracle, { sendId: 'live-send' });
+  const result = verifyTradeLayerSendProductionPolicy(policy);
+
+  assert(!result.ok, 'policy must not verify without its state oracle');
+});
+
 test('detects policy hash tampering', () => {
   const stateOracle = buildTradeLayerSendStateOracleFromConsensus(CONSENSUS_INPUT, {
     selectedSendId: 'live-send'
@@ -154,7 +255,7 @@ test('detects policy hash tampering', () => {
   const tampered = clone(policy);
   tampered.policy.maxFeeSats = '1';
 
-  const result = verifyTradeLayerSendProductionPolicy(tampered);
+  const result = verifyTradeLayerSendProductionPolicy(tampered, { sendId: 'live-send', stateOracleBlob: stateOracle });
   assert(!result.ok, 'tampered policy should fail');
   assert(String(result.reason).includes('policy hash mismatch'), 'expected hash mismatch');
 });

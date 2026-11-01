@@ -2,20 +2,23 @@
 
 const crypto = require('crypto');
 const fs = require('fs');
-const http = require('http');
 const path = require('path');
-const { rpcFactory } = require('./tradelayer_send_rpc_sweep');
-const { txidOfRawTransaction } = require('./btc_testnet4_readonly_rpc_proxy');
+const core = require('./utxoref_rpc_proxy_core');
+const { METHOD_POLICY } = require('./btc_testnet4_readonly_rpc_proxy');
 const { readJsonStrict } = require('./strict_artifact_ingress');
 const { readJsonStrictProfile } = require('./strict_artifact_profiles');
 const { settlementAllowlist } = require('./utxoref_v2_watchtower');
 
-const ALLOWED_METHODS = new Set([
-  'getblockchaininfo',
-  'getblockhash',
-  'gettxout',
-  'testmempoolaccept'
-]);
+// The watcher's read and preflight calls, and nothing else. Broadcast is not a
+// method here: sendrawtransaction is relayed only for the pinned settlements.
+const WATCHER_METHOD_POLICY = Object.freeze({
+  getblockchaininfo: METHOD_POLICY.getblockchaininfo,
+  getblockhash: METHOD_POLICY.getblockhash,
+  gettxout: METHOD_POLICY.gettxout,
+  getrawtransaction: params => core.exactParams(params, 2) && core.TXID.test(params[0]) && params[1] === true,
+  testmempoolaccept: METHOD_POLICY.testmempoolaccept
+});
+const ALLOWED_METHODS = new Set(Object.keys(WATCHER_METHOD_POLICY));
 
 function parseArgs(argv) {
   const args = {};
@@ -31,12 +34,14 @@ function parseArgs(argv) {
   return args;
 }
 
+// Core's cookie, read through the same bounded regular-file check as the
+// read-only proxy's.
 function readCookie(datadir) {
   for (const candidate of [path.join(datadir, 'testnet4', '.cookie'), path.join(datadir, '.cookie')]) {
     if (!fs.existsSync(candidate)) continue;
-    const text = fs.readFileSync(candidate, 'utf8').trim();
-    const separator = text.indexOf(':');
-    if (separator > 0) return { user: text.slice(0, separator), pass: text.slice(separator + 1) };
+    const text = core.readBoundedRegularFile(candidate, 4096, 'Bitcoin Core cookie');
+    if (/^[^:\r\n]+:[^\r\n]+$/.test(text)) return text;
+    throw new Error('Bitcoin Core cookie is malformed');
   }
   throw new Error('Bitcoin Core RPC cookie is unavailable');
 }
@@ -49,12 +54,6 @@ function authorized(header, expectedUser, expectedPass) {
   const expected = Buffer.from(`${expectedUser}:${expectedPass}`, 'utf8');
   const actual = Buffer.from(received, 'utf8');
   return actual.length === expected.length && crypto.timingSafeEqual(actual, expected);
-}
-
-function sendJson(response, statusCode, body) {
-  const encoded = Buffer.from(JSON.stringify(body));
-  response.writeHead(statusCode, { 'Content-Type': 'application/json', 'Content-Length': encoded.length });
-  response.end(encoded);
 }
 
 // WT-2: the transactions this proxy may relay are derived on this host from
@@ -100,95 +99,26 @@ function createSettlementBroadcastPolicy({ artifactPaths, trustPolicyPath, log =
   return policy;
 }
 
-function validateBroadcastPayload(params, broadcastTxids) {
-  if (params.length !== 1 || typeof params[0] !== 'string') {
-    return { ok: false, statusCode: 403, error: 'only an exact pinned settlement transaction may be broadcast' };
-  }
-  let txid;
-  try { txid = txidOfRawTransaction(params[0]); } catch (_err) {
-    return { ok: false, statusCode: 400, error: 'raw transaction is malformed' };
-  }
-  let allowed;
-  try { allowed = broadcastTxids(); } catch (_err) { allowed = new Set(); }
-  if (!allowed.has(txid)) return { ok: false, statusCode: 403, error: 'transaction is not a pinned settlement' };
-  return { ok: true };
-}
-
-function validateRpcPayload(payload, options = {}) {
-  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
-    return { ok: false, statusCode: 400, error: 'invalid JSON-RPC request' };
-  }
-  if (typeof payload.method !== 'string' || !Array.isArray(payload.params || [])) {
-    return { ok: false, statusCode: 400, error: 'invalid JSON-RPC request' };
-  }
-  if (payload.method === 'sendrawtransaction' && typeof options.broadcastTxids === 'function') {
-    return validateBroadcastPayload(payload.params || [], options.broadcastTxids);
-  }
-  if (!ALLOWED_METHODS.has(payload.method)) {
-    return { ok: false, statusCode: 403, error: 'RPC method is not permitted' };
-  }
-  return { ok: true };
+function validateRpcRequest(value, options = {}) {
+  let broadcastTxids = null;
+  try { broadcastTxids = typeof options.broadcastTxids === 'function' ? options.broadcastTxids() : null; } catch (_err) {}
+  return core.validateRpcRequest(value, { methodPolicy: WATCHER_METHOD_POLICY, broadcastTxids });
 }
 
 function createProxy(options) {
   const datadir = path.resolve(options.datadir);
-  const rpcUrl = options.rpcUrl || 'http://127.0.0.1:48332';
+  const rpcPort = Number(new URL(options.rpcUrl || 'http://127.0.0.1:48332').port || 48332);
   const expectedUser = String(options.authUser || '');
   const expectedPass = String(options.authPass || '');
   if (!expectedUser || !expectedPass) throw new Error('proxy auth user and password are required');
-
-  return http.createServer((request, response) => {
-    if (request.method === 'GET' && request.url === '/health') {
-      sendJson(response, 200, {
-        ok: true,
-        allowedMethods: [...ALLOWED_METHODS],
-        broadcast: options.broadcastTxids ? 'pinned-settlements-only' : false
-      });
-      return;
-    }
-    if (request.method !== 'POST' || request.url !== '/') {
-      sendJson(response, 404, { error: 'not found' });
-      return;
-    }
-    if (!authorized(request.headers.authorization, expectedUser, expectedPass)) {
-      response.setHeader('WWW-Authenticate', 'Basic realm="utxoref-watchtower"');
-      sendJson(response, 401, { error: 'unauthorized' });
-      return;
-    }
-    const chunks = [];
-    let size = 0;
-    let tooLarge = false;
-    request.on('data', (chunk) => {
-      if (tooLarge) return;
-      size += chunk.length;
-      if (size > 1024 * 1024) {
-        tooLarge = true;
-        sendJson(response, 413, { error: 'request too large' });
-        return;
-      }
-      chunks.push(chunk);
-    });
-    request.on('error', () => {});
-    request.on('end', async () => {
-      if (tooLarge) return;
-      let payload;
-      try { payload = JSON.parse(Buffer.concat(chunks).toString('utf8')); }
-      catch (_err) { sendJson(response, 400, { error: 'invalid JSON-RPC request' }); return; }
-      const validation = validateRpcPayload(payload, { broadcastTxids: options.broadcastTxids });
-      if (!validation.ok) {
-        sendJson(response, validation.statusCode, { error: validation.error });
-        return;
-      }
-      try {
-        const cookie = readCookie(datadir);
-        const rpc = rpcFactory({ rpcUrl, rpcUser: cookie.user, rpcPass: cookie.pass, requestId: 'utxoref-v2-watchtower-proxy' });
-        const result = await rpc(payload.method, payload.params);
-        sendJson(response, 200, { result, error: null, id: payload.id ?? null });
-      } catch (err) {
-        sendJson(response, 502, { result: null, error: { message: err.message }, id: payload.id ?? null });
-      }
-    });
-  });
+  return core.createRpcProxy({
+    methodPolicy: WATCHER_METHOD_POLICY,
+    authorize: (header) => authorized(header, expectedUser, expectedPass),
+    cookie: () => readCookie(datadir),
+    rpcPort,
+    broadcastTxids: options.broadcastTxids || null,
+    broadcastMode: options.broadcastTxids ? 'pinned-settlements-only' : false
+  }).server;
 }
 
 function usage() {
@@ -233,7 +163,7 @@ module.exports = {
   parseArgs,
   readCookie,
   authorized,
-  validateRpcPayload,
+  validateRpcRequest,
   createSettlementBroadcastPolicy,
   createProxy
 };

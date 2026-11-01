@@ -7,6 +7,7 @@
 
 const crypto = require('crypto');
 const { canonicalStringify, normalizeAmountSats, normalizeEpochId } = require('./m1_spec');
+const { heightOf } = require('./money');
 
 const HEX_32_RE = /^[0-9a-f]{64}$/i;
 
@@ -66,7 +67,7 @@ function buildFundingOutputCommitment({
     bitvmCommitmentRoot: normalizeHex32(bitvmCommitmentRoot, 'bitvmCommitmentRoot'),
     collateralSats: normalizeAmountSats(collateralSats, 'collateralSats').toString(),
     refundAddress: normalizeString(refundAddress, 'refundAddress'),
-    timeoutBlock: Number(timeoutBlock || 0)
+    timeoutBlock: heightOf(timeoutBlock || 0, 'timeoutBlock')
   };
 
   return {
@@ -81,8 +82,8 @@ function buildLightningFundedPositionOpen(options = {}) {
   const collateralSats = normalizeAmountSats(options.collateralSats ?? 100000n, 'collateralSats');
   const swapFeeSats = normalizeAmountSats(options.swapFeeSats ?? 250n, 'swapFeeSats');
   const fundingFeeSats = normalizeAmountSats(options.fundingFeeSats ?? 500n, 'fundingFeeSats');
-  const timeoutBlock = Number(options.timeoutBlock ?? 900144);
-  const refundTimeoutBlock = Number(options.refundTimeoutBlock ?? timeoutBlock + 144);
+  const timeoutBlock = heightOf(options.timeoutBlock ?? 900144, 'timeoutBlock');
+  const refundTimeoutBlock = heightOf(options.refundTimeoutBlock ?? timeoutBlock + 144, 'refundTimeoutBlock');
   const userId = normalizeString(options.userId || 'alice', 'userId');
   const dlcId = normalizeString(options.dlcId || `dlc-${epochId.toString()}`, 'dlcId');
   const refundAddress = normalizeString(options.refundAddress || 'tb1qrefundprototype', 'refundAddress');

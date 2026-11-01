@@ -9,6 +9,7 @@
  */
 
 const crypto = require('crypto');
+const { heightOf } = require('./money');
 const { canonicalStringify, normalizeAmountSats } = require('./m1_spec');
 const { buildJurassicMechanismRefs } = require('./jurassic_bitvm_mechanisms');
 
@@ -55,13 +56,13 @@ function buildLiquidityLeaseOffer(options = {}) {
   const lspNodeId = normalizeString(options.lspNodeId || 'lsp-node-demo', 'lspNodeId');
   const clientNodeId = normalizeString(options.clientNodeId || 'client-node-demo', 'clientNodeId');
   const promisedInboundSats = normalizeAmountSats(options.promisedInboundSats || 50000n, 'promisedInboundSats');
-  const leaseBlocks = Number(options.leaseBlocks || 144);
-  const maxFeePpm = Number(options.maxFeePpm ?? 1000);
-  const maxCltvDelta = Number(options.maxCltvDelta ?? 40);
+  const leaseBlocks = heightOf(options.leaseBlocks ?? 144, 'leaseBlocks');
+  const maxFeePpm = heightOf(options.maxFeePpm ?? 1000, 'maxFeePpm');
+  const maxCltvDelta = heightOf(options.maxCltvDelta ?? 40, 'maxCltvDelta');
   const penaltySats = normalizeAmountSats(options.penaltySats || promisedInboundSats / 10n, 'penaltySats');
   const leasePremiumSats = normalizeAmountSats(options.leasePremiumSats || 1000n, 'leasePremiumSats');
   const paymentHashHex = normalizeHex32(options.paymentHashHex || sha256Hex(`lease-payment:${leaseId}`), 'paymentHashHex');
-  const refundLocktime = Number(options.refundLocktime || 0);
+  const refundLocktime = heightOf(options.refundLocktime ?? 0, 'refundLocktime');
   const jurassicMechanisms = buildJurassicMechanismRefs('lightning', {
     contractId: leaseId,
     applicationIntent: 'Lightning liquidity lease proof packages and watchtower handles',
@@ -99,6 +100,25 @@ function buildLiquidityLeaseOffer(options = {}) {
   };
 }
 
+// The success checks the offer terms and the evidence core determine. Builder and verifier both call this.
+function leaseSuccessChecks(terms, core) {
+  return {
+    inboundCapacityMet: BigInt(core.observedInboundSats) >= BigInt(terms.promisedInboundSats),
+    feeCeilingMet: core.observedFeePpm <= terms.maxFeePpm,
+    cltvCeilingMet: core.observedCltvDelta <= terms.maxCltvDelta
+  };
+}
+
+// The violations a challenge core shows against the offer terms. Builder and verifier both call this.
+function leaseViolations(terms, core) {
+  const violations = [];
+  if (BigInt(core.observedInboundSats) < BigInt(terms.promisedInboundSats)) violations.push('insufficient_inbound_capacity');
+  if (core.observedFeePpm > terms.maxFeePpm) violations.push('fee_ppm_above_ceiling');
+  if (core.observedCltvDelta > terms.maxCltvDelta) violations.push('cltv_delta_above_ceiling');
+  if (!core.channelOutpoint) violations.push('missing_channel_or_splice_outpoint');
+  return violations;
+}
+
 function buildLeaseSuccessEvidence(options = {}) {
   const offer = options.offer || buildLiquidityLeaseOffer(options);
   const htlcProof = options.htlcProof || {};
@@ -116,9 +136,9 @@ function buildLeaseSuccessEvidence(options = {}) {
     options.observedInboundSats || offer.terms.promisedInboundSats,
     'observedInboundSats'
   );
-  const observedFeePpm = Number(options.observedFeePpm ?? offer.terms.maxFeePpm);
-  const observedCltvDelta = Number(options.observedCltvDelta ?? offer.terms.maxCltvDelta);
-  const observedAtBlock = Number(options.observedAtBlock || 0);
+  const observedFeePpm = heightOf(options.observedFeePpm ?? offer.terms.maxFeePpm, 'observedFeePpm');
+  const observedCltvDelta = heightOf(options.observedCltvDelta ?? offer.terms.maxCltvDelta, 'observedCltvDelta');
+  const observedAtBlock = heightOf(options.observedAtBlock ?? 0, 'observedAtBlock');
 
   const evidenceCore = {
     version: 1,
@@ -141,9 +161,7 @@ function buildLeaseSuccessEvidence(options = {}) {
     evidenceId: hashCanonical(evidenceCore),
     evidenceCore,
     checks: {
-      inboundCapacityMet: observedInboundSats >= BigInt(offer.terms.promisedInboundSats),
-      feeCeilingMet: observedFeePpm <= offer.terms.maxFeePpm,
-      cltvCeilingMet: observedCltvDelta <= offer.terms.maxCltvDelta,
+      ...leaseSuccessChecks(offer.terms, evidenceCore),
       fundingOutputBound: fundingCommitmentHash === (htlcProof.dlcFunding && htlcProof.dlcFunding.commitmentHash)
     }
   };
@@ -152,18 +170,19 @@ function buildLeaseSuccessEvidence(options = {}) {
 function buildLeaseChallengeEvidence(options = {}) {
   const offer = options.offer || buildLiquidityLeaseOffer(options);
   const observedInboundSats = normalizeAmountSats(options.observedInboundSats ?? 0n, 'observedInboundSats');
-  const observedFeePpm = Number(options.observedFeePpm ?? offer.terms.maxFeePpm + 1);
-  const observedCltvDelta = Number(options.observedCltvDelta ?? offer.terms.maxCltvDelta + 1);
-  const challengeBlock = Number(options.challengeBlock || offer.terms.refundLocktime || 0);
+  const observedFeePpm = heightOf(options.observedFeePpm ?? offer.terms.maxFeePpm + 1, 'observedFeePpm');
+  const observedCltvDelta = heightOf(options.observedCltvDelta ?? offer.terms.maxCltvDelta + 1, 'observedCltvDelta');
+  const challengeBlock = heightOf(options.challengeBlock ?? offer.terms.refundLocktime ?? 0, 'challengeBlock');
   const channelOutpoint = options.channelOutpoint
     ? normalizeOutpoint(options.channelOutpoint, 'channelOutpoint')
     : null;
 
-  const violations = [];
-  if (observedInboundSats < BigInt(offer.terms.promisedInboundSats)) violations.push('insufficient_inbound_capacity');
-  if (observedFeePpm > offer.terms.maxFeePpm) violations.push('fee_ppm_above_ceiling');
-  if (observedCltvDelta > offer.terms.maxCltvDelta) violations.push('cltv_delta_above_ceiling');
-  if (!channelOutpoint) violations.push('missing_channel_or_splice_outpoint');
+  const violations = leaseViolations(offer.terms, {
+    observedInboundSats: observedInboundSats.toString(),
+    observedFeePpm,
+    observedCltvDelta,
+    channelOutpoint
+  });
 
   const challengeCore = {
     version: 1,
@@ -258,10 +277,35 @@ function verifyLiquidityLeaseBundle(bundle) {
   if (bundle.bundleId !== expectedBundleId) {
     return { ok: false, reason: 'bundle id mismatch' };
   }
-  for (const [name, passed] of Object.entries(bundle.successEvidence.checks || {})) {
-    if (!passed) return { ok: false, reason: `success evidence failed: ${name}` };
+  const { offer, successEvidence: evidence, challengeEvidence: challenge } = bundle;
+  if (evidence.evidenceId !== hashCanonical(evidence.evidenceCore)) {
+    return { ok: false, reason: 'success evidence id mismatch' };
   }
-  if (!bundle.challengeEvidence.slashable) {
+  if (bundle.bundleCore.successEvidenceId !== evidence.evidenceId) {
+    return { ok: false, reason: 'bundle does not bind success evidence' };
+  }
+  const derived = leaseSuccessChecks(offer.terms, evidence.evidenceCore);
+  for (const [name, passed] of Object.entries(derived)) {
+    if (!passed) return { ok: false, reason: `success evidence failed: ${name}` };
+    if ((evidence.checks || {})[name] !== passed) return { ok: false, reason: `success check does not follow: ${name}` };
+  }
+  if (!(evidence.checks || {}).fundingOutputBound) {
+    return { ok: false, reason: 'success evidence failed: fundingOutputBound' };
+  }
+  if (challenge.challengeId !== hashCanonical(challenge.challengeCore)) {
+    return { ok: false, reason: 'challenge id mismatch' };
+  }
+  if (bundle.bundleCore.challengeId !== challenge.challengeId) {
+    return { ok: false, reason: 'bundle does not bind the challenge' };
+  }
+  const violations = leaseViolations(offer.terms, challenge.challengeCore);
+  if (hashCanonical(violations) !== hashCanonical(challenge.challengeCore.violations)) {
+    return { ok: false, reason: 'challenge violations do not follow from its core' };
+  }
+  if (challenge.slashable !== (violations.length > 0)) {
+    return { ok: false, reason: 'challenge slashable flag does not follow from its violations' };
+  }
+  if (!challenge.slashable) {
     return { ok: false, reason: 'challenge should be slashable in demo bundle' };
   }
   return { ok: true };

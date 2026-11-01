@@ -7,7 +7,8 @@ const { startNode, stopNode, waitFor } = require('./utxoref_v2_two_node_survival
 const { addressToScriptPubKey, sha256Hex } = require('./tradelayer_pnl_route_adapter');
 const tr = require('./tradelayer_taproot');
 const a = require('./tradelayer_dlc_adaptor_sig');
-const { coinValueToSats, buildTaprootReserveVaultTemplate } = require('./taproot_reserve_vault');
+const { buildTaprootReserveVaultTemplate } = require('./taproot_reserve_vault');
+const { decimalToUnits } = require('./money');
 const { buildUtxorefV2FeeReserve } = require('./utxoref_v2_fee_reserve');
 const {
   buildGuardianQuorumVaultTemplate,
@@ -65,7 +66,7 @@ async function signWalletTransaction(rpc, wallet, unsignedTxHex) {
 }
 
 async function buildControlledOutputTransaction(rpc, wallet, utxo, outputSats, outputScript, feeSats, changeScript) {
-  const inputSats = coinValueToSats(utxo.amount, 'wallet UTXO amount');
+  const inputSats = decimalToUnits(utxo.amount, 'wallet UTXO amount');
   const changeSats = inputSats - BigInt(outputSats) - BigInt(feeSats);
   if (changeSats < 330n) throw new Error('controlled output funding change would be dust');
   const unsignedTxHex = tr.serializeUnsignedTx(2, [{

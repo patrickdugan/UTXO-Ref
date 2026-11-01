@@ -29,6 +29,7 @@ use k256::{
 };
 use serde_json::{Map, Value};
 use sha2::{Digest, Sha256};
+use std::collections::BTreeSet;
 
 use crate::{Result, canonical_json};
 
@@ -507,6 +508,18 @@ pub fn derive_signing_target(signing_context: &Value) -> Result<SigningTarget> {
     let cets = array(transaction_set, "cets")?;
     if cets.is_empty() || cets.len() > MAX_CETS {
         return Err("transactionSet must contain 1..4096 CETs".to_owned());
+    }
+    // One CET per outcome: a second CET for an outcome (another oracle subset)
+    // would let whoever obtains the attestations pick the payout.
+    let mut outcomes = BTreeSet::new();
+    for value in cets {
+        let outcome = hex32(string(object(value, "CET")?, "outcomeMessage")?, "CET outcomeMessage")?;
+        if !outcomes.insert(outcome) {
+            return Err(format!(
+                "transactionSet has more than one CET for outcome {}",
+                hex::encode(outcome)
+            ));
+        }
     }
     let cet_set_digest = digest_hex(field(transaction_set, "cets")?)?;
     if string(transaction_set, "cetSetDigest")? != cet_set_digest {

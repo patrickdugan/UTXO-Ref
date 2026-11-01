@@ -9,9 +9,9 @@ const { addressToScriptPubKey } = require('./tradelayer_pnl_route_adapter');
 const tr = require('./tradelayer_taproot');
 const a = require('./tradelayer_dlc_adaptor_sig');
 const {
-  buildTaprootReserveVaultTemplate,
-  coinValueToSats
+  buildTaprootReserveVaultTemplate
 } = require('./taproot_reserve_vault');
+const { decimalToUnits } = require('./money');
 const {
   buildUtxorefV2FeeReserve,
   buildUtxorefV2FeeReserveRegistryFromRpc
@@ -67,7 +67,7 @@ async function signWalletTransaction(rpc, wallet, unsignedTxHex) {
 }
 
 async function buildParent(rpc, wallet, utxo, anchorScript, anchorAmountSats, feeSats, changeScript) {
-  const inputSats = coinValueToSats(utxo.amount, 'utxo.amount');
+  const inputSats = decimalToUnits(utxo.amount, 'utxo.amount');
   const changeSats = inputSats - BigInt(anchorAmountSats) - BigInt(feeSats);
   if (changeSats <= 0n) throw new Error('parent input cannot cover anchor and fee');
   const unsignedTxHex = tr.serializeUnsignedTx(2, [{

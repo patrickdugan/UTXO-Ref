@@ -331,8 +331,8 @@ fn build_obligations(
             if bad_every != 0 && lane % bad_every == 0 {
                 match lane % 4 {
                     0 => delivered_inbound_sats = seed.promised_inbound_sats.saturating_sub(1),
-                    1 => observed_fee_ppm = seed.max_fee_ppm + 1,
-                    2 => observed_cltv_delta = seed.max_cltv_delta + 1,
+                    1 => observed_fee_ppm = seed.max_fee_ppm.saturating_add(1),
+                    2 => observed_cltv_delta = seed.max_cltv_delta.saturating_add(1),
                     _ => forfeit_txid.clear(),
                 }
             }
@@ -640,7 +640,10 @@ fn bench_persistence_writes(
     obligations: &[Obligation],
     output_path: &PathBuf,
 ) -> Result<StressBenchResult, String> {
-    let scratch = output_path.with_file_name("ark_liquidity_governor_bench_io_scratch.jsonl");
+    let scratch = output_path.with_file_name(format!(
+        "ark_liquidity_governor_bench_io_scratch_{}.jsonl",
+        std::process::id()
+    ));
     let file = fs::File::create(&scratch).map_err(|e| {
         format!(
             "failed to create persistence scratch {}: {e}",
@@ -724,7 +727,10 @@ fn bench_binary_persistence_writes(
     obligations: &[Obligation],
     output_path: &PathBuf,
 ) -> Result<StressBenchResult, String> {
-    let scratch = output_path.with_file_name("ark_liquidity_governor_bench_io_scratch.bin");
+    let scratch = output_path.with_file_name(format!(
+        "ark_liquidity_governor_bench_io_scratch_{}.bin",
+        std::process::id()
+    ));
     let encoded = encode_binary_transcripts(obligations);
     let start = Instant::now();
     fs::write(&scratch, &encoded).map_err(|e| {
@@ -818,7 +824,9 @@ fn build_oracle_fanout(obligation: &Obligation) -> (usize, [u8; 32]) {
             obligation.vtxo_commitment_id,
             obligation.lane_index,
             outcome,
-            obligation.promised_inbound_sats + u64::from(outcome)
+            obligation
+                .promised_inbound_sats
+                .saturating_add(u64::from(outcome))
         ));
         xor_into(&mut combined, &digest);
         bytes += 32;

@@ -65,15 +65,24 @@ if (-not $NoStartSidecar) {
 $BaseUrl = "http://127.0.0.1:$Port"
 
 Invoke-Step "Smoke sidecar endpoints" {
+  # The sidecar refuses every POST without its bearer token, so the verify smoke call runs only when
+  # SIDECAR_API_TOKEN_FILE names the token file the sidecar was started with. The dashboard itself reads GET routes only.
   $status = Invoke-RestMethod -Uri "$BaseUrl/v1/wallet-demo/status"
   $stress = Invoke-RestMethod -Uri "$BaseUrl/v1/wallet-demo/stress-dashboard"
-  $verify = Invoke-RestMethod -Method Post -Uri "$BaseUrl/v1/lnbtc-tlusd-liquidity-patch/verify"
+  $verify = $null
+  if ($env:SIDECAR_API_TOKEN_FILE) {
+    $token = (Get-Content -Raw -LiteralPath $env:SIDECAR_API_TOKEN_FILE).Trim()
+    $verify = Invoke-RestMethod -Method Post -Uri "$BaseUrl/v1/lnbtc-tlusd-liquidity-patch/verify" -Headers @{ Authorization = "Bearer $token"; "Content-Type" = "application/json" } -Body "{}"
+  } else {
+    Write-Host "SIDECAR_API_TOKEN_FILE is not set: skipping the authenticated verify smoke call"
+  }
   $view = Invoke-RestMethod -Uri "$BaseUrl/v1/lnbtc-tlusd-liquidity-patch/wallet-view"
 
   $summary = [ordered]@{
     profile = $status.activeProfileId
     chain = $status.chain.chain
     walletReady = $status.readiness.walletViewReady
+    verifySmoke = if ($verify) { "ok" } else { "skipped (no SIDECAR_API_TOKEN_FILE)" }
     lnbtcSats = $verify.lnbtcSats
     tlusdUnits = $verify.tlusdUnits
     stakedTlUsdUnits = $verify.stakedTlUsdUnits

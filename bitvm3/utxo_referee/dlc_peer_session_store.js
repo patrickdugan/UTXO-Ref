@@ -1,9 +1,9 @@
 'use strict';
 
-const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const { canonicalize, canonicalJson } = require('./dlc_contract_state');
+const { requireHash, sha256Hex } = require('./dlc_canonical_json');
 const { TYPES, verifyDlcPeerMessage } = require('./dlc_peer_transcript');
 const {
   assertNonSymlinkDirectory,
@@ -22,11 +22,6 @@ const CLAIM_KIND = 'utxoref_dlc_peer_offer_claim_v1';
 const COMMIT_KIND = 'utxoref_dlc_peer_transcript_commit_v1';
 const MAX_RECORD_BYTES = 131072;
 
-function hash(value) { return crypto.createHash('sha256').update(value).digest('hex'); }
-function requireHash(value, name) {
-  if (typeof value !== 'string' || !/^[0-9a-f]{64}$/.test(value)) throw new Error(`${name} must be lowercase hash`);
-  return value;
-}
 function requirePeerId(value) {
   if (typeof value !== 'string' || !/^[A-Za-z0-9._:-]{1,128}$/.test(value)) throw new Error('peerId is invalid');
   return value;
@@ -34,12 +29,12 @@ function requirePeerId(value) {
 function recordHash(record) {
   const value = { ...canonicalize(record, 'DLC peer session record') };
   delete value.recordHash;
-  return hash(Buffer.from(canonicalJson(value), 'utf8'));
+  return sha256Hex(Buffer.from(canonicalJson(value), 'utf8'));
 }
 function sessionKey(peerId, temporaryContractId) {
   requirePeerId(peerId);
   requireHash(temporaryContractId, 'temporaryContractId');
-  return hash(Buffer.from(`${peerId}:${temporaryContractId}`, 'utf8'));
+  return sha256Hex(Buffer.from(`${peerId}:${temporaryContractId}`, 'utf8'));
 }
 function validateClaim(record) {
   if (!record || record.kind !== CLAIM_KIND || record.network !== 'bitcoin-testnet4' ||

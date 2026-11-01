@@ -11,10 +11,19 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $backupDir = Join-Path $BitcoinDatadir 'key-backups\utxoref-v2-watchtower-bridge'
 $credentialFile = Join-Path $backupDir 'proxy.env'
-$remoteEnvFile = Join-Path $env:TEMP 'utxoref-v2-watchtower.env'
 $proxyScript = Join-Path $root 'utxoref_v2_rpc_proxy.js'
 if (-not $TrustPolicy) { $TrustPolicy = Join-Path $root 'artifacts\live\utxoref_v2_watchtower_trust_policy.json' }
 if (-not $SettlementArtifact) { $SettlementArtifact = Join-Path $root 'artifacts\live\btc_testnet4_utxoref_v2_latest.json' }
+$sshOptions = @('-i', $SshKey, '-o', 'IdentitiesOnly=yes', '-o', 'BatchMode=yes')
+
+# Native commands do not stop a PowerShell script on failure: every ssh, scp and node step goes through here.
+function Invoke-Checked {
+  param([string]$What, [scriptblock]$Command)
+  $global:LASTEXITCODE = 0
+  $output = & $Command
+  if ($global:LASTEXITCODE -ne 0) { throw "$What failed with exit code $global:LASTEXITCODE" }
+  return $output
+}
 
 if (-not (Test-Path -LiteralPath $SshKey)) { throw "SSH key not found: $SshKey" }
 if (-not (Test-Path -LiteralPath $proxyScript)) { throw "Proxy script not found: $proxyScript" }
@@ -38,6 +47,9 @@ Get-Content -LiteralPath $credentialFile | ForEach-Object {
   $name, $value = $_ -split '=', 2
   $credential[$name] = $value
 }
+if (-not $credential['UTXOREF_WATCHTOWER_PROXY_USER'] -or -not $credential['UTXOREF_WATCHTOWER_PROXY_PASS']) {
+  throw "Proxy credentials are missing from $credentialFile"
+}
 
 $oldUser = $env:UTXOREF_WATCHTOWER_PROXY_USER
 $oldPass = $env:UTXOREF_WATCHTOWER_PROXY_PASS
@@ -56,21 +68,39 @@ for ($attempt = 0; $attempt -lt 20; $attempt++) {
   if ($attempt -eq 19) { throw 'Local UTXORef RPC proxy did not start' }
 }
 
-@(
-  'BTC_RPC_URL=http://127.0.0.1:48332',
-  "BTC_RPC_USER=$($credential['UTXOREF_WATCHTOWER_PROXY_USER'])",
-  "BTC_RPC_PASS=$($credential['UTXOREF_WATCHTOWER_PROXY_PASS'])"
-) | Set-Content -LiteralPath $remoteEnvFile -Encoding ASCII
+# The credentials travel in a private local file that is deleted in every case, and are installed on the host
+# from a directory that mktemp created for this run (0700, unpredictable name), not a fixed path under /tmp.
+$envFile = Join-Path ([System.IO.Path]::GetTempPath()) ([System.IO.Path]::GetRandomFileName())
+$remoteDir = $null
+try {
+  @(
+    'BTC_RPC_URL=http://127.0.0.1:48332',
+    "BTC_RPC_USER=$($credential['UTXOREF_WATCHTOWER_PROXY_USER'])",
+    "BTC_RPC_PASS=$($credential['UTXOREF_WATCHTOWER_PROXY_PASS'])"
+  ) | Set-Content -LiteralPath $envFile -Encoding ASCII
 
-& scp -i $SshKey -o IdentitiesOnly=yes -o BatchMode=yes $remoteEnvFile "${SshTarget}:/tmp/utxoref-v2-watchtower.env"
-& scp -i $SshKey -o IdentitiesOnly=yes -o BatchMode=yes $TrustPolicy "${SshTarget}:/tmp/utxoref-v2-watchtower-trust-policy.json"
-& ssh -i $SshKey -o IdentitiesOnly=yes -o BatchMode=yes $SshTarget 'sudo install -o root -g root -m 0600 /tmp/utxoref-v2-watchtower.env /etc/utxoref-v2-watchtower.env; sudo install -o root -g root -m 0644 /tmp/utxoref-v2-watchtower-trust-policy.json /etc/utxoref-v2-watchtower-trust-policy.json'
-Remove-Item -LiteralPath $remoteEnvFile -Force
+  $remoteDir = (Invoke-Checked 'remote staging directory' {
+    & ssh @sshOptions $SshTarget 'umask 077; mktemp -d /tmp/utxoref-v2-watchtower.XXXXXXXX'
+  } | Select-Object -Last 1).Trim()
+  if ($remoteDir -notmatch '^/tmp/utxoref-v2-watchtower\.[A-Za-z0-9]+$') { throw "unexpected staging directory: $remoteDir" }
+
+  Invoke-Checked 'copy env file' { & scp @sshOptions $envFile "${SshTarget}:$remoteDir/watchtower.env" } | Out-Null
+  Invoke-Checked 'copy trust policy' { & scp @sshOptions $TrustPolicy "${SshTarget}:$remoteDir/trust-policy.json" } | Out-Null
+  Invoke-Checked 'install host configuration' {
+    & ssh @sshOptions $SshTarget "sudo install -o root -g root -m 0600 '$remoteDir/watchtower.env' /etc/utxoref-v2-watchtower.env && sudo install -o root -g root -m 0644 '$remoteDir/trust-policy.json' /etc/utxoref-v2-watchtower-trust-policy.json"
+  } | Out-Null
+} finally {
+  Remove-Item -LiteralPath $envFile -Force -ErrorAction SilentlyContinue
+  if ($remoteDir) { & ssh @sshOptions $SshTarget "rm -rf '$remoteDir'" | Out-Null }
+}
 
 $ssh = (Get-Command ssh -ErrorAction Stop).Source
 $tunnel = Start-Process -FilePath $ssh -ArgumentList @('-i', $SshKey, '-o', 'IdentitiesOnly=yes', '-o', 'BatchMode=yes', '-o', 'ExitOnForwardFailure=yes', '-N', '-R', "127.0.0.1:48332:127.0.0.1:$ProxyPort", $SshTarget) -WindowStyle Hidden -PassThru
 Start-Sleep -Seconds 2
-& ssh -i $SshKey -o IdentitiesOnly=yes -o BatchMode=yes $SshTarget 'sudo systemctl enable --now utxoref-v2-watchtower.service; systemctl is-active utxoref-v2-watchtower.service'
+if ($tunnel.HasExited) { throw "SSH tunnel exited with code $($tunnel.ExitCode)" }
+Invoke-Checked 'enable watchtower service' {
+  & ssh @sshOptions $SshTarget 'sudo systemctl enable --now utxoref-v2-watchtower.service && systemctl is-active utxoref-v2-watchtower.service'
+} | Out-Null
 
 $bridgeState = [pscustomobject]@{
   startedAt = (Get-Date).ToUniversalTime().ToString('o')

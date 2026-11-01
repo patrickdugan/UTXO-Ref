@@ -6,6 +6,7 @@ const {
   makePrototypeInvoice,
   buildFundingOutputCommitment
 } = require('./lightning_integration');
+const { heightOf } = require('./money');
 
 const HEX_32_RE = /^[0-9a-f]{64}$/i;
 const DEFAULT_WALLET_NODE_ID = 'zeus-wallet-demo-node';
@@ -146,7 +147,7 @@ function buildDlcSubswapFundingRequest({ dlcBundle, subswapProof = null, options
       paymentHashHex,
       description: `fund DLC ${dlc.contractId} through UTXORef`
     });
-  const timeoutBlock = Number(options.timeoutBlock || 144);
+  const timeoutBlock = heightOf(options.timeoutBlock || 144, 'timeoutBlock');
   const refundAddress = normalizeString(options.refundAddress || DEFAULT_REFUND_ADDRESS, 'refundAddress');
   const expectedFundingOutput = proofFundingOutput(subswapProof) || buildFundingOutputCommitment({
     epochId: BigInt(options.epochId || 1),
@@ -184,7 +185,7 @@ function buildDlcSubswapFundingRequest({ dlcBundle, subswapProof = null, options
       invoiceAmountSats: invoiceAmountSats.toString(),
       requestedCollateralSats: requestedCollateralSats.toString(),
       swapFeeSats: swapFeeSats.toString(),
-      refundBlocks: Number(options.refundBlocks || 6),
+      refundBlocks: heightOf(options.refundBlocks || 6, 'refundBlocks'),
       claimRule: 'UTXORef claims the swap HTLC with the Lightning preimage and pays the DLC funding output.',
       refundRule: 'If the invoice is not paid or the claim path fails, the HTLC refund branch returns the swap funding output after timeout.'
     },

@@ -1,4 +1,5 @@
 const crypto = require('crypto');
+const { verifyLiquidityLeaseBundle } = require('./lightning_liquidity_lease');
 const { canonicalStringify } = require('./m1_spec');
 
 function sha256Hex(value) {
@@ -16,7 +17,7 @@ function buildWalletIntegrationManifest({ leaseBundle, subswapProof }) {
 
   const walletView = {
     kind: 'wallet_liquidity_lease_view',
-    status: leaseBundle.verification && leaseBundle.verification.ok ? 'verified' : 'needs_attention',
+    status: verifyLiquidityLeaseBundle(leaseBundle).ok ? 'verified' : 'needs_attention',
     title: 'Inbound Liquidity Lease',
     amountSats: leaseBundle.offer.terms.promisedInboundSats,
     maxFeePpm: leaseBundle.offer.terms.maxFeePpm,

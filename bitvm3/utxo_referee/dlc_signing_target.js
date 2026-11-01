@@ -21,8 +21,14 @@
  * same derivation from the same request fields.
  */
 
-const crypto = require('crypto');
-const { canonicalJson, snapshotOwnDataArguments, snapshotPlainData } = require('./dlc_canonical_json');
+const {
+  canonicalJson,
+  compareCodeUnits,
+  snapshotOwnDataArguments,
+  snapshotPlainData,
+  sha256Hex,
+  requireHex
+} = require('./dlc_canonical_json');
 const {
   normalizeDlcTransactionSet,
   parseCanonicalUnsignedTransaction,
@@ -44,17 +50,6 @@ const RECEIPT_BINDINGS = Object.freeze([
   ['refund_transaction', 'refundTransactionDigest'],
   ['fee_policy', 'feePolicyDigest']
 ]);
-
-function sha256Hex(value) {
-  return crypto.createHash('sha256').update(value).digest('hex');
-}
-
-function requireHex(value, bytes, fieldName) {
-  if (typeof value !== 'string' || !new RegExp(`^[0-9a-f]{${bytes * 2}}$`).test(value)) {
-    throw new Error(`${fieldName} must be lowercase ${bytes}-byte hex`);
-  }
-  return value;
-}
 
 function receiptDigest(contract, stage, kind) {
   const transition = contract.history.find((entry) => entry.to === stage);
@@ -82,7 +77,7 @@ function normalizeOracleAnnouncements(announcements) {
       outcomeMessages: announcement.outcomeMessages.map((outcome) => outcome.toLowerCase()),
       signature: announcement.signature.toLowerCase()
     };
-  }).sort((left, right) => left.px.localeCompare(right.px));
+  }).sort((left, right) => compareCodeUnits(left.px, right.px));
   if (new Set(normalized.map((announcement) => announcement.px)).size !== normalized.length) {
     throw new Error('oracleAnnouncements must come from distinct oracle keys');
   }

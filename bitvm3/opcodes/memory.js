@@ -50,10 +50,9 @@ class MemoryConstraint extends OpcodeConstraint {
    * This is a simplified check - full implementation uses MerkleCircuitBuilder
    */
   verifyMerkleInclusion(circuit, wordIndex, leafValue, siblings, expectedRoot) {
-    // For now, just verify the leaf matches expected
-    // Full implementation walks up the tree with hash computations
-    // See MerkleCircuitBuilder.verifyInclusionCircuit for full version
-    return circuit.one(); // Placeholder - integrate with MerkleCircuitBuilder
+    // Not wired to MerkleCircuitBuilder.verifyInclusionCircuit yet. A constant
+    // true wire here would accept every proof, so a proof is refused instead.
+    throw new Error('memory Merkle inclusion is not wired into the opcode circuit; a proof cannot be checked here');
   }
 
   /**

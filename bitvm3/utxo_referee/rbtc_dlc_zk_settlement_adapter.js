@@ -59,13 +59,16 @@ function verifyRbtcDlcBitvmSettlementReceipt(receipt) {
     return { ok: false, reason: 'DLC payout root mismatch', receiptCore: core };
   }
   const bundle = receipt.sourceBundle;
-  if (bundle) {
-    if (bundle.bundleId !== core.sourceBundleId) return { ok: false, reason: 'source bundle id mismatch' };
-    if (bundle.claim?.claimId !== core.tlzkClaimId) return { ok: false, reason: 'source claim id mismatch' };
-    if (bundle.receipt?.receiptId !== core.tlzkReceiptId) return { ok: false, reason: 'source receipt id mismatch' };
-    if (bundle.receipt?.receiptCore?.ok !== true) return { ok: false, reason: 'TLZK receipt is not ok' };
+  if (!bundle) return { ok: false, reason: 'source TLZK bundle required to verify the receipt' };
+  if (bundle.bundleId !== core.sourceBundleId) return { ok: false, reason: 'source bundle id mismatch' };
+  if (bundle.claim?.claimId !== core.tlzkClaimId) return { ok: false, reason: 'source claim id mismatch' };
+  if (bundle.receipt?.receiptId !== core.tlzkReceiptId) return { ok: false, reason: 'source receipt id mismatch' };
+  if (bundle.receipt?.receiptCore?.ok !== true) return { ok: false, reason: 'TLZK receipt is not ok' };
+  const publicInputs = bundle.claim?.claimCore?.publicInputs || {};
+  if (publicInputs.expectedPayoutRoot !== core.expectedPayoutRoot || publicInputs.observedPayoutRoot !== core.observedPayoutRoot) {
+    return { ok: false, reason: 'receipt payout roots do not match the TLZK claim', receiptCore: core };
   }
-  if (receipt.receiptId && receipt.receiptId !== hashCanonical(core)) {
+  if (receipt.receiptId !== hashCanonical(core)) {
     return { ok: false, reason: 'receipt id mismatch', receiptCore: core };
   }
   return { ok: true, receiptCore: core };

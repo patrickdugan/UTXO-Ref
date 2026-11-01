@@ -122,7 +122,15 @@ test('a critical alert is sent once, repeats on schedule, and stops when acknowl
     nowMs += 25 * 60 * 1000;
     await notifier.handle({ kind: 'tick', result: tick('recovery_imminent', { height: 150105 }) }, state);
     assert(fake.calls.length === 4 && /\(repeat\)/.test(emails()[1].Subject), 'no repeat after the interval');
-    acknowledgeAlert(ackPath, state.notifier.lastFingerprint.slice(0, 16));
+    const { fsyncSync, renameSync } = fs;
+    const order = [];
+    fs.fsyncSync = (fd) => { order.push('fsync'); return fsyncSync(fd); };
+    fs.renameSync = (from, to) => { order.push('rename'); return renameSync(from, to); };
+    try { acknowledgeAlert(ackPath, state.notifier.lastFingerprint.slice(0, 16)); }
+    finally { fs.fsyncSync = fsyncSync; fs.renameSync = renameSync; }
+    // The directory flush is a no-op on Windows (dlc_durable_json_store flushDirectory).
+    const expectedOrder = process.platform === 'win32' ? 'fsync,rename' : 'fsync,rename,fsync';
+    assert(order.join(',') === expectedOrder, `unexpected durable write order: ${order.join(',')}`);
     assert(readAcknowledgements(ackPath).length === 1);
     nowMs += 60 * 60 * 1000;
     await notifier.handle({ kind: 'tick', result: tick('recovery_imminent') }, state);
@@ -176,6 +184,32 @@ test('undelivered alerts are retried on the next tick, and the hourly cap spares
   assert(state.notifier.delivered === 2 && state.notifier.suppressed === 1, 'the hourly cap did not suppress info alerts');
   await notifier.handle({ kind: 'tick', result: tick('recovery_imminent') }, state);
   assert(state.notifier.delivered === 3, 'the hourly cap suppressed a critical alert');
+});
+
+test('provider and heartbeat requests never follow a redirect, so tokens cannot leave for another host', async () => {
+  const fake = fakeFetch();
+  const notifier = createAlertNotifier(notifierConfigFromEnv(baseEnv), { fetchImpl: fake.fetchImpl, now: () => Date.parse('2026-10-02T12:00:00Z') });
+  await notifier.handle({ kind: 'tick', result: tick('challenge_signature_required', { fraudDetected: true, fraudType: 'gate' }) }, {});
+  assert(fake.calls.length === 2 && fake.calls.every((call) => call.init.redirect === 'error'), 'every alert request must refuse redirects');
+  await pingHeartbeat('https://hc.example.org/ping/abc', { fetchImpl: fake.fetchImpl });
+  assert(fake.calls[fake.calls.length - 1].init.redirect === 'error', 'the heartbeat must refuse redirects');
+});
+
+test('overflow sheds only the oldest non-critical alerts and counts them; a critical alert is never shed', async () => {
+  const fake = fakeFetch();
+  fake.setFailing(true);
+  const notifier = createAlertNotifier(notifierConfigFromEnv({ ...baseEnv, UTXOREF_ALERT_EMAIL_PROVIDER: '' }),
+    { fetchImpl: fake.fetchImpl, now: () => Date.parse('2026-10-02T12:00:00Z') });
+  const state = {};
+  await notifier.handle({ kind: 'tick', result: tick('recovery_imminent', { graphHash: 'ff'.repeat(32) }) }, state);
+  for (let index = 0; index < 25; index++) {
+    const graphHash = index.toString(16).padStart(2, '0').repeat(32);
+    await notifier.handle({ kind: 'tick', result: tick('settlement_due', { graphHash }) }, state);
+  }
+  const pending = state.notifier.pending;
+  assert(pending.some((item) => item.alert.action === 'recovery_imminent'), 'the critical alert was shed');
+  assert(pending.filter((item) => item.alert.severity !== 'critical').length === 20, 'non-critical alerts are capped');
+  assert(state.notifier.dropped === 5, `expected 5 shed alerts, got ${state.notifier.dropped}`);
 });
 
 test('severity defaults to warning for unknown actions', () => {

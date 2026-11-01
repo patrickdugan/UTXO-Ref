@@ -1,0 +1,139 @@
+/**
+ * The one place that turns external amounts into BigInt units.
+ *
+ * Accepted forms: a bigint, a safe-integer number, or a canonical decimal string
+ * (no whitespace, no hex, no exponent, no empty string). Anything else throws, so a
+ * value parsed by one module cannot mean something different in another. The one
+ * exception is a JavaScript number in base units, which decimalToUnits refuses (see
+ * the spelling rule below).
+ *
+ *   toInt(value, field)                      integer, sign per `signed`
+ *   heightOf(value, field)                   safe integer as a JavaScript number: heights, ages, locks, ppm, bps
+ *   toSats(value, field)                     non-negative integer sat amount
+ *   decimalToUnits(value, field, options)    decimal amount scaled to base units
+ *   satsToCoinString(sats)                   sats as eight-place coin text
+ *
+ * Amount spelling rule (decimalToUnits), stated once here:
+ *   - The spelling fixes the scale. Text with no decimal point (and no exponent)
+ *     is an integer. A JavaScript number is spelled by its shortest decimal text
+ *     (1.1 is '1.1', 5 is '5').
+ *   - With `integersAreUnits`, an integer spelling is base units ('5' -> 5). Any
+ *     decimal point is a coin amount and is scaled ('5.0' and '5.00000000' ->
+ *     500000000 at eight places). Without the flag, every amount is scaled.
+ *   - A JavaScript number is refused with `integersAreUnits`. Its spelling is
+ *     gone once it is parsed: 5 and 5.0 are the same double, and they mean 5
+ *     units and 5 coins. Token amounts arrive as strings (or bigints).
+ *   - Trailing zeros never change the spelling. They are stripped only to test
+ *     whether the fraction has more digits than the scale allows, so
+ *     '1.100000000' is accepted at eight places and '1.100000001' is refused.
+ */
+
+const COIN = 100000000n;
+const MAX_SAFE_INTEGER = BigInt(Number.MAX_SAFE_INTEGER);
+const UNSIGNED_INTEGER = /^\d+$/;
+const SIGNED_INTEGER = /^-?\d+$/;
+const UNSIGNED_DECIMAL = /^\d+(\.\d+)?$/;
+const SIGNED_DECIMAL = /^-?\d+(\.\d+)?$/;
+
+function toInt(value, field, { signed = false, noun = 'integer' } = {}) {
+  let out;
+  if (typeof value === 'bigint') {
+    out = value;
+  } else if (typeof value === 'number') {
+    if (!Number.isSafeInteger(value)) throw new Error(`${field} must be a safe integer`);
+    out = BigInt(value);
+  } else if (typeof value === 'string' && (signed ? SIGNED_INTEGER : UNSIGNED_INTEGER).test(value)) {
+    out = BigInt(value);
+  } else {
+    throw new Error(`${field} must be an ${noun}`);
+  }
+  if (!signed && out < 0n) throw new Error(`${field} must be non-negative`);
+  return out;
+}
+
+// A block height, age, lock, CLTV delta, fee rate (ppm) or bps, as a number the comparisons can use. The spelling is
+// toInt's, and the value must be a safe integer, so Number() cannot round it: a value above 2^53 is refused rather than
+// compared as a neighbour. Relative CSV delays go through csv_delay.js instead.
+function heightOf(value, field, { signed = false } = {}) {
+  const out = toInt(value, field, { signed, noun: 'integer block height' });
+  if (out > MAX_SAFE_INTEGER || out < -MAX_SAFE_INTEGER) throw new Error(`${field} must be a safe integer`);
+  return Number(out);
+}
+
+function toSats(value, field, { signed = false } = {}) {
+  return toInt(value, field, { signed, noun: 'integer sat amount' });
+}
+
+// The shortest decimal text of a finite, non-integer number, with any exponent written out (1e-7 is '0.0000001').
+// Its digits are the amount's digits, so 77672233.6 is '77672233.6' and not the eight-place rounding of the double.
+function shortestDecimalText(value) {
+  const [, sign, digits, exponent = '0'] = /^(-?)(\d+(?:\.\d+)?)(?:e([+-]\d+))?$/.exec(String(value));
+  const [whole, fraction = ''] = digits.split('.');
+  const all = whole + fraction;
+  const point = whole.length + Number(exponent);
+  let plain;
+  if (point <= 0) plain = `0.${'0'.repeat(-point)}${all}`;
+  else if (point >= all.length) plain = all + '0'.repeat(point - all.length);
+  else plain = `${all.slice(0, point)}.${all.slice(point)}`;
+  return sign + plain;
+}
+
+// A JavaScript number is spelled by its shortest decimal text, which parses back to the same number. Digits past the
+// scale are refused by decimalToUnits, not rounded. An integer-valued number follows toInt's rule: a safe integer.
+function decimalText(value, field) {
+  if (typeof value === 'bigint') return value.toString();
+  if (typeof value !== 'number') return value;
+  if (!Number.isFinite(value)) throw new Error(`${field} must be finite`);
+  if (Number.isInteger(value)) {
+    if (!Number.isSafeInteger(value)) throw new Error(`${field} must be a safe integer`);
+    return String(value);
+  }
+  return shortestDecimalText(value);
+}
+
+/**
+ * Scale a decimal amount to base units. See the spelling rule at the top of this file.
+ *
+ * Token amounts in TradeLayer payloads pass `integersAreUnits: true`. Coin amounts
+ * are whole coins, so the default is false. The choice is made per field, at the call.
+ */
+function decimalToUnits(value, field, { scale = COIN, integersAreUnits = false, signed = false } = {}) {
+  if (value === undefined || value === null || value === '') throw new Error(`${field} is required`);
+  if (integersAreUnits && typeof value === 'number') {
+    throw new Error(`${field} must be a string in base units: a JSON number has lost its decimal spelling`);
+  }
+  const decimals = scale.toString().length - 1;
+  const text = decimalText(value, field);
+  if (typeof text !== 'string' || !(signed ? SIGNED_DECIMAL : UNSIGNED_DECIMAL).test(text)) {
+    throw new Error(`${field} must be a decimal amount`);
+  }
+  const negative = text.startsWith('-');
+  const [whole, rawFraction] = (negative ? text.slice(1) : text).split('.');
+  const fraction = (rawFraction ?? '').replace(/0+$/, '');
+  if (fraction.length > decimals) throw new Error(`${field} has more than ${decimals} decimal places`);
+  let units;
+  if (rawFraction === undefined && integersAreUnits) {
+    units = BigInt(whole);
+  } else {
+    units = BigInt(whole) * scale + BigInt((fraction + '0'.repeat(decimals)).slice(0, decimals));
+  }
+  return negative ? -units : units;
+}
+
+function satsToCoinString(value) {
+  const sats = toSats(value, 'sats', { signed: true });
+  const sign = sats < 0n ? '-' : '';
+  const abs = sats < 0n ? -sats : sats;
+  const whole = abs / COIN;
+  const fraction = (abs % COIN).toString().padStart(8, '0');
+  return `${sign}${whole}.${fraction}`;
+}
+
+module.exports = {
+  COIN,
+  toInt,
+  heightOf,
+  toSats,
+  decimalToUnits,
+  satsToCoinString
+};

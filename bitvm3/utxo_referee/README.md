@@ -449,7 +449,10 @@ events, peer sessions, and watchtower journals. A checkpoint commits the store
 key, record count, and head hash. Restart verification requires the surviving
 history to contain that exact hash at the pinned count, so tail deletion and a
 longer fork are rejected. Store checkpoints outside the journal directory under
-an independently protected operator or coordinator trust boundary.
+an independently protected operator or coordinator trust boundary. The oracle
+event store's `attest` and `createEvent` do not require a verified checkpoint
+themselves, so a truncated oracle journal can sign a second outcome under the
+same nonce until the operator calls `verifySignedCheckpoint` (review A-1, open).
 Boundary V58 extends the same checkpoint contract to signing-authorization
 consumption, signed-refund recovery, and broadcast-authorization consumption.
 Checkpoint inputs are copied into frozen plain-data snapshots before validation,

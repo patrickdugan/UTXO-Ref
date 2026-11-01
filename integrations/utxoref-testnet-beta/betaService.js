@@ -12,29 +12,20 @@ const { verifyGuardianQuorumVaultManifest } = require('../../bitvm3/utxo_referee
 const { deriveReserveVaultInternalXonly } = require('../../bitvm3/utxo_referee/taproot_reserve_vault');
 const { sha256, tokenHash, privateHash } = require('./betaStore');
 const { RateLimiter, rateLimitPathFor } = require('./rateLimiter');
+const { HttpError, sendJson: sendJsonBody, readJsonBody, boundedInteger } = require('../shared/service');
 
 const EXPLORER_TX = 'https://mempool.space/testnet4/tx/';
 const BODY_LIMIT = 16 * 1024;
 const RATE_LIMIT_MAX_ENTRIES = 8192;
 const COUNTED_CLAIM_STATES = new Set(['sending', 'broadcast', 'broadcast_unknown']);
 
-class HttpError extends Error {
-  constructor(status, code, message = code) {
-    super(message);
-    this.status = status;
-    this.code = code;
-  }
-}
-
 function utcDay(value) {
   return new Date(value).toISOString().slice(0, 10);
 }
 
 function safeInteger(value, minimum, maximum, fieldName) {
-  const parsed = Number(value);
-  if (!Number.isSafeInteger(parsed) || parsed < minimum || parsed > maximum) {
-    throw new HttpError(400, 'invalid_request', `${fieldName} must be an integer in ${minimum}..${maximum}`);
-  }
+  const parsed = boundedInteger(value, minimum, maximum);
+  if (parsed === null) throw new HttpError(400, 'invalid_request', `${fieldName} must be an integer in ${minimum}..${maximum}`);
   return parsed;
 }
 
@@ -231,37 +222,12 @@ function guardianReserveStatus(deployment, txout, currentHeight) {
 
 function requestIp(req, policy) {
   if (policy.trustProxy) {
-    const forwarded = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
+    // The trusted proxy appends the address it received from, so the last entry is the one clients cannot forge.
+    const entries = String(req.headers['x-forwarded-for'] || '').split(',');
+    const forwarded = entries[entries.length - 1].trim();
     if (net.isIP(forwarded)) return forwarded;
   }
   return req.socket.remoteAddress || 'unknown';
-}
-
-function readBody(req) {
-  return new Promise((resolve, reject) => {
-    const chunks = [];
-    let bytes = 0;
-    req.on('data', (chunk) => {
-      bytes += chunk.length;
-      if (bytes > BODY_LIMIT) {
-        reject(new HttpError(413, 'body_too_large'));
-        req.destroy();
-        return;
-      }
-      chunks.push(chunk);
-    });
-    req.on('end', () => {
-      if (bytes === 0) return resolve({});
-      try {
-        const value = JSON.parse(Buffer.concat(chunks).toString('utf8'));
-        if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('body must be an object');
-        resolve(value);
-      } catch (err) {
-        reject(new HttpError(400, 'invalid_json', err.message));
-      }
-    });
-    req.on('error', reject);
-  });
 }
 
 function responseHeaders(policy, contentType) {
@@ -278,12 +244,7 @@ function responseHeaders(policy, contentType) {
 }
 
 function sendJson(res, status, payload, policy) {
-  const body = `${JSON.stringify(payload, null, 2)}\n`;
-  res.writeHead(status, {
-    ...responseHeaders(policy, 'application/json; charset=utf-8'),
-    'content-length': Buffer.byteLength(body)
-  });
-  res.end(body);
+  sendJsonBody(res, status, payload, responseHeaders(policy, 'application/json; charset=utf-8'));
 }
 
 function invitationForToken(state, token, now) {
@@ -320,8 +281,16 @@ function createBetaService(options) {
   const guardianReserve = policy.guardianReservePath
     ? loadGuardianReserve(policy.guardianReservePath, guardianRegistry)
     : null;
-  if (policy.requireGuardianQuorum && (!guardianRegistry || !guardianReserve)) {
+  // The quorum gate defaults on with a registry. Without a reserve it cannot
+  // pass, so betaReady stays false (fail closed) while the service keeps
+  // running, for example between rotating a guardian key and funding the new
+  // reserve. An operator who set BETA_REQUIRE_GUARDIAN_QUORUM=1 explicitly
+  // still gets a startup error for a missing reserve.
+  if (policy.requireGuardianQuorum && (!guardianRegistry || (policy.guardianQuorumExplicit && !guardianReserve))) {
     throw new Error('required guardian quorum must have a registry and funded reserve');
+  }
+  if (policy.requireGuardianQuorum && !guardianReserve) {
+    console.error('[utxoref-beta] guardian quorum gate is on but no reserve is configured: betaReady stays false');
   }
   const initialState = store.read();
   const rateSalt = { privacySalt: initialState.privacySalt };
@@ -519,6 +488,15 @@ function createBetaService(options) {
     return statusInFlight;
   }
 
+  // Faucet claims run one at a time. Each reads the wallet balance after the previous claim was broadcast, so the
+  // reserve floor check cannot be passed by several claims against one stale balance.
+  let faucetLane = Promise.resolve();
+  function inFaucetLane(task) {
+    const run = faucetLane.then(task);
+    faucetLane = run.catch(() => undefined);
+    return run;
+  }
+
   async function claimFaucet(body, req) {
     const now = clock().toISOString();
     const ip = requestIp(req, policy);
@@ -533,6 +511,10 @@ function createBetaService(options) {
     } catch (err) {
       throw new HttpError(400, 'invalid_destination', err.message);
     }
+    return inFaucetLane(() => broadcastFaucetClaim(body, { now, ip, idempotencyKey, destination }));
+  }
+
+  async function broadcastFaucetClaim(body, { now, ip, idempotencyKey, destination }) {
     const node = await bitcoin.status();
     assertNodeReady(node, policy);
 
@@ -705,13 +687,13 @@ function createBetaService(options) {
         return sendJson(res, 200, await betaStatus(), policy);
       }
       if (req.method === 'POST' && routePath === '/v1/faucet/claim') {
-        return sendJson(res, 201, await claimFaucet(await readBody(req), req), policy);
+        return sendJson(res, 201, await claimFaucet(await readJsonBody(req), req), policy);
       }
       if (req.method === 'POST' && routePath === '/v1/stress/verify') {
-        return sendJson(res, 201, await runStress(await readBody(req)), policy);
+        return sendJson(res, 201, await runStress(await readJsonBody(req)), policy);
       }
       if (req.method === 'POST' && routePath === '/v1/guardians/heartbeat') {
-        return sendJson(res, 201, await acceptGuardianHeartbeat(await readBody(req)), policy);
+        return sendJson(res, 201, await acceptGuardianHeartbeat(await readJsonBody(req)), policy);
       }
       const runMatch = routePath.match(/^\/v1\/runs\/([0-9a-f]{24})$/);
       if (req.method === 'GET' && runMatch) {
@@ -733,7 +715,7 @@ function createBetaService(options) {
       }
       throw new HttpError(404, 'not_found');
     } catch (err) {
-      const status = err instanceof HttpError ? err.status : 500;
+      const status = err instanceof HttpError ? err.statusCode : 500;
       const code = err instanceof HttpError ? err.code : 'internal_error';
       return sendJson(res, status, { ok: false, error: code, message: status < 500 ? err.message : 'internal server error' }, policy);
     }
@@ -756,7 +738,6 @@ function createBetaService(options) {
 
 module.exports = {
   EXPLORER_TX,
-  HttpError,
   utcDay,
   claimCounts,
   publicClaim,

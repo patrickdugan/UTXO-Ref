@@ -154,6 +154,21 @@ test('rejects stale cadence checkpoints', () => {
   assertIncludes(result.failedChecks, 'cadence_freshness');
 });
 
+test('cadence freshness is read from the live chain, not from the caller', () => {
+  const result = verifyCamouflagedWatchtowerCadenceClaim(claim({
+    publicationHeight: 1980
+  }), context({ currentHeight: CURRENT_HEIGHT + 100 }));
+  assert(!result.ok, 'a caller-supplied height must not make a stale checkpoint fresh');
+  assertIncludes(result.failedChecks, 'cadence_freshness');
+});
+
+test('the reserve outpoint is compared in canonical form on both sides', () => {
+  const upper = context();
+  upper.liveImportBundle.imports[0].chain_ref.outpoint = OUTPOINT.toUpperCase();
+  const result = verifyCamouflagedWatchtowerCadenceClaim(claim(), upper);
+  assert(result.ok, result.reason);
+});
+
 test('rejects alert handles bound to the wrong route claim', () => {
   const result = verifyCamouflagedWatchtowerCadenceClaim(claim({
     publicationHandle: 'wrong-route-watchtower-2000'

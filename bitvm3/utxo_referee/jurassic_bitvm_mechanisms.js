@@ -11,6 +11,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { canonicalStringify, normalizeAmountSats } = require('./m1_spec');
+const { heightOf } = require('./money');
 
 const ARTIFACTS_DIR = path.join(__dirname, 'artifacts');
 const OUT_JSON = path.join(ARTIFACTS_DIR, 'jurassic_bitvm_mechanisms_latest.json');
@@ -75,7 +76,7 @@ function buildMechanismCore(options = {}) {
     route: normalizeString(options.route || 'cooperative_or_challengeable_release', 'route'),
     amountSats: amountSats.toString(),
     settlementEpoch: normalizeString(options.settlementEpoch || 'm1-jurassic-demo', 'settlementEpoch'),
-    challengeWindowBlocks: Number(options.challengeWindowBlocks ?? 144),
+    challengeWindowBlocks: heightOf(options.challengeWindowBlocks ?? 144, 'challengeWindowBlocks'),
     targetProtocols
   };
 

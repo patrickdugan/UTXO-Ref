@@ -29,7 +29,58 @@ function assert(condition, message) {
   if (!condition) throw new Error(message);
 }
 
+const crypto = require('crypto');
+const { canonicalStringify } = require('./m1_spec');
+
+function hashCanonical(value) {
+  return crypto.createHash('sha256').update(canonicalStringify(value)).digest('hex');
+}
+
+// Edit a bundle and re-derive every id above the edit, so only the verifier's own
+// recomputation can refuse it.
+function rebound(bundle, edit) {
+  const out = JSON.parse(JSON.stringify(bundle));
+  edit(out);
+  if (out.settlementEvidence) {
+    out.settlementEvidence.settlementId = hashCanonical(out.settlementEvidence.settlementCore);
+    out.bundleCore.settlementId = out.settlementEvidence.settlementId;
+  }
+  if (out.challengeEvidence) {
+    out.challengeEvidence.challengeId = hashCanonical(out.challengeEvidence.challengeCore);
+    out.bundleCore.challengeId = out.challengeEvidence.challengeId;
+  }
+  out.bundleId = hashCanonical(out.bundleCore);
+  return out;
+}
+
 console.log('\n=== Ark DLC Settlement Tests ===\n');
+
+test('a settlement whose payouts do not follow the selected CET is refused', () => {
+  const bundle = buildArkDlcSettlementBundle({ oracleOutcomeId: 'btc_up' });
+  const forged = rebound(bundle, (b) => {
+    const payouts = b.settlementEvidence.settlementCore.payouts;
+    const [offer, accept] = Object.keys(payouts);
+    payouts[offer].amountSats = (BigInt(payouts[offer].amountSats) + 1n).toString();
+    payouts[accept].amountSats = (BigInt(payouts[accept].amountSats) - 1n).toString();
+  });
+  const result = verifyArkDlcSettlementBundle(forged);
+  assert(!result.ok && /payoutsFollowCet/.test(result.reason), 'payouts must follow the CET, not the check flags');
+});
+
+test('a challenge whose violations do not follow from its core is refused', () => {
+  const bundle = buildArkDlcSettlementBundle({
+    oracleOutcomeId: 'btc_up',
+    aspSettledOutcomeId: 'btc_down',
+    challengeMissingForfeitPath: true
+  });
+  const forged = rebound(bundle, (b) => {
+    b.challengeEvidence.challengeCore.violations = [];
+  });
+  const result = verifyArkDlcSettlementBundle(forged);
+  assert(!result.ok && /violations/.test(result.reason), 'violations are recomputed from the core');
+});
+
+
 
 test('contract commits to parties, oracle, ASP, and outcome root', () => {
   const contract = buildArkDlcContract({ contractId: 'dlc-a', aspId: 'asp-a' });

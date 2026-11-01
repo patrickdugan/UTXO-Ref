@@ -55,6 +55,7 @@ const { rpcFactory } = require('./tradelayer_send_rpc_sweep');
 const { resolveChainEnv } = require('./m1_chain_env');
 const { buildLiveReserveFromUnspent } = require('./tradelayer_live_reserve_adapter');
 const { checkPublicationFault } = require('./tradelayer_trace_publication');
+const { writeFileAtomic } = require('./dlc_durable_json_store');
 const {
   buildTradeLayerBitvmStackBundle,
   verifyTradeLayerBitvmStackBundle
@@ -81,13 +82,9 @@ function parseArgs(argv) {
   return args;
 }
 
-// Same write-then-rename pattern as tradelayer_nonce_journal.js - a kill
-// mid-write can never leave a half-written, unparseable state file behind.
+// A kill mid-write can never leave a half-written, unparseable state file behind.
 function saveStateAtomic(statePath, state) {
-  fs.mkdirSync(path.dirname(statePath), { recursive: true });
-  const tmp = `${statePath}.tmp-${process.pid}-${Date.now()}`;
-  fs.writeFileSync(tmp, JSON.stringify(state, null, 2) + '\n');
-  fs.renameSync(tmp, statePath);
+  writeFileAtomic(statePath, JSON.stringify(state, null, 2) + '\n');
 }
 
 function loadState(statePath) {

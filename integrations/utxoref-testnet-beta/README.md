@@ -4,7 +4,7 @@ Invite-gated Bitcoin testnet4 console for a real UTXORef referee graph, a bounde
 
 Current operator beta: `https://api.layerwallet.com/utxoref-beta/`. It is served through a path-scoped TLS reverse proxy and a loopback-only reverse tunnel to the local testnet4 node; availability therefore depends on the operator workstation, node, service, and tunnel remaining online.
 
-The service deliberately has no generic wallet or RPC endpoint. Faucet signing remains inside the local Bitcoin Core wallet. Invite tokens are stored only as hashes, requester IPs are stored as salted hashes, and every claim is written to disk before Bitcoin Core is asked to broadcast. Destination addresses remain in receipts because they become public when a claim is broadcast.
+The service deliberately has no generic wallet or RPC endpoint. Faucet signing remains inside the local Bitcoin Core wallet. Invite tokens are stored only as hashes of 24 random bytes. Requester IPs are stored as SHA-256 hashes with a per-state salt that lives in the same state file, so they are pseudonymous rather than anonymous: whoever holds the state file can enumerate IPv4 addresses. Treat the state file as personal data. Every claim is written to disk before Bitcoin Core is asked to broadcast. Destination addresses remain in receipts because they become public when a claim is broadcast.
 
 ## Beta surface
 
@@ -95,7 +95,7 @@ For Nginx, load `deploy/nginx-http-waf.example` in the `http {}` context and pla
 1. Create a dedicated unprivileged `utxoref-beta` account and `/var/lib/utxoref-beta` owned by it.
 2. Install the repository read-only under `/opt/utxoref/UTXO-Ref`.
 3. Install `.env.example` as mode `0600` at `/etc/utxoref-beta.env`.
-4. Set `BETA_PUBLIC_ORIGIN` to the exact HTTPS origin and enable `BETA_TRUST_PROXY=1` only when direct access to port `8790` is blocked.
+4. Set `BETA_PUBLIC_ORIGIN` to the exact HTTPS origin. Set `BETA_TRUST_PROXY` explicitly: `1` only when direct access to port `8790` is blocked and the proxy overwrites or appends `X-Forwarded-For`; the service refuses to start if it is unset.
    Set `BETA_BASE_PATH` when the service shares a hostname, for example `/utxoref-beta`.
 5. Start Core, load the faucet wallet, start the service, then verify `/v1/beta/status` reports `betaReady: true`.
 6. Run the 500-request status test and one self-claim before issuing invitations.
@@ -121,6 +121,10 @@ npm run deploy:guardians -- --registry artifacts/guardian_registry_testnet4.json
 ```
 
 Set `BETA_GUARDIAN_RESERVE_PATH` to the resulting public artifact. When guardian quorum is required, readiness fails closed unless the manifest verifies, the exact Taproot outpoint is confirmed and unspent, and the threshold heartbeat quorum is fresh.
+
+The quorum gate is on by default whenever `BETA_GUARDIAN_REGISTRY_PATH` is set; `BETA_REQUIRE_GUARDIAN_QUORUM=0` turns it off. With the default gate and no reserve configured (for example after rotating a guardian key, before funding the new reserve), the service runs and `betaReady` stays false. An explicit `BETA_REQUIRE_GUARDIAN_QUORUM=1` without a reserve is a startup error.
+
+The funding txid is written to `<output>.funding-pending.json` as soon as Core returns it. If the deployment fails after that point, the error names the txid. Resolve it by hand: confirm the txid in the wallet, produce the reserve artifact, then delete the pending file. A new `--broadcast` refuses to run while the pending file exists.
 
 After the funding transaction confirms, bind the manifest's CSV clock to the actual Core funding height:
 

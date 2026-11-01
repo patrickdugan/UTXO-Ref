@@ -95,6 +95,8 @@ function sampleSweepPlan() {
   return buildTradeLayerSendSweepPlan(routePlan);
 }
 
+const HONEST_TRANSCRIPT_HASH = sampleSweepPlan().routeTranscriptHash;
+
 function mockRpc(calls, overrides = {}) {
   return async function rpc(method, params, wallet) {
     calls.push({ method, params, wallet: wallet || null });
@@ -115,6 +117,7 @@ function mockRpc(calls, overrides = {}) {
     if (method === 'decoderawtransaction') {
       return {
         txid: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        vin: [{ txid: 'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff', vout: 1 }],
         hash: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
         vsize: 123,
         locktime: 0,
@@ -163,6 +166,7 @@ async function run() {
   await test('signs and finalizes without broadcasting by default', async () => {
     const calls = [];
     const result = await executeTradeLayerSendRpcSweep(sampleSweepPlan(), {
+      expectedRouteTranscriptHash: HONEST_TRANSCRIPT_HASH,
       rpc: mockRpc(calls),
       wallet: 'tl-wallet'
     });
@@ -183,6 +187,7 @@ async function run() {
   await test('preflights the committed input before signing', async () => {
     const calls = [];
     const result = await preflightTradeLayerSendRpcSweep(sampleSweepPlan(), {
+      expectedRouteTranscriptHash: HONEST_TRANSCRIPT_HASH,
       rpc: mockRpc(calls),
       wallet: 'tl-wallet'
     });
@@ -212,6 +217,7 @@ async function run() {
     const sweepPlan = clone(sampleSweepPlan());
     sweepPlan.routeTranscript.core.outputPlanHash = '00'.repeat(32);
     const result = await executeTradeLayerSendRpcSweep(sweepPlan, {
+      expectedRouteTranscriptHash: HONEST_TRANSCRIPT_HASH,
       rpc: mockRpc(calls),
       wallet: 'tl-wallet'
     });
@@ -225,6 +231,7 @@ async function run() {
   await test('stops before signing if the input is spent or unknown', async () => {
     const calls = [];
     const result = await executeTradeLayerSendRpcSweep(sampleSweepPlan(), {
+      expectedRouteTranscriptHash: HONEST_TRANSCRIPT_HASH,
       rpc: mockRpc(calls, {
         gettxout: () => null
       }),
@@ -239,6 +246,7 @@ async function run() {
 
   await test('stops before signing if the on-chain value differs from the commitment', async () => {
     const result = await executeTradeLayerSendRpcSweep(sampleSweepPlan(), {
+      expectedRouteTranscriptHash: HONEST_TRANSCRIPT_HASH,
       rpc: mockRpc([], {
         gettxout: () => ({
           value: 0.002,
@@ -258,6 +266,7 @@ async function run() {
   await test('broadcasts only when requested', async () => {
     const calls = [];
     const result = await executeTradeLayerSendRpcSweep(sampleSweepPlan(), {
+      expectedRouteTranscriptHash: HONEST_TRANSCRIPT_HASH,
       rpc: mockRpc(calls),
       wallet: 'tl-wallet',
       broadcast: true
@@ -271,6 +280,7 @@ async function run() {
 
   await test('returns incomplete status if finalization does not produce hex', async () => {
     const result = await executeTradeLayerSendRpcSweep(sampleSweepPlan(), {
+      expectedRouteTranscriptHash: HONEST_TRANSCRIPT_HASH,
       rpc: mockRpc([], {
         finalizepsbt: () => ({ complete: false })
       }),
@@ -285,6 +295,7 @@ async function run() {
   await test('attaches finalized tx details back to the sweep plan', async () => {
     const sweepPlan = sampleSweepPlan();
     const result = await executeTradeLayerSendRpcSweep(sweepPlan, {
+      expectedRouteTranscriptHash: HONEST_TRANSCRIPT_HASH,
       rpc: mockRpc([]),
       wallet: 'tl-wallet'
     });
@@ -296,6 +307,58 @@ async function run() {
     assertEq(attached.finalHex, '020000000001');
     assertEq(attached.finalTxOutputHash, result.finalTxOutputHash);
     assertEq(attached.finalSpendBinding.bindingHash, result.finalSpendBinding.bindingHash);
+  });
+
+  await test('requires a pinned route transcript hash before signing', async () => {
+    const calls = [];
+    const result = await executeTradeLayerSendRpcSweep(sampleSweepPlan(), {
+      rpc: mockRpc(calls),
+      wallet: 'tl-wallet'
+    });
+
+    assert(!result.ok, 'unpinned route transcript should fail');
+    assertEq(result.status, 'preflight_failed');
+    assert(result.preflight.failedChecks.includes('route_transcript_bound'), 'route_transcript_bound should fail');
+    assert(!calls.some((call) => call.method === 'createpsbt'), 'should not create PSBT without a pinned transcript');
+  });
+
+  await test('stops before signing if a createpsbt output address differs from the route transcript', async () => {
+    const calls = [];
+    const sweepPlan = clone(sampleSweepPlan());
+    const outputs = JSON.parse(sweepPlan.bitcoinCore.createPsbt[2]);
+    const [paidAddress] = Object.keys(outputs[0]);
+    outputs[0] = { tltc1qkz0vft2fc4nk0u9fx4k9yk4th7zherna3zxh22: outputs[0][paidAddress] };
+    sweepPlan.bitcoinCore.createPsbt[2] = JSON.stringify(outputs);
+    const result = await executeTradeLayerSendRpcSweep(sweepPlan, {
+      rpc: mockRpc(calls),
+      wallet: 'tl-wallet',
+      expectedRouteTranscriptHash: HONEST_TRANSCRIPT_HASH
+    });
+
+    assert(!result.ok, 'redirected createpsbt output should fail');
+    assertEq(result.status, 'preflight_failed');
+    assert(result.preflight.failedChecks.includes('sweep_matches_route_transcript'), 'sweep_matches_route_transcript should fail');
+    assert(!calls.some((call) => call.method === 'createpsbt'), 'should not create PSBT with redirected outputs');
+  });
+
+  await test('refuses to broadcast a decoded transaction whose outputs differ from the route transcript', async () => {
+    const calls = [];
+    const result = await executeTradeLayerSendRpcSweep(sampleSweepPlan(), {
+      rpc: mockRpc(calls, {
+        decoderawtransaction: async () => {
+          const decoded = await mockRpc([])('decoderawtransaction', []);
+          decoded.vout[0].scriptPubKey.address = 'tltc1qkz0vft2fc4nk0u9fx4k9yk4th7zherna3zxh22';
+          return decoded;
+        }
+      }),
+      wallet: 'tl-wallet',
+      broadcast: true,
+      expectedRouteTranscriptHash: HONEST_TRANSCRIPT_HASH
+    });
+
+    assert(!result.ok, 'output mismatch in the signed transaction should fail');
+    assertEq(result.status, 'failed');
+    assert(!calls.some((call) => call.method === 'sendrawtransaction'), 'should not broadcast a transaction that differs from the transcript');
   });
 
   await test('hashes decoded final transaction outputs deterministically', () => {

@@ -1,7 +1,14 @@
 'use strict';
 
-const crypto = require('crypto');
-const { snapshotPlainData, canonicalize, canonicalJson } = require('./dlc_canonical_json');
+const {
+  snapshotPlainData,
+  canonicalize,
+  canonicalJson,
+  compareCodeUnits,
+  sha256,
+  sha256Hex,
+  requireHex
+} = require('./dlc_canonical_json');
 const { buildDlcFundingOutput } = require('./dlc_funding_output');
 
 const MAX_MONEY = 21000000n * 100000000n;
@@ -13,19 +20,10 @@ const TRUC_MAX_UNCONFIRMED_CLUSTER_TRANSACTIONS = 2;
 const MAX_SETTLEMENT_LEAF_SCRIPT_BYTES = 128;
 const MAX_SETTLEMENT_CONTROL_BLOCK_BYTES = 33 + 32 * 8;
 
-function sha256(value) {
-  return crypto.createHash('sha256').update(value).digest();
-}
-
-function sha256Hex(value) {
-  return sha256(value).toString('hex');
-}
-
-function requireHex(value, bytes, fieldName) {
-  if (typeof value !== 'string' || !new RegExp(`^[0-9a-f]{${bytes * 2}}$`).test(value)) {
-    throw new Error(`${fieldName} must be lowercase ${bytes}-byte hex`);
-  }
-  return value;
+// An outcome and the oracle subset that completes it. One outcome has one CET,
+// so this key orders CETs and names their signature points.
+function outcomeKey(entry) {
+  return `${entry.outcomeMessage}:${entry.oraclePubkeys.join(':')}`;
 }
 
 class Reader {
@@ -364,7 +362,7 @@ function validateDlcTransactionSet(input) {
   if (!Array.isArray(cets) || cets.length < 1 || cets.length > 4096 || !refund) {
     throw new Error('DLC transaction set requires 1..4096 CETs and one refund');
   }
-  const identities = new Set();
+  const outcomes = new Set();
   const validatedCets = cets.map((cet, index) => {
     requireHex(cet.outcomeMessage, 32, `cets[${index}].outcomeMessage`);
     if (!Array.isArray(cet.oraclePubkeys) || cet.oraclePubkeys.length < 2 ||
@@ -373,9 +371,13 @@ function validateDlcTransactionSet(input) {
         [...cet.oraclePubkeys].sort().join(':') !== cet.oraclePubkeys.join(':')) {
       throw new Error(`cets[${index}].oraclePubkeys must be a sorted unique threshold subset`);
     }
-    const identity = `${cet.outcomeMessage}:${cet.oraclePubkeys.join(':')}`;
-    if (identities.has(identity)) throw new Error('DLC transaction set contains a duplicate CET identity');
-    identities.add(identity);
+    // An outcome has one payout. Oracle subsets only choose which attestations
+    // complete that CET, so a second CET for the same outcome would let whoever
+    // obtains the attestations pick the payout.
+    if (outcomes.has(cet.outcomeMessage)) {
+      throw new Error(`DLC transaction set has more than one CET for outcome ${cet.outcomeMessage}`);
+    }
+    outcomes.add(cet.outcomeMessage);
     const spend = validateSpend({
       rawTxHex: cet.rawTxHex,
       funding: normalizedFunding,
@@ -391,8 +393,7 @@ function validateDlcTransactionSet(input) {
       oraclePubkeys: [...cet.oraclePubkeys],
       ...serializeValidatedSpend(spend)
     };
-  }).sort((left, right) =>
-    `${left.outcomeMessage}:${left.oraclePubkeys.join(':')}`.localeCompare(`${right.outcomeMessage}:${right.oraclePubkeys.join(':')}`));
+  }).sort((left, right) => compareCodeUnits(outcomeKey(left), outcomeKey(right)));
 
   const refundSpend = validateSpend({
     rawTxHex: refund.rawTxHex,
@@ -483,6 +484,19 @@ function validateNormalizedDlcTransactionSetCommitments(transactionSet) {
       transactionSet.validationDigest !== validationDigest) {
     throw new Error('validated DLC transaction set commitment mismatch');
   }
+  // One CET per outcome, as validateDlcTransactionSet enforces: a hand-built
+  // set with a second CET for an outcome (another oracle subset) would let
+  // whoever obtains the attestations pick the payout.
+  const outcomes = new Set();
+  for (const cet of transactionSet.cets) {
+    if (!cet || typeof cet.outcomeMessage !== 'string' || !/^[0-9a-f]{64}$/.test(cet.outcomeMessage)) {
+      throw new Error('validated DLC transaction set CET outcome is malformed');
+    }
+    if (outcomes.has(cet.outcomeMessage)) {
+      throw new Error(`DLC transaction set has more than one CET for outcome ${cet.outcomeMessage}`);
+    }
+    outcomes.add(cet.outcomeMessage);
+  }
   // A hand-built set with internally consistent digests must still describe
   // the two-party funding output and a refund that can spend its CSV leaf.
   const output = deriveFundingOutput(transactionSet.funding);
@@ -525,5 +539,6 @@ module.exports = {
   validateDlcTransactionSet,
   normalizeDlcTransactionSet,
   validateDlcTransactionSetCommitments,
-  dlcFundingOutputForTransactionSet
+  dlcFundingOutputForTransactionSet,
+  outcomeKey
 };

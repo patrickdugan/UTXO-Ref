@@ -34,6 +34,7 @@ const {
 const tr = require('./tradelayer_taproot');
 const ts = require('./tradelayer_taproot_script');
 const a = require('./tradelayer_dlc_adaptor_sig');
+const { decimalToUnits } = require('./money');
 const {
   buildTaprootReserveVaultTemplate,
   buildTaprootReserveVaultManifest,
@@ -41,7 +42,6 @@ const {
   buildTaprootReserveVaultSetFromRpc,
   buildVaultSpendProposal,
   approveTaprootReserveVaultSpend,
-  coinValueToSats,
   csvSequence
 } = require('./taproot_reserve_vault');
 
@@ -84,7 +84,9 @@ function usage() {
     '  --spend-fee-sats <n>      default 1000',
     '  --recovery-csv <n>        default 2016 blocks',
     '  --start-node             start bitcoind first using BITCOIND or a known local path',
-    '  --broadcast               broadcast the vault funding transaction',
+    '  --broadcast               broadcast the vault funding transaction and wait for it to confirm',
+    '  --confirm-timeout-minutes <n>  how long --broadcast waits for the confirmation, default 120',
+    '  --confirm-poll-seconds <n>     default 30',
     '  --broadcast-spend         also broadcast the approved policy spend'
   ].join('\n');
 }
@@ -201,7 +203,7 @@ function randScalar() {
 function pickFundingUtxo(unspent, requiredSats) {
   const candidates = unspent
     .filter((row) => row.spendable !== false)
-    .map((row) => ({ ...row, amountSats: coinValueToSats(row.amount, 'utxo.amount') }))
+    .map((row) => ({ ...row, amountSats: decimalToUnits(row.amount, 'utxo.amount') }))
     .filter((row) => row.amountSats >= BigInt(requiredSats))
     .sort((x, y) => (x.amountSats < y.amountSats ? -1 : x.amountSats > y.amountSats ? 1 : 0));
   return candidates[0] || null;
@@ -209,6 +211,22 @@ function pickFundingUtxo(unspent, requiredSats) {
 
 function keyFileLine(label, values) {
   return `${new Date().toISOString()} ${label} ${Object.entries(values).map(([k, v]) => `${k}=${v}`).join(' ')}\n`;
+}
+
+// The guardian counts a vault only once its funding UTXO has confirmed (the
+// confirmation height anchors the recovery window), so a broadcast run waits
+// for the first confirmation before it takes the reserve snapshot.
+async function waitForFundingConfirmation(rpc, txid, vout, { timeoutMs, pollMs }) {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    const txout = await rpc('gettxout', [txid, vout, true]);
+    if (txout && Number(txout.confirmations) >= 1) return txout;
+    if (Date.now() >= deadline) {
+      throw new Error(`funding ${txid} did not confirm within ${Math.round(timeoutMs / 60000)} min; the vault keys are in artifacts/live/taproot_recovery_key.hex`);
+    }
+    console.log(`  waiting for funding ${txid}:${vout} to confirm (${txout ? 'in mempool' : 'not seen'})`);
+    await new Promise((resolve) => setTimeout(resolve, pollMs));
+  }
 }
 
 async function testMempoolAccept(rpc, hex) {
@@ -318,30 +336,39 @@ async function main() {
     }), { flag: 'a' });
   }
 
-  const currentHeight = Number(await rpc('getblockcount'));
+  let currentHeight;
+  let vaultTxout;
   let reserveSet;
   let reserveEvidenceMode;
   if (args.broadcast) {
+    await waitForFundingConfirmation(rpc, fundingTxid, 0, {
+      timeoutMs: Number(args.confirmTimeoutMinutes || 120) * 60 * 1000,
+      pollMs: Number(args.confirmPollSeconds || 30) * 1000
+    });
+    // The tip and the vault UTXO the guardian checks are the ones of this one snapshot.
     reserveSet = await buildTaprootReserveVaultSetFromRpc({
       rpc,
       network: 'bitcoin-testnet4',
       reserveEpochId: manifest.core.reserveEpochId,
-      currentHeight,
       manifests: [manifest]
     });
+    currentHeight = reserveSet.currentHeight;
+    vaultTxout = reserveSet.core.vaults[0].chainTxout;
     reserveEvidenceMode = 'rpc-gettxout';
   } else {
+    currentHeight = Number(await rpc('getblockcount'));
+    vaultTxout = {
+      valueSats: lockSats,
+      scriptPubKey: { hex: manifest.core.p2trScriptPubKey },
+      confirmations: currentHeight - observedAtHeight + 1
+    };
     reserveSet = buildTaprootReserveVaultSet({
       network: 'bitcoin-testnet4',
       reserveEpochId: manifest.core.reserveEpochId,
       currentHeight,
       manifests: [manifest],
       chainTxouts: {
-        [`${fundingTxid}:0`]: {
-          valueSats: lockSats,
-          scriptPubKey: { hex: manifest.core.p2trScriptPubKey },
-          confirmations: 0
-        }
+        [`${fundingTxid}:0`]: vaultTxout
       }
     });
     reserveEvidenceMode = 'dry-run-simulated-chain-txout';
@@ -388,7 +415,9 @@ async function main() {
     proposal: validProposal,
     guardianSecret,
     reserveReconciliation: reconciliation,
+    reserveEvidence: reserveSet,
     withdrawalQueue,
+    vaultTxout,
     currentHeight
   });
 
@@ -409,7 +438,9 @@ async function main() {
     proposal: badProposal,
     guardianSecret,
     reserveReconciliation: reconciliation,
+    reserveEvidence: reserveSet,
     withdrawalQueue,
+    vaultTxout,
     currentHeight
   });
 

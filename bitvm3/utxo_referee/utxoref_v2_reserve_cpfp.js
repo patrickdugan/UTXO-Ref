@@ -26,9 +26,11 @@ const { txidFromUnsignedHex } = require('./recover_btc_testnet4_reserve_vault');
 const {
   loadState,
   saveJsonAtomic,
-  inspectArtifact,
+  inspectChallengePath,
+  withStateLock,
   assertRpcSnapshotTip
 } = require('./utxoref_v2_watchtower');
+const { heightOf } = require('./money');
 
 const DEFAULT_STATE_PATH = path.join(__dirname, 'artifacts', 'live', 'utxoref_v2_watchtower_state.json');
 const DEFAULT_ARTIFACT_PATH = path.join(__dirname, 'artifacts', 'live', 'btc_testnet4_utxoref_v2_latest.json');
@@ -343,7 +345,7 @@ function reserveBindingForPlan(reserve, plan) {
 }
 
 function normalizeChainEvidence(evidence = {}) {
-  const height = Number(evidence.height);
+  const height = heightOf(evidence.height, 'height');
   const reserveConfirmations = Number(evidence.reserveConfirmations);
   const challengeConfirmations = Number(evidence.challengeConfirmations || 0);
   if (!Number.isSafeInteger(height) || height < 0) throw new Error('guardian chain evidence height is invalid');
@@ -580,7 +582,7 @@ async function preflightReserveCpfpInputs(plan, reserve, rpc) {
   const chain = await rpc('getblockchaininfo');
   const expectedChain = expectedCoreChain(reserve.core.network);
   if (chain.chain !== expectedChain) throw new Error(`wrong chain: expected ${expectedChain}, got ${chain.chain}`);
-  const currentHeight = Number(chain.blocks);
+  const currentHeight = heightOf(chain.blocks, 'chain.blocks');
   if (!Number.isSafeInteger(currentHeight) || currentHeight < 0) throw new Error('Core returned an invalid chain height');
   let challengeConfirmations = 0;
   let reserveConfirmations;
@@ -651,8 +653,8 @@ async function preflightReserveCpfpInputs(plan, reserve, rpc) {
 async function verifyApprovalChainFreshness(approval, rpc, chain, options = {}) {
   const evidence = normalizeChainEvidence(approval.core?.chainEvidence);
   if (evidence.chain !== chain.chain) throw new Error('guardian approval was issued for a different chain');
-  const currentHeight = Number(chain.blocks);
-  const maxAge = Number(options.maxApprovalAgeBlocks ?? DEFAULT_MAX_APPROVAL_AGE_BLOCKS);
+  const currentHeight = heightOf(chain.blocks, 'chain.blocks');
+  const maxAge = heightOf(options.maxApprovalAgeBlocks ?? DEFAULT_MAX_APPROVAL_AGE_BLOCKS, 'maxApprovalAgeBlocks');
   if (!Number.isSafeInteger(maxAge) || maxAge < 0 || maxAge > 144) throw new Error('maxApprovalAgeBlocks is invalid');
   if (currentHeight < evidence.height) throw new Error('guardian approval height is ahead of the current chain');
   if (currentHeight - evidence.height > maxAge) throw new Error('guardian approval is stale');
@@ -877,7 +879,7 @@ function loadInputs(args) {
   const artifact = readJsonStrictProfile(artifactPath, 'utxoref-v2-public-artifact', 'public artifact');
   const trustPolicy = readJsonStrictProfile(trustPolicyPath, 'utxoref-v2-trust-policy', 'trust policy');
   const reserve = readJsonStrictProfile(path.resolve(args.feeReserve), 'utxoref-v2-fee-reserve', 'fee reserve');
-  const inspected = inspectArtifact(artifact, trustPolicy);
+  const inspected = inspectChallengePath(artifact, trustPolicy);
   assertTrustPolicyReserve(inspected, reserve);
   return { statePath, state, artifact, trustPolicy, reserve, inspected };
 }
@@ -887,27 +889,31 @@ async function main() {
   if (args.help) { console.log(usage()); return; }
   if (!args.guardianApproval) throw new Error('--guardian-approval is required');
   if (!args.challengerSecretFile) throw new Error('--challenger-secret-file is required');
-  const inputs = loadInputs(args);
-  const approvals = (args.guardianApprovals || [args.guardianApproval]).map((approvalPath, index) =>
-    readJsonStrictProfile(
-      path.resolve(approvalPath),
-      'utxoref-v2-reserve-cpfp-approval',
-      `guardian approval ${index + 1}`
-    )
-  );
-  const challengerSecret = readSecretFile(args.challengerSecretFile, 'challengerSecret');
-  const outcome = await runReserveCpfp(
-    inputs.state,
-    args,
-    resolveRpc(args),
-    inputs.artifact,
-    inputs.reserve,
-    approvals,
-    challengerSecret
-  );
-  if (outcome.action === 'reserve_cpfp_broadcast' || outcome.action === 'reserve_cpfp_replaced') {
-    saveJsonAtomic(inputs.statePath, inputs.state);
-  }
+  const statePath = path.resolve(args.statePath || DEFAULT_STATE_PATH);
+  const outcome = await withStateLock(statePath, async () => {
+    const inputs = loadInputs(args);
+    const approvals = (args.guardianApprovals || [args.guardianApproval]).map((approvalPath, index) =>
+      readJsonStrictProfile(
+        path.resolve(approvalPath),
+        'utxoref-v2-reserve-cpfp-approval',
+        `guardian approval ${index + 1}`
+      )
+    );
+    const challengerSecret = readSecretFile(args.challengerSecretFile, 'challengerSecret');
+    const attempt = await runReserveCpfp(
+      inputs.state,
+      args,
+      resolveRpc(args),
+      inputs.artifact,
+      inputs.reserve,
+      approvals,
+      challengerSecret
+    );
+    if (attempt.action === 'reserve_cpfp_broadcast' || attempt.action === 'reserve_cpfp_replaced') {
+      saveJsonAtomic(inputs.statePath, inputs.state);
+    }
+    return attempt;
+  });
   console.log(JSON.stringify(outcome));
 }
 

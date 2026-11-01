@@ -1,6 +1,6 @@
 'use strict';
 
-const crypto = require('crypto');
+const { sha256Hex } = require('./dlc_canonical_json');
 const fs = require('fs');
 const path = require('path');
 const {
@@ -17,7 +17,8 @@ const {
   assertNonSymlinkDirectory,
   ensureNonSymlinkDirectory,
   readBoundedJson,
-  writeJsonAppendOnce
+  writeJsonAppendOnce,
+  withDirectoryLock
 } = require('./dlc_durable_json_store');
 const {
   createDlcJournalCheckpoint,
@@ -28,10 +29,6 @@ const {
 
 const KIND = 'utxoref_dlc_oracle_event_record_v1';
 const MAX_RECORD_BYTES = 1048576;
-
-function sha256Hex(value) {
-  return crypto.createHash('sha256').update(value).digest('hex');
-}
 
 function eventKey(oraclePubkey, eventId) {
   if (typeof oraclePubkey !== 'string' || !/^[0-9a-f]{64}$/.test(oraclePubkey)) {
@@ -102,26 +99,13 @@ class DlcOracleEventStore {
 
   _withLock(key, run) {
     this._requireOpen();
-    const lockDirectory = this._lockDirectory(key);
-    const ownerPath = path.join(lockDirectory, 'owner.json');
-    try {
-      fs.mkdirSync(lockDirectory, { mode: 0o700 });
-    } catch (error) {
-      if (error.code === 'EEXIST') throw new Error(`oracle event store lock is held for ${key}`);
-      throw error;
-    }
-    try {
-      fs.writeFileSync(ownerPath, JSON.stringify({ pid: process.pid }), { mode: 0o600, flag: 'wx' });
-    } catch (error) {
-      try { fs.unlinkSync(ownerPath); } catch (_cleanupError) {}
-      try { fs.rmdirSync(lockDirectory); } catch (_cleanupError) {}
-      throw error;
-    }
-    try {
-      return run();
-    } finally {
-      try { fs.unlinkSync(ownerPath); } finally { fs.rmdirSync(lockDirectory); }
-    }
+    return withDirectoryLock(
+      this._lockDirectory(key),
+      `oracle event store lock is held for ${key}`,
+      run,
+      // Records are published append-once (link), so an overlapped write fails with EEXIST instead of being lost.
+      { lostLock: 'report' }
+    );
   }
 
   _files(key) {

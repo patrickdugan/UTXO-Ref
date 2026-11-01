@@ -94,6 +94,21 @@ test('an unpublished trace past the SLA window IS a fault - the actual soundness
   assert(/TRACE_WITHHOLDING_FAULT/.test(result.reason));
 });
 
+test('an SLA or height written in a non-canonical spelling is refused, not read as a longer window', () => {
+  const retrievalPath = tmpTracePath('bad-sla-spelling');
+  for (const slaBlocks of ['1e3', '0x3e8', '']) {
+    let refused = false;
+    try {
+      checkPublicationFault({
+        traceHash: 'cc'.repeat(32), retrievalPath, bondedAtHeight: 1000, currentHeight: 1010, slaBlocks
+      });
+    } catch (_err) {
+      refused = true;
+    }
+    assert(refused, `slaBlocks ${JSON.stringify(slaBlocks)} must be refused`);
+  }
+});
+
 test('a published-but-then-corrupted trace past the SLA window is also a fault, not silently trusted', () => {
   const retrievalPath = tmpTracePath('corrupted-late');
   const commitment = publishTrace({ some: 'trace' }, { retrievalPath, publishedAtHeight: 1000 });

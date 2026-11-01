@@ -19,6 +19,7 @@ const {
 const {
   verifyArkZkMiniscriptProofReceipt
 } = require('../ark_zk_miniscript_proof');
+const { heightOf } = require('../money');
 
 const HEX_32_RE = /^[0-9a-f]{64}$/i;
 const ARTIFACTS_DIR = path.join(__dirname, 'artifacts', 'lightning_zk_programs');
@@ -270,8 +271,8 @@ function buildProgrammableWatchtower(options = {}) {
     options.observedStateTransitionHash || expectedStateTransitionHash,
     'observedStateTransitionHash'
   );
-  const currentHeight = Number(options.currentHeight || 0);
-  const challengeDeadlineHeight = Number(options.challengeDeadlineHeight || currentHeight + 144);
+  const currentHeight = heightOf(options.currentHeight || 0, 'currentHeight');
+  const challengeDeadlineHeight = heightOf(options.challengeDeadlineHeight || currentHeight + 144, 'challengeDeadlineHeight');
   const checks = {
     paymentProofAccepted: paymentVerification.ok,
     zkReceiptVerified: zkReceiptRef.verified,
@@ -353,8 +354,8 @@ function buildProgrammableAspPolicy(options = {}) {
   );
   const maxFeePpm = Number(options.maxFeePpm ?? 1000);
   const observedFeePpm = Number(options.observedFeePpm ?? maxFeePpm);
-  const maxCltvDelta = Number(options.maxCltvDelta ?? 40);
-  const observedCltvDelta = Number(options.observedCltvDelta ?? maxCltvDelta);
+  const maxCltvDelta = heightOf(options.maxCltvDelta ?? 40, 'maxCltvDelta');
+  const observedCltvDelta = heightOf(options.observedCltvDelta ?? maxCltvDelta, 'observedCltvDelta');
   const paymentProof = options.paymentProof || buildLightningPaymentConditionProof({
     ...options,
     routeId,

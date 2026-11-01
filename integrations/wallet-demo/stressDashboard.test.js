@@ -56,6 +56,15 @@ test('dashboard generation is stable for the same input', () => {
   assert(a.totals.assignedInboundSats === b.totals.assignedInboundSats, 'assigned total should be stable');
 });
 
+test('bot count is bounded to 5000 and invalid counts fall back to 96', () => {
+  const config = buildWalletDemoConfig({});
+  const huge = buildStressDashboard({ patch, config, botCount: 5001 });
+  assert(huge.bots.length === 5000, 'bot count should clamp to 5000');
+  assert(huge.totals.botCount === 5000, 'totals should report the clamped count');
+  const invalid = buildStressDashboard({ patch, config, botCount: Number('abc') });
+  assert(invalid.bots.length === 96, 'NaN bot count should fall back to 96');
+});
+
 if (failed) {
   console.error(`\nTests: ${passed} passed, ${failed} failed`);
   process.exit(1);

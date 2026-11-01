@@ -9,6 +9,7 @@
 
 const crypto = require('crypto');
 const { canonicalStringify, normalizeAmountSats } = require('./m1_spec');
+const { toInt, heightOf } = require('./money');
 const {
   buildTaprootAssetsStablecoinBundle,
   verifyTaprootAssetsStablecoinBundle
@@ -44,9 +45,7 @@ function normalizeHex32(value, fieldName) {
 }
 
 function normalizeUnits(value, fieldName) {
-  const normalized = BigInt(value);
-  if (normalized < 0n) throw new Error(`${fieldName} must be non-negative`);
-  return normalized;
+  return toInt(value, fieldName);
 }
 
 function usdUnitsFromBtcSats(btcSats, btcUsdPriceMicros) {
@@ -145,8 +144,8 @@ function buildTlUsdLiquidityStake(options = {}) {
     options.routingNotionalSats || conversion.conversionCore.lnbtcSats,
     'routingNotionalSats'
   );
-  const lockBlocks = Number(options.lockBlocks || 1008);
-  const targetYieldPpm = Number(options.targetYieldPpm ?? 4200);
+  const lockBlocks = heightOf(options.lockBlocks || 1008, 'lockBlocks');
+  const targetYieldPpm = heightOf(options.targetYieldPpm ?? 4200, 'targetYieldPpm');
   const slashReserveUnits = normalizeUnits(options.slashReserveUnits || stakedTlUsdUnits / 20n, 'slashReserveUnits');
   const stakeCore = {
     version: 1,

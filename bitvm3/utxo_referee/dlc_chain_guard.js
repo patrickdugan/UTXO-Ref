@@ -1,14 +1,8 @@
 'use strict';
 
 const { normalizeDlcContract } = require('./dlc_contract_state');
+const { requireHash } = require('./dlc_canonical_json');
 const { normalizeDlcTransactionSet } = require('./dlc_transaction_validator');
-
-function requireHash(value, fieldName) {
-  if (typeof value !== 'string' || !/^[0-9a-f]{64}$/.test(value)) {
-    throw new Error(`${fieldName} must be lowercase 32-byte hex`);
-  }
-  return value;
-}
 
 function normalizeSnapshot(snapshot, fieldName) {
   if (!snapshot || !Number.isSafeInteger(snapshot.height) || snapshot.height < 0 ||

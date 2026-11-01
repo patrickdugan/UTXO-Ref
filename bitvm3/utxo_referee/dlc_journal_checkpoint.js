@@ -1,6 +1,7 @@
 'use strict';
 
 const crypto = require('crypto');
+const { sha256Hex, requireHash } = require('./dlc_canonical_json');
 const { types: utilTypes } = require('util');
 const { canonicalize, canonicalJson } = require('./dlc_contract_state');
 
@@ -20,17 +21,6 @@ const CHECKPOINT_FIELDS = Object.freeze([
 ]);
 const SIGNED_CHECKPOINT_FIELDS = Object.freeze(['checkpoint', 'kind', 'signature', 'signerKeyId']);
 const TRUSTED_KEY_FIELDS = Object.freeze(['keyId', 'publicKeySpki']);
-
-function sha256Hex(value) {
-  return crypto.createHash('sha256').update(value).digest('hex');
-}
-
-function requireHash(value, fieldName) {
-  if (typeof value !== 'string' || !/^[0-9a-f]{64}$/.test(value)) {
-    throw new Error(`${fieldName} must be lowercase 32-byte hex`);
-  }
-  return value;
-}
 
 function checkpointHash(checkpoint) {
   const unsigned = { ...checkpoint };

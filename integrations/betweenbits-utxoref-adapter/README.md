@@ -68,7 +68,7 @@ Invoke-RestMethod http://127.0.0.1:8787/v1/wallet-assets/taproot-usd/cross-refer
 - `POST /v1/bitcert/asset-attestations`
 - `POST /v1/watchtower/spend-proposals/evaluate`
 
-Example spend evaluation:
+Example spend evaluation (the body carries only the proposal):
 
 ```json
 {
@@ -78,15 +78,14 @@ Example spend evaluation:
     "feeSats": "150",
     "outputs": [{ "address": "tb1qallowed", "sats": 1000 }],
     "unsignedTxHash": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
-  },
-  "policy": {
-    "allowTestnet": true,
-    "maxFeeSats": "500",
-    "maxPerContractSats": "20000",
-    "allowedAddresses": ["tb1qallowed"]
   }
 }
 ```
+
+The spend policy is read from the JSON file named by `UTXOREF_SPEND_POLICY_PATH`
+(for example `allowTestnet`, `maxFeeSats`, `maxPerContractSats`,
+`allowedAddresses`). Without that file the policy is empty and every spend is
+refused while the real-money gate is closed. Request bodies are capped at 16 KiB.
 
 ## Safety Rule
 

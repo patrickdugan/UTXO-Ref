@@ -1,11 +1,12 @@
 'use strict';
 
-const crypto = require('crypto');
+const { sha256Hex, requireHash } = require('./dlc_canonical_json');
 const fs = require('fs');
 const path = require('path');
 const { canonicalize, canonicalJson, transitionDlcContract, normalizeDlcContract } = require('./dlc_contract_state');
 const {
   assertNonSymlinkDirectory,
+  createDurableDirectory,
   ensureNonSymlinkDirectory,
   readBoundedJson,
   writeJsonAppendOnce
@@ -21,15 +22,6 @@ const KIND = 'utxoref_dlc_broadcast_authorization_consumption_v1';
 const MAX_RECORD_BYTES = 32768;
 const MAX_RAW_TRANSACTION_BYTES = 400000;
 const MAX_FUTURE_CLOCK_SKEW_SECONDS = 5;
-
-function sha256Hex(value) { return crypto.createHash('sha256').update(value).digest('hex'); }
-
-function requireHash(value, fieldName) {
-  if (typeof value !== 'string' || !/^[0-9a-f]{64}$/.test(value)) {
-    throw new Error(`${fieldName} must be lowercase 32-byte hex`);
-  }
-  return value;
-}
 
 function requireId(value, fieldName) {
   if (typeof value !== 'string' || !/^[A-Za-z0-9._:-]{1,128}$/.test(value)) {
@@ -164,7 +156,7 @@ class DlcBroadcastAuthorizationStore {
 
     const key = authorizationKey(contractState.contractId, transition.idempotencyKey, transition.requestHash);
     const directory = this._directory(key);
-    try { fs.mkdirSync(directory, { mode: 0o700 }); } catch (error) {
+    try { createDurableDirectory(directory); } catch (error) {
       if (error.code !== 'EEXIST') throw error;
       const existing = this._read(key);
       throw new Error(existing.transitionRequestHash === transition.requestHash

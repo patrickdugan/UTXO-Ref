@@ -9,6 +9,7 @@
 
 const crypto = require('crypto');
 const { stableStringify, sha256Hex } = require('./tradelayer_pnl_route_adapter');
+const { toInt } = require('./money');
 const {
   buildDlcSettlementOutcomes,
   buildDlcOracleAttestation,
@@ -18,16 +19,6 @@ const { buildFastRollHandoff } = require('./m1_oracle_delta_publication');
 
 const DEFAULT_DURATION_SECONDS = 60 * 60;
 const DEFAULT_RISK_MARGIN_SECONDS = 5 * 60;
-
-function toBigInt(value, field) {
-  try {
-    const out = BigInt(value);
-    if (out < 0n) throw new Error('negative');
-    return out;
-  } catch (err) {
-    throw new Error(`${field} must be a non-negative integer`);
-  }
-}
 
 function toUnix(value, field) {
   const n = Number(value);
@@ -55,7 +46,7 @@ function normalizeContract(input = {}) {
     throw new Error('fundingOutpoint.vout must be a non-negative safe integer');
   }
 
-  const startingRbtcBalance = toBigInt(input.startingRbtcBalance, 'startingRbtcBalance');
+  const startingRbtcBalance = toInt(input.startingRbtcBalance, 'startingRbtcBalance');
   const contractId = String(
     input.contractId
     || `rbtc-hour-${sha256Hex({
@@ -108,8 +99,8 @@ function buildBalanceOracleObservation(contract, input = {}) {
     throw new Error('hourly rBTC DLC contract is required');
   }
   const observedAtUnix = toUnix(input.observedAtUnix ?? core.expiresAtUnix, 'observedAtUnix');
-  const currentRbtcBalance = toBigInt(input.currentRbtcBalance, 'currentRbtcBalance');
-  const startingRbtcBalance = toBigInt(core.startingRbtcBalance, 'startingRbtcBalance');
+  const currentRbtcBalance = toInt(input.currentRbtcBalance, 'currentRbtcBalance');
+  const startingRbtcBalance = toInt(core.startingRbtcBalance, 'startingRbtcBalance');
   const delta = currentRbtcBalance - startingRbtcBalance;
   const balanceReduced = currentRbtcBalance < startingRbtcBalance;
   const matured = observedAtUnix >= core.expiresAtUnix;

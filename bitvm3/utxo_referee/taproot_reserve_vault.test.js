@@ -20,6 +20,7 @@ const {
   verifyTaprootReserveVaultManifest,
   verifyTaprootReserveVaultOnChain,
   buildTaprootReserveVaultSet,
+  buildTaprootReserveVaultSetFromRpc,
   reservedSatsFromTaprootReserveVaultSet,
   buildVaultSpendProposal,
   approveTaprootReserveVaultSpend,
@@ -76,11 +77,13 @@ function manifest(overrides = {}) {
   });
 }
 
-function chainTxout(m = manifest(), overrides = {}) {
+// Confirmations as the node reports them at the given tip: the funding UTXO
+// confirmed at observedAtHeight is (tip - observedAtHeight + 1) deep.
+function chainTxout(m = manifest(), overrides = {}, tip = 1200) {
   return {
     value: 0.001,
     scriptPubKey: { hex: m.core.p2trScriptPubKey },
-    confirmations: 12,
+    confirmations: tip - Number(m.core.observedAtHeight) + 1,
     ...overrides
   };
 }
@@ -139,6 +142,14 @@ test('vault manifest hash is deterministic and script tree verifies', () => {
   assert(result.ok, result.reason);
   assert(result.countable, 'vault should be safely before recovery maturity');
   assert(a1.core.p2trScriptPubKey.startsWith('5120'), 'vault output must be P2TR');
+});
+
+// Without a live height the manifest is only shape-checked, so it must not be reported as countable.
+test('manifest-only verification is not countable without a live height', () => {
+  const result = verifyTaprootReserveVaultManifest(manifest());
+  assert(result.ok, result.reason);
+  assert(result.countable === false, 'a manifest with no live height must not count');
+  assert(result.recoveryStatus.checked === false, 'no recovery check ran without a height');
 });
 
 // RES-1 regression (ports poc11): an operator-held Taproot internal key gives
@@ -225,6 +236,43 @@ test('live vault UTXO is counted only when scriptPubKey and amount match', () =>
   assert(!badScript.ok && /scriptPubKey mismatch/.test(badScript.reason), 'script mismatch should reject');
 });
 
+test('a manifest cannot declare a later anchor than its funding confirmation', () => {
+  // Real UTXO confirmed at 1000 (201 confirmations at tip 1200). The operator declares
+  // observedAtHeight = the tip, which would move the CSV maturity past the real one.
+  const forged = manifest({ observedAtHeight: 1200 });
+  const result = verifyTaprootReserveVaultOnChain(forged, {
+    txout: chainTxout(forged, { confirmations: 201 }),
+    currentHeight: 1200,
+    network: 'bitcoin-testnet4'
+  });
+
+  assert(!result.ok && !result.counted, 'declared anchor must not count');
+  assert(/confirmation height/.test(result.reason), result.reason);
+});
+
+test('a manifest written before its funding confirmed counts, with the earlier height as its recovery anchor', () => {
+  // Built at tip 999 before broadcast; the funding confirmed at 1000 (201 confirmations at tip 1200).
+  const early = manifest({ observedAtHeight: 999 });
+  const result = verifyTaprootReserveVaultOnChain(early, {
+    txout: chainTxout(early, { confirmations: 201 }),
+    currentHeight: 1200,
+    network: 'bitcoin-testnet4'
+  });
+  assert(result.ok && result.counted, `pre-broadcast manifest must count: ${result.reason}`);
+  assertEq(result.manifestCheck.recoveryStatus.maturityHeight, 999 + 2016, 'maturity must come from the earlier, conservative anchor');
+});
+
+test('a funding UTXO with no confirmations cannot anchor the recovery window', () => {
+  const m = manifest();
+  const result = verifyTaprootReserveVaultOnChain(m, {
+    txout: chainTxout(m, { confirmations: 0 }),
+    currentHeight: 1200,
+    network: 'bitcoin-testnet4'
+  });
+
+  assert(!result.counted, 'unconfirmed vault UTXO must not count');
+});
+
 test('spent or missing vault UTXO contributes zero reserve', () => {
   const set = vaultSet(manifest(), null);
   assertEq(set.reservedSats, '0');
@@ -233,11 +281,11 @@ test('spent or missing vault UTXO contributes zero reserve', () => {
 
 test('vault is rejected once recovery is mature or inside the risk window', () => {
   const m = manifest();
-  const nearMaturity = vaultSet(m, chainTxout(m), 1000 + 2016 - 100);
+  const nearMaturity = vaultSet(m, chainTxout(m, {}, 1000 + 2016 - 100), 1000 + 2016 - 100);
   assertEq(nearMaturity.reservedSats, '0');
   assert(/risk window/.test(nearMaturity.core.vaults[0].verification.reason));
 
-  const mature = vaultSet(m, chainTxout(m), 1000 + 2016);
+  const mature = vaultSet(m, chainTxout(m, {}, 1000 + 2016), 1000 + 2016);
   assertEq(mature.reservedSats, '0');
   assert(/mature/.test(mature.core.vaults[0].verification.reason));
 });
@@ -253,8 +301,9 @@ test('taproot reserve vault set drives a solvent reconciliation', () => {
     currentHeight: set.currentHeight,
     maxReserveAgeBlocks: 6
   });
-  const result = verifyTradeLayerReserveReconciliation(rec, q, { currentHeight: set.currentHeight });
+  const result = verifyTradeLayerReserveReconciliation(rec, q, { currentHeight: set.currentHeight, reserve: set });
   assert(result.ok, result.reason);
+  assert(result.solvent, 'the vault set must recompute to the committed reserve');
   assert(rec.solvent, 'cap 97000 <= vault reserve 100000');
   assertEq(rec.core.reserveSourceKind, 'taproot-reserve-vault-set');
   assertEq(rec.core.reserveEvidenceSummary.countedVaultCount, 1);
@@ -334,7 +383,7 @@ test('guardian refuses stale or insolvent reserve policy', () => {
   assert(!refusedInsolvent.approved);
   assert(refusedInsolvent.policyResult.failedChecks.includes('reserve_solvency'));
 
-  const staleSet = vaultSet(m, chainTxout(m), 1000 + 2016 - 100);
+  const staleSet = vaultSet(m, chainTxout(m, {}, 1000 + 2016 - 100), 1000 + 2016 - 100);
   const staleRec = solventReconciliation(staleSet, 1);
   const refusedStale = approveTaprootReserveVaultSpend({
     manifest: m,
@@ -342,16 +391,132 @@ test('guardian refuses stale or insolvent reserve policy', () => {
     guardianSecret: GUARDIAN_SECRET,
     reserveReconciliation: staleRec,
     withdrawalQueue: queue(1),
+    vaultTxout: chainTxout(m, {}, 1000 + 2016 - 100),
     currentHeight: 1000 + 2016 - 100
   });
   assert(!refusedStale.approved);
   assert(refusedStale.policyResult.failedChecks.includes('vault_manifest'));
 });
 
+test('guardian refuses a spend to a payee the withdrawal queue did not commit', () => {
+  const m = manifest();
+  const set = vaultSet(m);
+  const q = queue(97000);
+  const rec = solventReconciliation(set, 97000);
+  const attackerSpk = addressToScriptPubKey('tb1qw508d6qejxtdg4y5r3zarvary0c5xw7kxpjzsx', 'bitcoin-testnet4').toString('hex');
+  const proposal = buildVaultSpendProposal({
+    manifest: m,
+    unsignedTxHex: spendTxHex(97000, attackerSpk),
+    expectedOutputs: [{ valueSats: 97000, scriptPubKey: attackerSpk }],
+    reserveReconciliation: rec,
+    withdrawalQueue: q
+  });
+  const approval = approveTaprootReserveVaultSpend({
+    manifest: m,
+    proposal,
+    guardianSecret: GUARDIAN_SECRET,
+    reserveReconciliation: rec,
+    reserveEvidence: set,
+    withdrawalQueue: q,
+    vaultTxout: chainTxout(m),
+    currentHeight: 1200
+  });
+  assert(!approval.approved, 'guardian must not sign outputs outside the committed payout set');
+  assert(approval.policyResult.failedChecks.includes('committed_outputs'), JSON.stringify(approval.policyResult.failedChecks));
+  assert(!approval.signature, 'no guardian signature for an uncommitted payee');
+});
+
+test('guardian refuses a proposal whose output hash does not match its transaction', () => {
+  const m = manifest();
+  const set = vaultSet(m);
+  const q = queue(97000);
+  const rec = solventReconciliation(set, 97000);
+  const proposal = buildVaultSpendProposal({
+    manifest: m,
+    unsignedTxHex: spendTxHex(97000),
+    expectedOutputs: [{ valueSats: 97000, scriptPubKey: PAYOUT_SPK }],
+    reserveReconciliation: rec,
+    withdrawalQueue: q
+  });
+  const tampered = clone(proposal);
+  tampered.approvedTxOutputHash = '00'.repeat(32);
+  const approval = approveTaprootReserveVaultSpend({
+    manifest: m,
+    proposal: tampered,
+    guardianSecret: GUARDIAN_SECRET,
+    reserveReconciliation: rec,
+    reserveEvidence: set,
+    withdrawalQueue: q,
+    vaultTxout: chainTxout(m),
+    currentHeight: 1200
+  });
+  assert(!approval.approved, 'a proposal that does not hash to its transaction must be refused');
+  assert(approval.policyResult.failedChecks.includes('proposal_integrity'), JSON.stringify(approval.policyResult.failedChecks));
+});
+
+const RESIDUAL_ADDRESS = 'tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sl5k7';
+
+function residualSpend({ residualScriptAddress, residualOutputs = 1 }) {
+  const m = manifest();
+  const set = vaultSet(m);
+  const q = buildTradeLayerWithdrawalQueue({
+    network: 'bitcoin-testnet4',
+    epochId: 77,
+    residualAddress: RESIDUAL_ADDRESS,
+    requests: [{ id: 'wd-1', txid: '11'.repeat(32), address: PAYOUT_ADDRESS, sats: 90000, propertyId: 0, status: 'approved' }]
+  });
+  const rec = buildTradeLayerReserveReconciliation({
+    network: 'bitcoin-testnet4',
+    queue: q,
+    reserve: set,
+    observedAtHeight: set.currentHeight,
+    currentHeight: set.currentHeight,
+    maxReserveAgeBlocks: 6
+  });
+  const residualSpk = addressToScriptPubKey(residualScriptAddress, 'bitcoin-testnet4').toString('hex');
+  const outputs = [{ valueSats: 90000, script: PAYOUT_SPK }];
+  for (let i = 0; i < residualOutputs; i += 1) outputs.push({ valueSats: 7000, script: residualSpk });
+  const unsignedTxHex = tr.serializeUnsignedTx(2, [
+    { outpoint: tr.outpoint(FUNDING_TXID, 0), sequence: 0xfffffffd }
+  ], outputs, 0);
+  const proposal = buildVaultSpendProposal({
+    manifest: m,
+    unsignedTxHex,
+    expectedOutputs: outputs.map((o) => ({ valueSats: o.valueSats, scriptPubKey: o.script })),
+    reserveReconciliation: rec,
+    withdrawalQueue: q
+  });
+  return approveTaprootReserveVaultSpend({
+    manifest: m,
+    proposal,
+    guardianSecret: GUARDIAN_SECRET,
+    reserveReconciliation: rec,
+    reserveEvidence: set,
+    withdrawalQueue: q,
+    vaultTxout: chainTxout(m),
+    currentHeight: 1200
+  });
+}
+
+test('guardian approves a spend that returns the remainder to the committed residual destination', () => {
+  const approval = residualSpend({ residualScriptAddress: RESIDUAL_ADDRESS });
+  assert(approval.approved, JSON.stringify(approval.policyResult.failedChecks));
+});
+
+test('guardian refuses a residual output to a destination the queue did not commit, or a second one', () => {
+  const elsewhere = residualSpend({ residualScriptAddress: 'tb1qw508d6qejxtdg4y5r3zarvary0c5xw7kxpjzsx' });
+  assert(!elsewhere.approved, 'a residual output must go to the committed residual destination');
+  assert(elsewhere.policyResult.failedChecks.includes('committed_outputs'));
+  const twoResiduals = residualSpend({ residualScriptAddress: RESIDUAL_ADDRESS, residualOutputs: 2 });
+  assert(!twoResiduals.approved, 'at most one residual output is allowed');
+  assert(twoResiduals.policyResult.failedChecks.includes('committed_outputs'));
+});
+
 test('guardian approves and signs only the exact policy-matching transaction', () => {
   const m = manifest();
   const q = queue(97000);
-  const rec = solventReconciliation(vaultSet(m), 97000);
+  const set = vaultSet(m);
+  const rec = solventReconciliation(set, 97000);
   const unsignedTxHex = spendTxHex(97000);
   const proposal = buildVaultSpendProposal({
     manifest: m,
@@ -365,7 +530,9 @@ test('guardian approves and signs only the exact policy-matching transaction', (
     proposal,
     guardianSecret: GUARDIAN_SECRET,
     reserveReconciliation: rec,
+    reserveEvidence: set,
     withdrawalQueue: q,
+    vaultTxout: chainTxout(m),
     currentHeight: 1200
   });
   assert(approval.approved, JSON.stringify(approval.policyResult.failedChecks));
@@ -388,9 +555,56 @@ test('guardian approves and signs only the exact policy-matching transaction', (
   assert(!verifyGuardianApproval(tampered, m).ok, 'approval hash binds the exact signature artifact');
 });
 
-if (failed > 0) {
-  console.log(`\nFAIL: ${failed} failed, ${passed} passed\n`);
-  process.exit(1);
+// A fake node whose tip can move between RPC calls. The funding UTXO
+// confirmed at height 1000; gettxout reports the tip it was answered at.
+function movingChainRpc(m, tipMovesAfterInfo) {
+  let tip = 1200;
+  let infoCalls = 0;
+  const hash = (height) => height.toString(16).padStart(64, '0');
+  const rpc = async (method) => {
+    if (method === 'getblockchaininfo') {
+      const info = { blocks: tip, bestblockhash: hash(tip) };
+      infoCalls += 1;
+      if (infoCalls <= tipMovesAfterInfo) tip += 1;
+      return info;
+    }
+    if (method === 'gettxout') return { ...chainTxout(m, { confirmations: tip - 1000 + 1 }), bestblock: hash(tip) };
+    throw new Error(`unexpected ${method}`);
+  };
+  return { rpc, infoCalls: () => infoCalls };
 }
 
-console.log(`\nPASS: ${passed} tests\n`);
+const asyncTests = [
+  ['the RPC reserve snapshot is retaken when a block arrives between the tip and the UTXO', async () => {
+    const m = manifest();
+    const chain = movingChainRpc(m, 1);
+    const set = await buildTaprootReserveVaultSetFromRpc({
+      rpc: chain.rpc, network: 'bitcoin-testnet4', reserveEpochId: 'epoch-77', manifests: [m], currentHeight: 1
+    });
+    assertEq(chain.infoCalls(), 2, 'a moved tip must retake the snapshot');
+    assertEq(set.currentHeight, 1201, 'the set height must be the tip the UTXO was read at, not the caller\'s');
+    assertEq(set.countedVaultCount, 1, `vault must count: ${set.core.vaults[0].verification.reason}`);
+  }],
+  ['the RPC reserve snapshot fails rather than mix tips when the tip keeps moving', async () => {
+    const m = manifest();
+    let error = null;
+    try {
+      await buildTaprootReserveVaultSetFromRpc({
+        rpc: movingChainRpc(m, 99).rpc, network: 'bitcoin-testnet4', reserveEpochId: 'epoch-77', manifests: [m]
+      });
+    } catch (err) { error = err; }
+    assert(error && /tip moved/.test(error.message), `expected a tip-moved failure, got ${error && error.message}`);
+  }]
+];
+
+(async () => {
+  for (const [name, fn] of asyncTests) {
+    try { await fn(); console.log(`  OK  ${name}`); passed++; }
+    catch (err) { console.log(`  FAIL ${name}`); console.log(`       ${err.message}`); failed++; }
+  }
+  if (failed > 0) {
+    console.log(`\nFAIL: ${failed} failed, ${passed} passed\n`);
+    process.exit(1);
+  }
+  console.log(`\nPASS: ${passed} tests\n`);
+})();

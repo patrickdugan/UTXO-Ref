@@ -68,7 +68,14 @@ never overwrites:
   critical alerts exempt;
 - the dead-man heartbeat URL is fetched after every healthy tick only, so a
   push monitor (healthchecks.io, Better Stack, Uptime Kuma) alerts when the
-  watchtower, its host, the tunnel or Core stops answering.
+  watchtower, its host, the tunnel or Core stops answering;
+- the state file has one writer at a time (`state.json.lock`, also taken by
+  the CPFP tools). A tick that finds it held is deferred and retried every
+  interval, at startup too, and as many consecutive deferrals as failed ticks
+  raise the same critical `watchtower_tick_failed` alert, naming the holder's
+  pid and host. A lock left by a dead process, an earlier boot or (on Linux) a
+  reused pid is reclaimed; one from another host never is. SIGTERM stops the
+  watchtower between ticks, so `systemctl stop` leaves no lock behind.
 
 Acknowledge a repeating alert with the fingerprint from the message:
 

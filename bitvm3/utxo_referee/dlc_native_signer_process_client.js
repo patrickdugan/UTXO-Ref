@@ -4,11 +4,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
-const {
-  snapshotPlainData,
-  snapshotOwnDataArguments,
-  canonicalJson
-} = require('./dlc_canonical_json');
+const { snapshotPlainData, snapshotOwnDataArguments, canonicalJson, sha256Hex } = require('./dlc_canonical_json');
 const publicCrypto = require('./tradelayer_dlc_adaptor_sig');
 
 const REQUEST_KIND = 'utxoref_dlc_native_signer_process_request_v2';
@@ -17,10 +13,6 @@ const LIVE_CLIENTS = new WeakSet();
 const MAX_EXECUTABLE_BYTES = 128 * 1024 * 1024;
 const MAX_CODE_FILE_BYTES = 16 * 1024 * 1024;
 const MAX_TRANSPORT_DESCRIPTOR_BYTES = 8192;
-
-function sha256Hex(value) {
-  return crypto.createHash('sha256').update(value).digest('hex');
-}
 
 function sameFileIdentity(metadata, expected) {
   return metadata.isFile() && !metadata.isSymbolicLink() && metadata.nlink === 1n &&

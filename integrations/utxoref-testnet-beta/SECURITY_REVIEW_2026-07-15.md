@@ -44,7 +44,7 @@ The public verifier checks a signed, deterministic artifact whose assertion tran
 
 ## Implemented Controls
 
-- Invite tokens are stored only as salted hashes; requester IPs are persisted only as salted hashes.
+- Invite tokens are stored only as SHA-256 hashes of 24 random bytes. Requester IPs are persisted as SHA-256 hashes keyed by a salt stored in the same state file; that is not a privacy control against someone who has the file, who can enumerate IPv4 addresses.
 - Minute and hour POST limits survive process restart; Nginx applies separate read and write limits plus a connection cap.
 - Nginx accepts only the expected methods, limits bodies to 16 KiB, applies request timeouts, and sets HSTS.
 - Faucet claims are fixed-size, budgeted, reserve-floored, idempotent, and journaled before Bitcoin RPC broadcast.

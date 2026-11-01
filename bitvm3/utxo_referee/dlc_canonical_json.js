@@ -1,11 +1,38 @@
 'use strict';
 
+const crypto = require('crypto');
 const { types: utilTypes } = require('util');
 
 const MAX_CANONICAL_DEPTH = 64;
 const MAX_CANONICAL_NODES = 65536;
 const MAX_CANONICAL_STRING_CODE_UNITS = 16 * 1024 * 1024;
 const MAX_CANONICAL_JSON_BYTES = 16 * 1024 * 1024;
+
+function sha256(value) {
+  return crypto.createHash('sha256').update(value).digest();
+}
+
+function sha256Hex(value) {
+  return crypto.createHash('sha256').update(value).digest('hex');
+}
+
+function requireHex(value, bytes, fieldName) {
+  if (typeof value !== 'string' || !new RegExp(`^[0-9a-f]{${bytes * 2}}$`).test(value)) {
+    throw new Error(`${fieldName} must be lowercase ${bytes}-byte hex`);
+  }
+  return value;
+}
+
+function requireHash(value, fieldName) {
+  return requireHex(value, 32, fieldName);
+}
+
+// Code-unit order, the order the native signer uses. localeCompare depends on
+// the runtime's ICU data and locale, so it must not decide any digested order.
+function compareCodeUnits(left, right) {
+  if (left === right) return 0;
+  return left < right ? -1 : 1;
+}
 
 function childPath(parent, key) {
   return `${parent}[${JSON.stringify(String(key))}]`;
@@ -195,6 +222,11 @@ function canonicalJson(value) {
 }
 
 module.exports = {
+  compareCodeUnits,
+  requireHash,
+  requireHex,
+  sha256,
+  sha256Hex,
   MAX_CANONICAL_DEPTH,
   MAX_CANONICAL_NODES,
   MAX_CANONICAL_STRING_CODE_UNITS,

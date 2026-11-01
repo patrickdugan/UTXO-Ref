@@ -2,7 +2,7 @@
 
 const crypto = require('crypto');
 const { types: utilTypes } = require('util');
-const { canonicalize, canonicalJson } = require('./dlc_canonical_json');
+const { canonicalize, canonicalJson, compareCodeUnits, sha256Hex, requireHex } = require('./dlc_canonical_json');
 
 const KIND = 'utxoref_dlc_contract_state_v1';
 const NETWORKS = new Set(['bitcoin-regtest', 'bitcoin-testnet4']);
@@ -39,17 +39,6 @@ const REQUIRED_EVIDENCE = Object.freeze({
   ]
 });
 const ALL_EVIDENCE_KINDS = Object.freeze([...new Set(Object.values(REQUIRED_EVIDENCE).flat())].sort());
-
-function sha256Hex(value) {
-  return crypto.createHash('sha256').update(value).digest('hex');
-}
-
-function requireHex(value, bytes, fieldName) {
-  if (typeof value !== 'string' || !new RegExp(`^[0-9a-f]{${bytes * 2}}$`).test(value)) {
-    throw new Error(`${fieldName} must be lowercase ${bytes}-byte hex`);
-  }
-  return value;
-}
 
 function requireId(value, fieldName, maxLength = 128) {
   if (typeof value !== 'string' || !/^[A-Za-z0-9._:-]+$/.test(value) || value.length > maxLength) {
@@ -339,7 +328,7 @@ function validateEvidence(evidence, targetStage, context) {
   if (targetStage === 'CET_EXECUTED' || targetStage === 'REFUND_EXECUTED') {
     validateExecutionBroadcastEvidence(normalized, targetStage, context);
   }
-  return normalized.sort((left, right) => left.kind.localeCompare(right.kind));
+  return normalized.sort((left, right) => compareCodeUnits(left.kind, right.kind));
 }
 
 function initialTranscriptHash(record) {

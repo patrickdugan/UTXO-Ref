@@ -56,6 +56,7 @@ const crypto = require('crypto');
 const { rpcFactory } = require('./tradelayer_send_rpc_sweep');
 const tr = require('./tradelayer_taproot');
 const a = require('./tradelayer_dlc_adaptor_sig');
+const { pushScriptNum, csvSequence } = require('./csv_delay');
 const {
   buildDlcFundingOutput,
   dlcSettlementSighash,
@@ -68,22 +69,6 @@ const OP_CHECKSIGVERIFY = 0xad;
 const OP_CHECKSIG = 0xac;
 const OP_PUSH32 = 0x20;
 
-function pushScriptNum(n) {
-  if (n < 0) throw new Error('csv delay must be >= 0');
-  if (n === 0) return Buffer.from([0x00]);
-  if (n <= 16) return Buffer.from([0x50 + n]);
-  const bytes = [];
-  let v = n;
-  while (v > 0) { bytes.push(v & 0xff); v >>= 8; }
-  if (bytes[bytes.length - 1] & 0x80) bytes.push(0x00);
-  return Buffer.concat([Buffer.from([bytes.length]), Buffer.from(bytes)]);
-}
-
-function csvSequence(csvDelay) {
-  if (csvDelay < 0 || csvDelay > 0xffff) throw new Error('csv delay out of block range');
-  return csvDelay;
-}
-
 // <csvDelay> OP_CSV OP_DROP <pubkeyA> OP_CHECKSIGVERIFY <pubkeyB> OP_CHECKSIG
 // Both signatures required (2-of-2), and only spendable after csvDelay blocks.
 // No oracle attestation appears anywhere in this script.
@@ -92,7 +77,7 @@ function buildRefundLeafScript(pkAXonly, pkBXonly, csvDelay) {
   const b32 = Buffer.from(pkBXonly, 'hex');
   if (a32.length !== 32 || b32.length !== 32) throw new Error('pubkeys must be 32-byte x-only');
   return Buffer.concat([
-    pushScriptNum(csvDelay),
+    pushScriptNum(csvSequence(csvDelay)),
     Buffer.from([OP_CHECKSEQUENCEVERIFY, OP_DROP, OP_PUSH32]), a32,
     Buffer.from([OP_CHECKSIGVERIFY, OP_PUSH32]), b32,
     Buffer.from([OP_CHECKSIG])
@@ -154,7 +139,7 @@ async function main() {
   const wallet = args.wallet || 'tl-wallet';
   const lockSats = Number(args.lockSats || 20000);
   const fee = 600;
-  const csvDelay = Number(args.csv || DEFAULT_CSV_BLOCKS);
+  const csvDelay = csvSequence(args.csv || DEFAULT_CSV_BLOCKS);
   // Pre-agreed refund split, decided at contract setup - not renegotiated later.
   const shareASats = Math.floor((lockSats - fee) * Number(args.shareABps || 5000) / 10000);
   const shareBSats = (lockSats - fee) - shareASats;
@@ -276,4 +261,10 @@ async function main() {
   console.log(`  artifact          : ${path.join(outDir, 'dlc_refund_cet_latest.json')}`);
 }
 
-main().catch((e) => { console.error('DLC refund CET demo failed:', e.message); process.exit(1); });
+module.exports = {
+  buildRefundLeafScript
+};
+
+if (require.main === module) {
+  main().catch((e) => { console.error('DLC refund CET demo failed:', e.message); process.exit(1); });
+}

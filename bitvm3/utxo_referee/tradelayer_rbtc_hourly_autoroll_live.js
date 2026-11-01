@@ -26,6 +26,7 @@ const {
   buildHourlyRbtcCetDecision
 } = require('./tradelayer_rbtc_hourly_autoroll');
 const { sha256Hex, stableStringify } = require('./tradelayer_pnl_route_adapter');
+const { decimalToUnits } = require('./money');
 
 const DEFAULT_TL_REPO = 'C:\\projects\\tradelayer.js';
 const DEFAULT_OUT = path.join(__dirname, 'artifacts', 'live', 'rbtc_hourly_autoroll_latest.json');
@@ -95,17 +96,6 @@ function postJson(url, body) {
     req.write(payload);
     req.end();
   });
-}
-
-function decimalToUnits(value, field) {
-  const s = String(value ?? '').trim();
-  if (!s) throw new Error(`${field} is required`);
-  if (!/^\d+(\.\d{1,8})?$/.test(s)) {
-    if (/^\d+$/.test(s)) return BigInt(s);
-    throw new Error(`${field} must be a non-negative decimal with <=8 places or integer units`);
-  }
-  const [whole, frac = ''] = s.split('.');
-  return (BigInt(whole) * 100000000n + BigInt((frac + '00000000').slice(0, 8))).toString();
 }
 
 function balanceObjectToAvailable(balance) {
@@ -278,10 +268,10 @@ async function main() {
   const balance = source === 'db'
     ? await readBalanceFromDb({ tradelayerRepo, chain, fundingAddress, propertyId })
     : await readBalanceFromListener({ baseUrl, fundingAddress, propertyId });
-  const currentUnits = decimalToUnits(balance.available, 'current rBTC balance');
+  const currentUnits = decimalToUnits(balance.available, 'current rBTC balance').toString();
   const startingUnits = opt(args, 'starting-rbtc-units', 'TL_STARTING_RBTC_UNITS')
     || (opt(args, 'starting-rbtc-balance', 'TL_STARTING_RBTC_BALANCE')
-      ? decimalToUnits(opt(args, 'starting-rbtc-balance', 'TL_STARTING_RBTC_BALANCE'), 'starting rBTC balance')
+      ? decimalToUnits(opt(args, 'starting-rbtc-balance', 'TL_STARTING_RBTC_BALANCE'), 'starting rBTC balance').toString()
       : currentUnits);
 
   const contract = buildHourlyRbtcDlcContract({

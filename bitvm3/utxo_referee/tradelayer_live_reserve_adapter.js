@@ -15,16 +15,19 @@
 
 const { ReceiptDepositIndexer } = require('./m1_deposit_indexer');
 const { ReceiptLedger } = require('./m1_receipt_ledger');
+const { toInt, toSats, decimalToUnits } = require('./money');
+
+function confirmationsOf(row) {
+  return Number(toInt(row.confirmations ?? 0, `confirmations for ${row.txid}:${row.vout}`));
+}
 
 function toAmountSats(row) {
   if (row.amountSats !== undefined && row.amountSats !== null) {
-    const n = Number(row.amountSats);
-    if (!Number.isInteger(n) || n < 0) throw new Error(`invalid amountSats for ${row.txid}:${row.vout}`);
-    return n;
+    return toSats(row.amountSats, `invalid amountSats for ${row.txid}:${row.vout}`);
   }
   if (row.amount !== undefined) {
     // Litecoin Core reports amount in whole LTC; convert to integer sats.
-    return Math.round(Number(row.amount) * 1e8);
+    return decimalToUnits(row.amount, `UTXO ${row.txid}:${row.vout} amount`);
   }
   throw new Error(`UTXO ${row.txid}:${row.vout} has no amount`);
 }
@@ -43,8 +46,8 @@ function buildLiveReserveFromUnspent(unspent, options = {}) {
   const minConfirmations = Number(options.minConfirmations || 1);
   // Derive a synthetic tip so the indexer's height math yields the live
   // confirmation counts. If a real currentHeight is supplied, use it.
-  const maxConfirmations = unspent.reduce((max, row) => Math.max(max, Number(row.confirmations || 0)), 0);
-  const currentHeight = Number(options.currentHeight || maxConfirmations || 1);
+  const maxConfirmations = unspent.reduce((max, row) => Math.max(max, confirmationsOf(row)), 0);
+  const currentHeight = Number(toInt(options.currentHeight ?? (maxConfirmations || 1), 'currentHeight'));
 
   const indexer = new ReceiptDepositIndexer({ network, minConfirmations });
   const ledger = new ReceiptLedger({ network });
@@ -53,7 +56,7 @@ function buildLiveReserveFromUnspent(unspent, options = {}) {
     if (!row || !row.txid || row.vout === undefined) {
       throw new Error('each UTXO row requires txid and vout');
     }
-    const confirmations = Number(row.confirmations || 0);
+    const confirmations = confirmationsOf(row);
     const amountSats = toAmountSats(row);
     if (amountSats <= 0) continue; // skip dust/zero outputs
     const blockHeight = confirmations > 0

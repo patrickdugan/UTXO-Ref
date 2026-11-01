@@ -31,8 +31,8 @@ const UNSPENT = [
 console.log('\n=== TradeLayer Live Reserve Adapter Tests ===\n');
 
 test('converts LTC amounts and explicit sats consistently', () => {
-  assertEq(toAmountSats({ txid: 't', vout: 0, amount: 0.001 }), 100000);
-  assertEq(toAmountSats({ txid: 't', vout: 0, amountSats: 30000 }), 30000);
+  assertEq(toAmountSats({ txid: 't', vout: 0, amount: 0.001 }), 100000n);
+  assertEq(toAmountSats({ txid: 't', vout: 0, amountSats: 30000 }), 30000n);
 });
 
 test('credits confirmed unspent outputs into a deposit reserve', () => {

@@ -1,5 +1,7 @@
 const assert = require('assert');
-const crypto = require('crypto');
+const os = require('os');
+const path = require('path');
+process.env.SIDECAR_REQUEST_STORE_PATH = path.join(os.tmpdir(), `tlbtc-mint-intent-${process.pid}.json`);
 const {
   buildTlbtcMintIntent,
   latestDlcSubswapFundingRequest,
@@ -15,42 +17,21 @@ const paymentProof = {
 const proofCheck = verifyPaymentProofForRequest(request, paymentProof);
 assert.strictEqual(proofCheck.ok, true);
 
-const intent = buildTlbtcMintIntent({
-  request,
-  paymentProof,
-  recipientAddress: 'tb1qwvzaayzrgreqyyvxp77wlr60ngaqnpcyhujz2m'
-});
-assert.strictEqual(intent.ok, true);
-assert.strictEqual(intent.tradeLayer.method, 'tl_createGrantManagedTokenTransaction');
-assert.strictEqual(intent.tradeLayer.params.propertyId, 1);
-assert.strictEqual(intent.tradeLayer.params.amountGranted, '0.00049000');
-assert.strictEqual(intent.tradeLayer.params.settlementState, 'FUNDED');
-assert(intent.tradeLayer.params.dlcHash);
+const forgedCheck = verifyPaymentProofForRequest(request, { paymentPreimageHex: '01'.repeat(32) });
+assert.strictEqual(forgedCheck.ok, false);
 
-const livePreimageHex = '01'.repeat(32);
-const livePaymentHashHex = crypto.createHash('sha256').update(Buffer.from(livePreimageHex, 'hex')).digest('hex');
-const liveRequest = latestDlcSubswapFundingRequest({
-  walletNodeId: 'electrum-tradelayer',
-  requestedCollateralSats: '12345',
-  swapFeeSats: '321',
-  refundBlocks: 12,
-  invoice: 'lntb126660n1ptestinvoice',
-  paymentHashHex: livePaymentHashHex
+// A mint intent exists only for a request this process quoted and paid. The artifact's recorded
+// execution proof and any caller-supplied preimage are not enough; see dlcSubswapHttp.test.js for the paid path.
+(async () => {
+  const intent = await buildTlbtcMintIntent({
+    requestId: request.requestId,
+    recipientAddress: 'tb1qwvzaayzrgreqyyvxp77wlr60ngaqnpcyhujz2m'
+  });
+  assert.strictEqual(intent.ok, false);
+  assert.strictEqual(intent.reason, 'unknown requestId: quote and pay the request first');
+  assert.strictEqual(intent.tradeLayer, undefined);
+  console.log('tlbtcMintIntent tests ok');
+})().catch((err) => {
+  console.error(err);
+  process.exit(1);
 });
-assert.strictEqual(liveRequest.executionProof, null);
-assert.strictEqual(liveRequest.requestCore.submarineSwap.invoice, 'lntb126660n1ptestinvoice');
-assert.strictEqual(liveRequest.requestCore.submarineSwap.requestedCollateralSats, '12345');
-assert.strictEqual(liveRequest.requestCore.submarineSwap.swapFeeSats, '321');
-
-const liveIntent = buildTlbtcMintIntent({
-  request: liveRequest,
-  paymentProof: {
-    paymentHashHex: livePaymentHashHex,
-    paymentPreimageHex: livePreimageHex
-  },
-  recipientAddress: 'tb1qwvzaayzrgreqyyvxp77wlr60ngaqnpcyhujz2m'
-});
-assert.strictEqual(liveIntent.ok, true);
-assert.strictEqual(liveIntent.tradeLayer.params.amountGranted, '0.00012345');
-
-console.log('tlbtcMintIntent tests ok');

@@ -3,15 +3,22 @@
  */
 
 const {
+  computeTradeLayerPlanHash,
+  buildTradeLayerPnlCommitment,
+  sha256Hex
+} = require('./tradelayer_pnl_route_adapter');
+const {
   buildTradeLayerPnlStateOracleCommitment,
   derivePnlRowsFromStateOracle,
   buildGrossPnlEdges,
   computeNetBalances,
   foldPnlNettingGraph,
+  buildTradeLayerPnlNettingRoutePlan,
   buildTradeLayerPnlNettingSettlement,
   verifyTradeLayerPnlNettingSettlement,
   buildTradeLayerPnlNettingChallenge,
-  verifyTradeLayerPnlNettingChallenge
+  verifyTradeLayerPnlNettingChallenge,
+  stableStringify
 } = require('./tradelayer_pnl_state_netting');
 
 let passed = 0;
@@ -139,7 +146,7 @@ test('folds gross bilateral transfers into final live counterparties', () => {
 
 test('builds and verifies a UTXORef payout commitment for the netted graph', () => {
   const settlement = buildTradeLayerPnlNettingSettlement(STATE_ORACLE);
-  const result = verifyTradeLayerPnlNettingSettlement(settlement);
+  const result = verifyTradeLayerPnlNettingSettlement(settlement, { stateOracleBlob: STATE_ORACLE });
   const payouts = new Map(settlement.routePlan.outputPlan.map((output) => [output.accountAddress, output.sats]));
 
   assert(result.ok, result.reason);
@@ -154,6 +161,7 @@ test('builds and verifies a UTXORef payout commitment for the netted graph', () 
 test('rejects an observed sweep that routes a net payout to the wrong recipient', () => {
   const settlement = buildTradeLayerPnlNettingSettlement(STATE_ORACLE);
   const result = verifyTradeLayerPnlNettingSettlement(settlement, {
+    stateOracleBlob: STATE_ORACLE,
     observedOutputs: [
       { address: B, sats: 3000 },
       { address: C, sats: 2000 }
@@ -162,6 +170,68 @@ test('rejects an observed sweep that routes a net payout to the wrong recipient'
 
   assert(!result.ok, 'wrong observed recipient should fail');
   assert(String(result.reason).includes('route plan failed'), 'expected route plan failure');
+});
+
+test('rejects a settlement whose gross edge is forged under the honest oracle hash', () => {
+  const honest = buildTradeLayerPnlNettingSettlement(STATE_ORACLE);
+  const rows = honest.rows;
+  // Keep the honest rows and oracle hash, replace the gross edge, and recompute every commitment downstream.
+  const grossEdges = [{ edgeIndex: 0, rowId: rows[0].rowId, contractId: rows[0].contractId, fromAddress: B, toAddress: C, sats: '5000', rowHash: rows[0].rowHash, edgeId: 'x'.repeat(24) }];
+  const netBalances = computeNetBalances(grossEdges);
+  const foldedEdges = foldPnlNettingGraph(netBalances);
+  const routePlan = buildTradeLayerPnlNettingRoutePlan(STATE_ORACLE, rows, grossEdges, netBalances, foldedEdges, {});
+  const bundle = buildTradeLayerPnlCommitment(routePlan, {});
+  const core = {
+    ...honest.core,
+    grossEdgeRoot: sha256Hex(grossEdges),
+    netBalanceRoot: sha256Hex(netBalances),
+    foldedEdgeRoot: sha256Hex(foldedEdges),
+    routePlanHash: routePlan.planHash,
+    withdrawalRootHex: bundle.withdrawalRootHex,
+    commitmentHashHex: bundle.commitmentHashHex,
+    grossTransferCount: 1,
+    foldedTransferCount: foldedEdges.length,
+    payoutCount: routePlan.outputPlan.length,
+    totalGrossTransferSats: '5000',
+    totalPositiveNetSats: '5000'
+  };
+  const forged = {
+    ...honest,
+    settlementHash: sha256Hex(core),
+    core,
+    grossEdges,
+    netBalances,
+    foldedEdges,
+    routePlan,
+    payout: { ...honest.payout, withdrawalRootHex: bundle.withdrawalRootHex, commitmentHashHex: bundle.commitmentHashHex, totalSats: bundle.payoutTotalSats.toString() }
+  };
+  const result = verifyTradeLayerPnlNettingSettlement(forged, { stateOracleBlob: STATE_ORACLE });
+
+  assert(!result.ok, 'forged gross edge must not verify against the committed oracle');
+  assertEq(result.reason, 'core does not match the state oracle');
+});
+
+test('requires the state oracle blob to verify a settlement', () => {
+  const settlement = buildTradeLayerPnlNettingSettlement(STATE_ORACLE);
+  const result = verifyTradeLayerPnlNettingSettlement(settlement, {});
+
+  assert(!result.ok, 'settlement must not verify without its state oracle');
+});
+
+test('orders netting accounts by code unit so canonically equal IDs do not tie', () => {
+  // Precomposed and combining-accent spellings that localeCompare may rank as equal.
+  const precomposed = 'tltc1\u00e9payee';
+  const combining = 'tltc1e\u0301payee';
+  const edge = (toAddress) => ({ fromAddress: A, toAddress, sats: '1000', edgeId: 'e' });
+  const settle = (edges) => {
+    const netBalances = computeNetBalances(edges);
+    return { netBalances, folded: foldPnlNettingGraph(netBalances) };
+  };
+  const forward = settle([edge(precomposed), edge(combining)]);
+  const reverse = settle([edge(combining), edge(precomposed)]);
+
+  assertEq(stableStringify(forward.netBalances), stableStringify(reverse.netBalances));
+  assertEq(stableStringify(forward.folded), stableStringify(reverse.folded));
 });
 
 test('rejects claimed PNL arithmetic that does not match the price move', () => {
@@ -179,10 +249,12 @@ test('rejects claimed PNL arithmetic that does not match the price move', () => 
 test('builds challenge records for omitted rows and wrong final recipients', () => {
   const settlement = buildTradeLayerPnlNettingSettlement(STATE_ORACLE);
   const omitted = buildTradeLayerPnlNettingChallenge(settlement, {
+    verifyOptions: { stateOracleBlob: STATE_ORACLE },
     challengeType: 'omitted_pnl_row',
     omittedRowHash: 'cc'.repeat(32)
   });
   const wrongRecipient = buildTradeLayerPnlNettingChallenge(settlement, {
+    verifyOptions: { stateOracleBlob: STATE_ORACLE },
     challengeType: 'wrong_final_recipient',
     claimedOutput: { address: B, accountAddress: A, sats: '3000' }
   });

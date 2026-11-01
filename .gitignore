@@ -11,6 +11,7 @@ node_modules/
 *.log
 integrations/lightning-liquidity-lease-sidecar/*.log
 integrations/utxoref-testnet-beta/runtime/
+integrations/lightning-liquidity-lease-sidecar/runtime/
 handoff.md
 
 # External repos checked out beside prototypes

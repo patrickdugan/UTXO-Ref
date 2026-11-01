@@ -13,6 +13,7 @@ const {
   buildArkTaprootMiniscriptProofManifest,
   verifyArkTaprootMiniscriptProofManifest
 } = require('../ark_taproot_miniscript_proof_manifest');
+const { heightOf } = require('../money');
 
 const HEX_32_RE = /^[0-9a-f]{64}$/i;
 
@@ -69,7 +70,7 @@ function buildShinigamiProgramState(options = {}) {
     taprootSelectedLeafHash: taprootProofManifest.manifestCore.selectedTapLeafHash,
     miniscriptPolicyHash: taprootProofManifest.manifestCore.miniscriptPolicyHash,
     claimAmountSats: claimAmountSats.toString(),
-    challengeWindowBlocks: Number(options.challengeWindowBlocks ?? 144)
+    challengeWindowBlocks: heightOf(options.challengeWindowBlocks ?? 144, 'challengeWindowBlocks')
   };
 
   return {
