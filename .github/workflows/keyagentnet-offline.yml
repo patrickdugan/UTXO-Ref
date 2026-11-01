@@ -46,7 +46,10 @@ jobs:
         env:
           BITCOIND_BIN: ./bitcoin-31.0/bin/bitcoind
           BITCOIN_CLI_BIN: ./bitcoin-31.0/bin/bitcoin-cli
-        run: node key-agent-net/regtest.cjs --run-isolated | tee keyagentnet_regtest.json
+        shell: bash
+        run: |
+          set -euo pipefail
+          node key-agent-net/regtest.cjs --run-isolated | tee keyagentnet_regtest.json
       - name: Archive successful transaction receipt
         if: success()
         uses: actions/upload-artifact@v4
