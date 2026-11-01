@@ -1,0 +1,28 @@
+name: KeyAgentNet offline research checks
+on:
+  push:
+    paths:
+      - "key-agent-net/**"
+      - ".github/workflows/keyagentnet-offline.yml"
+  pull_request:
+    paths:
+      - "key-agent-net/**"
+      - ".github/workflows/keyagentnet-offline.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  keyagentnet:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Exact finite-event model and runner safety
+        run: node --test key-agent-net/model.test.cjs key-agent-net/regtest.cli.test.cjs
+      - name: Deterministic fixture smoke run
+        run: node key-agent-net/simulate.cjs --json
+      - name: Optional Core regtest script parses
+        run: node --check key-agent-net/regtest.cjs
