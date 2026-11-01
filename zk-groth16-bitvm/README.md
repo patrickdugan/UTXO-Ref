@@ -59,6 +59,21 @@ node --test zk-groth16-bitvm/statement.test.cjs zk-groth16-bitvm/v2_adapter.test
 node bitvm3/utxo_referee/utxoref_v2.test.js
 ```
 
+## Real Bitcoin Core regtest observation
+
+A new [regtest-only dry run](REGTEST_DRY_RUN.md) uses Core 31.0 with a
+wallet-controlled Taproot surrogate. The [verified workflow](https://github.com/patrickdugan/UTXO-Ref/actions/runs/41273922843)
+observed an early BIP68 rejection, mature signed settlement acceptance,
+and a redirected payout accepted through the surrogate key path even
+though V2 rejected it. Reorg testing invalidated the signed snapshot
+and the assertion's confirmation threshold.
+[Machine-readable evidence](artifacts/regtest_core_dry_run_2026-11-01.json)
+is retained in the repository.
+
+The next phase must use the actual NUMS-keyed BitVM assertion graph;
+this surrogate is deliberately wallet-spendable and has no BitVM
+enforcement or Groth16 proof verification.
+
 ## Intended proof path
 
 ```text
