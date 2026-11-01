@@ -87,3 +87,24 @@ Node v22.16.0
 The golden vector was independently encoded with Python `struct` and hashed
 with `hashlib`. Only the standalone codec suite was executed. All four gates
 above remain open; existing V2 runtime files and PR #9 were left untouched.
+
+## Stage 1 progress: 2026-11-01 (PR #11)
+
+Focused CI run [41272453779](https://github.com/patrickdugan/UTXO-Ref/actions/runs/41272453779)
+passed all 28 statement/adapter tests and all 10 existing V2 referee tests.
+The positive differential fixture uses a fixed dev-only Ed25519 key and a
+V2 settlement spending one synthetic P2TR assertion outpoint. The adapter
+checks pinned outpoint, amount, script, chain, state freshness, payout
+commitment and exact unsigned transaction through the existing verifier.
+
+**Next agent entry task:** implement authenticated assertion funding evidence
+and specify the deposits-to-assertion graph boundary. Keep the V2
+`fundingOutpoints` definition as settlement transaction inputs. Inspect the
+[relation gate](V2_RELATION_GATE.md), derive a bounded witness contract and
+make a truth table for on-chain versus externally trusted predicates. A
+verified host statement is not yet a constrained Groth16 relation.
+
+Remaining Gate 1 checks include a frozen canonical trust-policy artifact,
+real assertion script/value provenance, authenticated chain tip/reorg handling,
+and complete reference-negative cases for every circuit predicate. Preserve
+the single-assertion rule until a separate multi-input profile is specified.
