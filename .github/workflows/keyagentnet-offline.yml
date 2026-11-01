@@ -27,6 +27,27 @@ jobs:
       - name: Optional Core regtest script parses
         run: node --check key-agent-net/regtest.cjs
 
+  distributed-offline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Custodian A signing policy
+        run: python3 -m unittest discover -s key-agent-net/distributed/signer -p "test_*.py" -v
+      - name: Coordinator request binding and committed receipts
+        run: node --test key-agent-net/distributed/coordinator/lib.test.cjs
+      - name: Distributed runner and VPS deploy script parse
+        run: |
+          node --check key-agent-net/distributed/coordinator/run.cjs
+          bash -n key-agent-net/distributed/deploy/vps-signer.sh
+          python3 -m py_compile key-agent-net/distributed/signer/kan_signer.py
+
   core-regtest:
     runs-on: ubuntu-latest
     timeout-minutes: 15

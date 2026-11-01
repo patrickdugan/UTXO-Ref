@@ -1,0 +1,32 @@
+{
+  "scenario": "gate2-conflicting-psbts",
+  "recorded_at": "2026-11-01T07:30:49.097Z",
+  "network": "regtest",
+  "vault": "kan-vault-1",
+  "signer_a": "custodian-a",
+  "signer_a_fingerprint": "24ff6473",
+  "policy_digest": "071e5e8209d4790ab358657cf7cee6cb596a54105da8969115acfb5d92e5e2b9",
+  "local_core_version": 310100,
+  "pass": true,
+  "result": "first signed; conflicting conflicting_spend",
+  "first": {
+    "status": "signed",
+    "reason": null,
+    "detail": null,
+    "journal_seq": 16,
+    "request_digest": "de078f51763f3781cffb96ba5515aebc1ea0f16b78fd3170beb995b427ce3222",
+    "signed_psbt_digest": "655ffa048bf53017af06e869d9ba632dd909b844726624759f6a64391cf2c051",
+    "unsigned_txid": "90ff3613e72d485b423840e14c027eefc8b36716f80e5d5875ea12c784cbbf6b",
+    "replayed": false
+  },
+  "conflicting": {
+    "status": "refused",
+    "reason": "conflicting_spend",
+    "detail": "a10b536e2d37a162a1e61ced5fb0a78c0d58f4900a47c3dfe4e59b242f3d3a6b:1 already signed in 90ff3613e72d485b423840e14c027eefc8b36716f80e5d5875ea12c784cbbf6b",
+    "journal_seq": 17,
+    "request_digest": "08ba61a116857d94ebc6970cda0313de06a55f4d2b9174d0f8f0ee661edc483a",
+    "signed_psbt_digest": null,
+    "unsigned_txid": null,
+    "replayed": false
+  }
+}

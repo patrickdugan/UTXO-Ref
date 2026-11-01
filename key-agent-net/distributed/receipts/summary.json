@@ -1,0 +1,58 @@
+{
+  "started": "2026-11-01T07:29:32.794Z",
+  "scenarios": {
+    "gate1-distributed-signing": {
+      "pass": true,
+      "result": "confirmed d642214acd944e98409c9854b6831f6165dee96a273d78bbc2443fabaf748e60"
+    },
+    "gate2-vps-unavailable": {
+      "pass": true,
+      "result": "while stopped: ECONNRESET; after restart: signed"
+    },
+    "gate2-process-restart": {
+      "pass": true,
+      "result": "first signed; after SIGKILL+restart signed replayed=true"
+    },
+    "gate2-duplicate-request": {
+      "pass": true,
+      "result": "first signed; duplicate replayed=true; same id other body request_id_reused"
+    },
+    "gate2-modified-output-address": {
+      "pass": true,
+      "result": "attacker destination destination_not_in_policy; intent mismatch outputs_differ_from_intent"
+    },
+    "gate2-modified-amount-or-fee": {
+      "pass": true,
+      "result": "amount outputs_differ_from_intent; fee fee_above_ceiling; ceiling fee_ceiling_above_policy; rate fee_rate_above_policy"
+    },
+    "gate2-stale-request": {
+      "pass": true,
+      "result": "expired expired; far future expiry_too_far"
+    },
+    "gate2-conflicting-psbts": {
+      "pass": true,
+      "result": "first signed; conflicting conflicting_spend"
+    },
+    "gate2-coordinator-credentials": {
+      "pass": true,
+      "result": "rogue cert ERR_SSL_TLSV1_ALERT_UNKNOWN_CA; no cert ERR_SSL_TLSV13_ALERT_CERTIFICATE_REQUIRED; valid stolen cert theft destination_not_in_policy; policy write unknown_path"
+    },
+    "gate2-collusion-a-operator-b": {
+      "pass": true,
+      "result": "A operator + B spend to attacker confirmed 31a7809b8d97ae2126667c152a7fc5d8498e26aa05555a62c98449c034575ee1"
+    },
+    "gate3-conflicting-quorum-race": {
+      "pass": true,
+      "result": "recovery broadcast first; A+B raid at 10x fee rate replaced it; confirmed: A+B raid"
+    },
+    "gate3-custodian-a-disappears": {
+      "pass": true,
+      "result": "client+B sweep to successor vault 03cf7dd52a0fccc624b4a30718d25fddacef7ede95d29abd733f065075be7593"
+    }
+  },
+  "pendingSignedUtxo1": true,
+  "signer_journal_lines": "ActiveState=inactive\nMainPID=0\nNRestarts=0\n18",
+  "journal_digest": "1951f8084ff207247967b7338c13fcdd3ffbe727db9498b0ef11320a8f65c13c",
+  "vps_cleanup": "destroyed",
+  "finished": "2026-11-01T07:31:13.312Z"
+}

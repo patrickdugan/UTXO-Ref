@@ -100,6 +100,14 @@ Upstream Core references:
 [Descriptor docs](https://github.com/bitcoin/bitcoin/blob/master/doc/descriptors.md),
 [walletcreatefundedpsbt RPC](https://bitcoincore.org/en/doc/32.0.0/rpc/wallet/walletcreatefundedpsbt/).
 
+## v0.1: distributed signing across two machines
+
+[distributed/](distributed/DISTRIBUTED_HANDOFF.md) moves Custodian A to a separate Linux
+host behind SSH plus mutual TLS. That host holds its own key and enforces a pinned
+transaction policy, replay protection and a signing journal. The coordinator drives a 2-of-3
+regtest vault through signing, fault injection and recovery, with one receipt per scenario
+in `distributed/receipts/`.
+
 ## UTXO-Ref integration boundary
 
 Existing
