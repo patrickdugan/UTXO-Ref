@@ -1,0 +1,32 @@
+name: Groth16 BitVM settlement Stage 1
+
+on:
+  push:
+    paths:
+      - "zk-groth16-bitvm/**"
+      - ".github/workflows/groth16-bitvm-stage1.yml"
+  pull_request:
+    paths:
+      - "zk-groth16-bitvm/**"
+      - ".github/workflows/groth16-bitvm-stage1.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  settlement-relation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: V0 statement and V2 adapter differential tests
+        run: |
+          node --test zk-groth16-bitvm/statement.test.cjs zk-groth16-bitvm/v2_adapter.test.cjs zk-groth16-bitvm/v2_adapter.integration.test.js
+      - name: Existing V2 referee tests
+        run: node bitvm3/utxo_referee/utxoref_v2.test.js
