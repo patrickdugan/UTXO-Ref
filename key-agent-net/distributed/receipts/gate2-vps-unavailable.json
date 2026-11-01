@@ -1,0 +1,27 @@
+{
+  "scenario": "gate2-vps-unavailable",
+  "recorded_at": "2026-11-01T07:30:27.026Z",
+  "network": "regtest",
+  "vault": "kan-vault-1",
+  "signer_a": "custodian-a",
+  "signer_a_fingerprint": "24ff6473",
+  "policy_digest": "071e5e8209d4790ab358657cf7cee6cb596a54105da8969115acfb5d92e5e2b9",
+  "local_core_version": 310100,
+  "pass": true,
+  "result": "while stopped: ECONNRESET; after restart: signed",
+  "while_unavailable": {
+    "error": "ECONNRESET",
+    "signed": false
+  },
+  "after_restart": {
+    "status": "signed",
+    "reason": null,
+    "detail": null,
+    "journal_seq": 2,
+    "request_digest": "b7826ef8a60cc1d7483afafe91e5587026bce727844aea1f9a4187e5a544de0d",
+    "signed_psbt_digest": "e5763738fb31d78e0b4e5a55a6676dda52601fd5464d53ac1fa0e03cb0929abe",
+    "unsigned_txid": "289bae45b622ce97fd8d1cd5c6c5d6879cd03ea21073d75a766f4f15e41aed50",
+    "replayed": false
+  },
+  "unsigned_psbt_digest": "c79c2919c340b878f78ce421633980d8c12b319a1e5e0123a8fd51a77f744071"
+}

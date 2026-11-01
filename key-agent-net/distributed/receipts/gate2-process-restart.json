@@ -1,0 +1,34 @@
+{
+  "scenario": "gate2-process-restart",
+  "recorded_at": "2026-11-01T07:30:38.119Z",
+  "network": "regtest",
+  "vault": "kan-vault-1",
+  "signer_a": "custodian-a",
+  "signer_a_fingerprint": "24ff6473",
+  "policy_digest": "071e5e8209d4790ab358657cf7cee6cb596a54105da8969115acfb5d92e5e2b9",
+  "local_core_version": 310100,
+  "pass": true,
+  "result": "first signed; after SIGKILL+restart signed replayed=true",
+  "first": {
+    "status": "signed",
+    "reason": null,
+    "detail": null,
+    "journal_seq": 3,
+    "request_digest": "2d4b3ecd4af42abb8b6d380b1885f7b99c1d3191e4393c9182bca1e3d9f605ef",
+    "signed_psbt_digest": "8d9b3efdf51db45f487d95822de98a4018e319abf8bf29efe07ec2ba260137a7",
+    "unsigned_txid": "0e897f7b31d4c8f977dd184b1872917060602a33a4917f9b346ee1770005ef40",
+    "replayed": false
+  },
+  "after_restart": {
+    "status": "signed",
+    "reason": null,
+    "detail": null,
+    "journal_seq": 4,
+    "request_digest": "2d4b3ecd4af42abb8b6d380b1885f7b99c1d3191e4393c9182bca1e3d9f605ef",
+    "signed_psbt_digest": "8d9b3efdf51db45f487d95822de98a4018e319abf8bf29efe07ec2ba260137a7",
+    "unsigned_txid": "0e897f7b31d4c8f977dd184b1872917060602a33a4917f9b346ee1770005ef40",
+    "replayed": true
+  },
+  "service_before": "ActiveState=active\nMainPID=660645\nNRestarts=0\n3",
+  "service_after": "ActiveState=active\nMainPID=660790\nNRestarts=1\n4"
+}

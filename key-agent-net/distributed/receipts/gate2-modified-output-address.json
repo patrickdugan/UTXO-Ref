@@ -1,0 +1,32 @@
+{
+  "scenario": "gate2-modified-output-address",
+  "recorded_at": "2026-11-01T07:30:42.231Z",
+  "network": "regtest",
+  "vault": "kan-vault-1",
+  "signer_a": "custodian-a",
+  "signer_a_fingerprint": "24ff6473",
+  "policy_digest": "071e5e8209d4790ab358657cf7cee6cb596a54105da8969115acfb5d92e5e2b9",
+  "local_core_version": 310100,
+  "pass": true,
+  "result": "attacker destination destination_not_in_policy; intent mismatch outputs_differ_from_intent",
+  "attacker_destination": {
+    "status": "refused",
+    "reason": "destination_not_in_policy",
+    "detail": "bcrt1quwte2f0ycurk5v7pevwhqvq62qftdtchj79hm7",
+    "journal_seq": 8,
+    "request_digest": "087a5e767cf02492ce20092951724d8a2930c82c57ea00da199cb90a991cb1d4",
+    "signed_psbt_digest": null,
+    "unsigned_txid": null,
+    "replayed": false
+  },
+  "intent_mismatch": {
+    "status": "refused",
+    "reason": "outputs_differ_from_intent",
+    "detail": "bcrt1q85033ucmyxmq72vgjf5pt06wzlwtcg5xqez600 50000000",
+    "journal_seq": 9,
+    "request_digest": "597002f6311f93ef14776a6f2a8318f6deb39947b9edf72159e84ca610c60b48",
+    "signed_psbt_digest": null,
+    "unsigned_txid": null,
+    "replayed": false
+  }
+}

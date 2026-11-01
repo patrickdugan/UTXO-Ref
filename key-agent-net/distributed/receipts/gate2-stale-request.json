@@ -1,0 +1,32 @@
+{
+  "scenario": "gate2-stale-request",
+  "recorded_at": "2026-11-01T07:30:47.305Z",
+  "network": "regtest",
+  "vault": "kan-vault-1",
+  "signer_a": "custodian-a",
+  "signer_a_fingerprint": "24ff6473",
+  "policy_digest": "071e5e8209d4790ab358657cf7cee6cb596a54105da8969115acfb5d92e5e2b9",
+  "local_core_version": 310100,
+  "pass": true,
+  "result": "expired expired; far future expiry_too_far",
+  "expired": {
+    "status": "refused",
+    "reason": "expired",
+    "detail": "expiry 1793518185 < now 1793518246",
+    "journal_seq": 14,
+    "request_digest": "e4544413ded0ebc447e72660d418cee19f2be480052fa36c3e93545e0ca8f1bc",
+    "signed_psbt_digest": null,
+    "unsigned_txid": null,
+    "replayed": false
+  },
+  "far_future": {
+    "status": "refused",
+    "reason": "expiry_too_far",
+    "detail": null,
+    "journal_seq": 15,
+    "request_digest": "9b735dc09b3bc44f996358bdc6d006807df6cdb940ef4502b8bcaa6f3169becb",
+    "signed_psbt_digest": null,
+    "unsigned_txid": null,
+    "replayed": false
+  }
+}

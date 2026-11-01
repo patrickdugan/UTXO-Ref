@@ -1,0 +1,42 @@
+{
+  "scenario": "gate3-custodian-a-disappears",
+  "recorded_at": "2026-11-01T07:31:03.727Z",
+  "network": "regtest",
+  "vault": "kan-vault-1",
+  "signer_a": "custodian-a",
+  "signer_a_fingerprint": "24ff6473",
+  "policy_digest": "071e5e8209d4790ab358657cf7cee6cb596a54105da8969115acfb5d92e5e2b9",
+  "local_core_version": 310100,
+  "pass": true,
+  "result": "client+B sweep to successor vault 03cf7dd52a0fccc624b4a30718d25fddacef7ede95d29abd733f065075be7593",
+  "custodian_a": "signer stopped and tunnel closed; no A signature used",
+  "unsigned_psbt_digest": "257715586b056c792b76cf46beaef442a111d91805da96268a230aa838de29ef",
+  "core_validation": {
+    "complete": true,
+    "accepted": true,
+    "txid": "03cf7dd52a0fccc624b4a30718d25fddacef7ede95d29abd733f065075be7593",
+    "wtxid": "d6cb11f047459a04d60a3bdf60aa9a493ff8877fc393addf5fdc1ffb4ec80167",
+    "vsize": 201,
+    "fees": {
+      "base": 0.00000402,
+      "effective-feerate": 0.00002,
+      "effective-includes": [
+        "d6cb11f047459a04d60a3bdf60aa9a493ff8877fc393addf5fdc1ffb4ec80167"
+      ]
+    },
+    "confirmation": {
+      "block": "2e2069f76e44b1d8b85509aa8d7fdaf246eaa2c01cf418b27fb61f7df54eb51d",
+      "confirmations": 1
+    }
+  },
+  "successor_vault": "kan-vault-2",
+  "successor_descriptor_checksums": [
+    "kzvy47rx",
+    "yhssk3z9"
+  ],
+  "successor_balance": {
+    "trusted": 0.99,
+    "untrusted_pending": 0,
+    "immature": 0
+  }
+}

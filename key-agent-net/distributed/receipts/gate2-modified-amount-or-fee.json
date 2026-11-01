@@ -1,0 +1,52 @@
+{
+  "scenario": "gate2-modified-amount-or-fee",
+  "recorded_at": "2026-11-01T07:30:45.635Z",
+  "network": "regtest",
+  "vault": "kan-vault-1",
+  "signer_a": "custodian-a",
+  "signer_a_fingerprint": "24ff6473",
+  "policy_digest": "071e5e8209d4790ab358657cf7cee6cb596a54105da8969115acfb5d92e5e2b9",
+  "local_core_version": 310100,
+  "pass": true,
+  "result": "amount outputs_differ_from_intent; fee fee_above_ceiling; ceiling fee_ceiling_above_policy; rate fee_rate_above_policy",
+  "amount_changed": {
+    "status": "refused",
+    "reason": "outputs_differ_from_intent",
+    "detail": "bcrt1qcjfl855lxng6e0c3udpwc3x42t5wpcvh7k06rrtj75uw7k2j5uwsmh4wec 49999622",
+    "journal_seq": 10,
+    "request_digest": "2552f622af2f2f707da240c1d58d901bcfa06d5580a3916c5ae59d56320e5882",
+    "signed_psbt_digest": null,
+    "unsigned_txid": null,
+    "replayed": false
+  },
+  "fee_above_ceiling": {
+    "status": "refused",
+    "reason": "fee_above_ceiling",
+    "detail": "378",
+    "journal_seq": 11,
+    "request_digest": "ff833f5cd5db8e4471295d0ef8b700fa9fe5855f03758e28975f2b17b481ff55",
+    "signed_psbt_digest": null,
+    "unsigned_txid": null,
+    "replayed": false
+  },
+  "ceiling_above_policy": {
+    "status": "refused",
+    "reason": "fee_ceiling_above_policy",
+    "detail": null,
+    "journal_seq": 12,
+    "request_digest": "5d40711a251cd234fa9f792a8f4bf9e8bfb6494da962f6d57aafe312afff5d67",
+    "signed_psbt_digest": null,
+    "unsigned_txid": null,
+    "replayed": false
+  },
+  "fee_rate": {
+    "status": "refused",
+    "reason": "fee_rate_above_policy",
+    "detail": "11340/189",
+    "journal_seq": 13,
+    "request_digest": "498ccd3babc8d6d8bfeb1e3c7c4ab21006fea1933f49b744d7b51452d2fdf3a9",
+    "signed_psbt_digest": null,
+    "unsigned_txid": null,
+    "replayed": false
+  }
+}

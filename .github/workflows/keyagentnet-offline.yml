@@ -1,0 +1,79 @@
+name: KeyAgentNet offline research checks
+on:
+  push:
+    paths:
+      - "key-agent-net/**"
+      - ".github/workflows/keyagentnet-offline.yml"
+  pull_request:
+    paths:
+      - "key-agent-net/**"
+      - ".github/workflows/keyagentnet-offline.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  keyagentnet:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Exact finite-event model and runner safety
+        run: node --test key-agent-net/model.test.cjs key-agent-net/regtest.cli.test.cjs
+      - name: Deterministic fixture smoke run
+        run: node key-agent-net/simulate.cjs --json
+      - name: Optional Core regtest script parses
+        run: node --check key-agent-net/regtest.cjs
+
+  distributed-offline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Custodian A signing policy
+        run: python3 -m unittest discover -s key-agent-net/distributed/signer -p "test_*.py" -v
+      - name: Coordinator request binding and committed receipts
+        run: node --test key-agent-net/distributed/coordinator/lib.test.cjs
+      - name: Distributed runner and VPS deploy script parse
+        run: |
+          node --check key-agent-net/distributed/coordinator/run.cjs
+          bash -n key-agent-net/distributed/deploy/vps-signer.sh
+          python3 -m py_compile key-agent-net/distributed/signer/kan_signer.py
+
+  core-regtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Download SHA-pinned Bitcoin Core 31.0
+        shell: bash
+        run: |
+          curl --fail --location --retry 3 --output bitcoin-31.0-x86_64-linux-gnu.tar.gz https://bitcoincore.org/bin/bitcoin-core-31.0/bitcoin-31.0-x86_64-linux-gnu.tar.gz
+          echo "d3e4c58a35b1d0a97a457462c94f55501ad167c660c245cb1ffa565641c65074  bitcoin-31.0-x86_64-linux-gnu.tar.gz" | sha256sum --check -
+          tar -xzf bitcoin-31.0-x86_64-linux-gnu.tar.gz
+          ./bitcoin-31.0/bin/bitcoind -version
+      - name: Exercise real Bitcoin Core regtest PSBT flows
+        env:
+          BITCOIND_BIN: ./bitcoin-31.0/bin/bitcoind
+          BITCOIN_CLI_BIN: ./bitcoin-31.0/bin/bitcoin-cli
+        shell: bash
+        run: |
+          set -euo pipefail
+          node key-agent-net/regtest.cjs --run-isolated | tee keyagentnet_regtest.json
+      - name: Archive successful transaction receipt
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: keyagentnet-regtest-core31
+          path: keyagentnet_regtest.json

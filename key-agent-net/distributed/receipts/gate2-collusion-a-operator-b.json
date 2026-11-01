@@ -1,0 +1,32 @@
+{
+  "scenario": "gate2-collusion-a-operator-b",
+  "recorded_at": "2026-11-01T07:30:55.743Z",
+  "network": "regtest",
+  "vault": "kan-vault-1",
+  "signer_a": "custodian-a",
+  "signer_a_fingerprint": "24ff6473",
+  "policy_digest": "071e5e8209d4790ab358657cf7cee6cb596a54105da8969115acfb5d92e5e2b9",
+  "local_core_version": 310100,
+  "pass": true,
+  "result": "A operator + B spend to attacker confirmed 31a7809b8d97ae2126667c152a7fc5d8498e26aa05555a62c98449c034575ee1",
+  "classification": "consensus-valid, outside policy: the signer policy binds the coordinator, not the A host administrator",
+  "unsigned_psbt_digest": "2afe588109e6085daaa6707954a690811bd926fabebedb0b2878298041e3cc46",
+  "core_validation": {
+    "complete": true,
+    "accepted": true,
+    "txid": "31a7809b8d97ae2126667c152a7fc5d8498e26aa05555a62c98449c034575ee1",
+    "wtxid": "cfb12c4746f2fec7c298594518696038d3f5b5ce47e92a66a172ae5127e49335",
+    "vsize": 189,
+    "fees": {
+      "base": 0.00000378,
+      "effective-feerate": 0.00002,
+      "effective-includes": [
+        "cfb12c4746f2fec7c298594518696038d3f5b5ce47e92a66a172ae5127e49335"
+      ]
+    },
+    "confirmation": {
+      "block": "60637325bab92c73570428879323d69c8439ac055b8ec595d9fafe1e614cc28c",
+      "confirmations": 1
+    }
+  }
+}
