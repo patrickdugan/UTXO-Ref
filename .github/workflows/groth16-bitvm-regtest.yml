@@ -1,0 +1,55 @@
+name: Groth16 BitVM Bitcoin Core regtest
+
+on:
+  push:
+    paths:
+      - "zk-groth16-bitvm/**"
+      - ".github/workflows/groth16-bitvm-regtest.yml"
+  pull_request:
+    paths:
+      - "zk-groth16-bitvm/**"
+      - ".github/workflows/groth16-bitvm-regtest.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  core-regtest:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Download SHA256-pinned Bitcoin Core 31.0
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="https://bitcoincore.org/bin/bitcoin-core-31.0"
+          artifact="bitcoin-31.0-x86_64-linux-gnu.tar.gz"
+          expected="d3e4c58a35b1d0a97a457462c94f55501ad167c660c245cb1ffa565641c65074"
+          curl --fail --location --silent --show-error --retry 3 \
+            "$root/$artifact" --output "$RUNNER_TEMP/$artifact"
+          echo "$expected  $RUNNER_TEMP/$artifact" | sha256sum --check --status
+          curl --fail --location --silent --show-error --retry 3 \
+            "$root/SHA256SUMS" --output "$RUNNER_TEMP/SHA256SUMS"
+          grep -F "$expected  $artifact" "$RUNNER_TEMP/SHA256SUMS"
+          tar -xzf "$RUNNER_TEMP/$artifact" -C "$RUNNER_TEMP"
+          echo "BITCOIN_BIN_DIR=$RUNNER_TEMP/bitcoin-31.0/bin" >> "$GITHUB_ENV"
+      - name: Isolated regtest, real Core mempool dry run
+        shell: bash
+        run: |
+          node zk-groth16-bitvm/regtest_core_dry_run.cjs \
+            --regtest-only --receipt /tmp/utxoref-groth16-regtest.json
+      - name: Upload regtest-only evidence
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: utxoref-groth16-regtest
+          path: /tmp/utxoref-groth16-regtest.json
+          if-no-files-found: ignore
+          retention-days: 7
