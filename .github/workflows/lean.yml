@@ -1,0 +1,39 @@
+name: Lean protocol safety
+
+on:
+  pull_request:
+    paths:
+      - "formal/**"
+      - ".github/workflows/lean.yml"
+  # Feature branches are checked through pull_request; avoid a second
+  # push-triggered run (and a second failure notification) per commit.
+  push:
+    branches: [main]
+    paths:
+      - "formal/**"
+      - ".github/workflows/lean.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: lean-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  lean:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: leanprover/lean-action@v1
+        with:
+          lake-package-directory: formal
+          build: true
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: true
+          leanchecker-args: "UTXORefFormal"
+          axiom-audit: true
+          axiom-audit-root: "UTXORefFormal"

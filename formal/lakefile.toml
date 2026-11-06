@@ -1,0 +1,7 @@
+name = "utxoref_formal"
+version = "0.1.0"
+defaultTargets = ["UTXORefFormal"]
+
+[[lean_lib]]
+name = "UTXORefFormal"
+roots = ["UTXORefFormal", "UTXORefAxioms"]
