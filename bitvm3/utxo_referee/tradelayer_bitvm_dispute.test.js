@@ -28,6 +28,19 @@ test('csv sequence is block-based and enabled', () => {
   assertEq(csvSequence(144), 144);
 });
 
+test('csv sequence and script-number push refuse strings, NaN and fractions', () => {
+  for (const bad of ['7', NaN, 6.5, -1, 0x10000, undefined]) {
+    let rejected = false;
+    try { csvSequence(bad); } catch (err) { rejected = /integer block delay/.test(err.message); }
+    assert(rejected, `csvSequence(${String(bad)}) must throw`);
+  }
+  for (const bad of ['7', NaN, 6.5, -1]) {
+    let rejected = false;
+    try { pushScriptNum(bad); } catch (err) { rejected = /script number must be an integer/.test(err.message); }
+    assert(rejected, `pushScriptNum(${String(bad)}) must throw`);
+  }
+});
+
 test('timeout leaf script has CSV + CHECKSIG shape', () => {
   const pk = 'a'.repeat(64);
   const s = buildTimeoutLeafScript(pk, 2);

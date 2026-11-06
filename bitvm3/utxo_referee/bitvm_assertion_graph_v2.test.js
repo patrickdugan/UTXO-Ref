@@ -178,6 +178,36 @@ test('assertion template binds every primary circuit input', () => {
   assert(rejected);
 });
 
+test('challenge and recovery windows must be integers, not strings or NaN', () => {
+  // "7" passed `< 6` and `<= 144` as a string and pushScriptNum emitted 0x27, a 39-byte push
+  // that swallowed the CSV and operator check of the cooperative-settlement leaf.
+  const { publicTrace, template } = buildFixture();
+  for (const windows of [
+    { challengeCsvBlocks: '7', recoveryCsvBlocks: 144 },
+    { challengeCsvBlocks: '6', recoveryCsvBlocks: 144 },
+    { challengeCsvBlocks: NaN, recoveryCsvBlocks: 144 },
+    { challengeCsvBlocks: 6.5, recoveryCsvBlocks: 144 },
+    { challengeCsvBlocks: 6, recoveryCsvBlocks: '144' }
+  ]) {
+    let rejected = false;
+    try {
+      buildBitvmAssertionTemplateV2({
+        network: NETWORK,
+        publicTrace,
+        expectedInputs: DERIVED,
+        operatorXonly: OPERATOR_XONLY,
+        challengerXonly: CHALLENGER_XONLY,
+        ...windows
+      });
+    } catch (err) { rejected = /csv delay must be an integer/.test(err.message); }
+    assert(rejected, `window ${JSON.stringify(windows)} must be rejected`);
+  }
+  const stringWindow = clone(template);
+  stringWindow.challengeCsvBlocks = '7';
+  const check = verifyBitvmAssertionTemplateV2(stringWindow, publicTrace);
+  assert(!check.ok && /csv delay must be an integer/.test(check.reason), check.reason);
+});
+
 test('the P2TR tree itself commits the signed-state trace binding', () => {
   const fixture = buildFixture();
   const changedTrace = clone(fixture.publicTrace);

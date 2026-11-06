@@ -69,7 +69,9 @@ const OP_CHECKSIG = 0xac;
 const OP_PUSH32 = 0x20;
 
 function pushScriptNum(n) {
-  if (n < 0) throw new Error('csv delay must be >= 0');
+  // A string or non-integer would reach `0x50 + n` and the shifts below and
+  // emit a script that does not encode n.
+  if (!Number.isInteger(n) || n < 0 || n > 0x7fffffff) throw new Error('script number must be an integer in 0..2^31-1');
   if (n === 0) return Buffer.from([0x00]);
   if (n <= 16) return Buffer.from([0x50 + n]);
   const bytes = [];
@@ -80,7 +82,10 @@ function pushScriptNum(n) {
 }
 
 function csvSequence(csvDelay) {
-  if (csvDelay < 0 || csvDelay > 0xffff) throw new Error('csv delay out of block range');
+  // Comparisons alone let NaN and numeric strings through (NaN < 6 is false).
+  if (!Number.isInteger(csvDelay) || csvDelay < 0 || csvDelay > 0xffff) {
+    throw new Error('csv delay must be an integer block delay in 0..65535');
+  }
   return csvDelay;
 }
 
