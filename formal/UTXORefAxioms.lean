@@ -1,4 +1,5 @@
 import UTXORefFormal.Signer
+import UTXORefFormal.BitVM
 
 /-!
 # The two cryptographic assumptions
@@ -91,5 +92,15 @@ theorem deployed_adaptor_oracles_signed_announcements {Pt : Type} (P : Signer.Pr
         bip340Signed a.px (P.annDigest a.eventId a.px a.rx a.outcomes) :=
   Signer.adaptor_oracles_signed_announcements P bip340Signed
     (by rw [hP]; exact signatures_unforgeable.2) c t h
+
+/-! ## BitVM wire hashlocks for the deployed hash -/
+
+/-- The wire hashlock is SHA-256 of the preimage (`selectedHash`, bitvm_trace_v2.js). -/
+theorem deployed_hash_binding : BitVM.HashBinding sha256 := sha256_binding
+
+/-- The preimage that opens a committed SHA-256 hashlock is unique. -/
+theorem deployed_wire_preimage_unique (w : BitVM.Wire Nat) (b : Bool) (p p' : List Nat)
+    (h1 : sha256 p = w.sel b) (h2 : sha256 p' = w.sel b) : p = p' :=
+  BitVM.hashBinding_preimage_unique sha256 deployed_hash_binding w b p p' h1 h2
 
 end UTXORefAxioms

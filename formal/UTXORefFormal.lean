@@ -3,6 +3,7 @@ import UTXORefFormal.Signer
 import UTXORefFormal.Adaptor
 import UTXORefFormal.TxSet
 import UTXORefFormal.OneShot
+import UTXORefFormal.BitVM
 
 /-!
 # UTXO-Ref: Lean models of the pilot's security-critical code
