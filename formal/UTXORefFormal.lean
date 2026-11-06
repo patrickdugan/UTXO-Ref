@@ -1,5 +1,6 @@
 import UTXORefAxioms
 import UTXORefFormal.Signer
+import UTXORefFormal.Adaptor
 
 /-!
 # UTXO-Ref: Lean models of the pilot's security-critical code
