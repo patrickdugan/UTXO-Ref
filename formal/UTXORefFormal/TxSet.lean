@@ -1,7 +1,7 @@
 /-!
 # DLC transaction set validation
 
-Model of `validateDlcTransactionSet` (bitvm3/utxo_referee/dlc_transaction_validator.js:355-462)
+Model of `validateDlcTransactionSet` (bitvm3/utxo_referee/dlc_transaction_validator.js:355-475)
 and the functions it calls at commit `5883e03`: `normalizeFunding` / `deriveFundingOutput`
 (:209-236), `normalizeFeePolicy` (:252-296), `validateSpend` (:311-339) with
 `validateExpectedOutputs` (:238-250) and `validateAnchor` (:298-309), and the post-parse
@@ -10,7 +10,10 @@ conditions of `parseCanonicalUnsignedTransaction` (:75-123).
 What the model keeps: every check, in the code's order, with the code's constants (MAX_MONEY,
 the 1..4096 CET count, the 1..0xffff CSV range, the 330..10000 sat CPFP anchor range, the TRUC
 10000-byte bound, version 2 or 3, 16 inputs, 1000 outputs); the per-CET identity scan
-(:367-378) as a left-to-right scan with a `seen` list; the refund-after-CET locktime rule
+(:367-378) as a left-to-right scan with a `seen` list; the `payoutsByOutcome` check (:368-399,
+two CETs with one outcome message must serialize equal outputs) as a `paid` list threaded through
+the same scan, after `validateSpend` and before the CET is kept (the `Map` holds one entry per
+outcome and every new entry equals the old one, so `paid` holds the same information); the refund-after-CET locktime rule
 (:410); the unique-txid rule (:413-415).
 
 What the model abstracts:
@@ -311,20 +314,24 @@ def cetShapeOk {C : Type} (env : Env C) (c : CetIn) : Bool :=
 def spendOfClaim (cl : Claim) (req : Option Nat) : SpendIn :=
   ⟨cl.tx, cl.expectedOutputs, cl.locktime, req⟩
 
-/-- The `cets.map` loop (:368-393), threading the identity `Set` as `seen`. -/
+/-- The `cets.map` loop (:368-405), threading the identity `Set` as `seen` and the
+`payoutsByOutcome` map as `paid` (outcome, serialized outputs). -/
 def cetLoop {C : Type} (env : Env C) (f : Funding) (pol : NPolicy) (minF maxF : Nat) :
-    List (Bytes × List Bytes) → List CetIn → Option (List CetOut)
-  | _, [] => some []
-  | seen, c :: cs =>
+    List (Bytes × List Bytes) → List (Bytes × List TxOut) → List CetIn → Option (List CetOut)
+  | _, _, [] => some []
+  | seen, paid, c :: cs =>
     if cetShapeOk env c = true then
       if (c.outcome, c.oracles) ∈ seen then none
       else
         match validateSpend env f pol minF maxF (spendOfClaim c.claim none) with
         | none => none
         | some (tx, fee) =>
-          match cetLoop env f pol minF maxF ((c.outcome, c.oracles) :: seen) cs with
-          | none => none
-          | some rest => some (⟨c.outcome, c.oracles, tx, fee⟩ :: rest)
+          if ∀ p ∈ paid, p.1 = c.outcome → p.2 = tx.outputs then
+            match cetLoop env f pol minF maxF ((c.outcome, c.oracles) :: seen)
+                ((c.outcome, tx.outputs) :: paid) cs with
+            | none => none
+            | some rest => some (⟨c.outcome, c.oracles, tx, fee⟩ :: rest)
+          else none
     else none
 
 /-- `validateDlcTransactionSet`. -/
@@ -338,7 +345,7 @@ def validateSet (env : Env CetOut) (inp : SetIn) : Option SetOut :=
   if ¬ (inp.minFee ≤ inp.maxFee ∧ inp.maxFee ≤ f.value) then none
   else if ¬ (1 ≤ inp.cets.length ∧ inp.cets.length ≤ 4096) then none
   else
-  match cetLoop env f pol inp.minFee inp.maxFee [] inp.cets with
+  match cetLoop env f pol inp.minFee inp.maxFee [] [] inp.cets with
   | none => none
   | some cs =>
   match validateSpend env f pol inp.minFee inp.maxFee (spendOfClaim inp.refund (some f.refundCsv)) with
@@ -355,17 +362,33 @@ def CetRel {C : Type} (env : Env C) (f : Funding) (pol : NPolicy) (minF maxF : N
   cetShapeOk env c = true ∧ o.outcome = c.outcome ∧ o.oracles = c.oracles ∧
   validateSpend env f pol minF maxF (spendOfClaim c.claim none) = some (o.tx, o.fee)
 
+theorem pairwise_sym {α : Type} {R : α → α → Prop} (S : ∀ {x y}, R x y → R y x) :
+    ∀ {l : List α}, l.Pairwise R → ∀ a ∈ l, ∀ b ∈ l, a ≠ b → R a b
+  | [], _, a, ha, _, _, _ => by simp at ha
+  | x :: xs, hp, a, ha, b, hb, hab => by
+    rw [List.pairwise_cons] at hp
+    rcases List.mem_cons.mp ha with h1 | h1
+    · rcases List.mem_cons.mp hb with h2 | h2
+      · exact absurd (h1.trans h2.symm) hab
+      · rw [h1]; exact hp.1 b h2
+    · rcases List.mem_cons.mp hb with h2 | h2
+      · rw [h2]; exact S (hp.1 a h1)
+      · exact pairwise_sym S hp.2 a h1 b h2 hab
+
 theorem cetLoop_spec {C : Type} (env : Env C) (f : Funding) (pol : NPolicy) (minF maxF : Nat) :
-    ∀ (cs : List CetIn) (seen : List (Bytes × List Bytes)) (outs : List CetOut),
-      cetLoop env f pol minF maxF seen cs = some outs →
+    ∀ (cs : List CetIn) (seen : List (Bytes × List Bytes)) (paid : List (Bytes × List TxOut))
+      (outs : List CetOut),
+      cetLoop env f pol minF maxF seen paid cs = some outs →
       (∀ o ∈ outs, ∃ c ∈ cs, CetRel env f pol minF maxF c o) ∧
       (outs.map CetOut.identity).Nodup ∧
-      (∀ o ∈ outs, o.identity ∉ seen)
-  | [], seen, outs, h => by
+      (∀ o ∈ outs, o.identity ∉ seen) ∧
+      outs.Pairwise (fun a b => a.outcome = b.outcome → a.tx.outputs = b.tx.outputs) ∧
+      (∀ o ∈ outs, ∀ p ∈ paid, p.1 = o.outcome → p.2 = o.tx.outputs)
+  | [], seen, paid, outs, h => by
       simp only [cetLoop, Option.some.injEq] at h
       subst h
       simp
-  | c :: cs, seen, outs, h => by
+  | c :: cs, seen, paid, outs, h => by
       unfold cetLoop at h
       split at h
       · rename_i hshape
@@ -376,28 +399,39 @@ theorem cetLoop_spec {C : Type} (env : Env C) (f : Funding) (pol : NPolicy) (min
           · simp at h
           · rename_i tx fee hv
             split at h
+            · rename_i hpay
+              split at h
+              · simp at h
+              · rename_i rest hrest
+                simp only [Option.some.injEq] at h
+                subst h
+                obtain ⟨ih1, ih2, ih3, ih4, ih5⟩ :=
+                  cetLoop_spec env f pol minF maxF cs ((c.outcome, c.oracles) :: seen)
+                    ((c.outcome, tx.outputs) :: paid) rest hrest
+                refine ⟨?_, ?_, ?_, ?_, ?_⟩
+                · intro o ho
+                  rcases List.mem_cons.mp ho with rfl | ho
+                  · exact ⟨c, List.mem_cons_self, hshape, rfl, rfl, hv⟩
+                  · obtain ⟨c', hc', hr⟩ := ih1 o ho
+                    exact ⟨c', List.mem_cons_of_mem _ hc', hr⟩
+                · rw [List.map_cons, List.nodup_cons]
+                  refine ⟨?_, ih2⟩
+                  intro hmem
+                  obtain ⟨o, ho, hoe⟩ := List.mem_map.mp hmem
+                  exact ih3 o ho (by simp [CetOut.identity] at hoe ⊢; simp [hoe])
+                · intro o ho
+                  rcases List.mem_cons.mp ho with rfl | ho
+                  · simpa [CetOut.identity] using hnot
+                  · intro hs
+                    exact ih3 o ho (List.mem_cons_of_mem _ hs)
+                · refine List.Pairwise.cons ?_ ih4
+                  intro b hb hbo
+                  exact ih5 b hb (c.outcome, tx.outputs) List.mem_cons_self (by simpa using hbo)
+                · intro o ho p hp hpo
+                  rcases List.mem_cons.mp ho with rfl | ho
+                  · exact hpay p hp hpo
+                  · exact ih5 o ho p (List.mem_cons_of_mem _ hp) hpo
             · simp at h
-            · rename_i rest hrest
-              simp only [Option.some.injEq] at h
-              subst h
-              obtain ⟨ih1, ih2, ih3⟩ :=
-                cetLoop_spec env f pol minF maxF cs ((c.outcome, c.oracles) :: seen) rest hrest
-              refine ⟨?_, ?_, ?_⟩
-              · intro o ho
-                rcases List.mem_cons.mp ho with rfl | ho
-                · exact ⟨c, List.mem_cons_self, hshape, rfl, rfl, hv⟩
-                · obtain ⟨c', hc', hr⟩ := ih1 o ho
-                  exact ⟨c', List.mem_cons_of_mem _ hc', hr⟩
-              · rw [List.map_cons, List.nodup_cons]
-                refine ⟨?_, ih2⟩
-                intro hmem
-                obtain ⟨o, ho, hoe⟩ := List.mem_map.mp hmem
-                exact ih3 o ho (by simp [CetOut.identity] at hoe ⊢; simp [hoe])
-              · intro o ho
-                rcases List.mem_cons.mp ho with rfl | ho
-                · simpa [CetOut.identity] using hnot
-                · intro hs
-                  exact ih3 o ho (List.mem_cons_of_mem _ hs)
       · simp at h
 
 /-! ## What an accepted set guarantees -/
@@ -411,6 +445,8 @@ structure Accepted (env : Env CetOut) (inp : SetIn) (out : SetOut) : Prop where
   cetsFrom : ∀ o ∈ out.cets, ∃ c ∈ inp.cets,
     CetRel env out.funding out.policy inp.minFee inp.maxFee c o
   cetIdsDistinct : (out.cets.map CetOut.identity).Nodup
+  sameOutcomeSamePayout : ∀ a ∈ out.cets, ∀ b ∈ out.cets, a.outcome = b.outcome →
+    a.tx.outputs = b.tx.outputs
   refundSpend : ∃ fee, validateSpend env out.funding out.policy inp.minFee inp.maxFee
       (spendOfClaim inp.refund (some out.funding.refundCsv)) = some (out.refund, fee)
   refundLater : ∀ o ∈ out.cets, o.tx.locktime < inp.refund.locktime
@@ -445,15 +481,20 @@ theorem validateSet_accepted {env : Env CetOut} {inp : SetIn} {out : SetOut}
                 · rename_i hnd
                   simp only [Option.some.injEq] at h
                   subst h
-                  obtain ⟨s1, s2, _⟩ :=
-                    cetLoop_spec env f pol inp.minFee inp.maxFee inp.cets [] cs hcs
+                  obtain ⟨s1, s2, _, s4, _⟩ :=
+                    cetLoop_spec env f pol inp.minFee inp.maxFee inp.cets [] [] cs hcs
                   have hperm := env.sort_perm cs
-                  refine ⟨hf, hpol, ?_, ?_, ?_, ?_, ⟨rfee, hr⟩, ?_, ?_⟩
+                  refine ⟨hf, hpol, ?_, ?_, ?_, ?_, ?_, ⟨rfee, hr⟩, ?_, ?_⟩
                   · simpa using hfee
                   · simpa using hcnt
                   · intro o ho
                     exact s1 o (hperm.mem_iff.mp ho)
                   · exact (hperm.map CetOut.identity).nodup_iff.mpr s2
+                  · intro a ha b hb hab
+                    by_cases hne : a = b
+                    · rw [hne]
+                    · have s4' := (hperm.pairwise_iff (fun {x y} h hh => (h hh.symm).symm)).mpr s4
+                      exact pairwise_sym (fun {x y} h hh => (h hh.symm).symm) s4' a ha b hb hne hab
                   · intro o ho
                     have : ¬ (decide (inp.refund.locktime ≤ o.tx.locktime) = true) := by
                       intro hd
@@ -654,8 +695,8 @@ theorem accepted_oracle_subsets_sorted_unique {env : Env CetOut} {inp : SetIn} {
   exact hp.imp (fun hab => Nat.lt_of_le_of_ne hab.1 hab.2)
 
 /-- (b/dup rule) What the identity rule guarantees about CETs for one outcome: two distinct
-entries with the same outcome message have different oracle subsets. It does not say their
-outputs differ; see `same_outcome_cets_accepted` for a concrete accepted set. -/
+entries with the same outcome message have different oracle subsets; their outputs are equal by
+`accepted_same_outcome_same_payout`. -/
 theorem accepted_same_outcome_have_different_subsets {env : Env CetOut} {inp : SetIn}
     {out : SetOut} (h : validateSet env inp = some out) :
     ∀ (l₁ l₂ : List CetOut), out.cets = l₁ ++ l₂ →
@@ -681,6 +722,13 @@ theorem accepted_at_most_one_member_confirms {env : Env CetOut} {inp : SetIn} {o
   intro t ht t' ht' ct ct'
   obtain ⟨i, hi, i', hi', e⟩ := accepted_members_pairwise_conflict h t ht t' ht'
   exact ch.spendsOnce t t' ct ct' i hi i' hi' e
+
+/-- (payout rule, :368-399) Any two CETs of an accepted set with the same outcome message have
+equal outputs, so which threshold subset of oracles attests does not change the payout. -/
+theorem accepted_same_outcome_same_payout {env : Env CetOut} {inp : SetIn} {out : SetOut}
+    (h : validateSet env inp = some out) :
+    ∀ a ∈ out.cets, ∀ b ∈ out.cets, a.outcome = b.outcome → a.tx.outputs = b.tx.outputs :=
+  (validateSet_accepted h).sameOutcomeSamePayout
 
 /-! ## Concrete vectors
 
@@ -725,11 +773,25 @@ would differ). -/
 example : validateSet vecEnv (vecSet
     [vecCet 1 [1, 2] 0xfffffffe, vecCet 1 [1, 2] 0xfffffffd]) = none := by decide
 
-/-- Two CETs for the SAME outcome with different oracle subsets and identical outputs are
-accepted when they differ in nothing but nSequence (dlc_transaction_validator.js:376-378 keys the
-identity on outcome plus subset; :413-415 only requires distinct txids). -/
-theorem same_outcome_cets_accepted : (validateSet vecEnv (vecSet
+/-- Two CETs for the SAME outcome with different oracle subsets, identical outputs and
+different nSequence are accepted (:376-378 keys the identity on outcome plus subset; :413-415
+only requires distinct txids). -/
+example : (validateSet vecEnv (vecSet
     [vecCet 1 [1, 2] 0xfffffffe, vecCet 1 [1, 3] 0xfffffffd])).isSome = true := by decide
+
+/-- Different outputs for the same outcome under different oracle subsets are refused (:395-397),
+although the identities and txids are distinct. -/
+def vecCetPaying (outcome : Nat) (ks : List Bytes) (outs : List TxOut) : CetIn :=
+  ⟨outcome, ks, ⟨⟨2, [vecIn 0xfffffffe], outs, 100⟩, outs, 100⟩⟩
+example : validateSet vecEnv (vecSet
+    [vecCetPaying 1 [1, 2] vecOuts, vecCetPaying 1 [1, 3] [⟨98670, 9⟩, ⟨330, 77⟩]]) = none := by decide
+/-- The same two payouts under different outcomes are accepted. -/
+example : (validateSet vecEnv (vecSet
+    [vecCetPaying 1 [1, 2] vecOuts, vecCetPaying 2 [1, 3] [⟨98670, 9⟩, ⟨330, 77⟩]])).isSome = true := by decide
+/-- Same payout, different locktime: accepted (only the serialized outputs are compared). -/
+example : (validateSet vecEnv (vecSet
+    [vecCetPaying 1 [1, 2] vecOuts,
+     ⟨1, [1, 3], ⟨⟨2, [vecIn 0xfffffffe], vecOuts, 90⟩, vecOuts, 90⟩⟩])).isSome = true := by decide
 
 /-- With the same nSequence the two transactions coincide and the txid rule rejects the set. -/
 example : validateSet vecEnv (vecSet

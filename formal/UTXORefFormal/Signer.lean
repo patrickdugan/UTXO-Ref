@@ -252,12 +252,12 @@ def deriveSigningTarget (P : Prims Pt) (c : Context) : Res SigningTarget :=
   check (decide (tx.txid = c.cetTxid)) "CET rawTxHex does not hash to the named txid" >>= fun _ =>
   check (decide (tx.input = (c.funding.txid, c.funding.vout)))
     "CET does not spend the committed funding outpoint" >>= fun _ =>
-  check (decide (2 ≤ c.announcements.length ∧ c.announcements.length ≤ 16))
-    "oracleAnnouncements must contain 2..16 announcements" >>= fun _ =>
+  check (decide (3 ≤ c.announcements.length ∧ c.announcements.length ≤ 16))
+    "oracleAnnouncements must contain 3..16 announcements" >>= fun _ =>
   mapE (verifiedAnnouncement P) c.announcements >>= fun anns =>
   check (strictlySorted (anns.map (·.px)))
     "oracleAnnouncements must be sorted by distinct oracle key" >>= fun _ =>
-  need anns.head? "oracleAnnouncements must contain 2..16 announcements" >>= fun first =>
+  need anns.head? "oracleAnnouncements must contain 3..16 announcements" >>= fun first =>
   check (anns.all (fun a => a.eventId == first.eventId && a.outcomes == first.outcomes))
     "oracle announcements must commit to the same event and ordered outcome set" >>= fun _ =>
   check (decide (2 ≤ cet.oraclePubkeys.length))
@@ -552,7 +552,7 @@ structure TargetOf (P : Prims Pt) (c : Context) (t : SigningTarget) : Prop where
     -- all announcements of one event.
     ∃ (anns used : List Ann) (pt : Pt),
       mapE (verifiedAnnouncement P) c.announcements = .ok anns ∧
-      2 ≤ c.announcements.length ∧ 2 ≤ cet.oraclePubkeys.length ∧
+      3 ≤ c.announcements.length ∧ 2 ≤ cet.oraclePubkeys.length ∧
       Increasing none cet.oraclePubkeys ∧ used.map (·.px) = cet.oraclePubkeys ∧
       (∀ a ∈ used, a ∈ anns ∧ cet.outcomeMessage ∈ a.outcomes ∧ a.eventId = t.oracleEventId) ∧
       pt = used.foldl (fun s a => P.add s (P.outcomePoint a cet.outcomeMessage)) P.identity ∧
@@ -863,7 +863,7 @@ def vP : Prims Nat where
 def vFunding : FundingRaw := ⟨[1, 2], 144, 147, 2, 144, some 5000, 7, 0⟩
 def vCet : CetRaw := ⟨11, 11, 4, [20, 30]⟩
 def vAnn (px : Nat) : AnnRaw := ⟨true, "event", px, px + 1, [4, 5], 0⟩
-def vContext : Context := ⟨3, [vCet], 101, vFunding, 207, 11, [vAnn 20, vAnn 30]⟩
+def vContext : Context := ⟨3, [vCet], 101, vFunding, 207, 11, [vAnn 20, vAnn 30, vAnn 40]⟩
 
 -- Mirrors `signing_target.rs` test `derives_the_committed_target`: the target's sighash is
 -- the CET sighash for the funding value and its adaptor point sums the two outcome points.
@@ -872,15 +872,19 @@ example : (deriveSigningTarget vP vContext).toOption.map (fun t => (t.sighash, t
 -- A context naming a CET outside the set is refused.
 example : (deriveSigningTarget vP { vContext with cetTxid := 12 }).toBool = false := by decide
 -- A CET subset of one oracle is refused.
-def vContextOne : Context := ⟨3, [⟨11, 11, 4, [20]⟩], 101, vFunding, 207, 11, [vAnn 20, vAnn 30]⟩
+def vContextOne : Context := ⟨3, [⟨11, 11, 4, [20]⟩], 101, vFunding, 207, 11, [vAnn 20, vAnn 30, vAnn 40]⟩
 example : (deriveSigningTarget vP vContextOne).toBool = false := by decide
 -- An unsorted subset is refused.
 def vContextUnsorted : Context :=
-  ⟨3, [⟨11, 11, 4, [30, 20]⟩], 101, vFunding, 207, 11, [vAnn 20, vAnn 30]⟩
+  ⟨3, [⟨11, 11, 4, [30, 20]⟩], 101, vFunding, 207, 11, [vAnn 20, vAnn 30, vAnn 40]⟩
 example : (deriveSigningTarget vP vContextUnsorted).toBool = false := by decide
 -- Funding keys out of order are refused.
 def vContextKeys : Context :=
-  ⟨3, [vCet], 101, ⟨[2, 1], 144, 147, 2, 144, some 5000, 7, 0⟩, 207, 11, [vAnn 20, vAnn 30]⟩
+  ⟨3, [vCet], 101, ⟨[2, 1], 144, 147, 2, 144, some 5000, 7, 0⟩, 207, 11, [vAnn 20, vAnn 30, vAnn 40]⟩
 example : (deriveSigningTarget vP vContextKeys).toBool = false := by decide
+-- Mirrors `signing_target.rs` test `two_announcements_are_refused`: a context with two
+-- announcements is refused, as `validateOracleSet` refuses it on the host.
+def vContextTwo : Context := ⟨3, [vCet], 101, vFunding, 207, 11, [vAnn 20, vAnn 30]⟩
+example : (deriveSigningTarget vP vContextTwo).toBool = false := by decide
 
 end UTXORefFormal.Signer

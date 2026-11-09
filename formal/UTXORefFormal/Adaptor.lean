@@ -311,13 +311,15 @@ theorem evenSecret_point {x : Sc} (hx : x ≠ C.szero) :
     rw [← hxo]
     exact C.lift_xOf _ hn hev
 
-/-- One pass of the nonce loop with candidate nonce `k0` (JS lines 326-344; Rust lines 376-401):
-reject a zero nonce, reject `R0 + T` at infinity, reject odd-y `R0 + T`, otherwise return the
-presignature with `s0 = k0 + e·d`. -/
+/-- One pass of the nonce loop with candidate nonce `k0` (JS lines 326-348; Rust lines 376-410):
+reject a zero nonce, reject `R0 + T` at infinity, reject odd-y `R0 + T`, reject a zero response
+`s0 = k0 + e·d` (`adaptorVerify` refuses `s0·G` at infinity), otherwise return the presignature. -/
 def adaptorSignStep (x : Sc) (m : Msg) (T : Pt) (k0 : Sc) : Option (Presig Pt Sc Xc) :=
   if k0 = C.szero then none else
   if C.padd (C.smul k0 C.G) T = C.pzero then none else
   if C.hasEvenY (C.padd (C.smul k0 C.G) T) = false then none else
+  if C.sadd k0 (C.rmul (C.chal (C.xOf (C.padd (C.smul k0 C.G) T))
+                  (C.xOf (C.smul x C.G)) m) (evenSecret C x)) = C.szero then none else
   some { rx := C.xOf (C.padd (C.smul k0 C.G) T)
          s0 := C.sadd k0 (C.rmul (C.chal (C.xOf (C.padd (C.smul k0 C.G) T))
                   (C.xOf (C.smul x C.G)) m) (evenSecret C x))
@@ -334,6 +336,7 @@ theorem adaptorSignStep_some {x : Sc} {m : Msg} {T : Pt} {k0 : Sc} {ps : Presig 
     (h : adaptorSignStep C x m T k0 = some ps) :
     k0 ≠ C.szero ∧ C.padd (C.smul k0 C.G) T ≠ C.pzero ∧
     C.hasEvenY (C.padd (C.smul k0 C.G) T) = true ∧
+    ps.s0 ≠ C.szero ∧
     ps = { rx := C.xOf (C.padd (C.smul k0 C.G) T)
            s0 := C.sadd k0 (C.rmul (C.chal (C.xOf (C.padd (C.smul k0 C.G) T))
                   (C.xOf (C.smul x C.G)) m) (evenSecret C x))
@@ -347,8 +350,12 @@ theorem adaptorSignStep_some {x : Sc} {m : Msg} {T : Pt} {k0 : Sc} {ps : Presig 
     · by_cases h3 : C.hasEvenY (C.padd (C.smul k0 C.G) T) = false
       · simp [h1, h2, h3] at h
       · have h3' : C.hasEvenY (C.padd (C.smul k0 C.G) T) = true := by simpa using h3
-        simp only [h1, h2, h3, ite_false] at h
-        exact ⟨h1, h2, h3', (Option.some.inj h).symm⟩
+        by_cases h4 : C.sadd k0 (C.rmul (C.chal (C.xOf (C.padd (C.smul k0 C.G) T))
+                  (C.xOf (C.smul x C.G)) m) (evenSecret C x)) = C.szero
+        · simp [h1, h2, h3, h4] at h
+        · simp only [h1, h2, h3, h4, ite_false] at h
+          have hp := (Option.some.inj h).symm
+          exact ⟨h1, h2, h3', by rw [hp]; exact h4, hp⟩
 
 theorem adaptorSign_some {x : Sc} {m : Msg} {T : Pt} {nonce : Nat → Sc}
     {ps : Presig Pt Sc Xc} (h : adaptorSign C x m T nonce = some ps) :
@@ -372,16 +379,23 @@ theorem adaptorSign_equation {x : Sc} {m : Msg} {T : Pt} {nonce : Nat → Sc}
     C.smul ps.s0 C.G =
       C.padd ps.R0 (C.smul (C.chal ps.rx (C.xOf (C.smul x C.G)) m) (C.smul (evenSecret C x) C.G)) := by
   obtain ⟨hx, hT, c, _, hs⟩ := adaptorSign_some C h
-  obtain ⟨hk, hRp, hev, hps⟩ := adaptorSignStep_some C hs
+  obtain ⟨hk, hRp, hev, _, hps⟩ := adaptorSignStep_some C hs
   subst hps
   refine ⟨rfl, C.smul_G_ne_zero _ hk, hRp, hev, rfl, ?_⟩
   show C.smul (C.sadd _ (C.rmul _ _)) C.G = _
   rw [C.smul_sadd, C.smul_rmul]
 
+/-- The signer never returns a zero response: the loop skips such nonces. -/
+theorem adaptorSign_s0_ne {x : Sc} {m : Msg} {T : Pt} {nonce : Nat → Sc}
+    {ps : Presig Pt Sc Xc} (h : adaptorSign C x m T nonce = some ps) : ps.s0 ≠ C.szero := by
+  obtain ⟨_, _, c, _, hs⟩ := adaptorSign_some C h
+  exact (adaptorSignStep_some C hs).2.2.2.1
+
 /-- (a) Completeness. A presignature produced by `adaptorSign` for secret `x`, message `m` and
 point `T` passes `adaptorVerify` for the x-only key of `x·G` (the even-y point `d·G`) exactly
-when its response is nonzero. The code does not reject `s0 = 0` at signing time; the
-verifier rejects it (`lhs` at infinity). That event needs `k0 + e·d = 0 (mod n)`. -/
+when its response is nonzero, and the response is always nonzero (`adaptorSign_s0_ne`): the
+nonce loop skips a candidate with `s0 = 0`, which the verifier would reject (`lhs` at
+infinity). `adaptorSign_verifies` is the unconditional form. -/
 theorem adaptorSign_verify_iff {x : Sc} {m : Msg} {T : Pt} {nonce : Nat → Sc}
     {ps : Presig Pt Sc Xc} (h : adaptorSign C x m T nonce = some ps) :
     adaptorVerify C (C.xOf (C.smul x C.G)) m ps = true ↔ ps.s0 ≠ C.szero := by
@@ -400,18 +414,18 @@ theorem adaptorSign_verify_iff {x : Sc} {m : Msg} {T : Pt} {nonce : Nat → Sc}
     exact hl0
 
 theorem adaptorSign_verifies {x : Sc} {m : Msg} {T : Pt} {nonce : Nat → Sc}
-    {ps : Presig Pt Sc Xc} (h : adaptorSign C x m T nonce = some ps) (hs0 : ps.s0 ≠ C.szero) :
+    {ps : Presig Pt Sc Xc} (h : adaptorSign C x m T nonce = some ps) :
     adaptorVerify C (C.xOf (C.smul x C.G)) m ps = true ∧
     adaptorVerifyForPoint C (C.xOf (C.smul x C.G)) m ps T = true := by
-  have hv := (adaptorSign_verify_iff C h).2 hs0
+  have hv := (adaptorSign_verify_iff C h).2 (adaptorSign_s0_ne C h)
   refine ⟨hv, ?_⟩
   rw [adaptorVerifyForPoint_iff]
   exact ⟨(adaptorSign_equation C h).1, hv⟩
 
 /-! ### The Rust signer's loop is the same loop
 
-`adaptor_sign` (main.rs:355) runs `for counter in 0u8..64` with `continue` on the three
-rejection conditions and `return Ok(..)` on the first success. -/
+`adaptor_sign` (main.rs:355) runs `for counter in 0u8..64` with `continue` on the four
+rejection conditions (zero nonce, `R0 + T` at infinity or odd y, zero response) and `return Ok(..)` on the first success. -/
 
 def rustLoop (x : Sc) (m : Msg) (T : Pt) (nonce : Nat → Sc) :
     Nat → Nat → Option (Presig Pt Sc Xc)
@@ -943,6 +957,12 @@ example : adaptorSignStep curve 2 5 3 0 = none := by decide          -- zero non
 example : adaptorSignStep curve 2 5 3 1 = none := by decide          -- R0 + T = 4, odd y
 example : adaptorSignStep curve 2 5 3 4 = none := by decide          -- R0 + T = 7 = infinity
 example : adaptorSignStep curve 2 5 3 5 = some ⟨1, 3, 5, 3⟩ := by decide
+-- zero response: secret 1, message 0, T = 1·G, nonce 2 passes the three point checks but gives
+-- s0 = 0, so the step rejects it and the loop takes the next nonce
+example : adaptorSignStep curve 1 0 1 2 = none := by decide
+example : (adaptorSign curve 1 0 1 nonce).isSome = true := by decide
+example : (adaptorSign curve 1 0 1 nonce).map (fun p => decide (p.s0 ≠ 0)) = some true := by decide
+example : (adaptorSign curve 1 0 1 nonce).map (adaptorVerify curve 1 0) = some true := by decide
 example : adaptorSign curve 2 5 3 nonce = some ⟨1, 3, 5, 3⟩ := by decide
 -- guards: zero secret, adaptor point at infinity
 example : adaptorSign curve 0 5 3 nonce = none := by decide

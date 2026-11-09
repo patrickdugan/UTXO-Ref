@@ -5,8 +5,13 @@ These proofs cover security-critical code of the pilot surface (docs/PILOT_SURFA
 directory are in `bitvm3/utxo_referee/`. The Lean sources are under `formal/`, built with
 `leanprover/lean4:v4.35.0` and core Lean only (no Mathlib), by `lake build` in `formal/` as
 `.github/workflows/lean.yml` runs it. `formal/UTXORefFormal.lean` imports every module listed
-here. The one code change since `5883e03` is `094598d`, which fixes BitVM finding F1 in
-`tradelayer_bitvm_dispute.js` and shifts that file's lines by up to five.
+here. Two code changes since `5883e03` fix the findings below: `094598d` (BitVM F1, in
+`tradelayer_bitvm_dispute.js`) and `30bf8a5` (the TxSet, OneShot and Adaptor findings, in
+`dlc_transaction_validator.js`,
+`dlc_signing_authorization_store.js`, `m1_deposit_indexer.js`, `dlc_signing_target.js`,
+`dlc_contract_state.js`, `tradelayer_dlc_adaptor_sig.js` and native/dlc-signer). The models
+follow the fixed code; a `file:line` marked "after the fix" is at the fixing commit, every other
+one is at `5883e03`.
 
 A Lean model is a functional transcription of the named function: the same checks in the same
 order with the same results. A theorem is proved about the model. The correspondence between
@@ -124,10 +129,10 @@ at commit `5883e03`. `adaptor.js` below means `bitvm3/utxo_referee/tradelayer_dl
 * Code modelled: `adaptorSign` `adaptor.js:331-343`; `adaptor_sign` `main.rs:393-411`.
 * **Abstracted, not proven:** as `adaptorSignStep_some`.
 
-#### (a) `adaptorSign_verify_iff`, `adaptorSign_verifies` (completeness)
-* Statement: a presignature produced by `adaptorSign` for secret `x`, message `m` and point `T` passes `adaptorVerify` for the x-only key `xOf (x·G)` exactly when `s0 ≠ 0`; when `s0 ≠ 0` it also passes `adaptorVerifyForPoint` with `T`.
-* Code modelled: `adaptorSign` `adaptor.js:313`, `adaptorVerify` `adaptor.js:370`, `adaptorVerifyForPoint` `adaptor.js:393`; `adaptor_sign` `main.rs:355`.
-* **Abstracted, not proven:** the hash outputs are arbitrary; the event `s0 = 0` (that is, `k0 + e·d ≡ 0 mod n`) is excluded by the hypothesis `ps.s0 ≠ 0`, not shown impossible. See Findings F1.
+#### (a) `adaptorSign_verify_iff`, `adaptorSign_s0_ne`, `adaptorSign_verifies` (completeness)
+* Statement: a presignature produced by `adaptorSign` passes `adaptorVerify` for the x-only key `xOf (x·G)` exactly when `s0 ≠ 0`; the signer never returns `s0 = 0` (`adaptorSign_s0_ne`), so every presignature it returns passes `adaptorVerify` and `adaptorVerifyForPoint` with `T`, with no hypothesis (`adaptorSign_verifies`).
+* Code modelled: `adaptorSign` `adaptor.js:313` with the `s0 === 0n` retry at `:337`, `adaptorVerify` `adaptor.js:370`, `adaptorVerifyForPoint` `adaptor.js:393`; `adaptor_sign` `main.rs:355` with the retry at `:408` (after the fix in `30bf8a5`).
+* **Abstracted, not proven:** the hash outputs are arbitrary. See Findings F1, fixed.
 
 #### `rustLoop_eq_findSome`, `rust_adaptorSign_eq_js`
 * Statement: the Rust loop `for counter in 0u8..64 { ...continue... return Ok }` returns the same presignature as the JavaScript loop for every nonce sequence, secret, message and point.
@@ -196,10 +201,10 @@ at commit `5883e03`. `adaptor.js` below means `bitvm3/utxo_referee/tradelayer_dl
 
 ### Findings
 
-* **F1 (adaptorSign does not reject `s0 = 0`).** `adaptor.js:333-343` and `main.rs:399-411` return a presignature without checking `s0 ≠ 0`; `adaptorVerify` rejects `s0·G` at infinity (`adaptor.js:384`). If `k0 + e·d ≡ 0 (mod n)` the signer emits a presignature its own verifier rejects. The event requires a hash output equal to `-e·d mod n`, probability about 2^-256 per attempt. No concrete input is known. The theorem `adaptorSign_verify_iff` states the exact condition.
+* **F1 (adaptorSign does not reject `s0 = 0`).** `adaptor.js:333-343` and `main.rs:399-411` return a presignature without checking `s0 ≠ 0`; `adaptorVerify` rejects `s0·G` at infinity (`adaptor.js:384`). If `k0 + e·d ≡ 0 (mod n)` the signer emits a presignature its own verifier rejects. The event requires a hash output equal to `-e·d mod n`, probability about 2^-256 per attempt. No concrete input is known. The theorem `adaptorSign_verify_iff` states the exact condition. **Fixed:** both loops now take the next nonce when `s0 = 0` (`adaptor.js:337`, `main.rs:408`), and `adaptorSign_verifies` holds unconditionally.
 * **F2 (adaptorExtract does not tie the signature to the presignature).** `adaptor.js:418-431` accepts any valid signature on `m` under `pubkeyX` and relies on the final `extracted·G == T` check; a valid signature with a different nonce (the `Toy` example `⟨2, 2⟩`) makes it throw. The code never returns a wrong scalar (`adaptorExtract_sound`); it can refuse to return the right one for a non-completion signature.
 * **F3 (JS and Rust nonce and negation handling match).** Compared line by line: the even-y negation of the secret (`adaptor.js:318-319` vs `main.rs:364-366`), the aux mask `tbase = d XOR tagged_hash("BIP0340/aux", aux)` (`adaptor.js:321` vs `main.rs:367-373`), the compressed adaptor encoding in the nonce hash (`pointBytes`, `adaptor.js:207-210` vs `main.rs:376-380`), the nonce reduction mod `n`, the counter byte, the three rejection conditions and their order, the 64-iteration bound, and the challenge input order `(rx, px, m)` with `px` taken before negation. No divergence in nonce or negation handling was found. Differences that do not change accepted outputs: Rust always draws `aux` from `OsRng`, while the JS function accepts a caller-supplied `aux32` (deterministic presignatures); Rust returns errors where JS throws.
-* **F4 (oracle-set bounds differ between the oracle builder and the signing target).** `validateOracleSet` requires 3..16 announcements and a threshold of at least 2 (`threshold.js:31-33`). The signing-target derivation accepts 2..16 announcements on both sides, `dlc_signing_target.js:70` and `target.rs:585`, and a CET subset of at least 2 (`target.rs:605`). The signer therefore signs for a two-oracle announcement set that `validateOracleSet` refuses. This does not affect the algebra of (d).
+* **F4 (oracle-set bounds differ between the oracle builder and the signing target).** `validateOracleSet` requires 3..16 announcements and a threshold of at least 2 (`threshold.js:31-33`). The signing-target derivation accepts 2..16 announcements on both sides, `dlc_signing_target.js:70` and `target.rs:585`, and a CET subset of at least 2 (`target.rs:605`). The signer therefore signs for a two-oracle announcement set that `validateOracleSet` refuses. This does not affect the algebra of (d). **Fixed:** the signing target requires 3..16 announcements on both sides (`dlc_signing_target.js:73`, `target.rs:587`, Rust test `two_announcements_are_refused`, Lean example `vContextTwo`), and a contract oracle policy needs at least 3 oracles at creation (`dlc_contract_state.js:67`).
 * **F5 (ordering primitive).** JS sorts oracle keys with `localeCompare` (`threshold.js:76`) and Rust requires strictly increasing byte order (`target.rs:613`). For lowercase 64-digit hex strings the two orders coincide; the model takes the order as the parameter `lt` and does not prove the equivalence.
 * **F6 (the CET adaptor point is a plain sum).** `T = Σ (R_i + e_i·P_i)` means `Σ s_i` stays secret only while at least one oracle of the subset withholds its `s_i`. `OracleSecrecy` is false when all oracles of a CET's subset collude with a funding party; the threshold design (subsets of size `threshold`) does not change this per-subset property.
 
@@ -345,7 +350,13 @@ scriptPubKey equality 214; version 83 and 318-320; locktime 328-331 and 410-412.
 **Models.** 376-378. The rule is "no duplicate `(outcome, subset)`", not "one CET per outcome".
 
 **Abstracted, not proven:**
-- FINDING. The code allows several CETs for the same outcome with different oracle subsets and different payouts: `same_outcome_cets_accepted` is a concrete accepted set (`decide`) with outcome 1, subsets `[1,2]` and `[1,3]`, identical committed outputs and different nSequence. Nothing at 367-415 requires the payouts, locktimes or outputs of CETs sharing an outcome to agree. The only guarantees are the ones above plus exclusivity (next theorem). Two such CETs with identical bytes are rejected by the txid rule (413-416).
+- Several CETs for one outcome with different oracle subsets remain valid: that is the threshold design. Their locktimes and nSequence can differ; their payouts cannot (next theorem).
+
+### accepted_same_outcome_same_payout
+
+**Statement.** Any two CETs of an accepted set with the same `outcomeMessage` have equal outputs: which threshold subset attests cannot change the payout.
+
+**Models.** The `payoutsByOutcome` check, dlc_transaction_validator.js:371 and :395-399 (after the fix in `30bf8a5`; before it, the validator accepted different payouts for one outcome).
 
 ### accepted_at_most_one_member_confirms
 
@@ -357,9 +368,9 @@ scriptPubKey equality 214; version 83 and 318-320; locktime 328-331 and 410-412.
 - The chain model is a hypothesis (`Chain`). Reorgs, mempool replacement and confirmation depth are not modelled: the statement is about one chain state.
 - A member that never confirms is not excluded; the statement is exclusivity, not liveness.
 
-### same_outcome_cets_accepted and the `example`s
+### The `example`s
 
-**Statement.** Concrete vectors by `decide` on `vecEnv`: an accepted set with distinct outcomes; the same identity twice rejected even with different nSequence; the same-outcome/different-subset set accepted; identical bytes rejected; refund sequence 145 against delay 144 rejected (315-317); refund locktime not above the CET locktime rejected (410); one-oracle subset rejected, five-oracle subset accepted (370); unsorted and duplicate subsets rejected (371-373); two inputs rejected (324).
+**Statement.** Concrete vectors by `decide` on `vecEnv`: an accepted set with distinct outcomes; the same identity twice rejected even with different nSequence; same outcome, different subsets and the same payout accepted (by nSequence and by locktime); same outcome, different subsets and different payouts rejected; identical bytes rejected; refund sequence 145 against delay 144 rejected (315-317); refund locktime not above the CET locktime rejected (410); one-oracle subset rejected, five-oracle subset accepted (370); unsorted and duplicate subsets rejected (371-373); two inputs rejected (324).
 
 **Models.** The cited lines.
 
@@ -467,14 +478,13 @@ only matter for the converse (a different authorization sharing a marker is refu
 
 **Abstracted, not proven:** as above.
 
-### Host.consumption_key_string_collision and Host.distinct_pairs_with_colon_collide_in_store
+### Host.keyString_injective, Host.consumption_key_distinct, Host.consume_other_pair_not_refused
 
-**Statement.** FINDING. `keyString "a:b" "c" = keyString "a" "b:c"` while the pairs differ; consuming the first pair makes a later consume of the second pair refused (unless its key was already present).
+**Statement.** For contract ids without `:`, the joined string `${contractId}:${authorizationId}` determines the pair; under SHA-256 binding (the key hash `H` injective, an explicit hypothesis) distinct valid pairs get distinct keys, and consuming one pair never makes another valid pair refused. A contract id containing `:` is refused (`.invalid`).
 
-**Models.** dlc_signing_authorization_store.js:49 (`${contractId}:${authorizationId}` hashed) with the id pattern `^[A-Za-z0-9._:-]{1,128}$` at :40, which allows `:`.
+**Models.** `requireContractId` dlc_signing_authorization_store.js:49-53 and `consumptionKey` (after the fix in `30bf8a5`). Before it, the id pattern allowed `:` in both ids, so `("a:b","c")` and `("a","b:c")` shared a key and the second distinct pair was refused (fail-closed, not a double consumption). Authorization ids still contain `:` (`cet:0:oracle-set:0`); keys of every pair with a colon-free contract id are unchanged, so existing consumption markers stay valid.
 
-**Abstracted, not proven:**
-- The effect is a fail-closed refusal of a legitimately distinct authorization, not a double consumption. Concrete input: `contractId = "a:b", authorizationId = "c"` and `contractId = "a", authorizationId = "b:c"`.
+**Abstracted, not proven:** `H` is a parameter; its injectivity is the hypothesis, discharged by `UTXORefAxioms.sha256_binding` for the deployed hash.
 
 ### Indexer.ledger_live_credit_unique
 
@@ -501,7 +511,7 @@ only matter for the converse (a different authorization sharing a marker is refu
 **Abstracted, not proven:**
 - The same ledger object is used for every call; a different ledger passed to `applyConfirmedDepositsToLedger` or a direct call to `ledger.rollbackDeposit` is outside the model.
 - Confirmation counting is a nondeterministic choice between `observed` and `confirmed`.
-- The enforcement is in the ledger's outpoint map (`depositOutpoints`); the indexer's map is keyed by depositId (:71, :85, :124).
+- The enforcement is in the ledger's outpoint map (`depositOutpoints`) and, after the fix in `30bf8a5`, also in the indexer (next theorem).
 
 ### Indexer.observe_existing_keeps_identity and Indexer.observe_conflict_refused
 
@@ -511,15 +521,13 @@ only matter for the converse (a different authorization sharing a marker is refu
 
 **Abstracted, not proven:** `blockHeight`, confirmations and `targetScriptPubKey` are not modelled.
 
-### Indexer.indexer_records_same_outpoint_under_two_deposit_ids, Indexer.second_credit_for_same_outpoint_refused
+### Indexer.indexer_one_live_record_per_outpoint, Indexer.second_deposit_id_for_live_outpoint_refused, Indexer.observe_before_rollback_still_refused, Indexer.second_credit_for_same_outpoint_refused
 
-**Statement.** FINDING. The indexer itself records the same funding outpoint twice: two depositIds with the same `(txid, vout)` give two records, both `confirmed`. The first `credit` succeeds, the second is refused by the ledger (`credit w2 1` is some; crediting 2 afterwards is none); the second record stays `confirmed`.
+**Statement.** After any operation sequence, two indexer records that are not `rolled_back` and share an outpoint (`txid.toLowerCase():vout`) are the same depositId; a second depositId for a live outpoint is refused (`decide`), also before a rollback; the ledger independently refuses a second credit for a credited outpoint.
 
-**Models.** m1_deposit_indexer.js:85-107 and 124 (map keyed by `depositId`; the conflict check 87-94 runs only for an existing `depositId`), 187-206 (the throw from `ledger.applyDeposit` at 193 propagates out of the loop).
+**Models.** The outpoint scan in `observeDeposit`, m1_deposit_indexer.js:108-117 (after the fix in `30bf8a5`). Before it, the indexer recorded one outpoint under two depositIds, the ledger refused the second credit, and the stuck `confirmed` record made every later depositId in the sorted credit pass (`getDepositsByStatus`) fail with it.
 
-**Abstracted, not proven:**
-- Consequences, not modelled as theorems: the replay protection for a funding outpoint is the ledger's, not the indexer's. In `applyConfirmedDepositsToLedger` the depositIds are processed in sorted order (`getDepositsByStatus` 154-157), so the lexicographically first depositId for an outpoint gets the credit and its account; the second throws, and `getCreditReadyDeposits` returns the stuck record on every pass, so every depositId sorted after it is not credited by that pass.
-- Concrete input: two events with `txid = 'aa'.repeat(32), vout = 0` and `depositId` `d1` (account alice) and `d2` (account bob).
+**Abstracted, not proven:** the outpoint key is an opaque value; the lower-casing of the txid is the code's, shared with `depositOutpointKey` in the ledger.
 
 ### Indexer.rollback_then_new_deposit_id_credits_again and Indexer.rolled_back_deposit_id_cannot_be_reobserved
 
@@ -814,8 +822,8 @@ lake env leanchecker UTXORefFormal
 lake env leanchecker UTXORefAxioms
 ```
 
-Result at `5883e03` plus these files, lean4 v4.35.0: `Build completed successfully (9 jobs)`,
-both `leanchecker` runs exit 0. An axiom audit over every theorem in the two namespaces (899
+Result with the fixes, lean4 v4.35.0: `Build completed successfully (9 jobs)`,
+both `leanchecker` runs exit 0. An axiom audit over every theorem in the two namespaces (923
 declarations, `Lean.collectAxioms`) finds only `propext`, `Classical.choice` and `Quot.sound` under
 `UTXORefFormal`; the six `UTXORefAxioms` theorems add exactly one of `signatures_unforgeable`
 (`deployed_emitted_presignature_validator_signed`, `deployed_adaptor_oracles_signed_announcements`)
@@ -831,11 +839,12 @@ what holds and the finding names the gap. Details are in each section.
 | ID | Where | Finding |
 | --- | --- | --- |
 | BitVM F1 | `tradelayer_bitvm_dispute.js:37-40`, `bitvm_assertion_graph_v2.js:248-254` | `csvSequence` accepts a numeric string. A template with `challengeCsvBlocks: "7"` passes the 6-block minimum, `pushScriptNum` emits byte `0x27` instead of `OP_7`, the CSV and operator check of the cooperative-settlement leaf become pushed data, and `verifyBitvmAssertionGraphV2` accepts the graph after a JSON round trip. A challenger verifying an operator-supplied graph was exposed. **Fixed in `094598d`**: both helpers require an integer. |
-| TxSet | `dlc_transaction_validator.js:376-378` | CET identity is (outcome, oracle subset): two CETs for one outcome with different subsets and different `expectedOutputs` are accepted, so one outcome can pay differently by subset (`same_outcome_cets_accepted`). The validator requires at least 2 subset keys and no threshold equality; CET nSequence is unconstrained; the refund leaf has no CLTV, so the refund locktime is checked by the validator, not committed by the leaf. |
-| OneShot | `dlc_signing_authorization_store.js:40`, `:49` | The consumption key joins ids with `:` and the id pattern allows `:`: `("a:b","c")` and `("a","b:c")` share a key, so the second distinct pair is refused (fail-closed). |
-| OneShot | `m1_deposit_indexer.js:85`, `:124`; `m1_receipt_ledger.js:56-59`, `:141-142` | The indexer keys deposits by depositId, so one outpoint is recorded under two depositIds; the ledger refuses the second credit, and that stuck record blocks later deposits in the sorted pass (`m1_deposit_indexer.js:187-206`). Rollback frees the outpoint for one re-credit under a new depositId. |
-| OneShot | native/dlc-signer/src/main.rs:935-979 | The signer enforces one presignature per authorization digest, not per CET sighash: two authorizations for one CET are each presigned. |
-| Adaptor F1, F2, F4 | section 2 | `adaptorSign` does not reject `s0 = 0` (probability about 2^-256); `adaptorExtract` refuses a valid signature with a different nonce instead of tying it to the presignature; the signer accepts a two-oracle announcement set that `validateOracleSet` refuses. |
+| TxSet | `dlc_transaction_validator.js:376-378` | Two CETs for one outcome with different oracle subsets could carry different `expectedOutputs`, so the attesting subset chose the payout. **Fixed in `30bf8a5`**: CETs for one outcome must have equal outputs (`accepted_same_outcome_same_payout`). Unchanged by design: subsets need at least 2 keys at this layer (threshold equality is checked in `dlc_signing_target.js`); CET nSequence is free; the refund leaf has no CLTV, so the validator, not the leaf, checks the refund locktime. |
+| OneShot | `dlc_signing_authorization_store.js:40`, `:49` | The consumption key joined ids with `:` while both ids could contain `:`, so `("a:b","c")` and `("a","b:c")` shared a key (fail-closed). **Fixed in `30bf8a5`**: a contract id containing `:` is refused (`keyString_injective`); existing keys are unchanged. |
+| OneShot | `m1_deposit_indexer.js:85`, `:124`; `m1_receipt_ledger.js:56-59` | The indexer recorded one outpoint under two depositIds; the ledger refused the second credit and the stuck record blocked later deposits in the sorted pass. **Fixed in `30bf8a5`**: one live record per outpoint (`indexer_one_live_record_per_outpoint`); rollback still frees the outpoint. |
+| OneShot | native/dlc-signer/src/main.rs:935-979 | The signer enforces one presignature per authorization digest, not per CET sighash: two authorizations for one CET are each presigned. Kept by design: each presignature uses a fresh nonce on the same message and adaptor point, which leaks nothing, and a validator re-authorizing after a lost presignature is the recovery path. |
+| Adaptor F1, F4 | section 2 | `adaptorSign` returned a presignature with `s0 = 0` (probability about 2^-256) that its own verifier rejects; the signer accepted a two-oracle announcement set that `validateOracleSet` refuses. **Both fixed in `30bf8a5`.** |
+| Adaptor F2 | section 2 | `adaptorExtract` refuses a valid signature with a different nonce instead of returning a scalar. Kept: it never returns a wrong scalar (`adaptorExtract_sound`). |
 
 ## What is not proven
 

@@ -15,11 +15,12 @@ Three models at commit `5883e03`.
    arbitrary interleavings of these transitions.
 2. The host store `DlcSigningAuthorizationStore.consume`
    (bitvm3/utxo_referee/dlc_signing_authorization_store.js:112-157), keyed by
-   `consumptionKey` (:46-50). The directory is created by `fs.mkdirSync` (:127), which is one
+   `consumptionKey` (:56-60), which first applies `requireContractId` (:50-54: no `:` in the
+   contract id). The directory is created by `fs.mkdirSync` (:127), which is one
    atomic system call that fails with `EEXIST` when the directory is present; success of
    `consume` is decided by that call alone, the record write that follows (:152) only fills the
    directory.
-3. `ReceiptDepositIndexer` (bitvm3/utxo_referee/m1_deposit_indexer.js:62-227; the brief names it
+3. `ReceiptDepositIndexer` (bitvm3/utxo_referee/m1_deposit_indexer.js:62-238; the brief names it
    `M1DepositIndexer`) with the ledger it credits, `ReceiptLedger.applyDeposit` /
    `rollbackDeposit` (m1_receipt_ledger.js:45-143), which is where the funding-outpoint check
    lives.
@@ -38,7 +39,9 @@ What the models abstract:
   rolled-back transitions matter for replay. Any additional failure the real code has (an
   overflowing balance, a missing ledger) is a step that does not happen.
 * Outpoints are an opaque key type `K`; the ledger lower-cases the txid before keying (ledger
-  :27) and the indexer does not, which only makes the ledger coarser.
+  :27). The indexer's one-live-record-per-outpoint scan (`observeDeposit`) compares
+  `txid.toLowerCase():vout` of the new deposit with that of every record whose status is not
+  `rolled_back`; `K` stands for that normalised outpoint, so the scan is equality of keys.
 * The sorted order of `applyConfirmedDepositsToLedger` (indexer :191) is arbitrary here: the
   model lets `credit` be applied to any confirmed deposit in any order.
 -/
@@ -402,20 +405,26 @@ namespace Host
 
 variable {K : Type} [DecidableEq K]
 
-/-- The string hashed by `consumptionKey` (:49). -/
+/-- The string hashed by `consumptionKey` (:59). -/
 def keyString (contractId authorizationId : String) : String :=
   contractId ++ ":" ++ authorizationId
+
+/-- `requireContractId` (:50-54): the contract id must not contain `:`. The authorization id may
+(`cet:0:oracle-set:0`). -/
+def validContract (contractId : String) : Bool := decide (':' ∉ contractId.toList)
 
 inductive Result where
   | ok            -- mkdirSync succeeded and the record was written
   | persistFailed -- mkdirSync succeeded, the record write failed (:153-154): directory remains
   | refused       -- mkdirSync raised EEXIST (:129-135): an Error is thrown
+  | invalid       -- `requireContractId` threw before any directory was touched
   deriving DecidableEq, Repr
 
 /-- `consume`: `H` is SHA-256. The store is the set of directory names. -/
 def consume (H : String → K) (store : List K) (contractId authorizationId : String)
     (writeOk : Bool) : List K × Result :=
-  if H (keyString contractId authorizationId) ∈ store then (store, .refused)
+  if validContract contractId = false then (store, .invalid)
+  else if H (keyString contractId authorizationId) ∈ store then (store, .refused)
   else (H (keyString contractId authorizationId) :: store, if writeOk then .ok else .persistFailed)
 
 structure Call where
@@ -437,20 +446,26 @@ theorem consume_mono (H : String → K) (store : List K) (c a : String) (w : Boo
     ∀ x ∈ store, x ∈ (consume H store c a w).1 := by
   intro x hx
   unfold consume
-  split <;> simp [hx]
+  split
+  · simp [hx]
+  · split <;> simp [hx]
 
 theorem consume_ok_iff (H : String → K) (store : List K) (c a : String) (w : Bool) :
-    (consume H store c a w).2 = .ok ↔ H (keyString c a) ∉ store ∧ w = true := by
+    (consume H store c a w).2 = .ok ↔
+      validContract c = true ∧ H (keyString c a) ∉ store ∧ w = true := by
   unfold consume
-  by_cases h : H (keyString c a) ∈ store <;> cases w <;> simp [h]
+  by_cases hv : validContract c = true
+  · by_cases h : H (keyString c a) ∈ store <;> cases w <;> simp [hv, h]
+  · have hv' : validContract c = false := by simpa using hv
+    simp [hv']
 
 /-- A consume call that created the directory leaves it in the store, so any later call for the
 same `(contractId, authorizationId)` is refused. -/
 theorem consume_after_created_refused (H : String → K) (store : List K) (c a : String)
-    (w w' : Bool) (hnot : H (keyString c a) ∉ store) :
+    (w w' : Bool) (hv : validContract c = true) (hnot : H (keyString c a) ∉ store) :
     (consume H (consume H store c a w).1 c a w').2 = .refused := by
   unfold consume
-  simp [hnot]
+  simp [hv, hnot]
 
 theorem runCalls_ok_nodup (H : String → K) :
     ∀ (cs : List Call) (store : List K),
@@ -464,7 +479,7 @@ theorem runCalls_ok_nodup (H : String → K) :
     · have hk := (consume_ok_iff H store c.contractId c.authorizationId c.writeOk).mp hok
       have hstore : (consume H store c.contractId c.authorizationId c.writeOk).1 =
           H (keyString c.contractId c.authorizationId) :: store := by
-        unfold consume; simp [hk.1]
+        unfold consume; simp [hk.1, hk.2.1]
       refine ⟨?_, ?_⟩
       · simp only [hok, if_true, List.singleton_append, List.nodup_cons]
         refine ⟨?_, ih1⟩
@@ -475,7 +490,7 @@ theorem runCalls_ok_nodup (H : String → K) :
       · intro k hk'
         simp only [hok, if_true, List.singleton_append, List.mem_cons] at hk'
         rcases hk' with rfl | hk'
-        · exact hk.1
+        · exact hk.2.1
         · have := ih2 k hk'
           rw [hstore] at this
           exact fun hs => this (List.mem_cons_of_mem _ hs)
@@ -492,22 +507,75 @@ theorem host_consumed_key_never_consumed_again (H : String → K) (cs : List Cal
     (store : List K) : ∀ k ∈ (runCalls H store cs).2, k ∉ store :=
   (runCalls_ok_nodup H cs store).2
 
-/-- FINDING (dlc_signing_authorization_store.js:49): both ids can contain `:` (:40 permits it), so
-distinct pairs hash the same string. The second pair is refused although it was never consumed
-(a fail-closed refusal, not a double consumption). -/
-theorem consumption_key_string_collision :
-    keyString "a:b" "c" = keyString "a" "b:c" ∧ ("a:b", "c") ≠ ("a", "b:c") := by
-  decide
+theorem toList_keyString (c a : String) :
+    (keyString c a).toList = c.toList ++ ':' :: a.toList := by
+  simp [keyString, String.toList_append]
 
-theorem distinct_pairs_with_colon_collide_in_store (H : String → K) (store : List K) :
-    (consume H (consume H store "a:b" "c" true).1 "a" "b:c" true).2 = .refused ∨
-      H (keyString "a:b" "c") ∈ store := by
-  by_cases h : H (keyString "a:b" "c") ∈ store
-  · exact Or.inr h
-  · left
-    have e : keyString "a" "b:c" = keyString "a:b" "c" := consumption_key_string_collision.1.symm
-    unfold consume
-    simp [e, h]
+theorem join_inj : ∀ (l₁ l₂ r₁ r₂ : List Char), ':' ∉ l₁ → ':' ∉ l₂ →
+    l₁ ++ ':' :: r₁ = l₂ ++ ':' :: r₂ → l₁ = l₂ ∧ r₁ = r₂
+  | [], [], r₁, r₂, _, _, h => by simpa using h
+  | [], x :: xs, r₁, r₂, _, h2, h => by
+    simp only [List.nil_append, List.cons_append, List.cons.injEq] at h
+    exact absurd (h.1 ▸ List.mem_cons_self) h2
+  | x :: xs, [], r₁, r₂, h1, _, h => by
+    simp only [List.nil_append, List.cons_append, List.cons.injEq] at h
+    exact absurd (h.1 ▸ List.mem_cons_self) h1
+  | x :: xs, y :: ys, r₁, r₂, h1, h2, h => by
+    simp only [List.cons_append, List.cons.injEq] at h
+    obtain ⟨hxy, hrest⟩ := h
+    have := join_inj xs ys r₁ r₂ (fun hm => h1 (List.mem_cons_of_mem _ hm))
+      (fun hm => h2 (List.mem_cons_of_mem _ hm)) hrest
+    exact ⟨by rw [hxy, this.1], this.2⟩
+
+/-- The joined string determines the pair once the contract id has no `:` (what
+`requireContractId` enforces): the first `:` separates the two ids even when the authorization
+id contains `:`. -/
+theorem keyString_injective {c c' a a' : String} (hc : validContract c = true)
+    (hc' : validContract c' = true) (h : keyString c a = keyString c' a') : c = c' ∧ a = a' := by
+  have h1 : ':' ∉ c.toList := by simpa [validContract] using hc
+  have h2 : ':' ∉ c'.toList := by simpa [validContract] using hc'
+  have := join_inj _ _ _ _ h1 h2 (by rw [← toList_keyString, ← toList_keyString, h])
+  exact ⟨String.ext this.1, String.ext this.2⟩
+
+/-- Under SHA-256 binding (`H` injective on the hashed strings; the hypothesis in the style of
+the file's collision-resistance remarks, axiom 2), distinct valid pairs get distinct keys. -/
+theorem consumption_key_distinct (H : String → K) (hH : ∀ s t, H s = H t → s = t)
+    {c c' a a' : String} (hc : validContract c = true) (hc' : validContract c' = true)
+    (hne : (c, a) ≠ (c', a')) : H (keyString c a) ≠ H (keyString c' a') := by
+  intro h
+  exact hne (by
+    have := keyString_injective hc hc' (hH _ _ h)
+    rw [this.1, this.2])
+
+/-- No cross-pair refusal: after a call for one pair, a call for a different valid pair whose
+key was not in the store is not refused (it gets the directory). -/
+theorem consume_other_pair_not_refused (H : String → K) (hH : ∀ s t, H s = H t → s = t)
+    (store : List K) {c c' a a' : String} (w : Bool) (hc : validContract c = true)
+    (hc' : validContract c' = true) (hne : (c, a) ≠ (c', a'))
+    (hnot : H (keyString c' a') ∉ store) :
+    (consume H (consume H store c a w).1 c' a' true).2 = .ok := by
+  rw [consume_ok_iff]
+  refine ⟨hc', ?_, rfl⟩
+  have hd := consumption_key_distinct H hH hc' hc (fun h => hne (h.symm))
+  intro hmem
+  unfold consume at hmem
+  by_cases hv : validContract c = false
+  · simp [hv] at hmem; exact hnot hmem
+  · by_cases hs : H (keyString c a) ∈ store
+    · simp [hv, hs] at hmem; exact hnot hmem
+    · simp [hv, hs] at hmem
+      rcases hmem with h | h
+      · exact hd h
+      · exact hnot h
+
+/-- The old string-collision pair is now unreachable: `("a:b", "c")` is refused outright
+(`invalid`) and `("a", "b:c")` is a normal pair with its own key. -/
+example : validContract "a:b" = false ∧ validContract "a" = true := by decide
+example (H : String → K) (store : List K) :
+    (consume H store "a:b" "c" true).2 = .invalid := by
+  have hv : validContract "a:b" = false := by decide
+  simp [consume, hv]
+example : keyString "a" "b:c" = "a:b:c" := by decide
 
 end Host
 
@@ -706,14 +774,24 @@ structure Rec (K : Type) where
   status : Status
   deriving DecidableEq, Repr
 
+/-- `recs` is the `deposits` Map; `ids` lists its keys (what the JS loop over
+`this.deposits.values()` ranges over). -/
 structure World (D K : Type) where
   recs : D → Option (Rec K)
   led : Ledger D K
+  ids : List D
 
-def World.empty : World D K := ⟨fun _ => none, Ledger.empty⟩
+def World.empty : World D K := ⟨fun _ => none, Ledger.empty, []⟩
 
-/-- `observeDeposit` (m1_deposit_indexer.js:74-126). `conf` abstracts the confirmation count
-reaching `minConfirmations`. `none` is a thrown error. -/
+/-- Some record with this outpoint key is not rolled back (the scan at :108-117). -/
+def liveKey (w : World D K) (k : K) : Bool :=
+  w.ids.any (fun i => match w.recs i with
+    | some r => decide (r.key = k ∧ r.status ≠ .rolledBack)
+    | none => false)
+
+/-- `observeDeposit` (m1_deposit_indexer.js:74-137). `conf` abstracts the confirmation count
+reaching `minConfirmations`. `none` is a thrown error. A new depositId whose outpoint matches a
+record that is not rolled back is refused (:108-117, "already observed as ..."). -/
 def observe (w : World D K) (id : D) (acct amount : Nat) (k : K) (conf : Bool) :
     Option (World D K) :=
   match w.recs id with
@@ -723,15 +801,18 @@ def observe (w : World D K) (id : D) (acct amount : Nat) (k : K) (conf : Bool) :
     else
       some ⟨upd w.recs id (some { r with status :=
         if r.status = .credited then .credited else if conf then .confirmed else .observed }),
-        w.led⟩
+        w.led, w.ids⟩
   | none =>
-    some ⟨upd w.recs id (some ⟨acct, amount, k, if conf then .confirmed else .observed⟩), w.led⟩
+    if liveKey w k = true then none
+    else
+      some ⟨upd w.recs id (some ⟨acct, amount, k, if conf then .confirmed else .observed⟩), w.led,
+        id :: w.ids⟩
 
 /-- `syncConfirmations` (:132-142). -/
 def sync (w : World D K) (cf : D → Bool) : World D K :=
   ⟨fun id => (w.recs id).map (fun r =>
       if r.status = .rolledBack ∨ r.status = .credited then r
-      else { r with status := if cf id then .confirmed else .observed }), w.led⟩
+      else { r with status := if cf id then .confirmed else .observed }), w.led, w.ids⟩
 
 /-- One iteration of `applyConfirmedDepositsToLedger` (:191-203): a confirmed record is credited
 through `ledger.applyDeposit`, which can throw; on success the record becomes credited. -/
@@ -741,7 +822,7 @@ def credit (w : World D K) (id : D) : Option (World D K) :=
     if r.status = .confirmed then
       match w.led.apply id r.key with
       | none => none
-      | some l' => some ⟨upd w.recs id (some { r with status := .credited }), l'⟩
+      | some l' => some ⟨upd w.recs id (some { r with status := .credited }), l', w.ids⟩
     else none
   | none => none
 
@@ -754,8 +835,8 @@ def rollbackOp (w : World D K) (id : D) : Option (World D K) :=
     else if r.status = .credited then
       match w.led.rollback id with
       | none => none
-      | some l' => some ⟨upd w.recs id (some { r with status := .rolledBack }), l'⟩
-    else some ⟨upd w.recs id (some { r with status := .rolledBack }), w.led⟩
+      | some l' => some ⟨upd w.recs id (some { r with status := .rolledBack }), l', w.ids⟩
+    else some ⟨upd w.recs id (some { r with status := .rolledBack }), w.led, w.ids⟩
 
 inductive Op (D K : Type) where
   | observe (id : D) (acct amount : Nat) (k : K) (conf : Bool)
@@ -805,17 +886,19 @@ theorem winv_observe {w w' : World D K} {id : D} {a m : Nat} {k : K} {c : Bool}
           exact h.credited id' r hr hcr
         · simp only [upd_other _ _ _ _ hid] at hr'
           exact h.credited id' r' hr' hc'
-  · simp only [Option.some.injEq] at ho
-    subst ho
-    refine ⟨h.led, ?_⟩
-    intro id' r' hr' hc'
-    by_cases hid : id' = id
-    · subst hid
-      simp only [upd_same, Option.some.injEq] at hr'
-      subst hr'
-      split at hc' <;> simp at hc'
-    · simp only [upd_other _ _ _ _ hid] at hr'
-      exact h.credited id' r' hr' hc'
+  · split at ho
+    · simp at ho
+    · simp only [Option.some.injEq] at ho
+      subst ho
+      refine ⟨h.led, ?_⟩
+      intro id' r' hr' hc'
+      by_cases hid : id' = id
+      · subst hid
+        simp only [upd_same, Option.some.injEq] at hr'
+        subst hr'
+        split at hc' <;> simp at hc'
+      · simp only [upd_other _ _ _ _ hid] at hr'
+        exact h.credited id' r' hr' hc'
 
 theorem winv_sync {w : World D K} (cf : D → Bool) (h : WInv w) : WInv (sync w cf) := by
   refine ⟨h.led, ?_⟩
@@ -949,6 +1032,201 @@ theorem winv_runOps (ops : List (Op D K)) : ∀ (w : World D K), WInv w → WInv
   | nil => intro w h; exact h
   | cons op ops ih => intro w h; exact ih _ (winv_step op h)
 
+/-- The scan's domain covers every record, and no two records that are not rolled back share an
+outpoint key. -/
+structure UInv (w : World D K) : Prop where
+  cover : ∀ id r, w.recs id = some r → id ∈ w.ids
+  uniq : ∀ a b ra rb, w.recs a = some ra → w.recs b = some rb → ra.status ≠ .rolledBack →
+    rb.status ≠ .rolledBack → ra.key = rb.key → a = b
+
+theorem uinv_empty : UInv (World.empty : World D K) := ⟨by simp [World.empty], by simp [World.empty]⟩
+
+/-- A step that keeps the id list and only rewrites records in place (same key; a record that is
+not rolled back afterwards was not rolled back before) preserves `UInv`. -/
+theorem uinv_of_inplace {w w' : World D K} (h : UInv w) (hids : w'.ids = w.ids)
+    (hr : ∀ id r', w'.recs id = some r' → ∃ r, w.recs id = some r ∧ r.key = r'.key ∧
+      (r'.status ≠ .rolledBack → r.status ≠ .rolledBack)) : UInv w' := by
+  refine ⟨?_, ?_⟩
+  · intro id r' h'
+    obtain ⟨r, hr0, _⟩ := hr id r' h'
+    rw [hids]
+    exact h.cover id r hr0
+  · intro a b ra rb ha hb sa sb hk
+    obtain ⟨r1, h1, k1, s1⟩ := hr a ra ha
+    obtain ⟨r2, h2, k2, s2⟩ := hr b rb hb
+    exact h.uniq a b r1 r2 h1 h2 (s1 sa) (s2 sb) (by rw [k1, k2, hk])
+
+theorem uinv_observe {w w' : World D K} {id : D} {a m : Nat} {k : K} {c : Bool}
+    (h : UInv w) (ho : observe w id a m k c = some w') : UInv w' := by
+  unfold observe at ho
+  split at ho
+  · rename_i r hr
+    split at ho
+    · simp at ho
+    · rename_i hrb
+      split at ho
+      · simp at ho
+      · rename_i hnrb
+        simp only [Option.some.injEq] at ho
+        subst ho
+        refine uinv_of_inplace h rfl ?_
+        intro id' r' hr'
+        by_cases hid : id' = id
+        · subst hid
+          simp only [upd_same, Option.some.injEq] at hr'
+          subst hr'
+          refine ⟨r, hr, rfl, fun _ => hnrb⟩
+        · simp only [upd_other _ _ _ _ hid] at hr'
+          exact ⟨r', hr', rfl, fun h => h⟩
+  · rename_i hnone
+    split at ho
+    · simp at ho
+    · rename_i hlive
+      simp only [Option.some.injEq] at ho
+      subst ho
+      have hfree : ∀ i r, w.recs i = some r → r.key = k → r.status = .rolledBack := by
+        intro i r hi hk
+        by_cases hne : r.status = .rolledBack
+        · exact hne
+        · exfalso
+          apply hlive
+          have hmem := h.cover i r hi
+          simp only [liveKey, List.any_eq_true]
+          exact ⟨i, hmem, by simp [hi, hk, hne]⟩
+      refine ⟨?_, ?_⟩
+      · intro id' r' hr'
+        by_cases hid : id' = id
+        · subst hid; exact List.mem_cons_self
+        · simp only [upd_other _ _ _ _ hid] at hr'
+          exact List.mem_cons_of_mem _ (h.cover id' r' hr')
+      · intro x y rx ry hx hy sx sy hk
+        by_cases hxi : x = id
+        · subst hxi
+          simp only [upd_same, Option.some.injEq] at hx
+          subst hx
+          by_cases hyi : y = x
+          · exact hyi.symm
+          · simp only [upd_other _ _ _ _ hyi] at hy
+            exact absurd (hfree y ry hy hk.symm) sy
+        · simp only [upd_other _ _ _ _ hxi] at hx
+          by_cases hyi : y = id
+          · subst hyi
+            simp only [upd_same, Option.some.injEq] at hy
+            subst hy
+            exact absurd (hfree x rx hx hk) sx
+          · simp only [upd_other _ _ _ _ hyi] at hy
+            exact h.uniq x y rx ry hx hy sx sy hk
+
+theorem uinv_sync {w : World D K} (cf : D → Bool) (h : UInv w) : UInv (sync w cf) := by
+  refine uinv_of_inplace h rfl ?_
+  intro id r' hr'
+  simp only [sync] at hr'
+  cases hw : w.recs id with
+  | none => rw [hw] at hr'; simp at hr'
+  | some r0 =>
+    rw [hw] at hr'
+    simp only [Option.map_some, Option.some.injEq] at hr'
+    refine ⟨r0, rfl, ?_, ?_⟩
+    · by_cases hc : r0.status = .rolledBack ∨ r0.status = .credited
+      · rw [if_pos hc] at hr'; rw [← hr']
+      · rw [if_neg hc] at hr'; rw [← hr']
+    · intro hne
+      by_cases hc : r0.status = .rolledBack ∨ r0.status = .credited
+      · rw [if_pos hc] at hr'
+        rw [← hr'] at hne
+        exact hne
+      · intro hrb; exact hc (Or.inl hrb)
+
+theorem uinv_credit {w w' : World D K} {id : D} (h : UInv w) (hc : credit w id = some w') :
+    UInv w' := by
+  unfold credit at hc
+  split at hc
+  · rename_i r hr
+    split at hc
+    · rename_i hst
+      split at hc
+      · simp at hc
+      · simp only [Option.some.injEq] at hc
+        subst hc
+        refine uinv_of_inplace h rfl ?_
+        intro id' r' hr'
+        by_cases hid : id' = id
+        · subst hid
+          simp only [upd_same, Option.some.injEq] at hr'
+          subst hr'
+          exact ⟨r, hr, rfl, fun _ => by rw [hst]; simp⟩
+        · simp only [upd_other _ _ _ _ hid] at hr'
+          exact ⟨r', hr', rfl, fun h => h⟩
+    · simp at hc
+  · simp at hc
+
+theorem uinv_rollback {w w' : World D K} {id : D} (h : UInv w) (hr : rollbackOp w id = some w') :
+    UInv w' := by
+  unfold rollbackOp at hr
+  split at hr
+  · simp at hr
+  · rename_i r hrec
+    split at hr
+    · simp at hr
+    · split at hr
+      · split at hr
+        · simp at hr
+        · simp only [Option.some.injEq] at hr
+          subst hr
+          refine uinv_of_inplace h rfl ?_
+          intro id' r' hr'
+          by_cases hid : id' = id
+          · subst hid
+            simp only [upd_same, Option.some.injEq] at hr'
+            subst hr'
+            exact ⟨r, hrec, rfl, fun hne => absurd rfl hne⟩
+          · simp only [upd_other _ _ _ _ hid] at hr'
+            exact ⟨r', hr', rfl, fun h => h⟩
+      · simp only [Option.some.injEq] at hr
+        subst hr
+        refine uinv_of_inplace h rfl ?_
+        intro id' r' hr'
+        by_cases hid : id' = id
+        · subst hid
+          simp only [upd_same, Option.some.injEq] at hr'
+          subst hr'
+          exact ⟨r, hrec, rfl, fun hne => absurd rfl hne⟩
+        · simp only [upd_other _ _ _ _ hid] at hr'
+          exact ⟨r', hr', rfl, fun h => h⟩
+
+theorem uinv_step {w : World D K} (op : Op D K) (h : UInv w) : UInv (stepWorld w op) := by
+  cases op with
+  | observe id a m k c =>
+    simp only [stepWorld]
+    cases ho : observe w id a m k c with
+    | none => simpa using h
+    | some w' => simpa using uinv_observe h ho
+  | sync cf => exact uinv_sync cf h
+  | credit id =>
+    simp only [stepWorld]
+    cases ho : credit w id with
+    | none => simpa using h
+    | some w' => simpa using uinv_credit h ho
+  | rollback id =>
+    simp only [stepWorld]
+    cases ho : rollbackOp w id with
+    | none => simpa using h
+    | some w' => simpa using uinv_rollback h ho
+
+theorem uinv_runOps (ops : List (Op D K)) : ∀ (w : World D K), UInv w → UInv (runOps w ops) := by
+  induction ops with
+  | nil => intro w h; exact h
+  | cons op ops ih => intro w h; exact ih _ (uinv_step op h)
+
+/-- One live record per outpoint (the indexer's own check, `observeDeposit` :108-117): after any
+sequence of indexer operations from an empty indexer, two records whose status is not
+`rolledBack` that carry the same outpoint key are the same depositId. -/
+theorem indexer_one_live_record_per_outpoint (ops : List (Op D K)) (a b : D) (ra rb : Rec K)
+    (ha : (runOps World.empty ops).recs a = some ra)
+    (hb : (runOps World.empty ops).recs b = some rb) (sa : ra.status ≠ .rolledBack)
+    (sb : rb.status ≠ .rolledBack) (hk : ra.key = rb.key) : a = b :=
+  (uinv_runOps ops World.empty uinv_empty).uniq a b ra rb ha hb sa sb hk
+
 /-- After any sequence of indexer operations from an empty indexer and ledger, at most one
 indexer record is in the `credited` state for any funding outpoint: two credited records with
 the same outpoint key are the same depositId. The enforcement point is the ledger's outpoint
@@ -994,29 +1272,32 @@ section Findings
 
 def mk (id : Nat) (acct : Nat) (k : Nat) : Op Nat Nat := .observe id acct 100 k true
 
-/-- A world with deposit 1 and deposit 2 observed for the same outpoint 7. -/
-def w2 : World Nat Nat := runOps World.empty [mk 1 1 7, mk 2 2 7]
+/-- A world with deposit 1 observed for outpoint 7. -/
+def w1 : World Nat Nat := runOps World.empty [mk 1 1 7]
 
-/-- FINDING (m1_deposit_indexer.js:85-107): the indexer's map is keyed by depositId, so two
-depositIds for the same funding outpoint are both recorded (and both `confirmed`). -/
-theorem indexer_records_same_outpoint_under_two_deposit_ids :
-    (w2.recs 1).map (·.key) = some 7 ∧ (w2.recs 2).map (·.key) = some 7 ∧
-    (w2.recs 1).map (·.status) = some .confirmed ∧ (w2.recs 2).map (·.status) = some .confirmed := by
+/-- The indexer refuses a second depositId for a live outpoint (m1_deposit_indexer.js:108-117);
+the operation is a thrown error and leaves the world unchanged. A different outpoint is fine. -/
+theorem second_deposit_id_for_live_outpoint_refused :
+    (observe w1 2 2 100 7 true).isNone = true ∧ (observe w1 2 2 100 8 true).isSome = true ∧
+    (runOps w1 [mk 2 2 7]).recs 2 = none := by
   decide
 
-/-- The second credit is refused by the ledger (m1_receipt_ledger.js:56-59); the record stays
-`confirmed`, and `applyConfirmedDepositsToLedger` (indexer :191-203) propagates the throw. -/
+/-- Defence in depth: the ledger itself still refuses a second credit for one outpoint
+(m1_receipt_ledger.js:56-59). -/
 theorem second_credit_for_same_outpoint_refused :
-    (credit w2 1).isSome = true ∧
-    ((credit w2 1).bind (fun w => credit w 2)).isNone = true := by
+    (((Ledger.empty : Ledger Nat Nat).apply 1 7).bind (fun l => l.apply 2 7)).isNone = true := by
   decide
 
-/-- A credited deposit rolled back through the indexer frees its outpoint; the same outpoint is
-then creditable under a new depositId, and the old depositId stays rolled back (:95-97). -/
+/-- A credited deposit rolled back through the indexer frees its outpoint in the ledger and in the
+indexer's scan (a rolled-back record does not count); the same outpoint is then observable and
+creditable under a new depositId, and the old depositId stays rolled back (:95-97). -/
 theorem rollback_then_new_deposit_id_credits_again :
     let w := runOps World.empty [mk 1 1 7, .credit 1, .rollback 1, mk 2 1 7, .credit 2]
     (w.recs 1).map (·.status) = some .rolledBack ∧ (w.recs 2).map (·.status) = some .credited := by
   decide
+
+theorem observe_before_rollback_still_refused :
+    (observe (runOps World.empty [mk 1 1 7, .credit 1]) 2 1 100 7 true).isNone = true := by decide
 
 theorem rolled_back_deposit_id_cannot_be_reobserved :
     (observe (runOps World.empty [mk 1 1 7, .credit 1, .rollback 1]) 1 1 100 7 true).isNone =
