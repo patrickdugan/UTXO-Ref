@@ -1,0 +1,23 @@
+{
+  "scenario": "gate5-payment-wrong-program",
+  "recorded_at": "2026-11-09T11:20:16.880Z",
+  "custodian_a_host": "wsl:Ubuntu-24.04",
+  "network": "regtest",
+  "vault": "kan-vault-1",
+  "signer_a": "custodian-a",
+  "signer_a_fingerprint": "021e6640",
+  "policy_digest": "870809e8496f39015465e49866e56cc40a6e0b78f1002e920cb00c9a5e7bb468",
+  "local_core_version": 310100,
+  "pass": true,
+  "result": "valid final proof of guest A under the M16 program pin: proof_wrong_program",
+  "wrong_program": {
+    "status": "refused",
+    "reason": "proof_wrong_program",
+    "detail": "5df3760fed1620671151183a73c9407d528b2239a5cd243b14cf5c7b4d4af46b",
+    "journal_seq": 21,
+    "request_digest": "2f2dadffeaa7d8b571df99dbfc3cf824e4748ca91fe9bbc9312fc28cdccfae5a",
+    "signed_psbt_digest": null,
+    "unsigned_txid": null,
+    "replayed": false
+  }
+}

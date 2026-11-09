@@ -1,0 +1,14 @@
+{
+  "scenario": "gate5-payment-accepted",
+  "recorded_at": "2026-11-09T11:20:16.885Z",
+  "custodian_a_host": "wsl:Ubuntu-24.04",
+  "network": "regtest",
+  "vault": "kan-vault-1",
+  "signer_a": "custodian-a",
+  "signer_a_fingerprint": "021e6640",
+  "policy_digest": "870809e8496f39015465e49866e56cc40a6e0b78f1002e920cb00c9a5e7bb468",
+  "local_core_version": 310100,
+  "pass": null,
+  "status": "not_run",
+  "result": "not run: acceptance needs an M16 final proof (fixtures/m16-payment.json absent)"
+}

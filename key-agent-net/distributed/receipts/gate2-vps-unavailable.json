@@ -1,16 +1,17 @@
 {
   "scenario": "gate2-vps-unavailable",
-  "recorded_at": "2026-11-01T07:30:27.026Z",
+  "recorded_at": "2026-11-09T11:19:46.263Z",
+  "custodian_a_host": "wsl:Ubuntu-24.04",
   "network": "regtest",
   "vault": "kan-vault-1",
   "signer_a": "custodian-a",
-  "signer_a_fingerprint": "24ff6473",
-  "policy_digest": "071e5e8209d4790ab358657cf7cee6cb596a54105da8969115acfb5d92e5e2b9",
+  "signer_a_fingerprint": "021e6640",
+  "policy_digest": "870809e8496f39015465e49866e56cc40a6e0b78f1002e920cb00c9a5e7bb468",
   "local_core_version": 310100,
   "pass": true,
-  "result": "while stopped: ECONNRESET; after restart: signed",
+  "result": "while stopped: ECONNREFUSED; after restart: signed",
   "while_unavailable": {
-    "error": "ECONNRESET",
+    "error": "ECONNREFUSED",
     "signed": false
   },
   "after_restart": {
@@ -18,10 +19,10 @@
     "reason": null,
     "detail": null,
     "journal_seq": 2,
-    "request_digest": "b7826ef8a60cc1d7483afafe91e5587026bce727844aea1f9a4187e5a544de0d",
-    "signed_psbt_digest": "e5763738fb31d78e0b4e5a55a6676dda52601fd5464d53ac1fa0e03cb0929abe",
-    "unsigned_txid": "289bae45b622ce97fd8d1cd5c6c5d6879cd03ea21073d75a766f4f15e41aed50",
+    "request_digest": "ed44f9cabfd33336d0cfa81288644cf8fb5dc6cd627dfa83b61c76717be0ffb1",
+    "signed_psbt_digest": "ceb2f4dda8fb05dd419508e73df077c9289154f6b096844ef4ad014ca68ce35a",
+    "unsigned_txid": "81386910a4daa37789cb8e94dfbef456d63c202ac7260a881556f740e42eaad3",
     "replayed": false
   },
-  "unsigned_psbt_digest": "c79c2919c340b878f78ce421633980d8c12b319a1e5e0123a8fd51a77f744071"
+  "unsigned_psbt_digest": "855768bc93b8dd7ba4134eb21d34ec65fce76358abaf32bb02fe0878128b0b8b"
 }

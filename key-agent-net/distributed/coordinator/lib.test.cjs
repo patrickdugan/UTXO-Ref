@@ -39,12 +39,17 @@ test('committed receipts pass, carry no key material and cover every fault scena
     assert.deepEqual(L.findSecrets(text), [], f);
     assert.ok(!/"(signed_)?psbt"\s*:\s*"cHNidP/.test(text), `${f} carries a full PSBT`);
     const receipt = JSON.parse(text);
-    if (f !== 'summary.json') assert.equal(receipt.pass, true, f);
+    if (f === 'summary.json') continue;
+    // A scenario whose inputs do not exist yet is recorded as not run, never as passed.
+    if (receipt.status === 'not_run') assert.ok(receipt.pass === null && /^not run: /.test(receipt.result), f);
+    else assert.equal(receipt.pass, true, f);
   }
   const names = files.map((f) => f.replace(/\.json$/, ''));
   for (const required of ['gate1-distributed-signing', 'gate2-vps-unavailable', 'gate2-process-restart', 'gate2-duplicate-request',
     'gate2-modified-output-address', 'gate2-modified-amount-or-fee', 'gate2-stale-request', 'gate2-conflicting-psbts',
-    'gate2-coordinator-credentials', 'gate2-collusion-a-operator-b', 'gate3-conflicting-quorum-race', 'gate3-custodian-a-disappears']) {
+    'gate2-coordinator-credentials', 'gate2-collusion-a-operator-b', 'gate3-conflicting-quorum-race', 'gate3-custodian-a-disappears',
+    'gate5-payment-proof-required', 'gate5-payment-tampered-proof', 'gate5-payment-wrong-program', 'gate5-payment-accepted',
+    'gate5-payment-replay', 'gate5-payment-wrong-script', 'gate5-payment-too-few-confirmations', 'gate5-payment-wrong-genesis']) {
     assert.ok(names.includes(required), `missing receipt ${required}`);
   }
 });

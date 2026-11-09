@@ -6,14 +6,20 @@ digests, never key material. Every decision is appended to a fsync'ed journal be
 returned, and the journal is replayed on start, so replay and conflict protection survive
 restarts.
 
+A payment-gated policy runs the payment gate (`payment_gate_bin` in the config, the Rust
+`kan-payment-gate`) on the request's proof before the PSBT checks.
+
     python3 kan_signer.py --config /etc/kan-signer/signer.json
 """
 import argparse
+import base64
+import binascii
 import json
 import os
 import ssl
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 from decimal import Decimal
@@ -22,7 +28,9 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import kan_policy  # noqa: E402
 
-MAX_BODY = 256 * 1024
+# A payment proof is about 1.1 MB, 1.5 MB as base64.
+MAX_BODY = 4 * 1024 * 1024
+GATE_TIMEOUT_S = 60
 
 
 class Core:
@@ -68,7 +76,7 @@ def load_policy(path, core):
 class Journal:
     def __init__(self, path):
         self.path = path
-        self.state = {"requests": {}, "outpoints": {}}
+        self.state = {"requests": {}, "outpoints": {}, "payments": {}}
         self.seq = 0
         if os.path.exists(path):
             with open(path, encoding="utf-8") as f:
@@ -83,6 +91,9 @@ class Journal:
         if entry["result"].get("status") == "signed":
             for outpoint in entry["result"]["outpoints"]:
                 self.state["outpoints"].setdefault(outpoint, entry["result"]["unsigned_txid"])
+            payment = entry["result"].get("payment")
+            if payment:
+                self.state["payments"].setdefault(payment["outpoint"], entry["request_id"])
 
     def append(self, entry):
         entry["seq"] = self.seq + 1
@@ -104,6 +115,38 @@ class Signer:
         self.policy = load_policy(config["policy"], self.core)
         self.journal = Journal(config["journal"])
         self.lock = threading.Lock()
+        self.gate_bin = config.get("payment_gate_bin")
+
+    def gate(self, payment_proof):
+        """Run the payment gate on a request's proof; its JSON verdict, or a refusal."""
+        if "payment_gate" not in self.policy or not self.gate_bin:
+            return {"status": "refused", "reason": "payment_gate_unavailable"}
+        try:
+            proof = base64.b64decode(payment_proof["proof_b64"], validate=True)
+            statement = bytes.fromhex(payment_proof["statement_hex"])
+        except (binascii.Error, ValueError):
+            return {"status": "refused", "reason": "malformed", "detail": "payment_proof encoding"}
+        with tempfile.TemporaryDirectory(prefix="kan-gate-") as tmp:
+            paths = {name: os.path.join(tmp, name) for name in ("proof.bin", "statement.bin", "gate.json")}
+            for name, data in (("proof.bin", proof), ("statement.bin", statement),
+                               ("gate.json", json.dumps(self.policy["payment_gate"]).encode())):
+                with open(paths[name], "wb") as f:
+                    f.write(data)
+            try:
+                out = subprocess.run([self.gate_bin, "check", "--proof", paths["proof.bin"], "--statement", paths["statement.bin"],
+                                      "--policy", paths["gate.json"]], capture_output=True, text=True, timeout=GATE_TIMEOUT_S)
+            except subprocess.TimeoutExpired:
+                return {"status": "refused", "reason": "payment_gate_error", "detail": "timeout"}
+        if out.returncode not in (0, 1):
+            return {"status": "refused", "reason": "payment_gate_error", "detail": out.stderr.strip()[:300]}
+        try:
+            verdict = json.loads(out.stdout.strip().splitlines()[-1])
+        except (ValueError, IndexError):
+            return {"status": "refused", "reason": "payment_gate_error", "detail": "unparseable verdict"}
+        # Exit 0 and "accepted" must agree; anything else is a refusal.
+        if (out.returncode == 0) != (verdict.get("status") == "accepted"):
+            return {"status": "refused", "reason": "payment_gate_error", "detail": "exit code and verdict disagree"}
+        return verdict
 
     def identity(self):
         for d in self.core.call("listdescriptors", wallet=True)["descriptors"]:
@@ -127,7 +170,7 @@ class Signer:
                 kan_policy.check_shape(request)
                 decoded = self.core.call("decodepsbt", request["psbt"])
                 analysis = self.core.call("analyzepsbt", request["psbt"])
-                verdict = kan_policy.evaluate(request, decoded, analysis, self.policy, self.journal.state, now)
+                verdict = kan_policy.evaluate(request, decoded, analysis, self.policy, self.journal.state, now, gate=self.gate)
             except kan_policy.Refusal as refusal:
                 result = dict(base, status="refused", reason=refusal.code, detail=refusal.detail)
                 digest = kan_policy.digest(request) if isinstance(request, dict) else None
@@ -157,6 +200,8 @@ class Signer:
             result = dict(base, status="signed", unsigned_txid=verdict["unsigned_txid"], outpoints=verdict["outpoints"],
                           fee_sats=verdict["fee_sats"], signed_psbt=signed, signed_psbt_digest=kan_policy.digest(signed),
                           request_digest=verdict["request_digest"])
+            if verdict["payment"]:
+                result["payment"] = verdict["payment"]
             seq = self.journal.append({"time": now, "peer": peer, "request_id": request_id,
                                        "request_digest": verdict["request_digest"], "result": result})
             return dict(result, journal_seq=seq)

@@ -1,0 +1,29 @@
+{
+  "note": "Pins for the KeyAgentNet payment gate. Sources: garbled-snark-verifier nova-bitvm3 at d4aefcd (m13/pins.json, m16 guest PINS, m16 ELF). README.md says how each was derived.",
+  "final_proof": {
+    "wrap_vk_sha256": "d42c63e3c873b35576b4c95fa8c41770a8c6b8a9f16ba74732c5b52a43b0b0d7",
+    "recursion_vk_root": "7487c2175bd3256619ca0118094b8150d6df0246a1b41979a081642e5253f257"
+  },
+  "programs": {
+    "m16_chain_and_payment": {
+      "elf_sha256": "bb7d51b0352db50512ce4c6485d1a0b255a97dc05c3ebaf10ef7201604584790",
+      "program_vk_digest": "dfc68a5d579b86244a60ba0baee7852348cf0d2a3bb13910ebb95a3e625fcb60",
+      "vkey_bytes32": "0x00bb158dbe921a6d5c5dd30252385e7ae541b9e9040e6c4edf2d5cf5e0cb5f62"
+    },
+    "guest_a_chain_only": {
+      "elf_sha256": "2db52978545be814d9a57de44c150ff36258c507377d28fe98aabbe8e72babca",
+      "program_vk_digest": "5df3760fed1620671151183a73c9407d528b2239a5cd243b14cf5c7b4d4af46b",
+      "committed_values_sha256": "d3b478b0ed0055bbd43a59775729c990a33d1df07bd0a66ee728a3573c832fa0"
+    }
+  },
+  "networks": {
+    "mainnet": {
+      "nova_vk_sha256": "6aa50d09397c51d0b89d78b3a918d3fe0962251225c8b6ca91e83199a4e6da1d",
+      "genesis_z0_sha256": "b6eeaf96639fecb456f742df89c6fb02f54bf94f2484d42c92da21be978bf045"
+    },
+    "testnet4": {
+      "nova_vk_sha256": "6894f4903a9ff9713111bb1076b61663ac3592ad3d51b697d58125403fc5c12a",
+      "genesis_z0_sha256": "9c82dffe8b6005378775c8f2028b7644039defadb0fcc1d77820b7aaced6de9c"
+    }
+  }
+}

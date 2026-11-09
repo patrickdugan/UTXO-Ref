@@ -48,6 +48,25 @@ jobs:
           bash -n key-agent-net/distributed/deploy/vps-signer.sh
           python3 -m py_compile key-agent-net/distributed/signer/kan_signer.py
 
+  payment-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      CARGO_BUILD_JOBS: "4"
+      RUSTFLAGS: "-C debuginfo=0"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Toolchain and fixture digests
+        run: |
+          rustup toolchain install 1.90.0 --profile minimal
+          sha256sum key-agent-net/distributed/payment-gate/fixtures/*
+      - name: Statement and policy on the real block-170 M16 statement (no SP1 dependencies)
+        run: cargo +1.90.0 test --locked --no-default-features --manifest-path key-agent-net/distributed/payment-gate/Cargo.toml
+      - name: Final-proof layer on guest A's real final proof, and the gate binary
+        run: |
+          cargo +1.90.0 test --release --locked --manifest-path key-agent-net/distributed/payment-gate/Cargo.toml -- --test-threads=2
+          cargo +1.90.0 build --release --locked --manifest-path key-agent-net/distributed/payment-gate/Cargo.toml
+
   core-regtest:
     runs-on: ubuntu-latest
     timeout-minutes: 15

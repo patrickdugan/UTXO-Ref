@@ -133,5 +133,67 @@ class PolicyTests(unittest.TestCase):
         self.refused("bad_amount", dec=decoded(outputs=outs))
 
 
+GATED = dict(POLICY, payment_gate={"network": "mainnet"})
+PROOF = {"proof_b64": "AAAA", "statement_hex": "00"}
+PAYMENT = {"outpoint": "ab" * 32 + ":0", "value_sats": 1_000_000_000}
+
+
+def accepting(proof):
+    return {"status": "accepted", "payment": PAYMENT}
+
+
+class PaymentGateTests(unittest.TestCase):
+    """The signer's side of the payment gate; the gate itself is tested in payment-gate/."""
+
+    def evaluate(self, req, state=None, gate=accepting, policy=GATED):
+        return P.evaluate(req, decoded(), ANALYSIS, policy, state or empty_state(), NOW, gate=gate)
+
+    def refused(self, code, req, **kw):
+        with self.assertRaises(P.Refusal) as caught:
+            self.evaluate(req, **kw)
+        self.assertEqual(caught.exception.code, code)
+
+    def test_accepted_payment_is_carried_into_the_approval(self):
+        verdict = self.evaluate(request(payment_proof=PROOF))
+        self.assertEqual(verdict["payment"], PAYMENT)
+
+    def test_gated_policy_requires_a_proof(self):
+        self.refused("payment_proof_required", request())
+
+    def test_gate_refusal_reason_is_the_signer_refusal(self):
+        def refusing(proof):
+            return {"status": "refused", "reason": "too_few_confirmations", "detail": "5 < 6"}
+        self.refused("too_few_confirmations", request(payment_proof=PROOF), gate=refusing)
+        self.refused("payment_gate_refused", request(payment_proof=PROOF), gate=lambda p: {"status": "odd"})
+        self.refused("payment_gate_unavailable", request(payment_proof=PROOF), gate=None)
+
+    def test_one_payment_releases_one_request(self):
+        state = empty_state()
+        state["payments"] = {PAYMENT["outpoint"]: "r-earlier"}
+        self.refused("payment_already_used", request(payment_proof=PROOF), state=state)
+        state["payments"] = {PAYMENT["outpoint"]: "r1"}
+        self.evaluate(request(payment_proof=PROOF), state=state)
+
+    def test_replay_does_not_run_the_gate(self):
+        req = request(payment_proof=PROOF)
+        state = empty_state()
+        state["requests"]["r1"] = {"digest": P.digest(req), "result": {"status": "signed"}}
+        def must_not_run(proof):
+            raise AssertionError("gate ran on a replay")
+        self.assertTrue(self.evaluate(req, state=state, gate=must_not_run)["replay"])
+
+    def test_proof_shape(self):
+        self.refused("malformed", request(payment_proof={"proof_b64": "AAAA"}))
+        self.refused("malformed", request(payment_proof=dict(PROOF, extra="x")))
+        self.refused("malformed", request(payment_proof=dict(PROOF, statement_hex=7)))
+        self.refused("malformed", request(payment_proof=dict(PROOF, statement_hex="0" * (P.MAX_STATEMENT_HEX + 1))))
+        # A proof sent to an ungated policy is not silently ignored.
+        self.refused("malformed", request(payment_proof=PROOF), policy=POLICY)
+
+    def test_ungated_policy_is_unchanged(self):
+        verdict = self.evaluate(request(), policy=POLICY, gate=None)
+        self.assertIsNone(verdict["payment"])
+
+
 if __name__ == "__main__":
     unittest.main()

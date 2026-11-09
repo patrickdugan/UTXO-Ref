@@ -1,20 +1,21 @@
 {
   "scenario": "gate2-modified-amount-or-fee",
-  "recorded_at": "2026-11-01T07:30:45.635Z",
+  "recorded_at": "2026-11-09T11:19:57.715Z",
+  "custodian_a_host": "wsl:Ubuntu-24.04",
   "network": "regtest",
   "vault": "kan-vault-1",
   "signer_a": "custodian-a",
-  "signer_a_fingerprint": "24ff6473",
-  "policy_digest": "071e5e8209d4790ab358657cf7cee6cb596a54105da8969115acfb5d92e5e2b9",
+  "signer_a_fingerprint": "021e6640",
+  "policy_digest": "870809e8496f39015465e49866e56cc40a6e0b78f1002e920cb00c9a5e7bb468",
   "local_core_version": 310100,
   "pass": true,
   "result": "amount outputs_differ_from_intent; fee fee_above_ceiling; ceiling fee_ceiling_above_policy; rate fee_rate_above_policy",
   "amount_changed": {
     "status": "refused",
     "reason": "outputs_differ_from_intent",
-    "detail": "bcrt1qcjfl855lxng6e0c3udpwc3x42t5wpcvh7k06rrtj75uw7k2j5uwsmh4wec 49999622",
+    "detail": "bcrt1qn6xjw37g8mq98appv2z9gjkezxu9pgxwxhzpxk6k45lhzdgx2w9sq83ar8 49999622",
     "journal_seq": 10,
-    "request_digest": "2552f622af2f2f707da240c1d58d901bcfa06d5580a3916c5ae59d56320e5882",
+    "request_digest": "f3516fb89f22cd2af5022d8902c7fea32d80c4bdffc2eb37e2692a4a4d09e40d",
     "signed_psbt_digest": null,
     "unsigned_txid": null,
     "replayed": false
@@ -24,7 +25,7 @@
     "reason": "fee_above_ceiling",
     "detail": "378",
     "journal_seq": 11,
-    "request_digest": "ff833f5cd5db8e4471295d0ef8b700fa9fe5855f03758e28975f2b17b481ff55",
+    "request_digest": "10403bd13ff29861a11c9eb149fb92d2c4ff092cf3a5f0fcaa8443ccd50f83c5",
     "signed_psbt_digest": null,
     "unsigned_txid": null,
     "replayed": false
@@ -34,7 +35,7 @@
     "reason": "fee_ceiling_above_policy",
     "detail": null,
     "journal_seq": 12,
-    "request_digest": "5d40711a251cd234fa9f792a8f4bf9e8bfb6494da962f6d57aafe312afff5d67",
+    "request_digest": "7cef2bfacc99f79bfd1774ea020e08e34d4b8dc33acdf74dd254cd4aabed89fd",
     "signed_psbt_digest": null,
     "unsigned_txid": null,
     "replayed": false
@@ -44,7 +45,7 @@
     "reason": "fee_rate_above_policy",
     "detail": "11340/189",
     "journal_seq": 13,
-    "request_digest": "498ccd3babc8d6d8bfeb1e3c7c4ab21006fea1933f49b744d7b51452d2fdf3a9",
+    "request_digest": "d297cdd9c32b0b0e5be83e1d75243d8a50970c15ab69b2a337b58c9f2041c51d",
     "signed_psbt_digest": null,
     "unsigned_txid": null,
     "replayed": false

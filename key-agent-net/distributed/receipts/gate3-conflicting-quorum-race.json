@@ -1,25 +1,26 @@
 {
   "scenario": "gate3-conflicting-quorum-race",
-  "recorded_at": "2026-11-01T07:31:00.264Z",
+  "recorded_at": "2026-11-09T11:20:07.665Z",
+  "custodian_a_host": "wsl:Ubuntu-24.04",
   "network": "regtest",
   "vault": "kan-vault-1",
   "signer_a": "custodian-a",
-  "signer_a_fingerprint": "24ff6473",
-  "policy_digest": "071e5e8209d4790ab358657cf7cee6cb596a54105da8969115acfb5d92e5e2b9",
+  "signer_a_fingerprint": "021e6640",
+  "policy_digest": "870809e8496f39015465e49866e56cc40a6e0b78f1002e920cb00c9a5e7bb468",
   "local_core_version": 310100,
   "pass": true,
   "result": "recovery broadcast first; A+B raid at 10x fee rate replaced it; confirmed: A+B raid",
   "recovery": {
     "complete": true,
     "accepted": true,
-    "txid": "be73aa9cd50c8b3b06d422391f6cf251d59f76d0a367c6a7ac1bed54a23fcee0",
-    "wtxid": "64134d6779734a469cc88b9a69001638f82d1520bec64366d44dc9568473e3e6",
+    "txid": "e8646b70da531d3d54cacad42bc4c4c94ee2135f06af37fb9ebebef8e8125c69",
+    "wtxid": "650a27a167d0b01cdfe5b82184c742d99282bfe3314c276c44a7657d7b2429df",
     "vsize": 201,
     "fees": {
       "base": 0.00000402,
       "effective-feerate": 0.00002,
       "effective-includes": [
-        "64134d6779734a469cc88b9a69001638f82d1520bec64366d44dc9568473e3e6"
+        "650a27a167d0b01cdfe5b82184c742d99282bfe3314c276c44a7657d7b2429df"
       ]
     },
     "confirmation": null,
@@ -31,14 +32,14 @@
   "raid": {
     "complete": true,
     "accepted": true,
-    "txid": "0787c0577baf868fc1454b157a8c6f6e31d41ef00f741d7c21d5bac8ce4516c9",
-    "wtxid": "459c8f0d89a86d32f0032078556cd3176fcd5106a4c6a4137a5bb244edec583f",
+    "txid": "ac83ce3c941213f1edc309ff529f827f8f0a529847a3a0b0f0bc6e273ad7c97d",
+    "wtxid": "79a7a21ae0c367f4add08a85de0e8b25218543dd411783c77c12680ec8300a6f",
     "vsize": 189,
     "fees": {
       "base": 0.0000378,
       "effective-feerate": 0.0002,
       "effective-includes": [
-        "459c8f0d89a86d32f0032078556cd3176fcd5106a4c6a4137a5bb244edec583f"
+        "79a7a21ae0c367f4add08a85de0e8b25218543dd411783c77c12680ec8300a6f"
       ]
     },
     "confirmation": null,
@@ -51,7 +52,7 @@
     "recovery_present": false,
     "raid_present": true
   },
-  "confirmed_in_block": "1694ca1c89c871b7c71bf1a387b5384969c5e112ab5c07599e5ebc39a32b2f89",
+  "confirmed_in_block": "0ec6b70af79d90e870d621efeda8016634b2f3e1be438d82f6bf2c8b0a4c6e53",
   "winner": "A+B raid",
   "classification": "quorum race: any authorized quorum can replace a pending recovery with a higher-fee conflicting spend (full RBF)"
 }

@@ -1,0 +1,24 @@
+{
+  "scenario": "gate5-payment-tampered-proof",
+  "recorded_at": "2026-11-09T11:20:15.138Z",
+  "custodian_a_host": "wsl:Ubuntu-24.04",
+  "network": "regtest",
+  "vault": "kan-vault-1",
+  "signer_a": "custodian-a",
+  "signer_a_fingerprint": "021e6640",
+  "policy_digest": "870809e8496f39015465e49866e56cc40a6e0b78f1002e920cb00c9a5e7bb468",
+  "local_core_version": 310100,
+  "pass": true,
+  "result": "one flipped bit in the final proof: proof_rejected",
+  "proof": "guest A final proof (m13 fixture), one bit flipped",
+  "tampered": {
+    "status": "refused",
+    "reason": "proof_rejected",
+    "detail": "BLAKE3 wrap proof (transcript v2) rejected: InvalidopeningArgument(DensePcsVerificationFailed(PcsError(tensor opening error: root mismatch)))",
+    "journal_seq": 20,
+    "request_digest": "051da26340eb01512382241ae07183ee60db984a2e9bf2d51d9aabef3fbe1ed6",
+    "signed_psbt_digest": null,
+    "unsigned_txid": null,
+    "replayed": false
+  }
+}

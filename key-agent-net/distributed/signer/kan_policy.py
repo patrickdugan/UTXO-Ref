@@ -3,6 +3,10 @@
 Pure functions over Bitcoin Core's `decodepsbt`/`analyzepsbt` output, the pinned policy,
 the signer's journal state and the current time. Nothing here signs or touches keys. Every
 refusal returns a reason code; the service signs only on an explicit approval.
+
+A policy with a `payment_gate` section signs only requests that carry a `payment_proof`
+({proof_b64, statement_hex}) the payment gate accepts (`payment-gate/`, run by the service),
+and each proven payment outpoint releases at most one request.
 """
 import hashlib
 import json
@@ -21,6 +25,9 @@ REQUIRED = {
     "expiry": int,
     "psbt": str,
 }
+PAYMENT_PROOF_FIELDS = {"proof_b64", "statement_hex"}
+MAX_PROOF_B64 = 3 * 1024 * 1024
+MAX_STATEMENT_HEX = 4096
 
 
 class Refusal(Exception):
@@ -49,12 +56,20 @@ def sats(btc):
 def check_shape(request):
     if not isinstance(request, dict):
         raise Refusal("malformed", "request is not an object")
-    unknown = set(request) - set(REQUIRED)
+    unknown = set(request) - set(REQUIRED) - {"payment_proof"}
     if unknown:
         raise Refusal("malformed", "unknown fields " + ",".join(sorted(unknown)))
     for field, kind in REQUIRED.items():
         if not isinstance(request.get(field), kind) or isinstance(request.get(field), bool):
             raise Refusal("malformed", field)
+    if "payment_proof" in request:
+        proof = request["payment_proof"]
+        if not isinstance(proof, dict) or set(proof) != PAYMENT_PROOF_FIELDS:
+            raise Refusal("malformed", "payment_proof")
+        if not all(isinstance(proof[f], str) for f in PAYMENT_PROOF_FIELDS):
+            raise Refusal("malformed", "payment_proof")
+        if len(proof["proof_b64"]) > MAX_PROOF_B64 or len(proof["statement_hex"]) > MAX_STATEMENT_HEX:
+            raise Refusal("malformed", "payment_proof size")
     if request["version"] != PROTOCOL_VERSION:
         raise Refusal("unsupported_version", str(request["version"]))
     for out in request["intended_outputs"]:
@@ -64,9 +79,32 @@ def check_shape(request):
             raise Refusal("malformed", "intended_outputs")
 
 
-def evaluate(request, decoded, analysis, policy, state, now):
+def check_payment(request, policy, state, gate):
+    """For a gated policy: the gate's verdict on the request's proof, and the payment not
+    already spent on another request. `gate` is called with the payment_proof object and returns
+    the gate's JSON ({"status": "accepted", "payment": {...}} or a refusal)."""
+    if "payment_gate" not in policy:
+        if "payment_proof" in request:
+            raise Refusal("malformed", "payment_proof without a payment-gated policy")
+        return None
+    if "payment_proof" not in request:
+        raise Refusal("payment_proof_required")
+    if gate is None:
+        raise Refusal("payment_gate_unavailable")
+    verdict = gate(request["payment_proof"])
+    if verdict.get("status") != "accepted":
+        raise Refusal(verdict.get("reason") or "payment_gate_refused", verdict.get("detail") or "")
+    payment = verdict["payment"]
+    used = state.get("payments", {}).get(payment["outpoint"])
+    if used is not None and used != request["request_id"]:
+        raise Refusal("payment_already_used", f"{payment['outpoint']} released request {used}")
+    return payment
+
+
+def evaluate(request, decoded, analysis, policy, state, now, gate=None):
     """Return an approval dict, or raise Refusal. `state` is the journal state:
-    {"requests": {request_id: {"digest", "result"}}, "outpoints": {"txid:vout": unsigned_txid}}."""
+    {"requests": {request_id: {"digest", "result"}}, "outpoints": {"txid:vout": unsigned_txid},
+    "payments": {"txid:vout": request_id}}. `gate` checks a payment proof (see check_payment)."""
     check_shape(request)
     request_digest = digest(request)
     prior = state["requests"].get(request["request_id"])
@@ -88,6 +126,7 @@ def evaluate(request, decoded, analysis, policy, state, now):
         raise Refusal("expiry_too_far")
     if request["fee_ceiling_sats"] > policy["max_fee_sats"]:
         raise Refusal("fee_ceiling_above_policy")
+    payment = check_payment(request, policy, state, gate)
 
     tx = decoded["tx"]
     if tx.get("locktime", 0) > policy["max_locktime"]:
@@ -150,4 +189,5 @@ def evaluate(request, decoded, analysis, policy, state, now):
         "outpoints": outpoints,
         "fee_sats": fee,
         "estimated_vsize": vsize,
+        "payment": payment,
     }

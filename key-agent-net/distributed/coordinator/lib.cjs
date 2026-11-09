@@ -51,27 +51,64 @@ async function startCore({ bitcoind, cli }) {
 }
 
 // --- VPS admin channel (SSH as the box administrator) -----------------------------------
+// `vps` is { host, key } for a Linux box over SSH, or { wsl: DISTRO } for Custodian A in a local
+// WSL distribution (its own filesystem and service manager), administered as root by wsl.exe.
+// `vps.env` is passed to the deploy script in both cases.
+const wslPath = (p) => path.resolve(p).replace(/^([A-Za-z]):/, (_, d) => `/mnt/${d.toLowerCase()}`).split(path.sep).join('/');
+function remote(vps, argv, input) {
+  const opts = { input, encoding: 'utf8', timeout: 180000, maxBuffer: 64 << 20, windowsHide: true };
+  return vps.wsl
+    ? spawnSync('wsl.exe', ['-d', vps.wsl, '-u', 'root', '--', ...argv], opts)
+    : spawnSync('ssh', ['-i', vps.key, '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=20', vps.host, argv.join(' ')], opts);
+}
 function admin(vps, args, input) {
-  const result = spawnSync('ssh', ['-i', vps.key, '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=20', vps.host,
-    `sudo bash /tmp/kan-src/vps-signer.sh ${args}`], { input, encoding: 'utf8', timeout: 180000 });
+  const env = Object.entries(vps.env || {}).map(([k, v]) => `${k}=${v}`);
+  const script = ['env', ...env, 'bash', '/tmp/kan-src/vps-signer.sh'];
+  const result = remote(vps, vps.wsl ? [...script, ...args.split(' ')] : ['sudo', ...script, args], input);
   if (result.status !== 0) throw new Error(`vps ${args.split(' ')[0]}: ${(result.stderr || '').trim().slice(0, 400)}`);
   return result.stdout;
 }
 function upload(vps, files) {
-  const mk = spawnSync('ssh', ['-i', vps.key, '-o', 'BatchMode=yes', vps.host, 'rm -rf /tmp/kan-src && mkdir -p /tmp/kan-src'], { encoding: 'utf8' });
+  if (vps.wsl) {
+    // wsl.exe re-splits its arguments, so nothing quoted goes through it: line endings are
+    // normalized here and plain files are copied.
+    const stage = fs.mkdtempSync(path.join(os.tmpdir(), 'kan-src-'));
+    for (const f of files) fs.writeFileSync(path.join(stage, path.basename(f)), fs.readFileSync(f, 'utf8').replace(/\r\n/g, '\n'));
+    for (const argv of [['rm', '-rf', '/tmp/kan-src'], ['mkdir', '-p', '/tmp/kan-src'],
+      ['cp', ...files.map((f) => wslPath(path.join(stage, path.basename(f)))), '/tmp/kan-src/']]) {
+      const r = remote(vps, argv);
+      if (r.status !== 0) throw new Error(`wsl ${argv[0]}: ${r.stderr}`);
+    }
+    fs.rmSync(stage, { recursive: true, force: true });
+    return;
+  }
+  const mk = remote(vps, ['rm -rf /tmp/kan-src && mkdir -p /tmp/kan-src']);
   if (mk.status !== 0) throw new Error('vps mkdir: ' + mk.stderr);
   const cp = spawnSync('scp', ['-q', '-i', vps.key, '-o', 'BatchMode=yes', ...files, `${vps.host}:/tmp/kan-src/`], { encoding: 'utf8' });
   if (cp.status !== 0) throw new Error('vps scp: ' + cp.stderr);
-  const fix = spawnSync('ssh', ['-i', vps.key, '-o', 'BatchMode=yes', vps.host, "sed -i 's/\\r$//' /tmp/kan-src/*"], { encoding: 'utf8' });
+  const fix = remote(vps, ["sed -i 's/\\r$//' /tmp/kan-src/*"]);
   if (fix.status !== 0) throw new Error('vps normalize: ' + fix.stderr);
 }
-function putFile(vps, remote, content) {
-  const r = spawnSync('ssh', ['-i', vps.key, '-o', 'BatchMode=yes', vps.host, `cat > ${remote}`], { input: content, encoding: 'utf8' });
+function putFile(vps, file, content) {
+  const r = vps.wsl ? remote(vps, ['tee', file], content) : remote(vps, [`cat > ${file}`], content);
   if (r.status !== 0) throw new Error('vps put: ' + r.stderr);
 }
 
 // --- signer channel: SSH local forward + mutual TLS -------------------------------------
 async function openTunnel(vps) {
+  // WSL2 forwards a port bound to 127.0.0.1 inside the distribution to Windows' localhost, so
+  // the signer channel is mutual TLS straight to 18999.
+  if (vps.wsl) {
+    for (let i = 0; i < 80; i++) {
+      const ok = await new Promise((resolve) => {
+        const s = net.connect(18999, '127.0.0.1', () => { s.destroy(); resolve(true); });
+        s.on('error', () => resolve(false));
+      });
+      if (ok) return { port: 18999, close: () => {} };
+      await wait(250);
+    }
+    throw new Error('WSL signer port 18999 not reachable from Windows');
+  }
   const port = await freePort();
   const child = spawn('ssh', ['-i', vps.key, '-o', 'BatchMode=yes', '-o', 'ExitOnForwardFailure=yes', '-N',
     '-L', `127.0.0.1:${port}:127.0.0.1:18999`, vps.host], { stdio: 'ignore', windowsHide: true });

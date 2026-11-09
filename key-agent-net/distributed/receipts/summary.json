@@ -1,13 +1,13 @@
 {
-  "started": "2026-11-01T07:29:32.794Z",
+  "started": "2026-11-09T11:18:46.841Z",
   "scenarios": {
     "gate1-distributed-signing": {
       "pass": true,
-      "result": "confirmed d642214acd944e98409c9854b6831f6165dee96a273d78bbc2443fabaf748e60"
+      "result": "confirmed 3da64299210d586cee4fdfebb6bf16a103b3421ed008835f2625c9ad7b2648ec"
     },
     "gate2-vps-unavailable": {
       "pass": true,
-      "result": "while stopped: ECONNRESET; after restart: signed"
+      "result": "while stopped: ECONNREFUSED; after restart: signed"
     },
     "gate2-process-restart": {
       "pass": true,
@@ -39,20 +39,54 @@
     },
     "gate2-collusion-a-operator-b": {
       "pass": true,
-      "result": "A operator + B spend to attacker confirmed 31a7809b8d97ae2126667c152a7fc5d8498e26aa05555a62c98449c034575ee1"
+      "result": "A operator + B spend to attacker confirmed b57aad40a0b0652507cd0bdb171ab7796e1ae63f50c54420629f6f139e11c2da"
     },
     "gate3-conflicting-quorum-race": {
       "pass": true,
       "result": "recovery broadcast first; A+B raid at 10x fee rate replaced it; confirmed: A+B raid"
     },
+    "gate5-payment-proof-required": {
+      "pass": true,
+      "result": "request without a proof: payment_proof_required"
+    },
+    "gate5-payment-tampered-proof": {
+      "pass": true,
+      "result": "one flipped bit in the final proof: proof_rejected"
+    },
+    "gate5-payment-wrong-program": {
+      "pass": true,
+      "result": "valid final proof of guest A under the M16 program pin: proof_wrong_program"
+    },
+    "gate5-payment-accepted": {
+      "pass": null,
+      "result": "not run: acceptance needs an M16 final proof (fixtures/m16-payment.json absent)"
+    },
+    "gate5-payment-replay": {
+      "pass": null,
+      "result": "not run: one release per payment needs an M16 final proof (fixtures/m16-payment.json absent)"
+    },
+    "gate5-payment-wrong-script": {
+      "pass": null,
+      "result": "not run: the script check needs an M16 final proof (fixtures/m16-payment.json absent)"
+    },
+    "gate5-payment-too-few-confirmations": {
+      "pass": null,
+      "result": "not run: the confirmations check needs an M16 final proof (fixtures/m16-payment.json absent)"
+    },
+    "gate5-payment-wrong-genesis": {
+      "pass": null,
+      "result": "not run: the genesis check needs an M16 final proof (fixtures/m16-payment.json absent)"
+    },
     "gate3-custodian-a-disappears": {
       "pass": true,
-      "result": "client+B sweep to successor vault 03cf7dd52a0fccc624b4a30718d25fddacef7ede95d29abd733f065075be7593"
+      "result": "client+B sweep to successor vault 0668a66a2d94c2d0491745f1e64ebdb5239df817c4fdfb0e460784771d832dec"
     }
   },
+  "payment_gate_bin": "2344753bc291b611bcffb74e04bcabd0e9b92a3832e7a95132641ef752602f56  /opt/kan-signer/kan-payment-gate",
   "pendingSignedUtxo1": true,
-  "signer_journal_lines": "ActiveState=inactive\nMainPID=0\nNRestarts=0\n18",
-  "journal_digest": "1951f8084ff207247967b7338c13fcdd3ffbe727db9498b0ef11320a8f65c13c",
+  "gate5": "proof-layer scenarios run; payment scenarios await an M16 final proof",
+  "signer_journal_lines": "MainPID=0\nNRestarts=0\nActiveState=inactive\n21",
+  "journal_digest": "d219596e4f48dd5506813e4d75a35fc9145cf97655c5a3f87337e871790890c4",
   "vps_cleanup": "destroyed",
-  "finished": "2026-11-01T07:31:13.312Z"
+  "finished": "2026-11-09T11:20:30.809Z"
 }

@@ -11,6 +11,7 @@ KeyAgentNet v0 ran every signer inside one Core process. v0.1 moves Custodian A 
 | `signer/kan_signer.py` | Custodian A service (Python 3 standard library only): HTTPS with mutual TLS 1.3, bound to `127.0.0.1:18999`. It signs through its own Core wallet, journals every decision, and replays the journal on start. |
 | `signer/kan_policy.py` | The pure request validator the service runs before signing. |
 | `signer/test_kan_policy.py` | Offline policy tests. |
+| `payment-gate/` | Rust `kan-payment-gate`: the Gate 5 check of an M16 final proof and its payment statement (GPL-3.0-only, built separately). |
 | `deploy/vps-signer.sh` | VPS lifecycle as root: `init`, `install-policy`, `start`, `stop`, `kill`, `status`, `journal`, `bypass-sign`, `destroy`. |
 | `coordinator/lib.cjs` | Local regtest Core, the SSH admin and tunnel channels, the mutual-TLS client, request construction, and receipts with a key-material guard. |
 | `coordinator/run.cjs` | Runs Gates 1–3 end to end and writes `receipts/`. |
@@ -127,6 +128,58 @@ The template refuses an operator key that is also a guardian, a recovery key tha
 
 The Groth16 settlement statements and BitVM V2 files are unchanged. This work touches only `key-agent-net/` and the CI workflow.
 
+## Gate 5: payment-gated release
+
+A policy may carry a `payment_gate` section. Custodian A then signs only a request that carries a final proof of the nova-bitvm3 M16 guest: a Nova proof of the Bitcoin header chain from genesis, with an SPV payment under its tip. The proven payment must pay a script the coordinator registered, with at least n confirmations, under a tip with at least the policy's chainwork.
+
+The check is the Rust `payment-gate/` crate (`kan-payment-gate`); [its README](payment-gate/README.md) lists every rule and reason code. The signer runs it as a separate process on the request's `payment_proof` (`proof_b64`, `statement_hex`) before any PSBT check. The proof is verified with `m13-verify` as a library, pinned at garbled-snark-verifier `d4aefcd`.
+
+The signer journals each released payment outpoint, so one proven payment releases one request (`payment_already_used`), across restarts. A replayed request (same id and body) returns its journaled decision without running the gate again. A request whose body exceeds 4 MiB is refused.
+
+`run.cjs --gate-bin PATH` runs Gate 5 after Gate 3's race:
+- it installs the gated policy;
+- it runs every scenario below;
+- it restores the plain policy before the disappearance scenario.
+
+`--wsl DISTRO` runs Custodian A in a local WSL distribution instead of a VPS, through the same deploy script. `--bitcoin-src DIR` names its Bitcoin Core binaries.
+
+| Receipt | Proof used | Expected |
+|---|---|---|
+| `gate5-payment-proof-required` | none | `payment_proof_required` |
+| `gate5-payment-tampered-proof` | final proof with one bit flipped | `proof_rejected` |
+| `gate5-payment-wrong-program` | guest A's real final proof (a chain record, another program) | `proof_wrong_program` |
+| `gate5-payment-accepted` | M16 final proof | signed, and the 2-of-3 spend confirms |
+| `gate5-payment-replay` | the same proof on a second request | `payment_already_used` |
+| `gate5-payment-wrong-script` | M16 final proof, policy registers another script | `script_not_registered` |
+| `gate5-payment-too-few-confirmations` | M16 final proof, policy asks for one more confirmation | `too_few_confirmations` |
+| `gate5-payment-wrong-genesis` | M16 final proof, policy pins the other network's genesis | `wrong_genesis` |
+
+No final proof of the M16 guest exists yet: its mainnet run is in progress in nova-bitvm3. Until `payment-gate/fixtures/m16-payment.json` names one, the last five receipts are written as `not_run` (`pass: null`). The offline receipt test accepts that state but never counts it as a pass.
+
+The same rules are tested offline on real data:
+- the statement and policy on the real block-170 statement the M16 guest committed when executed;
+- the proof layer on guest A's real final proof.
+
+**Run of 2026-11-09, 11:18–11:20 UTC.** The receipts in `receipts/` are from this run, which replaced those of 2026-11-01; the earlier set is in git at `6813d84`.
+
+The zk VPS did not answer on port 22, so Custodian A ran in the local WSL distribution Ubuntu-24.04 (`--wsl`), with Bitcoin Core 31.1 copied under `/opt/kan-signer/bin`. The setup:
+- A's fingerprint `021e6640`, policy digest `870809e8…`;
+- local Core 310100;
+- gate binary `2344753b…`;
+- a 21-entry journal with digest `d219596e…90c4`.
+
+Results:
+- All 12 Gate 1–3 scenarios passed, as on the VPS.
+- Gate 5's three proof-layer scenarios passed:
+  - no proof gave `payment_proof_required` (journal seq 19);
+  - guest A's proof with one bit flipped gave `proof_rejected` (the BLAKE3 PCS opening check, seq 20);
+  - guest A's valid proof under the M16 pin gave `proof_wrong_program`, naming `5df3760f…` (seq 21).
+- The five payment scenarios are `not_run`.
+
+After the run WSL had no `kansigner` account, and nothing was listening on 18998 or 18999.
+
+Offline: 17/17 Python policy tests (7 new) and 17/17 Node tests. The gate crate has 13 statement and policy tests plus 6 proof tests, all passing.
+
 ## Remaining vulnerabilities and open items
 
 1. **No independent administration.** One administrator holds the coordinator machine, the VPS SSH key and sudo on the VPS. The run itself installs the policy and uses `bypass-sign` through that account. Geographic separation does not establish independent custody; the collusion receipt measures exactly this.
@@ -138,4 +191,8 @@ The Groth16 settlement statements and BitVM V2 files are unchanged. This work to
 7. **Trust in the journal.** Replay and conflict protection depend on the journal file. A's administrator can edit it, and nothing externally anchors or attests it.
 8. **Clock.** Expiry uses the VPS wall clock.
 9. **TLS lifecycle.** The signer certificate is self-signed for 30 days and pinned by fingerprint. The coordinator certificate can be revoked only by replacing the CA. WireGuard was not used; the transport is an SSH forward plus mutual TLS.
+11. **Payment gate:**
+    - Acceptance and the policy refusals wait on a final proof of the M16 guest (nova-bitvm3's mainnet run).
+    - The chainwork floor and the registered scripts are set by whoever installs the policy, which is the same single administrator as item 1.
+    - The gate runs with the signer service's privileges.
 10. **Not run:** a reorg during recovery, and a network partition during signing (the tunnel was closed, but no packet-level partition was injected). The CI workflow runs the offline checks only; the cross-machine run needs the VPS and is not in CI.

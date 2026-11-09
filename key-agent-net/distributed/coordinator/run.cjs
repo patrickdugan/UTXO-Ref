@@ -3,9 +3,14 @@
 // watch-only vaults, regtest Core) and Custodian A on a VPS behind SSH + mutual TLS.
 //
 //   node key-agent-net/distributed/coordinator/run.cjs --host ubuntu@IP --key PATH [--keep-vps]
+//   node key-agent-net/distributed/coordinator/run.cjs --wsl DISTRO [--bitcoin-src DIR] [--keep-vps]
+//   ... [--gate-bin PATH]   Gate 5: payment-gated release, with kan-payment-gate at PATH on the
+//                           signer host (built from ../payment-gate)
 //
 // Writes one receipt per scenario to key-agent-net/distributed/receipts/. Regtest only; every
 // key is created for this run and destroyed with it (the VPS account with --keep-vps unset).
+// With --wsl, Custodian A runs in a local WSL distribution instead of a VPS, administered as
+// root through wsl.exe; --bitcoin-src names its Bitcoin Core bin directory.
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -14,13 +19,16 @@ const L = require('./lib.cjs');
 
 const ROOT = path.resolve(__dirname, '..');
 const RECEIPTS = path.join(ROOT, 'receipts');
+const GATE_DIR = path.join(ROOT, 'payment-gate');
 const arg = (name, fallback) => { const i = process.argv.indexOf(name); return i >= 0 ? process.argv[i + 1] : fallback; };
 const BIN = process.env.BITCOIN_BIN_DIR || path.join(process.env.LOCALAPPDATA || '', 'Programs/BitcoinCore/bitcoin-31.1/bin');
 const exe = (n) => path.join(BIN, process.platform === 'win32' ? `${n}.exe` : n);
 
 async function main() {
-  const vps = { host: arg('--host'), key: arg('--key') };
-  if (!vps.host || !vps.key) throw new Error('usage: run.cjs --host ubuntu@IP --key PATH [--keep-vps]');
+  const vps = arg('--wsl') ? { wsl: arg('--wsl') } : { host: arg('--host'), key: arg('--key') };
+  if (!vps.wsl && (!vps.host || !vps.key)) throw new Error('usage: run.cjs --host ubuntu@IP --key PATH | --wsl DISTRO [--keep-vps] [--gate-bin PATH]');
+  if (arg('--bitcoin-src')) vps.env = { KAN_BITCOIN_SRC: arg('--bitcoin-src') };
+  const gateBin = arg('--gate-bin');
   const started = new Date().toISOString();
   const core = await L.startCore({ bitcoind: exe('bitcoind'), cli: exe('bitcoin-cli') });
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'kan-tls-'));
@@ -36,6 +44,7 @@ async function main() {
     L.admin(vps, 'destroy'); // fresh account, Core wallet, TLS key and journal for every run
     const identity = JSON.parse(L.admin(vps, 'init /tmp/kan-src').trim().split('\n').pop());
     const creds = L.makeClientCredentials(tmp);
+    if (gateBin) summary.payment_gate_bin = L.admin(vps, `install-gate ${gateBin}`).trim();
 
     for (const name of ['kan-miner', 'kan-client', 'kan-custodian-b', 'kan-custodian-c', 'kan-payee', 'kan-attacker'])
       rpc('createwallet', [name, false, false, '', false, true]);
@@ -84,7 +93,7 @@ async function main() {
       assert.ok(u, 'vault UTXO visible');
       return { txid: u.txid, vout: u.vout };
     });
-    const common = { network: 'regtest', vault: vault.id, signer_a: 'custodian-a', signer_a_fingerprint: identity.fingerprint,
+    const common = { custodian_a_host: vps.wsl ? `wsl:${vps.wsl}` : 'vps', network: 'regtest', vault: vault.id, signer_a: 'custodian-a', signer_a_fingerprint: identity.fingerprint,
       policy_digest: remoteIdentity.policy_digest, local_core_version: localVersion };
 
     // --- helpers -----------------------------------------------------------------------------
@@ -111,7 +120,7 @@ async function main() {
     const receipt = (name, body) => {
       const r = L.writeReceipt(RECEIPTS, name, { scenario: name, recorded_at: new Date().toISOString(), ...common, ...body });
       summary.scenarios[name] = { pass: r.pass, result: r.result };
-      console.log(`${r.pass ? 'PASS' : 'FAIL'} ${name}: ${r.result}`);
+      console.log(`${r.pass === null ? 'NOT RUN' : r.pass ? 'PASS' : 'FAIL'} ${name}: ${r.result}`);
       return r;
     };
     const decision = (reply) => ({ status: reply.status, reason: reply.reason || null, detail: reply.detail || null,
@@ -131,7 +140,7 @@ async function main() {
         result: sent?.txid ? `confirmed ${sent.txid}` : `not signed: ${reply.reason}`,
         unsigned_psbt_digest: L.sha256(psbt), request_id: req.request_id, signers: ['client (local)', 'custodian-a (vps)'],
         signed_psbt_digests: { client: L.sha256(clientSigned), custodian_a: reply.signed_psbt_digest },
-        signer_decision: decision(reply), core_validation: sent, transport: 'ssh local forward + mutual TLS 1.3, signer bound 127.0.0.1',
+        signer_decision: decision(reply), core_validation: sent, transport: vps.wsl ? 'WSL2 localhost relay + mutual TLS 1.3, signer bound 127.0.0.1 in the distribution' : 'ssh local forward + mutual TLS 1.3, signer bound 127.0.0.1',
       });
     }
 
@@ -144,8 +153,10 @@ async function main() {
       let error = null;
       try { await call('/v1/sign', req); } catch (e) { error = e.code || e.message; }
       L.admin(vps, 'start');
-      await L.wait(2000);
-      const after = await call('/v1/sign', req);
+      // The signer takes about a second to listen again; WSL's localhost relay can take longer.
+      let after = null;
+      for (let i = 0; i < 40 && !after; i++) { await L.wait(500); try { after = await call('/v1/sign', req); } catch { after = null; } }
+      if (!after) throw new Error('signer did not come back after restart');
       receipt('gate2-vps-unavailable', {
         pass: error !== null && after.status === 'signed',
         result: `while stopped: ${error}; after restart: ${after.status}`,
@@ -292,6 +303,15 @@ async function main() {
         classification: 'quorum race: any authorized quorum can replace a pending recovery with a higher-fee conflicting spend (full RBF)',
       });
     }
+    // ===== Gate 5: payment-gated release ===================================================
+    // The policy gains a payment_gate: A signs only a request carrying a final proof of the
+    // nova-bitvm3 M16 guest whose payment pays a registered script with enough confirmations.
+    if (!gateBin) {
+      summary.gate5 = 'not run: no --gate-bin';
+    } else {
+      await gate5({ vps, policy, call, request, psbtFor, finalizeAndSend, localSign, receipt, decision, refusedWith, rpc, w, vault, minerAddr, payee, summary });
+    }
+
     // Custodian A disappears permanently; client + B sweep the remaining vault UTXO to the successor vault.
     {
       tunnel.close();
@@ -320,8 +340,132 @@ async function main() {
     summary.finished = new Date().toISOString();
     L.writeReceipt(RECEIPTS, 'summary', summary);
   }
-  const failed = Object.entries(summary.scenarios).filter(([, s]) => !s.pass);
+  // A scenario recorded as not_run (pass: null) is listed, not failed.
+  const failed = Object.entries(summary.scenarios).filter(([, s]) => s.pass === false);
   if (failed.length) { console.error('FAILED:', failed.map(([n]) => n).join(', ')); process.exitCode = 1; }
+}
+
+// --- Gate 5 -------------------------------------------------------------------------------
+function readGateFixtures() {
+  const fx = (n) => path.join(GATE_DIR, 'fixtures', n);
+  const pins = JSON.parse(fs.readFileSync(path.join(GATE_DIR, 'pins.json'), 'utf8'));
+  // A final proof of the M16 guest, once one exists: fixtures/m16-payment.json names its files
+  // and the policy values that accept it.
+  const m16Path = fx('m16-payment.json');
+  const m16 = fs.existsSync(m16Path) ? JSON.parse(fs.readFileSync(m16Path, 'utf8')) : null;
+  return {
+    pins,
+    block170Statement: fs.readFileSync(fx('m16-block170-statement.bin')),
+    guestAProof: fs.readFileSync(fx('guest-a-wrap-blake3-v2.bin')),
+    m16: m16 && { ...m16, proof: fs.readFileSync(fx(m16.proof)), statement: fs.readFileSync(fx(m16.statement)) },
+  };
+}
+
+function gatePolicy(pins, { network = 'mainnet', scriptSha256, minValue, minConfirmations = 6, minChainwork }) {
+  return {
+    network, min_confirmations: minConfirmations, min_tip_chainwork: minChainwork,
+    scripts: [{ id: 'registered-deposit', script_sha256: scriptSha256, min_value_sats: minValue }],
+    pins: {
+      wrap_vk_sha256: pins.final_proof.wrap_vk_sha256, recursion_vk_root: pins.final_proof.recursion_vk_root,
+      program_vk_digest: pins.programs.m16_chain_and_payment.program_vk_digest,
+      nova_vk_sha256: pins.networks[network].nova_vk_sha256, genesis_z0_sha256: pins.networks[network].genesis_z0_sha256,
+    },
+  };
+}
+
+async function gate5(ctx) {
+  const { vps, policy, call, request, psbtFor, finalizeAndSend, localSign, receipt, decision, refusedWith, rpc, w, vault, minerAddr, payee, summary } = ctx;
+  const fx = readGateFixtures();
+  const pins = fx.pins;
+  const install = (gate) => {
+    L.putFile(vps, '/tmp/kan-src/policy.json', JSON.stringify(gate ? { ...policy, payment_gate: gate } : policy, null, 2));
+    L.admin(vps, 'install-policy /tmp/kan-src/policy.json /tmp/kan-src/client-ca.pem');
+  };
+  const freshUtxo = () => {
+    const addr = w(vault.id, 'getnewaddress');
+    const txid = w('kan-miner', 'sendtoaddress', [addr, '1.0']);
+    rpc('generatetoaddress', [1, minerAddr]);
+    const u = w(vault.id, 'listunspent', [1, 9999999, [addr]]).find((x) => x.txid === txid);
+    return { txid: u.txid, vout: u.vout };
+  };
+  const withProof = (req, proof, statement) => ({ ...req, payment_proof: { proof_b64: proof.toString('base64'), statement_hex: statement.toString('hex') } });
+  const flip = (buf) => { const b = Buffer.from(buf); b[b.length >> 1] ^= 1; return b; };
+  // Without an M16 proof the policy registers the block-170 statement's output. Its chainwork
+  // floor is mainnet's at block 800, that statement's tip (801 blocks of work 0x100010001).
+  const block170 = { scriptSha256: '799c48c4482e6a9726b0ee7f1609fb83c52a0d63b9c1d0b3fd8770f26e1c4677', minValue: 100000000, minChainwork: '32103210321' };
+  const proven = fx.m16
+    ? { network: fx.m16.network, scriptSha256: fx.m16.script_sha256, minValue: fx.m16.min_value_sats, minChainwork: fx.m16.min_tip_chainwork }
+    : block170;
+  install(gatePolicy(pins, proven));
+  const spend = () => request(psbtFor(freshUtxo(), { [payee]: 0.3 }));
+
+  // Proof-layer refusals. Guest A's final proof (m13 fixture) is real and verifies, but it is
+  // another program with a chain record only.
+  {
+    const none = await call('/v1/sign', spend());
+    receipt('gate5-payment-proof-required', {
+      pass: refusedWith(none, 'payment_proof_required'), result: `request without a proof: ${none.reason}`, no_proof: decision(none),
+    });
+  }
+  {
+    const proof = fx.m16 ? fx.m16.proof : fx.guestAProof;
+    const statement = fx.m16 ? fx.m16.statement : fx.block170Statement;
+    const tampered = await call('/v1/sign', withProof(spend(), flip(proof), statement));
+    receipt('gate5-payment-tampered-proof', {
+      pass: refusedWith(tampered, 'proof_rejected'), result: `one flipped bit in the final proof: ${tampered.reason}`,
+      proof: fx.m16 ? 'M16 final proof, one bit flipped' : 'guest A final proof (m13 fixture), one bit flipped', tampered: decision(tampered),
+    });
+  }
+  {
+    const other = await call('/v1/sign', withProof(spend(), fx.guestAProof, fx.block170Statement));
+    receipt('gate5-payment-wrong-program', {
+      pass: refusedWith(other, 'proof_wrong_program'), result: `valid final proof of guest A under the M16 program pin: ${other.reason}`,
+      wrong_program: decision(other),
+    });
+  }
+
+  // Acceptance and the policy refusals need a final proof of M16 itself.
+  if (!fx.m16) {
+    for (const [name, what] of [['gate5-payment-accepted', 'acceptance'], ['gate5-payment-replay', 'one release per payment'],
+      ['gate5-payment-wrong-script', 'the script check'], ['gate5-payment-too-few-confirmations', 'the confirmations check'],
+      ['gate5-payment-wrong-genesis', 'the genesis check']]) {
+      receipt(name, { pass: null, status: 'not_run', result: `not run: ${what} needs an M16 final proof (fixtures/m16-payment.json absent)` });
+    }
+    summary.gate5 = 'proof-layer scenarios run; payment scenarios await an M16 final proof';
+    install(undefined);
+    return;
+  }
+  const { proof, statement } = fx.m16;
+  {
+    const utxo = freshUtxo();
+    const psbt = psbtFor(utxo, { [payee]: 0.3 });
+    const reply = await call('/v1/sign', withProof(request(psbt), proof, statement));
+    const sent = reply.status === 'signed' ? finalizeAndSend([localSign('kan-client', psbt), reply.signed_psbt]) : null;
+    receipt('gate5-payment-accepted', {
+      pass: reply.status === 'signed' && sent?.accepted === true && reply.payment?.outpoint === fx.m16.outpoint,
+      result: sent?.txid ? `payment ${reply.payment.outpoint} released the signature; spend confirmed ${sent.txid}` : `not signed: ${reply.reason}`,
+      payment: reply.payment || null, signer_decision: decision(reply), core_validation: sent,
+    });
+    const second = await call('/v1/sign', withProof(spend(), proof, statement));
+    receipt('gate5-payment-replay', {
+      pass: refusedWith(second, 'payment_already_used'), result: `same payment on a second request: ${second.reason}`, second_request: decision(second),
+    });
+  }
+  const variant = async (name, gate, code, what) => {
+    install(gate);
+    const reply = await call('/v1/sign', withProof(spend(), proof, statement));
+    receipt(name, { pass: refusedWith(reply, code), result: `${what}: ${reply.reason}`, gate_policy: gate, decision: decision(reply) });
+  };
+  await variant('gate5-payment-wrong-script', gatePolicy(pins, { ...proven, scriptSha256: L.sha256('a script nobody registered') }),
+    'script_not_registered', 'payment to a script the coordinator did not register');
+  await variant('gate5-payment-too-few-confirmations', gatePolicy(pins, { ...proven, minConfirmations: fx.m16.confirmations + 1 }),
+    'too_few_confirmations', `policy requires ${fx.m16.confirmations + 1} confirmations`);
+  const otherNet = proven.network === 'testnet4' ? 'mainnet' : 'testnet4';
+  const wrongGenesis = gatePolicy(pins, proven);
+  wrongGenesis.pins.genesis_z0_sha256 = pins.networks[otherNet].genesis_z0_sha256;
+  await variant('gate5-payment-wrong-genesis', wrongGenesis, 'wrong_genesis', `genesis pinned to ${otherNet}'s`);
+  install(undefined);
+  summary.gate5 = 'all scenarios run on an M16 final proof';
 }
 
 main().catch((e) => { console.error('KeyAgentNet distributed run failed:', e.stack || e.message); process.exitCode = 1; });

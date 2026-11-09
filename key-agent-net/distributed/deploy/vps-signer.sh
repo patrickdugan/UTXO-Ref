@@ -4,8 +4,13 @@
 #   vps-signer.sh init <code-dir>        account, private regtest Core, wallet, TLS key; prints identity
 #   vps-signer.sh install-policy <policy.json> <client-ca.pem>   pin policy + coordinator CA, (re)start
 #   vps-signer.sh start|stop|kill|status
+#   vps-signer.sh install-gate <kan-payment-gate>  install the payment gate binary (payment-gated policies)
 #   vps-signer.sh bypass-sign <psbt>     admin-level signing that skips the service (collusion test)
 #   vps-signer.sh destroy                stop everything and delete the account, keys and journal
+#
+# Bitcoin Core comes from /usr/local/bin. On a host where it lives elsewhere (a root-only
+# directory, as in a WSL distribution), set KAN_BITCOIN_SRC=<dir> for `init`, which installs
+# copies of bitcoind and bitcoin-cli under the code directory.
 #
 # Layout: code /opt/kan-signer (root), config /etc/kan-signer (root, TLS key group-readable by
 # the service), state /var/lib/kan-signer (service account only). The signer binds 127.0.0.1.
@@ -16,7 +21,10 @@ CONF=/etc/kan-signer
 STATE=/var/lib/kan-signer
 RPCPORT=18998
 BIND=127.0.0.1:18999
-CLI=(/usr/local/bin/bitcoin-cli -datadir=$STATE/core -regtest -rpcport=$RPCPORT)
+BIN=/usr/local/bin
+[ -x "$CODE/bin/bitcoind" ] && BIN=$CODE/bin
+GATE=$CODE/kan-payment-gate
+CLI=($BIN/bitcoin-cli -datadir=$STATE/core -regtest -rpcport=$RPCPORT)
 as_signer() { runuser -u "$USER_NAME" -- "$@"; }
 
 units() {
@@ -25,7 +33,7 @@ units() {
 Description=KeyAgentNet Custodian A private regtest Core
 [Service]
 User=$USER_NAME
-ExecStart=/usr/local/bin/bitcoind -regtest -datadir=$STATE/core -server=1 -listen=0 -connect=0 -dnsseed=0 -rpcbind=127.0.0.1 -rpcallowip=127.0.0.1 -rpcport=$RPCPORT -printtoconsole=0
+ExecStart=$BIN/bitcoind -regtest -datadir=$STATE/core -server=1 -listen=0 -connect=0 -dnsseed=0 -rpcbind=127.0.0.1 -rpcallowip=127.0.0.1 -rpcport=$RPCPORT -printtoconsole=0
 ExecStop=${CLI[*]} stop
 Restart=on-failure
 NoNewPrivileges=yes
@@ -68,6 +76,12 @@ case "${1:-}" in
     id "$USER_NAME" >/dev/null 2>&1 || useradd --system --home-dir "$STATE" --shell /usr/sbin/nologin "$USER_NAME"
     install -d -m 0755 -o root -g root "$CODE"
     install -m 0644 -o root -g root "$src/kan_signer.py" "$src/kan_policy.py" "$CODE/"
+    if [ -n "${KAN_BITCOIN_SRC:-}" ]; then
+      install -d -m 0755 -o root -g root "$CODE/bin"
+      install -m 0755 -o root -g root "$KAN_BITCOIN_SRC/bitcoind" "$KAN_BITCOIN_SRC/bitcoin-cli" "$CODE/bin/"
+      BIN=$CODE/bin
+      CLI=($BIN/bitcoin-cli -datadir=$STATE/core -regtest -rpcport=$RPCPORT)
+    fi
     install -d -m 0750 -o root -g "$USER_NAME" "$CONF"
     install -d -m 0700 -o "$USER_NAME" -g "$USER_NAME" "$STATE" "$STATE/core"
     units
@@ -94,7 +108,7 @@ PY
     install -m 0644 -o root -g root "${2:?policy}" "$CONF/policy.json"
     install -m 0644 -o root -g root "${3:?client ca}" "$CONF/client-ca.pem"
     cat > "$CONF/signer.json" <<EOF
-{"bitcoin_cli": "/usr/local/bin/bitcoin-cli", "datadir": "$STATE/core", "rpcport": $RPCPORT, "wallet": "custodian-a",
+{"bitcoin_cli": "$BIN/bitcoin-cli", "payment_gate_bin": "$([ -x "$GATE" ] && echo "$GATE")", "datadir": "$STATE/core", "rpcport": $RPCPORT, "wallet": "custodian-a",
  "policy": "$CONF/policy.json", "journal": "$STATE/journal.jsonl", "bind": "$BIND",
  "tls_cert": "$CONF/server.crt", "tls_key": "$CONF/server.key", "client_ca": "$CONF/client-ca.pem"}
 EOF
@@ -102,6 +116,11 @@ EOF
     systemctl restart kan-signer
     for _ in $(seq 1 40); do ss -ltn | grep -q "$BIND" && { echo "signer up"; exit 0; }; sleep 0.25; done
     journalctl -u kan-signer -n 20 --no-pager >&2; exit 1
+    ;;
+  install-gate)
+    install -m 0755 -o root -g root "${2:?kan-payment-gate binary}" "$GATE"
+    "$GATE" inspect --statement /dev/null >/dev/null 2>&1 || [ $? -eq 1 ] || { echo "payment gate does not run" >&2; exit 1; }
+    sha256sum "$GATE"
     ;;
   start) systemctl start kan-bitcoind kan-signer ;;
   stop) systemctl stop kan-signer ;;
