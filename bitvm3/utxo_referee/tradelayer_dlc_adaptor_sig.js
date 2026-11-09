@@ -332,6 +332,9 @@ function adaptorSign(secret, msg32, T, aux32 = crypto.randomBytes(32)) {
     if (isInf(Rp) || !hasEvenY(Rp)) continue; // need even y for BIP340 completion
     const e = challenge(Rp.x, px, msg32);
     const s0 = mod(k0 + e * d, N);
+    // adaptorVerify rejects s0·G at infinity; take the next nonce instead of
+    // returning a presignature our own verifier refuses.
+    if (s0 === 0n) continue;
     return Object.freeze({
       kind: 'tradelayer_dlc_adaptor_presig_v1',
       rx: bytes32(Rp.x).toString('hex'),       // r of the eventual signature

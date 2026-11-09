@@ -105,6 +105,17 @@ class ReceiptDepositIndexer {
       return cloneRecord(existing);
     }
 
+    // One live record per funding outpoint: a second depositId for it would be
+    // refused by the ledger at credit time and block every later deposit in
+    // the sorted credit pass. A rolled-back record frees its outpoint, as in
+    // ReceiptLedger.rollbackDeposit.
+    const outpoint = `${txid.toLowerCase()}:${vout}`;
+    for (const other of this.deposits.values()) {
+      if (other.status !== 'rolled_back' && `${other.txid.toLowerCase()}:${other.vout}` === outpoint) {
+        throw new Error(`deposit outpoint ${outpoint} is already observed as ${other.depositId}`);
+      }
+    }
+
     const confirmations = computeConfirmations(blockHeight, seenHeight);
     const record = {
       depositId,

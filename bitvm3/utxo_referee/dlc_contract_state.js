@@ -60,9 +60,11 @@ function requireId(value, fieldName, maxLength = 128) {
 
 function normalizeOraclePolicy(policy) {
   if (!policy || !Number.isSafeInteger(policy.threshold) || !Number.isSafeInteger(policy.total) ||
-      policy.threshold < 2 || policy.total < policy.threshold || policy.total > 16 ||
+      policy.threshold < 2 || policy.total < Math.max(3, policy.threshold) || policy.total > 16 ||
       !Array.isArray(policy.pinnedPubkeys) || policy.pinnedPubkeys.length !== policy.total) {
-    throw new Error('oraclePolicy must define a 2..16 member threshold set');
+    // validateOracleSet (dlc_threshold_oracle.js) refuses fewer than 3 oracles at
+    // signing time; refuse such a policy when the contract is created instead.
+    throw new Error('oraclePolicy must define a 3..16 member threshold set');
   }
   const pinnedPubkeys = policy.pinnedPubkeys.map((key, index) =>
     requireHex(key, 32, `oraclePolicy.pinnedPubkeys[${index}]`));

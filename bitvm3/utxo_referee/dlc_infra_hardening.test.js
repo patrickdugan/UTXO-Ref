@@ -31,7 +31,7 @@ const {
   nativeCapabilityAttestationPayload,
   requireDlcSigningProvider
 } = require('./dlc_crypto_provider');
-const { deriveCetSigningTarget } = require('./dlc_signing_target');
+const { deriveCetSigningTarget, normalizeOracleAnnouncements } = require('./dlc_signing_target');
 const { buildDlcSigningFixture } = require('./dlc_signing_fixture');
 const { DlcOracleEventStore } = require('./dlc_oracle_event_store');
 const {
@@ -3715,6 +3715,64 @@ test('peer session store preserves temporary-ID replay protection across restart
   } finally {
     fs.rmSync(directory, { recursive: true, force: true });
   }
+});
+
+test('CETs for one outcome must pay the same for every oracle subset', () => {
+  const fixture = transactionFixture();
+  const input = (cets) => ({
+    funding: fixture.funding,
+    cets,
+    refund: fixture.refund,
+    minFeeSats: 500n,
+    maxFeeSats: 2000n,
+    feePolicy: fixture.feePolicy
+  });
+  // Same outcome, another subset, a different payout: the attesting subset would pick the payout.
+  const otherPayout = { ...fixture.cets[1], outcomeMessage: fixture.cets[0].outcomeMessage };
+  expectThrow(() => validateDlcTransactionSet(input([fixture.cets[0], otherPayout])),
+    /pays one outcome differently for different oracle subsets/);
+  // Same outcome, another subset, the same payout (distinct by locktime) is a valid threshold CET.
+  const samePayout = {
+    outcomeMessage: fixture.cets[0].outcomeMessage,
+    oraclePubkeys: ['11'.repeat(32), '33'.repeat(32)],
+    rawTxHex: fixture.spend(fixture.firstOutputs, 101),
+    expectedOutputs: fixture.firstOutputs,
+    locktime: 101
+  };
+  const result = validateDlcTransactionSet(input([fixture.cets[0], samePayout]));
+  assert(result.cets.length === 2, 'same-payout threshold CETs were refused');
+});
+
+test('authorization consumption keys cannot collide through ":" in the contract id', () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'utxoref-consumption-key-'));
+  try {
+    const store = new DlcSigningAuthorizationStore(directory);
+    const consumption = (contractId, authorizationId) => ({
+      network: 'bitcoin-testnet4',
+      contractId,
+      authorizationId,
+      stateRecordHash: digest(`state:${contractId}:${authorizationId}`),
+      authorizationDigest: digest(`authorization:${contractId}:${authorizationId}`),
+      providerIdentity: digest('consumption-key-provider')
+    });
+    // ("a", "b:c") and ("a:b", "c") both join to "a:b:c"; only the first is a valid pair.
+    store.consume(consumption('a', 'b:c'));
+    expectThrow(() => store.consume(consumption('a:b', 'c')), /contractId must not contain ":"/);
+    expectThrow(() => store.read('a:b', 'c'), /contractId must not contain ":"/);
+    assert(store.read('a', 'b:c').authorizationId === 'b:c', 'colon authorization id was not stored');
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test('signing needs at least three announced oracles, as validateOracleSet does', () => {
+  expectThrow(() => normalizeOracleAnnouncements(announcements.slice(0, 2)), /3\.\.16 announcements/);
+  assert(normalizeOracleAnnouncements(announcements).length === 3, 'three announcements were refused');
+  expectThrow(() => initialContract('two-oracle-policy', {
+    ...thresholdEventPolicy,
+    total: 2,
+    pinnedPubkeys: pinnedPubkeys.slice(0, 2)
+  }), /3\.\.16 member threshold set/);
 });
 
 if (failed > 0) {

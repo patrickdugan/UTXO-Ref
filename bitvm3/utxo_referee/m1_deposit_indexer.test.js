@@ -131,6 +131,27 @@ test('rolling back credited deposits without a ledger is rejected', () => {
   assert(threw, 'expected credited rollback to require ledger');
 });
 
+test('one funding outpoint is observed under one live depositId', () => {
+  const ledger = new ReceiptLedger();
+  const indexer = new ReceiptDepositIndexer({ minConfirmations: 1 });
+  const deposit = (depositId, txid) => ({
+    depositId, accountId: 'alice', amountSats: 1000n, txid, vout: 0, blockHeight: 10
+  });
+  indexer.observeDeposit(deposit('d1', 'ab'.repeat(32)), 10);
+  let refused = false;
+  try { indexer.observeDeposit(deposit('d2', 'AB'.repeat(32)), 10); } catch (err) {
+    refused = /already observed as d1/.test(err.message);
+  }
+  assert(refused, 'a second depositId for the same outpoint was recorded');
+  indexer.observeDeposit(deposit('d3', 'cd'.repeat(32)), 10);
+  const credited = indexer.applyConfirmedDepositsToLedger(ledger, 10);
+  assertEq(credited.length, 2, 'the credit pass stalled');
+  // A rolled-back deposit frees its outpoint for one re-observation under a new id.
+  indexer.rollbackDeposit('d1', { ledger, reason: 'reorg' });
+  indexer.observeDeposit(deposit('d4', 'ab'.repeat(32)), 11);
+  assertEq(indexer.applyConfirmedDepositsToLedger(ledger, 11).length, 1);
+});
+
 console.log('\n-----------------------------------');
 console.log(`Results: ${passed} passed, ${failed} failed`);
 console.log('-----------------------------------\n');

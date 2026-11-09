@@ -43,8 +43,17 @@ function requireId(value, fieldName) {
   return value;
 }
 
+// The key hashes `${contractId}:${authorizationId}`. Authorization ids use ':'
+// (`cet:0:oracle-set:0`), so a ':' in the contract id would let two pairs share
+// a key; without one the first ':' always separates the two ids.
+function requireContractId(value) {
+  requireId(value, 'contractId');
+  if (value.includes(':')) throw new Error('contractId must not contain ":"');
+  return value;
+}
+
 function consumptionKey(contractId, authorizationId) {
-  requireId(contractId, 'contractId');
+  requireContractId(contractId);
   requireId(authorizationId, 'authorizationId');
   return sha256Hex(Buffer.from(`${contractId}:${authorizationId}`, 'utf8'));
 }

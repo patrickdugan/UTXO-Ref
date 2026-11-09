@@ -365,6 +365,10 @@ function validateDlcTransactionSet(input) {
     throw new Error('DLC transaction set requires 1..4096 CETs and one refund');
   }
   const identities = new Set();
+  // CETs for one outcome differ only in the oracle subset that completes them,
+  // so they must pay the same: otherwise which threshold subset attests decides
+  // the payout.
+  const payoutsByOutcome = new Map();
   const validatedCets = cets.map((cet, index) => {
     requireHex(cet.outcomeMessage, 32, `cets[${index}].outcomeMessage`);
     if (!Array.isArray(cet.oraclePubkeys) || cet.oraclePubkeys.length < 2 ||
@@ -386,10 +390,17 @@ function validateDlcTransactionSet(input) {
       feePolicy: normalizedFeePolicy,
       label: `CET ${index}`
     });
+    const serialized = serializeValidatedSpend(spend);
+    const payout = JSON.stringify(serialized.outputs);
+    const committedPayout = payoutsByOutcome.get(cet.outcomeMessage);
+    if (committedPayout !== undefined && committedPayout !== payout) {
+      throw new Error('DLC transaction set pays one outcome differently for different oracle subsets');
+    }
+    payoutsByOutcome.set(cet.outcomeMessage, payout);
     return {
       outcomeMessage: cet.outcomeMessage,
       oraclePubkeys: [...cet.oraclePubkeys],
-      ...serializeValidatedSpend(spend)
+      ...serialized
     };
   }).sort((left, right) =>
     `${left.outcomeMessage}:${left.oraclePubkeys.join(':')}`.localeCompare(`${right.outcomeMessage}:${right.oraclePubkeys.join(':')}`));

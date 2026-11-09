@@ -36,6 +36,7 @@ const NUMS_DOMAIN: &str = "UTXORef DLC funding NUMS internal key v1";
 const LEAF_VERSION_TAPSCRIPT: u8 = 0xc0;
 const ANNOUNCEMENT_KIND: &str = "tradelayer_dlc_oracle_announcement_v1";
 const MAX_CETS: usize = 4096;
+const MIN_ANNOUNCEMENTS: usize = 3;
 const MAX_ANNOUNCEMENTS: usize = 16;
 const MAX_TX_BYTES: usize = 100_000;
 
@@ -582,8 +583,9 @@ pub fn derive_signing_target(signing_context: &Value) -> Result<SigningTarget> {
     let announcement_values = field(context, "oracleAnnouncements")?
         .as_array()
         .ok_or("oracleAnnouncements must be an array")?;
-    if announcement_values.len() < 2 || announcement_values.len() > MAX_ANNOUNCEMENTS {
-        return Err("oracleAnnouncements must contain 2..16 announcements".to_owned());
+    // The same bound as validateOracleSet in dlc_threshold_oracle.js.
+    if announcement_values.len() < MIN_ANNOUNCEMENTS || announcement_values.len() > MAX_ANNOUNCEMENTS {
+        return Err("oracleAnnouncements must contain 3..16 announcements".to_owned());
     }
     let oracle_announcements_digest = digest_hex(field(context, "oracleAnnouncements")?)?;
     let announcements = announcement_values
@@ -714,6 +716,16 @@ mod tests {
         );
         assert_eq!(target.oracle_event_id, expected["oracleEventId"].as_str().unwrap());
         assert_eq!(target.funding_script_pubkey, expected["scriptPubKeyHex"].as_str().unwrap());
+    }
+
+    #[test]
+    fn two_announcements_are_refused() {
+        let (mut context, _) = valid_case();
+        let announcements = context["oracleAnnouncements"].as_array_mut().unwrap();
+        assert_eq!(announcements.len(), 3);
+        announcements.pop();
+        let error = derive_signing_target(&context).unwrap_err();
+        assert!(error.contains("3..16 announcements"), "{error}");
     }
 
     #[test]

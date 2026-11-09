@@ -67,8 +67,10 @@ function receiptDigest(contract, stage, kind) {
 // oracle key. Its digest is what the oracle_policy receipt commits to.
 function normalizeOracleAnnouncements(announcements) {
   announcements = snapshotPlainData(announcements, 'DLC oracle announcements', false);
-  if (!Array.isArray(announcements) || announcements.length < 2 || announcements.length > 16) {
-    throw new Error('oracleAnnouncements must contain 2..16 announcements');
+  // The same bound as validateOracleSet (dlc_threshold_oracle.js), which every
+  // contract oracle policy passes.
+  if (!Array.isArray(announcements) || announcements.length < 3 || announcements.length > 16) {
+    throw new Error('oracleAnnouncements must contain 3..16 announcements');
   }
   const normalized = announcements.map((announcement, index) => {
     if (!verifyDlcOracleAnnouncement(announcement)) {

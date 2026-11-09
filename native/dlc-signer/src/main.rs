@@ -404,6 +404,10 @@ fn adaptor_sign(
         }
         let (r0x, r0y) = affine_coordinates(r0_point, "nonce point")?;
         let response = Zeroizing::new(*nonce + challenge(&rx, &public_x, &message) * *secret);
+        // adaptorVerify rejects s0·G at infinity; take the next nonce instead.
+        if bool::from(response.is_zero()) {
+            continue;
+        }
         let response_bytes = Zeroizing::new(response.to_bytes());
         return Ok(Presignature {
             kind: PRESIGNATURE_KIND,
