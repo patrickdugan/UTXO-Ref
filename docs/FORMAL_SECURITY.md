@@ -5,7 +5,8 @@ These proofs cover security-critical code of the pilot surface (docs/PILOT_SURFA
 directory are in `bitvm3/utxo_referee/`. The Lean sources are under `formal/`, built with
 `leanprover/lean4:v4.35.0` and core Lean only (no Mathlib), by `lake build` in `formal/` as
 `.github/workflows/lean.yml` runs it. `formal/UTXORefFormal.lean` imports every module listed
-here.
+here. The one code change since `5883e03` is `094598d`, which fixes BitVM finding F1 in
+`tradelayer_bitvm_dispute.js` and shifts that file's lines by up to five.
 
 A Lean model is a functional transcription of the named function: the same checks in the same
 order with the same results. A theorem is proved about the model. The correspondence between
@@ -594,9 +595,13 @@ the JavaScript guarantee holds for JS numbers that are integers. Reproduced with
 - `challengeCsvBlocks: 6.5`: accepted at template level; script byte `0x56` (`OP_6`), so the window
   is 6.
 
-Fix: `csvSequence` requires `typeof csvDelay === 'number' && Number.isInteger(csvDelay)`. A party that
-verifies a template received as JSON is the exposed party; the live driver
+A party that verifies a template received as JSON was the exposed party; the live driver
 (`btc_testnet4_utxoref_v2_live.js:388`) normalizes its own argument with `toSafeInteger`.
+
+Fixed in `094598d`: `csvSequence` requires an integer in 0..65535 and `pushScriptNum` an integer in
+0..2^31-1, so the template builder, `verifyBitvmAssertionTemplateV2` and
+`verifyBitvmAssertionGraphV2` refuse `"7"`, `NaN` and `6.5`; tests in
+`tradelayer_bitvm_dispute.test.js` and `bitvm_assertion_graph_v2.test.js` cover each case.
 
 **F2. Legacy templates carry no terminal-output leaf** (`bitvm_assertion_graph_v2.js:287`, `:337-343`).
 This is the documented design (`legacy-unbound-v2-monitor-only`, verified only when the caller pins
@@ -825,7 +830,7 @@ what holds and the finding names the gap. Details are in each section.
 
 | ID | Where | Finding |
 | --- | --- | --- |
-| BitVM F1 | `tradelayer_bitvm_dispute.js:37-40`, `bitvm_assertion_graph_v2.js:248-254` | `csvSequence` accepts a numeric string. A template with `challengeCsvBlocks: "7"` passes the 6-block minimum, `pushScriptNum` emits byte `0x27` instead of `OP_7`, the CSV and operator check of the cooperative-settlement leaf become pushed data, and `verifyBitvmAssertionGraphV2` accepts the graph after a JSON round trip. A challenger verifying an operator-supplied graph is exposed. Fix: require `Number.isInteger(csvDelay)` in `csvSequence`. |
+| BitVM F1 | `tradelayer_bitvm_dispute.js:37-40`, `bitvm_assertion_graph_v2.js:248-254` | `csvSequence` accepts a numeric string. A template with `challengeCsvBlocks: "7"` passes the 6-block minimum, `pushScriptNum` emits byte `0x27` instead of `OP_7`, the CSV and operator check of the cooperative-settlement leaf become pushed data, and `verifyBitvmAssertionGraphV2` accepts the graph after a JSON round trip. A challenger verifying an operator-supplied graph was exposed. **Fixed in `094598d`**: both helpers require an integer. |
 | TxSet | `dlc_transaction_validator.js:376-378` | CET identity is (outcome, oracle subset): two CETs for one outcome with different subsets and different `expectedOutputs` are accepted, so one outcome can pay differently by subset (`same_outcome_cets_accepted`). The validator requires at least 2 subset keys and no threshold equality; CET nSequence is unconstrained; the refund leaf has no CLTV, so the refund locktime is checked by the validator, not committed by the leaf. |
 | OneShot | `dlc_signing_authorization_store.js:40`, `:49` | The consumption key joins ids with `:` and the id pattern allows `:`: `("a:b","c")` and `("a","b:c")` share a key, so the second distinct pair is refused (fail-closed). |
 | OneShot | `m1_deposit_indexer.js:85`, `:124`; `m1_receipt_ledger.js:56-59`, `:141-142` | The indexer keys deposits by depositId, so one outpoint is recorded under two depositIds; the ledger refuses the second credit, and that stuck record blocks later deposits in the sorted pass (`m1_deposit_indexer.js:187-206`). Rollback frees the outpoint for one re-credit under a new depositId. |
