@@ -377,9 +377,15 @@ async function gate5(ctx) {
   const { vps, policy, call, request, psbtFor, finalizeAndSend, localSign, receipt, decision, refusedWith, rpc, w, vault, minerAddr, payee, summary } = ctx;
   const fx = readGateFixtures();
   const pins = fx.pins;
-  const install = (gate) => {
+  const install = async (gate) => {
     L.putFile(vps, '/tmp/kan-src/policy.json', JSON.stringify(gate ? { ...policy, payment_gate: gate } : policy, null, 2));
     L.admin(vps, 'install-policy /tmp/kan-src/policy.json /tmp/kan-src/client-ca.pem');
+    // install-policy restarts the signer and returns once it listens in the distribution. WSL's
+    // localhost relay can forward the new listener later (ECONNREFUSED on 18999 in the meantime).
+    for (let i = 0; i < 40; i++) {
+      try { await call('/v1/identity', {}); return; } catch { await L.wait(500); }
+    }
+    throw new Error('signer did not answer after install-policy');
   };
   const freshUtxo = () => {
     const addr = w(vault.id, 'getnewaddress');
@@ -396,7 +402,7 @@ async function gate5(ctx) {
   const proven = fx.m16
     ? { network: fx.m16.network, scriptSha256: fx.m16.script_sha256, minValue: fx.m16.min_value_sats, minChainwork: fx.m16.min_tip_chainwork }
     : block170;
-  install(gatePolicy(pins, proven));
+  await install(gatePolicy(pins, proven));
   const spend = () => request(psbtFor(freshUtxo(), { [payee]: 0.3 }));
 
   // Proof-layer refusals. Guest A's final proof (m13 fixture) is real and verifies, but it is
@@ -432,7 +438,7 @@ async function gate5(ctx) {
       receipt(name, { pass: null, status: 'not_run', result: `not run: ${what} needs an M16 final proof (fixtures/m16-payment.json absent)` });
     }
     summary.gate5 = 'proof-layer scenarios run; payment scenarios await an M16 final proof';
-    install(undefined);
+    await install(undefined);
     return;
   }
   const { proof, statement } = fx.m16;
@@ -452,7 +458,7 @@ async function gate5(ctx) {
     });
   }
   const variant = async (name, gate, code, what) => {
-    install(gate);
+    await install(gate);
     const reply = await call('/v1/sign', withProof(spend(), proof, statement));
     receipt(name, { pass: refusedWith(reply, code), result: `${what}: ${reply.reason}`, gate_policy: gate, decision: decision(reply) });
   };
@@ -464,7 +470,7 @@ async function gate5(ctx) {
   const wrongGenesis = gatePolicy(pins, proven);
   wrongGenesis.pins.genesis_z0_sha256 = pins.networks[otherNet].genesis_z0_sha256;
   await variant('gate5-payment-wrong-genesis', wrongGenesis, 'wrong_genesis', `genesis pinned to ${otherNet}'s`);
-  install(undefined);
+  await install(undefined);
   summary.gate5 = 'all scenarios run on an M16 final proof';
 }
 
