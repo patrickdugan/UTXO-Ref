@@ -1,39 +1,39 @@
 {
   "scenario": "gate3-custodian-a-disappears",
-  "recorded_at": "2026-11-09T11:20:23.004Z",
+  "recorded_at": "2026-11-11T02:34:25.875Z",
   "custodian_a_host": "wsl:Ubuntu-24.04",
   "network": "regtest",
   "vault": "kan-vault-1",
   "signer_a": "custodian-a",
-  "signer_a_fingerprint": "021e6640",
-  "policy_digest": "870809e8496f39015465e49866e56cc40a6e0b78f1002e920cb00c9a5e7bb468",
+  "signer_a_fingerprint": "f0f55d7b",
+  "policy_digest": "164f8a312dc2324d69c56e760f626c039b70d4d545faee53672beadfa9436fe6",
   "local_core_version": 310100,
   "pass": true,
-  "result": "client+B sweep to successor vault 0668a66a2d94c2d0491745f1e64ebdb5239df817c4fdfb0e460784771d832dec",
+  "result": "client+B sweep to successor vault 5f17127b3b5cc8b15c8618025ea9d8632eb87da63af8a83b3cb0544462490aa0",
   "custodian_a": "signer stopped and tunnel closed; no A signature used",
-  "unsigned_psbt_digest": "f452a985c7239f2ab504f1befede001080aef3abe99983c08257317f7cc249f8",
+  "unsigned_psbt_digest": "6be0bc089b4d63ad5293cf6d8f7135b358b574e535fca2102678809b5be1ae3e",
   "core_validation": {
     "complete": true,
     "accepted": true,
-    "txid": "0668a66a2d94c2d0491745f1e64ebdb5239df817c4fdfb0e460784771d832dec",
-    "wtxid": "8d0b87a39761f27ea6ad45b83a903089cf231ad90011118fdea5eb4d5fed1ada",
+    "txid": "5f17127b3b5cc8b15c8618025ea9d8632eb87da63af8a83b3cb0544462490aa0",
+    "wtxid": "75622e6526b8330734992ff269c106bae834981bac0f8784194830bc38050c99",
     "vsize": 201,
     "fees": {
       "base": 0.00000402,
       "effective-feerate": 0.00002,
       "effective-includes": [
-        "8d0b87a39761f27ea6ad45b83a903089cf231ad90011118fdea5eb4d5fed1ada"
+        "75622e6526b8330734992ff269c106bae834981bac0f8784194830bc38050c99"
       ]
     },
     "confirmation": {
-      "block": "76566f1ede2900a9b4dbd383eaf9c1293677cf028ca0910f5ce2de8775454814",
+      "block": "6d007e53b13b03cab67b433f74e857fcf4c9487d49eb5510d0760bfec84a55ce",
       "confirmations": 1
     }
   },
   "successor_vault": "kan-vault-2",
   "successor_descriptor_checksums": [
-    "axxdsa47",
-    "0n6enj5a"
+    "a5l85c2p",
+    "0prnhhtz"
   ],
   "successor_balance": {
     "trusted": 0.99,

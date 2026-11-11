@@ -1,6 +1,6 @@
 //! Statement parsing and policy, on the M16 guest's real block-170 statement (executed by the
-//! guest, `m16/README.md`) and on mutations of it. No proof is involved here: `proof.rs` covers
-//! the final-proof layer.
+//! guest, `m16/README.md`) and on mutations of it, and on the mainnet statement M16's final proof
+//! commits. No proof is involved here: `proof.rs` covers the final-proof layer.
 mod common;
 use common::*;
 use kan_payment_gate::policy::{GatePolicy, Network, RegisteredScript};
@@ -56,6 +56,46 @@ fn accepts_block_170_payment() {
     assert_eq!(a.outpoint, "f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16:0");
     assert_eq!((a.value_sats, a.confirmations, a.tip_height), (1_000_000_000, 631, 800));
     assert_eq!(a.script_id, "block-170-p2pk");
+}
+
+/// The statement the M16 mainnet final proof commits (`m16-payment.json`).
+fn m16_st() -> Vec<u8> {
+    fixture(m16_payment()["statement"].as_str().unwrap())
+}
+
+#[test]
+fn m16_mainnet_statement() {
+    let b = m16_st();
+    assert_eq!(hex::encode(sha256(&b)), "cae6068f7ad8c4891cb3220702a88b0bc3df54013f45e65df11a9ced531bc869");
+    let s = statement::parse(&b).unwrap();
+    assert_eq!(&s.magic, b"NHC1");
+    assert_eq!((s.k, s.steps, s.start.height, s.tip.height), (1, 975_072, 0, 975_072));
+    // Same genesis state as the block-170 statement: the mainnet z0 pin.
+    assert_eq!(hex::encode(sha256(&s.z0)), gate_pins("mainnet", "m16_chain_and_payment").genesis_z0_sha256);
+    // Tip hash and chainwork as Bitcoin Core 31.1 reported them at 975,072.
+    assert_eq!(hex::encode(s.tip.hash), "000000000000000000013ec209c5510205d35f80f657c20ef1ea16f73f6ff792");
+    assert_eq!(hex::encode(s.tip.chainwork), "000000000000000000000000000000000000000156c4c3c54ad473bac5daf261");
+    let p = &s.payment;
+    assert_eq!((p.segments, p.block_height, p.confirmations, p.vout, p.value_sats, p.script_len), (2, 975_067, 6, 0, 940_000, 22));
+    assert_eq!(hex::encode(p.block_hash), "000000000000000000017809af97fdd5530149e411b2ab091db4f405e355fe22");
+}
+
+#[test]
+fn accepts_m16_mainnet_payment() {
+    let m = m16_payment();
+    let a = check(&m16_policy(), &m16_st()).unwrap();
+    assert_eq!(a.outpoint, m["outpoint"].as_str().unwrap());
+    assert_eq!((a.value_sats, a.confirmations, a.tip_height, a.block_height), (940_000, 6, 975_072, 975_067));
+    // Each policy value in the fixture is the tightest one that accepts.
+    let mut p = m16_policy();
+    p.min_confirmations = 7;
+    assert_eq!(reason(check(&p, &m16_st())), "too_few_confirmations");
+    let mut p = m16_policy();
+    p.min_tip_chainwork = "156c4c3c54ad473bac5daf262".into();
+    assert_eq!(reason(check(&p, &m16_st())), "chainwork_below_floor");
+    let mut p = m16_policy();
+    p.scripts[0].min_value_sats = 940_001;
+    assert_eq!(reason(check(&p, &m16_st())), "value_below_policy");
 }
 
 #[test]

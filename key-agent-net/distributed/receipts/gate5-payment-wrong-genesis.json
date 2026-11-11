@@ -1,14 +1,42 @@
 {
   "scenario": "gate5-payment-wrong-genesis",
-  "recorded_at": "2026-11-09T11:20:16.907Z",
+  "recorded_at": "2026-11-11T02:34:24.507Z",
   "custodian_a_host": "wsl:Ubuntu-24.04",
   "network": "regtest",
   "vault": "kan-vault-1",
   "signer_a": "custodian-a",
-  "signer_a_fingerprint": "021e6640",
-  "policy_digest": "870809e8496f39015465e49866e56cc40a6e0b78f1002e920cb00c9a5e7bb468",
+  "signer_a_fingerprint": "f0f55d7b",
+  "policy_digest": "164f8a312dc2324d69c56e760f626c039b70d4d545faee53672beadfa9436fe6",
   "local_core_version": 310100,
-  "pass": null,
-  "status": "not_run",
-  "result": "not run: the genesis check needs an M16 final proof (fixtures/m16-payment.json absent)"
+  "pass": true,
+  "result": "genesis pinned to testnet4's: wrong_genesis",
+  "gate_policy": {
+    "network": "mainnet",
+    "min_confirmations": 6,
+    "min_tip_chainwork": "000000000000000000000000000000000000000156c4c3c54ad473bac5daf261",
+    "scripts": [
+      {
+        "id": "registered-deposit",
+        "script_sha256": "58432f41ce2b63d9a8e65e9b5bed183cd2ed12a03fe2b6020cda00235c147283",
+        "min_value_sats": 940000
+      }
+    ],
+    "pins": {
+      "wrap_vk_sha256": "d42c63e3c873b35576b4c95fa8c41770a8c6b8a9f16ba74732c5b52a43b0b0d7",
+      "recursion_vk_root": "7487c2175bd3256619ca0118094b8150d6df0246a1b41979a081642e5253f257",
+      "program_vk_digest": "dfc68a5d579b86244a60ba0baee7852348cf0d2a3bb13910ebb95a3e625fcb60",
+      "nova_vk_sha256": "6aa50d09397c51d0b89d78b3a918d3fe0962251225c8b6ca91e83199a4e6da1d",
+      "genesis_z0_sha256": "9c82dffe8b6005378775c8f2028b7644039defadb0fcc1d77820b7aaced6de9c"
+    }
+  },
+  "decision": {
+    "status": "refused",
+    "reason": "wrong_genesis",
+    "detail": "start height 0 hash 000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f",
+    "journal_seq": 26,
+    "request_digest": "fa6a46eecbba8a4fd4bc5fc425aacb90cb7d1a25ac800be8dc963ff10fd0810a",
+    "signed_psbt_digest": null,
+    "unsigned_txid": null,
+    "replayed": false
+  }
 }

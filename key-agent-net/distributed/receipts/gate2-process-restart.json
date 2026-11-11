@@ -1,12 +1,12 @@
 {
   "scenario": "gate2-process-restart",
-  "recorded_at": "2026-11-09T11:19:53.803Z",
+  "recorded_at": "2026-11-11T02:34:15.053Z",
   "custodian_a_host": "wsl:Ubuntu-24.04",
   "network": "regtest",
   "vault": "kan-vault-1",
   "signer_a": "custodian-a",
-  "signer_a_fingerprint": "021e6640",
-  "policy_digest": "870809e8496f39015465e49866e56cc40a6e0b78f1002e920cb00c9a5e7bb468",
+  "signer_a_fingerprint": "f0f55d7b",
+  "policy_digest": "164f8a312dc2324d69c56e760f626c039b70d4d545faee53672beadfa9436fe6",
   "local_core_version": 310100,
   "pass": true,
   "result": "first signed; after SIGKILL+restart signed replayed=true",
@@ -15,9 +15,9 @@
     "reason": null,
     "detail": null,
     "journal_seq": 3,
-    "request_digest": "a61cbda31353745ca96d8f970ca50c00d4098328a504697a267a796317439b08",
-    "signed_psbt_digest": "f2fb3fd3eab256f453b4799c3b6a01d00e066152c379b7f494abac3ddc82049e",
-    "unsigned_txid": "130a6d70f56b9841c0c38fb649309e14955e28cef68cb9936e2049d7719568ef",
+    "request_digest": "5c04d3b8e4317ce80c4eb121319e79d250003734817af0fb55bf2b1a42d79198",
+    "signed_psbt_digest": "2922888b944d9c6afaa54bee2d1f138d78743aedbd480021ea7b990907a65c48",
+    "unsigned_txid": "90639cd55277dc058bbc91597c485df14b9082e56fc2dd76b6cf89329d39d08f",
     "replayed": false
   },
   "after_restart": {
@@ -25,11 +25,11 @@
     "reason": null,
     "detail": null,
     "journal_seq": 4,
-    "request_digest": "a61cbda31353745ca96d8f970ca50c00d4098328a504697a267a796317439b08",
-    "signed_psbt_digest": "f2fb3fd3eab256f453b4799c3b6a01d00e066152c379b7f494abac3ddc82049e",
-    "unsigned_txid": "130a6d70f56b9841c0c38fb649309e14955e28cef68cb9936e2049d7719568ef",
+    "request_digest": "5c04d3b8e4317ce80c4eb121319e79d250003734817af0fb55bf2b1a42d79198",
+    "signed_psbt_digest": "2922888b944d9c6afaa54bee2d1f138d78743aedbd480021ea7b990907a65c48",
+    "unsigned_txid": "90639cd55277dc058bbc91597c485df14b9082e56fc2dd76b6cf89329d39d08f",
     "replayed": true
   },
-  "service_before": "MainPID=23078\nNRestarts=0\nActiveState=active\n3",
-  "service_after": "MainPID=23103\nNRestarts=1\nActiveState=active\n4"
+  "service_before": "MainPID=1269\nNRestarts=0\nActiveState=active\n3",
+  "service_after": "MainPID=1294\nNRestarts=1\nActiveState=active\n4"
 }

@@ -69,25 +69,35 @@ A gated signer refuses a request without `payment_proof: {proof_b64, statement_h
 | --- | --- | --- |
 | `m16-block170-statement.bin` | `67a9deb9…5c71` | The statement the M16 guest committed when executed on the block-170 test inputs: headers 0–800 in two segments, and block 170's 10 BTC output with 631 confirmations. It was executed, not proved. |
 | `guest-a-wrap-blake3-v2.bin` | `79c4af11…daad` | Guest A's final proof (m13 fixture): testnet4 heights 0–4, a chain record only. It is a real proof of another program. |
+| `m16-wrap-blake3-v2.bin` | `97871e86…26e3` | M16's final proof on mainnet (m13 fixture, 2026-11-11): the Nova header chain from genesis to 975,072 and a payment in block 975,067, proved on GPU, then `m13 shrink-wrap` and `wrap-only-v2`. Program key `dfc68a5d…cb60`, the pin. The same file is in zk-rusto-no-bitcoino `c85ee60` at `integrations/bitvm3-nova/m13/fixtures/`. |
+| `m16-statement.bin` | `cae6068f…c869` | The 1,292 statement bytes that proof commits (the guest's public values, `public.bin` of the M16 mainnet execute). |
+| `m16-payment.json` | | Names the two files above and the policy values that accept the payment. |
 
-**No final proof of M16 exists yet.** The mainnet M16 proof is in progress in nova-bitvm3; see its HANDOFF.md. Until one exists:
-- the statement and policy are tested on the real block-170 statement;
-- the proof layer is tested on guest A's real proof;
-- the regtest run records the payment scenarios as not run.
-
-When an M16 final proof exists, add `fixtures/m16-payment.json` and the run covers every scenario:
+`m16-payment.json`:
 
 ```json
 {"proof": "m16-wrap-blake3-v2.bin", "statement": "m16-statement.bin", "network": "mainnet",
- "outpoint": "<txid>:<vout>", "confirmations": 6, "script_sha256": "…", "min_value_sats": 1,
- "min_tip_chainwork": "<Core chainwork at a block at or below the statement's tip>"}
+ "outpoint": "a652ab0cf381413ae854a86bb7e4784811b2d4158a65f26ff64a69eb3eb20045:0", "confirmations": 6,
+ "script_sha256": "58432f41…7283", "min_value_sats": 940000,
+ "min_tip_chainwork": "000000000000000000000000000000000000000156c4c3c54ad473bac5daf261"}
 ```
+
+The statement:
+- starts at the mainnet genesis state (z0 `b6eeaf96…`) and ends at 975,072 (`…6ff792`);
+- pays 940,000 sats to output 0 of `a652ab0c…0045`, a 22-byte P2WPKH script, in block 975,067 (`…55fe22`), which has 6 confirmations.
+
+Each policy value is the tightest that accepts:
+- the chainwork floor is Bitcoin Core 31.1's `chainwork` at 975,072, from `fetch_mainnet.py`'s `core_ref.tsv`;
+- the minimum value is the payment's value;
+- `confirmations` is the statement's count, which the run's policy requires.
+
+The tests check that one more confirmation, one more unit of chainwork or one more sat is refused.
 
 ## Build and test
 
 ```sh
 cargo test --no-default-features      # statement and policy: seconds, no SP1 dependencies
-cargo test --release                  # adds the proof layer on the real guest A proof
+cargo test --release                  # adds the proof layer on the real M16 and guest A proofs
 cargo build --release                 # target/release/kan-payment-gate
 kan-payment-gate check --proof P --statement S --policy GATE.json
 kan-payment-gate inspect --statement S

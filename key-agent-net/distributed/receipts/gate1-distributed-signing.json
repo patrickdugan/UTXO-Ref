@@ -1,50 +1,50 @@
 {
   "scenario": "gate1-distributed-signing",
-  "recorded_at": "2026-11-09T11:19:41.461Z",
+  "recorded_at": "2026-11-11T02:34:10.740Z",
   "custodian_a_host": "wsl:Ubuntu-24.04",
   "network": "regtest",
   "vault": "kan-vault-1",
   "signer_a": "custodian-a",
-  "signer_a_fingerprint": "021e6640",
-  "policy_digest": "870809e8496f39015465e49866e56cc40a6e0b78f1002e920cb00c9a5e7bb468",
+  "signer_a_fingerprint": "f0f55d7b",
+  "policy_digest": "164f8a312dc2324d69c56e760f626c039b70d4d545faee53672beadfa9436fe6",
   "local_core_version": 310100,
   "pass": true,
-  "result": "confirmed 3da64299210d586cee4fdfebb6bf16a103b3421ed008835f2625c9ad7b2648ec",
-  "unsigned_psbt_digest": "c9edc18715e759043de5fc880b8399a4f4cc50f515a88726681ca2592fdcf024",
-  "request_id": "482d0f2d-a2e3-4804-9f3c-fd16044dca19",
+  "result": "confirmed 513c1d86098f0196fd1ee523caf720e356ab36244449b26a5b8252b9856c6cc5",
+  "unsigned_psbt_digest": "6593e768595d8087e1295bca30ecfce32857099cd4535031912af4a4a6055288",
+  "request_id": "df29e3a1-88cd-437f-b7b5-d15c5f887225",
   "signers": [
     "client (local)",
     "custodian-a (vps)"
   ],
   "signed_psbt_digests": {
-    "client": "0b0166639601d6ca37f757561feb2be97c5907ea509ae81bd45264722ceef9cc",
-    "custodian_a": "92dc90605fa9a5a9ba070ddbf312331a944216cc275c8b97ccf51aa47155ee80"
+    "client": "cbc6e674c4a731a43429aed319f118ea770f8a3833d8512e9916dfea81949bc0",
+    "custodian_a": "eb17e0b89b905b7dbedc1ed59c1fc339e65c4054aa59942938c675fea4a95ea1"
   },
   "signer_decision": {
     "status": "signed",
     "reason": null,
     "detail": null,
     "journal_seq": 1,
-    "request_digest": "97ca1884e213c8c950177ace1eaa009ed5e0d79bc46d49a8c257646ca228e7b2",
-    "signed_psbt_digest": "92dc90605fa9a5a9ba070ddbf312331a944216cc275c8b97ccf51aa47155ee80",
-    "unsigned_txid": "3da64299210d586cee4fdfebb6bf16a103b3421ed008835f2625c9ad7b2648ec",
+    "request_digest": "1dcf40e0db8bfed0c89a2117743eb2a262d50e4f4ef602583794d2cfd2803928",
+    "signed_psbt_digest": "eb17e0b89b905b7dbedc1ed59c1fc339e65c4054aa59942938c675fea4a95ea1",
+    "unsigned_txid": "513c1d86098f0196fd1ee523caf720e356ab36244449b26a5b8252b9856c6cc5",
     "replayed": false
   },
   "core_validation": {
     "complete": true,
     "accepted": true,
-    "txid": "3da64299210d586cee4fdfebb6bf16a103b3421ed008835f2625c9ad7b2648ec",
-    "wtxid": "ba024bd9f44cad3589b0c51c51c524d3f6e424e2fba538e90e2fc81ea5de3fdc",
+    "txid": "513c1d86098f0196fd1ee523caf720e356ab36244449b26a5b8252b9856c6cc5",
+    "wtxid": "bbad29f2f8ab3d58a78bef3ca7135112c7b54db03d9db0e90b1aa31587ce885a",
     "vsize": 189,
     "fees": {
       "base": 0.00000378,
       "effective-feerate": 0.00002,
       "effective-includes": [
-        "ba024bd9f44cad3589b0c51c51c524d3f6e424e2fba538e90e2fc81ea5de3fdc"
+        "bbad29f2f8ab3d58a78bef3ca7135112c7b54db03d9db0e90b1aa31587ce885a"
       ]
     },
     "confirmation": {
-      "block": "11880c62cfc5589418e2046cbd6d542b84422de7d4bfb982e698a13b5d813d6c",
+      "block": "26ce9c5ceb727ee6d6fd438bdf6e4d2790f6bb1c69cda58e93099ccd22f073d5",
       "confirmations": 1
     }
   },

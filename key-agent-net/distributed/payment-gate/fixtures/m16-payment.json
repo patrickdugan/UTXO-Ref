@@ -1,0 +1,10 @@
+{
+  "proof": "m16-wrap-blake3-v2.bin",
+  "statement": "m16-statement.bin",
+  "network": "mainnet",
+  "outpoint": "a652ab0cf381413ae854a86bb7e4784811b2d4158a65f26ff64a69eb3eb20045:0",
+  "confirmations": 6,
+  "script_sha256": "58432f41ce2b63d9a8e65e9b5bed183cd2ed12a03fe2b6020cda00235c147283",
+  "min_value_sats": 940000,
+  "min_tip_chainwork": "000000000000000000000000000000000000000156c4c3c54ad473bac5daf261"
+}

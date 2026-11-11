@@ -1,14 +1,55 @@
 {
   "scenario": "gate5-payment-accepted",
-  "recorded_at": "2026-11-09T11:20:16.885Z",
+  "recorded_at": "2026-11-11T02:34:21.003Z",
   "custodian_a_host": "wsl:Ubuntu-24.04",
   "network": "regtest",
   "vault": "kan-vault-1",
   "signer_a": "custodian-a",
-  "signer_a_fingerprint": "021e6640",
-  "policy_digest": "870809e8496f39015465e49866e56cc40a6e0b78f1002e920cb00c9a5e7bb468",
+  "signer_a_fingerprint": "f0f55d7b",
+  "policy_digest": "164f8a312dc2324d69c56e760f626c039b70d4d545faee53672beadfa9436fe6",
   "local_core_version": 310100,
-  "pass": null,
-  "status": "not_run",
-  "result": "not run: acceptance needs an M16 final proof (fixtures/m16-payment.json absent)"
+  "pass": true,
+  "result": "payment a652ab0cf381413ae854a86bb7e4784811b2d4158a65f26ff64a69eb3eb20045:0 released the signature; spend confirmed e4552a012617642dec6c28c16e69369867f139bdda8eff304c426215e63c319a",
+  "payment": {
+    "block_hash": "000000000000000000017809af97fdd5530149e411b2ab091db4f405e355fe22",
+    "block_height": 975067,
+    "confirmations": 6,
+    "outpoint": "a652ab0cf381413ae854a86bb7e4784811b2d4158a65f26ff64a69eb3eb20045:0",
+    "script_id": "registered-deposit",
+    "script_sha256": "58432f41ce2b63d9a8e65e9b5bed183cd2ed12a03fe2b6020cda00235c147283",
+    "tip_chainwork": "000000000000000000000000000000000000000156c4c3c54ad473bac5daf261",
+    "tip_hash": "000000000000000000013ec209c5510205d35f80f657c20ef1ea16f73f6ff792",
+    "tip_height": 975072,
+    "txid": "a652ab0cf381413ae854a86bb7e4784811b2d4158a65f26ff64a69eb3eb20045",
+    "value_sats": 940000,
+    "vout": 0
+  },
+  "signer_decision": {
+    "status": "signed",
+    "reason": null,
+    "detail": null,
+    "journal_seq": 22,
+    "request_digest": "54befebdc5bc00c25b89088b5754e0e89268d51eb326e8e0466eabcadf6fe53d",
+    "signed_psbt_digest": "43e9e183132573a8906407a00234f83e45347c81740830416aa4949f6a1ffc64",
+    "unsigned_txid": "e4552a012617642dec6c28c16e69369867f139bdda8eff304c426215e63c319a",
+    "replayed": false
+  },
+  "core_validation": {
+    "complete": true,
+    "accepted": true,
+    "txid": "e4552a012617642dec6c28c16e69369867f139bdda8eff304c426215e63c319a",
+    "wtxid": "23ee2a122d0351aaf18a84ab25206b317a25d792a53d1264894475d6c055e60a",
+    "vsize": 189,
+    "fees": {
+      "base": 0.00000378,
+      "effective-feerate": 0.00002,
+      "effective-includes": [
+        "23ee2a122d0351aaf18a84ab25206b317a25d792a53d1264894475d6c055e60a"
+      ]
+    },
+    "confirmation": {
+      "block": "4d0c2c595945a695d2191bc1cdecd9dc26de63987c4e59acc8dadf717378db45",
+      "confirmations": 1
+    }
+  }
 }

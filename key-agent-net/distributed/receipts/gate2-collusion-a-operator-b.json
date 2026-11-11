@@ -1,32 +1,32 @@
 {
   "scenario": "gate2-collusion-a-operator-b",
-  "recorded_at": "2026-11-09T11:20:03.112Z",
+  "recorded_at": "2026-11-11T02:34:17.283Z",
   "custodian_a_host": "wsl:Ubuntu-24.04",
   "network": "regtest",
   "vault": "kan-vault-1",
   "signer_a": "custodian-a",
-  "signer_a_fingerprint": "021e6640",
-  "policy_digest": "870809e8496f39015465e49866e56cc40a6e0b78f1002e920cb00c9a5e7bb468",
+  "signer_a_fingerprint": "f0f55d7b",
+  "policy_digest": "164f8a312dc2324d69c56e760f626c039b70d4d545faee53672beadfa9436fe6",
   "local_core_version": 310100,
   "pass": true,
-  "result": "A operator + B spend to attacker confirmed b57aad40a0b0652507cd0bdb171ab7796e1ae63f50c54420629f6f139e11c2da",
+  "result": "A operator + B spend to attacker confirmed dd9b7571e60fb4886164e709d0e396f539da8a43d81e141e3732e2fbae0e1a50",
   "classification": "consensus-valid, outside policy: the signer policy binds the coordinator, not the A host administrator",
-  "unsigned_psbt_digest": "67c31ff90a6264fd8fcec26d01abd99fafada473f825e5f4ba13741fbed685de",
+  "unsigned_psbt_digest": "489b486290703e09b31178ab2f24c07d71a2b8230aa0e3620862c2d2d406d7ba",
   "core_validation": {
     "complete": true,
     "accepted": true,
-    "txid": "b57aad40a0b0652507cd0bdb171ab7796e1ae63f50c54420629f6f139e11c2da",
-    "wtxid": "0883afb4dcb51810ea17c5d9847c0287d9ea2671460267d8212085c54d67a620",
+    "txid": "dd9b7571e60fb4886164e709d0e396f539da8a43d81e141e3732e2fbae0e1a50",
+    "wtxid": "58a8d6770c928b582395a887d6e6c2f4565772a9f7172a3b9f43ccc942bb84e3",
     "vsize": 189,
     "fees": {
       "base": 0.00000378,
       "effective-feerate": 0.00002,
       "effective-includes": [
-        "0883afb4dcb51810ea17c5d9847c0287d9ea2671460267d8212085c54d67a620"
+        "58a8d6770c928b582395a887d6e6c2f4565772a9f7172a3b9f43ccc942bb84e3"
       ]
     },
     "confirmation": {
-      "block": "67e6edf32ca058b650208ada6ede58349117459e5114852c44d50b28b6782b49",
+      "block": "545667ff9188865771242de18062cca018f4d1dac2a02164a34a2dcee0cb2f56",
       "confirmations": 1
     }
   }

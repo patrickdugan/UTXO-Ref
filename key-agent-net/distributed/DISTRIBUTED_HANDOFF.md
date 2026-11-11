@@ -146,7 +146,7 @@ The signer journals each released payment outpoint, so one proven payment releas
 | Receipt | Proof used | Expected |
 |---|---|---|
 | `gate5-payment-proof-required` | none | `payment_proof_required` |
-| `gate5-payment-tampered-proof` | final proof with one bit flipped | `proof_rejected` |
+| `gate5-payment-tampered-proof` | M16 final proof with one bit flipped | `proof_rejected` |
 | `gate5-payment-wrong-program` | guest A's real final proof (a chain record, another program) | `proof_wrong_program` |
 | `gate5-payment-accepted` | M16 final proof | signed, and the 2-of-3 spend confirms |
 | `gate5-payment-replay` | the same proof on a second request | `payment_already_used` |
@@ -154,31 +154,45 @@ The signer journals each released payment outpoint, so one proven payment releas
 | `gate5-payment-too-few-confirmations` | M16 final proof, policy asks for one more confirmation | `too_few_confirmations` |
 | `gate5-payment-wrong-genesis` | M16 final proof, policy pins the other network's genesis | `wrong_genesis` |
 
-No final proof of the M16 guest exists yet: its mainnet run is in progress in nova-bitvm3. Until `payment-gate/fixtures/m16-payment.json` names one, the last five receipts are written as `not_run` (`pass: null`). The offline receipt test accepts that state but never counts it as a pass.
+The M16 proof is the guest's mainnet final proof of 2026-11-11 (`payment-gate/fixtures/m16-payment.json`). It covers the header chain from genesis to 975,072 and a 940,000-sat payment, output 0 of `a652ab0c…0045`, in block 975,067 with 6 confirmations. The run's gated policy:
+- registers that output's script, with a 940,000-sat minimum;
+- requires 6 confirmations;
+- sets the chainwork floor to Bitcoin Core's `chainwork` at 975,072.
+
+Without that fixture the runner writes the last five receipts as `not_run` (`pass: null`); the offline receipt test accepts that state but never counts it as a pass.
 
 The same rules are tested offline on real data:
-- the statement and policy on the real block-170 statement the M16 guest committed when executed;
-- the proof layer on guest A's real final proof.
+- the statement and policy on the real block-170 statement the M16 guest committed when executed, and on the mainnet statement the M16 final proof commits;
+- the proof layer on the M16 final proof and on guest A's real final proof.
 
-**Run of 2026-11-09, 11:18–11:20 UTC.** The receipts in `receipts/` are from this run, which replaced those of 2026-11-01; the earlier set is in git at `6813d84`.
+**Run of 2026-11-11, 02:33–02:34 UTC.** The receipts in `receipts/` are from this run. They replaced those of 2026-11-09 (in git at `fc69bba`), which had the five payment scenarios `not_run`.
 
-The zk VPS did not answer on port 22, so Custodian A ran in the local WSL distribution Ubuntu-24.04 (`--wsl`), with Bitcoin Core 31.1 copied under `/opt/kan-signer/bin`. The setup:
-- A's fingerprint `021e6640`, policy digest `870809e8…`;
+Custodian A ran in the local WSL distribution Ubuntu-24.04 (`--wsl`) again, with Bitcoin Core 31.1 from `/root/opt/bitcoin-31.1/bin`. The setup:
+- A's fingerprint `f0f55d7b`, policy digest `164f8a31…6fe6`;
 - local Core 310100;
-- gate binary `2344753b…`;
-- a 21-entry journal with digest `d219596e…90c4`.
+- gate binary `2344753b…`, built from this crate's source at `fc69bba`;
+- a 26-entry journal with digest `74e4232e…7028`.
 
-Results:
-- All 12 Gate 1–3 scenarios passed, as on the VPS.
-- Gate 5's three proof-layer scenarios passed:
-  - no proof gave `payment_proof_required` (journal seq 19);
-  - guest A's proof with one bit flipped gave `proof_rejected` (the BLAKE3 PCS opening check, seq 20);
-  - guest A's valid proof under the M16 pin gave `proof_wrong_program`, naming `5df3760f…` (seq 21).
-- The five payment scenarios are `not_run`.
+Results: all 20 scenarios passed.
+- All 12 Gate 1–3 scenarios passed, as before.
+- Gate 5, in journal order:
+  - no proof gave `payment_proof_required` (seq 19);
+  - the M16 proof with one bit flipped gave `proof_rejected`, from the BLAKE3 PCS opening check (seq 20);
+  - guest A's valid proof under the M16 pin gave `proof_wrong_program`, naming `5df3760f…` (seq 21);
+  - the M16 proof released A's signature on payment `a652ab0c…0045:0` (seq 22). The client + A spend `e4552a01…319a` passed `testmempoolaccept` and confirmed.
+  - the same proof on a second request gave `payment_already_used`, naming the first request (seq 23);
+  - a policy registering another script gave `script_not_registered` (seq 24);
+  - a policy asking for 7 confirmations gave `too_few_confirmations` (`6 < 7`, seq 25);
+  - a policy pinning testnet4's genesis gave `wrong_genesis` (seq 26).
 
 After the run WSL had no `kansigner` account, and nothing was listening on 18998 or 18999.
 
-Offline: 17/17 Python policy tests (7 new) and 17/17 Node tests. The gate crate has 13 statement and policy tests plus 6 proof tests, all passing.
+The first attempt that day stopped after Gate 3 with `connect ECONNREFUSED 127.0.0.1:18999`. `install-policy` returns once the restarted signer listens inside the distribution, but WSL's localhost relay forwarded the new listener later. Gate 5 now retries `/v1/identity` for up to 20 s after each policy install, as the Gate 2 restart scenario already did.
+
+Offline:
+- the 3 Node tests pass on these receipts;
+- the gate crate's 15 statement and policy tests and 8 proof tests pass on Rust 1.90.0, the CI toolchain (2 and 2 of them new, on the M16 statement and proof);
+- the 17 Python policy tests pass (unchanged).
 
 ## Remaining vulnerabilities and open items
 
@@ -192,7 +206,8 @@ Offline: 17/17 Python policy tests (7 new) and 17/17 Node tests. The gate crate 
 8. **Clock.** Expiry uses the VPS wall clock.
 9. **TLS lifecycle.** The signer certificate is self-signed for 30 days and pinned by fingerprint. The coordinator certificate can be revoked only by replacing the CA. WireGuard was not used; the transport is an SSH forward plus mutual TLS.
 11. **Payment gate:**
-    - Acceptance and the policy refusals wait on a final proof of the M16 guest (nova-bitvm3's mainnet run).
+    - The regtest vault spend is unrelated to the mainnet payment: the run tests the release rule, not a mainnet deposit flow.
+    - One real M16 proof exists. Each new payment needs its own M16 proof; this one was 34.1 × 10^9 SP1 instructions, proved on GPU.
     - The chainwork floor and the registered scripts are set by whoever installs the policy, which is the same single administrator as item 1.
     - The gate runs with the signer service's privileges.
 10. **Not run:** a reorg during recovery, and a network partition during signing (the tunnel was closed, but no packet-level partition was injected). The CI workflow runs the offline checks only; the cross-machine run needs the VPS and is not in CI.

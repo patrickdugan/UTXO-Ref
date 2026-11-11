@@ -29,6 +29,28 @@ pub fn gate_pins(network: &str, program: &str) -> Pins {
     }
 }
 
+/// `fixtures/m16-payment.json`: the M16 mainnet final proof's files and the policy values that
+/// accept its payment.
+pub fn m16_payment() -> Value {
+    serde_json::from_slice(&fixture("m16-payment.json")).unwrap()
+}
+
+/// The policy that accepts the M16 mainnet payment, built from `m16-payment.json`.
+pub fn m16_policy() -> GatePolicy {
+    let m = m16_payment();
+    GatePolicy {
+        network: Network::Mainnet,
+        min_confirmations: m["confirmations"].as_u64().unwrap() as u32,
+        min_tip_chainwork: m["min_tip_chainwork"].as_str().unwrap().into(),
+        scripts: vec![RegisteredScript {
+            id: "m16-payment".into(),
+            script_sha256: m["script_sha256"].as_str().unwrap().into(),
+            min_value_sats: m["min_value_sats"].as_u64().unwrap(),
+        }],
+        pins: gate_pins("mainnet", "m16_chain_and_payment"),
+    }
+}
+
 /// The policy that accepts the block-170 payment.
 pub fn block170_policy() -> GatePolicy {
     GatePolicy {

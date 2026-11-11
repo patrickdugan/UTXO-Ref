@@ -1,14 +1,23 @@
 {
   "scenario": "gate5-payment-replay",
-  "recorded_at": "2026-11-09T11:20:16.892Z",
+  "recorded_at": "2026-11-11T02:34:21.370Z",
   "custodian_a_host": "wsl:Ubuntu-24.04",
   "network": "regtest",
   "vault": "kan-vault-1",
   "signer_a": "custodian-a",
-  "signer_a_fingerprint": "021e6640",
-  "policy_digest": "870809e8496f39015465e49866e56cc40a6e0b78f1002e920cb00c9a5e7bb468",
+  "signer_a_fingerprint": "f0f55d7b",
+  "policy_digest": "164f8a312dc2324d69c56e760f626c039b70d4d545faee53672beadfa9436fe6",
   "local_core_version": 310100,
-  "pass": null,
-  "status": "not_run",
-  "result": "not run: one release per payment needs an M16 final proof (fixtures/m16-payment.json absent)"
+  "pass": true,
+  "result": "same payment on a second request: payment_already_used",
+  "second_request": {
+    "status": "refused",
+    "reason": "payment_already_used",
+    "detail": "a652ab0cf381413ae854a86bb7e4784811b2d4158a65f26ff64a69eb3eb20045:0 released request 7949ff1f-6942-4be2-b189-4a7f8f111a58",
+    "journal_seq": 23,
+    "request_digest": "06ed72323ec38a61f95f05ae93d9b5744cc2b87417bc0743588e42b23cccd87b",
+    "signed_psbt_digest": null,
+    "unsigned_txid": null,
+    "replayed": false
+  }
 }

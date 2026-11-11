@@ -1,21 +1,21 @@
 {
   "scenario": "gate2-modified-output-address",
-  "recorded_at": "2026-11-09T11:19:55.873Z",
+  "recorded_at": "2026-11-11T02:34:15.538Z",
   "custodian_a_host": "wsl:Ubuntu-24.04",
   "network": "regtest",
   "vault": "kan-vault-1",
   "signer_a": "custodian-a",
-  "signer_a_fingerprint": "021e6640",
-  "policy_digest": "870809e8496f39015465e49866e56cc40a6e0b78f1002e920cb00c9a5e7bb468",
+  "signer_a_fingerprint": "f0f55d7b",
+  "policy_digest": "164f8a312dc2324d69c56e760f626c039b70d4d545faee53672beadfa9436fe6",
   "local_core_version": 310100,
   "pass": true,
   "result": "attacker destination destination_not_in_policy; intent mismatch outputs_differ_from_intent",
   "attacker_destination": {
     "status": "refused",
     "reason": "destination_not_in_policy",
-    "detail": "bcrt1qzy975aygcackph4f046pew8nwraw6d2qpz7l6w",
+    "detail": "bcrt1qw7csq9pkl32htq0pxarlmxxwz0w0xffwty4gxk",
     "journal_seq": 8,
-    "request_digest": "b81961c3664d850c1a34b6a1229d22cbb5b974ce5fdeb749750e326dce628467",
+    "request_digest": "c3a54ad4c866dd2da494224ce16fbe6f3172784e68b2487740e22f4fa36c5964",
     "signed_psbt_digest": null,
     "unsigned_txid": null,
     "replayed": false
@@ -23,9 +23,9 @@
   "intent_mismatch": {
     "status": "refused",
     "reason": "outputs_differ_from_intent",
-    "detail": "bcrt1qtad6npmu2p09wtfur0u0ywj90u0rp5rrdcw53x 50000000",
+    "detail": "bcrt1qcpdmv5fl4h4q56vtgfhlkle932pu7k53zt0e5h 50000000",
     "journal_seq": 9,
-    "request_digest": "330c17c93e6a3faa782a0fde4b6d689d8d9bd92e95dce4d38ae8a9c66d826d5f",
+    "request_digest": "310c7cb7c543ed809c40387f125211c1326ec4ac0f5276d7e81aeac34d5a6174",
     "signed_psbt_digest": null,
     "unsigned_txid": null,
     "replayed": false

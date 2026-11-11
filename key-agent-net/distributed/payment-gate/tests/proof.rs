@@ -1,6 +1,7 @@
-//! The final-proof layer, on a real final proof: guest A's (nova-bitvm3 `m13/fixtures`,
-//! testnet4 heights 0–4 from genesis, chain record only). Guest A is a different program from
-//! M16, which lets one real proof exercise every proof-layer refusal.
+//! The final-proof layer, on two real final proofs (nova-bitvm3 `m13/fixtures`): M16's mainnet
+//! proof (header chain from genesis to 975,072 plus a payment in block 975,067), which the gate
+//! accepts, and guest A's (testnet4 heights 0–4 from genesis, chain record only). Guest A is a
+//! different program from M16, which lets one real proof exercise every proof-layer refusal.
 #![cfg(feature = "verify")]
 mod common;
 use common::*;
@@ -12,6 +13,35 @@ fn a_proof() -> Vec<u8> {
 
 fn a_digest() -> String {
     pins()["programs"]["guest_a_chain_only"]["committed_values_sha256"].as_str().unwrap().to_string()
+}
+
+/// The M16 mainnet final proof and the statement it commits (`m16-payment.json`).
+fn m16() -> (Vec<u8>, Vec<u8>) {
+    let m = m16_payment();
+    (fixture(m["proof"].as_str().unwrap()), fixture(m["statement"].as_str().unwrap()))
+}
+
+#[test]
+fn m16_proof_verifies_under_the_m16_pins() {
+    let (p, s) = m16();
+    let got = proof::verify(&p, &s, &gate_pins("mainnet", "m16_chain_and_payment")).unwrap();
+    assert_eq!(got.program_vk_digest, "dfc68a5d579b86244a60ba0baee7852348cf0d2a3bb13910ebb95a3e625fcb60");
+    assert_eq!(got.program_vk_digest, pins()["programs"]["m16_chain_and_payment"]["program_vk_digest"].as_str().unwrap());
+    assert_eq!((got.exit_code, got.is_complete), (0, 1));
+}
+
+#[test]
+fn m16_proof_refusals() {
+    let (p, s) = m16();
+    let pins = gate_pins("mainnet", "m16_chain_and_payment");
+    // Bound to its own statement only.
+    assert_eq!(proof::verify(&p, &fixture("m16-block170-statement.bin"), &pins).unwrap_err().reason, "statement_digest_mismatch");
+    // Not accepted under guest A's program pin.
+    assert_eq!(proof::verify(&p, &s, &gate_pins("mainnet", "guest_a_chain_only")).unwrap_err().reason, "proof_wrong_program");
+    let mut t = p.clone();
+    let mid = t.len() / 2;
+    t[mid] ^= 1;
+    assert_eq!(proof::verify(&t, &s, &pins).unwrap_err().reason, "proof_rejected");
 }
 
 #[test]
