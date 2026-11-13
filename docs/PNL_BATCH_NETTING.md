@@ -113,6 +113,7 @@ Node v24.22.1 on Linux produced these results:
 | Legacy source replay tests | 30 passed |
 | Beta gate tests | 9 passed |
 | Existing V2 and package export boundaries | 10 and 7 passed |
+| Watchtower restart tests | 8/8 passed on repeated invocations with the same process ID after isolating each run's temporary directory |
 | `node scripts/run_every_test.js` | 116/116 test files passed |
 | `node eval/utxo_referee_eval.js --profile=full --require-perfect` | 19/19 cases, 100/100 weighted points |
 | `node eval/dlc_security_eval.js --profile=full --require-perfect` | 49/49 cases, 568/568 weighted points |
@@ -132,6 +133,11 @@ Final boundary regressions also reject executable objects that conceal changed
 recipients through `toJSON`, source or candidate getters, and Proxy traps. Side
 effect counters remain zero. Legacy payout proofs still accept the builder's
 Buffers and their plain JSON encodings.
+
+A repeated full run exposed an existing watchtower test fixture collision:
+state filenames used only the case name and process ID. Reused process IDs
+loaded an earlier run's restart counters. The test now creates and cleans its
+own unique temporary directory; the daemon implementation is unchanged.
 
 ## 1. Obligation graph and settlement domains
 

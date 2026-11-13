@@ -30,9 +30,13 @@ async function testAsync(name, fn) {
 function assert(c, msg) { if (!c) throw new Error(msg || 'assertion failed'); }
 function assertEq(x, e, msg) { if (x !== e) throw new Error(msg || `expected ${e}, got ${x}`); }
 
-const TMP_DIR = path.join(__dirname, 'artifacts', 'live', 'test-tmp');
+const TMP_PARENT = path.join(__dirname, 'artifacts', 'live', 'test-tmp');
+fs.mkdirSync(TMP_PARENT, { recursive: true });
+// A runner can reuse a PID across invocations. Each run gets its own directory
+// while repeated accesses within a restart scenario keep the same state path.
+const TMP_DIR = fs.mkdtempSync(path.join(TMP_PARENT, 'watchtower-daemon-'));
+process.once('exit', () => fs.rmSync(TMP_DIR, { recursive: true, force: true }));
 function tmpPath(name) {
-  fs.mkdirSync(TMP_DIR, { recursive: true });
   return path.join(TMP_DIR, `watchtower_${name}_${process.pid}.json`);
 }
 
