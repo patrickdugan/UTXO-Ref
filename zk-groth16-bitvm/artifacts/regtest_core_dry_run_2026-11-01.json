@@ -1,0 +1,54 @@
+{
+  "kind": "utxoref_groth16_regtest_dryrun_v1",
+  "chain": "regtest",
+  "realBitcoinCore": true,
+  "regtestOnly": true,
+  "coreVersion": "/Satoshi:31.0.0/",
+  "genesisHash": "0f9188f13cb7b2c71f2a335e3a4fc328bf5beb436012afca590b1a11466e2206",
+  "funding": {
+    "txid": "312077e28ba7abd05a3096d38c2cc7c11aaf7cb3f913f39755192bf922949212",
+    "vout": 1,
+    "amountSats": "6000",
+    "scriptPubKeyHex": "5120342f2350baf637be3990e2f6858e749e886f68908d399a5efe128ec26bcd6e35",
+    "confirmationBlock": "0169410240a441adb60a60c78895e67286054b7ecd5a574c2ab065e9822c53f1"
+  },
+  "settlementTxid": "1d68de459d4af5bc0249df5b4756e4df3b03908a9eb3812b1f359a43f44ff491",
+  "statementDigest": "cf3e8a74b150363f0687f66d758649f76996641e08c3954e681c34710430ff06",
+  "publicInputs": [
+    "275474925750574717563591432561091824119",
+    "140349814706713957086501365614912798470"
+  ],
+  "reference": {
+    "v2Verified": true,
+    "proofVerified": false,
+    "settlementAuthorized": false
+  },
+  "earlySequence6": {
+    "allowed": false,
+    "rejectReason": "non-BIP68-final"
+  },
+  "matureSequence6": {
+    "confirmations": 7,
+    "allowed": true
+  },
+  "payoutRedirect": {
+    "v2Allowed": false,
+    "v2Reason": "settlement outputs do not exactly match the signed payout batch",
+    "surrogateWalletKeypathCoreAllowed": true
+  },
+  "reorg": {
+    "snapshotRemainsOnActiveChain": false,
+    "assertionStillMature": false,
+    "height": 101
+  },
+  "signedSettlementBroadcast": false,
+  "groth16ProofGenerated": false,
+  "bitvmGraphEnforced": false,
+  "provenance": {
+    "sourceCommit": "f7425719324d4912165585b7b8428144b7800a86",
+    "workflowRunId": 41273922843,
+    "sourceArtifactId": 13071025026,
+    "observedUTC": "2026-11-01T04:39:26Z",
+    "sourceRunURL": "https://github.com/patrickdugan/UTXO-Ref/actions/runs/41273922843"
+  }
+}

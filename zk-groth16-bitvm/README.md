@@ -30,7 +30,49 @@ node --test zk-groth16-bitvm/statement.test.cjs
 Local verification on 2026-11-01: **15 tests passed, 0 failed**, Node v22.16.0.
 Golden bytes and digest were generated independently with Python
 `struct`/`hashlib`. This run covers the isolated codec and its negative cases.
-Repository-wide integration tests and real proof execution remain pending.
+Focused integration tests now exercise the V2 referee and Groth16 statement adapter.
+Real Groth16 execution and Bitcoin-enforced settlement remain pending.
+
+## Stage 1 off-chain V2 integration (PR #11)
+
+`v2_adapter.cjs` requires a single explicitly pinned assertion UTXO as
+V2's settlement input. It compares the funded outpoint, amount, and Taproot
+script against externally supplied policy, invokes the existing V2 referee,
+and then derives the deterministic V0 proof statement. Every inspection
+remains non-authorizing and unproved.
+
+The focused [GitHub Actions run](https://github.com/patrickdugan/UTXO-Ref/actions/runs/41272453779)
+passed **28 statement/adapter tests and 10 existing V2 tests** on November 1,
+2026. A deterministic positive case exercises the signed checkpoint, payout
+batch and canonical unsigned transaction; negative cases test tampering and
+a valid V2 multi-input batch that the single-assertion profile excludes.
+The fixture contains synthetic testnet4 identities and a development-only key.
+
+See [V2 settlement gate](V2_RELATION_GATE.md) for the exact trust boundary.
+The upstream L2 deposits-to-assertion graph and real Bitcoin inclusion
+checks remain independent obligations.
+
+Run:
+
+```sh
+node --test zk-groth16-bitvm/statement.test.cjs zk-groth16-bitvm/v2_adapter.test.cjs zk-groth16-bitvm/v2_adapter.integration.test.js
+node bitvm3/utxo_referee/utxoref_v2.test.js
+```
+
+## Real Bitcoin Core regtest observation
+
+A new [regtest-only dry run](REGTEST_DRY_RUN.md) uses Core 31.0 with a
+wallet-controlled Taproot surrogate. The [verified workflow](https://github.com/patrickdugan/UTXO-Ref/actions/runs/41273922843)
+observed an early BIP68 rejection, mature signed settlement acceptance,
+and a redirected payout accepted through the surrogate key path even
+though V2 rejected it. Reorg testing invalidated the signed snapshot
+and the assertion's confirmation threshold.
+[Machine-readable evidence](artifacts/regtest_core_dry_run_2026-11-01.json)
+is retained in the repository.
+
+The next phase must use the actual NUMS-keyed BitVM assertion graph;
+this surrogate is deliberately wallet-spendable and has no BitVM
+enforcement or Groth16 proof verification.
 
 ## Intended proof path
 
