@@ -430,7 +430,7 @@ test('BVM-1: the funded pre-policy testnet4 graph verifies only when pinned as m
 
 // ---- BVM-4: separated challenger ----
 
-function unsignedFixture(values = bits(1, 1, 1)) {
+function unsignedFixture(values = bits(1, 1, 1), assertionTxid = ASSERTION_TXID) {
   const { publicTrace, template, binding } = buildFixture(values);
   const publicInput = {
     template,
@@ -438,7 +438,7 @@ function unsignedFixture(values = bits(1, 1, 1)) {
     stateEnvelope: STATE_ENVELOPE,
     stateVerification: STATE_VERIFICATION,
     assertionOutpoint: {
-      txid: ASSERTION_TXID, vout: 0, amountSats: binding.assertionAmountSats, scriptPubKeyHex: template.p2trScriptPubKey
+      txid: assertionTxid, vout: 0, amountSats: binding.assertionAmountSats, scriptPubKeyHex: template.p2trScriptPubKey
     },
     feeSats: binding.feeSats,
     recoveryFeeSats: '500',
@@ -451,7 +451,7 @@ test('BVM-4: operator and challenger sign in separate steps that exchange only p
   const { unsigned, publicInput } = unsignedFixture();
   // Only public data crosses between the parties.
   const wire = JSON.parse(JSON.stringify(unsigned));
-  assert(!containsPrivateMaterial(wire) && !JSON.stringify(wire).includes(OPERATOR_SECRET.toString(16)),
+  assert(!containsPrivateMaterial(wire) && !JSON.stringify(wire).includes(a.bytes32(OPERATOR_SECRET).toString('hex')),
     'unsigned package carries private material');
   // The challenger, on its own host: its secret and its own trust configuration.
   const challengerSignature = challengerSignBitvmAssertionGraphV2(wire, {
@@ -477,6 +477,30 @@ test('BVM-4: operator and challenger sign in separate steps that exchange only p
     recoveryAux: Buffer.alloc(32, 3)
   });
   assert(graph.graphHash === finalized.graphHash, 'three-step graph differs from finalize');
+});
+
+test('BVM-4: a public assertion txid containing a short secret hex suffix remains valid', () => {
+  const assertionTxid = '12345' + 'a'.repeat(59);
+  const { unsigned } = unsignedFixture(undefined, assertionTxid);
+  const wire = JSON.parse(JSON.stringify(unsigned));
+  const serialized = JSON.stringify(wire);
+  assert(wire.assertionOutpoint.txid === assertionTxid, 'fixture lost the public txid');
+  // The former substring check matched this public identifier deterministically.
+  assert(serialized.includes(OPERATOR_SECRET.toString(16)), 'fixture must trigger the former short substring check');
+  assert(!containsPrivateMaterial(wire) && !serialized.includes(a.bytes32(OPERATOR_SECRET).toString('hex')),
+    'public package carries private material');
+  const challengerSignature = challengerSignBitvmAssertionGraphV2(wire, {
+    stateVerification: STATE_VERIFICATION, challengerSecret: CHALLENGER_SECRET, challengerAux: Buffer.alloc(32, 2)
+  });
+  assert(a.schnorrVerify(Buffer.from(CHALLENGER_XONLY, 'hex'),
+    Buffer.from(challengerSignature.sighash, 'hex'), Buffer.from(challengerSignature.signature, 'hex')),
+  'challenger signature must verify for the public txid');
+  const graph = operatorSignBitvmAssertionGraphV2(wire, challengerSignature, {
+    stateVerification: STATE_VERIFICATION, operatorSecret: OPERATOR_SECRET,
+    operatorAux: Buffer.alloc(32, 1), recoveryAux: Buffer.alloc(32, 3)
+  });
+  const check = verifyBitvmAssertionGraphV2(graph, STATE_VERIFICATION);
+  assert(check.ok, check.reason);
 });
 
 test('BVM-4: each party recomputes before signing and refuses substituted data', () => {
