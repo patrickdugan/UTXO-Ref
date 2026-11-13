@@ -32,6 +32,21 @@ The exact guardian-approved, reserve-backed fee-rescue transaction and Core
 replacement drill are documented in
 [`UTXOREF_V2_RESERVE_CPFP.md`](./UTXOREF_V2_RESERVE_CPFP.md).
 
+## PnL batch funding gate
+
+[`tradelayer_pnl_batch_settlement.js`](./tradelayer_pnl_batch_settlement.js)
+computes net realized obligations within explicit collateral domains, checks
+each account's remaining equity, and finds a capacitated flow funding the exact
+payout and vault-change outputs. Verification requires a separately supplied
+snapshot and its pinned hash. The beta gate now requires this accounting check
+and separately tracks the pending funded-spend and atomic state-commit adapter.
+Its reference result carries `executionVerified: false` and
+`zkProofVerified: false`.
+
+The [batch design](../../docs/PNL_BATCH_NETTING.md) explains why greedy routing
+can strand a valid claim, how retained PnL stays backed, and which statement a
+future ZK batch must prove.
+
 BitVM3 module for verifying sweep transactions against committed settlement rules.
 
 ## Legacy V1 Scope

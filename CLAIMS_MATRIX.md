@@ -49,6 +49,15 @@ refer to the 2026-10-02 readiness assessment; see
 | Reserve vaults require the NUMS internal key (RES-1) | `taproot_reserve_vault.js`, `utxoref_v2_guardian_quorum_reserve.js` | LOCAL_SIMULATION | Verifiers derive the key and reject others. |
 | Single-key and MuSig2 taproot DLC demos | `tradelayer_taproot_dlc_demo.js`, `legacy/tradelayer_musig2*.js` | **Superseded** | Still valid Script mechanics on LTCTEST, but neither is the pilot construction; MuSig2 is quarantined in `legacy/`. |
 
+## PnL routing and batch funding (2026-11-13)
+
+| Claim | File(s) | Class | Evidence / limits |
+|---|---|---|---|
+| Legacy PnL verification rebuilds arithmetic and recipients from the caller's independent source | `tradelayer_pnl_state_netting.js` | LOCAL_SIMULATION | Adversarial fixtures cover rehashed diversion, source omission, duplicated positions and unbound scale defaults. The caller authenticates the source. This adapter covers one fungible pool and one declared funding input. |
+| Batch accounting preserves remaining vault claims and funds eligible payout/change destinations | `tradelayer_pnl_batch_settlement.js` | LOCAL_SIMULATION | Exact integer accounting and integral max-flow over committed capacities. The complete input set and ordered outputs are committed. Pinned inputs still need chain validation, script authorization and atomic state consumption. |
+| Beta readiness requires batch accounting and funded spend enforcement | `tradelayer_beta_gate_package.js` | LOCAL_SIMULATION | Candidate evidence cannot supply its own trusted snapshot or substitute an `ok` flag. The spend-enforcement gate remains pending and keeps `realMoneyAllowed` false. |
+| Cryptographic proof of the batch transition | `docs/PNL_BATCH_NETTING.md` | NOT_IMPLEMENTED | The document specifies the public statement and witness checks. A receipt hash or matching roots provides no cryptographic verification. |
+
 ## DLC settlement layer
 
 | Claim | File(s) | Class | Evidence |

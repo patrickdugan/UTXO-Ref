@@ -7,6 +7,10 @@ const {
   buildOperationalDrillChecklist,
   buildBetaGatePackage
 } = require('./tradelayer_beta_gate_package');
+const {
+  buildPnlSettlementBatch,
+  hashPnlSettlementSnapshot
+} = require('./tradelayer_pnl_batch_settlement');
 
 let passed = 0;
 let failed = 0;
@@ -74,6 +78,30 @@ function coreEvidence() {
   };
 }
 
+function fundedPnlFixture() {
+  const domain = { nettingSetId: 's', assetId: 'BTC', unit: 'satoshis' };
+  const snapshot = {
+    kind: 'tradelayer_pnl_batch_snapshot_v1',
+    network: 'bitcoin-regtest', epochId: '1', previousStateRoot: '00'.repeat(32),
+    nettingSets: [{ id: 's', assetId: 'BTC', unit: 'satoshis' }],
+    vaults: [{
+      ...domain, id: 'v', changeScriptPubKey: '51', feeSats: '5', protectedSats: '0',
+      utxos: [{ txid: '11'.repeat(32), vout: 0, sats: '105', scriptPubKey: '51' }]
+    }],
+    accounts: [
+      { ...domain, id: 'loser', vaultId: 'v', equitySats: '100', lockedSats: '0', payoutSats: '0' },
+      { ...domain, id: 'winner', vaultId: 'v', equitySats: '0', lockedSats: '0', payoutSats: '10', payoutScriptPubKey: '52' }
+    ],
+    obligations: [{ ...domain, id: 'o', fromAccountId: 'loser', toAccountId: 'winner', sats: '10' }],
+    consumedObligationIds: [], spentOutpoints: [],
+    routes: [{ fromVaultId: 'v', toOutputId: 'payout:winner', capacitySats: '10' }]
+  };
+  return {
+    batch: buildPnlSettlementBatch(snapshot),
+    context: { snapshot, expectedSnapshotHash: hashPnlSettlementSnapshot(snapshot) }
+  };
+}
+
 console.log('\n=== TradeLayer Beta Gate Package Tests ===\n');
 
 test('key separation ceremony passes only with distinct public keys', () => {
@@ -114,9 +142,11 @@ test('beta package remains limited testnet when non-core gates are missing', () 
   assert(pkg.nextRequiredActions.includes('operational_drills'));
   assert(pkg.nextRequiredActions.includes('loss_caps_defined'));
   assert(pkg.nextRequiredActions.includes('external_review_scope'));
+  assert(pkg.nextRequiredActions.includes('pnl_batch_accounting'));
+  assert(pkg.nextRequiredActions.includes('pnl_batch_spend_enforcement'));
 });
 
-test('beta package becomes candidate only when every gate passes', () => {
+test('legacy readiness evidence cannot bypass the new PNL gates', () => {
   const pkg = buildBetaGatePackage({
     createdAt: '2026-07-06T00:00:00.000Z',
     evidence: coreEvidence(),
@@ -133,9 +163,58 @@ test('beta package becomes candidate only when every gate passes', () => {
     }
   });
 
-  assertEq(pkg.status, 'BETA_CANDIDATE');
-  assertEq(pkg.realMoneyAllowed, true);
-  assertEq(pkg.nextRequiredActions.length, 0);
+  assertEq(pkg.status, 'LIMITED_TESTNET_CONTINUE');
+  assertEq(pkg.realMoneyAllowed, false);
+  assertEq(pkg.nextRequiredActions.join(','), 'pnl_batch_accounting,pnl_batch_spend_enforcement');
+});
+
+test('a verified funded batch passes accounting while spend enforcement stays pending', () => {
+  const fixture = fundedPnlFixture();
+  const pkg = buildBetaGatePackage({
+    evidence: { ...coreEvidence(), pnlSettlement: { batch: fixture.batch } },
+    pnlSettlementContext: fixture.context
+  });
+  const accounting = pkg.gates.find((g) => g.name === 'pnl_batch_accounting');
+  assertEq(accounting.ok, true, accounting.reason);
+  assertEq(accounting.zkProofVerified, false);
+  assertEq(pkg.gates.find((g) => g.name === 'pnl_batch_spend_enforcement').ok, false);
+  assertEq(pkg.realMoneyAllowed, false);
+});
+
+test('a receipt success flag cannot substitute for independently verified batch economics', () => {
+  const pkg = buildBetaGatePackage({
+    evidence: {
+      ...coreEvidence(),
+      pnlSettlement: { ok: true, executionVerified: true, zkProofVerified: true }
+    }
+  });
+  assertEq(pkg.gates.find((g) => g.name === 'pnl_batch_accounting').ok, false);
+  assertEq(pkg.gates.find((g) => g.name === 'pnl_batch_spend_enforcement').ok, false);
+  assertEq(pkg.realMoneyAllowed, false);
+});
+
+test('a valid candidate still requires a separately supplied pinned snapshot', () => {
+  const fixture = fundedPnlFixture();
+  const pkg = buildBetaGatePackage({
+    evidence: {
+      ...coreEvidence(),
+      pnlSettlement: { batch: fixture.batch, ...fixture.context, ok: true }
+    }
+  });
+  assertEq(pkg.gates.find((g) => g.name === 'pnl_batch_accounting').ok, false);
+  assertEq(pkg.realMoneyAllowed, false);
+});
+
+test('a changed destination fails the integrated gate', () => {
+  const fixture = fundedPnlFixture();
+  const changed = JSON.parse(JSON.stringify(fixture.context.snapshot));
+  changed.accounts.find((a) => a.id === 'winner').payoutScriptPubKey = '53';
+  const pkg = buildBetaGatePackage({
+    evidence: { ...coreEvidence(), pnlSettlement: { batch: buildPnlSettlementBatch(changed) } },
+    pnlSettlementContext: fixture.context
+  });
+  assertEq(pkg.gates.find((g) => g.name === 'pnl_batch_accounting').ok, false);
+  assertEq(pkg.realMoneyAllowed, false);
 });
 
 if (failed > 0) {

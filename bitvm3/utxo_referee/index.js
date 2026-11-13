@@ -60,6 +60,7 @@ const bitvmChannelRouter = require('./bitvm_channel_router');
 const lightningTradeLayerOracleDlc = require('./lightning_tradelayer_oracle_dlc');
 const tradeLayerPnlRouteAdapter = require('./tradelayer_pnl_route_adapter');
 const tradeLayerPnlStateNetting = require('./tradelayer_pnl_state_netting');
+const tradeLayerPnlBatchSettlement = require('./tradelayer_pnl_batch_settlement');
 const tradeLayerSendOracleExtractor = require('./tradelayer_send_oracle_extractor');
 const tradeLayerSendSweepPsbt = require('./tradelayer_send_sweep_psbt');
 const tradeLayerSendFraudChallenges = require('./tradelayer_send_fraud_challenges');
@@ -413,6 +414,9 @@ module.exports = {
   buildTradeLayerSendRouteTranscript: tradeLayerPnlRouteAdapter.buildTradeLayerSendRouteTranscript,
   verifyTradeLayerSendRouteTranscript: tradeLayerPnlRouteAdapter.verifyTradeLayerSendRouteTranscript,
   buildTradeLayerPnlCommitment: tradeLayerPnlRouteAdapter.buildTradeLayerPnlCommitment,
+  buildTradeLayerPnlSettlementBatch: tradeLayerPnlBatchSettlement.buildPnlSettlementBatch,
+  verifyTradeLayerPnlSettlementBatch: tradeLayerPnlBatchSettlement.verifyPnlSettlementBatch,
+  hashTradeLayerPnlSettlementSnapshot: tradeLayerPnlBatchSettlement.hashPnlSettlementSnapshot,
   verifyTradeLayerPnlRoutePlan: tradeLayerPnlRouteAdapter.verifyTradeLayerPnlRoutePlan,
   buildTradeLayerSendOracleCommitment: tradeLayerPnlRouteAdapter.buildTradeLayerSendOracleCommitment,
   buildTradeLayerSendOracleSigningPayload: tradeLayerPnlRouteAdapter.buildTradeLayerSendOracleSigningPayload,

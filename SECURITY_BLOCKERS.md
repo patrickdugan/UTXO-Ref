@@ -10,6 +10,26 @@ Cross-reference: [`CLAIMS_MATRIX.md`](CLAIMS_MATRIX.md) for what is and isn't
 proven today; [`docs/ADVERSARIAL_SIGNET_PLAN.md`](docs/ADVERSARIAL_SIGNET_PLAN.md)
 for the rehearsal that is meant to close several of these at once.
 
+## PnL batch execution gate (2026-11-13)
+
+`tradelayer_pnl_batch_settlement.js` checks net obligations, account equity,
+remaining vault backing and a feasible allocation to exact payout/change
+outputs. The caller supplies an independently authenticated snapshot and pins
+its hash. This reference check reports `executionVerified: false` and
+`zkProofVerified: false`.
+
+Before this batch can authorize a spend, the application must bind its complete
+input/output statement to the funded DLC or BitVM paths, recheck active-chain
+unspentness and maturity, and atomically advance the state and consumed-event
+set. Multi-transaction execution also needs a protocol for partial completion.
+The current kernel permits one transaction proposal per batch.
+
+The beta package now includes `pnl_batch_accounting` and
+`pnl_batch_spend_enforcement`. The latter stays pending until that adapter
+exists. Caller-provided receipt success flags cannot satisfy either gate.
+The [batch design](docs/PNL_BATCH_NETTING.md) defines the accounting relation and
+the future proof boundary, including retained rBTC claims and token-unit rules.
+
 ## Status on `pilot-merge` (2026-10-02)
 
 This branch merges `main`'s DLC hardening with the BitVM V2, watchtower,

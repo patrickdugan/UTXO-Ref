@@ -6,6 +6,7 @@
  */
 
 const { stableStringify, sha256Hex } = require('./tradelayer_pnl_route_adapter');
+const { verifyPnlSettlementBatch } = require('./tradelayer_pnl_batch_settlement');
 
 const BETA_GATE_PACKAGE_KIND = 'tradelayer_real_money_beta_gate_package_v1';
 const KEY_CEREMONY_KIND = 'tradelayer_beta_key_separation_ceremony_v1';
@@ -164,6 +165,13 @@ function numericPositive(value) {
 
 function buildBetaGatePackage(input = {}) {
   const evidence = input.evidence || {};
+  // The settlement candidate is untrusted. The caller must supply the current,
+  // independently authenticated snapshot and its pinned hash through a separate
+  // context. Never accept an evidence.ok or proof-receipt boolean here.
+  const pnlBatch = verifyPnlSettlementBatch(
+    evidence.pnlSettlement?.batch,
+    input.pnlSettlementContext || {}
+  );
   const keyCeremony = input.keyCeremony?.kind === KEY_CEREMONY_KIND
     ? input.keyCeremony
     : buildKeySeparationCeremony({ roles: input.roles || {}, createdAt: input.createdAt });
@@ -202,6 +210,20 @@ function buildBetaGatePackage(input = {}) {
     gate('regression_green', evidence.tests?.fullSuitePassed === true, {
       command: evidence.tests?.command || null,
       suites: evidence.tests?.suites || null
+    }),
+    gate('pnl_batch_accounting', pnlBatch.ok === true, {
+      snapshotHash: pnlBatch.snapshotHash || null,
+      batchHash: pnlBatch.batchHash || null,
+      reason: pnlBatch.reason || null,
+      zkProofVerified: pnlBatch.zkProofVerified === true
+    }),
+    // A feasible accounting flow does not establish that the funded DLC/BitVM
+    // paths authorize this exact transaction. The reference verifier currently
+    // returns false. Wiring the actual spend/state-commit path is a separate
+    // implementation gate, which cannot be satisfied by caller-supplied flags.
+    gate('pnl_batch_spend_enforcement', pnlBatch.ok === true && pnlBatch.executionVerified === true, {
+      implementation: 'pending_funded_transaction_and_atomic_state_commit',
+      reason: 'Bind the batch to funded spend paths and atomically consume its state transition.'
     })
   ];
 
