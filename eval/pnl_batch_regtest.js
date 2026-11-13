@@ -190,6 +190,15 @@ function rawWithInvalidWitness(unsignedTxHex) {
     parsed.outputs.map((output) => ({ valueSats: output.valueSats, script: output.scriptPubKeyHex })), parsed.locktime);
 }
 
+function rawWithWitnessStacks(unsignedTxHex, witnessStacks) {
+  const parsed = parseCanonicalUnsignedTransaction(unsignedTxHex);
+  assert.equal(witnessStacks.length, parsed.inputs.length);
+  return serializeWitnessTx(parsed.version,
+    parsed.inputs.map((input, index) => ({ outpoint: outpoint(input.txid, input.vout),
+      sequence: input.sequence, witness: witnessStacks[index] })),
+    parsed.outputs.map((output) => ({ valueSats: output.valueSats, script: output.scriptPubKeyHex })), parsed.locktime);
+}
+
 async function runRegtest() {
   const executable = binaryPath();
   const versionRun = spawnSync(executable, ['--version'], { encoding: 'utf8', timeout: 10000 });
@@ -293,6 +302,80 @@ async function runRegtest() {
     const invalidPolicy = await rpc('testmempoolaccept', [[invalidWitnessHex]]);
     assert.equal(invalidPolicy[0].allowed, false, 'Core accepted the deliberately invalid witness');
 
+    // A separate collateral book exercises a signer misconfiguration. Lock the
+    // primary book's coins while funding it so each book has distinct outpoints.
+    const primaryOutpoints = settlement.transaction.prevouts.map(({ txid, vout }) => ({ txid, vout }));
+    assert.equal(await rpc('lockunspent', [false, primaryOutpoints]), true);
+    let weakFundingTxid;
+    try {
+      weakFundingTxid = await rpc('sendmany', ['', { [addresses.fundingA]: 0.0011, [addresses.fundingB]: 0.00105 }]);
+      await rpc('generatetoaddress', [1, miningAddress]);
+    } finally {
+      assert.equal(await rpc('lockunspent', [true, primaryOutpoints]), true);
+    }
+    const weakFunding = await rpc('getrawtransaction', [weakFundingTxid, true]);
+    assert.notEqual(weakFundingTxid, fundingTxid);
+    const primaryKeys = new Set(primaryOutpoints.map(({ txid, vout }) => `${txid}:${vout}`));
+    assert(weakFunding.vin.every(({ txid, vout }) => !primaryKeys.has(`${txid}:${vout}`)));
+    const weakSnapshot = copy(snapshot);
+    for (const [index, name, expectedSats] of [[0, 'fundingA', '110000'], [1, 'fundingB', '105000']]) {
+      const output = weakFunding.vout.find((row) => row.scriptPubKey.hex === scripts[name]);
+      assert(output, `missing weak-sighash ${name} funding output`);
+      assert.equal(sats(output.value), expectedSats);
+      weakSnapshot.vaults[index].utxos = [{ txid: weakFundingTxid, vout: output.n,
+        sats: expectedSats, scriptPubKey: output.scriptPubKey.hex }];
+    }
+    weakSnapshot.obligations[0].id = 'weak-sighash-close-A-B';
+    const weakLedger = ledgerFromSnapshot(weakSnapshot, { previousEpochId: '0' });
+    weakSnapshot.previousStateRoot = hashLedgerState(weakLedger);
+    const weakTrustPolicy = { ...trustPolicy, contractId: sha256('UTXORef isolated weak-sighash regtest book v1') };
+    const weakBuilt = await checkpointSettlement(weakSnapshot, weakTrustPolicy, privateKeys, rpc);
+    const weakStore = new PnlBatchStateStore(path.join(scratch, 'weak-sighash-journal'), weakTrustPolicy.contractId);
+    const weakInitial = weakStore.initialize(weakLedger, { expectedHeadHash: null });
+    let weakSignerCalls = 0;
+    let weakSignedHex = null;
+    let weakGuardReturnedSuccess = false;
+    const weakRejected = await rejected(async () => {
+      const response = await signPnlBatchSettlementV2({ settlement: weakBuilt.settlement,
+        trustPolicy: weakTrustPolicy, transactionPolicy: weakBuilt.transactionPolicy,
+        expectedTransactionPolicyHash: weakBuilt.expectedTransactionPolicyHash, executionPolicy,
+        store: weakStore, expectedHeadHash: weakInitial.headHash, rpc, signer: async ({ unsignedTxHex }) => {
+          weakSignerCalls++;
+          const weakSigned = await rpc('signrawtransactionwithwallet', [unsignedTxHex, [], 'NONE']);
+          assert.equal(weakSigned.complete, true, 'wallet failed to create the weak-sighash test signatures');
+          weakSignedHex = weakSigned.hex;
+          return weakSigned.hex;
+        } });
+      weakGuardReturnedSuccess = response.ok === true;
+      return response;
+    }, 'SIGHASH_NONE signer output');
+    assert.equal(weakSignerCalls, 1);
+    assert.equal(weakGuardReturnedSuccess, false);
+    assert.match(weakRejected.reason, /sighash|signature coverage/i);
+    assert.equal(typeof weakSignedHex, 'string');
+    const weakState = weakStore.read();
+    assert.equal(weakState.pending.status, 'RESERVED_BEFORE_SIGN');
+    assert.equal(weakState.pending.signedTxHex, null);
+    assert.equal(weakState.signingTombstones.length, 1);
+    assert.equal(weakState.ledgerHash, weakInitial.ledgerHash);
+    const weakBytes = verifyPnlBatchSignedTransaction(weakSignedHex, {
+      batch: weakBuilt.settlement.batch,
+      settlementContext: { snapshot: weakSnapshot, expectedSnapshotHash: hashPnlSettlementSnapshot(weakSnapshot) },
+      transactionPolicy: weakBuilt.transactionPolicy, expectedTransactionPolicyHash: weakBuilt.expectedTransactionPolicyHash
+    });
+    assert.equal(weakBytes.ok, true, weakBytes.reason);
+    assert(weakBytes.witnessStacks.every((stack) => stack.length === 2 && stack[0].endsWith('02')));
+    const weakAcceptance = await rpc('testmempoolaccept', [[weakSignedHex]]);
+    assert.equal(weakAcceptance[0].allowed, true, 'Core rejected the valid SIGHASH_NONE test transaction');
+    const redirectedUnsigned = rawWithForeignOutput(weakBuilt.settlement.transaction.unsignedTxHex, scripts.foreign);
+    const redirectedWeakHex = rawWithWitnessStacks(redirectedUnsigned, weakBytes.witnessStacks);
+    const redirectedAcceptance = await rpc('testmempoolaccept', [[redirectedWeakHex]]);
+    assert.equal(redirectedAcceptance[0].allowed, true, 'SIGHASH_NONE witnesses did not authorize the changed output');
+    assert.notEqual(redirectedAcceptance[0].txid, weakAcceptance[0].txid);
+    const weakMempool = await rpc('getrawmempool');
+    assert(!weakMempool.includes(weakAcceptance[0].txid));
+    assert(!weakMempool.includes(redirectedAcceptance[0].txid));
+
     const signed = await signPnlBatchSettlementV2({ ...common, signer });
     assert.equal(signerCalls, 1);
     const signedState = store.read({ expectedHeadHash: signed.headHash });
@@ -358,7 +441,8 @@ async function runRegtest() {
     assert.deepEqual(sourceProvenance(), sources, 'source files changed during the regtest exercise');
     result = {
       kind: 'utxoref_pnl_batch_isolated_regtest_receipt_v1', ok: true,
-      network: 'regtest', coreVersion: versionRun.stdout.split('\n')[0], coreSubversion: network.subversion,
+      network: 'regtest', bookId: trustPolicy.contractId,
+      coreVersion: versionRun.stdout.split('\n')[0], coreSubversion: network.subversion,
       provenance: { nodeVersion: process.version, platform: process.platform, architecture: process.arch, coreBinary, sources },
       custodyProfile: 'One disposable wallet controls native P2WPKH reserve inputs; both Ed25519 checkpoint keys are local test keys',
       proofSystem: 'none', zkProofVerified: false, peerConnections: 0,
@@ -370,6 +454,18 @@ async function runRegtest() {
       invalidWitness: { transactionBytesVerified: byteCheck.transactionBytesVerified,
         executionVerified: false, coreAllowed: invalidPolicy[0].allowed,
         rejectReason: invalidPolicy[0]['reject-reason'] || invalidPolicy[0]['package-error'] || null },
+      weakSighash: { mode: 'NONE', bookId: weakTrustPolicy.contractId,
+        funding: { txid: weakFundingTxid, totalSats: '215000', inputs: weakSnapshot.vaults.flatMap((vault) => vault.utxos) },
+        ...weakRejected, signerCalls: weakSignerCalls,
+        guardReturnedSignedSuccess: weakGuardReturnedSuccess,
+        reservationRetained: weakState.pending.status === 'RESERVED_BEFORE_SIGN',
+        signedBytesPersisted: weakState.pending.signedTxHex !== null,
+        signingTombstoneCount: weakState.signingTombstones.length,
+        ledgerUnchanged: weakState.ledgerHash === weakInitial.ledgerHash,
+        original: { txid: weakAcceptance[0].txid, wtxid: weakAcceptance[0].wtxid, coreAllowed: weakAcceptance[0].allowed },
+        redirectedOutputWithSameWitnesses: { txid: redirectedAcceptance[0].txid,
+          wtxid: redirectedAcceptance[0].wtxid, coreAllowed: redirectedAcceptance[0].allowed },
+        weakVariantsBroadcast: false },
       settlement: { txid: signed.txid, wtxid: signed.wtxid, confirmationBlockHash,
         feeSats: '1000', payoutSats: '4000', retainedProfitSats: '6000', residuals: observedOutputs,
         initialHeadHash: initial.headHash, signedHeadHash: signed.headHash,

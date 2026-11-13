@@ -2,6 +2,7 @@
   "kind": "utxoref_pnl_batch_isolated_regtest_receipt_v1",
   "ok": true,
   "network": "regtest",
+  "bookId": "882bf2ebae109bb9d300632b301bb0d30eb0845751e8faba05a9869b79981b94",
   "coreVersion": "Bitcoin Core daemon version v31.1.0 bitcoind",
   "coreSubversion": "/Satoshi:31.1.0/",
   "provenance": {
@@ -17,7 +18,7 @@
       "kind": "utxoref_pnl_batch_regtest_source_manifest_v1",
       "coverage": "Harness, its loaded repository CommonJS dependencies, and the synthetic snapshot fixture",
       "aggregateEncoding": "SHA256 of UTF-8 UTXOREF_PNL_BATCH_REGTEST_SOURCES_V1 followed by NUL and JSON.stringify(files)",
-      "sourceManifestSha256": "521813eab64f698b26a12b7021fb976df75eff7ea081b057cdc68104e14540bf",
+      "sourceManifestSha256": "abd41e7c97d2d4e05e5fffb8fbee5b419b2224a0aa5f3c5dcaf3b26ee5b282bf",
       "files": [
         {
           "path": "bitvm3/utxo_referee/artifacts/fixtures/pnl_batch_settlement_v1.snapshot.json",
@@ -53,7 +54,7 @@
         },
         {
           "path": "bitvm3/utxo_referee/tradelayer_pnl_batch_transaction.js",
-          "sha256": "0cfe9f5f80df96af93437149f6769f5a5e8782587c2e1b3209e56d14b73bdffd"
+          "sha256": "cad067d22b383997e64fd4b001a1a46212489f86a10be186b09328e87d42a3b6"
         },
         {
           "path": "bitvm3/utxo_referee/tradelayer_taproot.js",
@@ -77,11 +78,11 @@
         },
         {
           "path": "bitvm3/utxo_referee/utxoref_v2_pnl_batch_execution.js",
-          "sha256": "f4961a46a2ce4e6a5727e47b736e80b6a09c3fc35f68bb7c408d73eeed00785e"
+          "sha256": "4c530f4c9535ce1b7b9ebec87396195ba4b1bbfff8866ed82491cf479bfe503f"
         },
         {
           "path": "eval/pnl_batch_regtest.js",
-          "sha256": "b42b8ec365b57ae6c3fc03b273d7f37956ac625a6a23ae8f71acfe923cdc0468"
+          "sha256": "d4e7330bac5be3378722e4b1170cb4dd2a527f8216e468b69a0b8cae484c6912"
         }
       ]
     }
@@ -93,28 +94,28 @@
   "signerQuorum": {
     "threshold": 2,
     "distinctKeyIds": [
-      "7a825711ba3e68805bbe4b9e2e7d9c7070ac0a0ede269d5e0c51b920b81a719e",
-      "86836db2eae05fb323416eb0e5cf88813110d1eaf5ebe690cf42331430f0f072"
+      "d246923591fc717371b8d92d544afa6c6918ac052e3e2f52e0a371243789dc02",
+      "fe58b6db8fce53c764c6d4ae0d6f82baeb18114201b8f6dbbcbd08b04506615b"
     ]
   },
-  "snapshotHash": "ca520056d600cd2931431a4ebae3080c5f173cdffc33058a6e1062ec6b11ad3f",
-  "checkpointHash": "7340f1f1e19cd2546b825faec2f7ed0cee4cb3c826efa52cf5ac72bda9fa2bc4",
-  "transactionPolicyHash": "368d2d66d209ae0acc91185207b1dc90ff0d66a9a060ed1cf26118a82ab20638",
+  "snapshotHash": "1bd2ef601577943c72a660d32ef74b805643726e6aae3c33628c6cc51b1481fe",
+  "checkpointHash": "088f55f7eaf97459a5b9bc9558796dc0b5772640e6aae236f04b003f6e1c250d",
+  "transactionPolicyHash": "ca9f9f5734e2bc2c30ad5dac0ed4853fed35e9a22914e5e7094e2115fb8ba501",
   "funding": {
-    "txid": "e45347b9604e3579775b94ed15e40937401696bbfe9fe0e365bf9bb40a1caecf",
+    "txid": "c36e946e442fd49cbaf125d46a08a6a23b48253729d26d399be0b7aad0b5d70c",
     "totalSats": "215000",
     "inputs": [
       {
-        "txid": "e45347b9604e3579775b94ed15e40937401696bbfe9fe0e365bf9bb40a1caecf",
-        "vout": 0,
+        "txid": "c36e946e442fd49cbaf125d46a08a6a23b48253729d26d399be0b7aad0b5d70c",
+        "vout": 1,
         "sats": "110000",
-        "scriptPubKey": "0014ff915ad81c37912425f23ee59889bd60fa9ce434"
+        "scriptPubKey": "001475de3e1110b8481b66deed24eab376b61bee59c5"
       },
       {
-        "txid": "e45347b9604e3579775b94ed15e40937401696bbfe9fe0e365bf9bb40a1caecf",
-        "vout": 1,
+        "txid": "c36e946e442fd49cbaf125d46a08a6a23b48253729d26d399be0b7aad0b5d70c",
+        "vout": 0,
         "sats": "105000",
-        "scriptPubKey": "001436a63c1e2d2aaf7c8795b36698f971892dcaa64b"
+        "scriptPubKey": "0014edcfc835168e78dfb279d7a34bff760dc3119e6b"
       }
     ]
   },
@@ -129,33 +130,74 @@
     "coreAllowed": false,
     "rejectReason": "mempool-script-verify-flag-failed (Witness program hash mismatch)"
   },
+  "weakSighash": {
+    "mode": "NONE",
+    "bookId": "6b72480eada282ba780752a83274d9cd29f13a9a211b92145d096170696d03f2",
+    "funding": {
+      "txid": "87325c81e4672d627636cbc2ea89d9c2c1366ded3b1c4cdbd65c5bd38da36c14",
+      "totalSats": "215000",
+      "inputs": [
+        {
+          "txid": "87325c81e4672d627636cbc2ea89d9c2c1366ded3b1c4cdbd65c5bd38da36c14",
+          "vout": 2,
+          "sats": "110000",
+          "scriptPubKey": "001475de3e1110b8481b66deed24eab376b61bee59c5"
+        },
+        {
+          "txid": "87325c81e4672d627636cbc2ea89d9c2c1366ded3b1c4cdbd65c5bd38da36c14",
+          "vout": 1,
+          "sats": "105000",
+          "scriptPubKey": "0014edcfc835168e78dfb279d7a34bff760dc3119e6b"
+        }
+      ]
+    },
+    "rejected": true,
+    "reason": "P2WPKH signing profile requires a canonical DER SIGHASH_ALL signature and compressed pubkey",
+    "signerCalls": 1,
+    "guardReturnedSignedSuccess": false,
+    "reservationRetained": true,
+    "signedBytesPersisted": false,
+    "signingTombstoneCount": 1,
+    "ledgerUnchanged": true,
+    "original": {
+      "txid": "a8c07ec45f9ead9c34d7c283c6eb3e20dadf3dd2b0450c9204ee92617f7155b8",
+      "wtxid": "c950dd769d76642cc2231c82fa3fb39c6f1ef4f2c9de70aeb8c2bb591b8b3d84",
+      "coreAllowed": true
+    },
+    "redirectedOutputWithSameWitnesses": {
+      "txid": "657788a6cbcbc9dc7dec2c034261748b2ba26ddcfad1e5c8322707ef67e59f4e",
+      "wtxid": "582078af8da2d287c142d8ff4fe0e05925befbc98b9f914e05f454a120646fd1",
+      "coreAllowed": true
+    },
+    "weakVariantsBroadcast": false
+  },
   "settlement": {
-    "txid": "63e122f28f34d6abe18290cfc30218921c84ef3d011be9657ed9fc1bcce0a831",
-    "wtxid": "6cb24fbb1ec6f7a1ae70abe9ded18e340c1c13bff746eb757cbb95c7b416cc47",
-    "confirmationBlockHash": "15bf2f227c43a5c5d3af838585c17c65a32704727b150a7242d3d5361f5bfe92",
+    "txid": "f7cc4685ced55d15e36f0ea5ba5dd5b9fe0d4146a4f0c9b1e22cd350c31909c4",
+    "wtxid": "41273260b24ba57897197bd13affd61fb3e6c8afd258a22a77ced5dbb47bf399",
+    "confirmationBlockHash": "45d62c26f4b3d614c97121a8d67cd716f6fda2631a7ef22cfe36ddc65c85cdae",
     "feeSats": "1000",
     "payoutSats": "4000",
     "retainedProfitSats": "6000",
     "residuals": [
       {
         "vaultId": "A",
-        "txid": "63e122f28f34d6abe18290cfc30218921c84ef3d011be9657ed9fc1bcce0a831",
+        "txid": "f7cc4685ced55d15e36f0ea5ba5dd5b9fe0d4146a4f0c9b1e22cd350c31909c4",
         "vout": 1,
         "sats": "99500",
         "confirmations": 1
       },
       {
         "vaultId": "B",
-        "txid": "63e122f28f34d6abe18290cfc30218921c84ef3d011be9657ed9fc1bcce0a831",
+        "txid": "f7cc4685ced55d15e36f0ea5ba5dd5b9fe0d4146a4f0c9b1e22cd350c31909c4",
         "vout": 2,
         "sats": "110500",
         "confirmations": 1
       }
     ],
-    "initialHeadHash": "682790bf593295b12161ce89e6ee38c880b67becc477d831d28056d0150932c0",
-    "signedHeadHash": "6848a1f7dcb0699b8cccc3bcf5dd0e031c5ac9a69c9e804c23b3f12cf248156a",
-    "confirmedHeadHash": "ea9b8a2ceb557fa4e798af3840935a3d7ae787b18220d1c4ed12ffd1a3154fb7",
-    "confirmedLedgerHash": "ac0ffef2f324ed41bbc63225a71a9389038a100419b438a50f3d934fb765dcef",
+    "initialHeadHash": "1797c602afe489a187d6332ef3c306b04f261a8e5777ebc09aac44bb33216e52",
+    "signedHeadHash": "02daa51d79c71554fe511c59ce7f7aa5179df13cede42931a7b6f65763d42d39",
+    "confirmedHeadHash": "dab6a5a092199a48e7b139b60e3e4c06a1f4348ed1ba43d1c3be36c59edc42e8",
+    "confirmedLedgerHash": "287d7e0bc50ea4cbbce170f0e9e27d70e35c61aa8aa5d7d761eee5c386f75110",
     "accountEquities": [
       {
         "accountId": "trader-A",
@@ -184,11 +226,11 @@
     "signingTombstoneCount": 1
   },
   "reorg": {
-    "invalidatedBlockHash": "15bf2f227c43a5c5d3af838585c17c65a32704727b150a7242d3d5361f5bfe92",
+    "invalidatedBlockHash": "45d62c26f4b3d614c97121a8d67cd716f6fda2631a7ef22cfe36ddc65c85cdae",
     "rejected": true,
     "reason": "previous committed settlement left the active chain",
     "frozen": true,
-    "frozenHeadHash": "3cc7998f2f97240c6cab7d846fa8de5c8b48584dbd6da2bfedd95ea1bb99ebe6"
+    "frozenHeadHash": "fe9abf84c845793d41657eff1a12e0eb7741e64e529d3e7db8985791d2bcb9e9"
   },
   "scope": "Observed local wallet signing, Core script policy, broadcast, mining and guarded journal transitions; no independent custody or public-chain execution",
   "cleanup": {

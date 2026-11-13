@@ -20,6 +20,10 @@ Production readiness still requires mandatory custody integration, the actual
 DLC/BitVM spend construction, an external journal-head pin and reviewed recovery.
 The new store requires POSIX directory fsync and refuses Windows until an
 equivalent durable publication primitive is implemented.
+The funded execution profile requires native P2WPKH `SIGHASH_ALL` or P2TR
+key-path `DEFAULT`/`ALL`. Production script paths need their own enforced
+signature-coverage policy, and the signer must enforce that policy inside its
+key boundary before releasing authority.
 
 `tradelayer_pnl_batch_settlement.js` checks net obligations, account equity,
 remaining vault backing and a feasible allocation to exact payout/change

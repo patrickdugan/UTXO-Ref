@@ -257,6 +257,26 @@ test('supports arbitrary bounded witness stack shapes and empty items without va
   }
 });
 
+test('exposes exact deeply frozen witness stacks for an independent execution profile', () => {
+  const context = contextFor();
+  const proposal = buildPnlBatchTransaction(context);
+  const stacks = [['', '11'.repeat(64), '50abcd'], ['300602010102010102', '02' + '22'.repeat(32)]];
+  const signed = signedFrom(proposal, stacks);
+  const parsed = parsePnlBatchSignedEnvelope(signed, proposal.unsignedTxHex);
+  const receipt = verifyPnlBatchSignedTransaction(signed, pinned(context));
+  assert.equal(receipt.ok, true, receipt.reason);
+  for (const result of [parsed, receipt]) {
+    assert.deepEqual(result.witnessStacks, stacks);
+    assert.deepEqual(result.witnessItemCounts, [3, 2]);
+    assert(Object.isFrozen(result.witnessStacks));
+    assert(result.witnessStacks.every(Object.isFrozen));
+    assert.throws(() => { result.witnessStacks[0][0] = 'ff'; }, TypeError);
+    assert.throws(() => { result.witnessStacks.push([]); }, TypeError);
+  }
+  assert.equal(receipt.executionVerified, false);
+  assert.equal(receipt.zkProofVerified, false);
+});
+
 test('signed verification independently rebuilds the source instead of trusting a verified flag', () => {
   const context = contextFor();
   const proposal = buildPnlBatchTransaction(context);

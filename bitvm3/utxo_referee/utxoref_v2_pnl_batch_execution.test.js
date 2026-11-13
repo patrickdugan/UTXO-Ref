@@ -24,6 +24,12 @@ const BOOK = 'bb'.repeat(32);
 const copy = (value) => JSON.parse(JSON.stringify(value));
 const sha = (value) => crypto.createHash('sha256').update(value).digest('hex');
 const blockHash = (height) => sha(`pnl-guard-test-block-${height}`);
+const DEFAULT_TAPROOT_SIGNATURE = '22'.repeat(64);
+const STRICT_DER_SIGNATURE = '3006020101020101';
+const COMPRESSED_PUBKEY = '0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798';
+const hash160 = (hex) => crypto.createHash('ripemd160')
+  .update(crypto.createHash('sha256').update(Buffer.from(hex, 'hex')).digest()).digest('hex');
+const p2wpkhScript = (pubkey = COMPRESSED_PUBKEY) => `0014${hash160(pubkey)}`;
 const KEYS = Array.from({ length: 2 }, () => {
   const pair = crypto.generateKeyPairSync('ed25519');
   const der = pair.publicKey.export({ type: 'spki', format: 'der' });
@@ -57,11 +63,11 @@ function seal(snapshot, trustPolicy = policy(), metadata = {}) {
   return { settlement, transactionPolicy, expectedTransactionPolicyHash };
 }
 
-function witnessTransaction(proposal, mutate = (value) => value) {
+function witnessTransaction(proposal, mutate = (value) => value, witnessStacks = null) {
   const transaction = mutate(copy(proposal));
   return serializeWitnessTx(transaction.version,
-    transaction.prevouts.map((input) => ({ outpoint: outpoint(input.txid, input.vout),
-      sequence: input.sequence, witness: ['22'.repeat(64)] })),
+    transaction.prevouts.map((input, index) => ({ outpoint: outpoint(input.txid, input.vout),
+      sequence: input.sequence, witness: witnessStacks === null ? [DEFAULT_TAPROOT_SIGNATURE] : witnessStacks[index] })),
     transaction.outputs.map(({ sats, scriptPubKey }) => ({ valueSats: BigInt(sats), script: scriptPubKey })),
     transaction.locktime);
 }
@@ -85,8 +91,9 @@ function offlineFixture() {
   } };
 }
 
-function fixture(t) {
+function fixture(t, mutateSnapshot = () => {}) {
   const snapshot = copy(SOURCE);
+  mutateSnapshot(snapshot);
   const ledger = ledgerFromSnapshot(snapshot, { previousEpochId: '0' });
   snapshot.previousStateRoot = hashLedgerState(ledger);
   const trustPolicy = policy();
@@ -175,6 +182,35 @@ function mine(data, tipHeight = 104, transactionHeight = 103) {
   data.node.sequence++;
 }
 
+function p2wpkhFixture(t, pubkey = COMPRESSED_PUBKEY) {
+  return fixture(t, (snapshot) => { snapshot.vaults[0].utxos[0].scriptPubKey = p2wpkhScript(pubkey); });
+}
+
+function withWitnesses(data, stacks) {
+  return witnessTransaction(data.settlement.transaction, (transaction) => transaction, stacks);
+}
+
+async function assertRejectedSignerResult(data, result, pattern) {
+  data.signer = async () => { data.signerCalls++; return result; };
+  let reservedHead;
+  await assert.rejects(signPnlBatchSettlementV2(data.args()), (error) => {
+    assert.match(error.message, pattern);
+    assert.match(error.headHash, /^[0-9a-f]{64}$/);
+    reservedHead = error.headHash;
+    return true;
+  });
+  const state = data.store.read({ expectedHeadHash: reservedHead });
+  assert.equal(data.signerCalls, 1);
+  assert.equal(state.pending.status, 'RESERVED_BEFORE_SIGN');
+  assert.equal(state.pending.txid, data.settlement.transaction.txid);
+  assert.equal(state.pending.signedTxHex, null);
+  assert.equal(state.signingTombstones.length, 1);
+  assert.equal(state.ledgerHash, data.initial.ledgerHash);
+  assert.equal(data.node.calls.filter((call) => call.method === 'testmempoolaccept').length, 0);
+  await assert.rejects(broadcastPnlBatchSettlementV2(data.args(state.headHash, false)), /durably stored signed bytes/);
+  assert.equal(data.node.sends, 0);
+}
+
 test('converts bounded Core decimal values to exact satoshis and rejects sub-satoshi input', () => {
   assert.equal(btcToSats('0.00000001', 'amount'), 1n);
   assert.equal(btcToSats(0.00000001, 'amount'), 1n);
@@ -253,6 +289,203 @@ posixTest('reserves before signer invocation, persists exact signed bytes, and k
   assert.equal(signed.executionVerified, false);
   assert.equal(signed.zkProofVerified, false);
   assert.equal(data.node.sends, 0);
+});
+
+posixTest('accepts Taproot DEFAULT and explicit SIGHASH_ALL within one signed batch', async (t) => {
+  const data = fixture(t);
+  data.signer = async () => {
+    data.signerCalls++;
+    return withWitnesses(data, [[DEFAULT_TAPROOT_SIGNATURE], [`${DEFAULT_TAPROOT_SIGNATURE}01`]]);
+  };
+  const signed = await signPnlBatchSettlementV2(data.args());
+  assert.equal(signed.corePolicyVerified, true);
+  assert.equal(data.store.read({ expectedHeadHash: signed.headHash }).pending.status, 'SIGNED');
+  assert.equal(data.signerCalls, 1);
+  assert.equal(data.node.sends, 0);
+});
+
+posixTest('accepts a matching compressed P2WPKH SIGHASH_ALL witness beside a Taproot input', async (t) => {
+  const data = p2wpkhFixture(t);
+  data.signer = async () => {
+    data.signerCalls++;
+    return withWitnesses(data, [[`${STRICT_DER_SIGNATURE}01`, COMPRESSED_PUBKEY], [DEFAULT_TAPROOT_SIGNATURE]]);
+  };
+  const signed = await signPnlBatchSettlementV2(data.args());
+  const args = data.args(signed.headHash, false);
+  assert.equal((await broadcastPnlBatchSettlementV2(args)).ok, true);
+  mine(data);
+  const confirmed = await confirmPnlBatchSettlementV2(args);
+  assert.equal(confirmed.executionVerified, true);
+  assert.equal(data.store.read({ expectedHeadHash: confirmed.headHash }).ledger.epochId, '1');
+  assert.equal(data.signerCalls, 1);
+  assert.equal(data.node.sends, 1);
+});
+
+posixTest('rejects unsupported authenticated funding programs before reserving or calling the signer', async (t) => {
+  for (const script of [
+    `0020${'44'.repeat(32)}`,
+    `a914${'44'.repeat(20)}87`,
+    `76a914${'44'.repeat(20)}88ac`,
+    `5220${'44'.repeat(32)}`,
+    `511f${'44'.repeat(31)}`,
+    `0014${'44'.repeat(19)}`
+  ]) {
+    const data = fixture(t, (snapshot) => { snapshot.vaults[1].utxos[0].scriptPubKey = script; });
+    await assert.rejects(signPnlBatchSettlementV2(data.args()), /execution funding profile requires native P2WPKH or P2TR/);
+    const state = data.store.read({ expectedHeadHash: data.initial.headHash });
+    assert.equal(state.pending, null);
+    assert.equal(state.signingTombstones.length, 0);
+    assert.equal(data.signerCalls, 0);
+    assert.equal(data.node.sends, 0);
+    assert.equal(data.node.calls.filter((call) => call.method === 'testmempoolaccept').length, 0);
+  }
+});
+
+posixTest('rejects Taproot NONE, SINGLE and ANYONECANPAY on a later input while retaining its reservation', async (t) => {
+  for (const flag of ['02', '03', '81', '82', '83']) {
+    const data = fixture(t);
+    await assertRejectedSignerResult(data,
+      withWitnesses(data, [[DEFAULT_TAPROOT_SIGNATURE], [`${DEFAULT_TAPROOT_SIGNATURE}${flag}`]]),
+      /P2TR signing profile/);
+  }
+});
+
+posixTest('rejects an explicitly encoded Taproot DEFAULT sighash byte', async (t) => {
+  const data = fixture(t);
+  await assertRejectedSignerResult(data,
+    withWitnesses(data, [[DEFAULT_TAPROOT_SIGNATURE], [`${DEFAULT_TAPROOT_SIGNATURE}00`]]),
+    /P2TR signing profile/);
+});
+
+posixTest('rejects Taproot signatures with lengths outside its DEFAULT and ALL encodings', async (t) => {
+  for (const signature of ['22'.repeat(63), `${'22'.repeat(65)}01`]) {
+    const data = fixture(t);
+    await assertRejectedSignerResult(data,
+      withWitnesses(data, [[DEFAULT_TAPROOT_SIGNATURE], [signature]]), /P2TR signing profile/);
+  }
+});
+
+posixTest('rejects empty Taproot witnesses, annexes and script-path stacks in the execution profile', async (t) => {
+  for (const stack of [
+    [],
+    [DEFAULT_TAPROOT_SIGNATURE, '50'],
+    [DEFAULT_TAPROOT_SIGNATURE, '51', `c0${'11'.repeat(32)}`]
+  ]) {
+    const data = fixture(t);
+    await assertRejectedSignerResult(data,
+      withWitnesses(data, [[DEFAULT_TAPROOT_SIGNATURE], stack]), /P2TR signing profile/);
+  }
+});
+
+posixTest('rejects P2WPKH NONE, SINGLE, ANYONECANPAY and undefined DEFAULT sighashes', async (t) => {
+  for (const flag of ['02', '03', '81', '82', '83', '00']) {
+    const data = p2wpkhFixture(t);
+    await assertRejectedSignerResult(data,
+      withWitnesses(data, [[`${STRICT_DER_SIGNATURE}${flag}`, COMPRESSED_PUBKEY], [DEFAULT_TAPROOT_SIGNATURE]]),
+      /P2WPKH signing profile/);
+  }
+});
+
+posixTest('rejects malformed DER and nonminimal or negative ECDSA integers despite an ALL suffix', async (t) => {
+  for (const signature of [
+    '310602010102010101',
+    '300702010102010101',
+    '300602018002010101',
+    '30070202000102010101',
+    '30070201010202000101'
+  ]) {
+    const data = p2wpkhFixture(t);
+    await assertRejectedSignerResult(data,
+      withWitnesses(data, [[signature, COMPRESSED_PUBKEY], [DEFAULT_TAPROOT_SIGNATURE]]),
+      /P2WPKH signing profile/);
+  }
+});
+
+posixTest('rejects a compressed P2WPKH pubkey whose HASH160 differs from the authenticated program', async (t) => {
+  const data = p2wpkhFixture(t);
+  const differentPubkey = `03${COMPRESSED_PUBKEY.slice(2)}`;
+  await assertRejectedSignerResult(data,
+    withWitnesses(data, [[`${STRICT_DER_SIGNATURE}01`, differentPubkey], [DEFAULT_TAPROOT_SIGNATURE]]),
+    /P2WPKH signing pubkey differs/);
+});
+
+posixTest('requires compressed 33-byte P2WPKH pubkeys even when another encoding matches the program hash', async (t) => {
+  for (const pubkey of [
+    `04${COMPRESSED_PUBKEY.slice(2)}${'11'.repeat(32)}`,
+    `04${COMPRESSED_PUBKEY.slice(2)}`,
+    COMPRESSED_PUBKEY.slice(0, -2)
+  ]) {
+    const data = p2wpkhFixture(t, pubkey);
+    await assertRejectedSignerResult(data,
+      withWitnesses(data, [[`${STRICT_DER_SIGNATURE}01`, pubkey], [DEFAULT_TAPROOT_SIGNATURE]]),
+      /P2WPKH signing profile/);
+  }
+});
+
+posixTest('requires exactly two P2WPKH witness items before releasing a signed result', async (t) => {
+  for (const stack of [[], [`${STRICT_DER_SIGNATURE}01`], [`${STRICT_DER_SIGNATURE}01`, COMPRESSED_PUBKEY, '00']]) {
+    const data = p2wpkhFixture(t);
+    await assertRejectedSignerResult(data,
+      withWitnesses(data, [stack, [DEFAULT_TAPROOT_SIGNATURE]]), /P2WPKH signing profile/);
+  }
+});
+
+posixTest('rechecks restrictive sighashes for persisted recovery records before broadcast or confirmation', async (t) => {
+  for (const profile of ['P2TR', 'P2WPKH']) {
+    const data = profile === 'P2TR' ? fixture(t) : p2wpkhFixture(t);
+    data.signer = async () => { data.signerCalls++; throw new Error('fixture interrupted before returning bytes'); };
+    await assert.rejects(signPnlBatchSettlementV2(data.args()), /fixture interrupted/);
+    const reserved = data.store.read();
+    const stacks = profile === 'P2TR'
+      ? [[DEFAULT_TAPROOT_SIGNATURE], [`${DEFAULT_TAPROOT_SIGNATURE}83`]]
+      : [[`${STRICT_DER_SIGNATURE}02`, COMPRESSED_PUBKEY], [DEFAULT_TAPROOT_SIGNATURE]];
+    const signedTxHex = withWitnesses(data, stacks);
+    // This generic store operation binds bytes to the reservation. Execution
+    // must apply its signature policy again when an older record is recovered.
+    const stored = data.store.recordSigned(reserved.headHash, { signedTxHex });
+    const parsed = parsePnlBatchSignedEnvelope(signedTxHex, data.settlement.transaction.unsignedTxHex);
+    data.node.known = { hex: signedTxHex, txid: parsed.txid, hash: parsed.wtxid };
+    mine(data);
+    const args = data.args(stored.headHash, false);
+    await assert.rejects(broadcastPnlBatchSettlementV2(args), /signing profile/);
+    await assert.rejects(confirmPnlBatchSettlementV2(args), /signing profile/);
+    const state = data.store.read({ expectedHeadHash: stored.headHash });
+    assert.equal(state.pending.status, 'SIGNED');
+    assert.equal(state.pending.signedTxHex, signedTxHex);
+    assert.equal(state.ledger.epochId, '0');
+    assert.equal(state.signingTombstones.length, 1);
+    assert.equal(data.node.sends, 0);
+    assert.equal(data.node.calls.filter((call) => call.method === 'getrawtransaction').length, 0);
+  }
+});
+
+posixTest('reads witness stacks from the parsed receipt without consulting inherited getters', async (t) => {
+  const data = fixture(t);
+  let getterCalls = 0;
+  const prior = Object.getOwnPropertyDescriptor(Object.prototype, 'witnessStacks');
+  try {
+    Object.defineProperty(Object.prototype, 'witnessStacks', { configurable: true,
+      get() { getterCalls++; throw new Error('inherited witness stacks'); } });
+    const signed = await signPnlBatchSettlementV2(data.args());
+    assert.equal(signed.corePolicyVerified, true);
+    assert.equal(getterCalls, 0);
+  } finally {
+    if (prior) Object.defineProperty(Object.prototype, 'witnessStacks', prior);
+    else delete Object.prototype.witnessStacks;
+  }
+});
+
+posixTest('rejects counterfeit signer objects before invoking own or inherited witness getters', async (t) => {
+  let getterCalls = 0;
+  for (const inherited of [false, true]) {
+    const source = {};
+    Object.defineProperty(source, 'witnessStacks', { enumerable: true,
+      get() { getterCalls++; throw new Error('counterfeit witness stacks'); } });
+    const result = inherited ? Object.create(source) : source;
+    const data = fixture(t);
+    await assertRejectedSignerResult(data, result, /signed batch rejected/);
+    assert.equal(getterCalls, 0);
+  }
 });
 
 posixTest('broadcasts only persisted bytes, handles an already-known transaction and commits exact residuals', async (t) => {

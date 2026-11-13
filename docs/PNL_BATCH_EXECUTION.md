@@ -109,6 +109,23 @@ the independently rebuilt unsigned bytes. Witness items remain opaque here;
 Core must execute the actual scripts. The funded harness includes a structurally
 valid envelope whose witness Core rejects.
 
+Funded execution additionally applies `native-segwit-whole-transaction-v1`.
+Preflight permits native P2WPKH and P2TR funding programs. A P2WPKH witness must
+contain a canonical DER signature with `SIGHASH_ALL` and a compressed public key
+matching its funding program. A P2TR witness must contain one key-path signature:
+64 bytes for `SIGHASH_DEFAULT`, or 65 bytes ending in `SIGHASH_ALL`. This profile
+rejects other hash modes, Taproot script paths and annexes. Core still checks
+cryptographic validity.
+
+Checking transaction bytes and Core acceptance alone leaves a gap: Core can
+accept signatures with `NONE`, `SINGLE` or `ANYONECANPAY`, which permit changes
+to fields outside their commitments. The execution guard checks complete
+signature coverage before recording or releasing signed bytes and repeats that
+check during recovery. The signer receives the required profile and must enforce
+it inside its key boundary. A signer that leaks authority out of band remains
+outside this host guard's control. Rejection after signer invocation preserves
+the reservation because a signature may already exist.
+
 ## Persistent authorization and recovery
 
 One lock and compare-and-swap head cover the complete book. The store's `bookId`
@@ -209,7 +226,11 @@ set produces a 4,000-sat payment, residuals of 99,500 and 110,500 sats, and a
 
 Adversarial checks include destination substitution before signing, an invalid
 witness rejected by Core, pending and confirmed replay, journal restart, and
-invalidation of the confirmation block followed by a required freeze. The
+invalidation of the confirmation block followed by a required freeze. A separate
+funded book demonstrates that Core accepts a `SIGHASH_NONE` transaction and a
+changed output vector carrying the same signatures. The guard rejects that
+signature profile while retaining its reservation, and the harness broadcasts
+neither weak variant. The
 harness stops its own node and removes its temporary datadir in `finally`.
 CI uploads the receipt as `pnl-batch-regtest-evidence`, including its limited
 custody and proof profile. The [recorded local receipt](../bitvm3/utxo_referee/artifacts/pnl_batch_regtest_latest.json)
@@ -226,14 +247,14 @@ the source files loaded by that particular funded exercise.
 | --- | --- |
 | Batch accounting and funding graph | 36 tests passed |
 | Full signed checkpoint | 35 tests passed |
-| Exact transaction and witness envelope | 24 tests passed |
+| Exact transaction and witness envelope | 25 tests passed |
 | Durable ledger and reservation journal | 26 tests passed |
-| Signing, broadcast and confirmation guard | 36 tests passed |
+| Signing, broadcast and confirmation guard | 51 tests passed |
 | Beta readiness package | 12 tests passed |
 | Complete repository runner | 120/120 test files passed |
 | Referee full evaluation | 19/19 cases; 100/100 weighted points |
 | DLC security full evaluation | 49/49 cases; 568/568 weighted points |
-| Core 31.1 funded regtest | Confirmed payout/residuals, one signer call, persisted recovery, rejected replay and reorg freeze |
+| Core 31.1 funded regtest | Confirmed payout/residuals with one signer call in the successful book; weak-signature refusal in a separate funded book; persisted recovery, rejected replay and reorg freeze |
 
 The execution tests include freezes during awaited signing, policy validation,
 known-transaction lookup, broadcast acknowledgement and confirmation. Separate
@@ -261,3 +282,4 @@ remain unimplemented for the relation in [PNL_BATCH_NETTING.md](PNL_BATCH_NETTIN
 - [Core gettxout RPC](https://bitcoincore.org/en/doc/26.0.0/rpc/blockchain/gettxout/) describes the mempool-aware UTXO view.
 - [Core testmempoolaccept RPC](https://bitcoincore.org/en/doc/25.0.0/rpc/rawtransactions/testmempoolaccept/) describes consensus/policy acceptance and identity fields. The harness tests the actual 31.1 response shape.
 - [Core getrawtransaction RPC](https://bitcoincore.org/en/doc/30.0.0/rpc/rawtransactions/getrawtransaction/) describes confirmed transaction lookup with `txindex` or a supplied block hash.
+- [BIP143](https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki) and [BIP341](https://github.com/bitcoin/bips/blob/master/bip-0341.mediawiki) define the signature commitments used by the permitted native witness profiles.

@@ -15,6 +15,7 @@
  * must be pinned outside the journal to detect rollback of local storage.
  */
 const { types: utilTypes } = require('util');
+const crypto = require('crypto');
 const { snapshotOwnDataArguments, snapshotPlainData, canonicalJson } = require('./dlc_canonical_json');
 const { verifyUtxoRefPnlBatchSettlementV2 } = require('./utxoref_v2_pnl_batch');
 const { verifyPnlBatchSignedTransaction } = require('./tradelayer_pnl_batch_transaction');
@@ -23,6 +24,7 @@ const { PnlBatchStateStore, isPnlBatchStateStore, assertSnapshotContinuesLedger 
 const NETWORKS = Object.freeze({ 'bitcoin-regtest': 'regtest', 'bitcoin-testnet4': 'testnet4' });
 const MAX_MONEY = 2100000000000000n;
 const MAX_ATTEMPTS = 3;
+const SIGNING_PROFILE = 'native-segwit-whole-transaction-v1';
 const COMMON_FIELDS = Object.freeze(['settlement', 'trustPolicy', 'transactionPolicy',
   'expectedTransactionPolicyHash', 'executionPolicy', 'store', 'expectedHeadHash', 'rpc']);
 const own = (value, key) => Object.prototype.hasOwnProperty.call(value, key);
@@ -158,6 +160,7 @@ function verifyForBook(args, state, tip, context, historical = false) {
   if (!result.ok) fail(result.reason);
   assertSnapshotContinuesLedger(state.ledger, result.settlement.stateEnvelope.body.snapshot);
   const tx = result.settlement.transaction;
+  fundingProfile(tx);
   if (BigInt(tx.feeSats) > BigInt(args.executionPolicy.maxFeeSats)) fail('batch fee exceeds independent execution policy');
   if (historical && (state.pending.txid !== tx.txid || state.pending.unsignedTxHex !== tx.unsignedTxHex
     || state.pending.transactionPolicyHash !== tx.transactionPolicyHash
@@ -170,9 +173,56 @@ function signedContext(args, validated) {
     settlementContext: { snapshot: settlement.stateEnvelope.body.snapshot, expectedSnapshotHash: validated.snapshotHash },
     transactionPolicy: args.transactionPolicy, expectedTransactionPolicyHash: args.expectedTransactionPolicyHash };
 }
+function fundingProfile(transaction) {
+  for (const prevout of transaction.prevouts) {
+    if (!/^0014[0-9a-f]{40}$/.test(prevout.scriptPubKey)
+      && !/^5120[0-9a-f]{64}$/.test(prevout.scriptPubKey)) {
+      fail('execution funding profile requires native P2WPKH or P2TR');
+    }
+  }
+}
+function canonicalDerAll(signature) {
+  const bytes = Buffer.from(signature, 'hex');
+  if (bytes.length < 9 || bytes.length > 73 || bytes[bytes.length - 1] !== 1
+    || bytes[0] !== 0x30 || bytes[1] !== bytes.length - 3 || bytes[2] !== 2) return false;
+  const rLength = bytes[3];
+  const sTag = 4 + rLength;
+  if (rLength < 1 || sTag + 2 >= bytes.length - 1 || bytes[sTag] !== 2) return false;
+  const sLength = bytes[sTag + 1];
+  const sStart = sTag + 2;
+  if (sLength < 1 || sStart + sLength !== bytes.length - 1) return false;
+  for (const [start, length] of [[4, rLength], [sStart, sLength]]) {
+    if (bytes[start] & 0x80) return false;
+    if (length > 1 && bytes[start] === 0 && !(bytes[start + 1] & 0x80)) return false;
+  }
+  return true;
+}
+function signatureCoverage(transaction, signed) {
+  fundingProfile(transaction);
+  if (signed.witnessStacks.length !== transaction.prevouts.length) fail('signature coverage input count differs');
+  for (let index = 0; index < transaction.prevouts.length; index++) {
+    const script = transaction.prevouts[index].scriptPubKey;
+    const witness = signed.witnessStacks[index];
+    if (script.startsWith('0014')) {
+      if (witness.length !== 2 || !canonicalDerAll(witness[0])
+        || !/^(02|03)[0-9a-f]{64}$/.test(witness[1])) {
+        fail('P2WPKH signing profile requires a canonical DER SIGHASH_ALL signature and compressed pubkey');
+      }
+      const keyHash = crypto.createHash('ripemd160').update(
+        crypto.createHash('sha256').update(Buffer.from(witness[1], 'hex')).digest()).digest('hex');
+      if (keyHash !== script.slice(4)) fail('P2WPKH signing pubkey differs from the funding program');
+    } else if (witness.length !== 1 || !(witness[0].length === 128
+      || witness[0].length === 130 && witness[0].endsWith('01'))) {
+      fail('P2TR signing profile requires one key-path DEFAULT or SIGHASH_ALL signature');
+    }
+  }
+}
 function verifySigned(args, validated, signedTxHex) {
   const checked = verifyPnlBatchSignedTransaction(signedTxHex, signedContext(args, validated));
   if (!checked.ok) fail(`signed batch rejected: ${checked.reason}`);
+  // Core accepts other valid sighash modes. Restrict released authority to
+  // signatures that commit every input and output of this exact transaction.
+  signatureCoverage(validated.settlement.transaction, checked);
   if (BigInt(checked.feeSats) > BigInt(checked.vsize) * BigInt(args.executionPolicy.maxFeeRateSatsPerVbyte)) {
     fail('signed batch fee rate exceeds independent execution policy');
   }
@@ -239,7 +289,7 @@ async function signPnlBatchSettlementV2(input) {
     transactionPolicyHash: settlement.transaction.transactionPolicyHash
   });
   try {
-    const request = snapshotPlainData({ unsignedTxHex: settlement.transaction.unsignedTxHex,
+    const request = snapshotPlainData({ signingProfile: SIGNING_PROFILE, unsignedTxHex: settlement.transaction.unsignedTxHex,
       txid: settlement.transaction.txid, prevouts: settlement.transaction.prevouts,
       transactionHash: settlement.transaction.transactionHash, checkpointHash: observed.validated.checkpointHash }, '$.signerRequest', false);
     const signedTxHex = await withPendingHead(args, current.headHash, 'RESERVED_BEFORE_SIGN', request.txid,
@@ -252,6 +302,7 @@ async function signPnlBatchSettlementV2(input) {
       pendingLedgerHash: current.pending.nextLedgerHash, chainTip: checked.tip.hash,
       chainHeight: checked.tip.height, stateAuthenticated: true, priorStateOpeningVerified: true,
       transactionBytesVerified: true, corePolicyVerified: true, signingAuthorizationConsumed: true,
+      signingProfile: SIGNING_PROFILE, signatureCoverageVerified: true,
       executionVerified: false, zkProofVerified: false }, '$.signingResult', false));
   } catch (error) {
     const message = error && typeof error === 'object' && !utilTypes.isProxy(error)
@@ -330,5 +381,5 @@ async function confirmPnlBatchSettlementV2(input) {
   fail('Core chain changed throughout confirmation validation');
 }
 
-module.exports = { MAX_ATTEMPTS, btcToSats, signPnlBatchSettlementV2,
+module.exports = { MAX_ATTEMPTS, SIGNING_PROFILE, btcToSats, signPnlBatchSettlementV2,
   broadcastPnlBatchSettlementV2, confirmPnlBatchSettlementV2 };

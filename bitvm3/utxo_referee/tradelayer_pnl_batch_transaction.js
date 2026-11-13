@@ -248,15 +248,18 @@ function parsePnlBatchSignedEnvelope(signedTxHex, expectedUnsignedTxHex) {
   // empty scriptSigs, sequences, ordered output values and output scripts.
   const reader = new WitnessReader(bytes, 6 + expectedBody.length);
   const witnessItemCounts = [];
+  const witnessStacks = [];
   let anyWitness = false;
   for (let input = 0; input < parsed.inputs.length; input++) {
     const itemCount = reader.compactSize(`input ${input} witness item count`, TRANSACTION_PROFILE.maxWitnessItemsPerInput);
     witnessItemCounts.push(itemCount);
+    const stack = [];
     if (itemCount > 0) anyWitness = true;
     for (let item = 0; item < itemCount; item++) {
       const length = reader.compactSize(`input ${input} witness item ${item} length`, TRANSACTION_PROFILE.maxWitnessItemBytes);
-      reader.take(length, `input ${input} witness item ${item}`);
+      stack.push(reader.take(length, `input ${input} witness item ${item}`).toString('hex'));
     }
+    witnessStacks.push(stack);
   }
   if (!anyWitness) fail('superfluous SegWit encoding has no witness stacks');
   if (!reader.take(4, 'locktime').equals(unsigned.subarray(unsigned.length - 4))) fail('signed transaction locktime differs from policy');
@@ -267,7 +270,7 @@ function parsePnlBatchSignedEnvelope(signedTxHex, expectedUnsignedTxHex) {
   return snapshotPlainData({ txid: parsed.txid, wtxid, rawTransactionSha256,
     signedTxHex: plainHex, strippedRawTxHex: plainUnsigned,
     size: bytes.length, strippedSize: unsigned.length, weight, vsize: Math.ceil(weight / 4),
-    witnessItemCounts }, '$.signedEnvelope', false);
+    witnessItemCounts, witnessStacks }, '$.signedEnvelope', false);
 }
 
 function verifyPnlBatchSignedTransaction(signedTxHex, context) {

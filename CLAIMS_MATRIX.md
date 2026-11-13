@@ -61,6 +61,9 @@ regtest harness exercises real native-SegWit funding, guarded signing and
 broadcast, confirmed residual outputs, replay refusal and reorg freeze. Its
 custody is one disposable test wallet and locally generated checkpoint keys.
 Production custody/spend enforcement and cryptographic batch proofs remain pending.
+The execution profile restricts signatures to P2WPKH `SIGHASH_ALL` or P2TR
+key-path `DEFAULT`/`ALL`, with complete input/output coverage. The generic
+transaction parser separately handles bounded witness envelopes.
 
 | Claim | File(s) | Class | Evidence / limits |
 |---|---|---|---|
