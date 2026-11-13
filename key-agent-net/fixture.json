@@ -1,0 +1,80 @@
+{
+  "horizon": "illustrative per-year rates, not empirical estimates",
+  "domains": [
+    {
+      "id": "domestic-cloud",
+      "compromiseProbability": 0.008,
+      "offlineProbability": 0.03
+    },
+    {
+      "id": "regional-cloud",
+      "compromiseProbability": 0.01,
+      "offlineProbability": 0.025
+    },
+    {
+      "id": "personal",
+      "compromiseProbability": 0.002,
+      "offlineProbability": 0.01
+    }
+  ],
+  "agents": [
+    {
+      "id": "client",
+      "operator": "client",
+      "domains": [
+        "personal"
+      ],
+      "costUnits": 0,
+      "compromiseProbability": 0.005,
+      "offlineProbability": 0.02
+    },
+    {
+      "id": "custodian-a",
+      "operator": "a",
+      "domains": [
+        "domestic-cloud"
+      ],
+      "costUnits": 30,
+      "compromiseProbability": 0.008,
+      "offlineProbability": 0.015
+    },
+    {
+      "id": "custodian-b",
+      "operator": "b",
+      "domains": [
+        "regional-cloud"
+      ],
+      "costUnits": 35,
+      "compromiseProbability": 0.01,
+      "offlineProbability": 0.02
+    },
+    {
+      "id": "backup-a",
+      "operator": "backup-a",
+      "domains": [
+        "domestic-cloud"
+      ],
+      "costUnits": 10,
+      "compromiseProbability": 0.012,
+      "offlineProbability": 0.025
+    },
+    {
+      "id": "backup-b",
+      "operator": "backup-b",
+      "domains": [],
+      "costUnits": 20,
+      "compromiseProbability": 0.015,
+      "offlineProbability": 0.02
+    }
+  ],
+  "vault": {
+    "id": "partner-2-of-3",
+    "threshold": 2,
+    "signers": [
+      "client",
+      "custodian-a",
+      "custodian-b"
+    ],
+    "clientId": "client"
+  }
+}

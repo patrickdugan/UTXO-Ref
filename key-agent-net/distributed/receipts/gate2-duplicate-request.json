@@ -1,0 +1,42 @@
+{
+  "scenario": "gate2-duplicate-request",
+  "recorded_at": "2026-11-01T07:30:40.439Z",
+  "network": "regtest",
+  "vault": "kan-vault-1",
+  "signer_a": "custodian-a",
+  "signer_a_fingerprint": "24ff6473",
+  "policy_digest": "071e5e8209d4790ab358657cf7cee6cb596a54105da8969115acfb5d92e5e2b9",
+  "local_core_version": 310100,
+  "pass": true,
+  "result": "first signed; duplicate replayed=true; same id other body request_id_reused",
+  "first": {
+    "status": "signed",
+    "reason": null,
+    "detail": null,
+    "journal_seq": 5,
+    "request_digest": "bc165a4c141b36b343f13939f0c6c0ed4a5967920630580381522d41e27d9691",
+    "signed_psbt_digest": "b9c7adbffb718dbbbf839a0d0bde09f0a469f366b200a554524181e4e628d65f",
+    "unsigned_txid": "c45673fcd79133cbadb951b07c8c78d33fa34cd8289e0bc44c41511013c33737",
+    "replayed": false
+  },
+  "duplicate": {
+    "status": "signed",
+    "reason": null,
+    "detail": null,
+    "journal_seq": 6,
+    "request_digest": "bc165a4c141b36b343f13939f0c6c0ed4a5967920630580381522d41e27d9691",
+    "signed_psbt_digest": "b9c7adbffb718dbbbf839a0d0bde09f0a469f366b200a554524181e4e628d65f",
+    "unsigned_txid": "c45673fcd79133cbadb951b07c8c78d33fa34cd8289e0bc44c41511013c33737",
+    "replayed": true
+  },
+  "same_id_other_body": {
+    "status": "refused",
+    "reason": "request_id_reused",
+    "detail": "467d8e9c-74f3-4d69-82f8-b64b55a00525",
+    "journal_seq": 7,
+    "request_digest": "8b903e80f7eece7758d9e5ba20229503104fb13d7bd72004c477fb97fd17c45d",
+    "signed_psbt_digest": null,
+    "unsigned_txid": null,
+    "replayed": false
+  }
+}

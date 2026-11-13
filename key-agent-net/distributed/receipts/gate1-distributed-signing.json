@@ -1,0 +1,51 @@
+{
+  "scenario": "gate1-distributed-signing",
+  "recorded_at": "2026-11-01T07:30:18.505Z",
+  "network": "regtest",
+  "vault": "kan-vault-1",
+  "signer_a": "custodian-a",
+  "signer_a_fingerprint": "24ff6473",
+  "policy_digest": "071e5e8209d4790ab358657cf7cee6cb596a54105da8969115acfb5d92e5e2b9",
+  "local_core_version": 310100,
+  "pass": true,
+  "result": "confirmed d642214acd944e98409c9854b6831f6165dee96a273d78bbc2443fabaf748e60",
+  "unsigned_psbt_digest": "4bd0549aaa3e3caa63357a31daf8bce307a5303dda2d76adcc0acfa52cbb1ea9",
+  "request_id": "c4a72058-7d4e-4d32-82e6-a96a3c2705d8",
+  "signers": [
+    "client (local)",
+    "custodian-a (vps)"
+  ],
+  "signed_psbt_digests": {
+    "client": "c3864578df3098014d8a0bbd8334f49be0f69a9ea380b2b4daba1dfbb3308686",
+    "custodian_a": "e4ebb17c23862735bc97f943007b7845435d9fb5d2064da2dc59a8000f1d5adf"
+  },
+  "signer_decision": {
+    "status": "signed",
+    "reason": null,
+    "detail": null,
+    "journal_seq": 1,
+    "request_digest": "2334ec9c4e1ede866bc3109714a06fc189783b2f0c0732492232b9165f36ff93",
+    "signed_psbt_digest": "e4ebb17c23862735bc97f943007b7845435d9fb5d2064da2dc59a8000f1d5adf",
+    "unsigned_txid": "d642214acd944e98409c9854b6831f6165dee96a273d78bbc2443fabaf748e60",
+    "replayed": false
+  },
+  "core_validation": {
+    "complete": true,
+    "accepted": true,
+    "txid": "d642214acd944e98409c9854b6831f6165dee96a273d78bbc2443fabaf748e60",
+    "wtxid": "c5716c34c7c9178feed5ceaf819e9fac574ba0b6913894d22edc985fd65e09ae",
+    "vsize": 189,
+    "fees": {
+      "base": 0.00000378,
+      "effective-feerate": 0.00002,
+      "effective-includes": [
+        "c5716c34c7c9178feed5ceaf819e9fac574ba0b6913894d22edc985fd65e09ae"
+      ]
+    },
+    "confirmation": {
+      "block": "05a93de32fed7c4f27547c6b30832d62cdc575d9394b96e386141e23ae89ca34",
+      "confirmations": 1
+    }
+  },
+  "transport": "ssh local forward + mutual TLS 1.3, signer bound 127.0.0.1"
+}

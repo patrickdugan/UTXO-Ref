@@ -1,0 +1,57 @@
+{
+  "scenario": "gate3-conflicting-quorum-race",
+  "recorded_at": "2026-11-01T07:31:00.264Z",
+  "network": "regtest",
+  "vault": "kan-vault-1",
+  "signer_a": "custodian-a",
+  "signer_a_fingerprint": "24ff6473",
+  "policy_digest": "071e5e8209d4790ab358657cf7cee6cb596a54105da8969115acfb5d92e5e2b9",
+  "local_core_version": 310100,
+  "pass": true,
+  "result": "recovery broadcast first; A+B raid at 10x fee rate replaced it; confirmed: A+B raid",
+  "recovery": {
+    "complete": true,
+    "accepted": true,
+    "txid": "be73aa9cd50c8b3b06d422391f6cf251d59f76d0a367c6a7ac1bed54a23fcee0",
+    "wtxid": "64134d6779734a469cc88b9a69001638f82d1520bec64366d44dc9568473e3e6",
+    "vsize": 201,
+    "fees": {
+      "base": 0.00000402,
+      "effective-feerate": 0.00002,
+      "effective-includes": [
+        "64134d6779734a469cc88b9a69001638f82d1520bec64366d44dc9568473e3e6"
+      ]
+    },
+    "confirmation": null,
+    "signers": [
+      "client",
+      "custodian-b"
+    ]
+  },
+  "raid": {
+    "complete": true,
+    "accepted": true,
+    "txid": "0787c0577baf868fc1454b157a8c6f6e31d41ef00f741d7c21d5bac8ce4516c9",
+    "wtxid": "459c8f0d89a86d32f0032078556cd3176fcd5106a4c6a4137a5bb244edec583f",
+    "vsize": 189,
+    "fees": {
+      "base": 0.0000378,
+      "effective-feerate": 0.0002,
+      "effective-includes": [
+        "459c8f0d89a86d32f0032078556cd3176fcd5106a4c6a4137a5bb244edec583f"
+      ]
+    },
+    "confirmation": null,
+    "signers": [
+      "custodian-a (operator bypass)",
+      "custodian-b"
+    ]
+  },
+  "mempool_after_raid": {
+    "recovery_present": false,
+    "raid_present": true
+  },
+  "confirmed_in_block": "1694ca1c89c871b7c71bf1a387b5384969c5e112ab5c07599e5ebc39a32b2f89",
+  "winner": "A+B raid",
+  "classification": "quorum race: any authorized quorum can replace a pending recovery with a higher-fee conflicting spend (full RBF)"
+}
