@@ -12,21 +12,36 @@ for the rehearsal that is meant to close several of these at once.
 
 ## PnL batch execution gate (2026-11-13)
 
+The [V2 execution follow-up](docs/PNL_BATCH_EXECUTION.md) now authenticates the
+typed snapshot, opens a full prior ledger, and enforces exact bytes through a
+persistent signing/broadcast/confirmation path on regtest and testnet4. The
+isolated Core harness validates native-SegWit wallet funding and reorg freeze.
+Production readiness still requires mandatory custody integration, the actual
+DLC/BitVM spend construction, an external journal-head pin and reviewed recovery.
+The new store requires POSIX directory fsync and refuses Windows until an
+equivalent durable publication primitive is implemented.
+
 `tradelayer_pnl_batch_settlement.js` checks net obligations, account equity,
 remaining vault backing and a feasible allocation to exact payout/change
 outputs. The caller supplies an independently authenticated snapshot and pins
 its hash. This reference check reports `executionVerified: false` and
 `zkProofVerified: false`.
 
-Before this batch can authorize a spend, the application must bind its complete
-input/output statement to the funded DLC or BitVM paths, recheck active-chain
-unspentness and maturity, and atomically advance the state and consumed-event
-set. Multi-transaction execution also needs a protocol for partial completion.
-The current kernel permits one transaction proposal per batch.
+The new execution guard checks active-chain unspentness and maturity, persists
+the complete reservation before invoking a signer, and advances the ledger and
+consumed-event set after confirmation. Production custody must require that
+guard and bind the same input/output statement through its actual DLC/CET,
+guardian or BitVM spending mechanism. All workers authorizing overlapping
+collateral must share one authoritative journal and externally pinned head.
+Separately writable replicas need distributed coordination. Multi-transaction
+execution needs a protocol for partial completion; the kernel permits one
+transaction proposal per batch.
 
-The beta package now includes `pnl_batch_accounting` and
-`pnl_batch_spend_enforcement`. The latter stays pending until that adapter
-exists. Caller-provided receipt success flags cannot satisfy either gate.
+The beta package includes `pnl_batch_accounting`, `pnl_batch_v2_binding` and
+`pnl_batch_spend_enforcement`. Independent context must authenticate the same
+batch through V2. Production spend enforcement stays pending while mandatory
+custody integration is unfinished. Caller-provided receipt success flags
+cannot satisfy these gates.
 The [batch design](docs/PNL_BATCH_NETTING.md) defines the accounting relation and
 the future proof boundary, including retained rBTC claims and token-unit rules.
 

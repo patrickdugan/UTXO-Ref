@@ -11,6 +11,33 @@ const {
   buildPnlSettlementBatch,
   hashPnlSettlementSnapshot
 } = require('./tradelayer_pnl_batch_settlement');
+const crypto = require('crypto');
+const { buildSignedPnlBatchCheckpointV2, TRUST_POLICY_KIND } = require('./utxoref_v2_pnl_batch_checkpoint');
+const { hashPnlBatchTransactionPolicy, POLICY_KIND } = require('./tradelayer_pnl_batch_transaction');
+const { buildUtxoRefPnlBatchSettlementV2 } = require('./utxoref_v2_pnl_batch');
+
+function authenticatedPnlFixture() {
+  const snapshot = JSON.parse(JSON.stringify(require('./artifacts/fixtures/pnl_batch_settlement_v1.snapshot.json')));
+  const keys = crypto.generateKeyPairSync('ed25519');
+  const publicDer = keys.publicKey.export({ format: 'der', type: 'spki' });
+  const keyId = crypto.createHash('sha256').update(publicDer).digest('hex');
+  const transactionPolicy = { kind: POLICY_KIND, network: snapshot.network, version: 2, locktime: 0,
+    inputSequences: snapshot.vaults.flatMap((v) => v.utxos.map((u) => ({ txid: u.txid, vout: u.vout, sequence: 0xfffffffd }))) };
+  const expectedTransactionPolicyHash = hashPnlBatchTransactionPolicy(transactionPolicy);
+  const trustPolicy = { kind: TRUST_POLICY_KIND, version: 1, policyId: 'pnl-test', network: snapshot.network,
+    chainGenesisHash: '11'.repeat(32), contractId: '22'.repeat(32), threshold: 1, maxAgeBlocks: 6,
+    trustedSigners: [{ keyId, publicKeySpki: publicDer.toString('base64') }] };
+  const stateVerification = { trustPolicy, expectedPreviousStateRoot: snapshot.previousStateRoot,
+    expectedEpochId: snapshot.epochId, currentHeight: 100, expectedSnapshotBlockHash: '33'.repeat(32) };
+  const stateEnvelope = buildSignedPnlBatchCheckpointV2({ policyId: trustPolicy.policyId,
+    chainGenesisHash: trustPolicy.chainGenesisHash, contractId: trustPolicy.contractId,
+    snapshotHeight: 100, snapshotBlockHash: stateVerification.expectedSnapshotBlockHash,
+    transactionPolicyHash: expectedTransactionPolicyHash, snapshot },
+  { privateKeys: [keys.privateKey.export({ format: 'pem', type: 'pkcs8' })] });
+  const context = { stateVerification, transactionPolicy, expectedTransactionPolicyHash };
+  const settlement = buildUtxoRefPnlBatchSettlementV2({ stateEnvelope, ...context });
+  return { settlement, context, accountingContext: { snapshot, expectedSnapshotHash: hashPnlSettlementSnapshot(snapshot) } };
+}
 
 let passed = 0;
 let failed = 0;
@@ -165,7 +192,7 @@ test('legacy readiness evidence cannot bypass the new PNL gates', () => {
 
   assertEq(pkg.status, 'LIMITED_TESTNET_CONTINUE');
   assertEq(pkg.realMoneyAllowed, false);
-  assertEq(pkg.nextRequiredActions.join(','), 'pnl_batch_accounting,pnl_batch_spend_enforcement');
+  assertEq(pkg.nextRequiredActions.join(','), 'pnl_batch_accounting,pnl_batch_v2_binding,pnl_batch_spend_enforcement');
 });
 
 test('a verified funded batch passes accounting while spend enforcement stays pending', () => {
@@ -215,6 +242,34 @@ test('a changed destination fails the integrated gate', () => {
   });
   assertEq(pkg.gates.find((g) => g.name === 'pnl_batch_accounting').ok, false);
   assertEq(pkg.realMoneyAllowed, false);
+});
+
+test('authenticated V2 bytes must bind the same independently verified economic batch', () => {
+  const fixture = authenticatedPnlFixture();
+  const pkg = buildBetaGatePackage({ evidence: { ...coreEvidence(), pnlSettlement: {
+    batch: fixture.settlement.batch, v2Settlement: fixture.settlement } },
+  pnlSettlementContext: fixture.accountingContext, pnlBatchV2Context: fixture.context });
+  assertEq(pkg.gates.find((g) => g.name === 'pnl_batch_v2_binding').ok, true);
+  assertEq(pkg.gates.find((g) => g.name === 'pnl_batch_spend_enforcement').ok, false);
+  assertEq(pkg.realMoneyAllowed, false);
+});
+
+test('V2 candidate cannot supply its own trust context inside evidence', () => {
+  const fixture = authenticatedPnlFixture();
+  const pkg = buildBetaGatePackage({ evidence: { ...coreEvidence(), pnlSettlement: {
+    batch: fixture.settlement.batch, v2Settlement: fixture.settlement, ...fixture.context } },
+  pnlSettlementContext: fixture.accountingContext });
+  assertEq(pkg.gates.find((g) => g.name === 'pnl_batch_v2_binding').ok, false);
+});
+
+test('valid signed evidence for another batch cannot satisfy the V2 binding gate', () => {
+  const fixture = authenticatedPnlFixture();
+  const other = fundedPnlFixture();
+  const pkg = buildBetaGatePackage({ evidence: { ...coreEvidence(), pnlSettlement: {
+    batch: other.batch, v2Settlement: fixture.settlement } },
+  pnlSettlementContext: other.context, pnlBatchV2Context: fixture.context });
+  assertEq(pkg.gates.find((g) => g.name === 'pnl_batch_accounting').ok, true);
+  assertEq(pkg.gates.find((g) => g.name === 'pnl_batch_v2_binding').ok, false);
 });
 
 if (failed > 0) {

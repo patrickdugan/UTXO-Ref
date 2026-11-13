@@ -2,6 +2,12 @@
 
 Date: 2026-11-13
 
+The follow-up [funded execution adapter](PNL_BATCH_EXECUTION.md) now carries
+this relation through a full signed V2 snapshot, an opened persistent ledger,
+exact serialized transaction bytes and an isolated Core regtest settlement.
+The reference kernel below retains its narrower accounting flags. Production
+custody enforcement and a ZK backend remain pending.
+
 ## Scope and implementation boundary
 
 This revision gives profit routing a precise acceptance condition: a committed
@@ -12,9 +18,10 @@ It checks an accounting transition against an independently supplied snapshot
 and `expectedSnapshotHash`.
 
 The kernel supplies a candidate allocation and an independently checkable
-witness. Bitcoin transaction construction, spend authorization, durable replay
-state and cryptographic proof verification remain integration gates. The beta
-gate must keep those capabilities separate from a successful accounting check.
+witness. The dedicated V2 modules now construct exact Bitcoin transactions and
+guard test-network signing through durable replay state. Mandatory production
+custody integration and cryptographic proof verification remain pending. The
+beta report checks each capability within its documented scope.
 The inherited restrictions in [`SECURITY_BLOCKERS.md`](../SECURITY_BLOCKERS.md)
 and [`CLAIMS_MATRIX.md`](../CLAIMS_MATRIX.md) still apply.
 
@@ -72,8 +79,9 @@ current chain status remain the caller's responsibility.
 `previousStateRoot` is bound into the snapshot and proposed statement. This
 reference module has no Merkle-opening check linking the supplied account
 equities and replay history to that root. The trusted caller must establish
-that link. The existing V2 signed-checkpoint schema also needs a dedicated
-adapter before it can carry this batch's typed domains and liabilities.
+that link. The [dedicated V2 adapter](PNL_BATCH_EXECUTION.md) now carries the
+complete typed snapshot and checks its projection against the persisted ledger.
+The historical row-only V2 schema keeps its original scope.
 
 Replay history is represented as bounded arrays in this reference. A durable
 integration needs authenticated sets and a checkpoint/compaction rule so that
@@ -103,7 +111,7 @@ the beneficiary and 6,000 retained profit. Removing the transfer route to the
 winner's vault produces an exact 6,000-sat funding deficit. It performs local
 arithmetic without RPC, signing or writes to the filesystem.
 
-### Validation recorded on 2026-11-13
+### Initial reference-kernel validation recorded on 2026-11-13
 
 Node v24.22.1 on Linux produced these results:
 
@@ -119,9 +127,10 @@ Node v24.22.1 on Linux produced these results:
 | `node eval/dlc_security_eval.js --profile=full --require-perfect` | 49/49 cases, 568/568 weighted points |
 | Synthetic worked example | Valid batch accepted; removal of the retained-profit funding route rejected with a 6,000-sat deficit |
 
-These runs exercised local reference code. The batch has no native proof
-backend, and this revision performed no funded batch execution against Bitcoin
-Core. The prior-root opening and funded-spend adapters remain pending.
+These initial runs exercised local reference code. The subsequent
+[execution follow-up](PNL_BATCH_EXECUTION.md) adds prior-ledger opening and a
+funded Core regtest exercise. Cryptographic batch proofs and mandatory
+production custody integration remain open.
 
 Before the legacy verifier was changed, local reproductions accepted a
 rehashed recipient diversion, omitted source rows, a changed uncommitted
@@ -494,8 +503,9 @@ snapshot in either formulation.
 
 The current `transactionTemplateHash` commits the economic proposal: selected
 input outpoints, values and scripts, ordered outputs, network and fee. The
-execution adapter must add the actual transaction version, locktime, input
-sequences and required spend paths when binding serialized transaction bytes.
+dedicated transaction adapter additionally binds version, locktime and input
+sequences to exact serialized bytes. Production custody still needs to enforce
+the same statement through its required DLC/CET, guardian or BitVM spend paths.
 
 The native proof gate needs a real verifier invocation, pinned program and
 verification parameters, canonical public-input encoding and rejection of
@@ -579,11 +589,11 @@ enforcement integration and measured runs. The available accounting tests
 establish the transition and its rejection behavior. Proof costs and mainnet
 readiness require separate evidence.
 
-The changed beta package is a readiness report. Its accounting gate invokes the
-new verifier, while its spend-enforcement gate stays pending. Existing V2
-signers and broadcast callers do not yet call this batch relation. The report
-therefore keeps `realMoneyAllowed` false even when the synthetic accounting
-example passes.
+The beta package is a readiness report. Its accounting gate invokes the batch
+verifier, and its V2 gate requires an authenticated envelope for that same
+batch. The dedicated execution API opens the persisted ledger and guards the
+test-network signing and broadcast path. Production custody integration keeps
+the spend-enforcement gate pending and `realMoneyAllowed` false.
 
 ## 9. Adversarial cases required by the gates
 

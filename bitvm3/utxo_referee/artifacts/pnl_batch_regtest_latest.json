@@ -1,0 +1,198 @@
+{
+  "kind": "utxoref_pnl_batch_isolated_regtest_receipt_v1",
+  "ok": true,
+  "network": "regtest",
+  "coreVersion": "Bitcoin Core daemon version v31.1.0 bitcoind",
+  "coreSubversion": "/Satoshi:31.1.0/",
+  "provenance": {
+    "nodeVersion": "v24.22.1",
+    "platform": "linux",
+    "architecture": "x64",
+    "coreBinary": {
+      "filename": "bitcoind",
+      "bytes": 17838696,
+      "sha256": "986e63b3c8770f08d0059820ad3dd085d1ab9e1bea23946c243f858a06888a08"
+    },
+    "sources": {
+      "kind": "utxoref_pnl_batch_regtest_source_manifest_v1",
+      "coverage": "Harness, its loaded repository CommonJS dependencies, and the synthetic snapshot fixture",
+      "aggregateEncoding": "SHA256 of UTF-8 UTXOREF_PNL_BATCH_REGTEST_SOURCES_V1 followed by NUL and JSON.stringify(files)",
+      "sourceManifestSha256": "521813eab64f698b26a12b7021fb976df75eff7ea081b057cdc68104e14540bf",
+      "files": [
+        {
+          "path": "bitvm3/utxo_referee/artifacts/fixtures/pnl_batch_settlement_v1.snapshot.json",
+          "sha256": "fb3ecd97f5e9f1eea26965effdf3276e982c3b72743cd50d9f49ab1ba9c81d8c"
+        },
+        {
+          "path": "bitvm3/utxo_referee/dlc_canonical_json.js",
+          "sha256": "31aa05a43d274c3389e8f846c870f29beff3a563b13bca99f98c10813a12632a"
+        },
+        {
+          "path": "bitvm3/utxo_referee/dlc_durable_json_store.js",
+          "sha256": "f2446b3867cb6dbd5a774e1ada52a75863eb9809b0d8c1eb8314b95d9637a3e1"
+        },
+        {
+          "path": "bitvm3/utxo_referee/dlc_funding_output.js",
+          "sha256": "c58bc8a5f22687384472a607dfb903e9bdc77b51cc301b0b0db64a4e3a067805"
+        },
+        {
+          "path": "bitvm3/utxo_referee/dlc_transaction_validator.js",
+          "sha256": "f25d6cbf0a31892b27395b8b17abd8c29ae99b9f09d387c471b51e8c4555060d"
+        },
+        {
+          "path": "bitvm3/utxo_referee/tradelayer_dlc_adaptor_sig.js",
+          "sha256": "9185199a40668cc8c3e7a011cb44095e0c9f44eac69e2eb3feb09de786c039a2"
+        },
+        {
+          "path": "bitvm3/utxo_referee/tradelayer_pnl_batch_settlement.js",
+          "sha256": "9c6bad1515a59d831300366bf115c200af619ebbfffdddc308a57ffffd1acc22"
+        },
+        {
+          "path": "bitvm3/utxo_referee/tradelayer_pnl_batch_state_store.js",
+          "sha256": "48fb48ba7eeffb275be77e646760c3aa0b4c58255183108b1f31bb41e3552084"
+        },
+        {
+          "path": "bitvm3/utxo_referee/tradelayer_pnl_batch_transaction.js",
+          "sha256": "0cfe9f5f80df96af93437149f6769f5a5e8782587c2e1b3209e56d14b73bdffd"
+        },
+        {
+          "path": "bitvm3/utxo_referee/tradelayer_taproot.js",
+          "sha256": "645dc293ecc0a2588d2a3c20f3b13349c6dac20b29c70b3bd3ba7c49f8effd72"
+        },
+        {
+          "path": "bitvm3/utxo_referee/tradelayer_taproot_script.js",
+          "sha256": "3bed7637417c2ca9793f9bd44cb09b34f9fab05e09f9fbda9d53d2351e9eb629"
+        },
+        {
+          "path": "bitvm3/utxo_referee/tradelayer_taproot_tree.js",
+          "sha256": "427fa1990325672201a48e8a00dc730dc3a574dfcafbdd224e99b2a6c4f9d091"
+        },
+        {
+          "path": "bitvm3/utxo_referee/utxoref_v2_pnl_batch.js",
+          "sha256": "d73fb021b00c4e9e6052a0733427009cba0805713fccf302656866075396aec6"
+        },
+        {
+          "path": "bitvm3/utxo_referee/utxoref_v2_pnl_batch_checkpoint.js",
+          "sha256": "e841084746f09d3eb07c6970f4d2b0845c2a89afb3f1cbcf14a729322f82b230"
+        },
+        {
+          "path": "bitvm3/utxo_referee/utxoref_v2_pnl_batch_execution.js",
+          "sha256": "f4961a46a2ce4e6a5727e47b736e80b6a09c3fc35f68bb7c408d73eeed00785e"
+        },
+        {
+          "path": "eval/pnl_batch_regtest.js",
+          "sha256": "b42b8ec365b57ae6c3fc03b273d7f37956ac625a6a23ae8f71acfe923cdc0468"
+        }
+      ]
+    }
+  },
+  "custodyProfile": "One disposable wallet controls native P2WPKH reserve inputs; both Ed25519 checkpoint keys are local test keys",
+  "proofSystem": "none",
+  "zkProofVerified": false,
+  "peerConnections": 0,
+  "signerQuorum": {
+    "threshold": 2,
+    "distinctKeyIds": [
+      "7a825711ba3e68805bbe4b9e2e7d9c7070ac0a0ede269d5e0c51b920b81a719e",
+      "86836db2eae05fb323416eb0e5cf88813110d1eaf5ebe690cf42331430f0f072"
+    ]
+  },
+  "snapshotHash": "ca520056d600cd2931431a4ebae3080c5f173cdffc33058a6e1062ec6b11ad3f",
+  "checkpointHash": "7340f1f1e19cd2546b825faec2f7ed0cee4cb3c826efa52cf5ac72bda9fa2bc4",
+  "transactionPolicyHash": "368d2d66d209ae0acc91185207b1dc90ff0d66a9a060ed1cf26118a82ab20638",
+  "funding": {
+    "txid": "e45347b9604e3579775b94ed15e40937401696bbfe9fe0e365bf9bb40a1caecf",
+    "totalSats": "215000",
+    "inputs": [
+      {
+        "txid": "e45347b9604e3579775b94ed15e40937401696bbfe9fe0e365bf9bb40a1caecf",
+        "vout": 0,
+        "sats": "110000",
+        "scriptPubKey": "0014ff915ad81c37912425f23ee59889bd60fa9ce434"
+      },
+      {
+        "txid": "e45347b9604e3579775b94ed15e40937401696bbfe9fe0e365bf9bb40a1caecf",
+        "vout": 1,
+        "sats": "105000",
+        "scriptPubKey": "001436a63c1e2d2aaf7c8795b36698f971892dcaa64b"
+      }
+    ]
+  },
+  "foreignOutput": {
+    "rejected": true,
+    "reason": "batch transaction rejected: transaction differs from independently rebuilt bytes and prevouts",
+    "signerCalls": 0
+  },
+  "invalidWitness": {
+    "transactionBytesVerified": true,
+    "executionVerified": false,
+    "coreAllowed": false,
+    "rejectReason": "mempool-script-verify-flag-failed (Witness program hash mismatch)"
+  },
+  "settlement": {
+    "txid": "63e122f28f34d6abe18290cfc30218921c84ef3d011be9657ed9fc1bcce0a831",
+    "wtxid": "6cb24fbb1ec6f7a1ae70abe9ded18e340c1c13bff746eb757cbb95c7b416cc47",
+    "confirmationBlockHash": "15bf2f227c43a5c5d3af838585c17c65a32704727b150a7242d3d5361f5bfe92",
+    "feeSats": "1000",
+    "payoutSats": "4000",
+    "retainedProfitSats": "6000",
+    "residuals": [
+      {
+        "vaultId": "A",
+        "txid": "63e122f28f34d6abe18290cfc30218921c84ef3d011be9657ed9fc1bcce0a831",
+        "vout": 1,
+        "sats": "99500",
+        "confirmations": 1
+      },
+      {
+        "vaultId": "B",
+        "txid": "63e122f28f34d6abe18290cfc30218921c84ef3d011be9657ed9fc1bcce0a831",
+        "vout": 2,
+        "sats": "110500",
+        "confirmations": 1
+      }
+    ],
+    "initialHeadHash": "682790bf593295b12161ce89e6ee38c880b67becc477d831d28056d0150932c0",
+    "signedHeadHash": "6848a1f7dcb0699b8cccc3bcf5dd0e031c5ac9a69c9e804c23b3f12cf248156a",
+    "confirmedHeadHash": "ea9b8a2ceb557fa4e798af3840935a3d7ae787b18220d1c4ed12ffd1a3154fb7",
+    "confirmedLedgerHash": "ac0ffef2f324ed41bbc63225a71a9389038a100419b438a50f3d934fb765dcef",
+    "accountEquities": [
+      {
+        "accountId": "trader-A",
+        "equitySats": "90000"
+      },
+      {
+        "accountId": "trader-B",
+        "equitySats": "106000"
+      }
+    ]
+  },
+  "replay": {
+    "whilePending": {
+      "rejected": true,
+      "reason": "book has an unresolved signing reservation"
+    },
+    "afterConfirmation": {
+      "rejected": true,
+      "reason": "batch checkpoint/accounting rejected: checkpoint previous state root differs from the independent pin"
+    },
+    "totalSignerCalls": 1
+  },
+  "persistence": {
+    "reopenedBeforeBroadcast": true,
+    "reopenedAfterConfirmation": true,
+    "signingTombstoneCount": 1
+  },
+  "reorg": {
+    "invalidatedBlockHash": "15bf2f227c43a5c5d3af838585c17c65a32704727b150a7242d3d5361f5bfe92",
+    "rejected": true,
+    "reason": "previous committed settlement left the active chain",
+    "frozen": true,
+    "frozenHeadHash": "3cc7998f2f97240c6cab7d846fa8de5c8b48584dbd6da2bfedd95ea1bb99ebe6"
+  },
+  "scope": "Observed local wallet signing, Core script policy, broadcast, mining and guarded journal transitions; no independent custody or public-chain execution",
+  "cleanup": {
+    "ownDaemonStopped": true,
+    "ownDatadirRemoved": true
+  }
+}

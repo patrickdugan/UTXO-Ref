@@ -34,12 +34,20 @@ replacement drill are documented in
 
 ## PnL batch funding gate
 
+The [funded V2 adapter](../../docs/PNL_BATCH_EXECUTION.md) authenticates the full
+typed snapshot, opens a durable prior ledger, binds exact transaction bytes and
+guards signing/broadcast/confirmation on regtest and testnet4. It is available
+under `v2.pnlBatch` and named methods in `v2.settlement`. The funded harness
+runs against isolated Core with valueless coins. Its durable store requires
+POSIX directory fsync; production and ZK capability gates remain closed.
+
 [`tradelayer_pnl_batch_settlement.js`](./tradelayer_pnl_batch_settlement.js)
 computes net realized obligations within explicit collateral domains, checks
 each account's remaining equity, and finds a capacitated flow funding the exact
 payout and vault-change outputs. Verification requires a separately supplied
-snapshot and its pinned hash. The beta gate now requires this accounting check
-and separately tracks the pending funded-spend and atomic state-commit adapter.
+snapshot and its pinned hash. The beta gate requires this accounting check
+and an independently authenticated V2 envelope for the same batch. Production
+custody enforcement remains a separate pending gate.
 Its reference result carries `executionVerified: false` and
 `zkProofVerified: false`.
 

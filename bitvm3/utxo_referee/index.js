@@ -800,6 +800,12 @@ const legacyUnsafe = Object.freeze({
 
 module.exports.v2 = Object.freeze({
   settlement: utxoRefV2,
+  pnlBatch: Object.freeze({
+    checkpoint: require('./utxoref_v2_pnl_batch_checkpoint'),
+    transaction: require('./tradelayer_pnl_batch_transaction'),
+    state: require('./tradelayer_pnl_batch_state_store'),
+    execution: require('./utxoref_v2_pnl_batch_execution')
+  }),
   trace: bitvmTraceV2,
   assertionGraph: bitvmAssertionGraphV2
 });

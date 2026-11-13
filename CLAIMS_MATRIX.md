@@ -16,6 +16,9 @@ this file only re-labels existing claims by evidence tier.
   transaction as evidence.
 - **LOCAL_SIMULATION** — runs entirely off-chain against synthetic/sample
   data; no live node or chain data involved.
+- **LOCAL_REGTEST_EXECUTION** — funded and confirmed on a private, disposable
+  Bitcoin Core regtest chain. Establishes the exercised wallet/script and host
+  checks; public-network behavior and independent custody need separate evidence.
 - **PROTOTYPE_ONLY** — code exists but is not wired into the tested pilot
   path, or is explicitly labeled a prototype/benchmark in its own commit or
   header.
@@ -51,11 +54,21 @@ refer to the 2026-10-02 readiness assessment; see
 
 ## PnL routing and batch funding (2026-11-13)
 
+The [execution follow-up](docs/PNL_BATCH_EXECUTION.md) adds a distinct V2 signed
+snapshot and exact transaction adapter, plus a POSIX journal that opens the
+prior ledger and reserves the book before signing. The isolated Core 31.1
+regtest harness exercises real native-SegWit funding, guarded signing and
+broadcast, confirmed residual outputs, replay refusal and reorg freeze. Its
+custody is one disposable test wallet and locally generated checkpoint keys.
+Production custody/spend enforcement and cryptographic batch proofs remain pending.
+
 | Claim | File(s) | Class | Evidence / limits |
 |---|---|---|---|
 | Legacy PnL verification rebuilds arithmetic and recipients from the caller's independent source | `tradelayer_pnl_state_netting.js` | LOCAL_SIMULATION | Adversarial fixtures cover rehashed diversion, source omission, duplicated positions and unbound scale defaults. The caller authenticates the source. This adapter covers one fungible pool and one declared funding input. |
-| Batch accounting preserves remaining vault claims and funds eligible payout/change destinations | `tradelayer_pnl_batch_settlement.js` | LOCAL_SIMULATION | Exact integer accounting and integral max-flow over committed capacities. The complete input set and ordered outputs are committed. Pinned inputs still need chain validation, script authorization and atomic state consumption. |
-| Beta readiness requires batch accounting and funded spend enforcement | `tradelayer_beta_gate_package.js` | LOCAL_SIMULATION | Candidate evidence cannot supply its own trusted snapshot or substitute an `ok` flag. The spend-enforcement gate remains pending and keeps `realMoneyAllowed` false. |
+| Batch accounting preserves remaining vault claims and funds eligible payout/change destinations | `tradelayer_pnl_batch_settlement.js` | LOCAL_SIMULATION | Exact integer accounting and integral max-flow over committed capacities. The complete input set and ordered outputs are committed. The kernel's result carries no execution authority; the dedicated V2 path supplies chain and journal checks. |
+| Full signed snapshot and exact transaction bytes bind the batch to an opened prior ledger | `utxoref_v2_pnl_batch_checkpoint.js`, `utxoref_v2_pnl_batch.js`, `tradelayer_pnl_batch_transaction.js`, `tradelayer_pnl_batch_state_store.js` | LOCAL_SIMULATION | Independent trust and policy pins, exact prior-ledger projection, permanent signing reservations, and actual residual outpoints. POSIX journal durability and one authoritative store per book are required. |
+| Guarded native-SegWit batch signing, broadcast, confirmation and reorg freeze | `utxoref_v2_pnl_batch_execution.js`, `eval/pnl_batch_regtest.js` | LOCAL_REGTEST_EXECUTION | Core 31.1 executes a 215,000-sat batch with 4,000 paid out, 1,000 fees and 210,000 in residual vault outputs. One disposable wallet owns both inputs. The [receipt](bitvm3/utxo_referee/artifacts/pnl_batch_regtest_latest.json) records the limited custody/proof profile. |
+| Beta readiness requires independently verified accounting and V2 binding, plus production spend enforcement | `tradelayer_beta_gate_package.js` | LOCAL_SIMULATION | Candidate evidence cannot supply its own trusted snapshot or substitute an `ok` flag. The V2 envelope must bind the same accounting batch. The production spend-enforcement gate remains pending and keeps `realMoneyAllowed` false. |
 | Cryptographic proof of the batch transition | `docs/PNL_BATCH_NETTING.md` | NOT_IMPLEMENTED | The document specifies the public statement and witness checks. A receipt hash or matching roots provides no cryptographic verification. |
 
 ## DLC settlement layer
