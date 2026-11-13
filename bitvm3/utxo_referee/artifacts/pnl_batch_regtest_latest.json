@@ -1,0 +1,240 @@
+{
+  "kind": "utxoref_pnl_batch_isolated_regtest_receipt_v1",
+  "ok": true,
+  "network": "regtest",
+  "bookId": "882bf2ebae109bb9d300632b301bb0d30eb0845751e8faba05a9869b79981b94",
+  "coreVersion": "Bitcoin Core daemon version v31.1.0 bitcoind",
+  "coreSubversion": "/Satoshi:31.1.0/",
+  "provenance": {
+    "nodeVersion": "v24.22.1",
+    "platform": "linux",
+    "architecture": "x64",
+    "coreBinary": {
+      "filename": "bitcoind",
+      "bytes": 17838696,
+      "sha256": "986e63b3c8770f08d0059820ad3dd085d1ab9e1bea23946c243f858a06888a08"
+    },
+    "sources": {
+      "kind": "utxoref_pnl_batch_regtest_source_manifest_v1",
+      "coverage": "Harness, its loaded repository CommonJS dependencies, and the synthetic snapshot fixture",
+      "aggregateEncoding": "SHA256 of UTF-8 UTXOREF_PNL_BATCH_REGTEST_SOURCES_V1 followed by NUL and JSON.stringify(files)",
+      "sourceManifestSha256": "abd41e7c97d2d4e05e5fffb8fbee5b419b2224a0aa5f3c5dcaf3b26ee5b282bf",
+      "files": [
+        {
+          "path": "bitvm3/utxo_referee/artifacts/fixtures/pnl_batch_settlement_v1.snapshot.json",
+          "sha256": "fb3ecd97f5e9f1eea26965effdf3276e982c3b72743cd50d9f49ab1ba9c81d8c"
+        },
+        {
+          "path": "bitvm3/utxo_referee/dlc_canonical_json.js",
+          "sha256": "31aa05a43d274c3389e8f846c870f29beff3a563b13bca99f98c10813a12632a"
+        },
+        {
+          "path": "bitvm3/utxo_referee/dlc_durable_json_store.js",
+          "sha256": "f2446b3867cb6dbd5a774e1ada52a75863eb9809b0d8c1eb8314b95d9637a3e1"
+        },
+        {
+          "path": "bitvm3/utxo_referee/dlc_funding_output.js",
+          "sha256": "c58bc8a5f22687384472a607dfb903e9bdc77b51cc301b0b0db64a4e3a067805"
+        },
+        {
+          "path": "bitvm3/utxo_referee/dlc_transaction_validator.js",
+          "sha256": "f25d6cbf0a31892b27395b8b17abd8c29ae99b9f09d387c471b51e8c4555060d"
+        },
+        {
+          "path": "bitvm3/utxo_referee/tradelayer_dlc_adaptor_sig.js",
+          "sha256": "9185199a40668cc8c3e7a011cb44095e0c9f44eac69e2eb3feb09de786c039a2"
+        },
+        {
+          "path": "bitvm3/utxo_referee/tradelayer_pnl_batch_settlement.js",
+          "sha256": "9c6bad1515a59d831300366bf115c200af619ebbfffdddc308a57ffffd1acc22"
+        },
+        {
+          "path": "bitvm3/utxo_referee/tradelayer_pnl_batch_state_store.js",
+          "sha256": "48fb48ba7eeffb275be77e646760c3aa0b4c58255183108b1f31bb41e3552084"
+        },
+        {
+          "path": "bitvm3/utxo_referee/tradelayer_pnl_batch_transaction.js",
+          "sha256": "cad067d22b383997e64fd4b001a1a46212489f86a10be186b09328e87d42a3b6"
+        },
+        {
+          "path": "bitvm3/utxo_referee/tradelayer_taproot.js",
+          "sha256": "645dc293ecc0a2588d2a3c20f3b13349c6dac20b29c70b3bd3ba7c49f8effd72"
+        },
+        {
+          "path": "bitvm3/utxo_referee/tradelayer_taproot_script.js",
+          "sha256": "3bed7637417c2ca9793f9bd44cb09b34f9fab05e09f9fbda9d53d2351e9eb629"
+        },
+        {
+          "path": "bitvm3/utxo_referee/tradelayer_taproot_tree.js",
+          "sha256": "427fa1990325672201a48e8a00dc730dc3a574dfcafbdd224e99b2a6c4f9d091"
+        },
+        {
+          "path": "bitvm3/utxo_referee/utxoref_v2_pnl_batch.js",
+          "sha256": "d73fb021b00c4e9e6052a0733427009cba0805713fccf302656866075396aec6"
+        },
+        {
+          "path": "bitvm3/utxo_referee/utxoref_v2_pnl_batch_checkpoint.js",
+          "sha256": "e841084746f09d3eb07c6970f4d2b0845c2a89afb3f1cbcf14a729322f82b230"
+        },
+        {
+          "path": "bitvm3/utxo_referee/utxoref_v2_pnl_batch_execution.js",
+          "sha256": "4c530f4c9535ce1b7b9ebec87396195ba4b1bbfff8866ed82491cf479bfe503f"
+        },
+        {
+          "path": "eval/pnl_batch_regtest.js",
+          "sha256": "d4e7330bac5be3378722e4b1170cb4dd2a527f8216e468b69a0b8cae484c6912"
+        }
+      ]
+    }
+  },
+  "custodyProfile": "One disposable wallet controls native P2WPKH reserve inputs; both Ed25519 checkpoint keys are local test keys",
+  "proofSystem": "none",
+  "zkProofVerified": false,
+  "peerConnections": 0,
+  "signerQuorum": {
+    "threshold": 2,
+    "distinctKeyIds": [
+      "d246923591fc717371b8d92d544afa6c6918ac052e3e2f52e0a371243789dc02",
+      "fe58b6db8fce53c764c6d4ae0d6f82baeb18114201b8f6dbbcbd08b04506615b"
+    ]
+  },
+  "snapshotHash": "1bd2ef601577943c72a660d32ef74b805643726e6aae3c33628c6cc51b1481fe",
+  "checkpointHash": "088f55f7eaf97459a5b9bc9558796dc0b5772640e6aae236f04b003f6e1c250d",
+  "transactionPolicyHash": "ca9f9f5734e2bc2c30ad5dac0ed4853fed35e9a22914e5e7094e2115fb8ba501",
+  "funding": {
+    "txid": "c36e946e442fd49cbaf125d46a08a6a23b48253729d26d399be0b7aad0b5d70c",
+    "totalSats": "215000",
+    "inputs": [
+      {
+        "txid": "c36e946e442fd49cbaf125d46a08a6a23b48253729d26d399be0b7aad0b5d70c",
+        "vout": 1,
+        "sats": "110000",
+        "scriptPubKey": "001475de3e1110b8481b66deed24eab376b61bee59c5"
+      },
+      {
+        "txid": "c36e946e442fd49cbaf125d46a08a6a23b48253729d26d399be0b7aad0b5d70c",
+        "vout": 0,
+        "sats": "105000",
+        "scriptPubKey": "0014edcfc835168e78dfb279d7a34bff760dc3119e6b"
+      }
+    ]
+  },
+  "foreignOutput": {
+    "rejected": true,
+    "reason": "batch transaction rejected: transaction differs from independently rebuilt bytes and prevouts",
+    "signerCalls": 0
+  },
+  "invalidWitness": {
+    "transactionBytesVerified": true,
+    "executionVerified": false,
+    "coreAllowed": false,
+    "rejectReason": "mempool-script-verify-flag-failed (Witness program hash mismatch)"
+  },
+  "weakSighash": {
+    "mode": "NONE",
+    "bookId": "6b72480eada282ba780752a83274d9cd29f13a9a211b92145d096170696d03f2",
+    "funding": {
+      "txid": "87325c81e4672d627636cbc2ea89d9c2c1366ded3b1c4cdbd65c5bd38da36c14",
+      "totalSats": "215000",
+      "inputs": [
+        {
+          "txid": "87325c81e4672d627636cbc2ea89d9c2c1366ded3b1c4cdbd65c5bd38da36c14",
+          "vout": 2,
+          "sats": "110000",
+          "scriptPubKey": "001475de3e1110b8481b66deed24eab376b61bee59c5"
+        },
+        {
+          "txid": "87325c81e4672d627636cbc2ea89d9c2c1366ded3b1c4cdbd65c5bd38da36c14",
+          "vout": 1,
+          "sats": "105000",
+          "scriptPubKey": "0014edcfc835168e78dfb279d7a34bff760dc3119e6b"
+        }
+      ]
+    },
+    "rejected": true,
+    "reason": "P2WPKH signing profile requires a canonical DER SIGHASH_ALL signature and compressed pubkey",
+    "signerCalls": 1,
+    "guardReturnedSignedSuccess": false,
+    "reservationRetained": true,
+    "signedBytesPersisted": false,
+    "signingTombstoneCount": 1,
+    "ledgerUnchanged": true,
+    "original": {
+      "txid": "a8c07ec45f9ead9c34d7c283c6eb3e20dadf3dd2b0450c9204ee92617f7155b8",
+      "wtxid": "c950dd769d76642cc2231c82fa3fb39c6f1ef4f2c9de70aeb8c2bb591b8b3d84",
+      "coreAllowed": true
+    },
+    "redirectedOutputWithSameWitnesses": {
+      "txid": "657788a6cbcbc9dc7dec2c034261748b2ba26ddcfad1e5c8322707ef67e59f4e",
+      "wtxid": "582078af8da2d287c142d8ff4fe0e05925befbc98b9f914e05f454a120646fd1",
+      "coreAllowed": true
+    },
+    "weakVariantsBroadcast": false
+  },
+  "settlement": {
+    "txid": "f7cc4685ced55d15e36f0ea5ba5dd5b9fe0d4146a4f0c9b1e22cd350c31909c4",
+    "wtxid": "41273260b24ba57897197bd13affd61fb3e6c8afd258a22a77ced5dbb47bf399",
+    "confirmationBlockHash": "45d62c26f4b3d614c97121a8d67cd716f6fda2631a7ef22cfe36ddc65c85cdae",
+    "feeSats": "1000",
+    "payoutSats": "4000",
+    "retainedProfitSats": "6000",
+    "residuals": [
+      {
+        "vaultId": "A",
+        "txid": "f7cc4685ced55d15e36f0ea5ba5dd5b9fe0d4146a4f0c9b1e22cd350c31909c4",
+        "vout": 1,
+        "sats": "99500",
+        "confirmations": 1
+      },
+      {
+        "vaultId": "B",
+        "txid": "f7cc4685ced55d15e36f0ea5ba5dd5b9fe0d4146a4f0c9b1e22cd350c31909c4",
+        "vout": 2,
+        "sats": "110500",
+        "confirmations": 1
+      }
+    ],
+    "initialHeadHash": "1797c602afe489a187d6332ef3c306b04f261a8e5777ebc09aac44bb33216e52",
+    "signedHeadHash": "02daa51d79c71554fe511c59ce7f7aa5179df13cede42931a7b6f65763d42d39",
+    "confirmedHeadHash": "dab6a5a092199a48e7b139b60e3e4c06a1f4348ed1ba43d1c3be36c59edc42e8",
+    "confirmedLedgerHash": "287d7e0bc50ea4cbbce170f0e9e27d70e35c61aa8aa5d7d761eee5c386f75110",
+    "accountEquities": [
+      {
+        "accountId": "trader-A",
+        "equitySats": "90000"
+      },
+      {
+        "accountId": "trader-B",
+        "equitySats": "106000"
+      }
+    ]
+  },
+  "replay": {
+    "whilePending": {
+      "rejected": true,
+      "reason": "book has an unresolved signing reservation"
+    },
+    "afterConfirmation": {
+      "rejected": true,
+      "reason": "batch checkpoint/accounting rejected: checkpoint previous state root differs from the independent pin"
+    },
+    "totalSignerCalls": 1
+  },
+  "persistence": {
+    "reopenedBeforeBroadcast": true,
+    "reopenedAfterConfirmation": true,
+    "signingTombstoneCount": 1
+  },
+  "reorg": {
+    "invalidatedBlockHash": "45d62c26f4b3d614c97121a8d67cd716f6fda2631a7ef22cfe36ddc65c85cdae",
+    "rejected": true,
+    "reason": "previous committed settlement left the active chain",
+    "frozen": true,
+    "frozenHeadHash": "fe9abf84c845793d41657eff1a12e0eb7741e64e529d3e7db8985791d2bcb9e9"
+  },
+  "scope": "Observed local wallet signing, Core script policy, broadcast, mining and guarded journal transitions; no independent custody or public-chain execution",
+  "cleanup": {
+    "ownDaemonStopped": true,
+    "ownDatadirRemoved": true
+  }
+}

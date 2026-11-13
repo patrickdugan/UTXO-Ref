@@ -1,0 +1,85 @@
+{
+  "kind": "tradelayer_pnl_batch_snapshot_v1",
+  "network": "bitcoin-regtest",
+  "epochId": "1",
+  "previousStateRoot": "0000000000000000000000000000000000000000000000000000000000000000",
+  "nettingSets": [
+    { "id": "demo-btc", "assetId": "BTC", "unit": "satoshis" }
+  ],
+  "vaults": [
+    {
+      "id": "A",
+      "nettingSetId": "demo-btc",
+      "assetId": "BTC",
+      "unit": "satoshis",
+      "changeScriptPubKey": "51201111111111111111111111111111111111111111111111111111111111111111",
+      "feeSats": "500",
+      "protectedSats": "0",
+      "utxos": [
+        {
+          "txid": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "vout": 0,
+          "sats": "110000",
+          "scriptPubKey": "51201111111111111111111111111111111111111111111111111111111111111111"
+        }
+      ]
+    },
+    {
+      "id": "B",
+      "nettingSetId": "demo-btc",
+      "assetId": "BTC",
+      "unit": "satoshis",
+      "changeScriptPubKey": "51202222222222222222222222222222222222222222222222222222222222222222",
+      "feeSats": "500",
+      "protectedSats": "0",
+      "utxos": [
+        {
+          "txid": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "vout": 1,
+          "sats": "105000",
+          "scriptPubKey": "51202222222222222222222222222222222222222222222222222222222222222222"
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "id": "trader-A",
+      "nettingSetId": "demo-btc",
+      "assetId": "BTC",
+      "unit": "satoshis",
+      "vaultId": "A",
+      "equitySats": "100000",
+      "lockedSats": "0",
+      "payoutSats": "0"
+    },
+    {
+      "id": "trader-B",
+      "nettingSetId": "demo-btc",
+      "assetId": "BTC",
+      "unit": "satoshis",
+      "vaultId": "B",
+      "equitySats": "100000",
+      "lockedSats": "0",
+      "payoutSats": "4000",
+      "payoutScriptPubKey": "00143333333333333333333333333333333333333333"
+    }
+  ],
+  "obligations": [
+    {
+      "id": "synthetic-close-A-B",
+      "nettingSetId": "demo-btc",
+      "assetId": "BTC",
+      "unit": "satoshis",
+      "fromAccountId": "trader-A",
+      "toAccountId": "trader-B",
+      "sats": "10000"
+    }
+  ],
+  "consumedObligationIds": [],
+  "spentOutpoints": [],
+  "routes": [
+    { "fromVaultId": "A", "toOutputId": "payout:trader-B", "capacitySats": "4000" },
+    { "fromVaultId": "A", "toOutputId": "vault:B", "capacitySats": "6000" }
+  ]
+}

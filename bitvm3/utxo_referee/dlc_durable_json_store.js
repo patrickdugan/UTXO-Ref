@@ -3,6 +3,7 @@
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
+const { canonicalJson } = require('./dlc_canonical_json');
 
 function requireByteLimit(maxBytes) {
   if (!Number.isSafeInteger(maxBytes) || maxBytes < 2 || maxBytes > 16 * 1024 * 1024) {
@@ -77,8 +78,15 @@ function readBoundedJson(filePath, { maxBytes, label = 'durable JSON record' }) 
   }
 }
 
-function writeJsonAppendOnce(directory, name, record, { maxBytes, label = 'durable JSON record' }) {
+function writeJsonAppendOnce(directory, name, record, options) {
+  const { maxBytes, label = 'durable JSON record' } = options;
+  const canonicalDescriptor = Object.getOwnPropertyDescriptor(options, 'canonical');
+  if (canonicalDescriptor && !Object.prototype.hasOwnProperty.call(canonicalDescriptor, 'value')) {
+    throw new Error(`${label} canonical option must be an own data property`);
+  }
+  const canonical = canonicalDescriptor ? canonicalDescriptor.value : false;
   requireByteLimit(maxBytes);
+  if (typeof canonical !== 'boolean') throw new Error(`${label} canonical option must be boolean`);
   const directoryBefore = assertNonSymlinkDirectory(directory, label);
   if (typeof name !== 'string' || !/^[A-Za-z0-9._-]{1,128}$/.test(name)) {
     throw new Error(`${label} filename is invalid`);
@@ -88,7 +96,10 @@ function writeJsonAppendOnce(directory, name, record, { maxBytes, label = 'durab
     directory,
     `.${name}.${process.pid}.${crypto.randomBytes(8).toString('hex')}.tmp`
   );
-  const bytes = Buffer.from(`${JSON.stringify(record, null, 2)}\n`, 'utf8');
+  // Existing stores retain their serialization. Callers that authenticate plain
+  // canonical data can opt in to avoid executing inherited toJSON hooks.
+  const encoded = canonical ? canonicalJson(record) : JSON.stringify(record, null, 2);
+  const bytes = Buffer.from(`${encoded}\n`, 'utf8');
   if (bytes.length > maxBytes) {
     bytes.fill(0);
     throw new Error(`${label} exceeds its byte limit`);

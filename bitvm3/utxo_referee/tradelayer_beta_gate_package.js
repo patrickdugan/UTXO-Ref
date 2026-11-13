@@ -6,6 +6,8 @@
  */
 
 const { stableStringify, sha256Hex } = require('./tradelayer_pnl_route_adapter');
+const { verifyPnlSettlementBatch } = require('./tradelayer_pnl_batch_settlement');
+const { verifyUtxoRefPnlBatchSettlementV2 } = require('./utxoref_v2_pnl_batch');
 
 const BETA_GATE_PACKAGE_KIND = 'tradelayer_real_money_beta_gate_package_v1';
 const KEY_CEREMONY_KIND = 'tradelayer_beta_key_separation_ceremony_v1';
@@ -164,6 +166,17 @@ function numericPositive(value) {
 
 function buildBetaGatePackage(input = {}) {
   const evidence = input.evidence || {};
+  // The settlement candidate is untrusted. The caller must supply the current,
+  // independently authenticated snapshot and its pinned hash through a separate
+  // context. Never accept an evidence.ok or proof-receipt boolean here.
+  const pnlBatch = verifyPnlSettlementBatch(
+    evidence.pnlSettlement?.batch,
+    input.pnlSettlementContext || {}
+  );
+  const pnlV2 = verifyUtxoRefPnlBatchSettlementV2(
+    evidence.pnlSettlement?.v2Settlement,
+    input.pnlBatchV2Context || {}
+  );
   const keyCeremony = input.keyCeremony?.kind === KEY_CEREMONY_KIND
     ? input.keyCeremony
     : buildKeySeparationCeremony({ roles: input.roles || {}, createdAt: input.createdAt });
@@ -202,6 +215,25 @@ function buildBetaGatePackage(input = {}) {
     gate('regression_green', evidence.tests?.fullSuitePassed === true, {
       command: evidence.tests?.command || null,
       suites: evidence.tests?.suites || null
+    }),
+    gate('pnl_batch_accounting', pnlBatch.ok === true, {
+      snapshotHash: pnlBatch.snapshotHash || null,
+      batchHash: pnlBatch.batchHash || null,
+      reason: pnlBatch.reason || null,
+      zkProofVerified: pnlBatch.zkProofVerified === true
+    }),
+    gate('pnl_batch_v2_binding', pnlV2.ok === true && pnlV2.settlement.batch.batchHash === pnlBatch.batchHash, {
+      checkpointHash: pnlV2.checkpointHash || null,
+      stateAuthenticated: pnlV2.stateAuthenticated === true,
+      transactionBytesVerified: pnlV2.transactionBytesVerified === true,
+      reason: pnlV2.reason || null
+    }),
+    // Test-network orchestration now checks Core execution and journal commits.
+    // This report keeps the production spend gate pending. Caller-supplied
+    // receipts cannot establish production custody or script enforcement.
+    gate('pnl_batch_spend_enforcement', pnlBatch.ok === true && pnlBatch.executionVerified === true, {
+      implementation: 'test_network_execution_adapter_available_production_enforcement_pending',
+      reason: 'Test-network signing, confirmation and journal guards are available; production spend enforcement remains pending.'
     })
   ];
 

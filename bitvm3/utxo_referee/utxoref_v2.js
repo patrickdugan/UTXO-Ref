@@ -1,6 +1,8 @@
 const crypto = require('crypto');
 const { canonicalStringify } = require('./m1_spec');
 const tr = require('./tradelayer_taproot');
+const pnlBatchV2 = require('./utxoref_v2_pnl_batch');
+const pnlBatchExecutionV2 = require('./utxoref_v2_pnl_batch_execution');
 const {
   addressToScriptPubKey
 } = require('./tradelayer_pnl_route_adapter');
@@ -697,5 +699,10 @@ module.exports = {
   derivePnlPayoutsV2,
   strictUnsignedTx,
   buildUtxoRefPnlSettlementV2,
-  verifyUtxoRefSettlementV2
+  verifyUtxoRefSettlementV2,
+  buildUtxoRefPnlBatchSettlementV2: pnlBatchV2.buildUtxoRefPnlBatchSettlementV2,
+  verifyUtxoRefPnlBatchSettlementV2: pnlBatchV2.verifyUtxoRefPnlBatchSettlementV2,
+  signPnlBatchSettlementV2: pnlBatchExecutionV2.signPnlBatchSettlementV2,
+  broadcastPnlBatchSettlementV2: pnlBatchExecutionV2.broadcastPnlBatchSettlementV2,
+  confirmPnlBatchSettlementV2: pnlBatchExecutionV2.confirmPnlBatchSettlementV2
 };

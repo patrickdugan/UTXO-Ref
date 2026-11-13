@@ -52,6 +52,41 @@ jobs:
       - name: DLC security eval (full, must be perfect)
         run: node eval/dlc_security_eval.js --profile=full --require-perfect
 
+  pnl-batch-linux:
+    # Durable batch authorization requires POSIX directory fsync. The Windows
+    # suites assert that this execution path refuses unsupported durability.
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Authenticated batch and journal adversarial tests
+        run: >-
+          node --test
+          bitvm3/utxo_referee/tradelayer_pnl_batch_settlement.test.js
+          bitvm3/utxo_referee/tradelayer_pnl_batch_transaction.test.js
+          bitvm3/utxo_referee/tradelayer_pnl_batch_state_store.test.js
+          bitvm3/utxo_referee/utxoref_v2_pnl_batch_checkpoint.test.js
+          bitvm3/utxo_referee/utxoref_v2_pnl_batch_execution.test.js
+      - name: Pinned Bitcoin Core 31.1
+        shell: bash
+        run: |
+          curl --fail --location --retry 2 --max-time 120 https://bitcoincore.org/bin/bitcoin-core-31.1/bitcoin-31.1-x86_64-linux-gnu.tar.gz --output "$RUNNER_TEMP/bitcoin-31.1.tar.gz"
+          printf '%s  %s\n' 'b80d9c3e04da78fb6f0569685673418cf686fadba9042d926d13fb87ff503f9e' "$RUNNER_TEMP/bitcoin-31.1.tar.gz" | sha256sum --check --strict
+          tar -xzf "$RUNNER_TEMP/bitcoin-31.1.tar.gz" -C "$RUNNER_TEMP"
+      - name: Isolated funded batch with confirmation and reorg
+        env:
+          BITCOIN_BIN: ${{ runner.temp }}/bitcoin-31.1/bin
+        run: node eval/pnl_batch_regtest.js --out "${{ runner.temp }}/pnl-batch-regtest.json"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pnl-batch-regtest-evidence
+          path: ${{ runner.temp }}/pnl-batch-regtest.json
+
   rust-signer-library:
     # The signing-target derivation is platform independent and is checked
     # against the same vectors as the JavaScript host. The Windows signer

@@ -60,6 +60,7 @@ const bitvmChannelRouter = require('./bitvm_channel_router');
 const lightningTradeLayerOracleDlc = require('./lightning_tradelayer_oracle_dlc');
 const tradeLayerPnlRouteAdapter = require('./tradelayer_pnl_route_adapter');
 const tradeLayerPnlStateNetting = require('./tradelayer_pnl_state_netting');
+const tradeLayerPnlBatchSettlement = require('./tradelayer_pnl_batch_settlement');
 const tradeLayerSendOracleExtractor = require('./tradelayer_send_oracle_extractor');
 const tradeLayerSendSweepPsbt = require('./tradelayer_send_sweep_psbt');
 const tradeLayerSendFraudChallenges = require('./tradelayer_send_fraud_challenges');
@@ -413,6 +414,9 @@ module.exports = {
   buildTradeLayerSendRouteTranscript: tradeLayerPnlRouteAdapter.buildTradeLayerSendRouteTranscript,
   verifyTradeLayerSendRouteTranscript: tradeLayerPnlRouteAdapter.verifyTradeLayerSendRouteTranscript,
   buildTradeLayerPnlCommitment: tradeLayerPnlRouteAdapter.buildTradeLayerPnlCommitment,
+  buildTradeLayerPnlSettlementBatch: tradeLayerPnlBatchSettlement.buildPnlSettlementBatch,
+  verifyTradeLayerPnlSettlementBatch: tradeLayerPnlBatchSettlement.verifyPnlSettlementBatch,
+  hashTradeLayerPnlSettlementSnapshot: tradeLayerPnlBatchSettlement.hashPnlSettlementSnapshot,
   verifyTradeLayerPnlRoutePlan: tradeLayerPnlRouteAdapter.verifyTradeLayerPnlRoutePlan,
   buildTradeLayerSendOracleCommitment: tradeLayerPnlRouteAdapter.buildTradeLayerSendOracleCommitment,
   buildTradeLayerSendOracleSigningPayload: tradeLayerPnlRouteAdapter.buildTradeLayerSendOracleSigningPayload,
@@ -796,6 +800,12 @@ const legacyUnsafe = Object.freeze({
 
 module.exports.v2 = Object.freeze({
   settlement: utxoRefV2,
+  pnlBatch: Object.freeze({
+    checkpoint: require('./utxoref_v2_pnl_batch_checkpoint'),
+    transaction: require('./tradelayer_pnl_batch_transaction'),
+    state: require('./tradelayer_pnl_batch_state_store'),
+    execution: require('./utxoref_v2_pnl_batch_execution')
+  }),
   trace: bitvmTraceV2,
   assertionGraph: bitvmAssertionGraphV2
 });

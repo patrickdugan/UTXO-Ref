@@ -1,5 +1,12 @@
 # Adversarial evaluation
 
+`pnl_batch_regtest.js` exercises the typed V2 profit batch against an isolated
+Bitcoin Core node with valueless coins. It covers guarded signing and exact
+broadcast, confirmed ledger/residual updates, replay and a reorg freeze. Set
+`BITCOIN_BIN` to the Core 31.1 binary directory and optionally pass `--out` for
+the receipt. The durable journal requires POSIX directory fsync. See
+[PNL_BATCH_EXECUTION.md](../docs/PNL_BATCH_EXECUTION.md) for scope and reproduction.
+
 `utxo_referee_eval.js` is a deterministic, dependency-free development benchmark for agent swarms and arena runners. It prints a Hive-compatible `score: <0..1>` metric and can emit one-line JSON with `--json` for other orchestrators.
 
 Profiles:
