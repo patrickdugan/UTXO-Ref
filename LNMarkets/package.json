@@ -1,0 +1,13 @@
+{
+  "name": "utxoref-lnmarkets-prototype",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Offline bounded BTC derivative and recovery prototype using UTXORef DLC primitives",
+  "type": "commonjs",
+  "engines": { "node": ">=24" },
+  "scripts": {
+    "test": "node --test --test-concurrency=1 test/*.test.js",
+    "demo": "node demo.js",
+    "quote": "node quote.js"
+  }
+}
