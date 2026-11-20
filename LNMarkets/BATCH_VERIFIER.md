@@ -222,6 +222,10 @@ The nullifier verifier uses 256 and checks both roots from the same
 journal. Both verified commitment outputs must match the authorization
 proof. Fresh private salts hide the committed row data.
 
+The prover and verifier both derive parameters from witness-free
+circuits. The fixture tests compare the ordered constraint matrices and
+output registers with those of populated circuits.
+
 Generate the three proof files from a native-verified two-trade fixture.
 The output paths should be new. The complete proof-set run remains
 pending.
@@ -266,6 +270,17 @@ The policy fields are `network` with value `bitcoin-regtest`,
 `expectedEpoch` as a decimal string, `currentNullifierRoot` and
 `observedHeight`. The proof directory contains `authorization.bin`,
 `curve.bin` and `nullifier.bin`.
+
+For the saved two-trade journal, the venue integration test checks a
+real receipt and repeats verification with the nullifier artifact
+substituted for the curve artifact. The test takes the receipt inputs
+from a temporary directory that contains the retained journal and
+compressed proofs.
+
+```sh
+LNM_NOVA_VERIFIER="$PWD/LNMarkets/nova/target/release/lnm-nova-verify" \
+  LNM_NOVA_PROOFS="$proofs" node --test LNMarkets/test/nova-proof-set.test.js
+```
 
 Before accepting a verified batch, the venue must atomically compare the
 retained epoch and old root with current state and commit the new root and

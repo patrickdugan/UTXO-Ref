@@ -431,7 +431,7 @@ fn select_number<F: PrimeField, CS: ConstraintSystem<F>>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::wire::fixture::{decode, ConstraintCheck, F};
+    use crate::wire::fixture::{decode, step_shape, ConstraintCheck, F};
     use ff::Field;
 
     fn saved_signature() -> CurveEquation {
@@ -472,6 +472,10 @@ mod tests {
     fn folds_real_signature_and_rejects_a_changed_scalar() {
         let binding = CurveBinding::default();
         let mut signature = saved_signature();
+        let steps = CurveStep::for_equations(binding.clone(), std::slice::from_ref(&signature));
+        let shape = step_shape(&CurveStep::blank());
+        assert_eq!(step_shape(&steps[0]), shape);
+        assert_eq!(step_shape(steps.last().unwrap()), shape);
         assert_eq!(
             check(
                 std::slice::from_ref(&signature),

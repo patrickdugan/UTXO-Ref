@@ -277,7 +277,7 @@ fn zero_digest() -> DigestBits {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::wire::fixture::{allocated, decode, F, JOURNAL};
+    use crate::wire::fixture::{allocated, decode, step_shape, F, JOURNAL};
     use crate::wire::{constants, enforce_same_bits};
     use nova_snark::frontend::test_cs::TestConstraintSystem;
     use sha2::{Digest, Sha256};
@@ -400,6 +400,10 @@ mod tests {
     fn starts_and_completes_each_saved_path_and_rejects_stale_root() {
         let (old_root, new_root) = journal_roots();
         let [first, second] = rows();
+        assert_eq!(
+            step_shape(&first),
+            step_shape(&BatchNullifierStep::default())
+        );
         let [first_key, second_key] = [key(&first), key(&second)];
         let empty = tagged_hash("nullifier-empty-leaf", &[]);
         let mut defaults = vec![empty];

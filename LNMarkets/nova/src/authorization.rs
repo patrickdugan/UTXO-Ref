@@ -340,7 +340,7 @@ mod tests {
     use crate::nullifier_batch::BatchNullifierStep;
     use crate::wire::{
         constants, enforce_same_bits,
-        fixture::{allocated, ConstraintCheck, F},
+        fixture::{allocated, step_shape, ConstraintCheck, F},
     };
     use ff::Field;
     use nova_snark::traits::circuit::StepCircuit;
@@ -425,6 +425,8 @@ mod tests {
         let step =
             step::AuthorizationStep::with_witness(layout, bytes.clone(), transaction.clone())
                 .unwrap();
+        let (setup_constraints, setup_shape) = step_shape(&step::AuthorizationStep::blank(layout));
+        assert_eq!(step_shape(&step), (setup_constraints, setup_shape));
         let retained: &[u8; V1_JOURNAL_BYTES] = journal.as_slice().try_into().unwrap();
         let mut cs = ConstraintCheck::new();
         let state = step::initial_state::<F>(retained)
@@ -435,6 +437,7 @@ mod tests {
             .collect::<Vec<_>>();
         let output = step.synthesize(&mut cs, &state).unwrap();
         assert_eq!(cs.first_failure, None);
+        assert_eq!(cs.constraints, setup_constraints);
         println!(
             "Two-trade authorization step uses {} constraints before the Nova wrapper",
             cs.constraints

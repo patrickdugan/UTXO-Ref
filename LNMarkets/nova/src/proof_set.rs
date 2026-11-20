@@ -44,6 +44,19 @@ pub fn verify_batch_proofs(
     let authorization = decode::<AuthorizationStep>(proofs.authorization)?;
     let curve = decode::<CurveStep<BatchScalar>>(proofs.curve)?;
     let nullifier = decode::<BatchNullifierStep>(proofs.nullifier)?;
+
+    // Reject invalid component proofs before building the much larger
+    // authorization parameters. Only compare verified public outputs.
+    let curve_state = verify_curve(&curve, row_count)?;
+    let old_root = journal[124..156].try_into()?;
+    let new_root = journal[156..188].try_into()?;
+    let count = nullifier_batch::step_count(row_count).ok_or("invalid nullifier row count")?;
+    let nullifier_state = verify_step(
+        &BatchNullifierStep::default(),
+        &nullifier,
+        count,
+        &nullifier_batch::initial_state(&old_root),
+    )?;
     let state = verify_step(
         &AuthorizationStep::blank(layout),
         &authorization,
@@ -51,18 +64,8 @@ pub fn verify_batch_proofs(
         &step::initial_state(journal),
     )?;
     let (bound_outpoints, bound_curve) = step::verified_bindings(journal, &state)?;
-    verify_curve(&curve, row_count, bound_curve)?;
-
-    let old_root = journal[124..156].try_into()?;
-    let new_root = journal[156..188].try_into()?;
-    let count = nullifier_batch::step_count(row_count).ok_or("invalid nullifier row count")?;
-    let actual = verify_step(
-        &BatchNullifierStep::default(),
-        &nullifier,
-        count,
-        &nullifier_batch::initial_state(&old_root),
-    )?;
-    if actual != nullifier_batch::final_state(&new_root, &bound_outpoints) {
+    check_curve_binding(&curve_state, bound_curve)?;
+    if nullifier_state != nullifier_batch::final_state(&new_root, &bound_outpoints) {
         return Err("nullifier proof did not match the approved roots and signed outpoints".into());
     }
     Ok(())
@@ -76,21 +79,23 @@ pub fn verify_curve_proof(
     binding: BatchScalar,
 ) -> Result<(), VerifyError> {
     let proof = decode::<CurveStep<BatchScalar>>(bytes)?;
-    verify_curve(&proof, row_count, binding)
+    check_curve_binding(&verify_curve(&proof, row_count)?, binding)
 }
 
 fn verify_curve(
     proof: &Proof<CurveStep<BatchScalar>>,
     row_count: usize,
-    binding: BatchScalar,
-) -> Result<(), VerifyError> {
+) -> Result<Vec<BatchScalar>, VerifyError> {
     let count = curve_fold::step_count(row_count).ok_or("invalid curve proof row count")?;
-    let actual = verify_step(
+    verify_step(
         &CurveStep::blank(),
         proof,
         count,
         &curve_fold::initial_state(),
-    )?;
+    )
+}
+
+fn check_curve_binding(actual: &[BatchScalar], binding: BatchScalar) -> Result<(), VerifyError> {
     if actual != curve_fold::final_state(binding) {
         return Err("curve proof did not match the signed operation binding".into());
     }

@@ -81,10 +81,11 @@ pub(crate) fn require_nonzero<F: PrimeField, CS: ConstraintSystem<F>>(
 pub(crate) mod fixture {
     use super::*;
     use nova_snark::{
-        frontend::{Index, LinearCombination, Variable},
+        frontend::{num::AllocatedNum, Index, LinearCombination, Variable},
         provider::Bn256EngineIPA,
-        traits::Engine,
+        traits::{circuit::StepCircuit, Engine},
     };
+    use sha2::{Digest, Sha256};
 
     pub(crate) type F = <Bn256EngineIPA as Engine>::Scalar;
     pub(crate) const JOURNAL: &[u8; 276] =
@@ -105,6 +106,110 @@ pub(crate) mod fixture {
 
     pub(crate) fn allocated<CS: ConstraintSystem<F>>(cs: CS, bytes: &[u8]) -> Vec<Boolean> {
         allocate_bytes(cs, bytes).unwrap()
+    }
+
+    /// Compare setup shapes without storing the full sparse matrices.
+    pub(crate) fn step_shape(circuit: &impl StepCircuit<F>) -> (usize, [u8; 32]) {
+        let mut cs = ShapeCheck {
+            inputs: 1,
+            auxiliary: 0,
+            constraints: 0,
+            hash: Sha256::new(),
+        };
+        let state = (0..circuit.arity())
+            .map(|_| {
+                AllocatedNum::alloc(&mut cs, || Err(SynthesisError::AssignmentMissing)).unwrap()
+            })
+            .collect::<Vec<_>>();
+        let outputs = circuit.synthesize(&mut cs, &state).unwrap();
+        for count in [cs.inputs, cs.auxiliary, cs.constraints, outputs.len()] {
+            cs.hash.update((count as u64).to_le_bytes());
+        }
+        for output in outputs {
+            cs.hash_variable(output.get_variable());
+        }
+        (cs.constraints, cs.hash.finalize().into())
+    }
+
+    struct ShapeCheck {
+        inputs: usize,
+        auxiliary: usize,
+        constraints: usize,
+        hash: Sha256,
+    }
+
+    impl ShapeCheck {
+        fn hash_variable(&mut self, variable: Variable) {
+            let (kind, index) = match variable.get_unchecked() {
+                Index::Input(index) => (0, index),
+                Index::Aux(index) => (1, index),
+            };
+            self.hash.update([kind]);
+            self.hash.update((index as u64).to_le_bytes());
+        }
+    }
+
+    impl ConstraintSystem<F> for ShapeCheck {
+        type Root = Self;
+
+        fn alloc<C, A, AR>(&mut self, _name: A, _assignment: C) -> Result<Variable, SynthesisError>
+        where
+            C: FnOnce() -> Result<F, SynthesisError>,
+            A: FnOnce() -> AR,
+            AR: Into<String>,
+        {
+            let index = self.auxiliary;
+            self.auxiliary += 1;
+            Ok(Variable::new_unchecked(Index::Aux(index)))
+        }
+
+        fn alloc_input<C, A, AR>(
+            &mut self,
+            _name: A,
+            _assignment: C,
+        ) -> Result<Variable, SynthesisError>
+        where
+            C: FnOnce() -> Result<F, SynthesisError>,
+            A: FnOnce() -> AR,
+            AR: Into<String>,
+        {
+            let index = self.inputs;
+            self.inputs += 1;
+            Ok(Variable::new_unchecked(Index::Input(index)))
+        }
+
+        fn enforce<A, AR, LA, LB, LC>(&mut self, _name: A, build_a: LA, build_b: LB, build_c: LC)
+        where
+            A: FnOnce() -> AR,
+            AR: Into<String>,
+            LA: FnOnce(LinearCombination<F>) -> LinearCombination<F>,
+            LB: FnOnce(LinearCombination<F>) -> LinearCombination<F>,
+            LC: FnOnce(LinearCombination<F>) -> LinearCombination<F>,
+        {
+            self.constraints += 1;
+            for combination in [
+                build_a(LinearCombination::zero()),
+                build_b(LinearCombination::zero()),
+                build_c(LinearCombination::zero()),
+            ] {
+                for (variable, coefficient) in combination.iter() {
+                    self.hash_variable(variable);
+                    self.hash.update(coefficient.to_repr());
+                }
+                self.hash.update([2]);
+            }
+        }
+
+        fn push_namespace<NR, N>(&mut self, _name: N)
+        where
+            NR: Into<String>,
+            N: FnOnce() -> NR,
+        {
+        }
+        fn pop_namespace(&mut self) {}
+        fn get_root(&mut self) -> &mut Self {
+            self
+        }
     }
 
     /// Evaluate every constraint while retaining only the assignments.

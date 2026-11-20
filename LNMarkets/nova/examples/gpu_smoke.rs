@@ -53,7 +53,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     match std::env::args().skip(1).collect::<Vec<_>>().as_slice() {
         [] => {
             let steps = [Multiply(F::from(3)), Multiply(F::from(7))];
-            prove_and_check(&steps, &[F::ONE], &[F::from(21)])?;
+            prove_and_check(&steps[0], &steps, &[F::ONE], &[F::from(21)])?;
             println!("Nova GPU smoke proof verified and altered public input rejected");
         }
         [mode] if mode == "--settlement-amounts" => {
@@ -77,7 +77,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             for (total, field) in totals.iter_mut().zip(JOURNAL[252..276].chunks_exact(8)) {
                 *total = u64::from_le_bytes(field.try_into().unwrap());
             }
-            prove_and_check(&steps, &[F::ZERO; 3], &totals.map(F::from))?;
+            prove_and_check(&steps[0], &steps, &[F::ZERO; 3], &totals.map(F::from))?;
             println!("Nova GPU settlement-amount proof matches the saved journal totals and rejects altered public input");
         }
         [mode, fixture, files @ ..] if mode == "--nullifiers" && files.len() <= 2 => {
@@ -92,6 +92,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let old_root = journal[124..156].try_into()?;
             let new_root = journal[156..188].try_into()?;
             let proof = prove_and_check(
+                &BatchNullifierStep::default(),
                 &steps,
                 &nullifier_batch::initial_state(&old_root),
                 &nullifier_batch::final_state(&new_root, &binding),
@@ -192,6 +193,7 @@ fn prove_fixture_curve(
     );
     println!("Proving {} private curve equations", equations.len());
     let proof = prove_and_check(
+        &CurveStep::blank(),
         &steps,
         &curve_fold::initial_state(),
         &curve_fold::final_state(expected),
@@ -211,6 +213,7 @@ fn prove_fixture_authorization(
         AuthorizationLayout::from_transaction_size(fixture.row_count(), fixture.unsigned.len())?;
     let step = AuthorizationStep::with_witness(layout, fixture.witness, fixture.unsigned)?;
     let proof = prove_and_check(
+        &AuthorizationStep::blank(layout),
         &[step],
         &authorization_step::initial_state(&fixture.journal),
         &authorization_step::final_state(&fixture.journal, &outpoints, curve),
@@ -272,13 +275,14 @@ fn nullifier_fixture(
 }
 
 fn prove_and_check<C: StepCircuit<F>>(
+    public_circuit: &C,
     steps: &[C],
     initial: &[F],
     expected: &[F],
 ) -> Result<Proof<C>, Box<dyn std::error::Error>> {
     let started = std::time::Instant::now();
     eprintln!("Preparing Nova parameters");
-    let pp = PublicParams::<E1, E2, C>::setup(&steps[0], &*S1::ck_floor(), &*S2::ck_floor())?;
+    let pp = PublicParams::<E1, E2, C>::setup(public_circuit, &*S1::ck_floor(), &*S2::ck_floor())?;
     let (primary, secondary) = pp.num_constraints();
     eprintln!("Nova step constraints {primary} primary and {secondary} secondary");
     eprintln!("Creating the first Nova instance");
@@ -295,9 +299,20 @@ fn prove_and_check<C: StepCircuit<F>>(
         }
     }
     assert_eq!(folded.verify(&pp, steps.len(), initial)?, expected);
-    eprintln!("Compressing the fold with Spartan IPA");
+    eprintln!(
+        "Preparing Spartan IPA compression keys after {:.1}s",
+        started.elapsed().as_secs_f64()
+    );
     let (pk, vk) = CompressedSNARK::<_, _, _, S1, S2>::setup(&pp)?;
+    eprintln!(
+        "Compressing the fold after {:.1}s",
+        started.elapsed().as_secs_f64()
+    );
     let compressed = CompressedSNARK::prove(&pp, &pk, &folded)?;
+    eprintln!(
+        "Checking the compressed proof after {:.1}s",
+        started.elapsed().as_secs_f64()
+    );
     assert_eq!(compressed.verify(&vk, steps.len(), initial)?, expected);
     let mut altered = initial.to_vec();
     altered[0] += F::ONE;
