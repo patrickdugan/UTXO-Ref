@@ -32,16 +32,22 @@ impl StepCircuit<F> for Multiply {
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    if std::env::var_os("CUDA_VISIBLE_DEVICES")
+        .is_some_and(|value| value.is_empty() || value == "-1")
+    {
+        return Err("CUDA_VISIBLE_DEVICES hides all CUDA devices".into());
+    }
     let steps = [Multiply(F::from(3)), Multiply(F::from(7))];
     let initial = [F::ONE];
     let expected = [F::from(21)];
     eprintln!("Preparing Nova parameters");
     let pp =
         PublicParams::<E1, E2, Multiply>::setup(&steps[0], &*S1::ck_floor(), &*S2::ck_floor())?;
-    eprintln!("Folding two steps");
+    eprintln!("Creating the first Nova instance");
     let mut folded = RecursiveSNARK::new(&pp, &steps[0], &initial)?;
-    for step in &steps {
+    for (index, step) in steps.iter().enumerate() {
         folded.prove_step(&pp, step)?;
+        eprintln!("Completed fold {}", index + 1);
     }
     assert_eq!(folded.verify(&pp, steps.len(), &initial)?, expected);
     eprintln!("Compressing the fold with Spartan IPA");
