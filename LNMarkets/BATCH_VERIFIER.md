@@ -77,9 +77,32 @@ synthetic funding outpoints and aggregates the payouts into
 
 Follow the pinned companion's [SP1 6.9.0 guest and host instructions](https://github.com/patrickdugan/zk-rusto-no-bitcoino/blob/992cdb1c51b5c7a630ea552b2648acbad4308a9b/LNMarkets/sp1/README.md)
 to build the ELF, compare guest execution with the native journal, and
-produce a real Groth16 proof. The bridge's public-only verification CLI
-invokes that host in release mode. It requires an operator-controlled
-policy file with these fields.
+review its program key. To prove a UTXORef fixture using those builds,
+set `HOST` and `ELF` to the reviewed artifacts and set the three digest
+variables from the approved artifacts and batch proposal. `RUN` should
+be an existing private output directory with no previous receipts.
+
+```sh
+FIXTURE=LNMarkets/artifacts/batch-01
+SP1_CIRCUIT_MODE=release "$HOST" prove-groth16 \
+  --elf "$ELF" --witness "$FIXTURE/witness.bin" \
+  --journal "$FIXTURE/expected-journal.bin" \
+  --expect-elf-sha256 "$ELF_SHA256" --expect-program-vk "$PROGRAM_VK_DIGEST" \
+  --expect-journal-sha256 "$EXPECTED_JOURNAL_SHA256" \
+  --proof "$RUN/proof.bin" --report "$RUN/prover.json" --allow-cpu-proving
+```
+
+This local CPU run uses the SP1 SDK 6.9.0 release circuit `v6.1.0`. Allow
+space for the circuit cache and peak swap use. The release archive is
+6,211,807,514 bytes compressed, and the extracted proving key and circuit
+together use 8,300,164,502 bytes. An installation that keeps the archive
+during extraction needs space for both. `SP1_GROTH16_CIRCUIT_PATH` can
+point to a separate cache parent containing the `v6.1.0` directory.
+The Docker-based SDK wrapper also needs the corresponding `sp1-gnark`
+release image and a container-readable cache path.
+
+The bridge's public-only verification CLI invokes the pinned host in release
+mode. It requires an operator-controlled policy file with these fields.
 
 | Field | Trusted source |
 |---|---|
