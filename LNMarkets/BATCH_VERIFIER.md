@@ -86,7 +86,18 @@ key and leaves from a specified outpoint. The circuit also constrains that
 derivation for a private outpoint. Each path step consumes the next key bit
 from the leaf end and computes both parents using the same sibling. A
 standalone verifier supplies the initial state, verifies exactly 256 steps
-and compares both roots. Run the constraint tests with the locked dependencies.
+and compares both roots.
+
+The batch nullifier circuit starts from the journal's old root and proves
+one path level per fold. The private funding outpoint derives both the
+path key and the consumed leaf. At the end of each 256-step path the
+empty-leaf branch must recover the current root before the consumed branch
+advances it. Tests check the first and last levels of both saved paths
+against the journal roots and reject completing the second path against
+the stale root. The circuit can bind the ordered outpoints to the main
+circuit through a shared digest over the private salt, txid and output
+index of each signed summary. The tests reject reordering, salt changes
+and output index changes against the same digest.
 
 The amount step uses the v1 summary and outcome wire bits. It constrains
 non-dust trader, maker and anchor outputs, the committed miner fee, exact
@@ -148,14 +159,27 @@ CUDA_LAUNCH_BLOCKING=1 cargo run --locked --release \
   -- --settlement-amounts
 ```
 
-For batch acceptance, the circuit must bind those path inputs to the
-signed row within the private witness, and connect each new root to the
-next row and to the retained journal. The full relation also requires
-secp256k1 point validation, all six BIP340 signature checks per row and
-derivation of the NUMS Taproot funding commitment. Acceptance remains
-pending until a compressed proof of the combined relation verifies
-against independently retained journal bytes, circuit parameters and
-venue state.
+The nullifier example runs all 512 folds for the saved two-trade witness
+and checks the old and new roots against the retained journal. To run a
+fresh fixture, pass the witness and its separately retained journal from
+the batch demo.
+
+```sh
+CUDA_LAUNCH_BLOCKING=1 cargo run --locked --release \
+  --manifest-path LNMarkets/nova/Cargo.toml --features gpu --example gpu_smoke \
+  -- --nullifiers LNMarkets/artifacts/batch-01/witness.bin \
+  LNMarkets/artifacts/batch-01/expected-journal.bin
+```
+
+For batch acceptance the verifier must constrain both proofs to the same
+outpoint binding, pin the nullifier fold count to 256 times the retained
+row count and check the exact initial and final states from the retained
+journal. The rows need fresh private salts to hide the outpoints in the
+binding. The main proof also requires secp256k1 point validation, all six
+BIP340 signature checks per row and derivation of the NUMS Taproot
+funding commitment. Acceptance remains pending until the combined
+relation verifies against independently retained journal bytes, circuit
+parameters and venue state.
 
 Before accepting a verified batch, the venue must atomically compare the
 retained epoch and old root with current state and commit the new root and

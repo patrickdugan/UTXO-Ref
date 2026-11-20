@@ -75,7 +75,7 @@ pub fn final_state<F: PrimeField>(
     state(&[0; 32], old_root, inserted_root)
 }
 
-fn tagged_hash(tag: &str, payload: &[u8]) -> [u8; 32] {
+pub(crate) fn tagged_hash(tag: &str, payload: &[u8]) -> [u8; 32] {
     let tag = tag_hash(tag);
     Sha256::new()
         .chain_update(tag)
@@ -157,7 +157,7 @@ impl<F: PrimeFieldBits> StepCircuit<F> for NullifierPathStep {
     }
 }
 
-fn allocate_digest<F: PrimeField, CS: ConstraintSystem<F>>(
+pub(crate) fn allocate_digest<F: PrimeField, CS: ConstraintSystem<F>>(
     mut cs: CS,
     digest: &[u8; 32],
 ) -> Result<DigestBits, SynthesisError> {
@@ -171,7 +171,7 @@ fn allocate_digest<F: PrimeField, CS: ConstraintSystem<F>>(
     Ok(values.try_into().unwrap())
 }
 
-fn unpack_digest<F: PrimeFieldBits, CS: ConstraintSystem<F>>(
+pub(crate) fn unpack_digest<F: PrimeFieldBits, CS: ConstraintSystem<F>>(
     mut cs: CS,
     high: &AllocatedNum<F>,
     low: &AllocatedNum<F>,
@@ -182,11 +182,19 @@ fn unpack_digest<F: PrimeFieldBits, CS: ConstraintSystem<F>>(
 }
 
 fn unpack_limb<F: PrimeFieldBits, CS: ConstraintSystem<F>>(
-    mut cs: CS,
+    cs: CS,
     limb: &AllocatedNum<F>,
 ) -> Result<Vec<Boolean>, SynthesisError> {
+    unpack_bits(cs, limb, LIMB_BITS)
+}
+
+pub(crate) fn unpack_bits<F: PrimeFieldBits, CS: ConstraintSystem<F>>(
+    mut cs: CS,
+    limb: &AllocatedNum<F>,
+    width: usize,
+) -> Result<Vec<Boolean>, SynthesisError> {
     let value = limb.get_value().map(|number| number.to_le_bits());
-    let bits = (0..LIMB_BITS)
+    let bits = (0..width)
         .rev()
         .map(|index| {
             let bit = value.as_ref().map(|bits| bits[index]);
@@ -197,7 +205,7 @@ fn unpack_limb<F: PrimeFieldBits, CS: ConstraintSystem<F>>(
     Ok(bits)
 }
 
-fn pack_limb<F: PrimeField, CS: ConstraintSystem<F>>(
+pub(crate) fn pack_limb<F: PrimeField, CS: ConstraintSystem<F>>(
     mut cs: CS,
     bits: &[Boolean],
 ) -> Result<AllocatedNum<F>, SynthesisError> {
@@ -219,7 +227,7 @@ fn bind_limb<F: PrimeField, CS: ConstraintSystem<F>>(
     bits: &[Boolean],
 ) {
     cs.enforce(
-        || "limb equals its 128-bit decomposition",
+        || "limb equals its bit decomposition",
         |lc| {
             let mut value = lc - limb.get_variable();
             let mut weight = F::ONE;

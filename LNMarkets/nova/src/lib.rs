@@ -3,6 +3,7 @@
 pub mod accepted_set;
 pub mod journal_binding;
 pub mod nullifier;
+pub mod nullifier_batch;
 pub mod nullifier_path;
 pub mod outcome_membership;
 mod payout_aggregation;
