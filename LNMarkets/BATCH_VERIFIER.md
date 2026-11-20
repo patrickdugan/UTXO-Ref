@@ -151,6 +151,8 @@ Bitcoin Core 31.1 independently decoded the same txid, two inputs, three
 outputs and locktime 1001. The native verifier rejected a one-bit change to the expected accepted-set
 root and a one-bit change to an outpoint in the signed witness. Fresh
 recovery-package signatures can change the witness and journal on rerun.
+The repository-wide Node regression runner passed all 120 test files with
+loopback access for the local RPC fixtures.
 
 The exporter also validated the saved CET package and attestations from
 the confirmed [Bitcoin Core run](REGTEST_REPORT.md). Its selected row bound
@@ -183,7 +185,10 @@ bde54775e5750118fd98cd5939aa4346ceed184cdb7e4a49f45a4e17528fae0e
 The guest exited successfully after 48,224,478 instructions and committed
 all 276 bytes of the independently retained journal. Guest execution took
 9.78 seconds after 16.61 seconds of host key setup. See the
-[recorded SP1 execution](evidence/sp1-two-trade-execution.json).
+[recorded SP1 execution](evidence/sp1-two-trade-execution.json) and the
+[exact public journal](evidence/sp1-two-trade-journal.bin). A verifier-only
+probe passed that journal to the pinned host through `verify-batch.js`.
+The host rejected a truncated proof during decoding and wrote no receipt.
 
 The execution result is `executed_unproved`. A separate Groth16 run and
 verification through UTXORef establish the zero-knowledge proof result.
