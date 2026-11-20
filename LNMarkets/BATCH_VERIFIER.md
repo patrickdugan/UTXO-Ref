@@ -245,6 +245,22 @@ cargo run --locked --release --manifest-path "$manifest" --features gpu \
   "$fixture/expected-journal.bin" "$proofs/nullifier.bin"
 ```
 
+On a host where the CUDA driver stalls during Spartan IPA compression,
+build the local CPU compressor and set its path before running those
+commands. Nova still folds on CUDA. The prover passes the private fold
+through the child process's stdin. The CPU child derives the same public
+parameters, checks the folded output, and emits the verified compressed
+proof.
+
+```sh
+cargo build --locked --release --manifest-path "$manifest" --bin lnm-nova-compress
+export LNM_NOVA_CPU_COMPRESSOR="$PWD/LNMarkets/nova/target/release/lnm-nova-compress"
+```
+
+The fallback verified the retained settlement-amount fixture and
+rejected altered public input. The two GPU folds completed after 4.8
+seconds. The CPU helper verified the compressed proof after 8.9 seconds.
+
 Build the independent verifier from the reviewed Nova source. The
 example layout has three transaction outputs. Supply the approved
 journal separately from the proof directory.

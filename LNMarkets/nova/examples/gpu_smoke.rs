@@ -1,9 +1,16 @@
+use std::ffi::OsStr;
+use std::io::{BufWriter, Write};
+use std::process::{Command, Stdio};
+
 use ff::{Field, PrimeField};
 use lnmarkets_nova::authorization::{
     constrain_linked_authorization,
     step::{self as authorization_step, AuthorizationLayout, AuthorizationStep},
 };
 use lnmarkets_nova::nullifier_batch::{self, BatchNullifierStep};
+use lnmarkets_nova::proof_set::{
+    decode_compressed_proof, proof_parameters, BatchScalar as F, CompressedProof, RecursiveProof,
+};
 use lnmarkets_nova::secp256k1::fold::{self as curve_fold, CurveBinding, CurveEquation, CurveStep};
 use lnmarkets_nova::settlement_amounts::SettlementAmountStep;
 use lnmarkets_nova::witness::BatchWitness;
@@ -12,18 +19,9 @@ use nova_snark::{
         num::AllocatedNum, util_cs::witness_cs::WitnessCS, Boolean, ConstraintSystem,
         SynthesisError,
     },
-    nova::{CompressedSNARK, PublicParams, RecursiveSNARK},
-    provider::{ipa_pc::EvaluationEngine, Bn256EngineIPA, GrumpkinEngine},
-    spartan::snark::RelaxedR1CSSNARK,
-    traits::{circuit::StepCircuit, snark::RelaxedR1CSSNARKTrait, Engine},
+    traits::circuit::StepCircuit,
 };
 
-type E1 = Bn256EngineIPA;
-type E2 = GrumpkinEngine;
-type F = <E1 as Engine>::Scalar;
-type S1 = RelaxedR1CSSNARK<E1, EvaluationEngine<E1>>;
-type S2 = RelaxedR1CSSNARK<E2, EvaluationEngine<E2>>;
-type Proof<C> = CompressedSNARK<E1, E2, C, S1, S2>;
 const JOURNAL: &[u8; 276] = include_bytes!("../../evidence/sp1-two-trade-journal.bin");
 
 #[derive(Clone, Debug)]
@@ -53,7 +51,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     match std::env::args().skip(1).collect::<Vec<_>>().as_slice() {
         [] => {
             let steps = [Multiply(F::from(3)), Multiply(F::from(7))];
-            prove_and_check(&steps[0], &steps, &[F::ONE], &[F::from(21)])?;
+            prove_and_check(&steps[0], &steps, &[F::ONE], &[F::from(21)], &[])?;
             println!("Nova GPU smoke proof verified and altered public input rejected");
         }
         [mode] if mode == "--settlement-amounts" => {
@@ -77,7 +75,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             for (total, field) in totals.iter_mut().zip(JOURNAL[252..276].chunks_exact(8)) {
                 *total = u64::from_le_bytes(field.try_into().unwrap());
             }
-            prove_and_check(&steps[0], &steps, &[F::ZERO; 3], &totals.map(F::from))?;
+            prove_and_check(
+                &steps[0],
+                &steps,
+                &[F::ZERO; 3],
+                &totals.map(F::from),
+                &["settlement-amounts"],
+            )?;
             println!("Nova GPU settlement-amount proof matches the saved journal totals and rejects altered public input");
         }
         [mode, fixture, files @ ..] if mode == "--nullifiers" && files.len() <= 2 => {
@@ -96,6 +100,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 &steps,
                 &nullifier_batch::initial_state(&old_root),
                 &nullifier_batch::final_state(&new_root, &binding),
+                &["nullifier"],
             )?;
             write_proof(files.get(1), &proof)?;
             println!("Nova GPU nullifier proof matches both saved journal roots and rejects altered public input");
@@ -197,6 +202,7 @@ fn prove_fixture_curve(
         &steps,
         &curve_fold::initial_state(),
         &curve_fold::final_state(expected),
+        &["curve"],
     )?;
     write_proof(output, &proof)?;
     println!("Nova GPU curve proof matches the fixture's ordered equation binding and rejects altered public input");
@@ -209,14 +215,20 @@ fn prove_fixture_authorization(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let fixture = Fixture::read(fixture)?;
     let (outpoints, curve, _) = fixture.bindings()?;
-    let layout =
-        AuthorizationLayout::from_transaction_size(fixture.row_count(), fixture.unsigned.len())?;
+    let rows = fixture.row_count();
+    let transaction_size = fixture.unsigned.len();
+    let layout = AuthorizationLayout::from_transaction_size(rows, transaction_size)?;
     let step = AuthorizationStep::with_witness(layout, fixture.witness, fixture.unsigned)?;
     let proof = prove_and_check(
         &AuthorizationStep::blank(layout),
         &[step],
         &authorization_step::initial_state(&fixture.journal),
         &authorization_step::final_state(&fixture.journal, &outpoints, curve),
+        &[
+            "authorization",
+            &rows.to_string(),
+            &transaction_size.to_string(),
+        ],
     )?;
     write_proof(output, &proof)?;
     println!("Nova GPU authorization proof matched the journal and both proof bindings");
@@ -225,7 +237,7 @@ fn prove_fixture_authorization(
 
 fn write_proof<C: StepCircuit<F>>(
     output: Option<&String>,
-    proof: &Proof<C>,
+    proof: &CompressedProof<C>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     if let Some(output) = output {
         let bytes = bincode::serde::encode_to_vec(proof, bincode::config::standard())?;
@@ -233,7 +245,7 @@ fn write_proof<C: StepCircuit<F>>(
             .write(true)
             .create_new(true)
             .open(output)?;
-        std::io::Write::write_all(&mut file, &bytes)?;
+        file.write_all(&bytes)?;
         println!("Saved {} bytes of compressed proof", bytes.len());
     }
     Ok(())
@@ -279,14 +291,15 @@ fn prove_and_check<C: StepCircuit<F>>(
     steps: &[C],
     initial: &[F],
     expected: &[F],
-) -> Result<Proof<C>, Box<dyn std::error::Error>> {
+    compression_shape: &[&str],
+) -> Result<CompressedProof<C>, Box<dyn std::error::Error>> {
     let started = std::time::Instant::now();
     eprintln!("Preparing Nova parameters");
-    let pp = PublicParams::<E1, E2, C>::setup(public_circuit, &*S1::ck_floor(), &*S2::ck_floor())?;
+    let pp = proof_parameters(public_circuit)?;
     let (primary, secondary) = pp.num_constraints();
     eprintln!("Nova step constraints {primary} primary and {secondary} secondary");
     eprintln!("Creating the first Nova instance");
-    let mut folded = RecursiveSNARK::new(&pp, &steps[0], initial)?;
+    let mut folded = RecursiveProof::new(&pp, &steps[0], initial)?;
     for (index, step) in steps.iter().enumerate() {
         folded.prove_step(&pp, step)?;
         let done = index + 1;
@@ -299,16 +312,31 @@ fn prove_and_check<C: StepCircuit<F>>(
         }
     }
     assert_eq!(folded.verify(&pp, steps.len(), initial)?, expected);
+    if let Some(executable) =
+        std::env::var_os("LNM_NOVA_CPU_COMPRESSOR").filter(|_| !compression_shape.is_empty())
+    {
+        eprintln!("Sending the verified GPU fold to local CPU compression");
+        drop(pp);
+        return compress_on_cpu(
+            &executable,
+            compression_shape,
+            steps.len(),
+            initial,
+            expected,
+            folded,
+        );
+    }
+
     eprintln!(
         "Preparing Spartan IPA compression keys after {:.1}s",
         started.elapsed().as_secs_f64()
     );
-    let (pk, vk) = CompressedSNARK::<_, _, _, S1, S2>::setup(&pp)?;
+    let (pk, vk) = CompressedProof::<C>::setup(&pp)?;
     eprintln!(
         "Compressing the fold after {:.1}s",
         started.elapsed().as_secs_f64()
     );
-    let compressed = CompressedSNARK::prove(&pp, &pk, &folded)?;
+    let compressed = CompressedProof::<C>::prove(&pp, &pk, &folded)?;
     eprintln!(
         "Checking the compressed proof after {:.1}s",
         started.elapsed().as_secs_f64()
@@ -318,4 +346,39 @@ fn prove_and_check<C: StepCircuit<F>>(
     altered[0] += F::ONE;
     assert!(compressed.verify(&vk, steps.len(), &altered).is_err());
     Ok(compressed)
+}
+
+fn compress_on_cpu<C: StepCircuit<F>>(
+    executable: &OsStr,
+    shape: &[&str],
+    count: usize,
+    initial: &[F],
+    expected: &[F],
+    folded: RecursiveProof<C>,
+) -> Result<CompressedProof<C>, Box<dyn std::error::Error>> {
+    let mut child = Command::new(executable)
+        .args(shape)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::inherit())
+        .spawn()?;
+    // Send directly through the child's stdin, so private recursive state
+    // never becomes a file in the proof directory.
+    let sent = (|| -> Result<(), Box<dyn std::error::Error>> {
+        let mut pipe = BufWriter::new(child.stdin.take().expect("piped stdin"));
+        bincode::serde::encode_into_std_write(
+            &(count, initial, expected, &folded),
+            &mut pipe,
+            bincode::config::standard(),
+        )?;
+        pipe.flush()?;
+        Ok(())
+    })();
+    drop(folded);
+    let output = child.wait_with_output()?;
+    if !output.status.success() {
+        return Err(format!("CPU compressor exited with {}", output.status).into());
+    }
+    sent?;
+    decode_compressed_proof(&output.stdout)
 }

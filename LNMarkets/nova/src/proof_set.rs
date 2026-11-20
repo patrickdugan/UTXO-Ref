@@ -1,7 +1,8 @@
 //! Verify the compressed Nova artifacts against independently retained terms.
 
 use nova_snark::{
-    nova::{CompressedSNARK, PublicParams},
+    errors::NovaError,
+    nova::{CompressedSNARK, PublicParams, RecursiveSNARK},
     provider::{ipa_pc::EvaluationEngine, Bn256EngineIPA, GrumpkinEngine},
     spartan::snark::RelaxedR1CSSNARK,
     traits::{circuit::StepCircuit, snark::RelaxedR1CSSNARKTrait, Engine},
@@ -17,7 +18,9 @@ type E2 = GrumpkinEngine;
 pub type BatchScalar = <E1 as Engine>::Scalar;
 type S1 = RelaxedR1CSSNARK<E1, EvaluationEngine<E1>>;
 type S2 = RelaxedR1CSSNARK<E2, EvaluationEngine<E2>>;
-type Proof<C> = CompressedSNARK<E1, E2, C, S1, S2>;
+pub type BatchParameters<C> = PublicParams<E1, E2, C>;
+pub type RecursiveProof<C> = RecursiveSNARK<E1, E2, C>;
+pub type CompressedProof<C> = CompressedSNARK<E1, E2, C, S1, S2>;
 type VerifyError = Box<dyn std::error::Error>;
 
 pub const MAX_PROOF_BYTES: usize = 64 * 1024 * 1024;
@@ -26,6 +29,12 @@ pub struct BatchProofs<'a> {
     pub authorization: &'a [u8],
     pub curve: &'a [u8],
     pub nullifier: &'a [u8],
+}
+
+pub fn proof_parameters<C: StepCircuit<BatchScalar>>(
+    circuit: &C,
+) -> Result<BatchParameters<C>, NovaError> {
+    BatchParameters::setup(circuit, &*S1::ck_floor(), &*S2::ck_floor())
 }
 
 /// Verify the three compressed artifacts. The retained journal and the
@@ -41,9 +50,9 @@ pub fn verify_batch_proofs(
     }
     let row_count = u32::from_le_bytes(journal[88..92].try_into()?) as usize;
     let layout = AuthorizationLayout::new(row_count, output_count)?;
-    let authorization = decode::<AuthorizationStep>(proofs.authorization)?;
-    let curve = decode::<CurveStep<BatchScalar>>(proofs.curve)?;
-    let nullifier = decode::<BatchNullifierStep>(proofs.nullifier)?;
+    let authorization = decode_compressed_proof::<AuthorizationStep>(proofs.authorization)?;
+    let curve = decode_compressed_proof::<CurveStep<BatchScalar>>(proofs.curve)?;
+    let nullifier = decode_compressed_proof::<BatchNullifierStep>(proofs.nullifier)?;
 
     // Reject invalid component proofs before building the much larger
     // authorization parameters. Only compare verified public outputs.
@@ -78,12 +87,12 @@ pub fn verify_curve_proof(
     row_count: usize,
     binding: BatchScalar,
 ) -> Result<(), VerifyError> {
-    let proof = decode::<CurveStep<BatchScalar>>(bytes)?;
+    let proof = decode_compressed_proof::<CurveStep<BatchScalar>>(bytes)?;
     check_curve_binding(&verify_curve(&proof, row_count)?, binding)
 }
 
 fn verify_curve(
-    proof: &Proof<CurveStep<BatchScalar>>,
+    proof: &CompressedProof<CurveStep<BatchScalar>>,
     row_count: usize,
 ) -> Result<Vec<BatchScalar>, VerifyError> {
     let count = curve_fold::step_count(row_count).ok_or("invalid curve proof row count")?;
@@ -102,7 +111,9 @@ fn check_curve_binding(actual: &[BatchScalar], binding: BatchScalar) -> Result<(
     Ok(())
 }
 
-fn decode<C: StepCircuit<BatchScalar>>(bytes: &[u8]) -> Result<Proof<C>, VerifyError> {
+pub fn decode_compressed_proof<C: StepCircuit<BatchScalar>>(
+    bytes: &[u8],
+) -> Result<CompressedProof<C>, VerifyError> {
     if bytes.is_empty() || bytes.len() > MAX_PROOF_BYTES {
         return Err("invalid compressed Nova artifact size".into());
     }
@@ -116,12 +127,12 @@ fn decode<C: StepCircuit<BatchScalar>>(bytes: &[u8]) -> Result<Proof<C>, VerifyE
 
 fn verify_step<C: StepCircuit<BatchScalar>>(
     circuit: &C,
-    proof: &Proof<C>,
+    proof: &CompressedProof<C>,
     steps: usize,
     initial: &[BatchScalar],
 ) -> Result<Vec<BatchScalar>, VerifyError> {
-    let params = PublicParams::<E1, E2, C>::setup(circuit, &*S1::ck_floor(), &*S2::ck_floor())?;
-    let (_, verifier) = Proof::<C>::setup(&params)?;
+    let params = proof_parameters(circuit)?;
+    let (_, verifier) = CompressedProof::<C>::setup(&params)?;
     drop(params);
     Ok(proof.verify(&verifier, steps, initial)?)
 }
