@@ -4,6 +4,7 @@ use ff::PrimeField;
 use nova_snark::frontend::{Boolean, ConstraintSystem, SynthesisError};
 
 use crate::nullifier::{merkle_parent, tag_hash, tagged_digest, DigestBits};
+use crate::wire::less_than_le as less_than;
 use crate::{V1_OUTCOME_BYTES, V1_SUMMARY_BYTES};
 
 /// Up to 1024 outcomes fit in a 10-level tree. An unpadded v1 witness
@@ -26,8 +27,8 @@ pub fn verify_selected_outcome<F: PrimeField, CS: ConstraintSystem<F>>(
         ));
     }
     let count_wire = &summary[532 * 8..536 * 8];
-    let count = std::array::from_fn(|i| count_wire[i ^ 7].clone());
-    let index = std::array::from_fn(|i| outcome[i ^ 7].clone());
+    let count: [Boolean; 32] = std::array::from_fn(|i| count_wire[i ^ 7].clone());
+    let index: [Boolean; 32] = std::array::from_fn(|i| outcome[i ^ 7].clone());
     let valid_index = less_than(cs.namespace(|| "compare index"), &index, &count)?;
     expect_bit(cs.namespace(|| "index below count"), &valid_index, true)?;
     let valid_count = less_than(
@@ -117,26 +118,6 @@ fn constant_u32(value: u32) -> [Boolean; 32] {
     std::array::from_fn(|i| Boolean::constant((value >> i) & 1 != 0))
 }
 
-fn less_than<F: PrimeField, CS: ConstraintSystem<F>>(
-    mut cs: CS,
-    left: &[Boolean; 32],
-    right: &[Boolean; 32],
-) -> Result<Boolean, SynthesisError> {
-    // A more significant differing bit overrides the lower-bit comparison.
-    let mut less = Boolean::constant(false);
-    for (i, (a, b)) in left.iter().zip(right).enumerate() {
-        let mut ns = cs.namespace(|| format!("compare bit {i}"));
-        let different = Boolean::xor(ns.namespace(|| "different"), a, b)?;
-        less = Boolean::sha256_ch(
-            ns.namespace(|| "take significant bit"),
-            &different,
-            b,
-            &less,
-        )?;
-    }
-    Ok(less)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -222,8 +203,8 @@ mod tests {
             let mut cs = TestConstraintSystem::<F>::new();
             let left_wire = allocated(cs.namespace(|| "left"), &left.to_le_bytes());
             let right_wire = allocated(cs.namespace(|| "right"), &right.to_le_bytes());
-            let a = std::array::from_fn(|i| left_wire[i ^ 7].clone());
-            let b = std::array::from_fn(|i| right_wire[i ^ 7].clone());
+            let a: [Boolean; 32] = std::array::from_fn(|i| left_wire[i ^ 7].clone());
+            let b: [Boolean; 32] = std::array::from_fn(|i| right_wire[i ^ 7].clone());
             let result = less_than(cs.namespace(|| "less than"), &a, &b).unwrap();
             assert_eq!(result.get_value(), Some(left < right));
             assert!(cs.is_satisfied());

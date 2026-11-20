@@ -101,6 +101,13 @@ shape independent of the outcome depth. The signing digest
 circuit computes the exact summary, oracle and batch consent messages
 from those same bytes and the agreed context.
 
+The accepted-set circuit commits to every summary digest in canonical
+row order and applies the v1 padding rule. The transaction circuit binds
+ordered outpoints, the unsigned Bitcoin input template, unique sorted
+P2TR output scripts, maximum maturity, the signed SHA-256 digest and the
+display-order txid. The journal circuit binds the agreed context and
+constrained totals to all 276 public bytes and checks the validity window.
+
 ```sh
 cargo test --locked --release --manifest-path LNMarkets/nova/Cargo.toml \
   -- --test-threads=1
@@ -134,10 +141,10 @@ CUDA_LAUNCH_BLOCKING=1 cargo run --locked --release \
 For batch acceptance, the circuit must bind those path inputs to the
 signed row within the private witness, and connect each new root to the
 next row and to the retained journal. It must also bind the constrained
-amounts to those rows and the journal. The remaining checks include the
-pinned statement's accepted-set root, all six BIP340 signatures per row,
-Taproot funding commitments, transaction assembly and all
-276 public journal bytes. Acceptance remains pending until a compressed
+amounts to those rows and their aggregated transaction outputs. The
+remaining checks include all six BIP340 signatures per row, Taproot
+funding commitments and the row identities and uniqueness checks.
+Acceptance remains pending until a compressed
 proof of that full relation verifies against independently retained journal
 bytes, circuit parameters and venue state.
 

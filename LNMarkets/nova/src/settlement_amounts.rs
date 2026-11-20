@@ -8,7 +8,7 @@ use nova_snark::{
 
 use crate::{V1_OUTCOME_BYTES, V1_SUMMARY_BYTES};
 
-const MAX_MONEY: u64 = 21_000_000 * 100_000_000;
+pub(crate) const MAX_MONEY: u64 = 21_000_000 * 100_000_000;
 const MIN_OUTPUT_SATS: u64 = 330;
 const MAX_ROW_FEE_SATS: u64 = 1_000_000;
 
@@ -103,7 +103,7 @@ pub fn apply_row<F: PrimeFieldBits, CS: ConstraintSystem<F>>(
     Ok(totals.try_into().unwrap())
 }
 
-fn wire_amount<F: PrimeField, CS: ConstraintSystem<F>>(
+pub(crate) fn wire_amount<F: PrimeField, CS: ConstraintSystem<F>>(
     mut cs: CS,
     wire: &AmountBits,
     minimum: u64,
