@@ -1,4 +1,4 @@
-# LN Markets Ãƒâ€” UTXORef prototype
+# LN Markets × UTXORef prototype
 
 This folder builds a bounded BTC/USD derivative using UTXORef's existing
 two-party DLC primitives. It calculates collateral-backed payouts, creates

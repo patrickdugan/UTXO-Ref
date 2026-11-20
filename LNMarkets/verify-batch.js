@@ -90,7 +90,9 @@ function verifyBatchProof({ journalPath, proofPath, reportPath, policy: inputPol
     '--expect-elf-sha256', elfSha256, '--expect-program-vk', programVkDigest,
     '--expect-journal-sha256', expectedJournalSha256
   ], {
-    encoding: 'utf8', timeout: 180_000, maxBuffer: MIB, windowsHide: true,
+    // The pinned host derives the program key from the ELF on each run.
+    // That setup alone can take several minutes on the local CPU.
+    encoding: 'utf8', timeout: 15 * 60_000, maxBuffer: MIB, windowsHide: true,
     env: { SP1_CIRCUIT_MODE: 'release', ...(process.env.SystemRoot ? { SystemRoot: process.env.SystemRoot } : {}) }
   });
   if (result.error) throw result.error;

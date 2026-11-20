@@ -5,7 +5,7 @@ zk-rusto-no-bitcoino](https://github.com/patrickdugan/zk-rusto-no-bitcoino/tree/
 The upstream revision is pinned to
 `992cdb1c51b5c7a630ea552b2648acbad4308a9b`, the reviewed head of its PR #28.
 The statement commits one agreed **unsigned** settlement proposal for
-1â€“32 selected, independently collateralized DLC trades.
+1 to 32 selected, independently collateralized DLC trades.
 
 ## Wallet to witness
 
@@ -32,7 +32,7 @@ The statement commits one agreed **unsigned** settlement proposal for
 4. Trader and maker supply BIP340 signatures on their summary and new
    consent signatures binding the entire batch context, including the
    unsigned transaction and old/new authorization roots. Both selected
-   oracles separately sign the batch statementâ€™s `oracleDigest`. Existing
+   oracles separately sign the batch statement using its `oracleDigest`. Existing
    DLC attestations are scalars for committed nonces in a different message
    domain. They must be checked at export and cannot serve as the new oracle
    signature. The fixture signs both envelopes using its public test keys.
@@ -60,17 +60,17 @@ companion executable. Both commands run under Linux with Node and Rust
 installed. The witness directory is ignored by Git.
 
 ```sh
-node LNMarkets/batch-demo.js --out LNMarkets/artifacts/batch-01
 cargo build --locked --release \
   --manifest-path "$PROVER_REPO/LNMarkets/statement/Cargo.toml"
-"$PROVER_REPO/LNMarkets/statement/target/release/lnm-native" verify \
-  --witness LNMarkets/artifacts/batch-01/witness.bin \
-  --journal LNMarkets/artifacts/batch-01/expected-journal.bin
+node LNMarkets/batch-demo.js --out LNMarkets/artifacts/batch-01 \
+  --native "$PROVER_REPO/LNMarkets/statement/target/release/lnm-native"
 ```
 
-The native command must return `native_verified_unproved` and the same
-journal digest as `proposal.json`. The synthetic funding outpoints do not
-represent spendable UTXOs. The two-row fixture aggregates the payouts into
+With `--native`, the demo requires `native_verified_unproved` and the
+same journal digest as `proposal.json`. It also exercises rejection of a
+changed journal and a changed funding outpoint. The batch ABI workflow
+runs these checks against the pinned companion source. The fixture uses
+synthetic funding outpoints and aggregates the payouts into
 660, 379,798 and 420,202 sat outputs and commits a 2,000-sat fee.
 
 ## Verify a Groth16 proof
