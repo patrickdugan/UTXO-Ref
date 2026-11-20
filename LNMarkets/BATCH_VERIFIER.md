@@ -136,3 +136,23 @@ to its 401,330-sat funding value and the 290,909 / 109,091-sat payouts.
 This exercised the wallet export of an actual confirmed contract. Fresh
 co-signs for a batch were exercised with the synthetic fixture, whose
 party and oracle keys are available for testing.
+
+
+## Recorded SP1 preparation
+
+The pinned SP1 6.9.0 CLI compiled the companion's locked guest for
+`riscv64im-succinct-zkvm-elf` in WSL. The local ELF was 269,072 bytes
+with SHA-256
+`bad71141000e84d32881b2f7667b09bb673b8601670ad6d4b29c6e46759ca5d5`.
+The official CLI derived this program key in SP1's `bytes32()` encoding.
+
+```text
+0x00ea8fcb7a6005d796ce6cc7ec643aa399831db9d2529fb6cba72d7a0eae8f52
+```
+
+The host's `programVkDigest` uses a different byte encoding. Compare the
+host's `program_vkey_bytes32` against the recorded key and separately
+approve its `program_vk_digest` for the verification policy. These are
+local build measurements. The recorded run reached guest compilation and
+key derivation. Executing the guest against the two-trade witness and
+verifying a genuine Groth16 proof remain the next verification milestones.
