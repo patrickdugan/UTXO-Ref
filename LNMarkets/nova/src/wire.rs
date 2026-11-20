@@ -49,6 +49,21 @@ pub(crate) fn less_than_le<F: PrimeField, CS: ConstraintSystem<F>>(
     Ok(less)
 }
 
+pub(crate) fn require_nonzero<F: PrimeField, CS: ConstraintSystem<F>>(
+    mut cs: CS,
+    bits: &[Boolean],
+) -> Result<(), SynthesisError> {
+    let mut has_one = Boolean::constant(false);
+    for (i, bit) in bits.iter().enumerate() {
+        has_one = Boolean::or(cs.namespace(|| format!("bit {i}")), &has_one, bit)?;
+    }
+    Boolean::enforce_equal(
+        cs.namespace(|| "has a set bit"),
+        &has_one,
+        &Boolean::constant(true),
+    )
+}
+
 #[cfg(test)]
 pub(crate) mod fixture {
     use super::*;

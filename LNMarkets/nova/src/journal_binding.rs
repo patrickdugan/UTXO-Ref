@@ -6,7 +6,7 @@ use sha2::{Digest, Sha256};
 
 use crate::nullifier::{tag_hash, DigestBits};
 use crate::settlement_amounts::{wire_amount, Totals, MAX_MONEY};
-use crate::wire::{constants, enforce_same_bits, less_than_le};
+use crate::wire::{constants, enforce_same_bits, less_than_le, require_nonzero as nonzero};
 use crate::{MAX_BATCH_ROWS, V1_CONTEXT_BYTES};
 
 pub const V1_JOURNAL_BYTES: usize = 276;
@@ -120,21 +120,6 @@ fn enforce_context_policy<F: PrimeField, CS: ConstraintSystem<F>>(
     Boolean::enforce_equal(
         cs.namespace(|| "count fits the batch"),
         &count_valid,
-        &Boolean::constant(true),
-    )
-}
-
-fn nonzero<F: PrimeField, CS: ConstraintSystem<F>>(
-    mut cs: CS,
-    bits: &[Boolean],
-) -> Result<(), SynthesisError> {
-    let mut has_one = Boolean::constant(false);
-    for (i, bit) in bits.iter().enumerate() {
-        has_one = Boolean::or(cs.namespace(|| format!("bit {i}")), &has_one, bit)?;
-    }
-    Boolean::enforce_equal(
-        cs.namespace(|| "has a set bit"),
-        &has_one,
         &Boolean::constant(true),
     )
 }

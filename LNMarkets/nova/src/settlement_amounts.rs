@@ -9,7 +9,7 @@ use nova_snark::{
 use crate::{V1_OUTCOME_BYTES, V1_SUMMARY_BYTES};
 
 pub(crate) const MAX_MONEY: u64 = 21_000_000 * 100_000_000;
-const MIN_OUTPUT_SATS: u64 = 330;
+pub(crate) const MIN_OUTPUT_SATS: u64 = 330;
 const MAX_ROW_FEE_SATS: u64 = 1_000_000;
 
 /// Eight little-endian wire bytes, each represented by its MSB-first bits.

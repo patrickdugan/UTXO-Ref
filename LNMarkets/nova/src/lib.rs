@@ -5,8 +5,10 @@ pub mod journal_binding;
 pub mod nullifier;
 pub mod nullifier_path;
 pub mod outcome_membership;
+mod payout_aggregation;
 pub mod settlement_amounts;
 pub mod signing_digests;
+pub mod summary_policy;
 pub mod transaction_binding;
 mod wire;
 

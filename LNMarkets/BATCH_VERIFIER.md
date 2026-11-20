@@ -105,7 +105,17 @@ The accepted-set circuit commits to every summary digest in canonical
 row order and applies the v1 padding rule. The transaction circuit binds
 ordered outpoints, the unsigned Bitcoin input template, unique sorted
 P2TR output scripts, maximum maturity, the signed SHA-256 digest and the
-display-order txid. The journal circuit binds the agreed context and
+display-order txid. It also matches every trader, maker and anchor
+payout to exactly one output by full script and sums all payouts sharing
+that script. The tests reproduce the saved 379,798-sat trader,
+420,202-sat maker and 660-sat anchor outputs. Changing the trader and
+maker payouts by one satoshi or substituting the anchor script fails
+even with recomputed transaction digests.
+
+The summary policy checks unique contract IDs, payout roles, maturity and
+refund heights, and the ordering of oracle keys. The oracle selector binds
+two distinct indices to their summary keys and accepts all three valid
+two-of-three subsets. The journal circuit binds the agreed context and
 constrained totals to all 276 public bytes and checks the validity window.
 
 ```sh
@@ -140,13 +150,12 @@ CUDA_LAUNCH_BLOCKING=1 cargo run --locked --release \
 
 For batch acceptance, the circuit must bind those path inputs to the
 signed row within the private witness, and connect each new root to the
-next row and to the retained journal. It must also bind the constrained
-amounts to those rows and their aggregated transaction outputs. The
-remaining checks include all six BIP340 signatures per row, Taproot
-funding commitments and the row identities and uniqueness checks.
-Acceptance remains pending until a compressed
-proof of that full relation verifies against independently retained journal
-bytes, circuit parameters and venue state.
+next row and to the retained journal. The full relation also requires
+secp256k1 point validation, all six BIP340 signature checks per row and
+derivation of the NUMS Taproot funding commitment. Acceptance remains
+pending until a compressed proof of the combined relation verifies
+against independently retained journal bytes, circuit parameters and
+venue state.
 
 Before accepting a verified batch, the venue must atomically compare the
 retained epoch and old root with current state and commit the new root and

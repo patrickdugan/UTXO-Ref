@@ -4,12 +4,40 @@ use ff::PrimeField;
 use nova_snark::frontend::{sha256, Boolean, ConstraintSystem, SynthesisError};
 
 use crate::nullifier::DigestBits;
+use crate::payout_aggregation::enforce_aggregated_outputs;
 use crate::wire::{constants, enforce_same_bits, less_than_le};
 use crate::{MAX_BATCH_ROWS, V1_CONTEXT_BYTES, V1_SUMMARY_BYTES};
 
 const INPUT_BYTES: usize = 41;
 const OUTPUT_BYTES: usize = 43;
 const FIXED_BYTES: usize = 10;
+
+pub struct SettlementRowBits<'a> {
+    pub summary: &'a [Boolean],
+    pub outcome: &'a [Boolean],
+}
+
+/// Bind the complete v1 unsigned settlement transaction to the same row
+/// fields used for summary signatures and outcome membership.
+pub fn bind_unsigned_settlement<F: PrimeField, CS: ConstraintSystem<F>>(
+    mut cs: CS,
+    context: &[Boolean],
+    rows: &[SettlementRowBits<'_>],
+    tx: &[Boolean],
+    journal_txid: &DigestBits,
+) -> Result<(), SynthesisError> {
+    let summaries = rows.iter().map(|row| row.summary).collect::<Vec<_>>();
+    bind_unsigned_transaction(
+        cs.namespace(|| "transaction envelope and commitments"),
+        context,
+        &summaries,
+        tx,
+        journal_txid,
+    )?;
+    let outputs_at = (6 + rows.len() * INPUT_BYTES) * 8;
+    let outputs = tx[outputs_at..tx.len() - 32].chunks_exact(OUTPUT_BYTES * 8);
+    enforce_aggregated_outputs(cs.namespace(|| "aggregated payouts"), rows, outputs)
+}
 
 /// Bind the candidate transaction to the exact signed digest, retained
 /// display-order txid, ordered summary outpoints and maximal maturity.
@@ -183,6 +211,7 @@ mod tests {
 
     fn check(context: &[u8], tx: &[u8], txid: &[u8]) -> bool {
         let mut summaries = [[0u8; V1_SUMMARY_BYTES]; 2];
+        let mut outcomes = [[0u8; crate::V1_OUTCOME_BYTES]; 2];
         for (summary, (txid, vout, height)) in summaries.iter_mut().zip([
             (
                 "a7e8a1ffcbc6972db5d22cf0d715071b04534e9800783f2ad7f7ed77814c8bf3",
@@ -199,17 +228,52 @@ mod tests {
             summary[160..164].copy_from_slice(&vout.to_le_bytes());
             summary[536..540].copy_from_slice(&height.to_le_bytes());
         }
+        let retained = transaction();
+        for summary in &mut summaries {
+            for (destination, source) in [(270, 140), (304, 183), (338, 97)] {
+                summary[destination..destination + 34]
+                    .copy_from_slice(&retained[source..source + 34]);
+            }
+        }
+        for (outcome, amounts) in outcomes.iter_mut().zip([
+            [88_889u64, 311_111, 330, 1_000],
+            [290_909u64, 109_091, 330, 1_000],
+        ]) {
+            for (field, amount) in outcome[36..68].chunks_exact_mut(8).zip(amounts) {
+                field.copy_from_slice(&amount.to_le_bytes());
+            }
+        }
         let mut cs = TestConstraintSystem::<F>::new();
         let context = allocated(cs.namespace(|| "context"), context);
         let one = allocated(cs.namespace(|| "first summary"), &summaries[0]);
         let two = allocated(cs.namespace(|| "second summary"), &summaries[1]);
+        let first_outcome = allocated(cs.namespace(|| "first outcome"), &outcomes[0]);
+        let second_outcome = allocated(cs.namespace(|| "second outcome"), &outcomes[1]);
         let tx = allocated(cs.namespace(|| "transaction"), tx);
         let txid = allocated(cs.namespace(|| "journal txid"), txid)
             .try_into()
             .unwrap();
-        bind_unsigned_transaction(cs.namespace(|| "bind"), &context, &[&one, &two], &tx, &txid)
-            .unwrap();
+        let rows = [
+            SettlementRowBits {
+                summary: &one,
+                outcome: &first_outcome,
+            },
+            SettlementRowBits {
+                summary: &two,
+                outcome: &second_outcome,
+            },
+        ];
+        bind_unsigned_settlement(cs.namespace(|| "bind"), &context, &rows, &tx, &txid).unwrap();
         cs.is_satisfied()
+    }
+
+    fn signable_context(tx: &[u8]) -> ([u8; V1_CONTEXT_BYTES], [u8; 32]) {
+        let digest = Sha256::digest(tx);
+        let mut context = saved_context();
+        context[144..176].copy_from_slice(&digest);
+        let mut txid: [u8; 32] = Sha256::digest(digest).into();
+        txid.reverse();
+        (context, txid)
     }
 
     #[test]
@@ -224,11 +288,21 @@ mod tests {
     fn rehashing_an_altered_locktime_does_not_bypass_summary_maturity() {
         let mut tx = transaction();
         tx[217] ^= 1;
-        let digest = Sha256::digest(tx);
-        let mut context = saved_context();
-        context[144..176].copy_from_slice(&digest);
-        let mut txid: [u8; 32] = Sha256::digest(digest).into();
-        txid.reverse();
+        let (context, txid) = signable_context(&tx);
+        assert!(!check(&context, &tx, &txid));
+    }
+
+    #[test]
+    fn rehashing_output_changes_does_not_bypass_exact_payout_aggregation() {
+        let mut tx = transaction();
+        tx[131..139].copy_from_slice(&379_799u64.to_le_bytes());
+        tx[174..182].copy_from_slice(&420_201u64.to_le_bytes());
+        let (context, txid) = signable_context(&tx);
+        assert!(!check(&context, &tx, &txid));
+
+        let mut tx = transaction();
+        tx[99] ^= 1; // Change the anchor script while preserving its prefix and sort order.
+        let (context, txid) = signable_context(&tx);
         assert!(!check(&context, &tx, &txid));
     }
 }
