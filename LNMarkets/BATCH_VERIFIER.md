@@ -1,6 +1,6 @@
 # UTXORef trade batch verifier integration
 
-This bridge uses the [LNMarkets batch statement and SP1 host in
+This bridge uses the [LNMarkets batch statement in
 zk-rusto-no-bitcoino](https://github.com/patrickdugan/zk-rusto-no-bitcoino/tree/992cdb1c51b5c7a630ea552b2648acbad4308a9b/LNMarkets).
 The upstream revision is pinned to
 `992cdb1c51b5c7a630ea552b2648acbad4308a9b`, the reviewed head of its PR #28.
@@ -39,7 +39,7 @@ The statement commits one agreed **unsigned** settlement proposal for
 5. `batch.assembleWitness` checks all six signatures per row, fixes their
    order, and encodes the private witness. The adapter also computes the
    exact 276-byte public journal for independent retention and comparison
-   against the Rust statement and SP1 proof. The verifier's accepted-contract
+   against the Rust statement and the proof's public output. The verifier's accepted-contract
    set comes from the venue's approved manifest. A prover-supplied root
    doesn't establish which trades the venue actually accepted.
 
@@ -73,69 +73,47 @@ runs these checks against the pinned companion source. The fixture uses
 synthetic funding outpoints and aggregates the payouts into
 660, 379,798 and 420,202 sat outputs and commits a 2,000-sat fee.
 
-## Verify a Groth16 proof
+## Nova GPU proof
 
-Follow the pinned companion's [SP1 6.9.0 guest and host instructions](https://github.com/patrickdugan/zk-rusto-no-bitcoino/blob/992cdb1c51b5c7a630ea552b2648acbad4308a9b/LNMarkets/sp1/README.md)
-to build the ELF, compare guest execution with the native journal, and
-review its program key. To prove a UTXORef fixture using those builds,
-set `HOST` and `ELF` to the reviewed artifacts and set the three digest
-variables from the approved artifacts and batch proposal. `RUN` should
-be an existing private output directory with no previous receipts.
+The batch proof target is Nova 0.76 over BN254 and Grumpkin with Spartan IPA
+compression. Nova's Blitzar feature offloads BN254 commitments to NVIDIA
+CUDA on Linux. The proof verifier can use the same reviewed circuit and
+public parameters independently of the prover's accelerator.
 
-```sh
-FIXTURE=LNMarkets/artifacts/batch-01
-SP1_CIRCUIT_MODE=release "$HOST" prove-groth16 \
-  --elf "$ELF" --witness "$FIXTURE/witness.bin" \
-  --journal "$FIXTURE/expected-journal.bin" \
-  --expect-elf-sha256 "$ELF_SHA256" --expect-program-vk "$PROGRAM_VK_DIGEST" \
-  --expect-journal-sha256 "$EXPECTED_JOURNAL_SHA256" \
-  --proof "$RUN/proof.bin" --report "$RUN/prover.json" --allow-cpu-proving
-```
-
-This local CPU run uses the SP1 SDK 6.9.0 release circuit `v6.1.0`. Allow
-space for the circuit cache and peak swap use. The release archive is
-6,211,807,514 bytes compressed, and the extracted proving key and circuit
-together use 8,300,164,502 bytes. An installation that keeps the archive
-during extraction needs space for both. `SP1_GROTH16_CIRCUIT_PATH` can
-point to a separate cache parent containing the `v6.1.0` directory.
-The Docker-based SDK wrapper also needs the corresponding `sp1-gnark`
-release image and a container-readable cache path.
-
-The bridge's public-only verification CLI invokes the pinned host in release
-mode. It requires an operator-controlled policy file with these fields.
-
-| Field | Trusted source |
-|---|---|
-| `network` | Literal `bitcoin-regtest` |
-| `hostExecutable`, `hostSha256` | Absolute path and SHA-256 of the reviewed local verifier build |
-| `elfPath`, `elfSha256`, `programVkDigest` | Reviewed guest build and independently approved program verification key |
-| `expectedJournalSha256` | Exact journal retained from a separately approved batch and transaction |
-| `currentNullifierRoot`, `observedHeight` | Venue's current durable authorization root and recent validated Core height |
+The first ported constraint in [the Nova crate](nova/) computes one level
+of the old and inserted authorization paths. Both computations share the
+same sibling and direction and use the v1 tagged SHA-256 node format.
+Run its constraint test with the locked dependencies.
 
 ```sh
-node LNMarkets/verify-batch.js \
-  --policy trusted-verifier.json \
-  --journal expected-journal.bin \
-  --proof groth16-proof.bin \
-  --report new-sp1-verifier-report.json
+cargo test --locked --release --manifest-path LNMarkets/nova/Cargo.toml
 ```
 
-The CLI checks the journal and live-context pins, calls the cryptographic
-verifier, and binds its successful Groth16 report to the exact proof, ELF,
-key and journal. The policy, review artifacts and report path belong to
-the verifier operator. Successful proof verification describes the batch
-authorization against that snapshot. Before accepting it, the venue must
-atomically compare the retained epoch and old root with current state and commit the
-new root plus batch ID. Signing, broadcast, confirmation, reorg handling
-and aborted batch recovery belong to subsequent wallet and venue actions.
+The GPU smoke test runs a two-step Nova fold with private factors,
+compresses it with Spartan IPA, verifies the expected output and checks
+rejection under an altered public input. It exercises the proving backend
+with a small arithmetic circuit. Use Linux x86-64 with NVIDIA CUDA access.
 
-The zero-knowledge privacy claim applies to the verified Groth16 wrapper
-under its setup assumptions. The fixed journal exposes context and totals,
-and Bitcoin exposes the inputs and outputs of any later on-chain spend.
-A native result or zkVM execution supplies reproducibility evidence.
-Production batch authorization still depends on authenticated venue
-acceptance, a reviewed native signer, the new oracle envelope and a
-durable replay-state integration. See [SP1's security model](https://docs.succinct.xyz/docs/sp1/security/security-model).
+```sh
+cargo run --locked --release --manifest-path LNMarkets/nova/Cargo.toml \
+  --features gpu --example gpu_smoke
+```
+
+For batch acceptance, the circuit must derive the nullifier bit from the
+funding outpoint key, process all 256 levels per row, and connect each new
+root to the next row. It also needs the pinned statement's summary and
+outcome membership checks, all six BIP340 signatures per row, Taproot
+funding commitments, settlement transaction assembly and amounts, and all
+276 public journal bytes. Acceptance remains pending until a compressed
+proof of that full relation verifies against independently retained journal
+bytes, circuit parameters and venue state.
+
+Before accepting a verified batch, the venue must atomically compare the
+retained epoch and old root with current state and commit the new root and
+batch ID. Production still depends on authenticated venue acceptance, a
+reviewed native signer, the new oracle envelope and durable replay state.
+The journal exposes context and totals. Any later Bitcoin spend exposes
+the transaction's inputs and outputs.
 
 
 ## Recorded native checks
@@ -190,5 +168,5 @@ all 276 bytes of the independently retained journal. Guest execution took
 probe passed that journal to the pinned host through `verify-batch.js`.
 The host rejected a truncated proof during decoding and wrote no receipt.
 
-The execution result is `executed_unproved`. A separate Groth16 run and
-verification through UTXORef establish the zero-knowledge proof result.
+The execution result is `executed_unproved`. It provides an independent
+reference for the Nova circuit's expected output.

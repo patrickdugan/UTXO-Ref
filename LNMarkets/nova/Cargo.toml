@@ -1,0 +1,19 @@
+[package]
+name = "lnmarkets-nova"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[features]
+gpu = ["nova-snark/blitzar"]
+
+[dependencies]
+ff = "=0.13.1"
+nova-snark = "=0.76.0"
+sha2 = "=0.10.9"
+
+[[example]]
+name = "gpu_smoke"
+required-features = ["gpu"]
+
+[workspace]
