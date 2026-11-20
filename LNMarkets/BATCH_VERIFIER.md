@@ -232,8 +232,7 @@ circuits. The fixture tests compare the ordered constraint matrices and
 output registers with those of populated circuits.
 
 Generate the three proof files from a native-verified two-trade fixture.
-The output paths should be new. The complete proof-set run remains
-pending.
+Use a new directory for each proof set.
 
 ```sh
 manifest=LNMarkets/nova/Cargo.toml
@@ -292,11 +291,12 @@ The policy fields are `network` with value `bitcoin-regtest`,
 `observedHeight`. The proof directory contains `authorization.bin`,
 `curve.bin` and `nullifier.bin`.
 
-For the saved two-trade journal, the venue integration test checks a
-real receipt and repeats verification with the nullifier artifact
-substituted for the curve artifact. The test takes the receipt inputs
-from a temporary directory that contains the retained journal and
-compressed proofs.
+For the saved two-trade journal, the venue integration test checks the
+written receipt against the approved journal and hashes of all three
+compressed proofs. It then tries the same batch against the advanced
+nullifier root and substitutes the nullifier artifact for the curve
+artifact. The test gives the verifier a temporary directory containing
+only the retained journal and compressed proofs.
 
 ```sh
 LNM_NOVA_VERIFIER="$PWD/LNMarkets/nova/target/release/lnm-nova-verify" \
@@ -311,6 +311,43 @@ The journal exposes context and totals. Any later Bitcoin spend exposes
 the transaction's inputs and outputs.
 
 
+## Recorded Nova batch verification
+
+On 2026-11-20, an RTX 5080 Laptop GPU under WSL Ubuntu 24.04 completed
+all 961 Nova folds. The local CPU helper independently checked the
+folds and verified the Spartan IPA proofs before saving them.
+
+| Component | Folds | Primary constraints | GPU elapsed (s) | CPU helper elapsed (s) | Proof bytes |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Authorization | 1 | 3,362,806 | 112.8 | 565.2 | 12,832 |
+| Curve equations | 448 | 191,895 | 245.9 | 46.5 | 11,476 |
+| Nullifier transition | 512 | 209,826 | 311.8 | 43.0 | 11,348 |
+
+GPU elapsed time includes prover setup and folding. CPU helper elapsed
+time includes setup, verification and compression. Constraint counts
+include Nova's wrapper and apply to one step.
+
+A fresh verifier process, using only the retained journal and the three
+compressed proofs, accepted the batch and emitted a receipt. The receipt
+binds the epoch, batch ID, both nullifier roots, the unsigned transaction
+digest and txid, and the SHA-256 of each proof. The test rejected replay
+against the advanced root and rejected a nullifier proof in the curve
+slot. Neither rejection wrote a receipt. The test took 216.3 seconds.
+The exact receipt and proof hashes are in the
+[machine-readable record](evidence/nova-two-trade-verification.json).
+
+The two synthetic regtest trades commit 802,660 sats of collateral to
+379,798 sats for the trader, 420,202 sats for the maker, a 660-sat anchor
+and a 2,000-sat fee. The proof covers authorization of this unsigned
+proposal and the nullifier transition. Bitcoin consensus acceptance of
+the individually funded settlement and refund is recorded separately in
+the [Bitcoin Core 31.1 report](REGTEST_REPORT.md).
+
+The local checks passed 121 Node test files, 99 referee suites, 31 Nova
+unit tests and the native-witness circuit test. The locked referee and
+DLC evaluations scored 100/100 and 568/568. The GPU integration test ran
+separately with the real proof files.
+
 ## Recorded native checks
 
 On 2026-11-20, the pinned release-mode Rust executable accepted the UTXORef
@@ -324,8 +361,6 @@ Bitcoin Core 31.1 independently decoded the same txid, two inputs, three
 outputs and locktime 1001. The native verifier rejected a one-bit change to the expected accepted-set
 root and a one-bit change to an outpoint in the signed witness. Fresh
 recovery-package signatures can change the witness and journal on rerun.
-The repository-wide Node regression runner passed all 120 test files with
-loopback access for the local RPC fixtures.
 
 The exporter also validated the saved CET package and attestations from
 the confirmed [Bitcoin Core run](REGTEST_REPORT.md). Its selected row bound
