@@ -80,17 +80,17 @@ test('proof verification fails before launching a host for altered journals, exp
     network: 'bitcoin-regtest',
     hostExecutable: path.join(directory, 'absent-host'),
     hostSha256: 'aa'.repeat(32),
-    elfPath: path.join(directory, 'absent-elf'),
-    elfSha256: 'bb'.repeat(32),
-    programVkDigest: 'cc'.repeat(32),
     expectedJournalSha256: proposal.expectedJournalSha256,
     currentNullifierRoot: proposal.context.oldNullifierRoot,
+    expectedEpoch: proposal.context.epoch,
+    outputCount: 3,
     observedHeight: proposal.context.evaluationHeight
   };
   const request = { journalPath, proofPath: path.join(directory, 'absent-proof'), reportPath: path.join(directory, 'report.json') };
   assert.throws(() => verifyBatchProof({ ...request, policy: { ...policy, network: 'bitcoin-mainnet' } }), /trusted regtest/);
   assert.throws(() => verifyBatchProof({ ...request, policy: { ...policy, observedHeight: 1011 } }), /validity window/);
   assert.throws(() => verifyBatchProof({ ...request, policy: { ...policy, currentNullifierRoot: proposal.context.newNullifierRoot } }), /stale/);
+  assert.throws(() => verifyBatchProof({ ...request, policy: { ...policy, expectedEpoch: '3' } }), /approved epoch/);
   const altered = Buffer.from(trustedJournal);
   altered[92] ^= 1;
   fs.writeFileSync(journalPath, altered);

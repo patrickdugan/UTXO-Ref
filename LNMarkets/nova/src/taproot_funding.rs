@@ -1,7 +1,10 @@
 //! Exact v1 two-leaf, two-party NUMS funding commitment.
 
 use ff::PrimeField;
-use nova_snark::frontend::{Boolean, ConstraintSystem, SynthesisError};
+use nova_snark::frontend::{
+    gadgets::{sha256::sha256_compression_function, uint32::UInt32},
+    Boolean, ConstraintSystem, SynthesisError,
+};
 use sha2::{Digest, Sha256};
 
 use crate::bip340::{require_below, SCALAR_ORDER};
@@ -110,20 +113,16 @@ fn refund_leaf<F: PrimeField, CS: ConstraintSystem<F>>(
         [constants(&[2]), csv.to_vec()].concat(),
         [constants(&[3]), csv.to_vec(), constants(&[0])].concat(),
     ];
-    let mut leaves = Vec::with_capacity(scripts.len());
-    for (i, mut script) in scripts.into_iter().enumerate() {
+    let tails = scripts.map(|mut script| {
         script.extend_from_slice(&refund_tail);
-        leaves.push(tapleaf(
-            cs.namespace(|| format!("CSV encoding {i}")),
-            &script,
-        )?);
-    }
+        padded_tapleaf_tail(&script)
+    });
 
     let csv_le: Vec<_> = csv
         .chunks_exact(8)
         .flat_map(|byte| byte.iter().rev().cloned())
         .collect();
-    let mut leaf = leaves[3].clone();
+    let mut selected = tails[3].clone();
     for (i, cutoff) in [(2, 32768u16), (1, 128), (0, 17)] {
         let cutoff_le = constants(&cutoff.to_le_bytes())
             .chunks_exact(8)
@@ -134,14 +133,47 @@ fn refund_leaf<F: PrimeField, CS: ConstraintSystem<F>>(
             &csv_le,
             &cutoff_le,
         )?;
-        leaf = select(
+        selected = select(
             cs.namespace(|| format!("select CSV encoding {i}")),
             &use_shorter,
-            &leaves[i],
-            &leaf,
+            &tails[i],
+            &selected,
         )?;
     }
-    Ok(leaf)
+    // The four encodings all occupy two SHA-256 blocks after the fixed
+    // doubled tag. Select their padded bytes before compressing them.
+    let tag: [u8; 32] = Sha256::digest(b"TapLeaf").into();
+    let tag_block = [constants(&tag), constants(&tag)].concat();
+    let initial = [
+        0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab,
+        0x5be0cd19,
+    ]
+    .map(UInt32::constant);
+    let mut state =
+        sha256_compression_function(cs.namespace(|| "TapLeaf tag"), &tag_block, &initial)?;
+    for (i, block) in selected.chunks_exact(512).enumerate() {
+        state = sha256_compression_function(
+            cs.namespace(|| format!("selected TapLeaf block {i}")),
+            block,
+            &state,
+        )?;
+    }
+    Ok(state
+        .into_iter()
+        .flat_map(UInt32::into_bits_be)
+        .collect::<Vec<_>>()
+        .try_into()
+        .unwrap())
+}
+
+fn padded_tapleaf_tail(script: &[Boolean]) -> [Boolean; 1024] {
+    let mut tail = constants(&[0xc0, (script.len() / 8) as u8]);
+    tail.extend_from_slice(script);
+    let bit_length = 512 + tail.len() as u64;
+    tail.push(Boolean::constant(true));
+    tail.resize(1024 - 64, Boolean::constant(false));
+    tail.extend(constants(&bit_length.to_be_bytes()));
+    tail.try_into().unwrap()
 }
 
 fn tapleaf<F: PrimeField, CS: ConstraintSystem<F>>(
@@ -179,12 +211,12 @@ fn sorted<F: PrimeField, CS: ConstraintSystem<F>>(
     ))
 }
 
-fn select<F: PrimeField, CS: ConstraintSystem<F>>(
+fn select<F: PrimeField, CS: ConstraintSystem<F>, const N: usize>(
     mut cs: CS,
     flag: &Boolean,
-    yes: &DigestBits,
-    no: &DigestBits,
-) -> Result<DigestBits, SynthesisError> {
+    yes: &[Boolean; N],
+    no: &[Boolean; N],
+) -> Result<[Boolean; N], SynthesisError> {
     let output = yes
         .iter()
         .zip(no)
@@ -196,7 +228,7 @@ fn select<F: PrimeField, CS: ConstraintSystem<F>>(
     Ok(output.try_into().unwrap())
 }
 
-fn nums_bits() -> DigestBits {
+pub(crate) fn nums_bits() -> DigestBits {
     constants(&NUMS_X).try_into().unwrap()
 }
 

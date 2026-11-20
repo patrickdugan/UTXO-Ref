@@ -12,6 +12,7 @@ const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');
 const tag = Buffer.from(sha256('UTXORef/LNMarkets/bitcoin-regtest/lnmarkets/v1/statement-domain'), 'hex');
 const expectedDomain = sha256(Buffer.concat([tag, tag, Buffer.from('co-signed-batch-proposal-certificate')]));
 const HEX32 = /^[0-9a-f]{64}$/;
+const EPOCH = /^[1-9][0-9]{0,19}$/;
 const MIB = 1024 * 1024;
 
 function fileDigest(filename, maxBytes) {
@@ -49,8 +50,15 @@ function verifyJournal(bytes, policy) {
   if (bytes.subarray(124, 156).toString('hex') !== policy.currentNullifierRoot) {
     throw new Error('journal starts from a stale authorization root');
   }
+  const epoch = bytes.readBigUInt64LE(40).toString();
+  if (epoch !== policy.expectedEpoch) throw new Error('journal epoch differs from the approved epoch');
+  const rowCount = bytes.readUInt32LE(88);
+  if (rowCount < 1 || rowCount > 32 || policy.outputCount > rowCount * 3) {
+    throw new Error('journal row count or approved output count is outside the batch layout');
+  }
   return {
-    epoch: bytes.readBigUInt64LE(40).toString(),
+    epoch,
+    rowCount,
     batchId: bytes.subarray(48, 80).toString('hex'),
     previousRoot: policy.currentNullifierRoot,
     proposedRoot: bytes.subarray(156, 188).toString('hex'),
@@ -61,12 +69,14 @@ function verifyJournal(bytes, policy) {
 
 function verifyBatchProof({ journalPath, proofPath, reportPath, policy: inputPolicy }) {
   const policy = canonicalize(inputPolicy);
-  const { network, hostExecutable, elfPath, hostSha256, elfSha256, programVkDigest, expectedJournalSha256, currentNullifierRoot } = policy;
+  const { network, hostExecutable, hostSha256, expectedJournalSha256, currentNullifierRoot, expectedEpoch, outputCount } = policy;
   if (network !== 'bitcoin-regtest' ||
-      ![hostExecutable, elfPath].every((value) => typeof value === 'string' && path.isAbsolute(value)) ||
-      ![hostSha256, elfSha256, programVkDigest, expectedJournalSha256, currentNullifierRoot]
-        .every((value) => typeof value === 'string' && HEX32.test(value))) {
-    throw new Error('trusted regtest policy must pin the host, ELF, program key, journal and live authorization root');
+      typeof hostExecutable !== 'string' || !path.isAbsolute(hostExecutable) ||
+      ![hostSha256, expectedJournalSha256, currentNullifierRoot]
+        .every((value) => typeof value === 'string' && HEX32.test(value)) ||
+      typeof expectedEpoch !== 'string' || !EPOCH.test(expectedEpoch) ||
+      !Number.isSafeInteger(outputCount) || outputCount < 3 || outputCount > 96) {
+    throw new Error('trusted regtest policy must pin the Nova verifier, layout, journal, epoch and live authorization root');
   }
   const journalFd = fs.openSync(journalPath, 'r');
   let context;
@@ -80,42 +90,40 @@ function verifyBatchProof({ journalPath, proofPath, reportPath, policy: inputPol
   } finally {
     fs.closeSync(journalFd);
   }
-  if (fileDigest(hostExecutable, 256 * MIB) !== hostSha256 || fileDigest(elfPath, 32 * MIB) !== elfSha256) {
-    throw new Error('local host or guest binary differs from its approval pin');
+  if (fileDigest(hostExecutable, 256 * MIB) !== hostSha256) {
+    throw new Error('local Nova verifier binary differs from its approval pin');
   }
-  const proofSha256 = fileDigest(proofPath, 64 * MIB);
+  const proofNames = ['authorization', 'curve', 'nullifier'];
+  const proofs = proofNames.map((name) => path.resolve(proofPath, name + '.bin'));
+  const digests = proofs.map((filename) => fileDigest(filename, 64 * MIB));
   const result = spawnSync(hostExecutable, [
-    'verify-proof', '--mode', 'groth16', '--elf', elfPath, '--journal', path.resolve(journalPath),
-    '--proof', path.resolve(proofPath), '--report', path.resolve(reportPath),
-    '--expect-elf-sha256', elfSha256, '--expect-program-vk', programVkDigest,
-    '--expect-journal-sha256', expectedJournalSha256
+    path.resolve(journalPath), String(outputCount), ...proofs
   ], {
-    // The pinned host derives the program key from the ELF on each run.
-    // That setup alone can take several minutes on the local CPU.
     encoding: 'utf8', timeout: 15 * 60_000, maxBuffer: MIB, windowsHide: true,
-    env: { SP1_CIRCUIT_MODE: 'release', ...(process.env.SystemRoot ? { SystemRoot: process.env.SystemRoot } : {}) }
+    env: { ...(process.env.SystemRoot ? { SystemRoot: process.env.SystemRoot } : {}) }
   });
   if (result.error) throw result.error;
-  if (result.status !== 0) throw new Error('pinned SP1 host rejected the proof: ' + result.stderr.trim());
-  const report = readBoundedJson(reportPath);
-  if (report.schema !== 'lnm-sp1-local-run/v1' || report.status !== 'groth16_proof_verified' ||
-      report.sp1_sdk_version !== '6.9.0' || report.sp1_circuit_mode !== 'release' ||
-      report.proof_mode !== 'groth16' || report.zero_knowledge_proof_verified !== true ||
-      report.expected_journal_sha256 !== expectedJournalSha256 || report.journal_bytes !== 276 ||
-      report.elf_sha256 !== elfSha256 || report.program_vk_digest !== programVkDigest || report.proof_sha256 !== proofSha256) {
-    throw new Error('SP1 host report differs from the approved verification inputs');
+  if (result.status !== 0) throw new Error('pinned Nova verifier rejected the proof set: ' + result.stderr.trim());
+  const report = JSON.parse(result.stdout);
+  if (report.status !== 'nova_batch_proof_verified' || report.network !== network ||
+      report.journal_sha256 !== expectedJournalSha256 ||
+      proofNames.some((name, index) => report[name + '_sha256'] !== digests[index])) {
+    throw new Error('Nova verifier report differs from the approved verification inputs');
   }
-  return {
-    status: 'groth16_batch_proof_verified', network, zeroKnowledgeProofVerified: true,
-    proofSha256, expectedJournalSha256, hostSha256, elfSha256, programVkDigest,
+  const receipt = {
+    status: 'nova_batch_proof_verified', network, zeroKnowledgeProofVerified: true,
+    proofSha256: Object.fromEntries(proofNames.map((name, i) => [name, digests[i]])),
+    expectedJournalSha256, hostSha256, outputCount,
     ...context, bitcoinSpendabilityVerified: false
   };
+  fs.writeFileSync(reportPath, JSON.stringify(receipt, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+  return receipt;
 }
 
 function main(argv) {
   const flags = ['--policy', '--journal', '--proof', '--report'];
   if (argv.length !== flags.length * 2 || flags.some((flag, i) => argv[i * 2] !== flag || !argv[i * 2 + 1])) {
-    throw new Error('Usage: node LNMarkets/verify-batch.js --policy TRUSTED_JSON --journal BIN --proof BIN --report NEW_JSON');
+    throw new Error('Usage: node LNMarkets/verify-batch.js --policy TRUSTED_JSON --journal BIN --proof PROOF_DIRECTORY --report NEW_JSON');
   }
   const [, configPath, , journalPath, , proofPath, , reportPath] = argv;
   console.log(JSON.stringify(verifyBatchProof({ policy: readBoundedJson(configPath), journalPath, proofPath, reportPath }), null, 2));

@@ -1,32 +1,90 @@
 //! Compose the exact v1 authorization statement with shared private wire bits.
 
+pub mod step;
+
 use ff::PrimeFieldBits;
 use nova_snark::frontend::{num::AllocatedNum, Boolean, ConstraintSystem, SynthesisError};
 
 use crate::accepted_set::verify_accepted_set;
-use crate::bip340::verify_signature;
+use crate::bip340::{signature_transcript, verify_signature, SCALAR_ORDER};
 use crate::journal_binding::{bind_batch_journal, V1_JOURNAL_BYTES};
 use crate::nullifier::DigestBits;
 use crate::nullifier_batch::bind_summary_outpoints;
 use crate::outcome_membership::{verify_selected_outcome, OUTCOME_TREE_LEVELS};
+use crate::secp256k1::fold::{CurveBinding, CurveEquation, EquationBits};
 use crate::secp256k1::Secp256k1;
 use crate::settlement_amounts::{apply_row, RowAmountBits, Totals};
 use crate::signing_digests::row_signing_digests;
 use crate::summary_policy::{enforce_summary_policy, select_oracle_keys};
-use crate::taproot_funding::verify_funding_script;
+use crate::taproot_funding::{funding_tweak, nums_bits, verify_funding_script};
 use crate::transaction_binding::{bind_unsigned_settlement, SettlementRowBits};
-use crate::wire::allocate_bytes;
+use crate::wire::{allocate_bytes, constants};
 use crate::witness::{BatchWitness, RowWitness};
 use crate::MAX_BATCH_ROWS;
+
+pub struct AuthorizationBindings<F: PrimeFieldBits> {
+    pub outpoints: DigestBits,
+    pub curve: AllocatedNum<F>,
+    equations: Vec<EquationBits>,
+}
+
+impl<F: PrimeFieldBits> AuthorizationBindings<F> {
+    /// Extract private prover inputs from the same transcript synthesis.
+    pub fn curve_witness(&self) -> Result<Vec<CurveEquation>, SynthesisError> {
+        self.equations.iter().map(EquationBits::witness).collect()
+    }
+}
+
+/// Constrain the journal, accepted set, payouts and signing transcripts.
+/// A batch verifier also checks proofs of both returned bindings.
+pub fn constrain_linked_authorization<F: PrimeFieldBits, CS: ConstraintSystem<F>>(
+    mut cs: CS,
+    witness: &BatchWitness<'_>,
+    unsigned: &[u8],
+    journal: &[Boolean],
+) -> Result<AuthorizationBindings<F>, SynthesisError> {
+    let mut equations = Vec::new();
+    let outpoints = constrain_batch(
+        cs.namespace(|| "authorization body"),
+        witness,
+        unsigned,
+        journal,
+        Some(&mut equations),
+    )?;
+    let hash = CurveBinding::default();
+    let mut curve = allocate_zero(cs.namespace(|| "initial curve binding"))?;
+    for (i, equation) in equations.iter().enumerate() {
+        curve = hash.append_constrained(
+            cs.namespace(|| format!("curve equation {i}")),
+            &curve,
+            equation,
+        )?;
+    }
+    Ok(AuthorizationBindings {
+        outpoints,
+        curve,
+        equations,
+    })
+}
 
 /// Constrain all signed rows against independently supplied public journal
 /// bits. The caller must prove this relation and require the same returned
 /// ordered outpoint digest in the verified nullifier transition.
 pub fn constrain_authorization<F: PrimeFieldBits, CS: ConstraintSystem<F>>(
+    cs: CS,
+    witness: &BatchWitness<'_>,
+    unsigned: &[u8],
+    journal: &[Boolean],
+) -> Result<DigestBits, SynthesisError> {
+    constrain_batch(cs, witness, unsigned, journal, None)
+}
+
+fn constrain_batch<F: PrimeFieldBits, CS: ConstraintSystem<F>>(
     mut cs: CS,
     witness: &BatchWitness<'_>,
     unsigned: &[u8],
     journal: &[Boolean],
+    mut equations: Option<&mut Vec<EquationBits>>,
 ) -> Result<DigestBits, SynthesisError> {
     if journal.len() != V1_JOURNAL_BYTES * 8 || !(1..=MAX_BATCH_ROWS).contains(&witness.rows.len())
     {
@@ -51,6 +109,7 @@ pub fn constrain_authorization<F: PrimeFieldBits, CS: ConstraintSystem<F>>(
             row,
             &summary,
             &outcome,
+            equations.as_deref_mut(),
         )?);
         let amounts = RowAmountBits::from_v1_wire(&summary, &outcome)?;
         totals = apply_row(
@@ -96,6 +155,7 @@ fn constrain_row<F: PrimeFieldBits, CS: ConstraintSystem<F>>(
     row: &RowWitness<'_>,
     summary: &[Boolean],
     outcome: &[Boolean],
+    mut equations: Option<&mut Vec<EquationBits>>,
 ) -> Result<DigestBits, SynthesisError> {
     if row.outcome_siblings.len() > OUTCOME_TREE_LEVELS {
         return Err(SynthesisError::Unsatisfiable(
@@ -129,16 +189,32 @@ fn constrain_row<F: PrimeFieldBits, CS: ConstraintSystem<F>>(
         |byte: usize| -> DigestBits { std::array::from_fn(|i| summary[byte * 8 + i].clone()) };
     let trader = get_key(206);
     let maker = get_key(238);
+    let salt = get_key(0);
     let csv = std::array::from_fn(|i| summary[544 * 8 + i].clone());
-    let funding = std::array::from_fn(|i| summary[172 * 8 + i].clone());
-    verify_funding_script(
-        cs.namespace(|| "funding commitment"),
-        curve,
-        &trader,
-        &maker,
-        &csv,
-        &funding,
-    )?;
+    if let Some(equations) = equations.as_deref_mut() {
+        let tweak = funding_tweak(cs.namespace(|| "funding tweak"), &trader, &maker, &csv)?;
+        let mut n_minus_one = SCALAR_ORDER;
+        n_minus_one[31] -= 1;
+        equations.push(EquationBits {
+            salt: salt.clone(),
+            key: nums_bits(),
+            s: tweak,
+            // NUMS + tG equals tG - (n - 1)NUMS.
+            e: constants(&n_minus_one).try_into().unwrap(),
+            result_x: get_key(174),
+            even_y: Boolean::constant(false),
+        });
+    } else {
+        let funding = std::array::from_fn(|i| summary[172 * 8 + i].clone());
+        verify_funding_script(
+            cs.namespace(|| "funding commitment"),
+            curve,
+            &trader,
+            &maker,
+            &csv,
+            &funding,
+        )?;
+    }
 
     for (role, offset) in [
         ("trader payout", 272),
@@ -205,13 +281,30 @@ fn constrain_row<F: PrimeFieldBits, CS: ConstraintSystem<F>>(
         let signature = allocate_bytes(sig_ns.namespace(|| "signature bytes"), signature)?
             .try_into()
             .unwrap();
-        verify_signature(
-            sig_ns.namespace(|| "BIP340 check"),
-            curve,
-            key,
-            message,
-            &signature,
-        )?;
+        if let Some(equations) = equations.as_deref_mut() {
+            let signed = signature_transcript(
+                sig_ns.namespace(|| "BIP340 transcript"),
+                key,
+                message,
+                &signature,
+            )?;
+            equations.push(EquationBits {
+                salt: salt.clone(),
+                key: key.clone(),
+                s: signed.s,
+                e: signed.e,
+                result_x: signed.r,
+                even_y: Boolean::constant(true),
+            });
+        } else {
+            verify_signature(
+                sig_ns.namespace(|| "BIP340 check"),
+                curve,
+                key,
+                message,
+                &signature,
+            )?;
+        }
     }
     Ok(messages.summary)
 }
@@ -221,17 +314,24 @@ fn zero_totals<F: PrimeFieldBits, CS: ConstraintSystem<F>>(
 ) -> Result<Totals<F>, SynthesisError> {
     let mut totals = Vec::with_capacity(3);
     for i in 0..3 {
-        let mut ns = cs.namespace(|| format!("initial total {i}"));
-        let zero = AllocatedNum::alloc(ns.namespace(|| "zero"), || Ok(F::ZERO))?;
-        ns.enforce(
-            || "initial total equals zero",
-            |lc| lc + zero.get_variable(),
-            |lc| lc + CS::one(),
-            |lc| lc,
-        );
-        totals.push(zero);
+        totals.push(allocate_zero(
+            cs.namespace(|| format!("initial total {i}")),
+        )?);
     }
     Ok(totals.try_into().unwrap())
+}
+
+fn allocate_zero<F: PrimeFieldBits, CS: ConstraintSystem<F>>(
+    mut cs: CS,
+) -> Result<AllocatedNum<F>, SynthesisError> {
+    let zero = AllocatedNum::alloc(cs.namespace(|| "zero"), || Ok(F::ZERO))?;
+    cs.enforce(
+        || "equals zero",
+        |lc| lc + zero.get_variable(),
+        |lc| lc + CS::one(),
+        |lc| lc,
+    );
+    Ok(zero)
 }
 
 #[cfg(test)]
@@ -240,8 +340,10 @@ mod tests {
     use crate::nullifier_batch::BatchNullifierStep;
     use crate::wire::{
         constants, enforce_same_bits,
-        fixture::{allocated, ConstraintCheck},
+        fixture::{allocated, ConstraintCheck, F},
     };
+    use ff::Field;
+    use nova_snark::traits::circuit::StepCircuit;
 
     #[test]
     #[ignore = "requires a native-verified batch-demo fixture directory"]
@@ -287,9 +389,66 @@ mod tests {
             cs.first_failure
         };
         assert_eq!(run(&witness), None);
+        let linked = |witness: &BatchWitness<'_>| {
+            let mut cs = ConstraintCheck::new();
+            let retained = allocated(cs.namespace(|| "retained journal"), &journal);
+            let outputs = constrain_linked_authorization(
+                cs.namespace(|| "linked authorization body"),
+                witness,
+                &transaction,
+                &retained,
+            )
+            .unwrap();
+            enforce_same_bits(
+                cs.namespace(|| "same nullifier binding"),
+                &outputs.outpoints,
+                &constants(&binding),
+            )
+            .unwrap();
+            let equations = outputs.curve_witness().unwrap();
+            assert_eq!(equations.len(), 14);
+            assert!(equations
+                .iter()
+                .enumerate()
+                .all(|(i, equation)| equation.even_y == (i % 7 != 0)));
+            let hash = CurveBinding::default();
+            let expected = equations
+                .iter()
+                .fold(F::ZERO, |prior, equation| hash.append(prior, equation));
+            assert_eq!(outputs.curve.get_value(), Some(expected));
+            assert_eq!(cs.first_failure, None);
+            expected
+        };
+        let curve_binding = linked(&witness);
+        let layout =
+            step::AuthorizationLayout::from_transaction_size(2, transaction.len()).unwrap();
+        let step =
+            step::AuthorizationStep::with_witness(layout, bytes.clone(), transaction.clone())
+                .unwrap();
+        let retained: &[u8; V1_JOURNAL_BYTES] = journal.as_slice().try_into().unwrap();
+        let mut cs = ConstraintCheck::new();
+        let state = step::initial_state::<F>(retained)
+            .into_iter()
+            .map(|value| {
+                AllocatedNum::alloc(cs.namespace(|| "public state register"), || Ok(value)).unwrap()
+            })
+            .collect::<Vec<_>>();
+        let output = step.synthesize(&mut cs, &state).unwrap();
+        assert_eq!(cs.first_failure, None);
+        println!(
+            "Two-trade authorization step uses {} constraints before the Nova wrapper",
+            cs.constraints
+        );
+        assert!(output
+            .iter()
+            .zip(step::final_state(retained, &binding, curve_binding))
+            .all(|(actual, expected)| actual.get_value() == Some(expected)));
+        drop(cs);
+
         let mut changed = *witness.rows[1].oracle_signatures[1];
         changed[63] ^= 1;
         witness.rows[1].oracle_signatures[1] = &changed;
         assert!(run(&witness).is_some());
+        assert_ne!(linked(&witness), curve_binding);
     }
 }

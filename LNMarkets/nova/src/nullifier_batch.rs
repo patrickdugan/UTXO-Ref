@@ -236,7 +236,7 @@ fn extend_binding<F: PrimeField, CS: ConstraintSystem<F>>(
     tagged_digest(cs, &tag_hash("nova-ordered-outpoint"), &payload)
 }
 
-fn advance_level<F: PrimeField, CS: ConstraintSystem<F>>(
+pub(crate) fn advance_level<F: PrimeField, CS: ConstraintSystem<F>>(
     mut cs: CS,
     level: &[Boolean],
 ) -> Result<(Vec<Boolean>, Boolean, Boolean), SynthesisError> {
@@ -253,7 +253,7 @@ fn advance_level<F: PrimeField, CS: ConstraintSystem<F>>(
     Ok((next, any.not(), carry))
 }
 
-fn choose<F: PrimeField, CS: ConstraintSystem<F>>(
+pub(crate) fn choose<F: PrimeField, CS: ConstraintSystem<F>>(
     mut cs: CS,
     pick: &Boolean,
     yes: &DigestBits,

@@ -203,15 +203,69 @@ against the saved journal and the digest derived from the fixture's
 ordered summaries. Spartan IPA verification matched the same state and
 rejected altered public input.
 
-For batch acceptance the verifier must constrain both proofs to the same
-outpoint binding, pin the nullifier fold count to 256 times the retained
-row count and check the exact initial and final states from the retained
-journal. The rows need fresh private salts to hide the outpoints in the
-binding. The composed authorization constraints use the same private row
-bits for every signature, script and settlement check. Batch acceptance
-requires a compressed authorization proof and independent verification
-of the linked proofs against retained journal bytes, pinned circuit
-parameters and venue state.
+The curve circuit processes eight joint scalar bits per step. Each row
+contributes the Taproot funding equation and six BIP340 equations. The
+authorization circuit derives all fourteen from the signed bytes of the
+saved two-trade fixture and binds their order, inputs and parity rules
+with a salted Poseidon commitment. On CUDA, all 448 folds finished in
+204.3 seconds and recursive verification matched that commitment.
+The curve step has 191,895 primary constraints including Nova's wrapper.
+The two-trade authorization step has 3,349,692 constraints before its
+wrapper. Selecting the canonical CSV leaf padding before SHA-256
+compression removed 303,696 constraints for the fixture.
+
+The batch verifier checks three compressed Nova artifacts. Its
+authorization step starts with the separately retained journal, checks
+the full settlement and signing transcript, and returns the curve and
+outpoint commitments. The curve verifier uses 224 steps per retained row.
+The nullifier verifier uses 256 and checks both roots from the same
+journal. Both verified commitment outputs must match the authorization
+proof. Fresh private salts hide the committed row data.
+
+Generate the three proof files from a native-verified two-trade fixture.
+The output paths should be new. The complete proof-set run remains
+pending.
+
+```sh
+manifest=LNMarkets/nova/Cargo.toml
+fixture=LNMarkets/artifacts/batch-01
+proofs=LNMarkets/artifacts/batch-01-nova
+mkdir "$proofs"
+export CUDA_LAUNCH_BLOCKING=1
+cargo run --locked --release --manifest-path "$manifest" --features gpu \
+  --example gpu_smoke -- --authorization-body "$fixture" "$proofs/authorization.bin"
+cargo run --locked --release --manifest-path "$manifest" --features gpu \
+  --example gpu_smoke -- --curve-equations "$fixture" "$proofs/curve.bin"
+cargo run --locked --release --manifest-path "$manifest" --features gpu \
+  --example gpu_smoke -- --nullifiers "$fixture/witness.bin" \
+  "$fixture/expected-journal.bin" "$proofs/nullifier.bin"
+```
+
+Build the independent verifier from the reviewed Nova source. The
+example layout has three transaction outputs. Supply the approved
+journal separately from the proof directory.
+
+```sh
+cargo run --locked --release --manifest-path "$manifest" --bin lnm-nova-verify -- \
+  "$fixture/expected-journal.bin" 3 "$proofs/authorization.bin" \
+  "$proofs/curve.bin" "$proofs/nullifier.bin"
+```
+
+The venue-facing `verify-batch.js` wrapper pins the absolute Nova verifier
+path and its SHA-256, the journal SHA-256, output count, expected epoch,
+current nullifier root and observed block height. It checks the verifier's
+receipt covers the three exact proof files before writing its own receipt.
+
+```sh
+node LNMarkets/verify-batch.js --policy "$trusted_policy" \
+  --journal "$approved_journal" --proof "$proofs" --report "$new_receipt"
+```
+
+The policy fields are `network` with value `bitcoin-regtest`,
+`hostExecutable`, `hostSha256`, `expectedJournalSha256`, `outputCount`,
+`expectedEpoch` as a decimal string, `currentNullifierRoot` and
+`observedHeight`. The proof directory contains `authorization.bin`,
+`curve.bin` and `nullifier.bin`.
 
 Before accepting a verified batch, the venue must atomically compare the
 retained epoch and old root with current state and commit the new root and
@@ -269,9 +323,7 @@ The guest exited successfully after 48,224,478 instructions and committed
 all 276 bytes of the independently retained journal. Guest execution took
 9.78 seconds after 16.61 seconds of host key setup. See the
 [recorded SP1 execution](evidence/sp1-two-trade-execution.json) and the
-[exact public journal](evidence/sp1-two-trade-journal.bin). A verifier-only
-probe passed that journal to the pinned host through `verify-batch.js`.
-The host rejected a truncated proof during decoding and wrote no receipt.
+[exact public journal](evidence/sp1-two-trade-journal.bin).
 
 The execution result is `executed_unproved`. It provides an independent
 reference for the Nova circuit's expected output.

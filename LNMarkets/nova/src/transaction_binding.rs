@@ -8,9 +8,9 @@ use crate::payout_aggregation::enforce_aggregated_outputs;
 use crate::wire::{constants, enforce_same_bits, less_than_le};
 use crate::{MAX_BATCH_ROWS, V1_CONTEXT_BYTES, V1_SUMMARY_BYTES};
 
-const INPUT_BYTES: usize = 41;
-const OUTPUT_BYTES: usize = 43;
-const FIXED_BYTES: usize = 10;
+pub(crate) const INPUT_BYTES: usize = 41;
+pub(crate) const OUTPUT_BYTES: usize = 43;
+pub(crate) const FIXED_BYTES: usize = 10;
 
 pub struct SettlementRowBits<'a> {
     pub summary: &'a [Boolean],

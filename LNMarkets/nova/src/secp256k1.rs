@@ -1,6 +1,7 @@
 //! secp256k1 point constraints over the Nova circuit field.
 
 mod field;
+pub mod fold;
 
 use ff::{Field, PrimeField, PrimeFieldBits};
 use nova_snark::{
@@ -208,6 +209,23 @@ impl<F: PrimeField> Secp256k1<F> {
         e: &[Boolean],
     ) -> Result<PointVar<F>, SynthesisError> {
         assert_eq!(s.len(), e.len());
+        let (negative_key, generator_minus_key) =
+            self.joint_bases(cs.namespace(|| "base combinations"), key)?;
+        self.advance_joint(
+            cs.namespace(|| "joint multiplication"),
+            self.identity.clone(),
+            &negative_key,
+            &generator_minus_key,
+            s,
+            e,
+        )
+    }
+
+    fn joint_bases<CS: ConstraintSystem<F>>(
+        &self,
+        mut cs: CS,
+        key: &PointVar<F>,
+    ) -> Result<(PointVar<F>, PointVar<F>), SynthesisError> {
         let negative_key = PointVar {
             x: key.x.clone(),
             y: self
@@ -216,19 +234,31 @@ impl<F: PrimeField> Secp256k1<F> {
         };
         let generator_minus_key =
             self.add(cs.namespace(|| "G minus P"), &self.generator, &negative_key)?;
-        let mut result = self.identity.clone();
+        Ok((negative_key, generator_minus_key))
+    }
+
+    fn advance_joint<CS: ConstraintSystem<F>>(
+        &self,
+        mut cs: CS,
+        mut result: PointVar<F>,
+        negative_key: &PointVar<F>,
+        generator_minus_key: &PointVar<F>,
+        s: &[Boolean],
+        e: &[Boolean],
+    ) -> Result<PointVar<F>, SynthesisError> {
+        assert_eq!(s.len(), e.len());
         for (i, (s, e)) in s.iter().zip(e).enumerate() {
             let mut ns = cs.namespace(|| format!("joint scalar bit {i}"));
             let without_generator = self.select(
                 ns.namespace(|| "choose identity or negative key"),
                 e,
-                &negative_key,
+                negative_key,
                 &self.identity,
             )?;
             let with_generator = self.select(
                 ns.namespace(|| "choose generator or generator minus key"),
                 e,
-                &generator_minus_key,
+                generator_minus_key,
                 &self.generator,
             )?;
             let addend = self.select(

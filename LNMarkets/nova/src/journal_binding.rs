@@ -32,18 +32,10 @@ pub fn bind_batch_journal<F: PrimeField, CS: ConstraintSystem<F>>(
         ));
     }
     enforce_context_policy(cs.namespace(|| "context policy"), context)?;
-    let tag = tag_hash("statement-domain");
-    let domain = Sha256::new()
-        .chain_update(tag)
-        .chain_update(tag)
-        .chain_update(b"co-signed-batch-proposal-certificate")
-        .finalize();
-    let mut prefix = b"LNMJNL01".to_vec();
-    prefix.extend_from_slice(&domain);
     enforce_same_bits(
         cs.namespace(|| "journal prefix"),
         &journal[..40 * 8],
-        &constants(&prefix),
+        &constants(&statement_prefix()),
     )?;
     enforce_same_bits(
         cs.namespace(|| "epoch and window"),
@@ -79,6 +71,19 @@ pub fn bind_batch_journal<F: PrimeField, CS: ConstraintSystem<F>>(
         );
     }
     Ok(())
+}
+
+pub(crate) fn statement_prefix() -> [u8; 40] {
+    let tag = tag_hash("statement-domain");
+    let domain = Sha256::new()
+        .chain_update(tag)
+        .chain_update(tag)
+        .chain_update(b"co-signed-batch-proposal-certificate")
+        .finalize();
+    let mut prefix = [0; 40];
+    prefix[..8].copy_from_slice(b"LNMJNL01");
+    prefix[8..].copy_from_slice(&domain);
+    prefix
 }
 
 fn enforce_context_policy<F: PrimeField, CS: ConstraintSystem<F>>(

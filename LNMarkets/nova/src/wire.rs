@@ -113,6 +113,7 @@ pub(crate) mod fixture {
         inputs: Vec<F>,
         witness: Vec<F>,
         pub(crate) first_failure: Option<String>,
+        pub(crate) constraints: usize,
     }
 
     impl ConstraintSystem<F> for ConstraintCheck {
@@ -123,6 +124,7 @@ pub(crate) mod fixture {
                 inputs: vec![F::from(1)],
                 witness: Vec::new(),
                 first_failure: None,
+                constraints: 0,
             }
         }
 
@@ -160,6 +162,7 @@ pub(crate) mod fixture {
             LB: FnOnce(LinearCombination<F>) -> LinearCombination<F>,
             LC: FnOnce(LinearCombination<F>) -> LinearCombination<F>,
         {
+            self.constraints += 1;
             let a = a(LinearCombination::zero()).eval(&self.inputs, &self.witness);
             let b = b(LinearCombination::zero()).eval(&self.inputs, &self.witness);
             let c = c(LinearCombination::zero()).eval(&self.inputs, &self.witness);
