@@ -1,7 +1,7 @@
 use ff::Field;
 use lnmarkets_nova::nullifier_batch::{self, BatchNullifierStep};
-use lnmarkets_nova::nullifier_path::NULLIFIER_PATH_STEPS;
 use lnmarkets_nova::settlement_amounts::SettlementAmountStep;
+use lnmarkets_nova::witness::BatchWitness;
 use nova_snark::{
     frontend::{num::AllocatedNum, ConstraintSystem, SynthesisError},
     nova::{CompressedSNARK, PublicParams, RecursiveSNARK},
@@ -102,61 +102,34 @@ fn nullifier_fixture(
     bytes: &[u8],
     journal: &[u8; 276],
 ) -> Result<(Vec<BatchNullifierStep>, [u8; 32]), Box<dyn std::error::Error>> {
-    fn take<'a>(bytes: &mut &'a [u8], count: usize) -> Result<&'a [u8], &'static str> {
-        let (field, rest) = bytes
-            .split_at_checked(count)
-            .ok_or("truncated v1 witness")?;
-        *bytes = rest;
-        Ok(field)
-    }
-    let mut rest = bytes;
+    let batch = BatchWitness::decode(bytes)?;
     if journal[..40] != JOURNAL[..40]
-        || take(&mut rest, 8)? != b"LNMBAT01"
-        || take(&mut rest, 48)? != &journal[40..88]
-        || take(&mut rest, 128)? != &journal[92..220]
-        || take(&mut rest, 4)? != &journal[88..92]
+        || batch.context[..48] != journal[40..88]
+        || batch.context[48..176] != journal[92..220]
+        || batch.context[176..] != journal[88..92]
     {
         return Err("v1 witness context differs from the retained fixture journal".into());
     }
-    let row_count = u32::from_le_bytes(journal[88..92].try_into()?) as usize;
-    let count = nullifier_batch::step_count(row_count).ok_or("invalid row count")?;
+    let count = nullifier_batch::step_count(batch.rows.len()).ok_or("invalid row count")?;
     let mut steps = Vec::with_capacity(count);
     let mut binding = [0u8; 32];
-    for _ in 0..row_count {
-        let summary = take(&mut rest, 546)?;
-        let skip_summary_signatures_and_outcome = 2 * 64 + 68;
-        take(&mut rest, skip_summary_signatures_and_outcome)?;
-        let depth = u16::from_le_bytes(take(&mut rest, 2)?.try_into()?) as usize;
-        let outcome_count = u32::from_le_bytes(summary[532..536].try_into()?);
-        if !(1..=1024).contains(&outcome_count)
-            || depth != outcome_count.next_power_of_two().trailing_zeros() as usize
-        {
-            return Err("invalid v1 outcome depth".into());
-        }
-        let skip_oracle_attestations_and_batch_signatures = 2 * 65 + 2 * 64;
-        take(
-            &mut rest,
-            depth * 32 + skip_oracle_attestations_and_batch_signatures,
-        )?;
+    for row in &batch.rows {
         let start = BatchNullifierStep {
-            salt: summary[..32].try_into()?,
-            txid: summary[128..160].try_into()?,
-            vout: u32::from_le_bytes(summary[160..164].try_into()?),
+            salt: row.summary[..32].try_into()?,
+            txid: row.summary[128..160].try_into()?,
+            vout: u32::from_le_bytes(row.summary[160..164].try_into()?),
             ..Default::default()
         };
         binding = start.extend_row_binding(&binding);
-        for level in 0..NULLIFIER_PATH_STEPS {
+        for (level, sibling) in row.nullifier_siblings.chunks_exact(32).enumerate() {
             let mut step = if level == 0 {
                 start.clone()
             } else {
                 BatchNullifierStep::default()
             };
-            step.sibling = take(&mut rest, 32)?.try_into()?;
+            step.sibling = sibling.try_into()?;
             steps.push(step);
         }
-    }
-    if !rest.is_empty() {
-        return Err("trailing bytes in v1 fixture witness".into());
     }
     Ok((steps, binding))
 }

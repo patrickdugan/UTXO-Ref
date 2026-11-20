@@ -1,6 +1,7 @@
 //! Nova constraints for the LNMarkets batch authorization statement.
 
 pub mod accepted_set;
+pub mod authorization;
 pub mod bip340;
 pub mod journal_binding;
 pub mod nullifier;
@@ -15,6 +16,7 @@ pub mod summary_policy;
 pub mod taproot_funding;
 pub mod transaction_binding;
 mod wire;
+pub mod witness;
 
 const V1_CONTEXT_BYTES: usize = 180;
 const V1_SUMMARY_BYTES: usize = 546;

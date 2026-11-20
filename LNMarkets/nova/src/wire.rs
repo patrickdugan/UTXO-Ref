@@ -1,11 +1,24 @@
 use ff::PrimeField;
-use nova_snark::frontend::{Boolean, ConstraintSystem, SynthesisError};
+use nova_snark::frontend::{AllocatedBit, Boolean, ConstraintSystem, SynthesisError};
 
 use crate::nullifier::bits;
 
 /// Wire bytes are represented with the most significant bit first in each byte.
 pub(crate) fn constants(bytes: &[u8]) -> Vec<Boolean> {
     bits(bytes).map(Boolean::constant).collect()
+}
+
+pub(crate) fn allocate_bytes<F: PrimeField, CS: ConstraintSystem<F>>(
+    mut cs: CS,
+    bytes: &[u8],
+) -> Result<Vec<Boolean>, SynthesisError> {
+    bits(bytes)
+        .enumerate()
+        .map(|(i, value)| {
+            AllocatedBit::alloc(cs.namespace(|| format!("wire bit {i}")), Some(value))
+                .map(Boolean::from)
+        })
+        .collect()
 }
 
 pub(crate) fn enforce_same_bits<F: PrimeField, CS: ConstraintSystem<F>>(
@@ -68,7 +81,7 @@ pub(crate) fn require_nonzero<F: PrimeField, CS: ConstraintSystem<F>>(
 pub(crate) mod fixture {
     use super::*;
     use nova_snark::{
-        frontend::{AllocatedBit, Index, LinearCombination, Variable},
+        frontend::{Index, LinearCombination, Variable},
         provider::Bn256EngineIPA,
         traits::Engine,
     };
@@ -90,15 +103,8 @@ pub(crate) mod fixture {
         std::array::from_fn(|i| u8::from_str_radix(&hex[i * 2..i * 2 + 2], 16).unwrap())
     }
 
-    pub(crate) fn allocated<CS: ConstraintSystem<F>>(mut cs: CS, bytes: &[u8]) -> Vec<Boolean> {
-        bits(bytes)
-            .enumerate()
-            .map(|(i, value)| {
-                AllocatedBit::alloc(cs.namespace(|| format!("wire bit {i}")), Some(value))
-                    .unwrap()
-                    .into()
-            })
-            .collect()
+    pub(crate) fn allocated<CS: ConstraintSystem<F>>(cs: CS, bytes: &[u8]) -> Vec<Boolean> {
+        allocate_bytes(cs, bytes).unwrap()
     }
 
     /// Evaluate every constraint while retaining only the assignments.

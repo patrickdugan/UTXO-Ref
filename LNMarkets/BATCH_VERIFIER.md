@@ -147,6 +147,19 @@ cargo test --locked --release --manifest-path LNMarkets/nova/Cargo.toml \
   -- --test-threads=1
 ```
 
+The native ABI workflow passes its two-trade witness to the Nova
+authorization constraint test. It checks all twelve signatures, both
+funding commitments, the retained journal and the shared digest used by
+the nullifier circuit. It also changes a selected oracle signature and
+checks that the authorization constraints reject it. Run the same check
+against a fixture accepted by the pinned native verifier.
+
+```sh
+LNM_BATCH_FIXTURE="$PWD/LNMarkets/artifacts/batch-01" \
+  cargo test --locked --release --manifest-path LNMarkets/nova/Cargo.toml \
+  native_fixture_binds_every_row -- --ignored --test-threads=1
+```
+
 The GPU smoke test runs a two-step Nova fold with private factors,
 compresses it with Spartan IPA, verifies the expected output and checks
 rejection under an altered public input. It exercises the proving backend
@@ -194,11 +207,11 @@ For batch acceptance the verifier must constrain both proofs to the same
 outpoint binding, pin the nullifier fold count to 256 times the retained
 row count and check the exact initial and final states from the retained
 journal. The rows need fresh private salts to hide the outpoints in the
-binding. The main proof must apply the signature and funding constraints
-to every required key, signature and script using the same private row
-bits as the settlement constraints. Acceptance remains pending until the
-combined relation verifies against independently retained journal bytes,
-circuit parameters and venue state.
+binding. The composed authorization constraints use the same private row
+bits for every signature, script and settlement check. Batch acceptance
+requires a compressed authorization proof and independent verification
+of the linked proofs against retained journal bytes, pinned circuit
+parameters and venue state.
 
 Before accepting a verified batch, the venue must atomically compare the
 retained epoch and old root with current state and commit the new root and

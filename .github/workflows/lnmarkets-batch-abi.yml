@@ -45,4 +45,6 @@ jobs:
             --out "$RUNNER_TEMP/lnmarkets-batch-abi" \
             --native .companion/LNMarkets/statement/target/release/lnm-native
       - name: Test Nova batch constraints
-        run: cargo +stable test --locked --release --manifest-path LNMarkets/nova/Cargo.toml -- --test-threads=1
+        run: |
+          cargo +stable test --locked --release --manifest-path LNMarkets/nova/Cargo.toml -- --test-threads=1
+          LNM_BATCH_FIXTURE="$RUNNER_TEMP/lnmarkets-batch-abi" +            cargo +stable test --locked --release --manifest-path LNMarkets/nova/Cargo.toml +            native_fixture_binds_every_row -- --ignored --test-threads=1
