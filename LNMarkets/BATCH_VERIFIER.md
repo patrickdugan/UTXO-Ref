@@ -110,7 +110,11 @@ checks its index against the outcome count and compares the Merkle root
 with the root in the signed summary. It pads the witness to a fixed circuit
 shape independent of the outcome depth. The signing digest
 circuit computes the exact summary, oracle and batch consent messages
-from those same bytes and the agreed context.
+from those same bytes and the agreed context. The BIP340 transcript
+checks coordinate and signature scalar ranges and constrains the
+challenge modulo the secp256k1 group order. A test reproduces the
+challenge for a saved trader signature and rejects a changed message
+against the same challenge.
 
 The accepted-set circuit commits to every summary digest in canonical
 row order and applies the v1 padding rule. The transaction circuit binds
@@ -171,15 +175,20 @@ CUDA_LAUNCH_BLOCKING=1 cargo run --locked --release \
   LNMarkets/artifacts/batch-01/expected-journal.bin
 ```
 
+On the RTX 5080 Laptop GPU under WSL, the saved run completed all 512
+folds in 245.6 seconds. Recursive verification matched the final state
+against the saved journal and the digest derived from the fixture's
+ordered summaries.
+
 For batch acceptance the verifier must constrain both proofs to the same
 outpoint binding, pin the nullifier fold count to 256 times the retained
 row count and check the exact initial and final states from the retained
 journal. The rows need fresh private salts to hide the outpoints in the
-binding. The main proof also requires secp256k1 point validation, all six
-BIP340 signature checks per row and derivation of the NUMS Taproot
-funding commitment. Acceptance remains pending until the combined
-relation verifies against independently retained journal bytes, circuit
-parameters and venue state.
+binding. The main proof also requires secp256k1 point validation, the
+BIP340 curve equation for all six signatures per row and derivation of
+the NUMS Taproot funding commitment. Acceptance remains pending until
+the combined relation verifies against independently retained journal
+bytes, circuit parameters and venue state.
 
 Before accepting a verified batch, the venue must atomically compare the
 retained epoch and old root with current state and commit the new root and

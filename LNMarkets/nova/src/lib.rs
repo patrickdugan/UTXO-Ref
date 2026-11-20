@@ -1,6 +1,7 @@
 //! Nova constraints for the LNMarkets batch authorization statement.
 
 pub mod accepted_set;
+pub mod bip340;
 pub mod journal_binding;
 pub mod nullifier;
 pub mod nullifier_batch;
