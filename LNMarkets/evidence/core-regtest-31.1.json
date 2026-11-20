@@ -1,0 +1,416 @@
+{
+  "kind": "lnmarkets_core_regtest_v1",
+  "evidenceTier": "BITCOIN_CORE_REGTEST",
+  "network": "bitcoin-regtest",
+  "coreVersion": "/Satoshi:31.1.0/",
+  "independentOperators": false,
+  "productionSignerUsed": false,
+  "venueConnectionUsed": false,
+  "partySigningProcessesExitedBeforeFunding": true,
+  "makerWalletUnloadedDuringRecovery": true,
+  "attacks": [
+    "substituted valid recovery package",
+    "attestations replayed across events with the same oracle keys"
+  ],
+  "cet": {
+    "contractId": "lnm-6c696d6013e67183071e6375caad2bdb3364208c6fa2e287dbe2364ef6ac7f2c",
+    "planDigest": "6c696d6013e67183071e6375caad2bdb3364208c6fa2e287dbe2364ef6ac7f2c",
+    "recoveryDigest": "f47fec4f471bbfbf3438b267162afcea47455b967abbf3dc91039f213e0c5f1c",
+    "maturityHeight": 105,
+    "refundHeight": 107,
+    "refundCsvBlocks": 1,
+    "funding": {
+      "txid": "2b267af922cf90823760a82e1f13e52557d39db4c3f79304e1c10eebf07902b9",
+      "wtxid": "fbb5b14f6dafa9d2caa922c81c76dddc34263a23f20fe02acebc2b0376e516bf",
+      "blockHash": "50f361054dfe7ef00acf5f687f8fd175487bd881b31834b0f9616d417a56a7f0",
+      "height": 103,
+      "feeSats": 1500,
+      "vsize": 251,
+      "inputs": [
+        {
+          "txid": "56e06687140c63f7108412fb99e08f6bd8270ee4d6858e98999010db8b9edf2d",
+          "vout": 1,
+          "sequence": 4294967295,
+          "valueSats": 1000000,
+          "scriptPubKeyHex": "001461a66ef97cee06c13e23ecfd970f9532ea4eae4e"
+        },
+        {
+          "txid": "5d9a69e1b7678291ee4f32aacbc95bc5334c73f011c0934378317e6b08b14bd7",
+          "vout": 1,
+          "sequence": 4294967295,
+          "valueSats": 1000000,
+          "scriptPubKeyHex": "0014fae4bf27bff1102501a4209789d570f1abb1714b"
+        }
+      ],
+      "outputs": [
+        {
+          "valueSats": 401330,
+          "scriptPubKeyHex": "512082159fa5d2a7a1dcd388da4f4c3dd0d2868a5d2d6d8970fd1d875289deaeae5b"
+        },
+        {
+          "valueSats": 797920,
+          "scriptPubKeyHex": "00140dce9f3193da34d34420bbf5662817882a7241a1"
+        },
+        {
+          "valueSats": 799250,
+          "scriptPubKeyHex": "0014709e7fc38dd03776237b66806097ade22447854e"
+        }
+      ],
+      "locktime": 0,
+      "contributions": [
+        {
+          "wallet": "trader",
+          "contributionSats": 201330,
+          "feeSats": 750
+        },
+        {
+          "wallet": "maker",
+          "contributionSats": 200000,
+          "feeSats": 750
+        }
+      ]
+    },
+    "exit": {
+      "txid": "d53018066a864211c52ba9fe152e1f3e38d053509ad5105f7fbbbdc28f36ca84",
+      "wtxid": "b51f1300e2a198c039a446a67ae89b204c9494b37a2889b964d804960f0df006",
+      "blockHash": "76b5b5cc1ff5f3ca2e13b878f9bb7cccc942a3bef134edf36fbd5ce4a1218572",
+      "height": 106,
+      "feeSats": 1000,
+      "vsize": 247,
+      "inputs": [
+        {
+          "txid": "2b267af922cf90823760a82e1f13e52557d39db4c3f79304e1c10eebf07902b9",
+          "vout": 0,
+          "sequence": 4294967286,
+          "valueSats": 401330,
+          "scriptPubKeyHex": "512082159fa5d2a7a1dcd388da4f4c3dd0d2868a5d2d6d8970fd1d875289deaeae5b"
+        }
+      ],
+      "outputs": [
+        {
+          "valueSats": 290909,
+          "scriptPubKeyHex": "51205ebbb73489d07510d557846f7a7d46ecbc4ab9c0833a3e1a046b380254c890d2"
+        },
+        {
+          "valueSats": 109091,
+          "scriptPubKeyHex": "51209f2fcbc91aaf6ddc22be79b47a2065323b356deafb47559f975382cb75d3717c"
+        },
+        {
+          "valueSats": 330,
+          "scriptPubKeyHex": "5120b531a44b8178f6a74c606f9cff5a7a8ea25aa214b51a9dd2be0ab1b7e885f49b"
+        }
+      ],
+      "locktime": 105
+    },
+    "payouts": [
+      {
+        "wallet": "trader",
+        "txid": "d53018066a864211c52ba9fe152e1f3e38d053509ad5105f7fbbbdc28f36ca84",
+        "vout": 0,
+        "address": "bcrt1pt6amwdyf6p63p42hs3hh5l2xaj7y4wwqsvaruxsydvuqy4xgjrfqjxftnl",
+        "amountSats": 290909,
+        "scriptPubKeyHex": "51205ebbb73489d07510d557846f7a7d46ecbc4ab9c0833a3e1a046b380254c890d2",
+        "confirmations": 1
+      },
+      {
+        "wallet": "maker",
+        "txid": "d53018066a864211c52ba9fe152e1f3e38d053509ad5105f7fbbbdc28f36ca84",
+        "vout": 1,
+        "address": "bcrt1pnuhuhjg64akacg470x685gr9xgan2m02ldr4t8uh2wpvkawnw97qdn3k0q",
+        "amountSats": 109091,
+        "scriptPubKeyHex": "51209f2fcbc91aaf6ddc22be79b47a2065323b356deafb47559f975382cb75d3717c",
+        "confirmations": 1
+      }
+    ],
+    "attacks": [
+      "altered funding outpoint",
+      "missing CET signature",
+      "incompatible oracle outcomes",
+      "duplicated attestation"
+    ],
+    "coreRejections": [
+      {
+        "label": "CET absolute maturity",
+        "tipHeight": 104,
+        "txid": "d53018066a864211c52ba9fe152e1f3e38d053509ad5105f7fbbbdc28f36ca84",
+        "wtxid": "b51f1300e2a198c039a446a67ae89b204c9494b37a2889b964d804960f0df006",
+        "allowed": false,
+        "reject-reason": "non-final",
+        "reject-details": "non-final"
+      },
+      {
+        "label": "refund absolute lock with CSV satisfied",
+        "tipHeight": 104,
+        "txid": "29d0ab1aa1e05beba98d9ab1880b4f92b0b9ea7f8e400bda18fed65afeecf117",
+        "wtxid": "7d21e53699b718b29914ce1c6b3d3fbb4e8c57527d8ee0d2e6aac601551872ad",
+        "allowed": false,
+        "reject-reason": "non-final",
+        "reject-details": "non-final"
+      },
+      {
+        "label": "missing CET witness at maturity",
+        "tipHeight": 105,
+        "txid": "d53018066a864211c52ba9fe152e1f3e38d053509ad5105f7fbbbdc28f36ca84",
+        "wtxid": "d53018066a864211c52ba9fe152e1f3e38d053509ad5105f7fbbbdc28f36ca84",
+        "allowed": false,
+        "reject-reason": "mempool-script-verify-flag-failed (Witness program was passed an empty witness)",
+        "reject-details": "mempool-script-verify-flag-failed (Witness program was passed an empty witness), input 0 of d53018066a864211c52ba9fe152e1f3e38d053509ad5105f7fbbbdc28f36ca84 (wtxid d53018066a864211c52ba9fe152e1f3e38d053509ad5105f7fbbbdc28f36ca84), spending 2b267af922cf90823760a82e1f13e52557d39db4c3f79304e1c10eebf07902b9:0"
+      }
+    ],
+    "recoveryFee": {
+      "blockHash": "76b5b5cc1ff5f3ca2e13b878f9bb7cccc942a3bef134edf36fbd5ce4a1218572",
+      "child": {
+        "txid": "69a1bbfd24494f757dfc81df9cc53b57ffe8494dcd2f3d3ef1da590cf33bd2b9",
+        "wtxid": "fead2bffde06d066826b62484d3c5e3ae9a92f4359b8449309f1c90d8f024917",
+        "blockHash": "76b5b5cc1ff5f3ca2e13b878f9bb7cccc942a3bef134edf36fbd5ce4a1218572",
+        "height": 106,
+        "feeSats": 2400,
+        "vsize": 167,
+        "inputs": [
+          {
+            "txid": "d53018066a864211c52ba9fe152e1f3e38d053509ad5105f7fbbbdc28f36ca84",
+            "vout": 2,
+            "sequence": 4294967293,
+            "valueSats": 330,
+            "scriptPubKeyHex": "5120b531a44b8178f6a74c606f9cff5a7a8ea25aa214b51a9dd2be0ab1b7e885f49b"
+          },
+          {
+            "txid": "2b267af922cf90823760a82e1f13e52557d39db4c3f79304e1c10eebf07902b9",
+            "vout": 1,
+            "sequence": 4294967293,
+            "valueSats": 797920,
+            "scriptPubKeyHex": "00140dce9f3193da34d34420bbf5662817882a7241a1"
+          }
+        ],
+        "outputs": [
+          {
+            "valueSats": 795850,
+            "scriptPubKeyHex": "0014c2f6640920a6d6d29877222a3cfd748d10102d3d"
+          }
+        ],
+        "locktime": 0
+      },
+      "statuses": [
+        "RECOVERY_READY",
+        "RECOVERY_PROPAGATION_HALT",
+        "RECOVERY_CONFIRMED"
+      ],
+      "packageFeeSats": 3400,
+      "childTxid": "69a1bbfd24494f757dfc81df9cc53b57ffe8494dcd2f3d3ef1da590cf33bd2b9"
+    },
+    "reorg": {
+      "invalidatedBlock": "76b5b5cc1ff5f3ca2e13b878f9bb7cccc942a3bef134edf36fbd5ce4a1218572",
+      "disconnectTip": 105,
+      "disconnectStatus": "REORG_HALT",
+      "restoredStatus": "CET_OBSERVED",
+      "recoveredMempoolTxids": [
+        "d53018066a864211c52ba9fe152e1f3e38d053509ad5105f7fbbbdc28f36ca84",
+        "69a1bbfd24494f757dfc81df9cc53b57ffe8494dcd2f3d3ef1da590cf33bd2b9"
+      ]
+    },
+    "journals": {
+      "state": {
+        "kind": "utxoref_dlc_journal_checkpoint_v1",
+        "storeKind": "contract-state",
+        "storeKey": "d8ae7aa26f886d760cd3311267b07dc1bdb13ec2dddf7ce46528881ae38a2cdd",
+        "recordCount": 9,
+        "headRecordHash": "2e38e71c7a2a39746bf9a80beac4d19bcc79f2a19694f5bc8f5c1c0e5355ef9b",
+        "checkpointHash": "49de0f39e0952f24090ccaea74c86b6eb8d265c6dee28f28cd62ef6483a77ea2"
+      },
+      "authorizations": 2,
+      "watchtower": {
+        "checkpoint": {
+          "kind": "utxoref_dlc_journal_checkpoint_v1",
+          "storeKind": "watchtower",
+          "storeKey": "d8ae7aa26f886d760cd3311267b07dc1bdb13ec2dddf7ce46528881ae38a2cdd",
+          "recordCount": 7,
+          "headRecordHash": "c8e79a897d601f2ad157dad0338271436ae75fbb36f51933315f81f427649eb6",
+          "checkpointHash": "f7d4a53e3745472c6d31d3105f4bae96416e9f9081ed1547735c6b41a9111eaf"
+        },
+        "alerts": [
+          {
+            "contractId": "lnm-6c696d6013e67183071e6375caad2bdb3364208c6fa2e287dbe2364ef6ac7f2c",
+            "sequence": 2,
+            "recordHash": "4d104625b3213979bc386ec5020b0f164211f4176fc118bdce47301588dae5f5",
+            "code": "RECOVERY_PROPAGATION_HALT",
+            "severity": "critical"
+          },
+          {
+            "contractId": "lnm-6c696d6013e67183071e6375caad2bdb3364208c6fa2e287dbe2364ef6ac7f2c",
+            "sequence": 5,
+            "recordHash": "ea68abd1c41ac707183c9e9c4b47864f5ec72304d88a35db3fe534ba938ea026",
+            "code": "REORG_HALT",
+            "severity": "critical"
+          }
+        ]
+      },
+      "watchtowerPublicKey": "MCowBQYDK2VwAyEATvwh7f+/J3tXZ+4nlFgPfxRCFdT/+DAeUqzjYn4DXz4="
+    }
+  },
+  "refund": {
+    "contractId": "lnm-38bd8ba342cd5c998e6ea65088a656dc9223f412908c0ca0b06dabef0a6ef2cb",
+    "planDigest": "38bd8ba342cd5c998e6ea65088a656dc9223f412908c0ca0b06dabef0a6ef2cb",
+    "recoveryDigest": "e490a1f396e593d7731d4a455f57612c1bf47b9a1664cf5127a0980b4ae6ac90",
+    "maturityHeight": 110,
+    "refundHeight": 112,
+    "refundCsvBlocks": 7,
+    "funding": {
+      "txid": "1b90cc9c3d8e98da591fc93aa3f6029fe8b5949d344273577513663b712f037f",
+      "wtxid": "2c36ee48ef87c66f3d13e934e0cc8ee5ed67faa85277e257706b6900d6b92db2",
+      "blockHash": "787aae4aa665db9ea26e2060148e55d97e30791df8ad41d48cd4fdc48631e6f3",
+      "height": 108,
+      "feeSats": 1500,
+      "vsize": 251,
+      "inputs": [
+        {
+          "txid": "6fa6ede2b3702733cadaeb4f4f7af32f737b5be07afbec7525cbf10d2da37e08",
+          "vout": 0,
+          "sequence": 4294967295,
+          "valueSats": 1000000,
+          "scriptPubKeyHex": "001475a016506707aa3503a7d875070eb78cf2df7127"
+        },
+        {
+          "txid": "a90920626cc6cfcd447302302813de73f3555cde27b232e14ed4bcca18fecbbc",
+          "vout": 0,
+          "sequence": 4294967295,
+          "valueSats": 1000000,
+          "scriptPubKeyHex": "001480cf72953cf8d10bc61413922135f227f2b701d6"
+        }
+      ],
+      "outputs": [
+        {
+          "valueSats": 401330,
+          "scriptPubKeyHex": "5120dc49e6a90b2ca05ce6b9e1b71b901c8f5c8a66efca371f760ab770e53333d8fa"
+        },
+        {
+          "valueSats": 797920,
+          "scriptPubKeyHex": "0014074541ef895296d8a1cb673d94c3829303056dac"
+        },
+        {
+          "valueSats": 799250,
+          "scriptPubKeyHex": "0014ff6d2d15ac2e7241df2a73add118f805633e0453"
+        }
+      ],
+      "locktime": 0,
+      "contributions": [
+        {
+          "wallet": "trader",
+          "contributionSats": 201330,
+          "feeSats": 750
+        },
+        {
+          "wallet": "maker",
+          "contributionSats": 200000,
+          "feeSats": 750
+        }
+      ]
+    },
+    "exit": {
+      "txid": "9a84118d4146f93ecfbf5d874a0e2bd67b8b484d8e5ded72da065d077f97b7f9",
+      "wtxid": "dbb657bb2ddc6c50cb50e11e97fc765061c8cba4201131607dbafdafa82b4bcb",
+      "blockHash": "547561d93d9fc566eea8832bb89acc9d54a5cb51dc086d0689f1b1c1fa3bf5a6",
+      "height": 115,
+      "feeSats": 1000,
+      "vsize": 248,
+      "inputs": [
+        {
+          "txid": "1b90cc9c3d8e98da591fc93aa3f6029fe8b5949d344273577513663b712f037f",
+          "vout": 0,
+          "sequence": 7,
+          "valueSats": 401330,
+          "scriptPubKeyHex": "5120dc49e6a90b2ca05ce6b9e1b71b901c8f5c8a66efca371f760ab770e53333d8fa"
+        }
+      ],
+      "outputs": [
+        {
+          "valueSats": 200000,
+          "scriptPubKeyHex": "5120afaec62505352678cdb09b21e4d73a7545807634ea10419d96ddf221d1d8bb3b"
+        },
+        {
+          "valueSats": 200000,
+          "scriptPubKeyHex": "51200503d76dd73c3316b69f5a429efaeb33bae87b8d5ee9e0c5616f7a9845e1e732"
+        },
+        {
+          "valueSats": 330,
+          "scriptPubKeyHex": "5120955933aaf11a00b1c30b7c180ca983a93be6e1c18df5be7dce2d25b5f735fea0"
+        }
+      ],
+      "locktime": 112
+    },
+    "payouts": [
+      {
+        "wallet": "trader",
+        "txid": "9a84118d4146f93ecfbf5d874a0e2bd67b8b484d8e5ded72da065d077f97b7f9",
+        "vout": 0,
+        "address": "bcrt1p47hvvfg9x5n83ndsnvs7f4e6w4zcqa35aggyr8vkmhezr5wchvasq457ep",
+        "amountSats": 200000,
+        "scriptPubKeyHex": "5120afaec62505352678cdb09b21e4d73a7545807634ea10419d96ddf221d1d8bb3b",
+        "confirmations": 1
+      },
+      {
+        "wallet": "maker",
+        "txid": "9a84118d4146f93ecfbf5d874a0e2bd67b8b484d8e5ded72da065d077f97b7f9",
+        "vout": 1,
+        "address": "bcrt1pq5pawmwh8se3dd5ltfpfa7htxwaws7udtm57p3tpdaafs30puueqtzg6n9",
+        "amountSats": 200000,
+        "scriptPubKeyHex": "51200503d76dd73c3316b69f5a429efaeb33bae87b8d5ee9e0c5616f7a9845e1e732",
+        "confirmations": 1
+      }
+    ],
+    "attacks": [],
+    "coreRejections": [
+      {
+        "label": "refund absolute lock",
+        "tipHeight": 111,
+        "txid": "9a84118d4146f93ecfbf5d874a0e2bd67b8b484d8e5ded72da065d077f97b7f9",
+        "wtxid": "dbb657bb2ddc6c50cb50e11e97fc765061c8cba4201131607dbafdafa82b4bcb",
+        "allowed": false,
+        "reject-reason": "non-final",
+        "reject-details": "non-final"
+      },
+      {
+        "label": "refund CSV with absolute lock satisfied",
+        "tipHeight": 112,
+        "txid": "9a84118d4146f93ecfbf5d874a0e2bd67b8b484d8e5ded72da065d077f97b7f9",
+        "wtxid": "dbb657bb2ddc6c50cb50e11e97fc765061c8cba4201131607dbafdafa82b4bcb",
+        "allowed": false,
+        "reject-reason": "non-BIP68-final",
+        "reject-details": "non-BIP68-final"
+      },
+      {
+        "label": "refund one block before CSV eligibility",
+        "tipHeight": 113,
+        "txid": "9a84118d4146f93ecfbf5d874a0e2bd67b8b484d8e5ded72da065d077f97b7f9",
+        "wtxid": "dbb657bb2ddc6c50cb50e11e97fc765061c8cba4201131607dbafdafa82b4bcb",
+        "allowed": false,
+        "reject-reason": "non-BIP68-final",
+        "reject-details": "non-BIP68-final"
+      }
+    ],
+    "recoveryFee": null,
+    "reorg": null,
+    "journals": {
+      "state": {
+        "kind": "utxoref_dlc_journal_checkpoint_v1",
+        "storeKind": "contract-state",
+        "storeKey": "fe713aab16cf79d0570eb189a6b00d48d2c6d1b4ba2417a8c103eea445d63773",
+        "recordCount": 9,
+        "headRecordHash": "fc6ee1a0c2de0e5ef473dedb5607a7f03d367e2b99f058925eb4a077a12e6175",
+        "checkpointHash": "4579f7ba04a22ebe318cca634d33221f641823d6cbb287719fd8efef87a85c94"
+      },
+      "authorizations": 2,
+      "watchtower": {
+        "checkpoint": {
+          "kind": "utxoref_dlc_journal_checkpoint_v1",
+          "storeKind": "watchtower",
+          "storeKey": "fe713aab16cf79d0570eb189a6b00d48d2c6d1b4ba2417a8c103eea445d63773",
+          "recordCount": 2,
+          "headRecordHash": "3e39411484621540bd6acc375f55de8ef98556c011b5e9aeb3f05d22ef5cd0a1",
+          "checkpointHash": "7bdf65ed0b4a564d7caac9d0f5ed47946abb9bffe4888f8aa0548c315fc6f690"
+        },
+        "alerts": []
+      },
+      "watchtowerPublicKey": "MCowBQYDK2VwAyEAxQxgjM41eA+0nyzuUeilxSQCowFti8LqHWWQnRJv6G8="
+    }
+  }
+}
