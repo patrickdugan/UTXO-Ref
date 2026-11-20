@@ -1,4 +1,4 @@
-# LN Markets × UTXORef prototype
+# LN Markets Ã— UTXORef prototype
 
 This folder builds a bounded BTC/USD derivative using UTXORef's existing
 two-party DLC primitives. It calculates collateral-backed payouts, creates
@@ -7,11 +7,10 @@ adaptor signatures, and saves a fully signed timeout refund. A separate
 process restores the public package and completes settlement after receiving
 the oracle attestations.
 
-**Evidence: `LOCAL_SIMULATION`. Funding and broadcast are disabled.** The
-default demo uses known fixture keys, synthetic prices and a synthetic
-funding outpoint. It exercises real transaction serialization and signature
-verification against the JavaScript research implementation. Bitcoin Core
-acceptance and chain maturity remain unverified in this folder.
+The default offline demo uses known fixture keys, synthetic prices and a
+synthetic funding outpoint. Its artifacts carry `LOCAL_SIMULATION` and
+contain candidate transaction bytes. The separate Core rehearsal below
+creates fresh regtest wallets and records active-chain confirmation evidence.
 
 ## Run it
 
@@ -49,6 +48,26 @@ Generated files:
 The reference cryptography performs substantial work during signature and
 oracle verification. A fresh run can take a few minutes. Package digests can
 change on a later run because signing uses fresh auxiliary randomness.
+
+## Run the Bitcoin Core rehearsal
+
+Install [Bitcoin Core 31.1](https://bitcoincore.org/bin/bitcoin-core-31.1/)
+and Node.js 24 or later. Pass the directory containing `bitcoind` and
+`bitcoin-cli` and choose a fresh output directory.
+
+```sh
+node LNMarkets/regtest.js --bitcoin-bin /path/to/bitcoin-31.1/bin --out LNMarkets/artifacts/regtest-01
+```
+
+The script starts its own regtest daemon with a new data directory, loopback
+RPC and peer connections disabled. Expect a few minutes of work. It stops the
+node on exit and retains the journals, both wallets' public recovery copies,
+and Core evidence under the output directory. The `core/` subdirectory
+contains disposable private wallet data. GitHub Actions uploads only the
+public result and contract artifacts.
+
+See [REGTEST_REPORT.md](REGTEST_REPORT.md) for observed transactions, Core
+rejections, the recovery drill, and the remaining deployment dependencies.
 
 ## What the demo trades
 
@@ -88,10 +107,10 @@ prototype requires to be at least 1,000 sats. The maker receives the
 complement of the trader's payout, preserving total collateral exactly.
 The test suite covers price moves beyond both loss limits.
 
-The demo assumes the trader supplies the extra fee and anchor budget. A
-funding-input allocator has not been implemented, so this accounting choice
-has not been enforced against wallet inputs. Ownership of the anchor and its
-fee-bump funding must be agreed during that integration.
+In the regtest ceremony the trader supplies the exit fee and anchor budget
+and holds the anchor key. Each wallet pays 750 sats of the funding fee.
+Both check the proposed inputs, contributions, change outputs, and payout
+commitments before signing their own funding input.
 
 ## LN Markets connection
 
@@ -144,8 +163,8 @@ The refund is fully signed during setup. Recovering those existing bytes
 requires no oracle attestation. The transaction commits an absolute refund
 height and the input commits the relative CSV delay; both conditions must
 be satisfied on the actual chain. CETs commit their absolute maturity
-height. Bitcoin Core must evaluate the exact transactions and chain state
-before a future broadcaster can send anything.
+height. The isolated regtest harness gates broadcast on the existing Core
+prebroadcast validators and single-use authorization journal.
 
 Package verification rebuilds every transaction from the plan, outpoint,
 oracle announcements and fee policy. It then validates both parties'
@@ -179,19 +198,17 @@ arguments. The returned `chainMaturityVerified: false` and
 
 | Work | Concrete acceptance condition |
 |---|---|
-| Funding ceremony | Both wallets verify the exact output amount and script, retain the refund and pins, and refuse funding after any input/outpoint change |
 | Oracle product spec | Fix price source, maturity observation, rounding, missing-price handling and disagreement rules; use separately operated keys |
 | Native signer | Route committed CET requests through the existing authorization and native-signer boundary; rebuild and attest the current signer candidate |
-| Core regtest rehearsal | Fund the derived output, prove early spends fail, mine maturity, verify CET/refund acceptance, then exercise fee pressure and reorgs |
 | Separate hosts | Repeat the ceremony with independent trader, maker and oracle processes; remove the venue and one oracle before recovery |
-| Wallet persistence | Deliver and restore the public recovery package on both wallets before funding; bind durable receipts to the existing contract state machine |
+| Recovery availability | Deliver and restore the public recovery package from independently controlled wallet storage and deploy mirrors and a watchtower |
 | Venue acceptance | LN Markets agrees how it accepts quotes and recognizes external collateral; maker obligations remain covered by the committed capital |
 
 The April Lightning/submarine-swap path can supply a later funding adapter
 through [`utxoref_dlc_subswap_funding.js`](../bitvm3/utxo_referee/utxoref_dlc_subswap_funding.js).
-This prototype starts with a supplied outpoint. Hold invoices, swap
-timeouts and chain confirmation must be connected to the funding ceremony
-before that route is usable.
+Its request and wallet view target an earlier Lightning/BitVM bundle.
+[REGTEST_REPORT.md](REGTEST_REPORT.md) describes the evidence and outpoint
+binding a future adapter for the current DLC would need.
 
 Existing project gates continue to apply:
 [`SECURITY_BLOCKERS.md`](../SECURITY_BLOCKERS.md),

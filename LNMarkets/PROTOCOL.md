@@ -78,12 +78,16 @@ Current packets use UTXORef's research Schnorr/adaptor envelopes.
 Interoperability with LN Markets or DLC Markets wire formats remains
 unverified and needs a separate protocol review with the venue.
 
-The prototype directly exercises the research cryptographic primitives. It
-does not advance a production `DlcStateStore`, issue funding authorization,
-produce a funded PSBT or call a broadcaster. The future wallet adapter must
-produce authenticated state-machine evidence through
-`COUNTERPARTY_SIGNATURES_VERIFIED` and `LOCAL_SIGNATURES_PERSISTED`, including
-refund restoration, before the existing funding gate can proceed.
+The offline APIs above construct and verify public settlement materials.
+`regtest.js` adds a separate Core rehearsal using `DlcStateStore`, the existing
+funding and execution prebroadcast guards, and durable one-use broadcast
+authorization. The rehearsal's ephemeral Ed25519 validator signs receipts
+for actual local checks. Both wallet roles restore the refund from their own
+public files before approving the collaborative PSBT. Two one-shot
+subprocesses hold disposable DLC party keys during setup and exit before
+funding. Production authorization still requires an audited native signer,
+independently authenticated peer transcripts and separately pinned
+validators.
 
 ## Transaction details
 
@@ -99,12 +103,12 @@ refund restoration, before the existing funding gate can proceed.
 | Exit miner fee | Exact `settlementFeeSats` |
 | Recovery policy | `cpfp-anchor-v1`, additional fee cap 10,000 sats, feerate cap 50 sat/vB, relay quorum 2 |
 
-The recovery policy is a commitment for a future fee-bump integration. This
-folder does not build a CPFP child or prove that the cap is sufficient under
-future fee pressure. The anchor's key and additional wallet inputs must be
-available to the recovery operator. A raw refund remains a candidate until
-Core validates both absolute and relative maturity, current unspent status,
-and relay policy.
+The regtest harness spends the CET's committed anchor with a confirmed
+trader wallet input. The existing watchtower checks the child's fee budget
+and stable Core policy, records a one-node relay-quorum halt, and observes
+the confirmed child. The rehearsal uses the normal regtest relay floor.
+A raw refund remains a candidate until Core validates absolute and relative
+maturity, current unspent status and relay policy.
 
 The venue has no designated signing key in this construction. Both
 counterparties can also agree to a different cooperative spend while they
@@ -128,8 +132,10 @@ This implementation was based on repository commit
 | [`tradelayer_dlc_adaptor_sig.js`](../bitvm3/utxo_referee/tradelayer_dlc_adaptor_sig.js) | Existing research Schnorr/adaptor implementation and fixture oracle signing |
 | [`tradelayer_taproot.js`](../bitvm3/utxo_referee/tradelayer_taproot.js) | Bitcoin transaction serialization |
 
-No changes to those modules are required by this folder. The existing
-repository test runner discovers `LNMarkets/test/*.test.js` automatically.
+The existing repository runner discovers `LNMarkets/test/*.test.js`
+automatically. The pinned Core workflow separately runs the funded
+integration. See [REGTEST_REPORT.md](REGTEST_REPORT.md) for the rehearsal's
+transaction and trust boundaries.
 
 ## Public LN Markets sources
 

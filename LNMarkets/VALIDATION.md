@@ -1,5 +1,8 @@
 # Prototype validation
 
+This document records the original offline baseline. The funded Core run and
+its transaction evidence are in [REGTEST_REPORT.md](REGTEST_REPORT.md).
+
 Run on 2026-11-19 against the new `LNMarkets/` folder, based on UTXORef
 `0dff29eaa259a2b853f599852aae232092629b78`. Local runtime: Node.js v24.22.3
 on Linux. No dependencies were installed.
