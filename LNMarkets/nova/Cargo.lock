@@ -1229,6 +1229,7 @@ version = "0.1.0"
 dependencies = [
  "ff",
  "nova-snark",
+ "num-bigint 0.4.8",
  "sha2",
 ]
 

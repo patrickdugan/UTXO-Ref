@@ -67,7 +67,11 @@ pub(crate) fn require_nonzero<F: PrimeField, CS: ConstraintSystem<F>>(
 #[cfg(test)]
 pub(crate) mod fixture {
     use super::*;
-    use nova_snark::{frontend::AllocatedBit, provider::Bn256EngineIPA, traits::Engine};
+    use nova_snark::{
+        frontend::{AllocatedBit, Index, LinearCombination, Variable},
+        provider::Bn256EngineIPA,
+        traits::Engine,
+    };
 
     pub(crate) type F = <Bn256EngineIPA as Engine>::Scalar;
     pub(crate) const JOURNAL: &[u8; 276] =
@@ -95,5 +99,78 @@ pub(crate) mod fixture {
                     .into()
             })
             .collect()
+    }
+
+    /// Evaluate every constraint while retaining only the assignments.
+    /// Useful for multi-million-constraint group arithmetic fixtures.
+    pub(crate) struct ConstraintCheck {
+        inputs: Vec<F>,
+        witness: Vec<F>,
+        pub(crate) first_failure: Option<String>,
+    }
+
+    impl ConstraintSystem<F> for ConstraintCheck {
+        type Root = Self;
+
+        fn new() -> Self {
+            Self {
+                inputs: vec![F::from(1)],
+                witness: Vec::new(),
+                first_failure: None,
+            }
+        }
+
+        fn alloc<C, A, AR>(&mut self, _name: A, witness: C) -> Result<Variable, SynthesisError>
+        where
+            C: FnOnce() -> Result<F, SynthesisError>,
+            A: FnOnce() -> AR,
+            AR: Into<String>,
+        {
+            let index = self.witness.len();
+            self.witness.push(witness()?);
+            Ok(Variable::new_unchecked(Index::Aux(index)))
+        }
+
+        fn alloc_input<C, A, AR>(
+            &mut self,
+            _name: A,
+            witness: C,
+        ) -> Result<Variable, SynthesisError>
+        where
+            C: FnOnce() -> Result<F, SynthesisError>,
+            A: FnOnce() -> AR,
+            AR: Into<String>,
+        {
+            let index = self.inputs.len();
+            self.inputs.push(witness()?);
+            Ok(Variable::new_unchecked(Index::Input(index)))
+        }
+
+        fn enforce<A, AR, LA, LB, LC>(&mut self, name: A, a: LA, b: LB, c: LC)
+        where
+            A: FnOnce() -> AR,
+            AR: Into<String>,
+            LA: FnOnce(LinearCombination<F>) -> LinearCombination<F>,
+            LB: FnOnce(LinearCombination<F>) -> LinearCombination<F>,
+            LC: FnOnce(LinearCombination<F>) -> LinearCombination<F>,
+        {
+            let a = a(LinearCombination::zero()).eval(&self.inputs, &self.witness);
+            let b = b(LinearCombination::zero()).eval(&self.inputs, &self.witness);
+            let c = c(LinearCombination::zero()).eval(&self.inputs, &self.witness);
+            if a * b != c && self.first_failure.is_none() {
+                self.first_failure = Some(name().into());
+            }
+        }
+
+        fn push_namespace<NR, N>(&mut self, _name: N)
+        where
+            NR: Into<String>,
+            N: FnOnce() -> NR,
+        {
+        }
+        fn pop_namespace(&mut self) {}
+        fn get_root(&mut self) -> &mut Self {
+            self
+        }
     }
 }

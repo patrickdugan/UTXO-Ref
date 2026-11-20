@@ -10,6 +10,7 @@ gpu = ["nova-snark/blitzar"]
 [dependencies]
 ff = "=0.13.1"
 nova-snark = "=0.76.0"
+num-bigint = "=0.4.8"
 sha2 = "=0.10.9"
 
 [[example]]

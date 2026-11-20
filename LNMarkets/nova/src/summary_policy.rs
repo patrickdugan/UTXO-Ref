@@ -226,7 +226,7 @@ fn require<F: PrimeField, CS: ConstraintSystem<F>>(
     Boolean::enforce_equal(cs, bit, &Boolean::constant(expected))
 }
 
-fn require_different<F: PrimeField, CS: ConstraintSystem<F>>(
+pub(crate) fn require_different<F: PrimeField, CS: ConstraintSystem<F>>(
     mut cs: CS,
     one: &[Boolean],
     two: &[Boolean],

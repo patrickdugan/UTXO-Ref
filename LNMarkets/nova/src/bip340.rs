@@ -5,16 +5,17 @@ use nova_snark::frontend::{Boolean, ConstraintSystem, SynthesisError};
 use sha2::{Digest, Sha256};
 
 use crate::nullifier::{bits, tagged_digest, DigestBits};
+use crate::secp256k1::Secp256k1;
 use crate::wire::{constants, less_than_le, require_nonzero};
 
-const BASE_MODULUS: [u8; 32] = {
+pub(crate) const BASE_MODULUS: [u8; 32] = {
     let mut bytes = [0xff; 32];
     bytes[27] = 0xfe;
     bytes[30] = 0xfc;
     bytes[31] = 0x2f;
     bytes
 };
-const SCALAR_ORDER: [u8; 32] = [
+pub(crate) const SCALAR_ORDER: [u8; 32] = [
     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfe,
     0xba, 0xae, 0xdc, 0xe6, 0xaf, 0x48, 0xa0, 0x3b, 0xbf, 0xd2, 0x5e, 0x8c, 0xd0, 0x36, 0x41, 0x41,
 ];
@@ -26,6 +27,31 @@ pub struct SchnorrComponents {
     pub r: DigestBits,
     pub s: DigestBits,
     pub e: DigestBits,
+}
+
+/// Apply the complete BIP340 check to a private signature and the exact
+/// key and message bits used by the application statement.
+pub fn verify_signature<F: PrimeField, CS: ConstraintSystem<F>>(
+    mut cs: CS,
+    curve: &Secp256k1<F>,
+    key: &DigestBits,
+    message: &DigestBits,
+    signature: &[Boolean; 512],
+) -> Result<(), SynthesisError> {
+    let parts = signature_transcript(
+        cs.namespace(|| "signature transcript"),
+        key,
+        message,
+        signature,
+    )?;
+    let key = curve.lift_x(cs.namespace(|| "verify public key lift"), key)?;
+    curve.verify_schnorr_equation(
+        cs.namespace(|| "verify BIP340 equation"),
+        &key,
+        &parts.s,
+        &parts.e,
+        &parts.r,
+    )
 }
 
 /// Check the signature encoding used by the pinned native k256 verifier
@@ -56,7 +82,7 @@ pub fn signature_transcript<F: PrimeField, CS: ConstraintSystem<F>>(
     Ok(SchnorrComponents { r, s, e })
 }
 
-fn require_below<F: PrimeField, CS: ConstraintSystem<F>>(
+pub(crate) fn require_below<F: PrimeField, CS: ConstraintSystem<F>>(
     mut cs: CS,
     input: &DigestBits,
     limit: &[u8; 32],
@@ -113,7 +139,7 @@ mod tests {
     use super::*;
     use crate::wire::{
         enforce_same_bits,
-        fixture::{allocated, decode, F},
+        fixture::{allocated, decode, ConstraintCheck, F},
     };
     use nova_snark::frontend::test_cs::TestConstraintSystem;
 
@@ -124,6 +150,32 @@ mod tests {
         "e8961da50e0bc6b65a8f7acc12e1e6ecba40b997542216d10a436e43515958060b",
         "d8cf62008b6071e944eff4f1758561612530df89ad8ce3a355b58bc8636f29"
     );
+
+    fn check_curve_relation(wire_signature: &[u8; 64]) -> Option<String> {
+        let mut cs = ConstraintCheck::new();
+        let curve = Secp256k1::new::<ConstraintCheck>().unwrap();
+        let mut allocate = |wire: &[u8]| allocated(cs.namespace(|| "test input"), wire);
+        let key = allocate(&decode::<32>(KEY)).try_into().unwrap();
+        let message = allocate(&decode::<32>(MESSAGE)).try_into().unwrap();
+        let signature = allocate(wire_signature).try_into().unwrap();
+        verify_signature(
+            cs.namespace(|| "signature verification"),
+            &curve,
+            &key,
+            &message,
+            &signature,
+        )
+        .unwrap();
+        cs.first_failure
+    }
+
+    #[test]
+    fn checks_the_full_saved_trader_signature_and_rejects_changed_scalar() {
+        let mut signature = decode(SIGNATURE);
+        assert_eq!(check_curve_relation(&signature), None);
+        signature[63] ^= 1;
+        assert!(check_curve_relation(&signature).is_some());
+    }
 
     fn verify_transcript(
         key: [u8; 32],
