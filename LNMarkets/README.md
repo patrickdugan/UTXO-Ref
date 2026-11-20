@@ -1,4 +1,4 @@
-# LN Markets Ã— UTXORef prototype
+# LN Markets Ãƒâ€” UTXORef prototype
 
 This folder builds a bounded BTC/USD derivative using UTXORef's existing
 two-party DLC primitives. It calculates collateral-backed payouts, creates
@@ -68,6 +68,13 @@ public result and contract artifacts.
 
 See [REGTEST_REPORT.md](REGTEST_REPORT.md) for observed transactions, Core
 rejections, the recovery drill, and the remaining deployment dependencies.
+
+## Batch proposals and ZK verification
+
+The wallet can export a verified DLC into the pinned companion batch
+statement and build a public journal for the proposed transaction. See
+[BATCH_VERIFIER.md](BATCH_VERIFIER.md) for the witness, native interoperation,
+and SP1 verifier paths.
 
 ## What the demo trades
 
