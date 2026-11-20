@@ -2,7 +2,7 @@ use ff::PrimeField;
 use nova_snark::frontend::{sha256, Boolean, ConstraintSystem, SynthesisError};
 use sha2::{Digest, Sha256};
 
-const NODE_TAG: &[u8] = b"UTXORef/LNMarkets/bitcoin-regtest/lnmarkets/v1/nullifier-node";
+const DOMAIN: &str = "UTXORef/LNMarkets/bitcoin-regtest/lnmarkets/v1/";
 pub type DigestBits = [Boolean; 256];
 
 /// Traverse one authorization tree level for both the old and inserted leaf.
@@ -15,7 +15,7 @@ pub fn nullifier_parents<F: PrimeField, CS: ConstraintSystem<F>>(
     sibling: &DigestBits,
     node_is_right: &Boolean,
 ) -> Result<(DigestBits, DigestBits), SynthesisError> {
-    let tag: [u8; 32] = Sha256::digest(NODE_TAG).into();
+    let tag = tag_hash("nullifier-node");
     Ok((
         parent(
             cs.namespace(|| "before"),
@@ -51,18 +51,30 @@ fn parent<F: PrimeField, CS: ConstraintSystem<F>>(
         right.push(Boolean::xor(ns.namespace(|| "right"), sibling_bit, &swap)?);
     }
 
+    left.extend(right);
+    tagged_digest(cs.namespace(|| "tagged node SHA256"), tag, &left)
+}
+
+pub(crate) fn tag_hash(label: &str) -> [u8; 32] {
+    Sha256::digest(format!("{DOMAIN}{label}").as_bytes()).into()
+}
+
+pub(crate) fn tagged_digest<F: PrimeField, CS: ConstraintSystem<F>>(
+    cs: CS,
+    tag: &[u8; 32],
+    payload: &[Boolean],
+) -> Result<DigestBits, SynthesisError> {
     let tag = bits(tag).map(Boolean::constant);
-    let mut message = Vec::with_capacity(1024);
+    let mut message = Vec::with_capacity(512 + payload.len());
     message.extend(tag.clone());
     message.extend(tag);
-    message.extend(left);
-    message.extend(right);
-    sha256(cs.namespace(|| "tagged node SHA256"), &message)?
+    message.extend_from_slice(payload);
+    sha256(cs, &message)?
         .try_into()
         .map_err(|_| SynthesisError::Unsatisfiable("invalid SHA-256 digest length".into()))
 }
 
-fn bits(bytes: &[u8]) -> impl Iterator<Item = bool> + Clone + '_ {
+pub(crate) fn bits(bytes: &[u8]) -> impl Iterator<Item = bool> + Clone + '_ {
     bytes
         .iter()
         .flat_map(|byte| (0..8).rev().map(move |bit| *byte & (1 << bit) != 0))
@@ -93,7 +105,7 @@ mod tests {
     }
 
     fn reference(left: &[u8; 32], right: &[u8; 32]) -> [u8; 32] {
-        let tag = Sha256::digest(NODE_TAG);
+        let tag = tag_hash("nullifier-node");
         Sha256::new()
             .chain_update(tag)
             .chain_update(tag)

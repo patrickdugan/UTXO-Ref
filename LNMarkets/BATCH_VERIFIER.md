@@ -80,10 +80,13 @@ compression. Nova's Blitzar feature offloads BN254 commitments to NVIDIA
 CUDA on Linux. The proof verifier can use the same reviewed circuit and
 public parameters independently of the prover's accelerator.
 
-The first ported constraint in [the Nova crate](nova/) computes one level
-of the old and inserted authorization paths. Both computations share the
-same sibling and direction and use the v1 tagged SHA-256 node format.
-Run its constraint test with the locked dependencies.
+The [Nova crate](nova/) implements a repeatable step for the old and
+inserted authorization paths. The standalone initial state derives the
+key and leaves from a specified outpoint. The circuit also constrains that
+derivation for a private outpoint. Each path step consumes the next key bit
+from the leaf end and computes both parents using the same sibling. A
+standalone verifier supplies the initial state, verifies exactly 256 steps
+and compares both roots. Run the constraint tests with the locked dependencies.
 
 ```sh
 cargo test --locked --release --manifest-path LNMarkets/nova/Cargo.toml
@@ -99,9 +102,9 @@ cargo run --locked --release --manifest-path LNMarkets/nova/Cargo.toml \
   --features gpu --example gpu_smoke
 ```
 
-For batch acceptance, the circuit must derive the nullifier bit from the
-funding outpoint key, process all 256 levels per row, and connect each new
-root to the next row. It also needs the pinned statement's summary and
+For batch acceptance, the circuit must bind those path inputs to the
+signed row within the private witness, and connect each new root to the
+next row and to the retained journal. It also needs the pinned statement's summary and
 outcome membership checks, all six BIP340 signatures per row, Taproot
 funding commitments, settlement transaction assembly and amounts, and all
 276 public journal bytes. Acceptance remains pending until a compressed
