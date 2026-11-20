@@ -91,7 +91,8 @@ and compares both roots. Run the constraint tests with the locked dependencies.
 The amount step uses the v1 summary and outcome wire bits. It constrains
 non-dust trader, maker and anchor outputs, the committed miner fee, exact
 collateral conservation and the running Bitcoin money range. A regression
-test reproduces the public journal totals from the saved two-trade batch.
+test reproduces the saved two-trade journal's 802,660 sats of collateral,
+800,660 sats of payouts including anchors and 2,000 sats of fees.
 
 ```sh
 cargo test --locked --release --manifest-path LNMarkets/nova/Cargo.toml
@@ -106,6 +107,11 @@ with a small arithmetic circuit. Use Linux x86-64 with NVIDIA CUDA access.
 cargo run --locked --release --manifest-path LNMarkets/nova/Cargo.toml \
   --features gpu --example gpu_smoke
 ```
+
+On the local RTX 5080 Laptop GPU under WSL, the run with
+`CUDA_LAUNCH_BLOCKING=1` completed both folds and Spartan IPA compression.
+Verification accepted the expected output and rejected the altered public
+input. This result covers the smoke circuit's two multiplications.
 
 For batch acceptance, the circuit must bind those path inputs to the
 signed row within the private witness, and connect each new root to the
