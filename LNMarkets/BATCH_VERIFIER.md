@@ -150,9 +150,17 @@ The official CLI derived this program key in SP1's `bytes32()` encoding.
 0x00ea8fcb7a6005d796ce6cc7ec643aa399831db9d2529fb6cba72d7a0eae8f52
 ```
 
-The host's `programVkDigest` uses a different byte encoding. Compare the
-host's `program_vkey_bytes32` against the recorded key and separately
-approve its `program_vk_digest` for the verification policy. These are
-local build measurements. The recorded run reached guest compilation and
-key derivation. Executing the guest against the two-trade witness and
-verifying a genuine Groth16 proof remain the next verification milestones.
+The release-mode SP1 host independently derived the same program key.
+Its equivalent pin for `programVkDigest` uses eight little-endian words.
+
+```text
+bde54775e5750118fd98cd5939aa4346ceed184cdb7e4a49f45a4e17528fae0e
+```
+
+The guest exited successfully after 48,224,478 instructions and committed
+all 276 bytes of the independently retained journal. Guest execution took
+9.78 seconds after 16.61 seconds of host key setup. See the
+[recorded SP1 execution](evidence/sp1-two-trade-execution.json).
+
+The execution result is `executed_unproved`. A separate Groth16 run and
+verification through UTXORef establish the zero-knowledge proof result.
