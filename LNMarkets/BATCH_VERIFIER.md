@@ -88,6 +88,11 @@ from the leaf end and computes both parents using the same sibling. A
 standalone verifier supplies the initial state, verifies exactly 256 steps
 and compares both roots. Run the constraint tests with the locked dependencies.
 
+The amount step uses the v1 summary and outcome wire bits. It constrains
+non-dust trader, maker and anchor outputs, the committed miner fee, exact
+collateral conservation and the running Bitcoin money range. A regression
+test reproduces the public journal totals from the saved two-trade batch.
+
 ```sh
 cargo test --locked --release --manifest-path LNMarkets/nova/Cargo.toml
 ```
@@ -104,9 +109,10 @@ cargo run --locked --release --manifest-path LNMarkets/nova/Cargo.toml \
 
 For batch acceptance, the circuit must bind those path inputs to the
 signed row within the private witness, and connect each new root to the
-next row and to the retained journal. It also needs the pinned statement's summary and
-outcome membership checks, all six BIP340 signatures per row, Taproot
-funding commitments, settlement transaction assembly and amounts, and all
+next row and to the retained journal. It must also bind the constrained
+amounts to those rows and the journal. The remaining checks include the
+pinned statement's summary and outcome membership, all six BIP340
+signatures per row, Taproot funding commitments, transaction assembly and all
 276 public journal bytes. Acceptance remains pending until a compressed
 proof of that full relation verifies against independently retained journal
 bytes, circuit parameters and venue state.
