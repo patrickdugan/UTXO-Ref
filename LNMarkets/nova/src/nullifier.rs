@@ -17,14 +17,14 @@ pub fn nullifier_parents<F: PrimeField, CS: ConstraintSystem<F>>(
 ) -> Result<(DigestBits, DigestBits), SynthesisError> {
     let tag = tag_hash("nullifier-node");
     Ok((
-        parent(
+        merkle_parent(
             cs.namespace(|| "before"),
             &tag,
             before,
             sibling,
             node_is_right,
         )?,
-        parent(
+        merkle_parent(
             cs.namespace(|| "after"),
             &tag,
             after,
@@ -34,7 +34,7 @@ pub fn nullifier_parents<F: PrimeField, CS: ConstraintSystem<F>>(
     ))
 }
 
-fn parent<F: PrimeField, CS: ConstraintSystem<F>>(
+pub(crate) fn merkle_parent<F: PrimeField, CS: ConstraintSystem<F>>(
     mut cs: CS,
     tag: &[u8; 32],
     node: &DigestBits,

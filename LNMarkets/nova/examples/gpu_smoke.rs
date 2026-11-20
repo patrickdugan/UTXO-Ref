@@ -1,4 +1,5 @@
 use ff::Field;
+use lnmarkets_nova::settlement_amounts::SettlementAmountStep;
 use nova_snark::{
     frontend::{num::AllocatedNum, ConstraintSystem, SynthesisError},
     nova::{CompressedSNARK, PublicParams, RecursiveSNARK},
@@ -37,24 +38,62 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     {
         return Err("CUDA_VISIBLE_DEVICES hides all CUDA devices".into());
     }
-    let steps = [Multiply(F::from(3)), Multiply(F::from(7))];
-    let initial = [F::ONE];
-    let expected = [F::from(21)];
+    match std::env::args().skip(1).collect::<Vec<_>>().as_slice() {
+        [] => {
+            let steps = [Multiply(F::from(3)), Multiply(F::from(7))];
+            prove_and_check(&steps, &[F::ONE], &[F::from(21)])?;
+            println!("Nova GPU smoke proof verified and altered public input rejected");
+        }
+        [mode] if mode == "--settlement-amounts" => {
+            let steps = [
+                SettlementAmountStep {
+                    collateral: 401_330,
+                    trader: 88_889,
+                    maker: 311_111,
+                    anchor: 330,
+                    fee: 1_000,
+                },
+                SettlementAmountStep {
+                    collateral: 401_330,
+                    trader: 290_909,
+                    maker: 109_091,
+                    anchor: 330,
+                    fee: 1_000,
+                },
+            ];
+            let journal = include_bytes!("../../evidence/sp1-two-trade-journal.bin");
+            let mut totals = [0u64; 3];
+            for (total, field) in totals.iter_mut().zip(journal[252..276].chunks_exact(8)) {
+                *total = u64::from_le_bytes(field.try_into().unwrap());
+            }
+            prove_and_check(&steps, &[F::ZERO; 3], &totals.map(F::from))?;
+            println!("Nova GPU settlement-amount proof matches the saved journal totals and rejects altered public input");
+        }
+        _ => return Err("usage: gpu_smoke [--settlement-amounts]".into()),
+    }
+    Ok(())
+}
+
+fn prove_and_check<C: StepCircuit<F>>(
+    steps: &[C],
+    initial: &[F],
+    expected: &[F],
+) -> Result<(), Box<dyn std::error::Error>> {
     eprintln!("Preparing Nova parameters");
-    let pp =
-        PublicParams::<E1, E2, Multiply>::setup(&steps[0], &*S1::ck_floor(), &*S2::ck_floor())?;
+    let pp = PublicParams::<E1, E2, C>::setup(&steps[0], &*S1::ck_floor(), &*S2::ck_floor())?;
     eprintln!("Creating the first Nova instance");
-    let mut folded = RecursiveSNARK::new(&pp, &steps[0], &initial)?;
+    let mut folded = RecursiveSNARK::new(&pp, &steps[0], initial)?;
     for (index, step) in steps.iter().enumerate() {
         folded.prove_step(&pp, step)?;
         eprintln!("Completed fold {}", index + 1);
     }
-    assert_eq!(folded.verify(&pp, steps.len(), &initial)?, expected);
+    assert_eq!(folded.verify(&pp, steps.len(), initial)?, expected);
     eprintln!("Compressing the fold with Spartan IPA");
     let (pk, vk) = CompressedSNARK::<_, _, _, S1, S2>::setup(&pp)?;
     let compressed = CompressedSNARK::prove(&pp, &pk, &folded)?;
-    assert_eq!(compressed.verify(&vk, steps.len(), &initial)?, expected);
-    assert!(compressed.verify(&vk, steps.len(), &[F::from(2)]).is_err());
-    println!("Nova GPU smoke proof verified and altered public input rejected");
+    assert_eq!(compressed.verify(&vk, steps.len(), initial)?, expected);
+    let mut altered = initial.to_vec();
+    altered[0] += F::ONE;
+    assert!(compressed.verify(&vk, steps.len(), &altered).is_err());
     Ok(())
 }

@@ -6,6 +6,8 @@ use nova_snark::{
     traits::circuit::StepCircuit,
 };
 
+use crate::{V1_OUTCOME_BYTES, V1_SUMMARY_BYTES};
+
 const MAX_MONEY: u64 = 21_000_000 * 100_000_000;
 const MIN_OUTPUT_SATS: u64 = 330;
 const MAX_ROW_FEE_SATS: u64 = 1_000_000;
@@ -28,7 +30,7 @@ pub struct RowAmountBits {
 impl RowAmountBits {
     /// Share the exact encoded fields with the summary and outcome hashes.
     pub fn from_v1_wire(summary: &[Boolean], outcome: &[Boolean]) -> Result<Self, SynthesisError> {
-        if summary.len() != 546 * 8 || outcome.len() != 68 * 8 {
+        if summary.len() != V1_SUMMARY_BYTES * 8 || outcome.len() != V1_OUTCOME_BYTES * 8 {
             return Err(SynthesisError::Unsatisfiable(
                 "invalid v1 summary or outcome bit length".into(),
             ));
@@ -293,8 +295,8 @@ mod tests {
         let mut totals = input(&mut cs, [0; 3]);
         for (i, row) in [ROW_ONE, ROW_TWO].into_iter().enumerate() {
             let mut ns = cs.namespace(|| format!("row {i}"));
-            let mut summary = vec![Boolean::constant(false); 546 * 8];
-            let mut outcome = vec![Boolean::constant(false); 68 * 8];
+            let mut summary = vec![Boolean::constant(false); V1_SUMMARY_BYTES * 8];
+            let mut outcome = vec![Boolean::constant(false); V1_OUTCOME_BYTES * 8];
             summary[164 * 8..172 * 8].clone_from_slice(
                 &allocate_wire(ns.namespace(|| "summary collateral"), row.collateral).unwrap(),
             );

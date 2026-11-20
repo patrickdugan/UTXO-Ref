@@ -94,8 +94,16 @@ collateral conservation and the running Bitcoin money range. A regression
 test reproduces the saved two-trade journal's 802,660 sats of collateral,
 800,660 sats of payouts including anchors and 2,000 sats of fees.
 
+The outcome circuit recomputes the selected leaf from the v1 bytes,
+checks its index against the outcome count and compares the Merkle root
+with the root in the signed summary. It pads the witness to a fixed circuit
+shape independent of the outcome depth. The signing digest
+circuit computes the exact summary, oracle and batch consent messages
+from those same bytes and the agreed context.
+
 ```sh
-cargo test --locked --release --manifest-path LNMarkets/nova/Cargo.toml
+cargo test --locked --release --manifest-path LNMarkets/nova/Cargo.toml \
+  -- --test-threads=1
 ```
 
 The GPU smoke test runs a two-step Nova fold with private factors,
@@ -113,12 +121,22 @@ On the local RTX 5080 Laptop GPU under WSL, the run with
 Verification accepted the expected output and rejected the altered public
 input. This result covers the smoke circuit's two multiplications.
 
+The same CUDA path verified a Nova proof of both saved settlement amount
+rows against the exact journal totals and rejected an altered public input.
+Run that component proof from the repository root.
+
+```sh
+CUDA_LAUNCH_BLOCKING=1 cargo run --locked --release \
+  --manifest-path LNMarkets/nova/Cargo.toml --features gpu --example gpu_smoke \
+  -- --settlement-amounts
+```
+
 For batch acceptance, the circuit must bind those path inputs to the
 signed row within the private witness, and connect each new root to the
 next row and to the retained journal. It must also bind the constrained
 amounts to those rows and the journal. The remaining checks include the
-pinned statement's summary and outcome membership, all six BIP340
-signatures per row, Taproot funding commitments, transaction assembly and all
+pinned statement's accepted-set root, all six BIP340 signatures per row,
+Taproot funding commitments, transaction assembly and all
 276 public journal bytes. Acceptance remains pending until a compressed
 proof of that full relation verifies against independently retained journal
 bytes, circuit parameters and venue state.
