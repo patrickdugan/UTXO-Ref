@@ -207,8 +207,13 @@ The curve circuit processes eight joint scalar bits per step. Each row
 contributes the Taproot funding equation and six BIP340 equations. The
 authorization circuit derives all fourteen from the signed bytes of the
 saved two-trade fixture and binds their order, inputs and parity rules
-with a salted Poseidon commitment. On CUDA, all 448 folds finished in
-204.3 seconds and recursive verification matched that commitment.
+with a salted Poseidon commitment. All 448 CUDA folds completed in
+245.9 seconds. The CPU helper independently checked the fold and
+verified the compressed proof after 46.5 seconds. A separate verifier
+process accepted the 11,476-byte artifact against the retained equation
+binding and rejected a substituted all-zero binding. The artifact
+SHA-256 was
+`e9efe1cdeab522da57e562799bca903c14beddc91603e12a54f0ed263f160c1d`.
 The curve step has 191,895 primary constraints including Nova's wrapper.
 The two-trade authorization step has 3,349,692 constraints before its
 wrapper. Selecting the canonical CSV leaf padding before SHA-256
