@@ -23,7 +23,7 @@ concurrency:
 jobs:
   verify-native-abi:
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
         with:
@@ -47,4 +47,13 @@ jobs:
       - name: Test Nova batch constraints
         run: |
           cargo +stable test --locked --release --manifest-path LNMarkets/nova/Cargo.toml -- --test-threads=1
-          LNM_BATCH_FIXTURE="$RUNNER_TEMP/lnmarkets-batch-abi" +            cargo +stable test --locked --release --manifest-path LNMarkets/nova/Cargo.toml +            native_fixture_binds_every_row -- --ignored --test-threads=1
+          LNM_BATCH_FIXTURE="$RUNNER_TEMP/lnmarkets-batch-abi" \
+            cargo +stable test --locked --release --manifest-path LNMarkets/nova/Cargo.toml \
+            native_fixture_binds_every_row -- --ignored --test-threads=1
+      - name: Verify the saved GPU proof set on CPU
+        run: |
+          cargo +stable build --locked --release --manifest-path LNMarkets/nova/Cargo.toml \
+            --bin lnm-nova-verify
+          LNM_NOVA_VERIFIER="$PWD/LNMarkets/nova/target/release/lnm-nova-verify" \
+            LNM_NOVA_PROOFS="$PWD/LNMarkets/evidence/nova-two-trade-proofs" \
+            node --test LNMarkets/test/nova-proof-set.test.js

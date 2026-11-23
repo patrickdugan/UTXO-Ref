@@ -300,8 +300,13 @@ only the retained journal and compressed proofs.
 
 ```sh
 LNM_NOVA_VERIFIER="$PWD/LNMarkets/nova/target/release/lnm-nova-verify" \
-  LNM_NOVA_PROOFS="$proofs" node --test LNMarkets/test/nova-proof-set.test.js
+  LNM_NOVA_PROOFS="$PWD/LNMarkets/evidence/nova-two-trade-proofs" \
+  node --test LNMarkets/test/nova-proof-set.test.js
 ```
+
+The batch ABI workflow runs this test on CPU using the three published
+proof files and the separately pinned journal. The fixture includes only
+the compressed proofs and public verification data.
 
 Before accepting a verified batch, the venue must atomically compare the
 retained epoch and old root with current state and commit the new root and
