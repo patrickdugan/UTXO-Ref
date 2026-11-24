@@ -586,7 +586,7 @@ checksum = "f9f8bd3e56ce4dfc153cf470fffbfa98c7620958b312ca5c3a4b8d5181fd13c6"
 [[package]]
 name = "m13-verify"
 version = "0.1.0"
-source = "git+https://github.com/patrickdugan/garbled-snark-verifier?rev=d4aefcdf714874d23b6a5bbfb64616cc27dcdb32#d4aefcdf714874d23b6a5bbfb64616cc27dcdb32"
+source = "git+https://github.com/patrickdugan/garbled-snark-verifier?rev=25c6c2300c3b932c68790b87ff56b40844902acc#25c6c2300c3b932c68790b87ff56b40844902acc"
 dependencies = [
  "anyhow",
  "bincode",

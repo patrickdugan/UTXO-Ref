@@ -11,12 +11,15 @@ Every failure is a refusal with its own reason code. The signer returns that cod
 1. **Final proof** (`src/proof.rs`), in `m13_verify::verify_final`'s order:
    - the wrap key equals the pinned key (`proof_wrap_key`);
    - the BLAKE3 STARK verifies (`proof_rejected`);
+   - the public values hash, under SP1's Poseidon2, to the digest the STARK constrains (`proof_public_values_digest`);
    - the exit code is 0 (`proof_exit_code`) and the proof is complete (`proof_incomplete`);
    - the guest program is M16 (`proof_wrong_program`);
    - SP1's recursion key map is the pinned one (`proof_recursion_root`);
    - the proof commits to exactly the statement bytes supplied (`statement_digest_mismatch`).
 
    The proof commits only the statement's SHA-256, so the request carries the 1,292 statement bytes beside the proof. A proof over 2 MiB is refused as `proof_too_large`; one that fails to decode is `proof_malformed`.
+
+   The digest check was added on 2026-11-24 with `m13-verify` at garbled-snark-verifier `25c6c23`. SP1's wrap machine constrains only the `digest` slots of a proof's public values, so the program key, the statement digest and the exit code are bound to the proof through that digest alone. Before this check the gate accepted a wrap proof whose public values a prover had replaced before proving: any valid SP1 proof, shrunk and wrapped once, could be made to show the M16 program key and the digest of an invented payment statement. A request the gate released before that date was not bound to a real payment by the proof.
 2. **Statement** (`src/statement.rs`): guest A's 1,164-byte chain record plus the 128-byte `PAY1` record, at fixed offsets. Refusals:
    - a chain record with no payment: `no_payment_record`;
    - any other length: `statement_length`;
