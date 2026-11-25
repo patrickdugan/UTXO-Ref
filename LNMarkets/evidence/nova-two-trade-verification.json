@@ -1,0 +1,81 @@
+{
+  "schema": "lnm-nova-regtest-verification/v1",
+  "date": "2026-11-20",
+  "nativeCompanionRevision": "992cdb1c51b5c7a630ea552b2648acbad4308a9b",
+  "nativeVerificationStatus": "native_verified_unproved",
+  "novaVersion": "0.76.0",
+  "accelerator": "NVIDIA GeForce RTX 5080 Laptop GPU",
+  "provingEnvironment": "Ubuntu 24.04 under WSL",
+  "compression": "Spartan IPA on CPU",
+  "publicJournalBytes": 276,
+  "unsignedTransactionBytes": 221,
+  "evaluationHeight": 1001,
+  "validUntilHeight": 1010,
+  "acceptedSetRoot": "4fb12519977d558d58acb4ba428e14e87014aba1fab7d17f026aa24ba5a35f9f",
+  "amountsInSatoshis": {
+    "collateral": 802660,
+    "payout": 800660,
+    "fee": 2000,
+    "trader": 379798,
+    "maker": 420202,
+    "anchor": 660
+  },
+  "proofMetrics": {
+    "authorization": {
+      "bytes": 12832,
+      "folds": 1,
+      "primaryConstraints": 3362806,
+      "gpuElapsedSeconds": 112.8,
+      "cpuHelperElapsedSeconds": 565.2
+    },
+    "curve": {
+      "bytes": 11476,
+      "folds": 448,
+      "primaryConstraints": 191895,
+      "gpuElapsedSeconds": 245.9,
+      "cpuHelperElapsedSeconds": 46.5
+    },
+    "nullifier": {
+      "bytes": 11348,
+      "folds": 512,
+      "primaryConstraints": 209826,
+      "gpuElapsedSeconds": 311.8,
+      "cpuHelperElapsedSeconds": 43
+    }
+  },
+  "venueTest": {
+    "durationSeconds": 216.251,
+    "advancedRootReplayRejected": true,
+    "substitutedProofRejected": true,
+    "rejectedReceiptFiles": 0
+  },
+  "regressionChecks": {
+    "nodeTestFilesPassed": 121,
+    "refereeSuitesPassed": 99,
+    "novaUnitTestsPassed": 31,
+    "novaNativeFixtureTestPassed": true,
+    "refereeLockedEvalPoints": 100,
+    "dlcLockedEvalPoints": 568
+  },
+  "receipt": {
+    "status": "nova_batch_proof_verified",
+    "network": "bitcoin-regtest",
+    "zeroKnowledgeProofVerified": true,
+    "proofSha256": {
+      "authorization": "c0425660c21d5bdf0db1131e98610cb2e0e5a77cd04bd21902408411e6efc0df",
+      "curve": "e9efe1cdeab522da57e562799bca903c14beddc91603e12a54f0ed263f160c1d",
+      "nullifier": "b153670c3dd829ad34c5a4e9eee2a832f16f21dad6463c66bf14ad99def146c7"
+    },
+    "expectedJournalSha256": "d86b336aa405809b466694c13a285dc632230bdcf46f73be9c7f1a18d1dbbe00",
+    "hostSha256": "713ba1741017b2f63882f25b4f20455a1c48003c710f6a08fb08aa8b22c00b09",
+    "outputCount": 3,
+    "epoch": "2",
+    "rowCount": 2,
+    "batchId": "9a40462789b94b62a9caaa48dd8dcf40d8ce9d433598b9e3dd43087ccbe7ceef",
+    "previousRoot": "6a89dbc33bb4e6336c6e69f9dcddcb888e0c113e74eec65a594f279160002f72",
+    "proposedRoot": "2776c762b057d050e364938ae88a4ba31f87e451f58bdc3cd1ced1bfab965dfd",
+    "batchTxDigest": "4172adbd16701c86cf0a0457ea2bedff9a5e58be3fef84d2fd97866866f0401c",
+    "txid": "7ccc11820d2fa838f8667dc06599a436f2a318b6cdff7d78174facd9c6e915a6",
+    "bitcoinSpendabilityVerified": false
+  }
+}

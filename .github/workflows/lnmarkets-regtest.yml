@@ -1,0 +1,47 @@
+name: LN Markets Core regtest
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lnmarkets-regtest-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  regtest:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Install pinned Bitcoin Core 31.1
+        working-directory: ${{ runner.temp }}
+        run: |
+          curl --fail --location --silent --show-error --retry 3 -O \
+            https://bitcoincore.org/bin/bitcoin-core-31.1/bitcoin-31.1-x86_64-linux-gnu.tar.gz
+          echo 'b80d9c3e04da78fb6f0569685673418cf686fadba9042d926d13fb87ff503f9e  bitcoin-31.1-x86_64-linux-gnu.tar.gz' \
+            | sha256sum --check --strict
+          tar -xzf bitcoin-31.1-x86_64-linux-gnu.tar.gz
+      - name: Rehearse collaborative funding and both recovery paths
+        run: |
+          node LNMarkets/regtest.js \
+            --bitcoin-bin "$RUNNER_TEMP/bitcoin-31.1/bin" \
+            --out "$RUNNER_TEMP/lnmarkets-regtest"
+      - name: Upload public Core evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lnmarkets-core-regtest
+          path: |
+            ${{ runner.temp }}/lnmarkets-regtest/summary.json
+            ${{ runner.temp }}/lnmarkets-regtest/cet/**/*.json
+            ${{ runner.temp }}/lnmarkets-regtest/refund/**/*.json
